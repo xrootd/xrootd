@@ -198,7 +198,7 @@ check_library() {
     done
     slibs=""
     for i in $lib ; do
-        for ext in .so .sl .dylib ; do
+        for ext in .so .sl .dylib .so.0 ; do
             slibs="$slibs $i$ext"
         done
     done
@@ -717,7 +717,8 @@ Advanced options:
    --no-arch-subdirs   Do not use architecture dependent names for bin/lib paths
    --build-client-only Build only the client related stuff
    --build-sec-only    Build only security modules
-   --use-xrd-strlcpy   Force use of the xrd implementation of strlcpy 
+   --use-xrd-strlcpy   Force use of the xrd implementation of strlcpy
+   --use-libtcmalloc   Use the thread-caching malloc implementation if available
    --has-getpbynr      Do not check for getprotobyname_r
    --with-gethbynr=dir Do not check for gethostbyname_r, take prototype from 'dir'/netdb.h
    --with-nameinfo=dir Do not check for getnameinfo, take prototype from 'dir'/netdb.h
@@ -844,6 +845,7 @@ if test $# -gt 0 ; then
       --has-sigwaitinfo)       hassigwti="yes" ;;
       --has-fstatat)           hasfstatat="yes"      ;;
       --has-readline)          hasreadline="yes"     ;;
+      --use-libtcmalloc)       enable_libtcmalloc="yes"  ;;
       --with-afs=*)            afsdir=$optarg        ; enable_afs="yes"     ;;
       --with-afs-incdir=*)     afsincdir=$optarg     ; enable_afs="yes"    ;;
       --with-afs-libdir=*)     afslibdir=$optarg     ; enable_afs="yes"    ;;
@@ -1300,6 +1302,39 @@ if test "x$haslibz" != "x"; then
    fi
 fi
 
+######################################################################
+#
+### echo %%% Check for libtcmalloc
+#
+
+
+libtcmalloc=""
+if test "x$enable_libtcmalloc" = "xyes"; then
+  if test "x$syslibs" = "x" ; then
+     what2look4="/usr/lib /usr/local/lib /opt/lib $finkdir/lib"
+  else
+     what2look4="$syslibs"
+  fi
+
+  if test "x$haslibz" != "x"; then
+     check_library "libtcmalloc" "$enable_shared" "" $what2look4
+     if test "x$found_lib" = "x" ; then
+          libtcmalloc=""
+     else
+        libtcmalloc="$found_dir $found_lib"
+     fi
+
+     if test "x$libtcmalloc" = "x"; then
+       check_library "libtcmalloc_minimal" "$enable_shared" "" $what2look4
+       if test "x$found_lib" = "x" ; then
+            libtcmalloc=""
+       else
+          libtcmalloc="$found_dir $found_lib"
+       fi
+     fi
+  fi
+
+fi
 
 ######################################################################
 #
@@ -2669,6 +2704,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasepoll@|$hasepoll|" \
     -e "s|@haslibz@|$haslibz|" \
     -e "s|@libz@|$libz|" \
+    -e "s|@libtcmalloc|$libtcmalloc@|" \
     -e "s|@hassendfile@|$hassendfile|" \
     -e "s|@hassigwti@|$hassigwti|" \
     -e "s|@hassetresuid@|$hassetresuid|" \
