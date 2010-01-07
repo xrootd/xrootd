@@ -204,7 +204,7 @@ $(XRDSTAGETOOL): $(OBJECTS) $(OBJECT_STAGETOOL) $(LIBDEPS)
 
 $(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
 	@echo Creating executable $(XRDCLI) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDCLI)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBM) $(LIBS) $(LIBREADLINE) -o $(XRDCLI)
 
 $(XRDADMIN): $(PERLMOD)
 	$(ECHO)if [ "$(PERLBIN)" != "" ]; then \
@@ -589,7 +589,7 @@ $(OBJDIR)/XrdCommandLine.o: XrdCommandLine.cc ../XrdClient/XrdClientUrlInfo.hh \
   ../XrdOuc/XrdOucEnv.hh ../XrdSys/XrdSysHeaders.hh ../XrdSys/XrdSysLogger.hh \
   ../XrdClient/XrdClientAdmin.hh
 	@echo Compiling XrdCommandLine.cc
-	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCommandLine.o XrdCommandLine.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFREADLINE) $(INCLUDE) -o $(OBJDIR)/XrdCommandLine.o XrdCommandLine.cc
 
 $(OBJDIR)/XrdClientEnv.o: XrdClientEnv.cc ../XrdClient/XrdClientConst.hh \
   ../XrdClient/XrdClientEnv.hh ../XrdOuc/XrdOucEnv.hh \
