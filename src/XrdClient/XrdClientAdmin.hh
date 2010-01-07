@@ -105,6 +105,14 @@ class XrdClientAdmin : public XrdClientAbs {
    bool                            ExistDirs(vecString&,
                                              vecBool&);
 
+   // Compute an estimation of the available free space in the given cachefs partition
+   // The estimation can be fooled if multiple servers mount the same network storage
+   bool                            GetSpaceInfo(const char *logicalname,
+                                                long long &totspace,
+                                                long long &totfree,
+                                                long long &totused,
+                                                long long &largestchunk);
+   
    long                            GetChecksum(kXR_char *path,
                                                kXR_char **chksum);
 

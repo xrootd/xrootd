@@ -1435,3 +1435,102 @@ void XrdClientAdmin::GoBackToRedirector() {
 
 
 }
+
+
+
+// Compute an estimation of the available free space in the given cachefs partition
+// The estimation can be fooled if multiple servers mount the same network storage
+bool XrdClientAdmin::GetSpaceInfo(const char *logicalname,
+                                  long long &totspace,
+                                  long long &totfree,
+                                  long long &totused,
+                                  long long &largestchunk) {
+
+   bool ret = true;
+   XrdClientVector<XrdClientLocate_Info> hosts;
+
+   totspace = 0;
+   totfree = 0;
+   totused = 0;
+   largestchunk = 0;
+
+
+   if (!Locate((kXR_char *)"*", hosts)) return false;
+
+   // Then we cycle among them asking everyone
+   for (int i = 0; i < hosts.GetSize(); i++) {
+
+      fConnModule->Disconnect(false);
+      XrdClientUrlInfo url((const char *)hosts[i].Location);
+
+      url.Proto = "root";
+
+      if (fConnModule->GoToAnotherServer(url) != kOK) {
+         ret = false;
+         break;
+      }
+
+
+
+      // Fire the query request and update the results
+      ClientRequest qspacereq;
+
+      // Set the max transaction duration
+      fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
+
+
+      memset( &qspacereq, 0, sizeof(qspacereq) );
+
+      fConnModule->SetSID(qspacereq.header.streamid);
+
+      qspacereq.query.requestid = kXR_query;
+      qspacereq.query.infotype = kXR_Qspace;
+      qspacereq.query.dlen = ( logicalname ? strlen(logicalname) : 0);
+
+      char *resp = 0;
+      if (fConnModule->SendGenCommand(&qspacereq, logicalname,
+                                      (void **)&resp, 0, TRUE,
+                                      (char *)"GetSpaceInfo")) {
+
+         XrdOucString rs(resp), s;
+         free(resp);
+
+         // Here we have the response relative to a server
+         // Now we are going to have fun in parsing it
+
+         int from = 0;
+         while ((from = rs.tokenize(s,from,'&')) != -1) {
+            if (s.length() < 4) continue;
+
+            int pos = s.find("=");
+            XrdOucString tk, val;
+            if (pos != STR_NPOS) {
+               tk.assign(s, 0, pos-1);
+               val.assign(s, pos+1);
+
+               if ( (tk == "oss.space") && (val.length() > 1) ) {
+                  totspace += atoll(val.c_str());
+               } else
+                  if ( (tk == "oss.free") && (val.length() > 1) ) {
+                     totfree += atoll(val.c_str());
+                  } else
+                     if ( (tk == "oss.maxf") && (val.length() > 1) ) {
+                        largestchunk = xrdmax(largestchunk, atoll(val.c_str()));
+                     } else
+                        if ( (tk == "oss.used") && (val.length() > 1) ) {
+                           totused += atoll(val.c_str());
+                        }
+            }
+         }
+
+
+      }
+
+   }
+
+   // At the end we want to rewind to the main redirector in any case
+   GoBackToRedirector();
+   return ret;
+
+
+}

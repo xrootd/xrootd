@@ -200,6 +200,8 @@ void PrintHelp() {
       "  stages a file in." << endl <<
       " query <reqcode> <parms>" << endl <<
       "  obtain server information" << endl <<
+      " queryspace <logicalname>" << endl <<
+      "  obtain space information" << endl <<
       endl <<
       "For further information, please read the xrootd protocol documentation." << endl <<
       endl;
@@ -1390,6 +1392,38 @@ int main(int argc, char**argv) {
 	 cout << endl;
 	
       }
+      else
+      // -------------------------- queryspace ---------------------------
+      if (!strcmp(cmd, "queryspace")) {
+
+	 if (!genadmin) {
+	    cout << "Not connected to any server." << endl;
+	    retval = 1;
+	 }
+
+	 char *ns = tkzer.GetToken(0, 0);
+         long long totspace;
+         long long totfree;
+         long long totused;
+         long long largestchunk;
+
+	 genadmin->GetSpaceInfo(ns, totspace, totfree, totused, largestchunk);
+
+	 // Now check the answer
+	 if (!CheckAnswer(genadmin))
+	   retval = 1;
+      
+	 cout << "Disk space approximations (MB):" << endl <<
+            "Total         : " << totspace/(1024*1024) << endl <<
+            "Free          : " << totfree/(1024*1024) << endl <<
+            "Used          : " << totused/(1024*1024) << endl <<
+            "Largest chunk : " << largestchunk/(1024*1024) << endl;
+
+	 cout << endl;
+         XrdOucString s1("s1"), s2("s2");
+         s1 = s1 + s2 + "argh";
+         cout << s1;
+      }
       else {
 
 	// ---------------------------------------------------------------------
@@ -1399,7 +1433,7 @@ int main(int argc, char**argv) {
       }
 
       
-      free(linebuf);
+      delete[] linebuf;
 
       // if it was a cmd from the commandline...
       if (cmdline_cmd.length() > 0) break;
