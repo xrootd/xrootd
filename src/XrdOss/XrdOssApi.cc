@@ -446,7 +446,6 @@ int XrdOssDir::Opendir(const char *dir_path)
        if ((lclfd = opendir((char *)local_path))) {isopen = 1; return XrdOssOK;}
           else if (!isremote) return -errno;
       }
-   TRACE(Opendir, "rmt path " <<remote_path <<" (" <<dir_path <<")");
 
 // Generate remote path
 //
@@ -455,6 +454,8 @@ int XrdOssDir::Opendir(const char *dir_path)
          return retc;
          else remote_path = actual_path;
       else remote_path = (char *)dir_path;
+
+   TRACE(Opendir, "rmt path " << remote_path <<" (" << dir_path <<")");
 
 // If NOCHECK is in effect and we have an mss meta-cmd, just do a stat
 //
