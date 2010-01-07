@@ -1172,7 +1172,7 @@ XrdOucString const operator+(const char c, const XrdOucString s)
 }
 
 //______________________________________________________________________________
-XrdOucString const operator+(int i, const XrdOucString s)
+XrdOucString const operator+(const int i, const XrdOucString s)
 {
    // Binary operator+
    XrdOucString res(s.length()+kMAXINT64LEN);
