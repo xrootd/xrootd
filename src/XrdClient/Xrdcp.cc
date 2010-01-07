@@ -662,12 +662,13 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
                cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0);
 
             free(buf);
-         }
 
-         if (!xrdxtrdfile && ((buf == 0) || (len == 0)) && (bytesread >= size)) {
-            if (buf) free(buf);
-            break;
          }
+         else
+            if (!xrdxtrdfile && ( ((buf == 0) && (len == 0)) || (bytesread >= size))) {
+               if (buf) free(buf);
+               break;
+            }
 
       }
       else {
@@ -933,12 +934,13 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 	      cpnfo.mon->PutProgressInfo(bytesread, cpnfo.len, (float)bytesread / cpnfo.len * 100.0);
 
 	    free(buf);
-	 }
 
-         if (!xrdxtrdfile && ((buf == 0) || (len == 0)) && (bytesread >= size)) {
-            if (buf) free(buf);
-            break;
-         }
+	 }
+         else
+            if (!xrdxtrdfile && ( ((buf == 0) && (len == 0)) || (bytesread >= size)) ) {
+               if (buf) free(buf);
+               break;
+            }
 
 
       }
