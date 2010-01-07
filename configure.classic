@@ -206,7 +206,7 @@ check_library() {
     done
     slibs=""
     for i in $lib ; do
-        for ext in .so .sl .dylib .so.0 ; do
+        for ext in .so .sl .dylib ; do
             slibs="$slibs $i$ext"
         done
     done
