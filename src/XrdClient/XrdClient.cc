@@ -1195,7 +1195,10 @@ bool XrdClient::Close() {
     }
 
     ClientRequest closeFileRequest;
-  
+
+    // Set the max transaction duration
+    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
+
     memset(&closeFileRequest, 0, sizeof(closeFileRequest) );
 
     fConnModule->SetSID(closeFileRequest.header.streamid);
