@@ -17,6 +17,7 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <string.h>
 
 class XrdOucEnv;
 class XrdSysLogger;
