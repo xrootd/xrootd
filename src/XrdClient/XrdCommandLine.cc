@@ -511,12 +511,15 @@ int main(int argc, char**argv) {
             // Now try to issue the request
             XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
             if (!genadmin->DirList(pathtodo.c_str(), nfo, true)) {
+               nfo.Clear();
                retval = 1;  
             }
 
             // Now check the answer
-            if (!CheckAnswer(genadmin))
+            if (!CheckAnswer(genadmin)) {
+               nfo.Clear();
                retval = 1;
+            }
       
             for (int i = 0; i < nfo.GetSize(); i++) {
                if (nfo[i].flags & kXR_isDir)
@@ -582,13 +585,16 @@ int main(int argc, char**argv) {
 	 // Now try to issue the request
          XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
 	 if (!genadmin->DirList(path.c_str(), nfo, true)) {
+            nfo.Clear();
             retval = 1;
             
          }
 
 	 // Now check the answer
-	 if (!CheckAnswer(genadmin))
+	 if (!CheckAnswer(genadmin)) {
 	    retval = 1;
+            nfo.Clear();
+         }
       
 
             for (int i = 0; i < nfo.GetSize(); i++) {
@@ -1420,9 +1426,7 @@ int main(int argc, char**argv) {
             "Largest chunk : " << largestchunk/(1024*1024) << endl;
 
 	 cout << endl;
-         XrdOucString s1("s1"), s2("s2");
-         s1 = s1 + s2 + "argh";
-         cout << s1;
+
       }
       else {
 
