@@ -25,6 +25,7 @@ const char *XrdCommandLineCVSID = "$Id$";
 #include <unistd.h>
 #include <stdarg.h>
 #include <sstream>
+#include <signal.h>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -96,6 +97,15 @@ XrdOucString currentpath;
 XrdOucString  cmdline_cmd;
 
 ///////////////////////
+
+
+void
+CtrlCHandler(int sig) {
+   cerr << endl << "Please use 'exit' to terminate this program." << endl;
+   return;
+}
+
+
 
 void PrintUsage() {
    cerr << "usage: xrd [host]"
@@ -267,6 +277,7 @@ void PrintLocateInfo(XrdClientLocate_Info &loc) {
 int main(int argc, char**argv) {
 
    int retval = 0;
+   signal(SIGINT, CtrlCHandler);
 
    DebugSetLevel(0);
 
@@ -513,17 +524,25 @@ int main(int argc, char**argv) {
             if (!genadmin->DirList(pathtodo.c_str(), nfo, true)) {
                nfo.Clear();
                retval = 1;  
+               cout << "Error listing path '" << pathtodo << "'." << endl;
+               break;
             }
 
             // Now check the answer
             if (!CheckAnswer(genadmin)) {
                nfo.Clear();
                retval = 1;
+               cout << "Error listing path '" << pathtodo << "'." << endl;
+               break;
             }
       
             for (int i = 0; i < nfo.GetSize(); i++) {
-               if (nfo[i].flags & kXR_isDir)
+               if ((nfo[i].flags & kXR_isDir) &&
+                   (nfo[i].flags & kXR_readable) &&
+                   (nfo[i].flags & kXR_xset))
+
                   pathq.Push_back(nfo[i].fullpath);
+
                char ts[256];
                strcpy(ts, "n/a");
 
@@ -553,7 +572,7 @@ int main(int argc, char**argv) {
 
             }
             
-            cout << endl;
+            if (nfo.GetSize()) cout << endl;
          }
 
       }
