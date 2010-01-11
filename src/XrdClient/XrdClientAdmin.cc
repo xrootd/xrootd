@@ -1020,25 +1020,26 @@ bool  XrdClientAdmin::DirList_low(const char *dir, vecString &entries) {
    // Now parse the answer building the entries vector
    if (ret) {
 
-      kXR_char *entry, *startp = dl, *endp = dl;
+      kXR_char *startp = dl, *endp = dl;
+      char entry[1024];
+      XrdOucString e;
 
-      while (endp) {
+      while (startp) {
 
 	 if ( (endp = (kXR_char *)strchr((const char*)startp, '\n')) ) {
-            entry = (kXR_char *)malloc(endp-startp+1);
-            memset((char *)entry, 0, endp-startp+1);
-	    strncpy((char *)entry, (char *)startp, endp-startp);
+	    strncpy(entry, (char *)startp, endp-startp);
+            entry[endp-startp] = 0;
 	    endp++;
 	 }
 	 else
-	    entry = (kXR_char *)strdup((char *)startp);
+	    strcpy(entry, (char *)startp);
       
-	 if (entry && strlen((char *)entry)) {
-	    XrdOucString e((const char *)entry);
 
+         if (strlen(entry) && strcmp((char *)entry, ".") && strcmp((char *)entry, "..")) {
+	    e = entry;
 	    entries.Push_back(e);
-	    free(entry);
-	 }
+         }
+
 
 	 startp = endp;
       }
