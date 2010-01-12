@@ -1470,8 +1470,16 @@ bool XrdClientAdmin::GetSpaceInfo(const char *logicalname,
    totused = 0;
    largestchunk = 0;
 
+   if (fConnModule->GetServerProtocol() >= 0x291) {
+      if (!Locate((kXR_char *)"*", hosts)) return false;
+   }
+   else {
+      XrdClientLocate_Info nfo;
+      memset(&nfo, 0, sizeof(nfo));
+      strcpy((char *)nfo.Location, GetCurrentUrl().HostWPort.c_str());
+      hosts.Push_back(nfo);
+   }
 
-   if (!Locate((kXR_char *)"*", hosts)) return false;
 
    // Then we cycle among them asking everyone
    for (int i = 0; i < hosts.GetSize(); i++) {
