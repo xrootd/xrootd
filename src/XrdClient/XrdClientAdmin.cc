@@ -882,12 +882,20 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
    //
    bool ret = true;
    XrdClientVector<XrdClientLocate_Info> hosts;
-   if (askallservers) {
+   if (askallservers && (fConnModule->GetServerProtocol() >= 0x291)) {
       char str[1024];
       strcpy(str, "*");
       strncat(str, dir, 1023);
       if (!Locate((kXR_char *)str, hosts)) return false;
    }
+   else {
+      XrdClientLocate_Info nfo;
+      memset(&nfo, 0, sizeof(nfo));
+      strcpy((char *)nfo.Location, GetCurrentUrl().HostWPort.c_str());
+      hosts.Push_back(nfo);
+   }
+
+
    // Then we cycle among them asking everyone
    for (int i = 0; i < hosts.GetSize(); i++) {
 
@@ -932,12 +940,19 @@ bool  XrdClientAdmin::DirList(const char *dir,
    XrdClientVector<XrdClientLocate_Info> hosts;
    XrdOucString fullpath;
 
-   if (askallservers) {
+   if (askallservers && (fConnModule->GetServerProtocol() >= 0x291)) {
       char str[1024];
       strcpy(str, "*");
       strncat(str, dir, 1023);
       if (!Locate((kXR_char *)str, hosts)) return false;
    }
+   else {
+      XrdClientLocate_Info nfo;
+      memset(&nfo, 0, sizeof(nfo));
+      strcpy((char *)nfo.Location, GetCurrentUrl().HostWPort.c_str());
+      hosts.Push_back(nfo);
+   }
+
 
    // Then we cycle among them asking everyone
    for (int i = 0; i < hosts.GetSize(); i++) {
