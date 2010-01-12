@@ -9,7 +9,7 @@
 #######################################################################
 xrootdsecincdir = $(includedir)/xrootd/XrdSec
 
-xrootdsecinc_HEADERS = XrdSecInterface.hh XrdSecEntity.hh
+xrootdsecinc_HEADERS = XrdSecInterface.hh XrdSecEntity.hh XrdSecTLayer.hh
 
 lib_LTLIBRARIES = libXrdSec.la
 
