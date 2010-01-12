@@ -92,7 +92,7 @@ char *initialhost;
 
 XrdClient *genclient = 0;
 XrdClientAdmin *genadmin = 0;
-XrdOucString currentpath;
+XrdOucString currentpath = "/";
 
 XrdOucString  cmdline_cmd;
 
@@ -154,6 +154,8 @@ void PrintHelp() {
 
    cout << endl <<
       XRDCLI_VERSION << endl << endl <<
+      "Usage: xrd [-O<opaque_info>] [-DS<var_name> stringvalue] [-DI<var_name> integervalue] [host[:port]] [batchcommand]" << endl << endl <<
+
       "List of available commands:" << endl <<
       " cat <filename> [xrdcp parameters]" << endl <<
       "  outputs a file on standard output using xrdcp. <filename> can be a root:// URL." << endl <<
@@ -277,7 +279,7 @@ void PrintLocateInfo(XrdClientLocate_Info &loc) {
 int main(int argc, char**argv) {
 
    int retval = 0;
-   signal(SIGINT, CtrlCHandler);
+   //signal(SIGINT, CtrlCHandler);
 
    DebugSetLevel(0);
 
@@ -300,7 +302,8 @@ int main(int argc, char**argv) {
 	 continue;
       }
 
-      if ( (strstr(argv[i], "-h") == argv[i])) {
+      if ( (strstr(argv[i], "-h") == argv[i]) || 
+           (strstr(argv[i], "--help") == argv[i]) ) {
 	 PrintUsage();
 	 exit(0);
 	 continue;
@@ -396,18 +399,30 @@ int main(int argc, char**argv) {
 
 	 // Quite trivial directory processing
 	 if (!strcmp(parmname, "..")) {
+            if (currentpath == "/") continue;
+
 	    int pos = currentpath.rfind('/');
 
 	    if (pos != STR_NPOS)
 	       currentpath.erase(pos);
 
-	    retval = 1;
-	 }
+            if (!currentpath.length() || (currentpath[currentpath.length()-1] != '/')) {
+               currentpath += "/";
+            }
 
-	 if (!strcmp(parmname, "."))
 	    retval = 1;
+            continue;
+	 }
+         else
+            if (!strcmp(parmname, ".")) {
+               retval = 1;
+               continue;
+            }
 	    
-	 currentpath += "/";
+         if (!currentpath.length() || (currentpath[currentpath.length()-1] != '/')) {
+            currentpath += "/";
+         }
+
 	 currentpath += parmname;
 
       }
@@ -507,7 +522,7 @@ int main(int argc, char**argv) {
 	 else path = currentpath;
 
 	 if (!path.length()) {
-	    cout << "The current path is empty." << endl;
+	    cout << "The current path is an empty string. Assuming '/'." << endl;
 	    path = '/';
 	 }
 
@@ -597,7 +612,7 @@ int main(int argc, char**argv) {
 	 else path = currentpath;
 
 	 if (!path.length()) {
-	    cout << "The current path is empty." << endl;
+	    cout << "The current path is an empty string. Assuming '/'." << endl;
 	    path = '/';
 	 }
 
