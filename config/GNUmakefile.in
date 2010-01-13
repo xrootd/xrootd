@@ -230,6 +230,11 @@ XrdSecpwd: FORCE
 	$(ECHO)cd src/XrdSecpwd;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
+XrdSecssl: FORCE
+	@echo $(XMSG) secssl $(XDBG) component...
+	$(ECHO)cd src/XrdSecssl;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
 XrdSecsss: FORCE
 	@echo $(XMSG) secsss $(XDBG) component...
 	$(ECHO)cd src/XrdSecsss;\
