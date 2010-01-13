@@ -897,6 +897,7 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
 
 
    // Then we cycle among them asking everyone
+   bool foundsomething = false;
    for (int i = 0; i < hosts.GetSize(); i++) {
 
       fConnModule->Disconnect(false);
@@ -909,15 +910,22 @@ bool  XrdClientAdmin::DirList(const char *dir, vecString &entries, bool askallse
          break;
       }
 
-      if (!DirList_low(dir, entries)) {
-         ret = false;
-         break;
+      fConnModule->ClearLastServerError();
+      if (!DirList_low(dir, entries))  {
+         if (fConnModule->LastServerError.errnum != kXR_NotFound) {
+            ret = false;
+            break;
+         }
       }
+      else foundsomething = true;
+
 
    }
 
    // At the end we want to rewind to the main redirector in any case
    GoBackToRedirector();
+
+   if (!foundsomething) ret = false;
    return ret;
 }
 
@@ -955,6 +963,7 @@ bool  XrdClientAdmin::DirList(const char *dir,
 
 
    // Then we cycle among them asking everyone
+   bool foundsomething = false;
    for (int i = 0; i < hosts.GetSize(); i++) {
 
       fConnModule->Disconnect(false);
@@ -966,11 +975,17 @@ bool  XrdClientAdmin::DirList(const char *dir,
          break;
       }
 
+      fConnModule->ClearLastServerError();
+
       int precentries = entries.GetSize();
       if (!DirList_low(dir, entries)) {
-         ret = false;
-         break;
+         if ((fConnModule->LastServerError.errnum != kXR_NotFound) && (fConnModule->LastServerError.errnum != kXR_noErrorYet)) {
+            ret = false;
+            break;
+         }
       }
+      else foundsomething = true;
+
       int newentries = entries.GetSize();
 
       DirListInfo info;
@@ -994,7 +1009,7 @@ bool  XrdClientAdmin::DirList(const char *dir,
                    info.flags,
                    info.modtime)) {
             ret = false;
-            break;
+            //break;
          }
 
          dirlistinfo[k] = info;
@@ -1005,6 +1020,8 @@ bool  XrdClientAdmin::DirList(const char *dir,
 
    // At the end we want to rewind to the main redirector in any case
    GoBackToRedirector();
+
+   if (!foundsomething) ret = false;
    return ret;
  }
 
