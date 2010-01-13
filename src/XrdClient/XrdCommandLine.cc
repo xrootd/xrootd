@@ -406,8 +406,8 @@ int main(int argc, char**argv) {
 	    if (pos != STR_NPOS)
 	       currentpath.erase(pos);
 
-            if (!currentpath.length() || (currentpath[currentpath.length()-1] != '/')) {
-               currentpath += "/";
+            if (!currentpath.length()) {
+               currentpath = "/";
             }
 
 	    retval = 1;
@@ -423,7 +423,9 @@ int main(int argc, char**argv) {
             currentpath += "/";
          }
 
-	 currentpath += parmname;
+         if (parmname[0] == '/') currentpath = parmname;
+         else
+            currentpath += parmname;
 
       }
       else
@@ -516,8 +518,13 @@ int main(int argc, char**argv) {
 	 if (dirname) {
 	    if (dirname[0] == '/')
 	       path = dirname;
-	    else
-	       path = currentpath + "/" + dirname;
+	    else {
+               if ((currentpath.length() > 0) && (currentpath[currentpath.length()-1] != '/'))
+                  path = currentpath + "/" + dirname;
+               else
+                  path = currentpath + dirname;
+
+            }
 	 }
 	 else path = currentpath;
 
@@ -537,26 +544,45 @@ int main(int argc, char**argv) {
             // Now try to issue the request
             XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
             if (!genadmin->DirList(pathtodo.c_str(), nfo, true)) {
-               nfo.Clear();
                retval = 1;  
-               cout << "Error listing path '" << pathtodo << "'." << endl;
-               break;
+               cout << "Error listing path '" << pathtodo << "' in server " <<
+                  genadmin->GetCurrentUrl().HostWPort <<
+                  " The path does not exist in some servers or there are malformed filenames." << endl;
             }
 
             // Now check the answer
             if (!CheckAnswer(genadmin)) {
-               nfo.Clear();
                retval = 1;
-               cout << "Error listing path '" << pathtodo << "'." << endl;
-               break;
+               cout << "Error '" << genadmin->LastServerError()->errmsg <<
+                  "' listing path '" << pathtodo <<
+                  "' in server" << genadmin->GetCurrentUrl().HostWPort <<
+                  " or in some of its child nodes." << endl;
             }
       
             for (int i = 0; i < nfo.GetSize(); i++) {
+
                if ((nfo[i].flags & kXR_isDir) &&
                    (nfo[i].flags & kXR_readable) &&
-                   (nfo[i].flags & kXR_xset))
+                   (nfo[i].flags & kXR_xset)) {
+                  
 
-                  pathq.Push_back(nfo[i].fullpath);
+                  // The path has not to be pushed if it's already present
+                  // This may happen if several servers have the same path
+                  bool foundpath = false;
+                  for (int ii = 0; ii < pathq.GetSize(); ii++) {
+                     if (nfo[i].fullpath == pathq[ii]) {
+                        foundpath = true;
+                        break;
+                     }
+                  }
+                  
+                  if (!foundpath)
+                     pathq.Push_back(nfo[i].fullpath);
+                  else 
+                     // If the path is already present in the queue then it was already printed as well.
+                     continue;
+
+               }
 
                char ts[256];
                strcpy(ts, "n/a");
@@ -590,6 +616,7 @@ int main(int argc, char**argv) {
             if (nfo.GetSize()) cout << endl;
          }
 
+         if (retval) cout << "Errors during processing. Please check them." << endl;
       }
       else
       // -------------------------- dirlist ---------------------------
@@ -606,8 +633,13 @@ int main(int argc, char**argv) {
 	 if (dirname) {
 	    if (dirname[0] == '/')
 	       path = dirname;
-	    else
-	       path = currentpath + "/" + dirname;
+	    else {
+               if ((currentpath.length() > 0) && (currentpath[currentpath.length()-1] != '/'))
+                  path = currentpath + "/" + dirname;
+               else
+                  path = currentpath + dirname;
+
+            }
 	 }
 	 else path = currentpath;
 
@@ -619,7 +651,7 @@ int main(int argc, char**argv) {
 	 // Now try to issue the request
          XrdClientVector<XrdClientAdmin::DirListInfo> nfo;
 	 if (!genadmin->DirList(path.c_str(), nfo, true)) {
-            nfo.Clear();
+            //nfo.Clear();
             retval = 1;
             
          }
@@ -627,7 +659,7 @@ int main(int argc, char**argv) {
 	 // Now check the answer
 	 if (!CheckAnswer(genadmin)) {
 	    retval = 1;
-            nfo.Clear();
+            //nfo.Clear();
          }
       
 
@@ -661,7 +693,8 @@ int main(int argc, char**argv) {
 
             }
 
-	 cout << endl;
+            if (retval) cout << "Errors during processing. Please check." << endl;
+            cout << endl;
 
       }
       else
