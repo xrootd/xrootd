@@ -904,7 +904,8 @@ bool XrdClientConn::CheckErrorStatus(XrdClientMessage *mex, short &Retry, char *
 
 	    fOpenError = (XErrorCode)ntohl(body_err->errnum);
  
-	    Info(XrdClientDebug::kNODEBUG, "CheckErrorStatus", "Server declared: " <<
+	    Info(XrdClientDebug::kNODEBUG, "CheckErrorStatus", "Server [" << GetCurrentUrl().HostWPort <<
+                 "] declared: " <<
 		 (const char*)body_err->errmsg << "(error code: " << fOpenError << ")");
 
 	    // Save the last error received
