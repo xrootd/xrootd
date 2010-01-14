@@ -112,7 +112,7 @@ int XrdCnsLogServer::Init(XrdOucTList *rList)
 //
    if (Stat.st_size != 0)
       {XrdCnsLogFile myLogFile(logDir);
-       if (!myLogFile.Open(0) || !myLogFile.Eol()) return 0;
+       if (!myLogFile.Open(0, Stat.st_size) || !myLogFile.Eol()) return 0;
       }
    unlink(logDir);
 

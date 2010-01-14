@@ -188,7 +188,7 @@ XrdCnsLogRec *XrdCnsLogFile::getRec()
 /*                                  O p e n                                   */
 /******************************************************************************/
   
-int XrdCnsLogFile::Open(int allocbuff)
+int XrdCnsLogFile::Open(int allocbuff, off_t thePos)
 {
    static const int AMode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
@@ -196,6 +196,13 @@ int XrdCnsLogFile::Open(int allocbuff)
 //
    if ((logFD = open(logFN, O_CREAT|O_RDWR, AMode)) < 0)
       {MLog.Emsg("Open", errno, "open", logFN); return 0;}
+
+// Set starting position if need be
+//
+   if (thePos && lseek(logFD, thePos, SEEK_SET))
+      {MLog.Emsg("Open", errno, "seek into", logFN); close(logFD), logFD = -1;
+       return 0;
+      }
 
 // Allocate a memory buffer if so wanted
 //

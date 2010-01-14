@@ -37,7 +37,7 @@ static void    maxRecs(int nRecs) {logRMax = nRecs;
                                    logBMax = nRecs * sizeof(XrdCnsLogRec);
                                   }
 
-int            Open(int aBuff=1);
+int            Open(int aBuff=1, off_t thePos=0);
 
 XrdCnsLogFile *Subscribe(const char *Path, int cNum);
 
