@@ -138,7 +138,7 @@ int XrdCnsSsiCfg::Configure(int argc, char **argv, const char *Opts)
 // Make sure we have some host entries
 //
    if (!(dirList = XrdCnsLog::Dirs(bPath, n)))
-      {Say.M("No server inventories found in'",bPath,"'."); return 0;}
+      {Say.M("No server inventories found in '",bPath,"'."); return 0;}
 
 // Issue warning if errors occurred
 //
