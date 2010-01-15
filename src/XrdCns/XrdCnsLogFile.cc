@@ -199,7 +199,7 @@ int XrdCnsLogFile::Open(int allocbuff, off_t thePos)
 
 // Set starting position if need be
 //
-   if (thePos && lseek(logFD, thePos, SEEK_SET))
+   if (thePos && (lseek(logFD, thePos, SEEK_SET) == (off_t)-1))
       {MLog.Emsg("Open", errno, "seek into", logFN); close(logFD), logFD = -1;
        return 0;
       }
