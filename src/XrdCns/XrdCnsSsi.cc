@@ -612,9 +612,9 @@ XrdCnsSsiFRec *XrdCnsSsi::AddFile(char *lfn, char *lP)
 
 // Extract out the directory, file name, space name and mount point, if any
 //
-   if ((sP = index(lfn, '?'))) *sP++ = '\0';
+   if ((sP = index(lfn, ' '))) *sP++ = '\0';
    if (!(fP = rindex(lfn+1, '/')) || !(*(fP+1)))
-      {if (sP) *(sP-1) = '?';
+      {if (sP) *(sP-1) = ' ';
        Say.V("Invalid log record ", lP); nErrs++;
        return 0;
       }
