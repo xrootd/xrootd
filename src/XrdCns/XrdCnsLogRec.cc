@@ -144,7 +144,7 @@ int XrdCnsLogRec::setData(const char *dP1, const char *dP2)
 // Add the data in the fields
 //
    setSize(static_cast<long long>(Rec.Hdr.lfn1Len));
-   dP = Rec.Data.lfn + Rec.Hdr.lfn1Len;
+   dP = Rec.Data.lfn + Rec.Hdr.lfn1Len+1;
    strcpy(dP, dP1);
    dP += n1; *dP++ = ' ';
    strcpy(dP, dP2);
