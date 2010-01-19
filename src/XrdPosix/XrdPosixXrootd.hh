@@ -59,7 +59,7 @@ static int     Mkdir(const char *path, mode_t mode);
 static const int isStream = 0x40000000; // Internal for Open oflag
 
 static int     Open(const char *path, int oflag, mode_t mode=0,
-                    XrdPosixCallBack *cbP=0, void *cbA=0);
+                    XrdPosixCallBack *cbP=0);
 
 static DIR*    Opendir(const char *path);
   
@@ -115,6 +115,7 @@ static
 inline bool    myFD(int fd) {return fd <= highFD && myFiles && myFiles[fd];}
 
 static int     OpenCB(int res, XrdPosixFile *fp, void *cbArg);
+static int     OpenCB(XrdPosixFile *fp=0, int rC=0, int eC=0);
 
 static long long QueryOpaque(const char*, char*, int);
 
@@ -126,7 +127,7 @@ static void    setEnv(const char *var, long val);
 
 static int     Debug;
 
-               XrdPosixXrootd(int maxfd=255, int maxdir=255);
+               XrdPosixXrootd(int maxfd=255, int maxdir=255, int maxthr=255);
               ~XrdPosixXrootd();
 
 private:
@@ -149,5 +150,6 @@ static int            lastDir;
 static int            highDir;
 static int            devNull;
 static int            pllOpen;
+static int            maxThreads;
 };
 #endif

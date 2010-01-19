@@ -18,22 +18,18 @@
 // supplied, Open() will *always* return -1. However, if started successfully,
 // Open() will return -1 with errno set to EINPROGRESS. Otherwise, errno will
 // contain the reason the Open() request immediately failed. Upon completion,
-// the callback's Compete() method is invoked with the optionally supplied
-// argument. The Result parameter will either be a non-negative file descriptor
-// or -errno indicating that the Open() failed. Note that the caller is
-// responsible for deleting the callback object after it has been invoked.
+// the callback's Compete() method is invoked.  The Result parameter will either
+// be a non-negative file descriptor or -errno indicating that the Open()
+// failed. Note that the caller is responsible for deleting the callback object
+// after it has been invoked.
 
 class XrdPosixCallBack
 {
 public:
 
-virtual void Complete(int Result, void *Arg) = 0;
+virtual void Complete(int Result) = 0;
 
-             XrdPosixCallBack(void *userArg) : theArg(userArg) {}
+             XrdPosixCallBack() {}
 virtual     ~XrdPosixCallBack() {}
-
-protected:
-
-void *theArg;
 };
 #endif
