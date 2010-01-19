@@ -21,7 +21,8 @@
 // the callback's Compete() method is invoked.  The Result parameter will either
 // be a non-negative file descriptor or -errno indicating that the Open()
 // failed. Note that the caller is responsible for deleting the callback object
-// after it has been invoked.
+// after it has been invoked. Note that callbacks will be executed in a
+// separate thread unless open() is called with O_SYNC or maxThreads is zero.
 
 class XrdPosixCallBack
 {
