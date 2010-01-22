@@ -83,7 +83,7 @@ XrdCnsLogRec *XrdCnsLogRec::Get(char &lrType)
          qSem.Wait();
          qMutex.Lock();
         }
-   frstRec = lrP->Next;
+   if (!(frstRec = lrP->Next)) lastRec = 0;
    qMutex.UnLock();
 
 // Get the type and if its an eol marker recycle now

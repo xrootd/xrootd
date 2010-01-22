@@ -206,7 +206,7 @@ do{nRecs = Config.qLim; lfP = logFile;
 
    while(nRecs && (lrP = XrdCnsLogRec::Get(lrT)))
         {if (lrP->Type() == XrdCnsLogRec::lrCreate) Massage(lrP);
-         lfP->Add(lrP);
+         lfP->Add(lrP); lrP->Recycle();
          nRecs--;
         }
 
@@ -219,4 +219,8 @@ do{nRecs = Config.qLim; lfP = logFile;
        delete lfP;
       }
   } while(1);
+
+// At the moment we don't really have a recovery strategy
+//
+   MLog.Emsg("Run", "Fatal error occurred; terminating. . .");
 }

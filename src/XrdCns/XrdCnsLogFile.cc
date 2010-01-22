@@ -122,7 +122,7 @@ int XrdCnsLogFile::Commit()
   
 int XrdCnsLogFile::Eol()
 {
-   XrdCnsLogFile *lfP = subNext;
+   XrdCnsLogFile *lfX, *lfP = subNext;
    XrdCnsLogRec   lRec(XrdCnsLogRec::lrEOL);
    int rc, bL = XrdCnsLogRec::MinSize + lRec.DLen();
    char *bP = (char *)&lRec;
@@ -141,8 +141,9 @@ int XrdCnsLogFile::Eol()
    while(lfP)
         {lfP->logSem.Post();
          lfP->logWait = 0;
-         lfP->synSem.Post();
+         lfX = lfP;
          lfP = lfP->subNext;
+         lfX->synSem.Post();
         }
 
 // All done
@@ -166,6 +167,10 @@ XrdCnsLogRec *XrdCnsLogFile::getRec()
        bL = XrdCnsLogRec::MinSize; recOffset = logOffset;
 
        if (!Read(bP, bL) || !((bL = Rec.DLen()))) return 0;
+       if (bL > XrdCnsLogRec::MinSize)
+          {MLog.Emsg("getRec", "Invalid record length detected in", logFN);
+           return 0;
+          }
 
        bP = bP + XrdCnsLogRec::MinSize;
        if (!Read(bP, bL)) return 0;
