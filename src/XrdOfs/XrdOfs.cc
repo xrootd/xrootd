@@ -227,7 +227,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 */
 {
    EPNAME("opendir");
-   XrdOucEnv Open_Env(info);
+   XrdOucEnv Open_Env(info,0,client);
    int retc;
 
 // Trace entry
@@ -422,7 +422,7 @@ int XrdOfsFile::open(const char          *path,      // In
    mode_t theMode = Mode & S_IAMB;
    int retc, isPosc = 0, crOpts = 0, isRW = 0, open_flag = 0;
    int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET);
-   XrdOucEnv Open_Env(info);
+   XrdOucEnv Open_Env(info,0,client);
 
 // Trace entry
 //
@@ -1194,7 +1194,7 @@ int XrdOfs::chmod(const char             *path,    // In
    EPNAME("chmod");
    mode_t acc_mode = Mode & S_IAMB;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv chmod_Env(info);
+   XrdOucEnv chmod_Env(info,0,client);
    int retc;
    XTRACE(chmod, path, "");
 
@@ -1261,7 +1261,7 @@ int XrdOfs::exists(const char                *path,        // In
    struct stat fstat;
    int retc;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv stat_Env(info);
+   XrdOucEnv stat_Env(info,0,client);
    XTRACE(exists, path, "");
 
 // Apply security, as needed
@@ -1375,7 +1375,7 @@ int XrdOfs::fsctl(const int               cmd,
    if (opcode == SFS_FSCTL_STATLS)
       {const char *path;
 	char pbuff[1024], *opq = (char *) index(args, '?');
-       XrdOucEnv statls_Env(opq ? opq+1 : 0);
+       XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
        if (!opq) path = args;
           else {int plen = opq-args;
                 if (plen >= (int)sizeof(pbuff)) plen = sizeof(pbuff)-1;
@@ -1478,7 +1478,7 @@ int XrdOfs::mkdir(const char             *path,    // In
    mode_t acc_mode = Mode & S_IAMB;
    int retc, mkpath = Mode & SFS_O_MKPTH;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv mkdir_Env(info);
+   XrdOucEnv mkdir_Env(info,0,client);
    XTRACE(mkdir, path, "");
 
 // Apply security, as needed
@@ -1564,7 +1564,7 @@ int XrdOfs::remove(const char              type,    // In
    EPNAME("remove");
    int retc, Opt;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv rem_Env(info);
+   XrdOucEnv rem_Env(info,0,client);
    XTRACE(remove, path, type);
 
 // Apply security, as needed
@@ -1632,8 +1632,8 @@ int XrdOfs::rename(const char             *old_name,  // In
    EPNAME("rename");
    int retc;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv old_Env(infoO);
-   XrdOucEnv new_Env(infoN);
+   XrdOucEnv old_Env(infoO,0,client);
+   XrdOucEnv new_Env(infoN,0,client);
    XTRACE(rename, new_name, "old fn=" <<old_name <<" new ");
 
 // Apply security, as needed
@@ -1696,7 +1696,7 @@ int XrdOfs::stat(const char             *path,        // In
    EPNAME("stat");
    int retc;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv stat_Env(info);
+   XrdOucEnv stat_Env(info,0,client);
    XTRACE(stat, path, "");
 
 // Apply security, as needed
@@ -1741,7 +1741,7 @@ int XrdOfs::stat(const char             *path,        // In
    struct stat buf;
    int retc;
    const char *tident = einfo.getErrUser();
-   XrdOucEnv stat_Env(info);
+   XrdOucEnv stat_Env(info,0,client);
    XTRACE(stat, path, "");
 
 // Apply security, as needed
@@ -1787,7 +1787,7 @@ int XrdOfs::truncate(const char             *path,    // In
 {
    EPNAME("truncate");
    const char *tident = einfo.getErrUser();
-   XrdOucEnv trunc_Env(info);
+   XrdOucEnv trunc_Env(info,0,client);
    int retc;
    XTRACE(truncate, path, "");
 
