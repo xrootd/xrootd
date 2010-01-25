@@ -240,7 +240,7 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, const struct iovec *iod,
    EPNAME("Broadcast")
    int i;
    XrdCmsNode *nP;
-   SMask_t bmask, unQueried = 0;
+   SMask_t bmask, unQueried(0);
 
 // Obtain a lock on the table and screen out peer nodes
 //
@@ -307,7 +307,7 @@ SMask_t XrdCmsCluster::getMask(unsigned int IPv4adr)
 {
    int i;
    XrdCmsNode *nP;
-   SMask_t smask = 0;
+   SMask_t smask(0);
 
 // Obtain a lock on the table
 //
@@ -330,7 +330,7 @@ SMask_t XrdCmsCluster::getMask(unsigned int IPv4adr)
 SMask_t XrdCmsCluster::getMask(const char *Cid)
 {
    XrdCmsNode *nP;
-   SMask_t smask = 0;
+   SMask_t smask(0);
    XrdOucTList *cP;
    int i = 1, Cnum = -1;
 
@@ -427,7 +427,7 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
 {
    EPNAME("Locate");
    XrdCmsPInfo   pinfo;
-   SMask_t       qfVec = 0;
+   SMask_t       qfVec(0);
    char         *Path;
    int           retc = 0;
 
@@ -503,7 +503,7 @@ void *XrdCmsCluster::MonPerf()
    struct iovec ioV[] = {{(char *)&Usage, sizeof(Usage)}};
    int ioVnum = sizeof(ioV)/sizeof(struct iovec);
    int ioVtot = sizeof(Usage);
-   SMask_t allNodes = ~static_cast<SMask_t>(0);
+   SMask_t allNodes(~0);
    int uInterval = Config.AskPing*Config.AskPerf;
 
 // Sleep for the indicated amount of time, then ask for load on each server
@@ -800,7 +800,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 int XrdCmsCluster::Select(int isrw, SMask_t pmask,
                           int &port, char *hbuff, int &hlen)
 {
-   static const SMask_t smLow = 255;
+   static const SMask_t smLow(255);
    XrdCmsNode *nP = 0;
    SMask_t tmask;
    int Snum = 0;
