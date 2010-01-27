@@ -11,8 +11,8 @@ MORELIBS = -L$(LIBDIR) -lXrdSec $(LIBSSL) $(LIBDIR)/libsslGridSite.a \
 
 LIBDEPS = $(LIBDIR)/libsslGridSite.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a $(LIBDIR)/libXrdNet.a
 
-NCXXFLAGS = $(INCSSL) $(SSLEXTRACFLAGS) $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
-NCFLAGS = $(INCXML) $(INCSSL) $(SSLEXTRACFLAGS) -U_FORTIFY_SOURCE $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
+NCXXFLAGS = $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
+NCFLAGS = $(INCXML) $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 -U_FORTIFY_SOURCE $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
  
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
