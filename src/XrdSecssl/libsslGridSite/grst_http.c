@@ -59,19 +59,18 @@ void GRSThttpBodyInit(GRSThttpBody *thisbody)
 }
 
 void GRSThttpPrintf(GRSThttpBody *thisbody, char *fmt, ...)
-/* append printf() style format and arguments to *thisbody.
-   This requires vasprintf from glibc!! */
+/* append printf() style format and arguments to *thisbody. */
+
 {
-  char    *p;
+  char    p[16384];
   size_t   size;
   va_list  args;
 
   va_start(args, fmt);
-  size = vasprintf(&p, fmt, args);  
+  size = vsprintf(p, fmt, args);  
   va_end(args);
 
-  if      (size == 0) free(p); /* don't need to bother in this case */
-  else if (size >  0)
+  if (size >  0)
     {
       if (thisbody->size == 0) /* need to initialise */
         {
@@ -454,14 +453,14 @@ char *GRSThttpUrlMildencode(char *in)
 char *GRSThttpMakeOneTimePasscode(time_t timestamp, char *method, char *url)
 {
   int    len, i;
-  char  *stringtohash, hashedstring[EVP_MAX_MD_SIZE], *returnstring;
+  char  stringtohash[16384], hashedstring[EVP_MAX_MD_SIZE], *returnstring;
   const EVP_MD *m;
   EVP_MD_CTX ctx;
 
   m = EVP_sha1();
   if (m == NULL) return NULL;
 
-  asprintf(&stringtohash, "%08x:%s:%s", timestamp, method, url);
+  sprintf(stringtohash, "%08x:%s:%s", timestamp, method, url);
  
   EVP_DigestInit(&ctx, m);
   EVP_DigestUpdate(&ctx, stringtohash, strlen(stringtohash));

@@ -19,6 +19,9 @@
 #include <grp.h>
 #include <pwd.h>
 
+#define OPENSSL_THREAD_DEFINES
+#include <openssl/opensslconf.h>
+
 #include <openssl/crypto.h>
 #include <openssl/x509v3.h>
 #include <openssl/ssl.h>
@@ -52,6 +55,11 @@
 #include "libsslGridSite/grst_verifycallback.h"
 #include "libsslGridSite/gridsite.h"
 
+#define EXPORTKEYSTRENGTH 10
+
+#define PROTOCOLSSL_MAX_CRYPTO_MUTEX 256
+
+
 // fix for SSL 098 stuff and g++ 
 
 #ifdef R__SSL_GE_098
@@ -67,6 +75,11 @@
                          *((c)++)=(unsigned char)(((l)>>16)&0xff), \
                          *((c)++)=(unsigned char)(((l)>> 8)&0xff), \
                          *((c)++)=(unsigned char)(((l)    )&0xff))
+
+#ifdef SUNCC
+#define __FUNCTION__ "-unknown-"
+#endif
+
 
 static XrdOucTrace        *SSLxTrace=0;
 
@@ -86,10 +99,17 @@ static  XrdSysMutex sessionmutex;
 public:
   XrdSecsslSessionLock() {sessionfd=0;}
   bool SoftLock() { sessionmutex.Lock();return true;}
-  bool HardLock(const char* path) {sessionfd = open(path,O_RDWR); if ( (sessionfd>0) && (!flock(sessionfd,LOCK_EX)))return true;return false;}
-  ~XrdSecsslSessionLock() {if (sessionfd>0) {flock(sessionfd,LOCK_UN);close(sessionfd);};sessionmutex.UnLock();}
   bool SoftUnLock() {sessionmutex.UnLock();return true;}
+#ifdef SUNCC
+  bool HardLock(const char* path) {return true;}
+  bool HardUnLock() {return true;}
+  ~XrdSecsslSessionLock() {sessionmutex.UnLock();}
+#else
+  bool HardLock(const char* path) {sessionfd = open(path,O_RDWR); if ( (sessionfd>0) && (!flock(sessionfd,LOCK_EX)))return true;return false;}
   bool HardUnLock() {if (sessionfd>0) {flock(sessionfd,LOCK_UN);close(sessionfd);sessionfd=0;}return true;}
+  ~XrdSecsslSessionLock() {if (sessionfd>0) {flock(sessionfd,LOCK_UN);close(sessionfd);};sessionmutex.UnLock();}
+#endif
+
 };
 
 
@@ -104,6 +124,7 @@ public:
     ssl         = 0;
     Entity.name = 0;
     Entity.grps = 0;
+    Entity.endorsements = 0;
     host        = hostname;
     if (ipaddr)
       Entity.host = (XrdNetDNS::getHostName((sockaddr&)*ipaddr));
@@ -113,6 +134,7 @@ public:
     client_cert=0;
     server_cert=0;
     ssl = 0 ;
+    clientctx = 0;
   }
   
   
@@ -128,13 +150,18 @@ public:
 
   static char*              SessionIdContext ;
   static char*              sslcadir; 
-  static char*              sslvomsdir; 
+  static char*              sslvomsdir;
+  static char*              sslserverkeyfile; 
   static char*              sslkeyfile;
   static char*              sslcertfile;
   static char*              sslproxyexportdir;
+  static bool               sslproxyexportplain;
+  static char               sslserverexportpassword[EXPORTKEYSTRENGTH+1];
+  
   static char*              gridmapfile;
   static char*              vomsmapfile;
   static bool               mapuser;
+  static bool               mapnobody;
   static bool               mapgroup;
   static bool               mapcerncertificates;
   static int                debug;
@@ -156,16 +183,17 @@ public:
   static void ReloadVomsMapFile();
   static bool VomsMapGroups(const char* groups, XrdOucString& allgroups, XrdOucString& defaultgroup);
 
+  static void GetEnvironment();
   static  XrdOucHash<XrdOucString>  gridmapstore;
   static  XrdOucHash<XrdOucString>  vomsmapstore;
   static  XrdOucHash<XrdOucString>  stringstore;
   static  XrdSysMutex               StoreMutex;
   static  XrdSysMutex               VomsMapMutex;
   static  XrdSysMutex               GridMapMutex;
-
+  static  XrdSysMutex*              CryptoMutexPool[PROTOCOLSSL_MAX_CRYPTO_MUTEX];
   // for error logging and tracing
   static XrdSysLogger       Logger;
-  static XrdSysError        eDest;
+  static XrdSysError        ssleDest;
   static time_t             storeLoadTime;
   
   typedef struct {
@@ -174,8 +202,9 @@ public:
     int always_continue;
   } sslverify_t;
   
-  char proxyBuff[8192];
+  char proxyBuff[16384];
   static SSL_CTX* ctx;
+  SSL_CTX* clientctx;
 
   XrdSysMutex SSLMutex;
 private:
@@ -187,7 +216,7 @@ private:
     if (Entity.role) free(Entity.role);
     if (Entity.host) free(Entity.host);
     SSLMutex.Lock();
-    if (ssl) SSL_free(ssl);
+    if (ssl) SSL_free(ssl);ssl=0;
     if (client_cert) X509_free(client_cert);
     if (server_cert) X509_free(server_cert);
     SSLMutex.UnLock();    

@@ -176,7 +176,6 @@ int GRSTx509ChainFree(GRSTx509Chain *chain)
         
         if (grst_cert->issuer != NULL) free(grst_cert->issuer);
         if (grst_cert->dn     != NULL) free(grst_cert->dn);
-        if (grst_cert->value  != NULL) free(grst_cert->value);
         if (grst_cert->ocsp   != NULL) free(grst_cert->ocsp);
         
         next_grst_cert = grst_cert->next;
@@ -249,7 +248,7 @@ static int GRSTx509VerifyVomsSig(time_t *time1_time, time_t *time2_time,
 #define GRST_ASN1_COORDS_VOMS_INFO "-1-1-%d-1"
 #define GRST_ASN1_COORDS_VOMS_SIG  "-1-1-%d-3"
    int            isig, iinfo;
-   char          *certpath, *certpath2, acvomsdn[200], dn_coords[200],
+   char           certpath[16384], certpath2[16384], acvomsdn[200], dn_coords[200],
                   info_coords[200], sig_coords[200];
 
    DIR           *vomsDIR, *vomsDIR2;
@@ -284,7 +283,7 @@ static int GRSTx509VerifyVomsSig(time_t *time1_time, time_t *time2_time,
         {        
           if (vomsdirent->d_name[0] == '.') continue;
         
-          asprintf(&certpath, "%s/%s", vomsdir, vomsdirent->d_name);
+          sprintf(certpath, "%s/%s", vomsdir, vomsdirent->d_name);
           stat(certpath, &statbuf);
           
           if (S_ISDIR(statbuf.st_mode))
@@ -292,7 +291,6 @@ static int GRSTx509VerifyVomsSig(time_t *time1_time, time_t *time2_time,
               vomsDIR2 = opendir(certpath);
               GRSTerrorLog(GRST_LOG_DEBUG, 
                            "Descend VOMS subdirectory %s", certpath);
-              free(certpath);
               
               if (vomsDIR2 == NULL) continue;
                 
@@ -301,13 +299,12 @@ static int GRSTx509VerifyVomsSig(time_t *time1_time, time_t *time2_time,
                 {
                   if (vomsdirent2->d_name[0] == '.') continue;
                   
-                  asprintf(&certpath2, "%s/%s/%s", 
+                  sprintf(certpath2, "%s/%s/%s", 
                            vomsdir, vomsdirent->d_name, vomsdirent2->d_name);
                 
                   fp = fopen(certpath2, "r");
                   GRSTerrorLog(GRST_LOG_DEBUG, 
                                "Examine VOMS cert %s", certpath2);
-                  free(certpath2);
                   if (fp == NULL) continue;
 
                   cert = PEM_read_X509(fp, NULL, NULL, NULL);
@@ -338,7 +335,6 @@ static int GRSTx509VerifyVomsSig(time_t *time1_time, time_t *time2_time,
             {
               fp = fopen(certpath, "r");
               GRSTerrorLog(GRST_LOG_DEBUG, "Examine VOMS cert %s", certpath);
-              free(certpath);
               if (fp == NULL) continue;
 
               cert = PEM_read_X509(fp, NULL, NULL, NULL);
@@ -456,7 +452,7 @@ static int GRSTx509ChainVomsAdd(GRSTx509Cert **grst_cert,
                
                  (*grst_cert)->notbefore = time1_time;
                  (*grst_cert)->notafter  = time2_time;
-                 asprintf(&((*grst_cert)->value), "%.*s",
+                 sprintf(((*grst_cert)->value), "%.*s",
                           taglist[itag].length,
                           &asn1string[taglist[itag].start+
                                       taglist[itag].headerlength]);
@@ -502,7 +498,7 @@ int GRSTx509ChainLoadCheck(GRSTx509Chain **chain,
    char *proxy_part_DN;         /* Pointer to end part of current-cert-in-chain
                                    maybe eg "/CN=proxy" */
    char s[80];
-   char *cacertpath;
+   char cacertpath[16384];
    unsigned long subjecthash = 0;	/* hash of the name of first cert */
    unsigned long issuerhash = 0;	/* hash of issuer name of first cert */
    FILE *fp;
@@ -534,12 +530,11 @@ int GRSTx509ChainLoadCheck(GRSTx509Chain **chain,
    cert = sk_X509_value(certstack, depth - 1);
    subjecthash = X509_NAME_hash(X509_get_subject_name(cert));
    issuerhash = X509_NAME_hash(X509_get_issuer_name(cert));
-   asprintf(&cacertpath, "%s/%.8x.0", capath, (int)issuerhash);
+   sprintf(cacertpath, "%s/%.8x.0", capath, (int)issuerhash);
    
    GRSTerrorLog(GRST_LOG_DEBUG, "Look for CA root file %s", cacertpath);
 
    fp = fopen(cacertpath, "r");
-   free(cacertpath);
 
    if (fp == NULL) chain_errors |= GRST_CERT_BAD_CHAIN;
    else
@@ -1565,12 +1560,13 @@ char *GRSTx509CachedProxyFind(char *proxydir, char *delegation_id,
 /// proxy file corresponding to the given delegation_id, or NULL
 /// if not found.
 {
-  char *user_dn_enc, *proxyfile;
+  char *user_dn_enc;
+  char* proxyfile = (char*)malloc(16384);
   struct stat statbuf;
 
   user_dn_enc = GRSThttpUrlEncode(user_dn);
 
-  asprintf(&proxyfile, "%s/%s/%s/userproxy.pem",
+  sprintf(proxyfile, "%s/%s/%s/userproxy.pem",
            proxydir, user_dn_enc, delegation_id);
            
   free(user_dn_enc);
@@ -1595,12 +1591,13 @@ char *GRSTx509CachedProxyKeyFind(char *proxydir, char *delegation_id,
 /// private proxy key corresponding to the given delegation_id, or NULL
 /// if not found.
 {
-  char *user_dn_enc, *prvkeyfile;
+  char *user_dn_enc;
+  char* prvkeyfile = (char*) malloc(16384);
   struct stat statbuf;
 
   user_dn_enc = GRSThttpUrlEncode(user_dn);
 
-  asprintf(&prvkeyfile, "%s/cache/%s/%s/userkey.pem",
+  sprintf(prvkeyfile, "%s/cache/%s/%s/userkey.pem",
            proxydir, user_dn_enc, delegation_id);
            
   free(user_dn_enc);
@@ -1617,16 +1614,14 @@ char *GRSTx509CachedProxyKeyFind(char *proxydir, char *delegation_id,
 static void mkdir_printf(mode_t mode, char *fmt, ...)
 {
   int   ret;
-  char *path;
+  char path[16384];
   va_list ap;
   
   va_start(ap, fmt);
-  vasprintf(&path, fmt, ap);
+  vsprintf(path, fmt, ap);
   va_end(ap);
 
   ret = mkdir(path, mode);
-
-  free(path);
 }
 
 /// Create a X.509 request for a GSI proxy and its private key
@@ -1708,7 +1703,7 @@ int GRSTx509MakeProxyRequest(char **reqtxt, char *proxydir,
 /// is PEM encoded, and the key is stored in the temporary cache under
 /// proxydir
 {
-  char            *prvkeyfile, *ptr, *user_dn_enc;
+  char            prvkeyfile[16384], *ptr, *user_dn_enc;
   size_t           ptrlen;
   FILE            *fp;
   RSA             *keypair;
@@ -1734,7 +1729,7 @@ int GRSTx509MakeProxyRequest(char **reqtxt, char *proxydir,
 
   /* make the new proxy private key */
 
-  asprintf(&prvkeyfile, "%s/cache/%s/%s/userkey.pem",
+  sprintf(prvkeyfile, "%s/cache/%s/%s/userkey.pem",
            proxydir, user_dn_enc, delegation_id);
 
   if (prvkeyfile == NULL)  
@@ -1749,7 +1744,6 @@ int GRSTx509MakeProxyRequest(char **reqtxt, char *proxydir,
   if ((fp = fopen(prvkeyfile, "w")) == NULL) return 2;
   
   chmod(prvkeyfile, S_IRUSR | S_IWUSR);
-  free(prvkeyfile);
   free(user_dn_enc);
 
   if (!PEM_write_RSAPrivateKey(fp, keypair, NULL, NULL, 0, NULL, NULL))
@@ -1801,7 +1795,7 @@ int GRSTx509ProxyDestroy(char *proxydir, char *delegation_id, char *user_dn)
 ///  were not found.)
 {
   int              ret = GRST_RET_OK;
-  char            *filename, *user_dn_enc;
+  char            filename[16384], *user_dn_enc;
 
   if (strcmp(user_dn, "cache") == 0) return GRST_RET_FAILED;
     
@@ -1809,31 +1803,17 @@ int GRSTx509ProxyDestroy(char *proxydir, char *delegation_id, char *user_dn)
 
   /* proxy file */
   
-  asprintf(&filename, "%s/%s/%s/userproxy.pem",
+  sprintf(filename, "%s/%s/%s/userproxy.pem",
            proxydir, user_dn_enc, delegation_id);
 
-  if (filename == NULL)  
-    {
-      free(user_dn_enc);
-      return GRST_RET_FAILED;
-    }
-
   if (unlink(filename) != 0) ret = GRST_RET_NO_SUCH_FILE;  
-  free(filename);
 
   /* voms file */
   
-  asprintf(&filename, "%s/%s/%s/voms.attributes",
+  sprintf(filename, "%s/%s/%s/voms.attributes",
            proxydir, user_dn_enc, delegation_id);
 
-  if (filename == NULL)  
-    {
-      free(user_dn_enc);
-      return GRST_RET_FAILED;
-    }
-
   unlink(filename);
-  free(filename);
   
   return ret;
 }
@@ -1845,7 +1825,7 @@ int GRSTx509ProxyGetTimes(char *proxydir, char *delegation_id, char *user_dn,
 /// Returns GRST_RET_OK on success, non-zero otherwise.
 /// (Including GRST_RET_NO_SUCH_FILE if the cert chain was not found.)
 {
-  char  *filename, *user_dn_enc;
+  char  filename[16384], *user_dn_enc;
   FILE  *fp;
   X509  *cert;
 
@@ -1853,7 +1833,7 @@ int GRSTx509ProxyGetTimes(char *proxydir, char *delegation_id, char *user_dn,
     
   user_dn_enc = GRSThttpUrlEncode(user_dn);
   
-  asprintf(&filename, "%s/%s/%s/userproxy.pem",
+  sprintf(filename, "%s/%s/%s/userproxy.pem",
            proxydir, user_dn_enc, delegation_id);
            
   free(user_dn_enc);
@@ -1861,7 +1841,6 @@ int GRSTx509ProxyGetTimes(char *proxydir, char *delegation_id, char *user_dn,
   if (filename == NULL) return GRST_RET_FAILED;
 
   fp = fopen(filename, "r");
-  free(filename);
   
   if (fp == NULL) return GRST_RET_NO_SUCH_FILE;
 
@@ -2064,7 +2043,7 @@ int GRSTx509CacheProxy(char *proxydir, char *delegation_id,
 /// the temporary cache.
 {
   int   c, i;
-  char *user_dn_enc, *ptr, *prvkeyfile, *proxyfile;
+  char *user_dn_enc, *ptr, *prvkeyfile, proxyfile[16384];
   STACK_OF(X509) *certstack;
   BIO  *certmem;
   X509 *cert;
@@ -2108,7 +2087,7 @@ int GRSTx509CacheProxy(char *proxydir, char *delegation_id,
   mkdir_printf(S_IRUSR | S_IWUSR | S_IXUSR, 
                "%s/%s/%s", proxydir, user_dn_enc, delegation_id);
 
-  asprintf(&proxyfile, "%s/%s/%s/userproxy.pem",
+  sprintf(proxyfile, "%s/%s/%s/userproxy.pem",
            proxydir, user_dn_enc, delegation_id);
            
   free(user_dn_enc);
@@ -2117,7 +2096,6 @@ int GRSTx509CacheProxy(char *proxydir, char *delegation_id,
 
   ofp = fopen(proxyfile, "w");
   chmod(proxyfile, S_IRUSR | S_IWUSR);
-  free(proxyfile);
 
   if (ofp == NULL)
     {

@@ -16,6 +16,24 @@
 #include <openssl/asn1.h>
 #endif
 
+#ifdef SUNCC
+time_t timegm (struct tm *tm) {
+  time_t ret;
+  char *tz;
+
+  tz = getenv("TZ");
+  setenv("TZ", "", 1);
+  tzset();
+  ret = mktime(tm);
+  if (tz)
+    setenv("TZ", tz, 1);
+  else
+    unsetenv("TZ");
+  tzset();
+  return ret;
+}
+#endif
+
 #include "gridsite.h"
 
 #ifdef R__SSL_GE_098

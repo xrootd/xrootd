@@ -1,5 +1,5 @@
 AC_PREREQ(2.57)
-AC_INIT(xrootd-secssl, 4.0.0,[andreas.joachim.peters@cern.ch])
+AC_INIT(xrootd-secssl, 4.0.1,[andreas.joachim.peters@cern.ch])
 AC_CONFIG_SRCDIR([XrdSecProtocolsslTrace.hh])
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE(1.6 foreign)
@@ -223,7 +223,8 @@ AC_FUNC_STAT
 AC_CHECK_FUNCS([gettimeofday mkdir strdup])
 
 AC_CONFIG_FILES([Makefile
-	libsslGridSite/Makefile
+	libsslGridSite/Makefile 
+        xrootd-secssl.spec  
 ] )
 
 test -L XrdSecssl || ln -s ./ XrdSecssl

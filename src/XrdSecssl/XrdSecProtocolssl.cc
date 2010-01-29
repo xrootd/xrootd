@@ -16,13 +16,16 @@ const char *XrdSecProtocolsslCVSID = "$Id$";
 
 #include "XrdSecProtocolssl.hh"
 
-char*  XrdSecProtocolssl::sslcadir=(char*)"/etc/grid-security/certificates";
-char*  XrdSecProtocolssl::sslvomsdir=(char*)"/etc/grid-security/vomsdir";
+char*  XrdSecProtocolssl::sslcadir=0;
+char*  XrdSecProtocolssl::sslvomsdir=0;
 int    XrdSecProtocolssl::verifydepth=10;
 int    XrdSecProtocolssl::verifyindex=0;
-char*  XrdSecProtocolssl::sslkeyfile=(char*)"/etc/grid-security/hostkey.pem";
-char*  XrdSecProtocolssl::sslcertfile=(char*)"/etc/grid-security/hostcert.pem";
+char*  XrdSecProtocolssl::sslkeyfile=0;
+char*  XrdSecProtocolssl::sslserverkeyfile=0;
+char   XrdSecProtocolssl::sslserverexportpassword[EXPORTKEYSTRENGTH+1]; 
+char*  XrdSecProtocolssl::sslcertfile=0;
 char*  XrdSecProtocolssl::sslproxyexportdir=(char*)0;
+bool   XrdSecProtocolssl::sslproxyexportplain=1;
 int    XrdSecProtocolssl::debug=0;
 time_t XrdSecProtocolssl::sslsessionlifetime=86400;
 bool   XrdSecProtocolssl::isServer=0;
@@ -31,6 +34,7 @@ bool   XrdSecProtocolssl::allowSessions=1;
 char*  XrdSecProtocolssl::SessionIdContext = (char*)"xrootdssl"; 
 char*  XrdSecProtocolssl::gridmapfile = (char*) "/etc/grid-security/grid-mapfile";
 bool   XrdSecProtocolssl::mapuser  = false;
+bool   XrdSecProtocolssl::mapnobody  = false;
 char*  XrdSecProtocolssl::vomsmapfile = (char*) "/etc/grid-security/voms-mapfile";
 bool   XrdSecProtocolssl::mapgroup = false;
 bool   XrdSecProtocolssl::mapcerncertificates = false;
@@ -38,22 +42,156 @@ bool   XrdSecProtocolssl::mapcerncertificates = false;
 X509_STORE*    XrdSecProtocolssl::store=0;
 X509_LOOKUP*   XrdSecProtocolssl::lookup=0;
 SSL_CTX*       XrdSecProtocolssl::ctx=0;
-XrdSysError    XrdSecProtocolssl::eDest(0, "secssl_");
+XrdSysError    XrdSecProtocolssl::ssleDest(0, "secssl_");
 XrdSysLogger   XrdSecProtocolssl::Logger;
 time_t         XrdSecProtocolssl::storeLoadTime;
 
 XrdSysMutex XrdSecsslSessionLock::sessionmutex;
-
 XrdOucHash<XrdOucString> XrdSecProtocolssl::gridmapstore;
 XrdOucHash<XrdOucString> XrdSecProtocolssl::vomsmapstore;
 XrdOucHash<XrdOucString> XrdSecProtocolssl::stringstore;
 XrdSysMutex              XrdSecProtocolssl::StoreMutex;           
 XrdSysMutex              XrdSecProtocolssl::GridMapMutex;           
 XrdSysMutex              XrdSecProtocolssl::VomsMapMutex;           
+XrdSysMutex*             XrdSecProtocolssl::CryptoMutexPool[PROTOCOLSSL_MAX_CRYPTO_MUTEX];
+
+/******************************************************************************/
+/*             T h r e a d - S a f e n e s s   F u n c t i o n s              */
+/******************************************************************************/
+static unsigned long protocolssl_id_callback(void) {
+  return (unsigned long)XrdSysThread::ID();
+}
+
+void protocolssl_lock(int mode, int n, const char *file, int line)
+{
+  if (mode & CRYPTO_LOCK) {
+    if (XrdSecProtocolssl::CryptoMutexPool[n]) {
+      XrdSecProtocolssl::CryptoMutexPool[n]->Lock();
+    }
+  } else {
+    if (XrdSecProtocolssl::CryptoMutexPool[n]) {
+      XrdSecProtocolssl::CryptoMutexPool[n]->UnLock();
+    }
+  }
+}
+
 
 /******************************************************************************/
 /*             C l i e n t   O r i e n t e d   F u n c t i o n s              */
 /******************************************************************************/
+
+int secprotocolssl_pem_cb(char *buf, int size, int rwflag, void *password)
+{
+  memset(buf,0,size);
+  memcpy(buf,XrdSecProtocolssl::sslserverexportpassword,EXPORTKEYSTRENGTH+1);
+  return EXPORTKEYSTRENGTH;
+}
+
+void XrdSecProtocolssl::GetEnvironment() {
+  EPNAME("GetEnvironment");
+  // default the cert/key file to the standard proxy locations
+  char proxyfile[1024];
+  sprintf(proxyfile,"/tmp/x509up_u%d",(int)geteuid());
+
+  if (sslproxyexportdir) {
+    sprintf(proxyfile,"%s/x509up_u%d",sslproxyexportdir,(int)geteuid()); 
+  }
+
+  if (XrdSecProtocolssl::sslcertfile) { free (XrdSecProtocolssl::sslcertfile); }
+  if (XrdSecProtocolssl::sslkeyfile) { free (XrdSecProtocolssl::sslkeyfile); }
+
+  XrdSecProtocolssl::sslcertfile = strdup(proxyfile);
+  XrdSecProtocolssl::sslkeyfile  = strdup(proxyfile);
+
+  char *cenv = getenv("XrdSecDEBUG");
+  // debug
+  if (cenv)
+    if (cenv[0] >= 49 && cenv[0] <= 57) XrdSecProtocolssl::debug = atoi(cenv);
+
+  // directory with CA certificates
+  cenv = getenv("XrdSecSSLCADIR");
+  if (cenv) {
+    if (XrdSecProtocolssl::sslcadir) { free (XrdSecProtocolssl::sslcadir); }
+    XrdSecProtocolssl::sslcadir = strdup(cenv);
+  }
+  else {
+    // accept X509_CERT_DIR 
+    cenv = getenv("X509_CERT_DIR");
+    if (cenv) {
+      if (XrdSecProtocolssl::sslcadir) { free (XrdSecProtocolssl::sslcadir); }
+      XrdSecProtocolssl::sslcadir = strdup(cenv);
+    }
+  }
+  // directory with VOMS certificates
+  cenv = getenv("XrdSecSSLVOMSDIR");
+  if (cenv) {
+    if (XrdSecProtocolssl::sslvomsdir) { free (XrdSecProtocolssl::sslvomsdir); }
+    XrdSecProtocolssl::sslvomsdir = strdup(cenv);
+  }
+
+
+  // file with user cert
+  cenv = getenv("XrdSecSSLUSERCERT");
+  if (cenv) {
+    if (XrdSecProtocolssl::sslcertfile) { free (XrdSecProtocolssl::sslcertfile); }
+    XrdSecProtocolssl::sslcertfile = strdup(cenv);  
+  } else {
+    // accept X509_USER_CERT
+    cenv = getenv("X509_USER_CERT");
+    if (cenv) {
+      if (XrdSecProtocolssl::sslcertfile) { free (XrdSecProtocolssl::sslcertfile); }
+      XrdSecProtocolssl::sslcertfile = strdup(cenv);
+    } else {
+      // accept X509_USER_PROXY
+      cenv = getenv("X509_USER_PROXY");
+      if (cenv) {
+	if (XrdSecProtocolssl::sslcertfile) { free (XrdSecProtocolssl::sslcertfile); }
+	XrdSecProtocolssl::sslcertfile = strdup(cenv);
+      }
+    }
+  }
+    
+  // file with user key
+  cenv = getenv("XrdSecSSLUSERKEY");
+  if (cenv) {
+    if (XrdSecProtocolssl::sslkeyfile) { free (XrdSecProtocolssl::sslkeyfile); }    
+      XrdSecProtocolssl::sslkeyfile = strdup(cenv);
+  } else {
+    // accept X509_USER_KEY
+    cenv = getenv("X509_USER_KEY");
+    if (cenv) {
+      if (XrdSecProtocolssl::sslkeyfile) { free (XrdSecProtocolssl::sslkeyfile); }    
+      XrdSecProtocolssl::sslkeyfile = strdup(cenv);
+    } else {
+      // accept X509_USER_PROXY
+      cenv = getenv("X509_USER_PROXY");
+      if (cenv) {
+	if (XrdSecProtocolssl::sslkeyfile) { free (XrdSecProtocolssl::sslkeyfile); }    
+	XrdSecProtocolssl::sslkeyfile = strdup(cenv);
+      }
+    }
+  }
+  // verify depth
+  cenv = getenv("XrdSecSSLVERIFYDEPTH");
+  if (cenv)
+    XrdSecProtocolssl::verifydepth = atoi(cenv);
+    
+  // proxy forwarding
+  cenv = getenv("XrdSecSSLPROXYFORWARD");
+  if (cenv)
+    XrdSecProtocolssl::forwardProxy = atoi(cenv);
+
+  // ssl session reuse
+  cenv = getenv("XrdSecSSLSESSION");
+  if (cenv)
+    XrdSecProtocolssl::allowSessions = atoi(cenv);
+  
+  TRACE(Authen,"====> debug         = " << XrdSecProtocolssl::debug);
+  TRACE(Authen,"====> cadir         = " << XrdSecProtocolssl::sslcadir);
+  TRACE(Authen,"====> keyfile       = " << XrdSecProtocolssl::sslkeyfile);
+  TRACE(Authen,"====> certfile      = " << XrdSecProtocolssl::sslcertfile);
+  TRACE(Authen,"====> verify depth  = " << XrdSecProtocolssl::verifydepth);
+}
 
 int XrdSecProtocolssl::Fatal(XrdOucErrInfo *erp, const char *msg, int rc)
 {
@@ -65,7 +203,7 @@ int XrdSecProtocolssl::Fatal(XrdOucErrInfo *erp, const char *msg, int rc)
 
   if (erp) erp->setErrInfo(rc, msgv, i);
   else {for (k = 0; k < i; k++) cerr <<msgv[k];
-  cerr <<endl;
+    cerr <<endl;
   }
   
   return -1;
@@ -87,9 +225,11 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
     return ;
   }
 
+  XrdSecProtocolssl::GetEnvironment();
+
   error->setErrInfo(0,"");
-  SSLMutex.Lock();  
-  
+  SSLMutex.Lock();
+
   int err;
   char*    str;
   SSL_METHOD *meth;
@@ -118,92 +258,109 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
 
     if (!stat(sslsessionfile.c_str(),&sessionstat)) {
       // session exists ... I try to read it
-      if (sessionlock.HardLock(sslsessionfile.c_str())) {
-	FILE* fp = fopen(sslsessionfile.c_str(), "r");
-	if (fp) {
-	  {
-	    session = PEM_read_SSL_SESSION(fp, NULL, NULL, NULL);
-	    fclose(fp);
-	    if (session) {
-	      
-	      DEBUG("info: ("<<__FUNCTION__<<") Session loaded from " << sslsessionfile.c_str());
-	      char session_id[1024];
-	      for (int i=0; i< (int)session->session_id_length; i++) {
-		sprintf(session_id+(i*2),"%02x",session->session_id[i]);
-	      }
-	    
-	      unsigned char buf[5],*p;
-	      unsigned long l;
-	      
-	      p=buf;
-	      l=session->cipher_id;
-	      l2n(l,p);
-	      if ((session->ssl_version>>8) == SSL3_VERSION_MAJOR)
-		session->cipher=meth->get_cipher_by_char(&(buf[2]));
-	      else
-		session->cipher=meth->get_cipher_by_char(&(buf[1]));
-	      if (session->cipher == NULL) {
-		SSL_SESSION_free(session);
-		delete session;
-		session = NULL;		  
-	      } else {
-		DEBUG("Info: ("<<__FUNCTION__<<") Session Id: "<< session_id << " Cipher: " << session->cipher->name  << " Verify: " << session->verify_result << " (" << X509_verify_cert_error_string(session->verify_result) << ")");
-	      }
-	    } else {
-	      DEBUG("info: ("<<__FUNCTION__<<") Session load failed from " << sslsessionfile.c_str());
-	      ERR_print_errors_fp(stderr);
-	    }
-	  }
+      FILE* fp = fopen(sslsessionfile.c_str(), "r");
+      if (fp) {
+	if (sessionlock.HardLock(sslsessionfile.c_str())) {
+	  session = PEM_read_SSL_SESSION(fp, NULL, NULL, NULL);
+	  fclose(fp);
+	  sessionlock.HardUnLock();
 	}
       }
-    } else {
+      
+      if (session) {
+	
+	DEBUG("info: ("<<__FUNCTION__<<") Session loaded from " << sslsessionfile.c_str());
+	char session_id[1024];
+	for (int i=0; i< (int)session->session_id_length; i++) {
+	  sprintf(session_id+(i*2),"%02x",session->session_id[i]);
+	}
+	
+	unsigned char buf[5],*p;
+	unsigned long l;
+	
+	p=buf;
+	l=session->cipher_id;
+	l2n(l,p);
+	if ((session->ssl_version>>8) == SSL3_VERSION_MAJOR)
+	  session->cipher=meth->get_cipher_by_char(&(buf[2]));
+	else
+	  session->cipher=meth->get_cipher_by_char(&(buf[1]));
+	if (session->cipher == NULL) {
+	  SSL_SESSION_free(session);
+	  delete session;
+	  session = NULL;		  
+	} else {
+	  DEBUG("Info: ("<<__FUNCTION__<<") Session Id: "<< session_id << " Cipher: " << session->cipher->name  << " Verify: " << session->verify_result << " (" << X509_verify_cert_error_string(session->verify_result) << ")");
+	}
+      } else {
+	DEBUG("info: ("<<__FUNCTION__<<") Session load failed from " << sslsessionfile.c_str());
+	ERR_print_errors_fp(stderr);
+      }
     }
   }
 
-  ctx = SSL_CTX_new (meth);
+  clientctx = SSL_CTX_new (meth);
 
 
-  SSL_CTX_set_options(ctx,  SSL_OP_ALL | SSL_OP_NO_SSLv2);
+  SSL_CTX_set_options(clientctx,  SSL_OP_ALL | SSL_OP_NO_SSLv2);
 
-  if (!ctx) {
+  if (!clientctx) {
     Fatal(error,"Cannot do SSL_CTX_new",-1);
     exit(2);
   }
   
-  if (SSL_CTX_use_certificate_chain_file(ctx, sslcertfile) <= 0) {
-    ERR_print_errors_fp(stderr);
-    exit(3);
+  if (!XrdSecProtocolssl::sslproxyexportplain) {
+    // set a password callback here
+    SSL_CTX_set_default_passwd_cb(clientctx, secprotocolssl_pem_cb);
+    SSL_CTX_set_default_passwd_cb_userdata(clientctx, XrdSecProtocolssl::sslserverexportpassword);
   }
-  
-  if (SSL_CTX_use_PrivateKey_file(ctx, sslkeyfile, SSL_FILETYPE_PEM) <= 0) {
+
+  if (SSL_CTX_use_certificate_chain_file(clientctx, sslcertfile) <= 0) {
     ERR_print_errors_fp(stderr);
-    exit(4);
+    Fatal(error,"Cannot use certificate file",-1);
+    if (theFD>=0) {close(theFD); theFD=-1;}
+    if (clientctx) SSL_CTX_free (clientctx);
+    SSLMutex.UnLock();
+    return;
   }
-  
-  if (!SSL_CTX_check_private_key(ctx)) {
+
+  if (SSL_CTX_use_PrivateKey_file(clientctx, sslkeyfile, SSL_FILETYPE_PEM) <= 0) {
+    ERR_print_errors_fp(stderr);
+    Fatal(error,"Cannot use private key file",-1);
+    if (theFD>=0) {close(theFD); theFD=-1;}
+    if (clientctx) SSL_CTX_free (clientctx);
+    SSLMutex.UnLock();
+    return;
+  }
+
+
+  if (!SSL_CTX_check_private_key(clientctx)) {
     fprintf(stderr,"Error: (%s) Private key does not match the certificate public key\n",__FUNCTION__);
-    exit(5);
+    Fatal(error,"Private key does not match the certificate public key",-1);
+    if (theFD>=0) {close(theFD); theFD=-1;}
+    if (clientctx) SSL_CTX_free (clientctx);
+    SSLMutex.UnLock();
+    return;
   } else {
     DEBUG("Private key check passed ...");
   }
-  
-  SSL_CTX_load_verify_locations(ctx, NULL,sslcadir);
-  SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,  GRST_callback_SSLVerify_wrapper);
+  SSL_CTX_load_verify_locations(clientctx, NULL,sslcadir);
+  SSL_CTX_set_verify(clientctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,  GRST_callback_SSLVerify_wrapper);
 
-  SSL_CTX_set_cert_verify_callback(ctx, GRST_verify_cert_wrapper, (void *) NULL);
+  SSL_CTX_set_cert_verify_callback(clientctx, GRST_verify_cert_wrapper, (void *) NULL);
 
   grst_cadir   = sslcadir;
   grst_vomsdir = sslvomsdir;
 
   grst_depth=verifydepth;
-  SSL_CTX_set_verify_depth(ctx, verifydepth);
+  SSL_CTX_set_verify_depth(clientctx, verifydepth);
 
   if (session) {
-    SSL_CTX_add_session(ctx,session);
+    SSL_CTX_add_session(clientctx,session);
   }
 
 
-  ssl = SSL_new (ctx);            
+  ssl = SSL_new (clientctx);            
   SSL_set_purpose(ssl,X509_PURPOSE_ANY);
   if (session) {
     SSL_set_session(ssl, session);
@@ -224,11 +381,14 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
     // we want to see the error message from the server side
     ERR_print_errors_fp(stderr);
     if (theFD>=0) {close(theFD);theFD=-1;}
-    SSLMutex.UnLock();  
+    if (clientctx) SSL_CTX_free (clientctx);
+    SSLMutex.UnLock();
     return;
   }
 
-  session = SSL_get_session(ssl);
+  /* I am not sure, if this is actually needed at all */
+  if (!session) 
+    session = SSL_get_session(ssl);
   
   /* Get the cipher - opt */
   
@@ -256,6 +416,25 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
   X509_free (server_cert);
   server_cert=0;
 
+
+  /******************************************/
+  /* this is called only to cleanup objects */
+  /******************************************/
+
+  /* get the grst_chain  */
+  GRSTx509Chain *grst_chain = (GRSTx509Chain*) SSL_get_app_data(ssl);
+  
+  if (grst_chain) {
+    GRST_print_ssl_creds((void*) grst_chain);
+    char* vr = GRST_get_voms_roles_and_free((void*) grst_chain);
+    SSL_set_app_data(ssl,0);
+    if (vr) {
+      free(vr);
+    }
+  }
+
+
+
   if (forwardProxy) {
     if (!strcmp(sslkeyfile,sslcertfile)) {
       // this is a cert & key in one file atleast ... looks like proxy
@@ -268,7 +447,9 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
 	  if (err!= nread) {
 	    Fatal(error,"Cannot forward proxy",-1);
 	    if (theFD>=0) {close(theFD); theFD=-1;}
-	    SSLMutex.UnLock();  
+	    if (clientctx) SSL_CTX_free (clientctx);
+	    if (session) SSL_SESSION_free(session);
+	    SSLMutex.UnLock();
 	    return;
 	  }
 	  char ok[16];
@@ -276,20 +457,26 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
 	  if (err != 3) {
 	    Fatal(error,"Didn't receive OK",-1);
 	    if (theFD>=0) {close(theFD); theFD=-1;}
-	    SSLMutex.UnLock();  
+	    if (clientctx) SSL_CTX_free (clientctx);
+	    if (session) SSL_SESSION_free(session);
+	    SSLMutex.UnLock();
 	    return;
 	  } 
 	} else {
 	  close(fd);
 	  Fatal(error,"Cannot read proxy file to forward",-1);
 	  if (theFD>=0) {close(theFD);theFD=-1;}
-	  SSLMutex.UnLock();  
+	  if (clientctx) SSL_CTX_free (clientctx);
+	  if (session) SSL_SESSION_free(session);
+	  SSLMutex.UnLock();
 	  return;
 	}
       } else {
 	Fatal(error,"Cannot read proxy file to forward",-1);
 	if (theFD>=0) {close(theFD);theFD=-1;}
-	SSLMutex.UnLock();  
+	if (clientctx) SSL_CTX_free (clientctx);
+	if (session) SSL_SESSION_free(session);
+	SSLMutex.UnLock();
 	return;
       }
       close(fd);
@@ -310,13 +497,16 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
     // write out the session
     FILE* fp = fopen((const char*)(sslsessionfile.c_str()),"w+");
     if (fp) {
-      PEM_write_SSL_SESSION(fp, session);
+      if (sessionlock.HardLock(sslsessionfile.c_str())) {
+	PEM_write_SSL_SESSION(fp, session);
+      }
       fclose(fp);
+      sessionlock.HardUnLock();
       DEBUG("info: ("<<__FUNCTION__<<") Session stored to " << sslsessionfile.c_str());
     }
   }
 
-  if (!SSL_shutdown(ssl)) {
+  while (!SSL_shutdown(ssl)) {
     SSL_shutdown(ssl);
   }
 
@@ -324,8 +514,14 @@ XrdSecProtocolssl::secClient(int theFD, XrdOucErrInfo      *error) {
     SSL_free(ssl);ssl = 0;
   }
 
-  if (theFD>=0) {close(theFD);theFD=-1;}  
-  SSLMutex.UnLock();  
+  if (clientctx) SSL_CTX_free (clientctx);
+
+  if (theFD>=0) {close(theFD);theFD=-1;
+  }
+
+  if (session) SSL_SESSION_free(session);
+
+  SSLMutex.UnLock();
   return;
 }
 
@@ -360,6 +556,7 @@ void MyGRSTerrorLogFunc (char *lfile, int lline, int llevel, char *fmt, ...) {
   EPNAME("grst");
   va_list args;
   char fullmessage[4096];
+  fullmessage[0] = 0;
 
   va_start(args, fmt);
   vsprintf(fullmessage,fmt,args);
@@ -368,7 +565,6 @@ void MyGRSTerrorLogFunc (char *lfile, int lline, int llevel, char *fmt, ...) {
   // just remove linefeeds
   XrdOucString sfullmessage = fullmessage;
   sfullmessage.replace("\n","");
-
 
   if (llevel <= GRST_LOG_WARNING) {
     TRACE(Authen," ("<< lfile << ":" << lline <<"): " << sfullmessage);    
@@ -400,13 +596,15 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
       storeLoadTime = time(NULL);
     } 
   }
-  SSLMutex.Lock();  
-  SSL_CTX_set_session_cache_mode(XrdSecProtocolssl::ctx, SSL_SESS_CACHE_BOTH | SSL_SESS_CACHE_NO_AUTO_CLEAR );
+
+  SSLMutex.Lock();
+
+  //  SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_BOTH); // enable autoclear every 255 connections | SSL_SESS_CACHE_NO_AUTO_CLEAR );
+  SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_BOTH | SSL_SESS_CACHE_NO_AUTO_CLEAR);
 
   ssl = SSL_new (ctx);                           
   SSL_set_purpose(ssl,X509_PURPOSE_ANY);
 
-  SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_BOTH | SSL_SESS_CACHE_NO_AUTO_CLEAR );
 
   TRACE(Authen,"Info: ("<<__FUNCTION__<<") Session Cache has size: " <<SSL_CTX_sess_get_cache_size(ctx));
 
@@ -432,8 +630,8 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
       while ((lerr=ERR_get_error())) {TRACE(Authen,"SSL Queue error: err=" << lerr << " msg=" <<
 					  ERR_error_string(lerr, NULL));Fatal(error,ERR_error_string(lerr,NULL),-1);}
     }
-    SSLMutex.UnLock();
     if (theFD>=0) {close(theFD); theFD=-1;}
+    SSLMutex.UnLock();
     return;
   }
   
@@ -469,6 +667,7 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
   if (grst_chain) {
     GRST_print_ssl_creds((void*) grst_chain);
     char* vr = GRST_get_voms_roles_and_free((void*) grst_chain);
+    SSL_set_app_data(ssl,0);
     if (vr) {
       vomsroles = vr;
       free(vr);
@@ -524,7 +723,8 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
   // receive client proxy - if he send's one
   err = SSL_read(ssl,proxyBuff, sizeof(proxyBuff));
   if (err>0) {
-    TRACE(Authen,"Recevied proxy buffer with " << err << " bytes");
+    TRACE(Authen,"Received proxy buffer with " << err << " bytes");
+    proxyBuff[err] = 0; //0 terminate the proxy buffer
     Entity.endorsements = proxyBuff;
     err = SSL_write(ssl,"OK\n",3);
     if (err!=3) {
@@ -540,7 +740,9 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
     TRACE(Authen,"Received no proxy");
   }
 
-  SSL_shutdown(ssl);
+  //while (!SSL_shutdown(ssl)) {
+    SSL_shutdown(ssl);
+    //  }
 
   strncpy(Entity.prot,"ssl", sizeof(Entity.prot));
 
@@ -584,15 +786,19 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
 	  Entity.name = strdup(gridmaprole->c_str());      
 	  Entity.role = 0;
 	}  else {
-	  Entity.name = (char*)"nobody";
+	  Entity.name = strdup((char*)"nobody");
 	  Entity.role = 0;
-	  Fatal(error,"user cannot be mapped",-1);      
+	  if (!XrdSecProtocolssl::mapnobody) {
+	    Fatal(error,"user cannot be mapped",-1);
+	  }
 	}
 	GridMapMutex.UnLock();
       } else {
-	Entity.name = (char*)"nobody";
+	Entity.name = strdup((char*)"nobody");
 	Entity.role = 0;
-	Fatal(error,"user cannot be mapped",-1);      
+	if (!XrdSecProtocolssl::mapnobody) {
+	  Fatal(error,"user cannot be mapped",-1);
+	}
       }
     }
   }
@@ -619,6 +825,7 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
       struct passwd* pwd;
       struct group*  grp;
       StoreMutex.Lock();
+      //      printf("map: getpwnam %d\n",Entity.name);
       if ( (pwd = getpwnam(Entity.name)) && (grp = getgrgid(pwd->pw_gid))) {
 	Entity.grps   = strdup(grp->gr_name);
 	Entity.role   = strdup(grp->gr_name);
@@ -648,7 +855,10 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
     }
   }
 
-  // ev. export proxy
+  /*----------------------------------------------------------------------------*/
+  /* proxy forwarding                                                           */
+  /*----------------------------------------------------------------------------*/
+
   if (sslproxyexportdir && Entity.endorsements) {
     StoreMutex.Lock();
     // get the UID of the entity name
@@ -659,29 +869,99 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
     } else {
       outputproxy += Entity.name;
     }
-    int fd = open (outputproxy.c_str(),O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
-    if (fd>0) {
-      if ( ((int)write(fd,Entity.endorsements,strlen(Entity.endorsements))) != (int)strlen(Entity.endorsements)) {
-	Fatal(error,"cannot export(write) user proxy",-1);
+    XrdOucString outputproxytmp = outputproxy;
+    outputproxytmp += (int) rand();
+
+    if (XrdSecProtocolssl::sslproxyexportplain) {
+      int fd = open (outputproxytmp.c_str(),O_CREAT| O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+      if (fd>0) {
+	if ( ((int)write(fd,Entity.endorsements,strlen(Entity.endorsements))) != (int)strlen(Entity.endorsements)) {
+	  unlink(outputproxytmp.c_str());
+	  Fatal(error,"cannot export(write) user proxy",-1);
+	} else {
+	  TRACE(Identity,"Exported proxy buffer of " << Entity.name << " to file " << outputproxy.c_str());
+	}
+	if ( rename(outputproxytmp.c_str(),outputproxy.c_str()) ) {
+	  unlink(outputproxytmp.c_str());
+	  Fatal(error,"cannot rename temporary export proxy",-1);
+	}
+	close(fd);
       } else {
-	TRACE(Identity,"Exported proxy buffer of " << Entity.name << " to file " << outputproxy.c_str());
+	Fatal(error,"cannot export(open) user proxy",-1);
       }
-      close(fd);
     } else {
-      Fatal(error,"cannot export(open) user proxy",-1);
+      EVP_PKEY* pkey=NULL;
+      X509* x509=NULL;
+      // we protect the private key with our session password
+      BIO* bp = BIO_new_mem_buf( (void *)Entity.endorsements, strlen(Entity.endorsements)+1);
+      FILE* fout = fopen (outputproxytmp.c_str(),"w+");
+      if (!fout) {
+	Fatal(error,"cannot export user proxy - unable to open proxy file",-1);
+      } else {
+	if (bp) {
+	  pkey = PEM_read_bio_PrivateKey(bp, &pkey,0,0);
+	  BIO_free(bp);
+	  if (!pkey) {
+	    Fatal(error,"cannot export user proxy - unable to read key/cert from BIO",-1);
+	  } else {
+	    int wk = PEM_write_PrivateKey(fout, pkey, EVP_des_ede3_cbc(),(unsigned char*)XrdSecProtocolssl::sslserverexportpassword,EXPORTKEYSTRENGTH,0,0);
+	    EVP_PKEY_free(pkey);
+	    
+	    if (!wk) {
+	      Fatal(error,"cannot export user proxy - unable to write private key",-1);
+	    } else {
+	      // deal with the certificates
+	      char* certificatebuffer = 0;
+	      certificatebuffer = Entity.endorsements;
+	      while ((certificatebuffer = strstr(certificatebuffer,"-----BEGIN CERTIFICATE-----"))) {
+		// we point to the next certificate to export in memory
+		BIO* bp = BIO_new_mem_buf( (void *)certificatebuffer, strlen(certificatebuffer)+1);
+		if (bp) {
+		  x509 = NULL;
+		  x509 = PEM_read_bio_X509(bp, &x509,0,0);
+		  BIO_free(bp);
+		  if (x509)  {
+		    int wc = PEM_write_X509(fout,x509);
+		    X509_free(x509);
+		    if (!wc) {
+		      Fatal(error,"cannto export user proxy - unable to write certificate",-1);
+		      break;
+		    }
+		  }
+		} else {
+		  Fatal(error,"cannot export user proxy - unable to allocate BIO to read private key",-1);
+		}
+		certificatebuffer++;
+	      }
+	    }
+	  }
+	} else {
+	  Fatal(error,"cannot export user proxy - unable to allocate BIO to read private key",-1);
+	}
+	
+	fclose(fout);
+	if ( rename(outputproxytmp.c_str(),outputproxy.c_str()) ) {
+	  unlink(outputproxytmp.c_str());
+	  Fatal(error,"cannot rename temporary export proxy",-1);
+	}
+      }
     }
+    
     StoreMutex.UnLock();
   }
 
 
-  TRACE(Identity,"[usermapping] name=|" << Entity.name << "| role=|" << Entity.role << "| grps=|"<< Entity.grps << "| DN=|" << clientdn.c_str() << "| VOMS=|" << vomsroles.c_str() << "|");
+  TRACE(Identity,"[usermapping] name=|" << Entity.name << "| role=|" << (Entity.role?Entity.role:"-") << "| grps=|"<< (Entity.grps?Entity.grps:"-") << "| DN=|" << clientdn.c_str() << "| VOMS=|" << vomsroles.c_str() << "|");
 
   if (ssl) {
     SSL_free(ssl);ssl = 0;
   }
-  if (theFD>=0) {close(theFD); theFD=-1;}       
-  SSLMutex.UnLock();
 
+  if (theFD>=0) {
+    close(theFD); 
+  }       
+
+  SSLMutex.UnLock();
   return;
 }
 
@@ -725,7 +1005,7 @@ XrdSecProtocolssl::NewSession(SSL* ssl, SSL_SESSION *session) {
 /*----------------------------------------------------------------------------*/
 void 
 XrdSecProtocolssl::ReloadGridMapFile()
-{
+{ 
   EPNAME("ReloadGridMapFile");
 
   static time_t         GridMapMtime=0;
@@ -774,7 +1054,6 @@ XrdSecProtocolssl::ReloadGridMapFile()
 	// the file didn't change, we don't do anything
       }
     } else {
-      //      printf("Gridmapfile %s\n",gridmapfile);
       TRACE(Authen,"Unable to stat gridmapfile " << XrdOucString(gridmapfile) << " - no mapping!");
     }
   }
@@ -828,7 +1107,6 @@ XrdSecProtocolssl::ReloadVomsMapFile()
 	// the file didn't change, we don't do anything
       }
     } else {
-      //      printf("Vomsmapfile %s\n",vomsmapfile);
       TRACE(Authen,"Unable to stat vomsmapfile " << XrdOucString(vomsmapfile) << " - no mapping!");
     }
   }
@@ -877,15 +1155,29 @@ char  *XrdSecProtocolsslInit(const char     mode,
 {
   EPNAME("ProtocolsslInit");
   // Initiate error logging and tracing
-  XrdSecProtocolssl::eDest.logger(&XrdSecProtocolssl::Logger);
+  XrdSecProtocolssl::ssleDest.logger(&XrdSecProtocolssl::Logger);
   
   GRSTerrorLogFunc = &MyGRSTerrorLogFunc;
+  static bool serverinitialized = false;
 
   // create the tracer
-  SSLxTrace = new XrdOucTrace(&XrdSecProtocolssl::eDest);
+  if (!SSLxTrace)
+    SSLxTrace = new XrdOucTrace(&XrdSecProtocolssl::ssleDest);
+
+  for (int i=0; i< PROTOCOLSSL_MAX_CRYPTO_MUTEX; i++) {
+    XrdSecProtocolssl::CryptoMutexPool[i] = new XrdSysMutex();
+  }
+
+
   // read the configuration options
-  if (mode == 's') {
+  if ( (mode == 's') && (!serverinitialized) )  {
+    XrdSecProtocolssl::sslcertfile = strdup("/etc/grid-security/hostcert.pem");
+    XrdSecProtocolssl::sslkeyfile  = strdup("/etc/grid-security/hostkey.pem");
+    XrdSecProtocolssl::sslcadir    = strdup("/etc/grid-security/certificates");
+    XrdSecProtocolssl::sslvomsdir  = (char*)"/etc/grid-security/vomsdir";
+
     XrdSecProtocolssl::isServer = 1;
+    serverinitialized = true; 
     if (parms){
       // Duplicate the parms
       char parmbuff[1024];
@@ -919,6 +1211,8 @@ char  *XrdSecProtocolsslInit(const char     mode,
 	    XrdSecProtocolssl::vomsmapfile = strdup(op+13);
 	  } else if (!strncmp(op, "-mapuser:",9)) {
 	    XrdSecProtocolssl::mapuser = (bool) atoi(op+9);
+	  } else if (!strncmp(op, "-mapnobody:",11)) {
+	    XrdSecProtocolssl::mapnobody = (bool) atoi(op+11);
 	  } else if (!strncmp(op, "-mapgroup:",10)) {
 	    XrdSecProtocolssl::mapgroup = (bool) atoi(op+10);
 	  } else if (!strncmp(op, "-mapcernuser:",13)) {
@@ -927,96 +1221,27 @@ char  *XrdSecProtocolsslInit(const char     mode,
 	}
       }
     }
-  }
-
-  if (mode == 'c') {
-    // default the cert/key file to the standard proxy locations
-    char proxyfile[1024];
-    sprintf(proxyfile,"/tmp/x509up_u%d",(int)geteuid());
-
-    XrdSecProtocolssl::sslcertfile = strdup(proxyfile);
-    XrdSecProtocolssl::sslkeyfile  = strdup(proxyfile);
-
-    char *nossl = getenv("XrdSecNoSSL");
-    if (nossl) {
-      erp->setErrInfo(ENOENT,"");
-      return 0;
-    }
-
-    char *cenv = getenv("XrdSecDEBUG");
-    // debug
-    if (cenv)
-      if (cenv[0] >= 49 && cenv[0] <= 58) XrdSecProtocolssl::debug = atoi(cenv);
-    
-    // directory with CA certificates
-    cenv = getenv("XrdSecSSLCADIR");
-    if (cenv)
-      XrdSecProtocolssl::sslcadir = strdup(cenv);
-    else {
-      // accept X509_CERT_DIR 
-      cenv = getenv("X509_CERT_DIR");
-      if (cenv) {
-	XrdSecProtocolssl::sslcadir = strdup(cenv);
-      }
-    }
-    // directory with VOMS certificates
-    cenv = getenv("XrdSecSSLVOMSDIR");
-    if (cenv)
-      XrdSecProtocolssl::sslvomsdir = strdup(cenv);
-    
-    // file with user cert
-    cenv = getenv("XrdSecSSLUSERCERT");
-    if (cenv) {
-      XrdSecProtocolssl::sslcertfile = strdup(cenv);  
-    } else {
-      // accept X509_USER_CERT
-      cenv = getenv("X509_USER_CERT");
-      if (cenv) {
-	XrdSecProtocolssl::sslkeyfile = strdup(cenv);
-      } else {
-	// accept X509_USER_PROXY
-	cenv = getenv("X509_USER_PROXY");
-	if (cenv) {
-	  XrdSecProtocolssl::sslkeyfile = strdup(cenv);
+  } else {
+    if ( (mode == 'c') || (serverinitialized)) {
+      if (mode == 'c') {
+	for (int i=0; i< PROTOCOLSSL_MAX_CRYPTO_MUTEX; i++) {
+	  XrdSecProtocolssl::CryptoMutexPool[i] = 0;
 	}
+	XrdSecProtocolssl::sslcertfile = strdup("/etc/grid-security/hostcert.pem");
+	XrdSecProtocolssl::sslkeyfile  = strdup("/etc/grid-security/hostkey.pem");
+	XrdSecProtocolssl::sslcadir    = strdup("/etc/grid-security/certificates");
+	XrdSecProtocolssl::sslvomsdir  = (char*)"/etc/grid-security/vomsdir";
+      }
+      XrdSecProtocolssl::GetEnvironment();
+      XrdSecProtocolssl::isServer = 0;
+      if (serverinitialized) {
+	XrdSecProtocolssl::sslproxyexportplain = 0;
       }
     }
-    
-    // file with user key
-    cenv = getenv("XrdSecSSLUSERKEY");
-    if (cenv) {
-      XrdSecProtocolssl::sslkeyfile = strdup(cenv);
-    } else {
-      // accept X509_USER_KEY
-      cenv = getenv("X509_USER_KEY");
-      if (cenv) {
-	XrdSecProtocolssl::sslkeyfile = strdup(cenv);
-      } else {
-	// accept X509_USER_PROXY
-	cenv = getenv("X509_USER_PROXY");
-	if (cenv) {
-	  XrdSecProtocolssl::sslkeyfile = strdup(cenv);
-	}
-      }
-    }
-    // verify depth
-    cenv = getenv("XrdSecSSLVERIFYDEPTH");
-    if (cenv)
-      XrdSecProtocolssl::verifydepth = atoi(cenv);
-    
-    // proxy forwarding
-    cenv = getenv("XrdSecSSLPROXYFORWARD");
-    if (cenv)
-      XrdSecProtocolssl::forwardProxy = atoi(cenv);
-
-    // ssl session reuse
-    cenv = getenv("XrdSecSSLSESSION");
-    if (cenv)
-      XrdSecProtocolssl::allowSessions = atoi(cenv);
   }
 
   if (XrdSecProtocolssl::debug >= 4) {
-    SSLxTrace->What = TRACE_ALL;
+    SSLxTrace->What = TRACE_ALL | TRACE_Debug;
   } else if (XrdSecProtocolssl::debug == 3 ) {
     SSLxTrace->What |= TRACE_Authen;
     SSLxTrace->What |= TRACE_Debug;
@@ -1025,7 +1250,30 @@ char  *XrdSecProtocolsslInit(const char     mode,
     SSLxTrace->What = TRACE_Debug;
   } else if (XrdSecProtocolssl::debug == 1) {
     SSLxTrace->What = TRACE_Identity;
+  } else SSLxTrace->What = 0;
+
+  // thread-saftey
+  if (PROTOCOLSSL_MAX_CRYPTO_MUTEX < CRYPTO_num_locks() ) {
+    fprintf(stderr,"Error: (%s) I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing PROTOCOLSSL_MAX_CRYPTO_MUTEX to %d] \n",__FUNCTION__,CRYPTO_num_locks());
+    TRACE(Authen,"Error: I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing PROTOCOLSSL_MAX_CRYPTO_MUTEX to " << (int)CRYPTO_num_locks() << "]");
+  } else {
+    TRACE(Authen,"====> SSL requires " << (int)CRYPTO_num_locks() << " mutexes for thread-safety");
   }
+
+#if defined(OPENSSL_THREADS)
+  // thread support enabled
+  TRACE(Authen,"====> SSL with thread support!");
+#else
+  fprintf(stderr,"Error: (%s) SSL lacks thread support: Abort!");
+  TRACE(Authen,"Error: SSL lacks thread support: Abort!");
+#endif
+
+  // set callback functions
+  CRYPTO_set_locking_callback(protocolssl_lock);
+  CRYPTO_set_id_callback(protocolssl_id_callback);
+
+
+
 
   if (XrdSecProtocolssl::isServer) {
     TRACE(Authen,"====> debug         = " << XrdSecProtocolssl::debug);
@@ -1037,6 +1285,7 @@ char  *XrdSecProtocolsslInit(const char     mode,
     TRACE(Authen,"====> gridmapfile   = " << XrdSecProtocolssl::gridmapfile);
     TRACE(Authen,"====> vomsmapfile   = " << XrdSecProtocolssl::vomsmapfile);
     TRACE(Authen,"====> mapuser       = " << XrdSecProtocolssl::mapuser);
+    TRACE(Authen,"====> mapnobody     = " << XrdSecProtocolssl::mapnobody);
     TRACE(Authen,"====> mapgroup      = " << XrdSecProtocolssl::mapgroup);
     TRACE(Authen,"====> mapcernuser   = " << XrdSecProtocolssl::mapcerncertificates);
   } else {
@@ -1050,6 +1299,7 @@ char  *XrdSecProtocolsslInit(const char     mode,
   }
 
   if (XrdSecProtocolssl::isServer) {
+    XrdSecProtocolssl::sslproxyexportplain=0; // for security reasons a server should not export plain private keys
     // check if we can map with a grid map file
     if (XrdSecProtocolssl::mapuser && access(XrdSecProtocolssl::gridmapfile,R_OK)) {
       fprintf(stderr,"Error: (%s) cannot access gridmapfile %s\n",__FUNCTION__,XrdSecProtocolssl::gridmapfile);
@@ -1063,6 +1313,13 @@ char  *XrdSecProtocolsslInit(const char     mode,
       return 0;
     }
     // check if we can export proxies
+    XrdOucString exportplain=XrdSecProtocolssl::sslproxyexportdir;
+    // if the export file starts with plain: we don't write the proxy with a passphrase
+    if (exportplain.beginswith("plain:")) {
+      XrdSecProtocolssl::sslproxyexportdir+=6;
+      XrdSecProtocolssl::sslproxyexportplain=true;
+      TRACE(Authen,"====> export plain proxy (warning: can be re-used out of daemon context) to dir: " << XrdSecProtocolssl::sslproxyexportdir);
+    }
     if (XrdSecProtocolssl::sslproxyexportdir && access(XrdSecProtocolssl::sslproxyexportdir,R_OK | W_OK)) {
       fprintf(stderr,"Error: (%s) cannot read/write proxy export directory %s\n",__FUNCTION__,XrdSecProtocolssl::sslproxyexportdir);
       TRACE(Authen,"Error: cannot access proxyexportdir "<< XrdOucString(XrdSecProtocolssl::sslproxyexportdir));
@@ -1089,7 +1346,7 @@ char  *XrdSecProtocolsslInit(const char     mode,
       return 0;
     }
     
-    if (SSL_CTX_use_PrivateKey_file(XrdSecProtocolssl::ctx,XrdSecProtocolssl:: sslkeyfile, SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_PrivateKey_file(XrdSecProtocolssl::ctx,XrdSecProtocolssl::sslkeyfile, SSL_FILETYPE_PEM) <= 0) {
       ERR_print_errors_fp(stderr);
       return 0;
     }
@@ -1098,7 +1355,24 @@ char  *XrdSecProtocolsslInit(const char     mode,
       fprintf(stderr,"Private key does not match the certificate public key\n");
       return 0;
     }
-    
+
+    XrdSecProtocolssl::sslserverkeyfile=XrdSecProtocolssl::sslkeyfile;
+    // use the private server key as password for proxy private key export
+    memset(XrdSecProtocolssl::sslserverexportpassword,0,EXPORTKEYSTRENGTH); 
+
+    unsigned int seed = (unsigned int) (time(NULL) + (unsigned int) random());
+    srand(seed);
+    char rexportkey[16384];
+    rexportkey[0]=0;
+    for (int i=0; i < EXPORTKEYSTRENGTH; i++) {
+      XrdSecProtocolssl::sslserverexportpassword[i] = (unsigned char)(rand()%256);
+      if (!XrdSecProtocolssl::sslserverexportpassword[i]) XrdSecProtocolssl::sslserverexportpassword[i]++;
+      sprintf(rexportkey,"%s%x",rexportkey,XrdSecProtocolssl::sslserverexportpassword[i]);
+    }
+    XrdSecProtocolssl::sslserverexportpassword[EXPORTKEYSTRENGTH] = 0;
+    sprintf((char*)XrdSecProtocolssl::sslserverexportpassword,"1234567890");
+    // debug 
+    DEBUG("Created random export key: "<< rexportkey);
     SSL_CTX_load_verify_locations(XrdSecProtocolssl::ctx, NULL,XrdSecProtocolssl::sslcadir);  
     
     // create the store
@@ -1159,7 +1433,7 @@ XrdSecProtocol *XrdSecProtocolsslObject(const char              mode,
           else cerr <<msg <<endl;
        return (XrdSecProtocol *)0;
       }
-
+   
 // All done
 //
    return prot;

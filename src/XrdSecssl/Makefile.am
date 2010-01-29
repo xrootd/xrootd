@@ -15,7 +15,7 @@ bin_PROGRAMS = xrdsecssltest
 lib_LTLIBRARIES = libXrdSecssl.la
 
 INCLUDES = -I$(top_srcdir)/src -I${XROOTD_INCDIR}/  -IlibsslGridSite ${OPENSSL_INCDIR}
-libXrdSecssl_la_SOURCES = XrdSecProtocolssl.cc XrdSecProtocolsslTrace.hh
+libXrdSecssl_la_SOURCES = XrdSecProtocolssl.cc XrdSecProtocolssl.hh XrdSecProtocolsslTrace.hh
 libXrdSecssl_la_LIBADD = 
 libXrdSecssl_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdSec -lXrdSys -lXrdOuc -lXrdNet ${SSLLINKLIB} libsslGridSite/libsslGridSite.la ${OPENSSL_LIBDIR} -lcrypto -lssl ${XML2_LIBDIR} -lxml2 -module  
 libXrdSecssl_la_CXXFLAGS = -Wall -Werror -Wno-deprecated-declarations ${CXXFLAGS}

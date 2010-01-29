@@ -116,6 +116,7 @@ int GRST_callback_SSLVerify_wrapper(int ok, X509_STORE_CTX *ctx)
    int returned_ok;
    STACK_OF(X509) *certstack;
    GRSTx509Chain *grst_chain;
+   GRSTx509Chain *grst_old_chain;
 
    /*
     * GSI Proxy user-cert-as-CA handling:
@@ -187,6 +188,12 @@ int GRST_callback_SSLVerify_wrapper(int ok, X509_STORE_CTX *ctx)
 	// we don't free it but rather put it into the SSL context application data
         //GRSTx509ChainFree(grst_chain);
 
+        //GRSTx509ChainFree(grst_chain);
+	
+	if ((grst_old_chain = SSL_get_app_data(ssl))) {
+	  GRSTx509ChainFree(grst_old_chain);
+	}
+	  
 	SSL_set_app_data(ssl,grst_chain);
      }
 

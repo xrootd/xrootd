@@ -41,6 +41,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <strings.h>
+#include <fnmatch.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -55,7 +57,32 @@
 
 #include "gridsite.h"
 
-extern int asprintf(char **strp, const char *fmt, ...);
+#ifdef SUNCC
+/* SUN does not know strsep .... */
+
+static char* strsep(char** str, const char* delims)
+{
+  char* token;
+  if (*str==NULL) {
+    /* No more tokens */
+    return NULL;
+  }
+  
+  token=*str;
+  while (**str!='\0') {
+    if (strchr(delims,**str)!=NULL) {
+      **str='\0';
+      (*str)++;
+      return token;
+    }
+    (*str)++;
+  }
+  /* There is no other token */
+  *str=NULL;
+  return token;
+}
+
+#endif
 
 /*                                                                      *
  * Global variables, shared by all GACL functions but private to libgacl *
@@ -104,15 +131,15 @@ GRSTgaclCred *GRSTgaclCredCreate(char *auri_prefix, char *auri_suffix)
 */
 {
   int           i;
-  char         *auri;
+  char          auri[16384];
   GRSTgaclCred *newcred; 
 
   if      ((auri_prefix != NULL) && (auri_suffix == NULL))
-   auri = strdup(auri_prefix);
+   sprintf(auri,"%s",auri_prefix);
   else if ((auri_prefix == NULL) && (auri_suffix != NULL))
-   auri = strdup(auri_suffix);
+   sprintf(auri,"%s",auri_suffix);
   else if ((auri_prefix != NULL) && (auri_suffix != NULL))
-   asprintf(&auri, "%s%s", auri_prefix, auri_suffix);
+   sprintf(auri, "%s%s", auri_prefix, auri_suffix);
   else return NULL;
 
   for (i=0; (auri[i] != '\0') && isspace(auri[i]); ++i) ; /* leading space */
@@ -123,7 +150,6 @@ GRSTgaclCred *GRSTgaclCredCreate(char *auri_prefix, char *auri_suffix)
   newcred = malloc(sizeof(GRSTgaclCred));
   if (newcred == NULL) 
     {
-      free(auri);
       return NULL;
     }
   
@@ -184,35 +210,35 @@ int GRSTgaclCredAddValue(GRSTgaclCred *cred, char *name, char *rawvalue)
 
   if (strcmp(name, "dn") == 0)
     {
-      asprintf(&(cred->auri), "dn:%s", encoded_value);
+      sprintf(cred->auri, "dn:%s", encoded_value);
       free(value);
       free(encoded_value);
       return 1;
     }
   else if (strcmp(name, "fqan") == 0)
     {
-      asprintf(&(cred->auri), "fqan:%s", encoded_value);
+      sprintf(cred->auri, "fqan:%s", encoded_value);
       free(value);
       free(encoded_value);
       return 1;
     }
   else if (strcmp(name, "url") == 0)
     {
-      asprintf(&(cred->auri), "%s", encoded_value);
+      sprintf(cred->auri, "%s", encoded_value);
       free(value);
       free(encoded_value);
       return 1;
     }
   else if (strcmp(name, "hostname") == 0)
     {
-      asprintf(&(cred->auri), "dns:%s", encoded_value);
+      sprintf(cred->auri, "dns:%s", encoded_value);
       free(value);
       free(encoded_value);
       return 1;
     }
   else if (strcmp(name, "nist-loa") == 0)
     {
-      asprintf(&(cred->auri), "nist-loa:%s", encoded_value);
+      sprintf(cred->auri, "nist-loa:%s", encoded_value);
       free(value);
       free(encoded_value);
       return 1;
@@ -998,7 +1024,11 @@ int GRSTgaclUserHasCred(GRSTgaclUser *user, GRSTgaclCred *cred)
            crediter = crediter->next)
         if ((crediter->auri != NULL) &&
             (strncmp((const char*)crediter->auri, "dns:", 4) == 0))
+#ifdef SUNCC
+          return (fnmatch(cred->auri, crediter->auri, 0) == 0);
+#else
           return (fnmatch(cred->auri, crediter->auri, FNM_CASEFOLD) == 0);
+#endif
            
       return 0;    
     }
@@ -1089,7 +1119,8 @@ static void recurse4dnlists(GRSTgaclUser *user, char *dir,
    return full path to first found version or NULL on failure */
 {
   int            fd, linestart, i;
-  char          *fullfilename, *mapped, *s;
+  char          *mapped, *s;
+  char           fullfilename[16384]; 
   size_t         dn_len;
   struct stat    statbuf;
   DIR           *dirDIR;
@@ -1110,7 +1141,7 @@ static void recurse4dnlists(GRSTgaclUser *user, char *dir,
        {
          if (file_ent->d_name[0] == '.') continue;
        
-         asprintf(&fullfilename, "%s/%s", dir, file_ent->d_name);
+         sprintf(fullfilename, "%s/%s", dir, file_ent->d_name);
 
          GRSTerrorLog(GRST_LOG_DEBUG, "recurse4dnlists opens %s", fullfilename);
 
@@ -1174,7 +1205,6 @@ static void recurse4dnlists(GRSTgaclUser *user, char *dir,
            }
 
          if (fd < 0) close(fd);
-         free(fullfilename);
        }
   
   closedir(dirDIR);  
@@ -1231,16 +1261,15 @@ static char *recurse4file(char *dir, char *file, int recurse_level)
 /* try to find file[] in dir[]. try subdirs if not found. 
    return full path to first found version or NULL on failure */
 {
-  char          *fullfilename, *fulldirname;
+  char           fullfilename[16384], fulldirname[16384];
   struct stat    statbuf;
   DIR           *dirDIR;
   struct dirent *file_ent;
 
   /* try to find in current directory */
 
-  asprintf(&fullfilename, "%s/%s", dir, file);  
+  sprintf(fullfilename, "%s/%s", dir, file);  
   if (stat(fullfilename, &statbuf) == 0) return fullfilename;
-  free(fullfilename);
 
   /* maybe search in subdirectories */
   
@@ -1254,7 +1283,7 @@ static char *recurse4file(char *dir, char *file, int recurse_level)
        {
          if (file_ent->d_name[0] == '.') continue;
        
-         asprintf(&fulldirname, "%s/%s", dir, file_ent->d_name);
+         sprintf(fulldirname, "%s/%s", dir, file_ent->d_name);
 
          if ((stat(fulldirname, &statbuf) == 0) &&
              S_ISDIR(statbuf.st_mode) &&
@@ -1265,7 +1294,6 @@ static char *recurse4file(char *dir, char *file, int recurse_level)
              return fullfilename;
            }
            
-         free(fulldirname);
        }
   
   closedir(dirDIR);  

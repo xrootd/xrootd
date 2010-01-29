@@ -4,7 +4,7 @@
 Summary: ssl plugin with VOMS support
 Name: xrootd-secssl
 Version: @VERSION@
-Release: 5
+Release: 1
 Prefix: /opt/xrootd
 License: none
 Group: Applications/File

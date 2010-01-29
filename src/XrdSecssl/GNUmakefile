@@ -146,5 +146,5 @@ $(OBJDIR)/grst_x509.o:  	libsslGridSite/grst_x509.c libsslGridSite/gridsite.h
 	$(ECHO)$(CCOMPILE)  -c $(NCFLAGS)  $(INCLUDE) -o $(OBJDIR)/grst_x509.o libsslGridSite/grst_x509.c
 
 $(OBJDIR)/grst_xacml.o:  	libsslGridSite/grst_xacml.c libsslGridSite/gridsite.h
-	@echo Compiling grst_xacml.c $(NCFLAGS)
+	@echo Compiling grst_xacml.c
 	$(ECHO)$(CCOMPILE)  -c $(NCFLAGS)  $(INCLUDE) -o $(OBJDIR)/grst_xacml.o libsslGridSite/grst_xacml.c
