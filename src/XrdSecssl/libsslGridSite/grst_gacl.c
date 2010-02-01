@@ -42,7 +42,6 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <strings.h>
-#include <fnmatch.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
