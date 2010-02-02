@@ -507,6 +507,38 @@ int XrdPosixXrootd::Closedir(DIR *dirp)
 }
 
 /******************************************************************************/
+/*                              e n d P o i n t                               */
+/******************************************************************************/
+  
+int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
+{
+   XrdPosixFile    *fp;
+   XrdClientUrlInfo fURL;
+
+// Find the file object
+//
+   if (!(fp = findFP(FD))) return 0;
+
+// Obtain the current url from the file
+//
+   fURL = fp->XClient->GetCurrentUrl();
+   fp->UnLock();
+
+// Make sure url is valid
+//
+   if (!fURL.IsValid()) return -ENOTCONN;
+
+// Format host and port number, check if result is too long
+//
+   if (snprintf(Buff, Blen, "%s:%d", fURL.Host.c_str(), fURL.Port) >= Blen)
+      return -ENAMETOOLONG;
+
+// All done
+//
+   return fURL.Port;
+}
+
+/******************************************************************************/
 /*                                 F s t a t                                  */
 /******************************************************************************/
 
@@ -745,12 +777,10 @@ int XrdPosixXrootd::OpenCB(int res, XrdPosixFile *fp, void *cbArg)
 // Diagnose any error
 //
    if (!res || (fp->XClient->LastServerResp()->status) != kXR_ok)
-      {retc = Fault(fp, 0);
+      {ec = Fault(fp, 0); retc = -1;
        myMutex.Lock();
        myFiles[fp->FD] = 0;
        myMutex.UnLock();
-       ec = retc;
-       retc = -1;
       } else {
        fp->isOpen();
        fp->XClient->Stat(&fp->stat);
@@ -763,8 +793,7 @@ int XrdPosixXrootd::OpenCB(int res, XrdPosixFile *fp, void *cbArg)
 //
    if (retc < 0 || cbArg)
       {errno = ec;
-       if (retc < 0) retc = -ec;
-       fp->theCB->Complete(retc);
+       fp->theCB->Complete(retc < 0 ? -ec : retc);
       } else OpenCB(fp, retc, ec);
    return retc != -1;
 }
@@ -1518,7 +1547,7 @@ int XrdPosixXrootd::Fault(XrdPosixFile *fp, int complete)
           cerr <<"XrdPosix: " <<etext <<endl;
       }
 
-   if (!complete) return rc;
+   if (!complete) return ecode;
    fp->UnLock();
    errno = ecode;
    return rc;
