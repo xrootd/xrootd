@@ -716,18 +716,29 @@ int XrdFrmConfig::ConfigOTO(char *Parms)
   
 int XrdFrmConfig::ConfigPaths()
 {
-   char *xPath, *yPath, buff[MAXPATHLEN];
+   char *xPath, *yPath, buff[MAXPATHLEN]; 
+   const char *insName;
    int retc;
 
 // Establish the cmsd notification path
 //
-   if (!(xPath = AdminPath) && !(xPath = getenv("XRDADMINPATH")))
-      xPath = (char *)"/tmp/";
-   cmsPath = new XrdCmsNotify(&Say, xPath, myInsName, XrdCmsNotify::isServ);
+   
 
 // Set the directory where the meta information is to go
-//
-   yPath = XrdOucUtils::genPath(xPath, myInsName, "frm");
+//  XRDADMINPATH already contains the instance name
+
+   if ( (!AdminPath) && (xPath = getenv("XRDADMINPATH"))) {
+       insName = 0;
+   }
+   else {
+       if (!(xPath = AdminPath))
+           xPath = (char *)"/tmp/";
+       insName = myInsName;
+   }
+   
+   cmsPath = new XrdCmsNotify(&Say, xPath, insName, XrdCmsNotify::isServ);
+
+   yPath = XrdOucUtils::genPath(xPath, insName, "frm");
    if (AdminPath) free(AdminPath); AdminPath = yPath;
 
 // Create the admin directory if it does not exists
