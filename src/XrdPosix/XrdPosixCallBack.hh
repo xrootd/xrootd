@@ -23,6 +23,11 @@
 // failed. Note that the caller is responsible for deleting the callback object
 // after it has been invoked. Note that callbacks will be executed in a
 // separate thread unless open() is called with O_SYNC or maxThreads is zero.
+// WARNING: If O_SYNC or maxThreads is zero, then the callback must *not*
+//          issue any filesystem calls using the supplied file descriptor.
+//          Ignoring this will produce undetermined results including possible
+//          deadlock. Synchrnous callbacks are only meant to support private
+//          thread management.
 
 class XrdPosixCallBack
 {
