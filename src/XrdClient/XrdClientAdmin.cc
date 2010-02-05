@@ -1548,7 +1548,7 @@ bool XrdClientAdmin::GetSpaceInfo(const char *logicalname,
             if (pos != STR_NPOS) {
                tk.assign(s, 0, pos-1);
                val.assign(s, pos+1);
-
+#ifndef WIN32
                if ( (tk == "oss.space") && (val.length() > 1) ) {
                   totspace += atoll(val.c_str());
                } else
@@ -1561,6 +1561,20 @@ bool XrdClientAdmin::GetSpaceInfo(const char *logicalname,
                         if ( (tk == "oss.used") && (val.length() > 1) ) {
                            totused += atoll(val.c_str());
                         }
+#else
+               if ( (tk == "oss.space") && (val.length() > 1) ) {
+                  totspace += _atoi64(val.c_str());
+               } else
+                  if ( (tk == "oss.free") && (val.length() > 1) ) {
+                     totfree += _atoi64(val.c_str());
+                  } else
+                     if ( (tk == "oss.maxf") && (val.length() > 1) ) {
+                        largestchunk = xrdmax(largestchunk, _atoi64(val.c_str()));
+                     } else
+                        if ( (tk == "oss.used") && (val.length() > 1) ) {
+                           totused += _atoi64(val.c_str());
+                        }
+#endif
             }
          }
 
