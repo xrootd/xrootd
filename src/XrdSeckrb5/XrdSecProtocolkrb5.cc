@@ -531,8 +531,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
      // Obtain the default cache location
      //
      if ((rc = krb5_cc_default(krb_context, &krb_client_ccache)))
-       return Fatal(erp, ENOPROTOOPT, "Unable to locate cred cache", KP, rc);
-     
+        return Fatal(erp, ENOPROTOOPT, "Unable to locate cred cache", KP, rc);
      return 0;
    }
 
@@ -541,7 +540,7 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 
 // Obtain the default cache location
 //
-   if ((rc = krb5_cc_default(krb_context, &krb_ccache)))
+   if ((rc = krb5_cc_default(krb_client_context, &krb_client_ccache)))
       return Fatal(erp, ENOPROTOOPT, "Unable to locate cred cache", KP, rc);
 
 // Try to resolve the keyfile name
