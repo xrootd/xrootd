@@ -165,10 +165,18 @@ bool XrdClient::IsOpen_wait() {
 
     if (fOpenPars.inprogress) {
 	fOpenProgCnd->Wait();
+
 	if (fOpenerTh) {
+            // To prevent deadlocks in the case of
+            // accesses from the Open() callback
+            fOpenProgCnd->UnLock();
+
             fOpenerTh->Join();
 	    delete fOpenerTh;
 	    fOpenerTh = 0;
+
+            // We need the lock again... sigh
+            fOpenProgCnd->Lock();
 	}
     }
     res = fOpenPars.opened;
