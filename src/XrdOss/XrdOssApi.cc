@@ -457,15 +457,18 @@ int XrdOssDir::Opendir(const char *dir_path)
 
    TRACE(Opendir, "rmt path " << remote_path <<" (" << dir_path <<")");
 
-// If NOCHECK is in effect and we have an mss meta-cmd, just do a stat
+// Originally, if MSS directories were not to be read, we ould simply check
+// if the path was a directory and return an error if not. That was superceeded
+// by making NODREAD mean to read the local directory only (which is not always
+// ideal). So, we keep the code below but comment it out for now.
 //
-   if (!(pflags & XRDEXP_NOCHECK) && XrdOssSS->MSSgwCmd)
-      {struct stat fstat;
-       if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
-       if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
-       isopen = 1;
-       return XrdOssOK;
-      }
+// if ((pflags & XRDEXP_NODREAD) && !(pflags & XRDEXP_NOCHECK))
+//    {struct stat fstat;
+//     if ((retc = XrdOssSS->MSS_Stat(remote_path,&fstat))) return retc;
+//     if (!(S_ISDIR(fstat.st_mode))) return -ENOTDIR;
+//     isopen = 1;
+//     return XrdOssOK;
+//    }
 
 // Open the directory at the remote location.
 //
