@@ -104,6 +104,7 @@ XrdOucNSWalk::NSEnt *XrdOucNSWalk::Index(int &rc, const char **dPath)
   
 void XrdOucNSWalk::addEnt(XrdOucNSWalk::NSEnt *eP)
 {
+   static const int retIxLO = retIDLO | retIILO;
 
 // Complete the entry
 //
@@ -115,9 +116,12 @@ void XrdOucNSWalk::addEnt(XrdOucNSWalk::NSEnt *eP)
 
 // Chain the entry into the list
 //
-   if (!(Opts & retIDLO)) {eP->Next = DEnts; DEnts = eP;}
+   if (!(Opts & retIxLO)) {eP->Next = DEnts; DEnts = eP;}
       else {NSEnt *pP = 0, *nP = DEnts;
-            while(nP && eP->Plen < nP->Plen) {pP = nP; nP = nP->Next;}
+            if (Opts & retIDLO)
+               while(nP && eP->Plen < nP->Plen) {pP = nP; nP = nP->Next;}
+               else
+               while(nP && eP->Plen > nP->Plen) {pP = nP; nP = nP->Next;}
             if (pP) {eP->Next = nP; pP->Next = eP;}
                else {eP->Next = nP; DEnts    = eP;}
            }
