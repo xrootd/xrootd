@@ -611,7 +611,13 @@ void *XrdOssCache::Scan(int cscanint)
    STATFS_t fsbuff;
    const struct timespec naptime = {cscanint, 0};
    long long llT; // A dummy temporary
-   int retc;
+   int retc, dbgMsg, dbgNoMsg;
+
+// Try to prevent floodingthe log with scan messages
+//
+   if (cscanint > 0 && cscanint < 60) dbgMsg = cscanint/60;
+      else dbgMsg = 1;
+   dbgNoMsg = dbgMsg;
 
 // Loop scanning the cache
 //
@@ -638,7 +644,10 @@ void *XrdOssCache::Scan(int cscanint)
                          else {fsdp->frsz=XrdOssCache_FS::freeSpace(llT,fsdp->path);
                                fsdp->stat &= ~(XrdOssFSData_REFRESH |
                                                XrdOssFSData_ADJUSTED);
-                               DEBUG("New free=" <<fsdp->frsz <<" path=" <<fsdp->path);
+                               if (!dbgNoMsg--)
+                                  {DEBUG("New free=" <<fsdp->frsz <<" path=" <<fsdp->path);
+                                   dbgNoMsg = dbgMsg;
+                                  }
                                }
                      } else fsdp->stat |= XrdOssFSData_REFRESH;
                  if (!retc)
