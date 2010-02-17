@@ -101,7 +101,8 @@ int XrdOssSys::Unlink(const char *path, int Opts)
    if (Opts & XRDOSS_isPFN)
       {strcpy(local_path, path),
        *remote_path = '\0';
-       ismig = remotefs = 0;
+       ismig = Opts & XRDOSS_isMIG;
+       remotefs = 0;
       } else {
        remotefs = Check_RO(Unlink, ismig, path, "deleting ");
        if ( (retc = GenLocalPath( path,  local_path))
