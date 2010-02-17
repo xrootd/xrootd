@@ -617,6 +617,7 @@ do{psP = First;
 int XrdFrmPurge::PurgeFile()
 {
    EPNAME("PurgeFile");
+   static const int unOpts = XRDOSS_isPFN|XRDOSS_isMIG;
    XrdFrmFileset *fP;
    const char *fn, *Why = "file in use";
    time_t xTime;
@@ -633,7 +634,7 @@ do{if (!(fP = FSTab.Oldest()) && !(fP = Advance()))
    && (!Ext || !(Why = XPolOK(fP))))
       {fn = fP->basePath();
        if (Config.Test) rc = 0;
-          else if (!(rc = Config.ossFS->Unlink(fn, XRDOSS_isPFN)))
+          else if (!(rc = Config.ossFS->Unlink(fn, unOpts)))
                   Config.cmsPath->Gone(fn);
        if (!rc) {prgFiles++; FilePurged = 1;
                  freeSpace += fP->baseFile()->Stat.st_size;
@@ -800,13 +801,13 @@ void XrdFrmPurge::Stats(int Final)
              if ((zBytes = xsP->maxFSpace - xsP->freeSpace) > 0)
                 {XrdOucUtils::fmtBytes(zBytes, zBuff, sizeof(zBuff));
                  zWhat = " deficit";
-                } else {*zBuff = '\0'; zWhat = "goal met";}
+                } else {*zBuff = '\0'; zWhat = "need met";}
              nFiles = xsP->prgFiles;  nWhat = "prgd";
             } else {
              xBytes = (xsP->freeSpace < xsP->minFSpace
                     ?  xsP->maxFSpace - xsP->freeSpace : 0);
              nFiles = xsP->FSTab.Count(); 
-             xWhat = "goal"; nWhat = "idle"; *zBuff = '\0'; zWhat = "";
+             xWhat = "needed"; nWhat = "idle"; *zBuff = '\0'; zWhat = "";
            }
          XrdOucUtils::fmtBytes(xBytes, xBuff, sizeof(xBuff));
          sprintf(sBuff, " %sfree %s (%lld%%) %d files %d %s; %s %s %s%s",

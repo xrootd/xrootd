@@ -259,6 +259,7 @@ XrdFrmFiles::XrdFrmFiles(const char *dname, int opts,
             : nsObj(&Say, dname, Config.lockFN,
                     XrdOucNSWalk::retFile | XrdOucNSWalk::retLink
                    |XrdOucNSWalk::retStat | XrdOucNSWalk::skpErrs
+                   |XrdOucNSWalk::retIILO
                    | (opts & CompressD  ?   XrdOucNSWalk::noPath  : 0)
                    | (opts & Recursive  ?   XrdOucNSWalk::Recurse : 0), XList),
               fsList(0), manMem(opts & NoAutoDel ? Hash_keep : Hash_default),
@@ -335,13 +336,14 @@ int XrdFrmFiles::Process(XrdOucNSWalk::NSEnt *nP, const char *dPath)
    while((fP = nP))
         {nP = fP->Next; fP->Next = 0;
          if (!strcmp(fP->File, Config.lockFN)) {delete fP; continue;}
-         if ((dotP = rindex(fP->File, '.'))) *dotP = '\0';
+         if ((fType = (int)XrdOssPath::pathType(fP->File))
+         && (dotP = rindex(fP->File, '.'))) *dotP = '\0';
+            else dotP = 0;
          if (!(sP = fsTab.Find(fP->File)))
             {sP = fsList = new XrdFrmFileset(fsList, dP);
              fsTab.Add(fP->File, sP, 0, manMem);
             }
          if (dotP) *dotP = '.';
-         fType = (int)XrdOssPath::pathType(fP->File);
          sP->File[fType] = fP;
         }
 
