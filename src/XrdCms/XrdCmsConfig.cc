@@ -771,6 +771,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
                 ||  !strcmp(var, "all.adminpath")
                 ||  !strcmp(var, "all.export")
                 ||  !strcmp(var, "all.manager")
+                ||  !strcmp(var, "all.pidpath")
                 ||  !strcmp(var, "all.role")
                 ||  !strcmp(var, "all.seclib"))
                    {if (ConfigXeq(var+4, CFile, 0)) {CFile.Echo(); NoGo = 1;}}
