@@ -394,7 +394,7 @@ int XrdOssSys::getStats(char *buff, int blen)
    static const int ptag3sz = sizeof(ptag3);
 
    static const char stag1[] = "<space>%d";
-   static const char stag2[] = "<stats id=\"%d\" v=\"2\"><name>%s</name>"
+   static const char stag2[] = "<stats id=\"%d\"><name>%s</name>"
                 "<tot>%lld</tot><free>%lld</free><maxf>%lld</maxf>"
                 "<fsn>%d</fsn><usg>%lld</usg>";
    static const char stagq[] = "<qta>%lld</qta>";

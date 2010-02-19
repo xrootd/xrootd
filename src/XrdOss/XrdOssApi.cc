@@ -324,7 +324,7 @@ int XrdOssSys::Mkpath(const char *path, mode_t mode)
 
 int XrdOssSys::Stats(char *buff, int blen)
 {
-   static const char statfmt1[] = "<stats id=\"oss\">";
+   static const char statfmt1[] = "<stats id=\"oss\" v=\"2\">";
    static const char statfmt2[] = "</stats>";
    static const int  statflen = sizeof(statfmt1) + sizeof(statfmt2);
    char *bp = buff;
