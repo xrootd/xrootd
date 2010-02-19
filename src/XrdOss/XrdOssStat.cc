@@ -394,7 +394,7 @@ int XrdOssSys::getStats(char *buff, int blen)
    static const int ptag3sz = sizeof(ptag3);
 
    static const char stag1[] = "<space>%d";
-   static const char stag2[] = "<stats id=\"%d\"><name>%s</name>"
+   static const char stag2[] = "<stats id=\"%d\" v=\"2\"><name>%s</name>"
                 "<tot>%lld</tot><free>%lld</free><maxf>%lld</maxf>"
                 "<fsn>%d</fsn><usg>%lld</usg>";
    static const char stagq[] = "<qta>%lld</qta>";
@@ -458,8 +458,8 @@ int XrdOssSys::getStats(char *buff, int blen)
 //
    while(fsg && blen > 0)
         {n = XrdOssCache_FS::getSpace(CSpace, fsg);
-         flen = snprintf(bp, blen, stag2, spNum, fsg->group, CSpace.Total,
-                         CSpace.Free>>10, CSpace.Maxfree>>10, n, CSpace.Usage);
+         flen = snprintf(bp, blen, stag2, spNum, fsg->group, CSpace.Total>>10,
+                CSpace.Free>>10, CSpace.Maxfree>>10, n, CSpace.Usage>>10);
          bp += flen; blen -= flen; spNum++;
          if (CSpace.Quota >= 0 && blen > stagqsz)
             {flen = sprintf(bp, stagq, CSpace.Quota); bp += flen; blen -= flen;}
