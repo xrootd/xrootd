@@ -305,6 +305,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!(AdminSock = XrdNetSocket::Create(&eDest, adminp, "admin", pi->AdmMode))
    ||  !XrdXrootdAdmin::Init(&eDest, AdminSock)) return 0;
 
+// Setup pid file
+//
+   PidFile();
+
 // Return success
 //
    free(adminp);
@@ -335,6 +339,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
    while((var = Config.GetMyFirstWord()))
         {     if ((ismine = !strncmp("xrootd.", var, 7)) && var[7]) var += 7;
          else if ((ismine = !strcmp("all.export", var)))    var += 4;
+         else if ((ismine = !strcmp("all.pidpath",var)))    var += 4;
          else if ((ismine = !strcmp("all.seclib", var)))    var += 4;
 
          if (ismine)
@@ -344,6 +349,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
              else if TS_Xeq("fslib",         xfsl);
              else if TS_Xeq("log",           xlog);
              else if TS_Xeq("monitor",       xmon);
+             else if TS_Xeq("pidpath",       xpidf);
              else if TS_Xeq("prep",          xprep);
              else if TS_Xeq("redirect",      xred);
              else if TS_Xeq("seclib",        xsecl);
@@ -361,6 +367,32 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
+/******************************************************************************/
+/*                               P i d F i l e                                */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::PidFile()
+{
+    int rc, xfd;
+    char buff[32], pidFN[1200];
+    char *ppath=XrdOucUtils::genPath(pidPath,getenv("XRDNAME"));
+    const char *xop = 0;
+
+    if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
+       {xop = "create"; errno = rc;}
+       else {snprintf(pidFN, sizeof(pidFN), "%s/xrootd.pid", ppath);
+
+            if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
+               xop = "open";
+               else {if (write(xfd,buff,snprintf(buff,sizeof(buff),"%d",
+                         static_cast<int>(getpid()))) < 0) xop = "write";
+                     close(xfd);
+                    }
+            }
+
+    if (xop) eDest.Emsg("Config", errno, xop, pidFN);
+}
+
 /******************************************************************************/
 /*                                x a s y n c                                 */
 /******************************************************************************/
@@ -769,6 +801,36 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
    if (monDest[0]) monMode[0] |= (monMode[0] ? XROOTD_MON_FILE|xmode : xmode);
    if (monDest[1]) monMode[1] |= (monMode[1] ? XROOTD_MON_FILE|xmode : xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                 x p i d f                                  */
+/******************************************************************************/
+
+/* Function: xpidf
+
+   Purpose:  To parse the directive: pidpath <path>
+
+             <path>    the path where the pid file is to be created.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xpidf(XrdOucStream &Config)
+{
+    char *val;
+
+// Get the path
+//
+   val = Config.GetWord();
+   if (!val || !val[0])
+      {eDest.Emsg("Config", "pidpath not specified"); return 1;}
+
+// Record the path
+//
+   if (pidPath) free(pidPath);
+   pidPath = strdup(val);
    return 0;
 }
 

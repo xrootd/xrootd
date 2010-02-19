@@ -152,7 +152,6 @@ XrdConfig::XrdConfig(void)
    PortWAN  = 0;
    ConfigFN = 0;
    myInsName= 0;
-   pidPath  = strdup("/tmp");
    AdminPath= strdup("/tmp");
    AdminMode= 0700;
    Police   = 0;
@@ -383,7 +382,6 @@ int XrdConfig::Configure(int argc, char **argv)
 // If we hae a net name change the working directory
 //
    if (myInsName) XrdOucUtils::makeHome(XrdLog, myInsName);
-   PidFile();
 
 // All done, close the stream and return the return code.
 //
@@ -420,7 +418,6 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    {
    TS_Xeq("adminpath",     xapath);
    TS_Xeq("allow",         xallow);
-   TS_Xeq("pidpath",       xpidf);
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
@@ -510,8 +507,7 @@ int XrdConfig::ConfigProc()
 //
    while((var = Config.GetMyFirstWord()))
         if (!strncmp(var, "xrd.", 4)
-        ||  !strcmp (var, "all.adminpath")
-        ||  !strcmp (var, "all.pidpath"))
+        ||  !strcmp (var, "all.adminpath"))
            if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
 
 // Now check if any errors occured during file i/o
@@ -557,32 +553,6 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
       }
    newGid = pp->pw_gid;
    return 1;
-}
-
-
-/******************************************************************************/
-/*                               P i d F i l e                                */
-/******************************************************************************/
-  
-void XrdConfig::PidFile()
-{
-    int rc, xfd;
-    char buff[32], pidFN[1200], *ppath=XrdOucUtils::genPath(pidPath,myInsName);
-    const char *xop = 0;
-
-    if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))
-       {xop = "create"; errno = rc;}
-       else {snprintf(pidFN, sizeof(pidFN), "%s/%s.pid", ppath, myProg);
-
-            if ((xfd = open(pidFN, O_WRONLY|O_CREAT|O_TRUNC,0644)) < 0)
-               xop = "open";
-               else {if (write(xfd,buff,snprintf(buff,sizeof(buff),"%d",
-                         static_cast<int>(getpid()))) < 0) xop = "write";
-                     close(xfd);
-                    }
-            }
-
-    if (xop) XrdLog.Emsg("Config", errno, xop, pidFN);
 }
 
 /******************************************************************************/
@@ -1017,36 +987,6 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                    | (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
      return 0;
-}
-  
-/******************************************************************************/
-/*                                 x p i d f                                  */
-/******************************************************************************/
-
-/* Function: xpidf
-
-   Purpose:  To parse the directive: pidpath <path>
-
-             <path>    the path where the pid file is to be created.
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdConfig::xpidf(XrdSysError *eDest, XrdOucStream &Config)
-{
-    char *val;
-
-// Get the path
-//
-   val = Config.GetWord();
-   if (!val || !val[0])
-      {eDest->Emsg("Config", "pidpath not specified"); return 1;}
-
-// Record the path
-//
-   if (pidPath) free(pidPath);
-   pidPath = strdup(val);
-   return 0;
 }
 
 /******************************************************************************/
