@@ -813,7 +813,7 @@ int XrdPosixXrootd::OpenCB(XrdPosixFile *fp, int rCode, int eCode)
 //
    if (!fp)
    do {cbMutex.Lock();
-       if (!First && numThreads > 1)
+       if (!First && !Waiting)
           {numThreads--; cbMutex.UnLock(); return 0;}
        while(!(cbFP = First))
             {Waiting = 1;
@@ -833,9 +833,9 @@ int XrdPosixXrootd::OpenCB(XrdPosixFile *fp, int rCode, int eCode)
 // Lock our data structure and queue this element
 //
    cbMutex.Lock();
-   if (Last) fp->Next = Last;
+   if (Last) Last->Next = fp;
       else   First    = fp;
-   Last = fp;
+   Last = fp; fp->Next = 0;
 
 // See if we should start a thread
 //
