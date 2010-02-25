@@ -259,7 +259,7 @@ int                getCname(const char *path, struct stat *sbuff, char *cgbuff);
 int                getStats(char *buff, int blen);
 int                GetFile(XrdOssStage_Req *req);
 int                getID(const char *, XrdOucEnv &, char *, int);
-time_t             HasFile(const char *fn, const char *sfx);
+time_t             HasFile(const char *fn, const char *sfx, time_t *mTime=0);
 int                Stage_QT(const char *, const char *, XrdOucEnv &, int, mode_t);
 int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned long long);
 

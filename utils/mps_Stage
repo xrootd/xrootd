@@ -385,7 +385,9 @@ sub CleanUp {my($rc) = @_;
       &Log("Stage rc=$rc lkn=$lktries lkt=$lktime xfr=$xfrtime fn=$trg_fn");
      }
   if ($rc && $ErrLog && $CmdFile && open(CUFD, ">>$CmdFile") )
-     {print(CUFD $ErrLog); close(CUFD); rename($CmdFile, $ErrFile);}
+     {print(CUFD $ErrLog); close(CUFD); rename($CmdFile, $ErrFile);
+      utime(time(), 2, $ErrFile) if $rc == 2;
+     }
   exit($rc);
 }
 
