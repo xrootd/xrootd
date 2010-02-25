@@ -572,6 +572,8 @@ int XrdOfsFile::open(const char          *path,      // In
            return XrdOfsFS.fsError(error, retc);
           }
        if (retc == -ETXTBSY) return XrdOfsFS.Stall(error, -1, path);
+       if (retc == -ENOENT && XrdOfsFS.Balancer)
+          XrdOfsFS.Balancer->Removed(path);
        return XrdOfsFS.Emsg(epname, error, retc, "open", path);
       }
 
