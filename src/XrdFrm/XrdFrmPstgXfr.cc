@@ -370,9 +370,16 @@ const char *XrdFrmPstgXfr::Stage(XrdFrmPstgXrq *xP, int &retcode)
    if (rc)
       {Config.ossFS->Unlink(lfnpath);
        strcpy(&xP->PFN[xP->pfnEnd], ".fail");
-       if ((myFD = open(xP->PFN, O_CREAT, fMode)) >= 0) close(myFD);
+       if ((myFD = open(xP->PFN, O_CREAT, fMode)) >= 0)
+          {close(myFD);
+           if (rc == -2)
+              {struct utimbuf tbuff;
+               tbuff.actime = time(0); tbuff.modtime = 2;
+               utime(xP->PFN, &tbuff);
+              }
+          }
        xP->PFN[xP->pfnEnd] = '\0';
-       if (retcode == -2) {retcode = 2; return "file not found";}
+       if (rc == -2) {retcode = 2; return "file not found";}
        retcode = 1;
        return "stage failed";
       } else {
