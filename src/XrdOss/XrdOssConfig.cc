@@ -288,6 +288,18 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 //
    XrdOssRPList = &RPList;
 
+// The last step is to turn off the r/o flag for each stageable path if we are
+// running in solitary mode. This allows the frm to stage and purge files.
+//
+   if (!NoGo && Solitary)
+      {XrdOucPList *fp = RPList.First();
+       while(fp)
+            {if (!(fp->Flag() & XRDEXP_NOSTAGE))
+                fp->Set(fp->Flag() & ~XRDEXP_NOTRW);
+             fp = fp->Next();
+            }
+      }
+
 // All done, close the stream and return the return code.
 //
    val = (NoGo ? (char *)"failed." : (char *)"completed.");
