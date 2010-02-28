@@ -719,18 +719,29 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Obtain a new filedscriptor from the system. Use the fd to track the file.
 //
-   if ((fd = dup(devNull)) < 0) return -1;
+do{if ((fd = dup(devNull)) < 0) return -1;
    if (oflags & isStream && fd > 255) {close(fd); errno = EMFILE; return -1;}
    isSync = (maxThreads == 0) || (oflags & O_SYNC);
 
-// Allocate the new file object
+// Make sure we are not getting an in-use fd which may happen if the fd
+// is closed outside the content of this framework, sigh.
 //
    myMutex.Lock();
+   if (fd <= lastFD && myFiles[fd])
+      {cerr <<"XrdPosix: FD " <<fd <<" closed outside of XrdPosix!" <<endl;
+       myMutex.UnLock();
+       continue;
+      }
+
+// Allocate the new file object
+//
    if (fd > lastFD || !(fp = new XrdPosixFile(fd, path, cbP, isSync)))
       {errno = EMFILE; myMutex.UnLock(); return -1;}
    myFiles[fd] = fp;
    if (fd > highFD) highFD = fd;
    myMutex.UnLock();
+   break;
+  } while(1);
 
 // Translate the mode, if need be
 //
