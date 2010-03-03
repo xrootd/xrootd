@@ -632,6 +632,7 @@ void *XrdOssCache::Scan(int cscanint)
         //
            fsSize =  0;
            fsTotFr=  0;
+           fsFree =  0;
            fsdp = fsdata;
            while(fsdp)
                 {retc = 0;
