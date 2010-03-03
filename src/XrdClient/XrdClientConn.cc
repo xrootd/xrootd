@@ -2387,7 +2387,11 @@ bool XrdClientConn::WaitResp(int secsmax) {
              // If still to wait... wait in relatively small steps
              time_t tt = xrdmin(timelimit - timenow, 10);
              // If still to wait... wait
-             rc = fREQWaitResp->Wait(tt);           
+             rc = fREQWaitResp->Wait(tt);
+
+             // We probably got a signal, let's see if there's something
+             // If not.. continue waiting
+             if (!rc && !fREQWaitRespData) rc = false;
           }
           else {
              rc = true;
