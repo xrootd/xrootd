@@ -608,9 +608,8 @@ void *XrdOssCache::Scan(int cscanint)
    EPNAME("CacheScan")
    XrdOssCache_FSData *fsdp;
    XrdOssCache_Group  *fsgp;
-   STATFS_t fsbuff;
    const struct timespec naptime = {cscanint, 0};
-   long long llT; // A dummy temporary
+   long long frsz, llT; // llT is a dummy temporary
    int retc, dbgMsg, dbgNoMsg;
 
 // Try to prevent floodingthe log with scan messages
@@ -637,11 +636,11 @@ void *XrdOssCache::Scan(int cscanint)
            while(fsdp)
                 {retc = 0;
                  if ((fsdp->stat & XrdOssFSData_REFRESH)
-                 || !(fsdp->stat & XrdOssFSData_ADJUSTED))
-                     {if ((retc = FS_Stat(fsdp->path, &fsbuff)))
-                         OssEroute.Emsg("XrdOssCacheScan", errno ,
+                 || !(fsdp->stat & XrdOssFSData_ADJUSTED) || cscanint <= 0)
+                     {frsz = XrdOssCache_FS::freeSpace(llT,fsdp->path);
+                      if (frsz < 0) OssEroute.Emsg("XrdOssCacheScan", errno ,
                                     "state file system ",(char *)fsdp->path);
-                         else {fsdp->frsz=XrdOssCache_FS::freeSpace(llT,fsdp->path);
+                         else {fsdp->frsz = frsz;
                                fsdp->stat &= ~(XrdOssFSData_REFRESH |
                                                XrdOssFSData_ADJUSTED);
                                if (!dbgNoMsg--)
