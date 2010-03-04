@@ -2367,48 +2367,51 @@ bool XrdClientConn::WaitResp(int secsmax) {
 
     // Returns true on timeout, false if a signal was caught
 
-    int rc = true;
+   int rc = false;
 
-    // Lock mutex
-    fREQWaitResp->Lock();
+   Info(XrdClientDebug::kHIDEBUG,
+        "WaitResp", "Waiting response for " << secsmax << " secs." );
 
-    // We don't have to wait if the info already arrived
-    if (!fREQWaitRespData) {
+   // Lock condvar
+   fREQWaitResp->Lock();
 
-       Info(XrdClientDebug::kHIDEBUG,
-            "WaitResp", "Waiting response for " << secsmax << " secs." );
+   time_t timelimit = time(0)+secsmax;
 
-       time_t timelimit = time(0)+secsmax;
-
-       while (rc) {
-          time_t timenow = time(0);
+   while (!fREQWaitRespData) {
+      rc = true;
+      time_t timenow = time(0);
           
-          if ((timenow < timelimit) && !IsOpTimeLimitElapsed(timenow)) {
-             // If still to wait... wait in relatively small steps
-             time_t tt = xrdmin(timelimit - timenow, 10);
-             // If still to wait... wait
-             rc = fREQWaitResp->Wait(tt);
+      if ((timenow < timelimit) && !IsOpTimeLimitElapsed(timenow)) {
+         // If still to wait... wait in relatively small steps
+         time_t tt = xrdmin(timelimit - timenow, 10);
+         fREQWaitResp->Wait(tt);
 
-             // We probably got a signal, let's see if there's something
-             // If not.. continue waiting
-             if (!rc && !fREQWaitRespData) rc = false;
-          }
-          else {
-             rc = true;
-             break;
-          }
+         // Let's see if there's something
+         // If not.. continue waiting
+         if (fREQWaitRespData) {
+            rc = false;
+            break;
+         }
 
-       }
-       
-       
-       Info(XrdClientDebug::kHIDEBUG,
-            "WaitResp", "Signal or timeout elapsed. Data=" << fREQWaitRespData );
-    }
+      }
+      else break;
+      
+
+   }
     
-    // Unlock mutex
-    fREQWaitResp->UnLock();
+   // Unlock condvar
+   fREQWaitResp->UnLock();
+       
+   if (rc) {
+      Info(XrdClientDebug::kHIDEBUG,
+           "WaitResp", "Timeout elapsed.");
+   }
+   else {
+      Info(XrdClientDebug::kHIDEBUG,
+           "WaitResp", "Got an unsolicited response. Data=" << fREQWaitRespData);
+   }
     
-    return rc;
+   return rc;
 }
 
 
