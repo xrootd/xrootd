@@ -826,7 +826,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "oss.cache"     )) return xcache();
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
-       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &LocalRoot, 0);
+       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
 //     if (!strcmp(var, "oss.mssgwcmd"  )) return Grab(var, &MSSCmd,    0);
 //     if (!strcmp(var, "oss.msscmd"    )) return Grab(var, &MSSCmd,    0);
       }
@@ -843,7 +843,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "oss.cache"     )) return xcache();
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
-       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &LocalRoot, 0);
+       if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
        if (!strcmp(var, "stopfile"      )) return Grab(var, &StopFile,  0);
        if (!strcmp(var, "waittime"      )) return xwtm();
        if (!strcmp(var, "xrootd.monitor")) return xmon();
