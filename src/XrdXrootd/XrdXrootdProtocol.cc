@@ -615,7 +615,6 @@ void XrdXrootdProtocol::Reset()
    myOffset           = 0;
    myIOLen            = 0;
    myStalls           = 0;
-   myLastRC           = 0;
    myAioReq           = 0;
    numReads           = 0;
    numReadP           = 0;
