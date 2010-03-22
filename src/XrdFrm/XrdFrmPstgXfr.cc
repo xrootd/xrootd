@@ -388,8 +388,12 @@ const char *XrdFrmPstgXfr::Stage(XrdFrmPstgXrq *xP, int &retcode)
         xfrET = eNow - xfrET; inqET = eNow - time_t(xP->reqData.addTOD);
         if (xfrET <= 0) xfrET = 1;
         inqT = static_cast<int>(inqET); xfrT = static_cast<int>(xfrET);
-        DEBUG("sz=" <<fSize <<" xt=" <<xfrT <<" qt=" <<inqT
-                    <<"up=" <<xP->reqData.User <<' ' <<lfnpath);
+        if (Config.sSpec || Trace.What & TRACE_Debug)
+           {char sbuff[80];
+            sprintf(sbuff, "Staged: %lld qt: %d xt: %d up: ",fSize,inqT,xfrT);
+            lfnpath[lfnEnd] = '\0';
+            Say.Say(0, sbuff, xP->reqData.User, " ", lfnpath);
+           }
         if (Config.monStage)
            {snprintf(lfnpath+lfnEnd, sizeof(lfnpath)-lfnEnd-1,
                      "\n&qt=%d&sz=%lld&tm=%d",inqT, fSize, xfrT);
