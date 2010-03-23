@@ -354,8 +354,11 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                      break;
        case ssMigr:  NoGo = (ConfigN2N() || ConfigMP("migratable"));
                      break;
-       case ssPstg:  if (!isAgent && (ConfigN2N() || ConfigMss()
-                     || !(xfrVec = ConfigCmd("xfrcmd", xfrCmd)))) NoGo = 1;
+       case ssPstg:  if (isAgent) break;
+                     if (ConfigN2N() || ConfigMss()
+                     ||  !(xfrVec = ConfigCmd("xfrcmd", xfrCmd))
+                     ||  (monStage &&!XrdXrootdMonitor::Init(0, &Say)))
+                         NoGo = 1;
                      break;
        case ssPurg:  NoGo = (ConfigN2N() || ConfigMP("purgeable"));
                      break;
