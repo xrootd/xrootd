@@ -1210,11 +1210,11 @@ int XrdFrmConfig::xmaxx()
 int XrdFrmConfig::xmon()
 {   char  *val, *cp, *monDest[2] = {0, 0};
     long long tempval;
-    int i, monFlush=0, monMBval=0, monWWval=0, xmode=0, monMode[2] = {0, 0};
+    int i, monFlush=0, monMBval=0, monWWval=0, monMode[2] = {0, 0};
 
     while((val = cFile->GetWord()))
 
-         {     if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
+         {     if (!strcmp("all",  val)) {}
           else if (!strcmp("flush", val))
                 {if (!(val = cFile->GetWord()))
                     {Say.Emsg("Config", "monitor flush value not specified");
@@ -1287,8 +1287,8 @@ int XrdFrmConfig::xmon()
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
-   if (monDest[0]) monMode[0] |= (monMode[0] ? XROOTD_MON_FILE|xmode : xmode);
-   if (monDest[1]) monMode[1] |= (monMode[1] ? XROOTD_MON_FILE|xmode : xmode);
+   if (monDest[0]) monMode[0] |= XROOTD_MON_ALL;
+   if (monDest[1]) monMode[1] |= XROOTD_MON_ALL;
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
    return 0;
 }
