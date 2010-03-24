@@ -709,7 +709,10 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
        //
           tp = StageCmd;
           while(*tp && *tp == ' ') tp++;
-          if (*tp == '|') {StageRealTime = 0; StageCmd = tp+1;}
+          if (*tp == '|') {StageRealTime = 0; 
+                           do {tp++;} while(*tp == ' ');
+                          }
+          StageCmd = tp;
 
        // This is a bit of hackery to get the traceid sent over to the
        // new file residency manager (frm). Keeps the config simple.
