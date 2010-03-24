@@ -795,11 +795,23 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
        free(monDest[1]); monDest[1] = 0;
       }
 
+// Screen out requests that only want to stage
+//
+   if (monDest[0] && monMode[0] == XROOTD_MON_STAGE)
+      {monMode[0] = 0; free(monDest[0]); monDest[0] = 0;}
+   if (monDest[1] && monMode[1] == XROOTD_MON_STAGE)
+      {monMode[1] = 0; free(monDest[1]); monDest[1] = 0;}
+
+// Add files option if I/O is enabled
+//
+   if (monMode[0] & XROOTD_MON_IO) monMode[0] |= XROOTD_MON_FILE;
+   if (monMode[1] & XROOTD_MON_IO) monMode[1] |= XROOTD_MON_FILE;
+
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
-   if (monDest[0]) monMode[0] |= (monMode[0] ? XROOTD_MON_FILE|xmode : xmode);
-   if (monDest[1]) monMode[1] |= (monMode[1] ? XROOTD_MON_FILE|xmode : xmode);
+   if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
+   if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
    return 0;
 }
