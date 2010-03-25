@@ -263,6 +263,7 @@ void XrdFrmPurge::Defer(XrdFrmFileset *sP, time_t xTime)
 
 // Slot the entry into the defer queue vector
 //
+   if (n >= DeferQsz) n = DeferQsz-1;
    if (!DeferQ[n] || aTime < DeferT[n]) DeferT[n] = aTime;
    sP->Next = DeferQ[n];
    DeferQ[n] = sP;
