@@ -417,7 +417,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 
 // Find a cache that will fit this allocation request
 //
-   maxfree = fsp->fsdata->frsz; fsp_sel = 0; fspend = fsp = fsp->next;
+   maxfree = fsp->fsdata->frsz; fsp_sel = 0; fspend = fsp; fsp = fsp->next;
    do {
        if (strcmp(aInfo.cgName, fsp->group)
        || (aInfo.cgPath && (aInfo.cgPlen > fsp->plen
@@ -425,7 +425,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
        curfree = fsp->fsdata->frsz;
        if (size > curfree) continue;
 
-             if (!fsp_sel)      {fsp_sel = fsp; maxfree = curfree;}
+             if (fuzAlloc >= 100) {fsp_sel = fsp; break;}
        else  if (!fuzAlloc) {if (curfree > maxfree)
                                 {fsp_sel = fsp; maxfree = curfree;}}
        else {diffree = (!(curfree + maxfree) ? 0.0
@@ -438,7 +438,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 // Check if we can realy fit this file. If so, update current scan pointer
 //
    if (!fsp_sel) return -ENOSPC;
-   cgp->curr = fsp_sel->next;
+   cgp->curr = fsp_sel;
 
 // Construct the target filename
 //
