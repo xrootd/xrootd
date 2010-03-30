@@ -1004,7 +1004,10 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     // If the open request failed for the error "file not found" proceed, 
     // otherwise return FALSE
-    if (fConnModule->LastServerResp.status != kXR_NotFound) {
+    if ( (fConnModule->LastServerResp.status != kXR_error) ||
+         ((fConnModule->LastServerResp.status == kXR_error) &&
+          (fConnModule->LastServerError.errnum != kXR_NotFound)) ){
+
 	TerminateOpenAttempt();
 
 	return FALSE;
@@ -1017,7 +1020,8 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     // from the one we formerly connected, then we resend the request
     // specifyng the supposed failing server as opaque info
     if (fConnModule->GetLBSUrl() &&
-	(fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ) {
+	( (fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ||
+          (fConnModule->GetCurrentUrl().Port != fConnModule->GetLBSUrl()->Port) ) ) {
 	XrdOucString opinfo;
 
 	opinfo = "&tried=" + fConnModule->GetCurrentUrl().Host;
