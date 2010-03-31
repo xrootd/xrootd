@@ -396,7 +396,8 @@ const char *XrdFrmPstgXfr::Stage(XrdFrmPstgXrq *xP, int &retcode)
            }
         if (Config.monStage)
            {snprintf(lfnpath+lfnEnd, sizeof(lfnpath)-lfnEnd-1,
-                     "\n&qt=%d&sz=%lld&tm=%d",inqT, fSize, xfrT);
+                     "\n&tod=%lld&sz=%lld&qt=%d&tm=%d",
+                      static_cast<long long>(eNow), fSize, inqT, xfrT);
             XrdXrootdMonitor::Map(XROOTD_MON_MAPSTAG,xP->reqData.User,lfnpath);
            }
       }
