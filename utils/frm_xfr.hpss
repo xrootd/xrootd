@@ -16,9 +16,9 @@
 
 # [-c <config>] [-d] [-f] [-F {hide|none|oute|outo|<ffdir>}] [-k <keytab>] [-m]
 
-# [-n] [-p <mode>] [-P <port>] [-r] [-s <cos>] [-t <tries>] [-x <pftpcmd>]
+# [-M offs] [-n] [-p <mode>] [-P <port>] [-r] [-s <cos>] [-t <tries>]
 
-# [-w <maxw>] [-z]
+# [-x <pftpcmd>] [-w <maxw>] [-z]
 
 # options (valid only under hpsscp):
 
@@ -48,6 +48,9 @@
 #    <ffdir> Creates the file in the directory as "<ffdir>/<tfn>.fail".
 
 # -m exit with non-zero status if the file exists and has a non-zero length.
+
+# -M specified he offset into the target filename where directories are to
+#    start being created. See notes on auto-path creation.
 
 # -n do not redirect standard error when invoking the copy function
 
@@ -95,12 +98,14 @@
 #             Only one of <srcfn> or <trgfn> may have this designation but
 #             one must have it. If user if omitted, the current user is used.
 
-#             Auto-path creation is supported in two ways. Primarily, if a
+#             Auto-path creation is supported in three ways. Primarily, if a
 #             space appears in the hpss target path, then directories to
 #             left of the space are assumed to exist and directories to the
-#             are created prior to the pput of the file. For hpsscp, the -N
-#             option can be used to provide a reference name space that will
-#             determine which directories will be created.
+#             are created prior to the pput of the file. If you do not want to
+#             use space notation, use the -M option to specify where the space
+#             would have occurred. This location must have a slash ('/').
+#             For hpsscp, the -N option can be used to provide a reference name
+#             space that will determine which directories will be created.
 
 # Upon success, a zero status code is returned. Failure causes a message to
 # be issued to stderr and a non-zero exit status to be returned.
@@ -163,6 +168,7 @@ $XfrTrgFN= '';     # The target file
 $XfrResp = '';     # The transfer response
 $XfrSess = '';     # The transfer session
 $XfrRC   = 0;      # The final return code
+$XfrMoff = 0;
 
 # Get the options
 #
@@ -177,9 +183,10 @@ $XfrRC   = 0;      # The final return code
                                if !($ErrDisp =~ /^(hide|none|outo|oute|\/.*)$/);
                          }
      elsif ($op eq '-m') {$OKFile  =  0;}
+     elsif ($op eq '-M') {$XfrMoff =  &GetVal('offset', 'N', 0);}
      elsif ($op eq '-n') {$XfrOut = ''}
      elsif ($op eq '-o') {&GetOwners(&GetVal('ownership'));}
-     elsif ($op eq '-P') {$XfrPort =  &GetVal('port', 'N', 1);}
+     elsif ($op eq '-P') {$XfrPort =  &GetVal('port', 'N');}
      elsif ($op eq '-p') {$Mode =  &GetVal('mode');
                              if ($Mode eq 'r') {$Mode = oct('0440');}
                           elsif ($Mode eq 'w') {$Mode = oct('0640');}
@@ -250,7 +257,13 @@ $XfrRC   = 0;      # The final return code
      {if (index($XfrTrgFN, ' ') >= 0)
          {($XfrBase, $XfrApnd) = split(/ /, $XfrTrgFN, 2);
           $XfrTrgFN = $XfrBase.'/'.$XfrApnd;
-         } elsif ($nsDir ne '') {($XfrBase, $XfrApnd) = Get_Base($XfrTrgFN);}
+         } elsif ($XfrMoff)
+                 {&Emsg("-M offset does not refer to a slash.")
+                       if substr($XfrTrgFN, $XfrMoff, 1) ne '/';
+                  $XfrBase = substr($XfrTrgFN, 0, $XfrMoff);
+                  $XfrApnd = substr($XfrTrgFN, $XfrMoff+1);
+                 }
+           elsif ($nsDir ne '') {($XfrBase, $XfrApnd) = Get_Base($XfrTrgFN);}
      }
 
 # Remove double slashes
@@ -663,8 +676,8 @@ $CMD .= '.hpss' if !$isCPY;
 print "Usage: $CMD [options] {<[usr@]host>:<sfn> <tfn> | <sfn> <[usr@]host>:<tfn>}\n";
 print "\n";
 print "options: [-c <config>] [-d] [-f] [-F {hide|none|oute|outo|<ffdir>}]\n";
-print "         [-k <keytab>] [-m] [-n] [-p <mode>] [-P <port>] [-r] [-s <cos>]\n";
-print "         [-t <tries>] [-x <pftpcmd>] [-w <maxw>] [-z]\n";
+print "         [-k <keytab>] [-m] [-M offs] [-n] [-p <mode>] [-P <port>] [-r]\n";
+print "         [-s <cos>] [-t <tries>] [-x <pftpcmd>] [-w <maxw>] [-z]\n";
 if ($isCPY) {
 print "         [-C] [-N <nsdir>] [-Q <qdir>] [-W <waitqcmd>]\n";
 }
