@@ -859,6 +859,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
       {
        if (!strcmp(var, "dirhold"       )) return xdpol();
        if (!strcmp(var, "oss.cache"     )) return xcache(1);
+       if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "policy"        )) return xpol();
        if (!strcmp(var, "polprog"       )) return xpolprog();

@@ -157,6 +157,7 @@ XrdFrmPurge::XrdFrmPurge(const char *snp, XrdFrmPurge *spp) : FSTab(1)
    Enabled   = 0;
    Stop      = 0;
    SNlen     = strlen(SName);
+   memset(DeferQ, 0, sizeof(DeferQ));
    Clear();
 }
   
