@@ -155,6 +155,8 @@ int XrdOucNSWalk::Build()
 #ifdef HAVE_FSTATAT
    if ((DPfd = open(DPath, O_RDONLY)) < 0) rc = errno;
       else theEnt.F = DPfd;
+#else
+   DPfd = -1;
 #endif
 
 // Open the directory
@@ -211,7 +213,7 @@ int XrdOucNSWalk::Build()
 // Check if we need to do a callback for an empty directory
 //
    if (edCB && xLKF == nEnt && !DEnts)
-      {if (!fstat(DPfd, &dStat)) isEmpty = 1;
+      {if ((DPfd < 0 ? !stat(DPath, &dStat) : !fstat(DPfd, &dStat))) isEmpty=1;
           else eDest->Emsg("Build", errno, "stating directory", DPath);
       }
    return 0;
