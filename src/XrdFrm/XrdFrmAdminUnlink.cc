@@ -226,7 +226,7 @@ int XrdFrmAdmin::UnlinkFile(const char *lclPath)
       } else {
        if (!(rc = Config.ossFS->Unlink(lclPath, ulOpts)))
           {if (Opt.Echo) Msg("Local file ", lclPath, " removed.");
-           if (Opt.Notify && Config.cmsPath) Config.cmsPath->Gone(lclPath);
+           if (Config.cmsPath) Config.cmsPath->Gone(lclPath);
            numFiles++;
            return 1;
           }

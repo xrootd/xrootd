@@ -104,7 +104,6 @@ void *XrdFrmConfigMum(void *parg)
 // All done
 //
    theSE->mySem.Post();
-// pthread_exit((void *)0);
    return (void *)0;
 }
 
@@ -138,17 +137,24 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    ssID     = ss;
    AdminPath= 0;
    AdminMode= 0740;
-   xfrMax   = 1;
-   WaitTime = 300;
+   xfrMax   = 2;
+   FailHold = 3*60*60;
+   IdleHold = 10*60;
+   WaitMigr = 60*60;
+   WaitPurge= 600;
+   WaitQChk = 300;
    MSSCmd   = 0;
-   xfrCmd   = strdup("/opt/xrootd/utils/frm_xfr -p $OFLAG $RFN $PFN");
-   xfrVec   = 0;
+   memset(&xfrCmd, 0, sizeof(xfrCmd));
+   xfrCmd[0].Desc = "copycmd in";     xfrCmd[1].Desc = "copycmd out";
+   xfrCmd[2].Desc = "copycmd in url"; xfrCmd[3].Desc = "copycmd out url";
+   xfrIN    = xfrOUT = 0;
    qPath    = 0;
+   c2sFN    = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
    ossLib   = 0;
    cmsPath  = 0;
    monStage = 0;
-   sSpec    = 0;
+   haveCMS  = 0;
    isOTO    = 0;
    Test     = 0;
    Verbose  = 0;
@@ -180,12 +186,11 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
             ConfigFN = 0;
       else {ConfigFN = strdup(sP); isAgent = 1;}
 
-// Establish directive postfix
+// Establish directive prefix
 //
         if (ss == ssAdmin) {myFrmid = "admin"; myFrmID = "ADMIN";}
-   else if (ss == ssMigr)  {myFrmid = "migr";  myFrmID = "MIGR";}
-   else if (ss == ssPstg)  {myFrmid = "pstg";  myFrmID = "PSTG";}
    else if (ss == ssPurg)  {myFrmid = "purge"; myFrmID = "PURG";}
+   else if (ss == ssXfr)   {myFrmid = "xfr";   myFrmID = "XFR"; }
    else                    {myFrmid = "frm";   myFrmID = "FRM";}
 
 // Set correct error prefix
@@ -193,10 +198,6 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    strcpy(buff, myFrmid);
    strcat(buff, "_");
    Say.SetPrefix(strdup(buff));
-
-// Set correct oss type
-//
-   XrdOucEnv::Export("XRDOSSTYPE", myFrmid);
 
 // Set correct option prefix
 //
@@ -262,13 +263,11 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'O': isOTO = 1;
                  if (!ConfigOTO(optarg)) Usage(1);
                  break;
-       case 's': sSpec = 1;
-                 break;
        case 'T': Test  = 1;
                  break;
        case 'v': Verbose = 1;
                  break;
-       case 'w': if (XrdOuca2x::a2tm(Say,"wait time",optarg,&WaitTime))
+       case 'w': if (XrdOuca2x::a2tm(Say,"wait time",optarg,&WaitPurge))
                     Usage(1);
                  break;
        default:  sprintf(buff,"'%c'", optopt);
@@ -296,7 +295,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
           {if (logkeep) Logger.setKeep(logkeep);
            Logger.Bind(logfn, 24*60*60);
           }
-       }
+      }
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
@@ -342,8 +341,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (!isAgent)
       {XrdOucEnv::Export("XRDREDIRECT", "Q");
        XrdOucEnv::Export("XRDOSSTYPE",  myFrmID);
-       if (ssID == ssMigr || ssID == ssPurg)
-          XrdOucEnv::Export("XRDOSSCSCAN", "off");
+       if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo && !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib))) NoGo=1;
       }
 
@@ -352,15 +350,9 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (!NoGo) switch(ssID)
       {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss());
                      break;
-       case ssMigr:  NoGo = (ConfigN2N() || ConfigMP("migratable"));
-                     break;
-       case ssPstg:  if (isAgent) break;
-                     if (ConfigN2N() || ConfigMss()
-                     ||  !(xfrVec = ConfigCmd("xfrcmd", xfrCmd))
-                     ||  (monStage &&!XrdXrootdMonitor::Init(0, &Say)))
-                         NoGo = 1;
-                     break;
        case ssPurg:  NoGo = (ConfigN2N() || ConfigMP("purgeable"));
+                     break;
+       case ssXfr:   if (!isAgent) NoGo = ConfigXfr();
                      break;
        default:      break;
       }
@@ -411,6 +403,34 @@ int XrdFrmConfig::LocalPath(const char *oldp, char *newp, int newpsz)
              return 0;
             }
     return 1;
+}
+  
+/******************************************************************************/
+/* Public:                   L o g i c a l P a t h                            */
+/******************************************************************************/
+  
+int XrdFrmConfig::LogicalPath(const char *oldp, char *newp, int newpsz)
+{
+    int rc = 0;
+
+    if (lcl_N2N) rc = lcl_N2N->pfn2lfn(oldp, newp, newpsz);
+       else if (((int)strlen(oldp)) >= newpsz) rc = ENAMETOOLONG;
+               else strcpy(newp, oldp);
+    if (rc) {Say.Emsg("Config", rc, "generate logical path from", oldp);
+             return 0;
+            }
+    return 1;
+}
+
+/******************************************************************************/
+/* Public:                      P a t h O p t s                               */
+/******************************************************************************/
+
+unsigned long long XrdFrmConfig::PathOpts(const char *Lfn)
+{
+   extern XrdOucPListAnchor *XrdOssRPList;
+
+   return XrdOssRPList->Find(Lfn);
 }
 
 /******************************************************************************/
@@ -551,8 +571,8 @@ int XrdFrmConfig::ConfigMP(const char *pType)
                  expList = new XrdOucTList(fP->Path(), sval, expList);
              fP = fP->Next();
             }
-       if (!mypList)
-          {Say.Emsg("Config", "No", pType, "paths found."); return 1;}
+//     if (!mypList)
+ //       {Say.Emsg("Config", "No", pType, "paths found."); return 1;}
       }
 
 // Now we need to construct a search list which may include excludes which
@@ -575,6 +595,20 @@ int XrdFrmConfig::ConfigMP(const char *pType)
 // Delete the explist
 //
    while((tP = expList)) {expList = tP->next; delete tP;}
+
+// The oss would have already set NORCREATE and NOCHECK for all stageable paths.
+// But now, we must also off the R/O flag on every purgeable and stageable path
+// to prevent oss complaints. This needs to be defered to here because we need
+// to know which paths are actually r/o and r/w.
+//
+   if (!NoGo)
+      {XrdOucPList *fp = XrdOssRPList->First();
+       while(fp)
+            {if (fp->Flag() & (XRDEXP_REMOTE | XRDEXP_PURGE))
+                fp->Set(fp->Flag() & ~XRDEXP_NOTRW);
+             fp = fp->Next();
+            }
+      }
 
 // All done now
 //
@@ -739,7 +773,8 @@ int XrdFrmConfig::ConfigPaths()
        insName = myInsName;
    }
    
-   cmsPath = new XrdCmsNotify(&Say, xPath, insName, XrdCmsNotify::isServ);
+   if (haveCMS)
+      cmsPath = new XrdCmsNotify(&Say, xPath, insName, XrdCmsNotify::isServ);
 
    yPath = XrdOucUtils::genPath(xPath, insName, "frm");
    if (AdminPath) free(AdminPath); AdminPath = yPath;
@@ -755,10 +790,15 @@ int XrdFrmConfig::ConfigPaths()
 //
    if (myInsName) XrdOucUtils::makeHome(Say, myInsName);
 
-// Set up the stop file path
+// Estblish the client/server udp path
 //
-   if (!StopFile)
-      {sprintf(buff,"%sSTOP%s", AdminPath, myFrmID); StopFile = strdup(buff);}
+   sprintf(buff, "%sxfrd.udp", Config.AdminPath);
+   c2sFN = strdup(buff);
+
+// Create the purge stop file name
+//
+   strcpy(buff, Config.AdminPath); strcat(buff, "STOPPURGE");
+   StopPurge = strdup(buff);
 
 // If a qpath was specified, differentiate it by the instance name
 //
@@ -820,6 +860,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 // Process common items to all subsystems
 //
    if (!strcmp(var, "all.adminpath" )) return xapath();
+   if (!strcmp(var, "all.manager"   )) {haveCMS = 1; return 0;}
 
 // Process directives specific to each subsystem
 //
@@ -834,25 +875,28 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 //     if (!strcmp(var, "oss.msscmd"    )) return Grab(var, &MSSCmd,    0);
       }
 
-   if (ssID == ssMigr)
-      {
-       if (!strcmp(var, "stopfile"      )) return Grab(var, &StopFile,  0);
-       if (!strcmp(var, "waittime"      )) return xwtm();
-      }
+   if (ssID == ssXfr)
+      {if (!strcmp(var, "qpath"         )) return Grab(var, &qPath,     0);
 
-   if (ssID == ssPstg)
-      {
+       if (isAgent) return 0;           // Server-oriented directives
+
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "oss.cache"     )) return xcache();
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
-       if (!strcmp(var, "stopfile"      )) return Grab(var, &StopFile,  0);
-       if (!strcmp(var, "waittime"      )) return xwtm();
        if (!strcmp(var, "xrootd.monitor")) return xmon();
-       if (!strcmp(var, "xfrmax"        )) return xmaxx();
-       if (!strcmp(var, "xfrcmd"        )) return Grab(var, &xfrCmd,    1);
-       if (!strcmp(var, "queuepath"     )) return Grab(var, &qPath,     0);
+
+       if (!strcmp(var, "copycmd"       )) return xcopy();
+       if (!strcmp(var, "copymax"       )) return xcmax();
+       if (!strcmp(var, "failhold"      )) return xitm("fail time", FailHold);
+       if (!strcmp(var, "qcheck"        )) return xitm("qchk time", WaitQChk);
+
+       if (!strncmp(var, "migr.", 5))   // xfr.migr
+      {char *vas = var+5;
+       if (!strcmp(vas, "idlehold"      )) return xitm("idle time", IdleHold);
+       if (!strcmp(vas, "waittime"      )) return xitm("migr wait", WaitMigr);
+      }
       }
 
    if (ssID == ssPurg)
@@ -863,9 +907,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "policy"        )) return xpol();
        if (!strcmp(var, "polprog"       )) return xpolprog();
-       if (!strcmp(var, "queuepath"     )) return Grab(var, &qPath,     0);
-       if (!strcmp(var, "stopfile"      )) return Grab(var, &StopFile,  0);
-       if (!strcmp(var, "waittime"      )) return xwtm();
+       if (!strcmp(var, "waittime"      )) return xitm("purge wait",WaitPurge);
       }
 
    // No match found, complain.
@@ -875,6 +917,59 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
             cFile->Echo();
            }
    return 0;
+}
+
+/******************************************************************************/
+/* Private:                    C o n f i g X f r                              */
+/******************************************************************************/
+  
+int XrdFrmConfig::ConfigXfr()
+{
+   int i, isBad, ioOK[2] = {0};
+
+// Configure the name2name library and migratable paths and mass storage
+//
+   isBad = ConfigN2N() || ConfigMP("migratable") ||  ConfigMss();
+
+// Make sure
+
+// Configure all of the transfer commands
+//
+   for (i = 0; i < 4; i++)
+       {if (xfrCmd[i].theCmd)
+           {if ((xfrCmd[i].theVec=ConfigCmd(xfrCmd[i].Desc, xfrCmd[i].theCmd)))
+               ioOK[i%2]  = 1;
+               else isBad = 1;
+           }
+       }
+
+// Verify that we can actually do something
+//
+   if (!(ioOK[0] | ioOK[1]))
+      {Say.Emsg("Config",
+                "No copy commands specified; execution is meaningless!");
+       return 1;
+      }
+
+// Verify that input copies are OK
+//
+   if (!(xfrIN = ioOK[0]))
+      Say.Emsg("Config", "Input copy command not specified; "
+                         "incoming transfers prohibited!");
+
+// Verify that input copies are OK
+//
+   if (!(xfrOUT = ioOK[1]))
+      Say.Emsg("Config", "Output copy command not specified; "
+                         "outgoing transfers prohibited!");
+
+// Finally configure monitoring
+//
+   isBad |= (monStage &&!XrdXrootdMonitor::Init(0, &Say));
+
+// All done
+//
+   return isBad;
 }
 
 /******************************************************************************/
@@ -896,7 +991,7 @@ int XrdFrmConfig::getTime(const char *emsg, const char *item, int *val,
   
 int XrdFrmConfig::Grab(const char *var, char **Dest, int nosubs)
 {
-    char  myVar[80], buff[2048], *val;
+    char  myVar[1024], buff[2048], *val;
     XrdOucEnv *myEnv = 0;
 
 // Copy the variable name as this may change because it points to an
@@ -922,14 +1017,25 @@ int XrdFrmConfig::Grab(const char *var, char **Dest, int nosubs)
 // At this point, make sure we have a value
 //
    if (!val || !(*val))
-      {Say.Emsg("Config", "no value for directive", var);
+      {if (nosubs < 0) Say.Emsg("Config", "no arguments for", var);
+          else         Say.Emsg("Config", "no value for directive", var);
        return 1;
       }
 
-// Set the value
+// Set the value. Either this is a simple string or a compund string
 //
-   if (*Dest) free(*Dest);
-   *Dest = strdup(val);
+   if (*Dest) {free(*Dest); Dest = 0;}
+   if (nosubs < 0)
+      {char fBuff[2048];
+       int n = strlen(myVar);
+       if (n + strlen(val) > sizeof(fBuff)-1)
+          {Say.Emsg("Config", "arguments too long for", var); return 1;}
+       strcpy(fBuff, myVar); *(fBuff+n) = ' '; strcpy(fBuff+n+1, val);
+       *Dest = strdup(fBuff);
+      } else *Dest = strdup(val);
+
+// All done
+//
    return 0;
 }
 
@@ -1131,6 +1237,98 @@ void XrdFrmConfig::xcacheBuild(char *grp, char *fn, int isxa)
    while(tP && strcmp(tP->text, fn)) tP = tP->next;
    if (!tP) nP->Dir = new XrdOucTList(fn, isxa, nP->Dir);
 }
+
+/******************************************************************************/
+/* Private:                        x c o p y                                  */
+/******************************************************************************/
+
+/* Function: copycmd
+
+   Purpose:  To parse the directive: copycmd [in] [out] [stats] [url] cmd [args]
+
+             <in>      use command for incomming copies.
+             <out>     use command for outgoing copies.
+             <stats>   print transfer statistics in the log.
+             <url>     use command for url-based transfers.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdFrmConfig::xcopy()
+{  int cmdIO[2] = {0,0}, Stats = 0, cmdMDP = 0, cmdUrl = 0;
+   char *val, *theCmd = 0;
+   struct copyopts {const char *opname; int *oploc;} cpopts[] =
+         {
+          {"in",   &cmdIO[0]},
+          {"out",  &cmdIO[1]},
+          {"stats",&Stats},
+          {"url",  &cmdUrl}
+         };
+   int i, n, numopts = sizeof(cpopts)/sizeof(struct copyopts);
+
+// Pick up options
+//
+   val = cFile->GetWord();
+   while(val && *val != '/')
+        {for (i = 0; i < numopts; i++)
+             if (!strcmp(val,cpopts[i].opname)) {*cpopts[i].oploc = 1; break;}
+         if (i >= numopts)
+            Say.Say("Config warning: ignoring invalid copycmd option '",val,"'.");
+         val = cFile->GetWord();
+        }
+
+// Pick up the program
+//
+   if (!val || !*val)
+      {Say.Emsg("Config", "copy command not specified"); return 1;}
+   if (Grab(val, &theCmd, -1)) return 1;
+
+// Find if $MDP is present here
+//
+   if (!cmdIO[0] && !cmdIO[1]) cmdIO[0] = cmdIO[1] = 1;
+   if (cmdIO[1]) cmdMDP = (strstr(theCmd, "$MDP") != 0);
+
+// Initialzie the appropriate command structures
+//
+   n = (cmdUrl ? 3 : 1);
+   i = 1;
+   do {if (cmdIO[i])
+          {if (xfrCmd[n].theCmd) free(xfrCmd[n].theCmd);
+           xfrCmd[n].theCmd = strdup(theCmd);
+           xfrCmd[n].Stats  = Stats;
+           xfrCmd[n].hasMDP = cmdMDP;
+          }
+       n--;
+      } while(i--);
+
+// All done
+//
+   free(theCmd);
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                        x c m a x                                  */
+/******************************************************************************/
+
+/* Function: copymax
+
+   Purpose:  To parse the directive: copymax  <num>
+
+             <num>     maximum number of simultaneous transfers
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdFrmConfig::xcmax()
+{   int xmax = 1;
+    char *val;
+
+    if (!(val = cFile->GetWord()))
+       {Say.Emsg("Config", "maxio value not specified"); return 1;}
+    if (XrdOuca2x::a2i(Say, "maxio", val, &xmax, 1)) return 1;
+    xfrMax = xmax;
+    return 0;
+}
+
   
 /******************************************************************************/
 /* Private:                        x d p o l                                  */
@@ -1158,28 +1356,29 @@ int XrdFrmConfig::xdpol()
 }
 
 /******************************************************************************/
-/* Private:                        x m a x x                                  */
+/* Private:                         x i t m                                   */
 /******************************************************************************/
 
-/* Function: xmaxx
+/* Function: xitm
 
-   Purpose:  To parse the directive: xfrmax <num>
+   Purpose:  To parse the directive: xxxxtime <sec>
 
-             <num>     maximum number of simultaneous transfers
+             <sec>     number of seconds file must be unused before migration
+                       if idletime directive or seconds between queue checks
+                       of qchktime directive.
 
    Output: 0 upon success or !0 upon failure.
 */
-int XrdFrmConfig::xmaxx()
-{   int xmax = 1;
+int XrdFrmConfig::xitm(const char *What, int &tDest)
+{   int itime;
     char *val;
 
     if (!(val = cFile->GetWord()))
-       {Say.Emsg("Config", "xfrmax value not specified"); return 1;}
-    if (XrdOuca2x::a2i(Say, "xfrmax", val, &xmax, 1)) return 1;
-    xfrMax = xmax;
+       {Say.Emsg("Config", What, "not specified"); return 1;}
+    if (XrdOuca2x::a2tm(Say, What, val, &itime)) return 1;
+    tDest = itime;
     return 0;
 }
-
 
 /******************************************************************************/
 /*                                  x m o n                                   */
@@ -1549,27 +1748,4 @@ int XrdFrmConfig::xpolprog()
    if (pProg) free(pProg);
    pProg = strdup(pBuff);
    return 0;
-}
-
-/******************************************************************************/
-/* Private:                         x w t m                                   */
-/******************************************************************************/
-
-/* Function: xwtm
-
-   Purpose:  To parse the directive: waittime <sec>
-
-             <sec>     number of seconds between scans.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-int XrdFrmConfig::xwtm()
-{   int wscan = 0, wtime = (Test ? 1 : 30);
-    char *val;
-
-    if (!(val = cFile->GetWord()))
-       {Say.Emsg("Config", "wait time not specified"); return 1;}
-    if (XrdOuca2x::a2tm(Say, "wait time", val, &wscan, wtime)) return 1;
-    WaitTime = wscan;
-    return 0;
 }

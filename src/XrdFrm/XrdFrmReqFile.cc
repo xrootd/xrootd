@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d F r m P s t g R e q . c c                       */
+/*                      X r d F r m R e q F i l e . c c                       */
 /*                                                                            */
-/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -10,7 +10,7 @@
 
 //          $Id$
 
-const char *XrdFrmPstgReqCVSID = "$Id$";
+const char *XrdFrmReqFileCVSID = "$Id$";
 
 #include <string.h>
 #include <strings.h>
@@ -23,7 +23,7 @@ const char *XrdFrmPstgReqCVSID = "$Id$";
 #include <sys/stat.h>
 
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmPstgReq.hh"
+#include "XrdFrm/XrdFrmReqFile.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -31,16 +31,10 @@ const char *XrdFrmPstgReqCVSID = "$Id$";
 using namespace XrdFrm;
 
 /******************************************************************************/
-/*                               G l o b a l s                                */
-/******************************************************************************/
-  
-XrdFrmPstgReq     *XrdFrm::rQueue[XrdFrmPstgReq::maxPrty];
-
-/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdFrmPstgReq::XrdFrmPstgReq(const char *fn)
+XrdFrmReqFile::XrdFrmReqFile(const char *fn)
 {
    char buff[1200];
 
@@ -55,9 +49,9 @@ XrdFrmPstgReq::XrdFrmPstgReq(const char *fn)
 /*                                   A d d                                    */
 /******************************************************************************/
   
-void XrdFrmPstgReq::Add(XrdFrmPstgReq::Request *rP)
+void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 {
-   XrdFrmPstgReq::Request tmpReq;
+   XrdFrmRequest tmpReq;
    char *qP;
    int fP;
 
@@ -107,9 +101,9 @@ void XrdFrmPstgReq::Add(XrdFrmPstgReq::Request *rP)
 /*                                   C a n                                    */
 /******************************************************************************/
 
-void XrdFrmPstgReq::Can(XrdFrmPstgReq::Request *rP)
+void XrdFrmReqFile::Can(XrdFrmRequest *rP)
 {
-   XrdFrmPstgReq::Request tmpReq;
+   XrdFrmRequest tmpReq;
    int Offs, numCan = 0, numBad = 0;
    struct stat buf;
    char txt[128];
@@ -147,9 +141,9 @@ void XrdFrmPstgReq::Can(XrdFrmPstgReq::Request *rP)
 /*                                   D e l                                    */
 /******************************************************************************/
 
-void XrdFrmPstgReq::Del(XrdFrmPstgReq::Request *rP)
+void XrdFrmReqFile::Del(XrdFrmRequest *rP)
 {
-   XrdFrmPstgReq::Request tmpReq;
+   XrdFrmRequest tmpReq;
 
 // Lock the file
 //
@@ -168,7 +162,7 @@ void XrdFrmPstgReq::Del(XrdFrmPstgReq::Request *rP)
 /*                                   G e t                                    */
 /******************************************************************************/
   
-int XrdFrmPstgReq::Get(XrdFrmPstgReq::Request *rP)
+int XrdFrmReqFile::Get(XrdFrmRequest *rP)
 {
    int fP, rc;
 
@@ -197,11 +191,11 @@ int XrdFrmPstgReq::Get(XrdFrmPstgReq::Request *rP)
 /*                                  I n i t                                   */
 /******************************************************************************/
 
-int XrdFrmPstgReq::Init()
+int XrdFrmReqFile::Init()
 {
    EPNAME("Init");
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
-   XrdFrmPstgReq::Request tmpReq;
+   XrdFrmRequest tmpReq;
    struct stat buf;
    recEnt *First = 0, *rP, *pP, *tP;
    int    Offs, rc, numreq = 0;
@@ -273,10 +267,10 @@ int XrdFrmPstgReq::Init()
 /*                                  L i s t                                   */
 /******************************************************************************/
   
-char  *XrdFrmPstgReq::List(char *Buff, int bsz, int &Offs,
+char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
                            Item *ITList, int ITNum)
 {
-   XrdFrmPstgReq::Request tmpReq;
+   XrdFrmRequest tmpReq;
    int rc;
 
 // Set Offs argument
@@ -316,7 +310,7 @@ char  *XrdFrmPstgReq::List(char *Buff, int bsz, int &Offs,
 /*                                 L i s t L                                  */
 /******************************************************************************/
   
-void XrdFrmPstgReq::ListL(XrdFrmPstgReq::Request tmpReq, char *Buff, int bsz,
+void XrdFrmReqFile::ListL(XrdFrmRequest tmpReq, char *Buff, int bsz,
                           Item *ITList, int ITNum)
 {
    char What, tbuf[32];
@@ -335,15 +329,20 @@ void XrdFrmPstgReq::ListL(XrdFrmPstgReq::Request tmpReq, char *Buff, int bsz,
                                 tmpReq.LFN[n] = '\0';
                                 break;
                case getMODE:    n = 0;
-                                What = (tmpReq.Options & stgRW ? 'w' : 'r');
+                                What = (tmpReq.Options & XrdFrmRequest::makeRW
+                                     ? 'w' : 'r');
                                 if (bln) {Buff[n] = What; n++;}
-                                if (tmpReq.Options & msgFail)
+                                if (tmpReq.Options & XrdFrmRequest::msgFail)
                                 if (bln-n > 0) {Buff[n] = 'f'; n++;}
-                                if (tmpReq.Options & msgSucc)
+                                if (tmpReq.Options & XrdFrmRequest::msgSucc)
                                 if (bln-n > 0) {Buff[n] = 'n'; n++;}
                                 break;
                case getNOTE:    n = strlen(tmpReq.Notify);
                                 strlcpy(Buff, tmpReq.Notify, bln);
+                                break;
+               case getOP:      *Buff     = tmpReq.OPc[0];
+                                *(Buff+1) = tmpReq.OPc[1];
+                                n = 2;
                                 break;
                case getPRTY:    if (tmpReq.Prty == 2) What = '2';
                                    else if (tmpReq.Prty == 1) What = '1';
@@ -375,7 +374,7 @@ void XrdFrmPstgReq::ListL(XrdFrmPstgReq::Request tmpReq, char *Buff, int bsz,
 /*                               F a i l A d d                                */
 /******************************************************************************/
   
-void XrdFrmPstgReq::FailAdd(char *lfn, int unlk)
+void XrdFrmReqFile::FailAdd(char *lfn, int unlk)
 {
    Say.Emsg("Add", lfn, "not added to prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -385,7 +384,7 @@ void XrdFrmPstgReq::FailAdd(char *lfn, int unlk)
 /*                               F a i l C a n                                */
 /******************************************************************************/
   
-void XrdFrmPstgReq::FailCan(char *rid, int unlk)
+void XrdFrmReqFile::FailCan(char *rid, int unlk)
 {
    Say.Emsg("Can", rid, "request not removed from prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -395,7 +394,7 @@ void XrdFrmPstgReq::FailCan(char *rid, int unlk)
 /*                               F a i l D e l                                */
 /******************************************************************************/
   
-void XrdFrmPstgReq::FailDel(char *lfn, int unlk)
+void XrdFrmReqFile::FailDel(char *lfn, int unlk)
 {
    Say.Emsg("Del", lfn, "not removed from prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -405,7 +404,7 @@ void XrdFrmPstgReq::FailDel(char *lfn, int unlk)
 /*                               F a i l I n i                                */
 /******************************************************************************/
 
-int XrdFrmPstgReq::FailIni(const char *txt)
+int XrdFrmReqFile::FailIni(const char *txt)
 {
    Say.Emsg("Init", errno, txt, reqFN);
    FileLock(lkNone);
@@ -416,7 +415,7 @@ int XrdFrmPstgReq::FailIni(const char *txt)
 /*                              F i l e L o c k                               */
 /******************************************************************************/
   
-int XrdFrmPstgReq::FileLock(LockType lktype)
+int XrdFrmReqFile::FileLock(LockType lktype)
 {
    FLOCK_t lock_args;
    const char *What;
@@ -463,7 +462,7 @@ int XrdFrmPstgReq::FileLock(LockType lktype)
 /*                               r e q R e a d                                */
 /******************************************************************************/
   
-int XrdFrmPstgReq::reqRead(void *Buff, int Offs)
+int XrdFrmReqFile::reqRead(void *Buff, int Offs)
 {
    int rc;
 
@@ -476,7 +475,7 @@ int XrdFrmPstgReq::reqRead(void *Buff, int Offs)
 /*                              r e q W r i t e                               */
 /******************************************************************************/
   
-int XrdFrmPstgReq::reqWrite(void *Buff, int Offs, int updthdr)
+int XrdFrmReqFile::reqWrite(void *Buff, int Offs, int updthdr)
 {
    int rc = 0;
 
@@ -494,7 +493,7 @@ int XrdFrmPstgReq::reqWrite(void *Buff, int Offs, int updthdr)
 /*                               R e W r i t e                                */
 /******************************************************************************/
   
-int XrdFrmPstgReq::ReWrite(XrdFrmPstgReq::recEnt *rP)
+int XrdFrmReqFile::ReWrite(XrdFrmReqFile::recEnt *rP)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    char newFN[MAXPATHLEN], *oldFN;
@@ -553,7 +552,7 @@ int XrdFrmPstgReq::ReWrite(XrdFrmPstgReq::recEnt *rP)
 /******************************************************************************/
   
   
-int XrdFrmPstgReq::Unique(const char *lkfn)
+int XrdFrmReqFile::Unique(const char *lkfn)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    FLOCK_t lock_args;

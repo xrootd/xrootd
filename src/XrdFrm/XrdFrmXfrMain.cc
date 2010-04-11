@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d F r m P s t g M a i n . c c                      */
+/*                      X r d F r m X f r M a i n . c c                       */
 /*                                                                            */
-/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -10,14 +10,17 @@
 
 //           $Id$
 
-const char *XrdFrmPstgMainCVSID = "$Id$";
+const char *XrdFrmXfrMainCVSID = "$Id$";
 
-/* This is the "main" part of the frm_pstga & frm_pstgd commands. Syntax is:
+/* This is the "main" part of the frm_migr, frm_pstg & frm_xfrd commands.
 */
-static const char *XrdFrmOpts  = ":c:dk:l:n:s";
+
+/* This is the "main" part of the frm_migrd command. Syntax is:
+*/
+static const char *XrdFrmOpts  = ":c:dfhk:l:n:Tv";
 static const char *XrdFrmUsage =
 
-  " [-c <cfgfile>] [-d] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name] [-s]\n";
+  " [-c <cfgfn>] [-d] [-f] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name] [-T] [-v]\n";
 /*
 Where:
 
@@ -25,15 +28,19 @@ Where:
 
    -d     Turns on debugging mode.
 
+   -f     Fix orphaned files (i.e., lock and pin) by removing them.
+
    -k     Keeps num log files or no more that sz log files.
 
    -l     Specifies location of the log file. This may also come from the
           XrdOucLOGFILE environmental variable.
           By default, error messages go to standard error.
 
-   -s     Prints transfer statistics for each successful file transfer.
-
    -n     The instance name.
+
+   -T     Runs in test mode (no actual migration will occur).
+
+   -v     Verbose mode, typically prints each file details.
 */
 
 /******************************************************************************/
@@ -51,12 +58,13 @@ Where:
 #include <sys/param.h>
 
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmPstg.hh"
-#include "XrdFrm/XrdFrmPstgReq.hh"
-#include "XrdFrm/XrdFrmPstgXfr.hh"
+#include "XrdFrm/XrdFrmMigrate.hh"
+#include "XrdFrm/XrdFrmReqAgent.hh"
+#include "XrdFrm/XrdFrmReqBoss.hh"
+#include "XrdFrm/XrdFrmReqFile.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdNet/XrdNetOpts.hh"
-#include "XrdNet/XrdNetSocket.hh"
+#include "XrdFrm/XrdFrmTransfer.hh"
+#include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -76,39 +84,22 @@ using namespace XrdFrm;
 
        XrdOucTrace        XrdFrm::Trace(&Say);
 
-       XrdFrmConfig       XrdFrm::Config(XrdFrmConfig::ssPstg, 
+       XrdFrmConfig       XrdFrm::Config(XrdFrmConfig::ssXfr,
                                          XrdFrmOpts, XrdFrmUsage);
 
-       XrdFrmPstg         XrdFrm::PreStage;
+       XrdFrmReqBoss      XrdFrm::GetFiler("getf", XrdFrmXfrQueue::getQ);
+
+       XrdFrmReqBoss      XrdFrm::Migrated("migr", XrdFrmXfrQueue::migQ);
+
+       XrdFrmReqBoss      XrdFrm::PreStage("pstg", XrdFrmXfrQueue::stgQ);
+
+       XrdFrmReqBoss      XrdFrm::PutFiler("putf", XrdFrmXfrQueue::putQ);
 
 // The following is needed to resolve symbols for objects included from xrootd
 //
        XrdOucTrace       *XrdXrootdTrace;
        XrdSysError        XrdLog(&Logger, "");
        XrdOucTrace        XrdTrace(&Say);
-
-/******************************************************************************/
-/*                     T h r e a d   I n t e r f a c e s                      */
-/******************************************************************************/
-  
-void *mainServer(void *parg)
-{
-    int udpFD = *static_cast<int *>(parg);
-    PreStage.Server(udpFD);
-    return (void *)0;
-}
-  
-void *mainStage(void *parg)
-{
-    PreStage.Server_Stage();
-    return (void *)0;
-}
-  
-void *mainXfer(void *parg)
-{   XrdFrmPstgXfr *xP = new XrdFrmPstgXfr;
-    xP->Start();
-    return (void *)0;
-}
 
 /******************************************************************************/
 /*                                  m a i n                                   */
@@ -133,11 +124,11 @@ int main(int argc, char *argv[])
    if (sizeof(long) > 4) XrdSysThread::setStackSize((size_t)1048576);
       else               XrdSysThread::setStackSize((size_t)786432);
 
-// If we are named frm_pstga then we are runnng in agent-mode
+// If we are named frm_pstg then we are runnng in agent-mode
 //
     if (!(pP = rindex(argv[0], '/'))) pP = argv[0];
        else pP++;
-   if (!strcmp("frm_pstga", pP)) Config.isAgent = 1;
+   if (strcmp("frm_xfrd", pP)) Config.isAgent = 1;
 
 // Perform configuration
 //
@@ -147,15 +138,18 @@ int main(int argc, char *argv[])
 //
    XrdXrootdTrace = new XrdOucTrace(&Say);
 
-// If we are running in agent mode scadadle to that (it's simple)
+// If we are running in agent mode scadadle to that (it's simple). Otherwise,
+// start the thread that fields udp-based requests.
 //
-   if (Config.isAgent) exit(PreStage.Agent(Config.c2sFN));
+   if (Config.isAgent) exit(XrdFrmReqAgent::Start());
+   XrdFrmReqAgent::Pong();
 
-// Now simply poke the server every so often
+// Now simply poke the each server every so often
 //
    while(1)
-        {PreStage.Server_Driver(1);
-         XrdSysTimer::Snooze(Config.WaitTime);
+        {PreStage.Wakeup(); GetFiler.Wakeup();
+         Migrated.Wakeup(); PutFiler.Wakeup();
+         XrdSysTimer::Snooze(Config.WaitQChk);
         }
 
 // We get here is we failed to initialize
@@ -169,74 +163,30 @@ int main(int argc, char *argv[])
   
 int mainConfig()
 {
-   XrdNetSocket *udpSock;
-   struct sockaddr *sockP;
-   pthread_t tid;
-   char buff[2048], *qPath;
-   int retc, i, n, udpFD;
+   char buff[1024];
 
-// Make the queue path
-//
-   if ((qPath = Config.qPath))
-      {if ((retc = XrdOucUtils::makePath(qPath, Config.AdminMode)))
-          {Say.Emsg("Config", retc, "create queue directory", qPath);
-           return 1;
-          }
-      } else qPath = Config.AdminPath;
-
-// Make sure we are the only ones running (daemon only)
+// If we are a true server then first start the transfer agents and migrator
+// Note that if we are not an agent then only one instance may run at a time.
 //
    if (!Config.isAgent)
-      {sprintf(buff, "%spstgd.lock", qPath);
-       if (!XrdFrmPstgReq::Unique(buff)) return 1;
+      {sprintf(buff, "%sfrm_xfrd.lock", Config.AdminPath);
+       if (!XrdFrmReqFile::Unique(buff) || !XrdFrmTransfer::Init()) return 1;
+       if (Config.WaitMigr < Config.IdleHold) Config.WaitMigr = Config.IdleHold;
+       if (Config.pathList)
+          {if (!Config.xfrOUT)
+              Say.Emsg("Config","Output copy command not specified; "
+                                "auto-migration disabled!");
+          }
+           else {if (Config.pathList) XrdFrmMigrate::Migrate();
+                    else Say.Emsg("Config","No migratable paths; "
+                                           "auto-migration disabled!");
+                }
       }
 
-// Initialize the request queues if all went well
+// Start the external interfaces
 //
-   for (i = 0; i <= XrdFrmPstgReq::maxPrty; i++)
-       {sprintf(buff, "%spstgQ.%d", qPath, i);
-        rQueue[i] = new XrdFrmPstgReq(buff);
-        if (!rQueue[i]->Init()) return 1;
-       }
-
-// Develop the clint/server UDP path name
-//
-   strcpy(buff, Config.AdminPath);
-   strcat(buff,"pstg.udp");
-   if (XrdNetSocket::socketAddr(&Say, buff, &sockP, n)) return 1;
-      else {free(sockP); Config.c2sFN = strdup(buff);}
-
-// We are done if this is an agent
-//
-   if (Config.isAgent) return 0;
-
-// Start the required number of transfer threads
-//
-   n = Config.xfrMax;
-   if (!XrdFrmPstgXfr::Init()) return 1;
-   while(n--)
-        {if ((retc = XrdSysThread::Run(&tid, mainXfer, (void *)0,
-                                       XRDSYSTHREAD_BIND, "Xfr Agent")))
-            {Say.Emsg("main", retc, "create xfr thread"); return 1;}
-        }
-
-// Start the Staging thread
-//
-   if ((retc = XrdSysThread::Run(&tid, mainStage, (void *)0,
-                                 XRDSYSTHREAD_BIND, "Stager")))
-      {Say.Emsg("main", retc, "create stager thread"); return 1;}
-
-// Get a UDP socket for the server
-//
-   if (!(udpSock = XrdNetSocket::Create(&Say, Config.AdminPath,
-                   "pstg.udp", Config.AdminMode, XRDNET_UDPSOCKET))) return 1;
-      else {udpFD = udpSock->Detach(); delete udpSock;}
-
-// Start the Server thread
-//
-   if ((retc = XrdSysThread::Run(&tid, mainServer, (void *)&udpFD,
-                                  XRDSYSTHREAD_BIND, "Server")))
-      {Say.Emsg("main", retc, "create server thread"); return 1;}
+   if (!PreStage.Start() || !Migrated.Start()
+   ||  !GetFiler.Start() || !PutFiler.Start()) return 1;
 
 // All done
 //

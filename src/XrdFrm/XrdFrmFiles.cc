@@ -106,7 +106,8 @@ int XrdFrmFileset::Refresh(int isMig, int doLock)
       {strcpy(fnP, baseFile()->File);
        if (chkLock(pBuff)) return 0;
        if (lP && dlkFD < 0)
-          {if ((dlkFD = getLock(pBuff)) < 0) return 0;
+          {strcpy(fnP, Config.lockFN);
+           if ((dlkFD = getLock(pBuff)) < 0) return 0;
            strcpy(fnP, lockFile()->File);
            if ((flkFD = getLock(pBuff,0,1)) < 0)
               {close(dlkFD); dlkFD = -1; return 0;}

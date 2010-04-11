@@ -15,16 +15,21 @@ xrootdfrmincdir = $(includedir)/xrootd/XrdFrm
 #############################################################################
 ## deliverables
 
-bin_PROGRAMS = frm_admin frm_pstga frm_pstgd
+bin_PROGRAMS = frm_admin frm_purged frm_xfragent frm_xfrd
 
 xrootdfrminc_HEADERS = XrdFrmAdmin.hh   \
                        XrdFrmConfig.hh  \
                        XrdFrmFiles.hh   \
-                       XrdFrmPstg.hh    \
-                       XrdFrmPstgReq.hh \
-                       XrdFrmPstgXfr.hh \
+                       XrdFrmMigrate.hh \
+                       XrdFrmPurge.hh   \
+                       XrdFrmReqboss.hh \
+                       XrdFrmReqfile.hh \
+                       XrdFrmRequest.hh \
+                       XrdFrmTsort.hh   \
                        XrdFrmTrace.hh   \
-                       XrdFrmUtils.hh
+                       XrdFrmTransfer.hh\
+                       XrdFrmUtils.hh   \
+                       XrdFrmXfrJob.hh
 
 # convenience library to help in the build
 noinst_LTLIBRARIES = libXrdFrm.la
@@ -36,20 +41,23 @@ noinst_LTLIBRARIES = libXrdFrm.la
 AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR)
 
 libXrdFrm_la_SOURCES = \
+                  XrdFrmAdmin.cc       \
                   XrdFrmAdminAudit.cc  \
                   XrdFrmAdminFiles.cc  \
                   XrdFrmAdminFind.cc   \
-                  XrdFrmAdminMain.cc   \
                   XrdFrmAdminQuery.cc  \
                   XrdFrmAdminReloc.cc  \
                   XrdFrmAdminUnlink.cc \
                   XrdFrmConfig.cc  \
                   XrdFrmFiles.cc   \
-                  XrdFrmPstg.cc    \
-                  XrdFrmPstgMain.cc\
-                  XrdFrmPstgReq.cc \
-                  XrdFrmPstgXfr.cc \
-                  XrdFrmUtils.cc
+                  XrdFrmMigrate.cc\
+                  XrdFrmPurge.cc  \
+                  XrdFrmReqboss.cc \
+                  XrdFrmReqfile.cc \
+                  XrdFrmTransfer.cc\
+                  XrdFrmTSort.cc   \
+                  XrdFrmUtils.cc   \
+                  XrdFrmXfrQueue.cc
 
 libXrdFrm_la_LIBADD = \
                   ../XrdOss/libXrdOss.la     \
@@ -59,27 +67,32 @@ libXrdFrm_la_LIBADD = \
                   ../XrdCms/libXrdCms.la     \
                   ../Xrd/libXrd.la $(READLINE_LIBDIR) $(READLINE_LIBS)
 
-frm_admin_SOURCES = XrdFrmAdmin.cc \
+frm_admin_SOURCES = XrdFrmAdminMain.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc
 frm_admin_LDADD = libXrdFrm.la
 frm_admin_LDFLAGS = -static -export-dynamic -ldl
 
-# Note: The build rules for pgsta and pstgd are identical. The programs
+frm_purged_SOURCES = \
+                    XrdFrmPurgMain.cc \
+                    XrdFrmPurge.cc    \
+                    ../XrdXrootd/XrdXrootdMonitor.cc \
+                    ../Xrd/XrdScheduler.cc
+frm_purged_LDADD = libXrdFrm.la
+frm_purged_LDFLAGS = -static -export-dynamic -ldl
+
+# Note: The build rules for xfragent and xfrd are identical. The programs
 # behave differently based on their invocation name
 
-frm_pstga_SOURCES = \
-                    XrdFrmAdmin.cc \
+frm_xfragent_SOURCES = \
+                    XrdFrmXfrMain.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc \
                     ../Xrd/XrdScheduler.cc
-frm_pstga_LDADD = libXrdFrm.la
-frm_pstga_LDFLAGS = -static -export-dynamic -ldl
+frm_xfragent_LDADD = libXrdFrm.la
+frm_xfragent_LDFLAGS = -static -export-dynamic -ldl
 
-
-frm_pstgd_SOURCES = \
-                    XrdFrmAdmin.cc \
+frm_xfrd_SOURCES = \
+                    XrdFrmXfrMain.cc \
                     ../XrdXrootd/XrdXrootdMonitor.cc \
                     ../Xrd/XrdScheduler.cc
-frm_pstgd_LDADD = libXrdFrm.la
-frm_pstgd_LDFLAGS = -static -export-dynamic -ldl
-
-
+frm_xfrd_LDADD = libXrdFrm.la
+frm_xfrd_LDFLAGS = -static -export-dynamic -ldl

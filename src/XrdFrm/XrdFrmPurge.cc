@@ -340,7 +340,7 @@ const char *XrdFrmPurge::Eligible(XrdFrmFileset *sP, time_t &xTime, int hTime)
    xTime = static_cast<int>(nowTime - aTime);
    if (hTime && xTime <= hTime) return "is in hold";
 
-// File is ineligible if ot has a fail file
+// File is ineligible if it has a fail file
 //
    if (sP->failFile()) return "has fail file";
 
@@ -621,7 +621,7 @@ int XrdFrmPurge::PurgeFile()
    EPNAME("PurgeFile");
    static const int unOpts = XRDOSS_isPFN|XRDOSS_isMIG;
    XrdFrmFileset *fP;
-   const char *fn, *Why = "file in use";
+   const char *fn, *Why;
    time_t xTime;
    int rc, FilePurged = 0;
 
@@ -632,12 +632,13 @@ do{if (!(fP = FSTab.Oldest()) && !(fP = Advance()))
        if (!nextReset || nextScan < nextReset) nextReset = nextScan;
        return 1;
       }
+   Why = "file in use";
    if (fP->Refresh() && !(Why = Eligible(fP, xTime, Hold))
    && (!Ext || !(Why = XPolOK(fP))))
       {fn = fP->basePath();
        if (Config.Test) rc = 0;
-          else if (!(rc = Config.ossFS->Unlink(fn, unOpts)))
-                  Config.cmsPath->Gone(fn);
+          else if (!(rc = Config.ossFS->Unlink(fn, unOpts))
+               && Config.cmsPath) Config.cmsPath->Gone(fn);
        if (!rc) {prgFiles++; FilePurged = 1;
                  freeSpace += fP->baseFile()->Stat.st_size;
                  purgBytes += fP->baseFile()->Stat.st_size;

@@ -113,7 +113,6 @@ void stifle_history(int hnum) {}
   
 int main(int argc, char *argv[])
 {
-   extern int mainConfig();
    sigset_t myset;
    XrdOucTokenizer Request(0);
    char *cLine = 0, *pLine = 0, *Cmd = 0, *CmdArgs;
@@ -129,7 +128,7 @@ int main(int argc, char *argv[])
 
 // Perform configuration
 //
-   if (!Config.Configure(argc, argv, &mainConfig)) exit(4);
+   if (!Config.Configure(argc, argv, 0)) exit(4);
 
 // Fill out the dummy symbol to avoid crashes
 //
@@ -168,27 +167,4 @@ int main(int argc, char *argv[])
 // All done
 //
    Admin.Quit();
-}
-
-/******************************************************************************/
-/*                            m a i n C o n f i g                             */
-/******************************************************************************/
-  
-int mainConfig()
-{
-   struct sockaddr *sockP;
-   char buff[2048], *cP;
-   int n;
-
-// Construct the communication path for the cms we must contact
-//
-   strcpy(buff, Config.AdminPath);
-   cP = rindex(buff, '/')+1;
-   strcpy(cP, ".olb/olbd.notes");
-   if (XrdNetSocket::socketAddr(&Say, buff, &sockP, n)) return 1;
-      else {free(sockP); Config.c2sFN = strdup(buff);}
-
-// All done
-//
-   return 0;
 }

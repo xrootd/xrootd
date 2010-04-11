@@ -144,18 +144,18 @@ int main(int argc, char *argv[])
 // Now simply poke the server every so often
 //
    if (Config.isOTO) XrdFrmPurge::Purge();
-      else do {if (Config.StopFile)
+      else do {if (Config.StopPurge)
                   {int n = 0;
                    struct stat buf;
-                   while(!stat(Config.StopFile, &buf))
+                   while(!stat(Config.StopPurge, &buf))
                         {if (!n--)
-                            {Say.Emsg("PurgMain", Config.StopFile,
+                            {Say.Emsg("PurgMain", Config.StopPurge,
                                       "exists; purging suspended."); n = 12;}
                          XrdSysTimer::Snooze(5);
                         }
                   }
                XrdFrmPurge::Purge();
-               XrdSysTimer::Snooze(Config.WaitTime);
+               XrdSysTimer::Snooze(Config.WaitPurge);
               } while(1);
 
 // All done
