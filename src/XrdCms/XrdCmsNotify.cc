@@ -39,7 +39,7 @@ XrdCmsNotify::XrdCmsNotify(XrdSysError *erp, const char *aPath,
 // Construct the path for notification
 //
    p = XrdOucUtils::genPath(aPath, iName, ".olb");
-   strcpy(buff, p); strcat(buff, (Opts & isServ ? "olbd.admin":"olbd.nimda"));
+   strcpy(buff, p); strcat(buff, (Opts & isServ ? "olbd.notes":"olbd.seton"));
    destPath = strdup(buff); free(p);
 
 // Construct message object
