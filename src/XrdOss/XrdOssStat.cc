@@ -119,8 +119,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts)
 
 int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
 {
-   int Opt, sVal, wVal, Util;
+   int sVal, wVal, Util;
    long long fSpace, fSize;
+   unsigned long long Opt;
 
 // Get the values for this file system
 //
@@ -158,8 +159,8 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdOssSys::StatFS(const char *path, 
-                      int &Opt, long long &fSize, long long &fSpace)
+int XrdOssSys::StatFS(const char *path, unsigned long long &Opt,
+                      long long &fSize, long long &fSpace)
 {
 // Establish the path options
 //
@@ -208,7 +209,7 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
 // We provide psuedo support whould be not have a cache
 //
    if (!XrdOssCache_Group::fsgroups)
-      {int Opt;
+      {unsigned long long Opt;
        long long fSpace, fSize;
        StatFS(path, Opt, fSize, fSpace);
        if (fSpace < 0) fSpace = 0;

@@ -148,7 +148,8 @@ int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t, unsigned l
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int opts=0);
 int       StatFS(const char *path, char *buff, int &blen);
-int       StatFS(const char *path, int &Opt, long long &fSize, long long &fSpace);
+int       StatFS(const char *path, unsigned long long &Opt,
+                 long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
 int       StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
 int       StatXA(const char *path, char *buff, int &blen);
