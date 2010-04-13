@@ -417,7 +417,11 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
 
 // Find a cache that will fit this allocation request
 //
-   maxfree = fsp->fsdata->frsz; fsp_sel = 0; fspend = fsp; fsp = fsp->next;
+   maxfree = fsp->fsdata->frsz;
+   if (size > maxfree || (aInfo.cgPath && (aInfo.cgPlen > fsp->plen
+           ||  strncmp(aInfo.cgPath,fsp->path,aInfo.cgPlen)))) fsp_sel = 0;
+      else fsp_sel = fsp;
+   fspend = fsp; fsp = fsp->next;
    do {
        if (strcmp(aInfo.cgName, fsp->group)
        || (aInfo.cgPath && (aInfo.cgPlen > fsp->plen
