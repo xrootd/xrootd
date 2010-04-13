@@ -161,6 +161,9 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
 int XrdOssSys::StatFS(const char *path, 
                       int &Opt, long long &fSize, long long &fSpace)
 {
+// Establish the path options
+//
+   Opt = PathOpts(path);
 
 // For in-place paths we just get the free space in that partition, otherwise
 // get the maximum available in any partition.
