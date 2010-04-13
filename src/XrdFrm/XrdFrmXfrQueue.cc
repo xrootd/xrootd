@@ -95,7 +95,7 @@ int XrdFrmXfrQueue::Add(XrdFrmRequest *rP, XrdFrmReqFile *reqFQ, int qNum)
 //
    if (!Config.LocalPath((rP->LFN)+rP->LFO, lclpath, sizeof(lclpath)-16))
       {if (reqFQ) reqFQ->Del(rP);
-       return Notify(rP, 1, "Unable to generate pfn");
+       return Notify(rP, qNum, 1, "Unable to generate pfn");
       }
 
 // Check if the file exists or not. For incomming requests, the file must not
@@ -106,14 +106,14 @@ int XrdFrmXfrQueue::Add(XrdFrmRequest *rP, XrdFrmReqFile *reqFQ, int qNum)
           {if (Config.Verbose || Trace.What & TRACE_Debug)
               Say.Say(0, xfrType,"skipped; ",lclpath," does not exist.");
            if (reqFQ) reqFQ->Del(rP);
-           return Notify(rP, 2, "file not found");
+           return Notify(rP, qNum, 2, "file not found");
           }
       } else {
        if (!Outgoing)
           {if (Config.Verbose || Trace.What & TRACE_Debug)
               Say.Say(0, xfrType, "skipped; ", lclpath, " exists.");
            if (reqFQ) reqFQ->Del(rP);
-           return Notify(rP, 0);
+           return Notify(rP, qNum, 0);
           }
       }
 
@@ -169,7 +169,7 @@ void XrdFrmXfrQueue::Done(XrdFrmXfrJob *xP, const char *Msg)
 
 // Send notifications to everyone that wants it that this job is done
 //
-   do {Notify(&(xP->reqData), xP->RetCode, Msg);
+   do {Notify(&(xP->reqData), xP->qNum, xP->RetCode, Msg);
        if ((tP = xP->NoteList))
           {strcpy(xP->reqData.Notify, tP->text);
            xP->NoteList = tP->next;
@@ -317,12 +317,13 @@ do{ioX = (ioX + 1) & 1;
 /* Private:                       N o t i f y                                 */
 /******************************************************************************/
   
-int XrdFrmXfrQueue::Notify(XrdFrmRequest *rP, int rc, const char *msg)
+int XrdFrmXfrQueue::Notify(XrdFrmRequest *rP, int qNum, int rc, const char *msg)
 {
    static const char *isFile = "file:///";
    static const int   lnFile = 8;
    static const char *isUDP  = "udp://";
    static const int   lnUDP  = 6;
+   static const char *qOpr[] = {"stage", "migr", "get", "put"};
    char msgbuff[4096], *nP, *mP = rP->Notify;
    int n;
 
@@ -339,7 +340,7 @@ do{if ((nP = index(rP->Notify, '\r'))) *nP++ = '\0';
 // Check for file destination
 //
         if (!strncmp(mP, isFile, lnFile))
-           {if (rc) n = sprintf(msgbuff, "stage %s %s %s\n",
+           {if (rc) n = sprintf(msgbuff, "%s %s %s %s\n", qOpr[qNum],
                         (rc > 1 ? "ENOENT":"BAD"), rP->LFN, (msg ? msg:"?"));
                else n = sprintf(msgbuff, "stage OK %s\n", rP->LFN);
             Send2File(mP+lnFile, msgbuff, n);

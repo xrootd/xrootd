@@ -47,7 +47,7 @@ static const int     outQ = 1;  // Used as a mask only
 private:
 
 static XrdFrmXfrJob *Pull();
-static int           Notify(XrdFrmRequest *rP, int rc, const char *msg=0);
+static int           Notify(XrdFrmRequest *rP,int qN,int rc,const char *msg=0);
 static void          Send2File(char *Dest, char *Msg, int Mln);
 static void          Send2UDP(char *Dest, char *Msg, int Mln);
 static int           Stopped(int qNum);
