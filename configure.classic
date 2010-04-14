@@ -967,8 +967,8 @@ if test "x$platform" = "xsolaris"; then
       nccflv="sungcc"
    else
       # CC: starting from version 5.5 the template cache is not used
-      CC -V 2> ccout.tmp
-      ccstring=`cat ccout.tmp`
+      CC -V 2> /tmp/ccout.tmp.$$
+      ccstring=`cat /tmp/ccout.tmp.$$`
       ccver=""
       for i in $ccstring; do
          case "$i" in
@@ -981,7 +981,12 @@ if test "x$platform" = "xsolaris"; then
       if test $ccsub -gt 4; then
          suncache=""
       fi
-      rm -f ccout.tmp
+      if test "x$nccflv" = "xsunCCamd"; then
+         if test $ccsub -lt 10; then
+            nccflv=sunCCamd64
+         fi
+      fi
+      rm -f /tmp/ccout.tmp.$$
    fi
 fi
 if test "x$platform" = "xlinux" && test "x$chip" = "xx86_64" ; then
