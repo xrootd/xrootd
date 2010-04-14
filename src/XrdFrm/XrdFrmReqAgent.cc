@@ -186,11 +186,12 @@ void XrdFrmReqAgent::Del(XrdOucStream  &Request, char *Tok,
   
 void XrdFrmReqAgent::List(XrdOucStream &Request, char *Tok)
 {
-   static const int maxItems = 10;
    static struct ITypes {const char *IName; XrdFrmReqFile::Item ICode;}
                  ITList[] = {{"lfn",    XrdFrmReqFile::getLFN},
                              {"lfncgi", XrdFrmReqFile::getLFNCGI},
                              {"mode",   XrdFrmReqFile::getMODE},
+                             {"obj",    XrdFrmReqFile::getOBJ},
+                             {"objcgi", XrdFrmReqFile::getOBJCGI},
                              {"op",     XrdFrmReqFile::getOP},
                              {"prty",   XrdFrmReqFile::getPRTY},
                              {"qwt",    XrdFrmReqFile::getQWT},
@@ -200,12 +201,12 @@ void XrdFrmReqAgent::List(XrdOucStream &Request, char *Tok)
                              {"tid",    XrdFrmReqFile::getUSER}};
    static int ITNum = sizeof(ITList)/sizeof(struct ITypes);
 
-   XrdFrmReqFile::Item Items[maxItems];
+   XrdFrmReqFile::Item Items[ITNum];
    XrdFrmReqBoss *bossP;
    int n = 0, i;
    char *tp;
 
-   while((tp = Request.GetToken()) && n < maxItems)
+   while((tp = Request.GetToken()) && n <= ITNum)
         {for (i = 0; i < ITNum; i++)
              if (!strcmp(tp, ITList[i].IName))
                 {Items[n++] = ITList[i].ICode; break;}
@@ -213,7 +214,7 @@ void XrdFrmReqAgent::List(XrdOucStream &Request, char *Tok)
 
 // List entries queued for specific servers
 //
-   if (!(*Tok)) PreStage.List(Items, n);
+   if (!(*Tok)) {PreStage.List(Items, n); GetFiler.List(Items, n);}
       else do {if ((bossP = Boss(*Tok))) bossP->List(Items, n);
               } while(*(++Tok));
    cout <<endl;

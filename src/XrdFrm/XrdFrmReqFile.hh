@@ -28,12 +28,12 @@ public:
 
        int    Init();
 
-enum Item {getLFN=0, getLFNCGI, getMODE, getNOTE, getOP, getPRTY, getQWT,
-           getRID,   getTOD,    getUSER};
+enum Item {getOBJ = 0, getLFN, getOBJCGI, getLFNCGI, getMODE, getNOTE, getOP,
+           getPRTY,    getQWT, getRID,    getTOD,    getUSER};
 
        char  *List(char *Buff, int bsz, int &Offs, Item *ITList=0, int ITNum=0);
 
-       void   ListL(XrdFrmRequest tmpReq, char *Buff, int bsz,
+       void   ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
                     Item *ITList, int ITNum);
 
 static int    Unique(const char *lkfn);

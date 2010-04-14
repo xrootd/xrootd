@@ -310,23 +310,26 @@ char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
 /*                                 L i s t L                                  */
 /******************************************************************************/
   
-void XrdFrmReqFile::ListL(XrdFrmRequest tmpReq, char *Buff, int bsz,
+void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
                           Item *ITList, int ITNum)
 {
    char What, tbuf[32];
    long long tval;
-   int i, n, bln = bsz-2;
+   int i, k, n, bln = bsz-2, Lfo;
 
    for (i = 0; i < ITNum && bln; i++)
-       {switch(ITList[i])
-              {case getLFN:     n = strlen(tmpReq.LFN);
-                                strlcpy(Buff, tmpReq.LFN, bln);
+       {Lfo = tmpReq.LFO;
+        switch(ITList[i])
+              {case getOBJ:     Lfo = 0;
+               case getLFN:     n = strlen(tmpReq.LFN+Lfo);
+                                strlcpy(Buff, tmpReq.LFN+Lfo, bln);
                                 break;
+               case getOBJCGI:  Lfo = 0;
                case getLFNCGI:  n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';
                                 if (!tmpReq.Opaque) tmpReq.LFN[n+1] = '\0';
-                                strlcpy(Buff, tmpReq.LFN, bln);
-                                n = strlen(tmpReq.LFN);
-                                tmpReq.LFN[n] = '\0';
+                                strlcpy(Buff, tmpReq.LFN+Lfo, bln);
+                                k = strlen(tmpReq.LFN+Lfo);
+                                tmpReq.LFN[n] = '\0'; n = k;
                                 break;
                case getMODE:    n = 0;
                                 What = (tmpReq.Options & XrdFrmRequest::makeRW
