@@ -199,7 +199,7 @@ void XrdFrmReqAgent::List(XrdOucStream &Request, char *Tok)
                              {"tod",    XrdFrmReqFile::getTOD},
                              {"note",   XrdFrmReqFile::getNOTE},
                              {"tid",    XrdFrmReqFile::getUSER}};
-   static int ITNum = sizeof(ITList)/sizeof(struct ITypes);
+   static const int ITNum = sizeof(ITList)/sizeof(struct ITypes);
 
    XrdFrmReqFile::Item Items[ITNum];
    XrdFrmReqBoss *bossP;
