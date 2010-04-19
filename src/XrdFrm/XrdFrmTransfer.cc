@@ -102,7 +102,7 @@ const char *XrdFrmTransfer::checkFF(const char *Path)
 // Check for a fail file
 //
    if (!stat(Path, &buf))
-      {if (buf.st_ctime < time(0)+Config.FailHold)
+      {if (buf.st_ctime+Config.FailHold >= time(0))
           return "request previously failed";
        if (Config.Test) {DEBUG("would have removed '" <<Path <<"'");}
           else {Config.ossFS->Unlink(Path, XRDOSS_isPFN);
