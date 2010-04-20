@@ -120,7 +120,7 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
 // fail the request. Otherwise, try it again. This avoids tight loops.
 //
    if ((cTime = HasFile(fn, XRDOSS_FAIL_FILE, &mTime))
-   && xfrhold && (tNow - cTime) >= xfrhold)
+   && xfrhold && (tNow - cTime) < xfrhold)
       return (mTime != 2 ? -XRDOSS_E8009 : -ENOENT);
 
 // If enough time has gone by between the last scrub, do it now
