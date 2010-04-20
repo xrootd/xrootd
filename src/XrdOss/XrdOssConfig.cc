@@ -708,7 +708,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
           if ((sp = index(StageCmd, ' '))) *sp = '\0';
           if (!(tp = rindex (StageCmd, '/'))) tp = StageCmd;
              else tp++;
-          if (!strcmp("frm_pstga", tp)) StageFormat = 1;
+          if (!strncmp("frm_", tp, 4)) StageFormat = 1;
           if (sp) *sp = ' ';
 
       // Set up a program object for the command
