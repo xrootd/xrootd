@@ -142,7 +142,7 @@ fi
 
 # Now start up the purge daemon
 #
-if [ "$DOALL" = "1" -o "$ONLYP" = "1" ]; then
+if [ ! -z "$START_PURGE" -a "$DOALL" = "1" -o "$ONLYP" = "1" ]; then
    isOK $START_PURGE $HFILE_PURGE
    if [ $? -eq 1 ]; then
       Emsg "Starting $XRDUSER purge daemon. . ."
