@@ -141,7 +141,7 @@ fi
 
 # Now stop the purge daemon
 #
-if [ "$DOALL" = "1" -o "$ONLYP" = "1" ]; then
+if [ ! -z "$START_PURGE" -a "$DOALL" = "1" -o "$ONLYP" = "1" ]; then
    Emsg "Stopping $XRDUSER purge daemon. . ."
    Stop purge $START_PURGE $HFILE_PURGE
 fi
