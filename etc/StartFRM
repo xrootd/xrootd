@@ -35,6 +35,10 @@ Emsg () {
 isOK () {
         thePGM=$1
         theHLD=$2
+        if [ -z "$1" -o -z "$2" ]; then
+           REASON="$1 not configured."
+           return 0;
+        fi
         if [ ! -x $1 ]; then
            REASON="$1 missing."
            return 0
@@ -65,7 +69,7 @@ xPID () {
 
 Xeq () {
        if [ $DOSU -eq 1 ]; then
-          $TEST /bin/su $XRDUSER -c "$*" &
+          $TEST /bin/su $XRDUSER -c "$* &"
        else
           $TEST $* &
        fi
