@@ -14,15 +14,18 @@
 
 # options:
 
-# [-c <config>] [-d] [-f] [-F {hide|none|oute|outo|<ffdir>}] [-k <keytab>] [-m]
+# [-A [<port>]] [-c <config>] [-d] [-f] [-F {hide|none|oute|outo|<ffdir>}]
 
-# [-M offs] [-n] [-p <mode>] [-P <port>] [-r] [-s <cos>] [-t <tries>]
+# [-k <keytab>] [-m] [-M offs] [-n] [-p <mode>] [-P <port>] [-r] [-s <cos>]
 
-# [-x <pftpcmd>] [-w <maxw>] [-z]
+# [-t <tries>] [-x <pftpcmd>] [-w <maxw>] [-z]
 
 # options (valid only under hpsscp):
 
 # [-C] [-N <ndir>] [-Q <qdir>] [-W <wait41>]
+
+# -A send the output filename via a udp alert to the receiving host:<port>
+#    If port is not specified, the default port is used.
 
 # -c supplies an option configuration file. The options in the file are
 #    added in front of whatever options remain. The file is structured
@@ -111,6 +114,7 @@
 # be issued to stderr and a non-zero exit status to be returned.
 
 use IPC::Open2;
+use Socket;
 
 # Global variables:
 #
@@ -131,6 +135,8 @@ $ErrFile = '';     # Absolute name of where error data resides
 $newPGRP = 1;      # Set new process group
 $DMode   = 0775;   # Directory create mode
 $doGet   = 1;      # We assume we will be doing gets
+$UDPort  = 0;      # Alert udp port
+$UDPdef  = 8686;   # Alert udp port default
 
 # hpsscp specific items
 #
@@ -174,7 +180,10 @@ $XfrMoff = 0;
 #
   while (substr($ARGV[0], 0, 1) eq '-') {
      $op = shift(@ARGV);
-        if ($op eq '-c') {$CFile = &GetVal('config file'); AddOpts($CFile);}
+        if ($op eq '-A') {if (&IsNum($ARGV[0])) {$UDPort= &GetVal('port', 'N');}
+                             else {$UDPort = $UDPdef;}
+                         }
+     elsif ($op eq '-c') {$CFile = &GetVal('config file'); AddOpts($CFile);}
      elsif ($op eq '-d') {$Debug    = 1;}
      elsif ($op eq '-k') {$XfrKey =  &GetVal('key file');}
      elsif ($op eq '-f') {$Replace  = 1;}
@@ -394,6 +403,35 @@ sub Get_File {my($cmd, $resp, $GetTries);
 }
  
 #******************************************************************************
+#*                             P u t _ A l e r t                              *
+#******************************************************************************
+ 
+sub Put_Alert {my($ip_addr);
+
+# if there is no need to send an alert, simply return
+#
+  return 0 if !$UDPort;
+
+# Get a udp socket
+#
+  if (!socket(MYSOCK, PF_INET, SOCK_DGRAM, getprotobyname("udp")))
+     {&SayDebug("Unable to get socket for alert; $!", 1); return 0;}
+
+# Convert destination to a sockaddr
+#
+  if (substr($XfrHost,0,1) =~ m/\d/) {$ip_addr = inet_aton($XfrHost);}
+     else {$ip_addr = gethostbyname($XfrHost);}
+  my($ip_dest) = pack_sockaddr_in($UDPort, $ip_addr);
+
+# Send the message
+#
+  &SayDebug("Unable to send alert; $!", 1)
+     if !send(MYSOCK, "$XfrUser $XfrTrgFN\n", 0, $ip_dest);
+
+  return 0;
+}
+  
+#******************************************************************************
 #*                              P u t _ F i l e                               *
 #******************************************************************************
  
@@ -432,10 +470,10 @@ sub Put_File {my($Fsz) = @_; my($cmd, $dir, $resp, $sfx, $PutTries);
        }
     $cmd .= ';quit';
 
-    # Execute the command to get the file (as many times as wanted/needed)
+    # Execute the command to put the file (as many times as wanted/needed)
     #
     $PutTries = 0;
-    do {return 0 if &Transfer($cmd, 1, $Fsz);
+    do {return &Put_Alert() if &Transfer($cmd, 1, $Fsz);
         $PutTries += &TransErr($PutTries+1, 1);
        } while($PutTries < $XfrMaxTR);
     return $XfrRC;

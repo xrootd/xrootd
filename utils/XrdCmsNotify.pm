@@ -124,7 +124,7 @@ sub SendMsg {my($iname,$msg) = @_;
 #Output: Previous debug setting.
 
 sub setDebug {my($dbg) = @_; 
-    my($olCMSADDRCMSADDRddbg) = $DEBUG; 
+    my($olddbg) = $DEBUG; 
     $DEBUG = $dbg; 
     return $olddbg;
 }
