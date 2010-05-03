@@ -176,11 +176,9 @@ int mainConfig()
           {if (!Config.xfrOUT)
               Say.Emsg("Config","Output copy command not specified; "
                                 "auto-migration disabled!");
-          }
-           else {if (Config.pathList) XrdFrmMigrate::Migrate();
-                    else Say.Emsg("Config","No migratable paths; "
-                                           "auto-migration disabled!");
-                }
+              else XrdFrmMigrate::Migrate();
+          } else Say.Emsg("Config","No migratable paths; "
+                                   "auto-migration disabled!");
       }
 
 // Start the external interfaces
