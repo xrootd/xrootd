@@ -1734,19 +1734,21 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
       LastServerResp.status = kXR_authmore;
       char *srvans = 0;
       while (LastServerResp.status == kXR_authmore) {
+         bool resp = false;
+
          //
          // Length of the credentials buffer
          reqhdr.header.dlen = credentials->size;
          SetSID(reqhdr.header.streamid);
          reqhdr.header.requestid = kXR_auth;
-         SendGenCommand(&reqhdr, credentials->buffer, (void **)&srvans, 0, TRUE,
+         resp = SendGenCommand(&reqhdr, credentials->buffer, (void **)&srvans, 0, TRUE,
                                 (char *)"XrdClientConn::DoAuthentication");
          SafeDelete(credentials);
          Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                         "server reply: status: "<<
                                          LastServerResp.status <<
                                         " dlen: "<< LastServerResp.dlen);
-         if (LastServerResp.status == kXR_authmore) {
+         if (resp && (LastServerResp.status == kXR_authmore)) {
             //
             // We are required to send additional information
             // First assign the security token that we have received
@@ -1772,17 +1774,37 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
                Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                              "credentials size " << credentials->size);
             }
-         } else if (LastServerResp.status != kXR_ok) {
-            // Unexpected reply: stop handshake and print error msg, if any
-            if (LastServerError.errmsg)
-               Error("DoAuthentication", LastServerError.errmsg);
-            protocol->Delete();
-            protocol = 0;
+         } else {
+            // Something happened, it could be an error or a good thing as well
+
+            if (LastServerResp.status == kXR_error) {
+               // Unexpected reply: stop handshake and print error msg, if any
+
+               if (LastServerError.errmsg)
+                  Error("DoAuthentication", LastServerError.errmsg);
+
+               protocol->Delete();
+               protocol = 0;
+               // This is a fatal auth error
+               break;
+            }
+
+            if (!resp) {
+               // Communication error
+
+               protocol->Delete();
+               protocol = 0;
+               // This is a fatal auth error
+               break;
+            }
+
          }
       }
+   
       // If we are done
       if (protocol) break;
    }
+
    if (!protocol) {
       Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                     "unable to get protocol object.");
