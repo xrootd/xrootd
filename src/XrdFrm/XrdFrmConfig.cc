@@ -177,8 +177,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 
 // Establish our instance name
 //
-   if ((sP = getenv("XRDNAME")) && *sP) myInsName = sP;
-      else myInsName = 0;
+   myInst = ((sP = getenv("XRDNAME")) && *sP ? sP : 0);
 
 // Establish default config file
 //
@@ -258,7 +257,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'm': if (XrdOuca2x::a2i(Say,"max number",optarg,&myXfrMax))
                     Usage(1);
                  break;
-       case 'n': myInsName = optarg;
+       case 'n': myInst = optarg;
                  break;
        case 'O': isOTO = 1;
                  if (!ConfigOTO(optarg)) Usage(1);
@@ -287,7 +286,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
               {sprintf(buff, "%s%s%clog", logfn, myFrmid, (isAgent ? 'a' : 'd'));
                logfn = strdup(buff);
               }
-          } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInsName,logfn))) _exit(16);
+          } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
 
    // Bind the log file if we have one
    //
@@ -312,7 +311,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    myInstance = strdup(index(buff,'=')+1);
    XrdOucEnv::Export("XRDHOST", myName);
    XrdOucEnv::Export("XRDPROG", myProg);
-   if (myInsName) XrdOucEnv::Export("XRDNAME", myInsName);
+   if (myInst) XrdOucEnv::Export("XRDNAME", myInst);
 
 // We need to divert the output if we are in admin mode with no logfile
 //
@@ -344,6 +343,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo && !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib))) NoGo=1;
       }
+
+// Now we can create a home directory for core files and do a cwd to it
+//
+   if (myInst) XrdOucUtils::makeHome(Say, myInst);
 
 // Configure each specific component
 //
@@ -762,16 +765,12 @@ int XrdFrmConfig::ConfigPaths()
    
 
 // Set the directory where the meta information is to go
-//  XRDADMINPATH already contains the instance name
+// XRDADMINPATH already contains the instance name
 
-   if ( (!AdminPath) && (xPath = getenv("XRDADMINPATH"))) {
-       insName = 0;
-   }
-   else {
-       if (!(xPath = AdminPath))
-           xPath = (char *)"/tmp/";
-       insName = myInsName;
-   }
+   if ( (!AdminPath) && (xPath = getenv("XRDADMINPATH"))) insName = 0;
+      else {if (!(xPath = AdminPath)) xPath = (char *)"/tmp/";
+            insName = myInst;
+           }
    
    if (haveCMS)
       cmsPath = new XrdCmsNotify(&Say, xPath, insName, XrdCmsNotify::isServ);
@@ -786,10 +785,6 @@ int XrdFrmConfig::ConfigPaths()
        return 0;
       }
 
-// Now we should create a home directory for core files
-//
-   if (myInsName) XrdOucUtils::makeHome(Say, myInsName);
-
 // Estblish the client/server udp path
 //
    sprintf(buff, "%sxfrd.udp", Config.AdminPath);
@@ -803,7 +798,7 @@ int XrdFrmConfig::ConfigPaths()
 // If a qpath was specified, differentiate it by the instance name
 //
    if (qPath)
-      {xPath = XrdOucUtils::genPath(qPath, myInsName, "frm");
+      {xPath = XrdOucUtils::genPath(qPath, myInst, "frm");
        free(qPath); qPath = xPath;
       }
 

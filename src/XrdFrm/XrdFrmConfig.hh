@@ -34,7 +34,6 @@ public:
 const char         *myProg;
 const char         *myName;
 const char         *myInst;
-const char         *myInsName;
 const char         *myFrmid;
 const char         *myFrmID;
 const char         *lockFN;
