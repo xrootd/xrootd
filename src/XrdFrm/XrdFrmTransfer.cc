@@ -279,7 +279,6 @@ void XrdFrmTransfer::ffMake(int nofile)
 //
    strcpy(&xfrP->PFN[xfrP->pfnEnd], ".fail");
    myFD = open(xfrP->PFN, O_CREAT, fMode);
-   xfrP->PFN[xfrP->pfnEnd] = '\0';
    if (myFD >= 0)
       {close(myFD);
        if (nofile)
