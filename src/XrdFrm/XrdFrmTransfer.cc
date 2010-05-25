@@ -274,22 +274,21 @@ void XrdFrmTransfer::ffMake(int nofile)
    static const mode_t fMode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    int myFD;
 
-// Create a fail file
+// Create a fail file and if failure is due to "file not found" set the mtime
+// to 2 so that the oss layer picks up the same error in the future.
 //
    strcpy(&xfrP->PFN[xfrP->pfnEnd], ".fail");
    myFD = open(xfrP->PFN, O_CREAT, fMode);
    xfrP->PFN[xfrP->pfnEnd] = '\0';
-   if (myFD < 0) return;
-   close(myFD);
-
-// If we need to indicate that this is due to "file not found" do so. The oss
-// layer will know that this was the reason for future stats against the file.
-//
-   if (nofile)
-      {struct utimbuf tbuff;
-       tbuff.actime = time(0); tbuff.modtime = 2;
-       utime(xfrP->PFN, &tbuff);
+   if (myFD >= 0)
+      {close(myFD);
+       if (nofile)
+          {struct utimbuf tbuff;
+           tbuff.actime = time(0); tbuff.modtime = 2;
+           utime(xfrP->PFN, &tbuff);
+          }
       }
+   xfrP->PFN[xfrP->pfnEnd] = '\0';
 }
   
 /******************************************************************************/
