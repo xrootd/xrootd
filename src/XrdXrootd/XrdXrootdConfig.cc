@@ -110,8 +110,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, char *);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, char *, 
                                                     const char *);
-   extern XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *, 
-                                                XrdSysLogger *);
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
@@ -231,10 +229,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (FSLib)
       {TRACE(DEBUG, "Loading filesystem library " <<FSLib);
        osFS = XrdXrootdloadFileSystem(&eDest, FSLib, pi->ConfigFN);
-      } else {
-       eDest.Say("Config warning: 'xrootd.fslib' not specified; using native file system.");
-       osFS = XrdSfsGetFileSystem((XrdSfsFileSystem *)0, eDest.logger());
-      }
+      } else osFS = XrdSfsGetFileSystem(0, eDest.logger(), pi->ConfigFN);
    if (!osFS)
       {eDest.Emsg("Config", "Unable to load file system.");
        return 0;
@@ -636,7 +631,7 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
 int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 {
-    char *val;
+    char *val, *Slash;
 
 // Get the path
 //
@@ -647,10 +642,15 @@ int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
    if (!val || !val[0])
       {eDest.Emsg("Config", "fslib not specified"); return 1;}
 
-// Record the path
+// If this is the "standard" name tell the user that we are ignoring this lib.
+// Otherwise, record the path and return.
 //
-   if (FSLib) free(FSLib);
-   FSLib = strdup(val);
+   if (!(Slash = rindex(val, '/'))) Slash = val;
+   if (!strcmp(Slash, "/libXrdOfs.so"))
+      eDest.Say("Config warning: ignoring fslib; libXrdOfs.so is built-in.");
+      else {if (FSLib) free(FSLib);
+            FSLib = strdup(val);
+           }
    return 0;
 }
 

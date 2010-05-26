@@ -38,10 +38,16 @@ xrootd_SOURCES = \
 
 xrootd_LDADD = -ldl \
                   ../Xrd/libXrd.la \
+                  ../XrdOfs/libXrdOfs.la \
+                  ../XrdAcc/libXrdAcc.la \
+                  ../XrdOss/libXrdOss.la \
+                  ../XrdFrm/libXrdFrm.la \
+                  ../XrdCms/libXrdCms.la \
+                  ../XrdOdc/libXrdOdc.la \
                   ../XrdNet/libXrdNet.la \
                   ../XrdOuc/libXrdOuc.la \
-                  ../XrdSfs/libXrdSfs.la \
                   ../XrdSys/libXrdSys.la 
+
 xrootd_LDFLAGS = -static -export-dynamic
 
 #if IS_GCC
@@ -51,5 +57,3 @@ xrootd_LDFLAGS = -static -export-dynamic
 # -export-dynamic
 #xrootd_LDFLAGS += -static -export-dynamic -fPIC
 #endif
-
-
