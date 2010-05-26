@@ -81,19 +81,13 @@ using namespace XrdFrm;
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
 
-       XrdSysLogger       XrdFrm::Logger;
-
-       XrdSysError        XrdFrm::Say(&Logger, "");
-
-       XrdOucTrace        XrdFrm::Trace(&Say);
-
        XrdFrmConfig       XrdFrm::Config(XrdFrmConfig::ssPurg,
                                          XrdFrmOpts, XrdFrmUsage);
 
 // The following is needed to resolve symbols for objects included from xrootd
 //
        XrdOucTrace       *XrdXrootdTrace;
-       XrdSysError        XrdLog(&Logger, "");
+       XrdSysError        XrdLog(0, "");
        XrdOucTrace        XrdTrace(&Say);
 
 /******************************************************************************/
@@ -113,6 +107,7 @@ void *mainServer(void *parg)
   
 int main(int argc, char *argv[])
 {
+   XrdSysLogger Logger;
    extern int mainConfig();
    sigset_t myset;
 
@@ -131,6 +126,8 @@ int main(int argc, char *argv[])
 
 // Perform configuration
 //
+   Say.logger(&Logger);
+   XrdLog.logger(&Logger);
    if (!Config.Configure(argc, argv, &mainConfig)) exit(4);
 
 // Fill out the dummy symbol to avoid crashes

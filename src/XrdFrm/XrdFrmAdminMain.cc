@@ -69,12 +69,6 @@ using namespace XrdFrm;
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
 
-       XrdSysLogger       XrdFrm::Logger;
-
-       XrdSysError        XrdFrm::Say(&Logger, "");
-
-       XrdOucTrace        XrdFrm::Trace(&Say);
-
        XrdFrmConfig       XrdFrm::Config(XrdFrmConfig::ssAdmin,
                                          XrdFrmOpts, XrdFrmUsage);
 
@@ -83,7 +77,7 @@ using namespace XrdFrm;
 // The following is needed to resolve symbols for objects included from xrootd
 //
        XrdOucTrace       *XrdXrootdTrace;
-       XrdSysError        XrdLog(&Logger, "");
+       XrdSysError        XrdLog(0, "");
        XrdOucTrace        XrdTrace(&Say);
 
 /******************************************************************************/
@@ -113,6 +107,7 @@ void stifle_history(int hnum) {}
   
 int main(int argc, char *argv[])
 {
+   XrdSysLogger Logger;
    sigset_t myset;
    XrdOucTokenizer Request(0);
    char *cLine = 0, *pLine = 0, *Cmd = 0, *CmdArgs;
@@ -128,6 +123,8 @@ int main(int argc, char *argv[])
 
 // Perform configuration
 //
+   Say.logger(&Logger);
+   XrdLog.logger(&Logger);
    if (!Config.Configure(argc, argv, 0)) exit(4);
 
 // Fill out the dummy symbol to avoid crashes

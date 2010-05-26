@@ -1,8 +1,8 @@
-#ifndef __FRMREQAGENT_H__
-#define __FRMREQAGENT_H__
+#ifndef __FRMXFRDAEMON_H__
+#define __FRMXFRDAEMON_H__
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d F r m R e q A g e n t . h h                      */
+/*                    X r d F r m X f r D a e m o n . h h                     */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -12,35 +12,27 @@
 
 //          $Id$
 
-#include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrm/XrdFrmReqBoss.hh"
 
-class XrdFrmReqAgent
+class XrdFrmXfrDaemon
 {
 public:
 
-void Add(XrdFrmRequest &Request);
+static int  Init();
 
-void Del(XrdFrmRequest &Request);
+static void Pong();
 
-void List(XrdFrmRequest::Item *Items, int Num);
+static int  Start();
 
-int  NextLFN(char *Buff, int Bsz, int Prty, int &Offs);
-
-void Ping(const char *Msg=0);
-
-int  Start(char *aPath, int aMode);
-
-     XrdFrmReqAgent(const char *Me, int qVal);
-    ~XrdFrmReqAgent() {}
+           XrdFrmXfrDaemon() {}
+          ~XrdFrmXfrDaemon() {}
 
 private:
+static XrdFrmReqBoss *Boss(char bType);
 
-static char     *c2sFN;
-
-XrdFrmReqFile   *rQueue[XrdFrmRequest::maxPQE];
-const char      *Persona;
-const char      *pingMsg;
-int              theQ;
+static XrdFrmReqBoss GetBoss;
+static XrdFrmReqBoss PutBoss;
+static XrdFrmReqBoss MigBoss;
+static XrdFrmReqBoss StgBoss;
 };
 #endif

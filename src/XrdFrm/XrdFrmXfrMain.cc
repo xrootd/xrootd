@@ -12,7 +12,7 @@
 
 const char *XrdFrmXfrMainCVSID = "$Id$";
 
-/* This is the "main" part of the frm_migr, frm_pstg & frm_xfrd commands.
+/* This is the "main" part of the frm_xfragent & frm_xfrd commands.
 */
 
 /* This is the "main" part of the frm_migrd command. Syntax is:
@@ -58,19 +58,13 @@ Where:
 #include <sys/param.h>
 
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmMigrate.hh"
-#include "XrdFrm/XrdFrmReqAgent.hh"
-#include "XrdFrm/XrdFrmReqBoss.hh"
-#include "XrdFrm/XrdFrmReqFile.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmTransfer.hh"
-#include "XrdFrm/XrdFrmXfrQueue.hh"
-#include "XrdOuc/XrdOucUtils.hh"
+#include "XrdFrm/XrdFrmXfrAgent.hh"
+#include "XrdFrm/XrdFrmXfrDaemon.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdFrm;
   
@@ -78,27 +72,13 @@ using namespace XrdFrm;
 /*                      G l o b a l   V a r i a b l e s                       */
 /******************************************************************************/
 
-       XrdSysLogger       XrdFrm::Logger;
-
-       XrdSysError        XrdFrm::Say(&Logger, "");
-
-       XrdOucTrace        XrdFrm::Trace(&Say);
-
        XrdFrmConfig       XrdFrm::Config(XrdFrmConfig::ssXfr,
                                          XrdFrmOpts, XrdFrmUsage);
-
-       XrdFrmReqBoss      XrdFrm::GetFiler("getf", XrdFrmXfrQueue::getQ);
-
-       XrdFrmReqBoss      XrdFrm::Migrated("migr", XrdFrmXfrQueue::migQ);
-
-       XrdFrmReqBoss      XrdFrm::PreStage("pstg", XrdFrmXfrQueue::stgQ);
-
-       XrdFrmReqBoss      XrdFrm::PutFiler("putf", XrdFrmXfrQueue::putQ);
 
 // The following is needed to resolve symbols for objects included from xrootd
 //
        XrdOucTrace       *XrdXrootdTrace;
-       XrdSysError        XrdLog(&Logger, "");
+       XrdSysError        XrdLog(0, "");
        XrdOucTrace        XrdTrace(&Say);
 
 /******************************************************************************/
@@ -107,6 +87,7 @@ using namespace XrdFrm;
   
 int main(int argc, char *argv[])
 {
+   XrdSysLogger Logger;
    extern int mainConfig();
    sigset_t myset;
    char *pP;
@@ -132,29 +113,17 @@ int main(int argc, char *argv[])
 
 // Perform configuration
 //
+   Say.logger(&Logger);
+   XrdLog.logger(&Logger);
    if (!Config.Configure(argc, argv, &mainConfig)) exit(4);
 
 // Fill out the dummy symbol to avoid crashes
 //
    XrdXrootdTrace = new XrdOucTrace(&Say);
 
-// If we are running in agent mode scadadle to that (it's simple). Otherwise,
-// start the thread that fields udp-based requests.
+// All done, simply exit based on our persona
 //
-   if (Config.isAgent) exit(XrdFrmReqAgent::Start());
-   XrdFrmReqAgent::Pong();
-
-// Now simply poke the each server every so often
-//
-   while(1)
-        {PreStage.Wakeup(); GetFiler.Wakeup();
-         Migrated.Wakeup(); PutFiler.Wakeup();
-         XrdSysTimer::Snooze(Config.WaitQChk);
-        }
-
-// We get here is we failed to initialize
-//
-   exit(255);
+   exit(Config.isAgent ? XrdFrmXfrAgent::Start() : XrdFrmXfrDaemon::Start());
 }
 
 /******************************************************************************/
@@ -163,30 +132,7 @@ int main(int argc, char *argv[])
   
 int mainConfig()
 {
-   char buff[1024];
-
-// If we are a true server then first start the transfer agents and migrator
-// Note that if we are not an agent then only one instance may run at a time.
+// Initialize the daemon, depending on who we are to be
 //
-   if (!Config.isAgent)
-      {sprintf(buff, "%sfrm_xfrd.lock", Config.AdminPath);
-       if (!XrdFrmReqFile::Unique(buff) || !XrdFrmTransfer::Init()) return 1;
-       if (Config.WaitMigr < Config.IdleHold) Config.WaitMigr = Config.IdleHold;
-       if (Config.pathList)
-          {if (!Config.xfrOUT)
-              Say.Emsg("Config","Output copy command not specified; "
-                                "auto-migration disabled!");
-              else XrdFrmMigrate::Migrate();
-          } else Say.Emsg("Config","No migratable paths; "
-                                   "auto-migration disabled!");
-      }
-
-// Start the external interfaces
-//
-   if (!PreStage.Start() || !Migrated.Start()
-   ||  !GetFiler.Start() || !PutFiler.Start()) return 1;
-
-// All done
-//
-   return 0;
+   return (Config.isAgent ? 0 : !XrdFrmXfrDaemon::Init());
 }

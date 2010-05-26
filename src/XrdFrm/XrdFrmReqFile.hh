@@ -28,17 +28,13 @@ public:
 
        int    Init();
 
-enum Item {getOBJ = 0, getLFN, getOBJCGI, getLFNCGI, getMODE, getNOTE, getOP,
-           getPRTY,    getQWT, getRID,    getTOD,    getUSER};
-
-       char  *List(char *Buff, int bsz, int &Offs, Item *ITList=0, int ITNum=0);
+       char  *List(char *Buff, int bsz, int &Offs,
+                    XrdFrmRequest::Item *ITList=0, int ITNum=0);
 
        void   ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
-                    Item *ITList, int ITNum);
+                    XrdFrmRequest::Item *ITList, int ITNum);
 
-static int    Unique(const char *lkfn);
-
-              XrdFrmReqFile(const char *fn);
+              XrdFrmReqFile(const char *fn, int aVal);
              ~XrdFrmReqFile() {}
 
 private:
@@ -65,6 +61,8 @@ char  *lokFN;
 int    lokFD;
 int    reqFD;
 char  *reqFN;
+
+int    isAgent;
 
 struct recEnt {recEnt       *Next;
                XrdFrmRequest reqData;

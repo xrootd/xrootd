@@ -24,18 +24,16 @@ void Add(XrdFrmRequest &Request);
 
 void Del(XrdFrmRequest &Request);
 
-void List(XrdFrmReqFile::Item *Items, int Num);
-
 void Process();
 
 int  Server();
 
+int  Start(char *aPath, int aMode);
+
 void Wakeup(int PushIt=1);
 
-int  Start();
-
      XrdFrmReqBoss(const char *Me, int qVal)
-                  : rqReady(0), Persona(Me), theQ(qVal),isPosted(0) {}
+                  : rqReady(0),Persona(Me),theQ(qVal),isPosted(0) {}
     ~XrdFrmReqBoss() {}
 
 private:
@@ -46,11 +44,4 @@ const char      *Persona;
 int              theQ;
 int              isPosted;
 };
-namespace XrdFrm
-{
-extern XrdFrmReqBoss GetFiler;
-extern XrdFrmReqBoss Migrated;
-extern XrdFrmReqBoss PreStage;
-extern XrdFrmReqBoss PutFiler;
-}
 #endif

@@ -24,7 +24,6 @@ const char *XrdFrmXfrQueueCVSID = "$Id$";
 
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmXfrJob.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
@@ -46,7 +45,7 @@ XrdOucHash<XrdFrmXfrJob>  XrdFrmXfrQueue::hTab;
 XrdSysMutex               XrdFrmXfrQueue::qMutex;
 XrdSysSemaphore           XrdFrmXfrQueue::qReady(0);
 
-XrdFrmXfrQueue::theQueue  XrdFrmXfrQueue::xfrQ[XrdFrmXfrQueue::numQ];
+XrdFrmXfrQueue::theQueue  XrdFrmXfrQueue::xfrQ[XrdFrmRequest::numQ];
 
 /******************************************************************************/
 /* Public:                           A d d                                    */
@@ -58,11 +57,11 @@ int XrdFrmXfrQueue::Add(XrdFrmRequest *rP, XrdFrmReqFile *reqFQ, int qNum)
    struct stat buf;
    const char *xfrType = xfrName(*rP, qNum);
    char *Lfn, lclpath[MAXPATHLEN];
-   int Outgoing = (qNum & outQ);
+   int Outgoing = (qNum & XrdFrmRequest::outQ);
 
 // Validate queue number
 //
-   if (qNum < 0 || qNum >= numQ-1)
+   if (qNum < 0 || qNum >= XrdFrmRequest::numQ-1)
       {sprintf(lclpath, "%d", qNum);
        Say.Emsg("Queue", lclpath, " is an invalid queue; skipping", rP->LFN);
        if (reqFQ) reqFQ->Del(rP);
@@ -234,7 +233,7 @@ int XrdFrmXfrQueue::Init()
 
 // Initialize each queue
 //
-   for (qNum= 0; qNum < numQ-1; qNum++)
+   for (qNum= 0; qNum < XrdFrmRequest::numQ-1; qNum++)
       {
 
    // Initialize the stop file name and set the queue name and number
@@ -282,13 +281,13 @@ XrdFrmXfrJob *XrdFrmXfrQueue::Pull()
 //
    qMutex.Lock();
 do{ioX = (ioX + 1) & 1;
-   if (ioX) {Q1 = migQ; Q2 = putQ; pikQ = 1;}
-      else  {Q1 = stgQ; Q2 = getQ; pikQ = 0;}
+   if (ioX) {Q1 = XrdFrmRequest::migQ; Q2 = XrdFrmRequest::putQ; pikQ = 1;}
+      else  {Q1 = XrdFrmRequest::stgQ; Q2 = XrdFrmRequest::getQ; pikQ = 0;}
 
 // Check if we should avoid either queue because it is stopped
 //
-   if (xfrQ[Q1].Stop || Stopped(Q1)) Q1 = nilQ;
-   if (xfrQ[Q2].Stop || Stopped(Q2)) Q2 = nilQ;
+   if (xfrQ[Q1].Stop || Stopped(Q1)) Q1 = XrdFrmRequest::nilQ;
+   if (xfrQ[Q2].Stop || Stopped(Q2)) Q2 = XrdFrmRequest::nilQ;
 
 // Pick the oldest possible request
 //
@@ -477,16 +476,20 @@ const char *XrdFrmXfrQueue::xfrName(XrdFrmRequest &reqData, int qNum)
 // Copy+rm
 //
    switch(qNum)
-         {case getQ: return "CopyIn ";
-                     break;
-          case migQ: return (reqData.Options & XrdFrmRequest::Purge ?
-                            "Migr+rm ":"Migrate ");
-                     break;
-          case putQ: return (reqData.Options&XrdFrmRequest::Purge ?
-                            "Copy+rm " : "CopyOut ");
-                     break;
-          case stgQ: return "Staging ";
-                     break;
+         {case XrdFrmRequest::getQ:
+               return "CopyIn ";
+               break;
+          case XrdFrmRequest::migQ: 
+               return (reqData.Options & XrdFrmRequest::Purge ?
+                       "Migr+rm ":"Migrate ");
+               break;
+          case XrdFrmRequest::putQ:
+               return (reqData.Options&XrdFrmRequest::Purge ?
+                       "Copy+rm " : "CopyOut ");
+               break;
+          case XrdFrmRequest::stgQ:
+               return "Staging ";
+               break;
           default:   break;
          }
 

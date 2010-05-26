@@ -21,15 +21,20 @@ xrootdfrminc_HEADERS = XrdFrmAdmin.hh   \
                        XrdFrmConfig.hh  \
                        XrdFrmFiles.hh   \
                        XrdFrmMigrate.hh \
+                       XrdFrmMonitor.hh \
+                       XrdFrmProxy.hh   \
                        XrdFrmPurge.hh   \
-                       XrdFrmReqboss.hh \
-                       XrdFrmReqfile.hh \
+                       XrdFrmReqBoss.hh \
+                       XrdFrmReqFile.hh \
                        XrdFrmRequest.hh \
-                       XrdFrmTsort.hh   \
                        XrdFrmTrace.hh   \
+                       XrdFrmTsort.hh   \
                        XrdFrmTransfer.hh\
                        XrdFrmUtils.hh   \
-                       XrdFrmXfrJob.hh
+                       XrdFrmXfrAgent.hh\
+                       XrdFrmXfrDaemon.hh\
+                       XrdFrmXfrJob.hh  \
+                       XrdFrmXfrQueue.hh
 
 # convenience library to help in the build
 noinst_LTLIBRARIES = libXrdFrm.la
@@ -50,13 +55,18 @@ libXrdFrm_la_SOURCES = \
                   XrdFrmAdminUnlink.cc \
                   XrdFrmConfig.cc  \
                   XrdFrmFiles.cc   \
+                  XrdFrmMonitor.cc\
                   XrdFrmMigrate.cc\
+                  XrdFrmProxy.cc  \
                   XrdFrmPurge.cc  \
-                  XrdFrmReqboss.cc \
-                  XrdFrmReqfile.cc \
+                  XrdFrmReqBoss.cc \
+                  XrdFrmReqFile.cc \
+                  XrdFrmTrace.cc   \
                   XrdFrmTransfer.cc\
                   XrdFrmTSort.cc   \
                   XrdFrmUtils.cc   \
+                  XrdFrmXfrAgent.cc
+                  XrdFrmXfrDaemon.cc
                   XrdFrmXfrQueue.cc
 
 libXrdFrm_la_LIBADD = \
@@ -64,19 +74,15 @@ libXrdFrm_la_LIBADD = \
                   ../XrdNet/libXrdNet.la     \
                   ../XrdOuc/libXrdOuc.la     \
                   ../XrdSys/libXrdSys.la     \
-                  ../XrdCms/libXrdCms.la     \
                   ../Xrd/libXrd.la $(READLINE_LIBDIR) $(READLINE_LIBS)
 
-frm_admin_SOURCES = XrdFrmAdminMain.cc \
-                    ../XrdXrootd/XrdXrootdMonitor.cc
+frm_admin_SOURCES = XrdFrmAdminMain.cc
 frm_admin_LDADD = libXrdFrm.la
 frm_admin_LDFLAGS = -static -export-dynamic -ldl
 
 frm_purged_SOURCES = \
                     XrdFrmPurgMain.cc \
-                    XrdFrmPurge.cc    \
-                    ../XrdXrootd/XrdXrootdMonitor.cc \
-                    ../Xrd/XrdScheduler.cc
+                    XrdFrmPurge.cc
 frm_purged_LDADD = libXrdFrm.la
 frm_purged_LDFLAGS = -static -export-dynamic -ldl
 
@@ -84,15 +90,11 @@ frm_purged_LDFLAGS = -static -export-dynamic -ldl
 # behave differently based on their invocation name
 
 frm_xfragent_SOURCES = \
-                    XrdFrmXfrMain.cc \
-                    ../XrdXrootd/XrdXrootdMonitor.cc \
-                    ../Xrd/XrdScheduler.cc
+                    XrdFrmXfrMain.cc
 frm_xfragent_LDADD = libXrdFrm.la
 frm_xfragent_LDFLAGS = -static -export-dynamic -ldl
 
 frm_xfrd_SOURCES = \
-                    XrdFrmXfrMain.cc \
-                    ../XrdXrootd/XrdXrootdMonitor.cc \
-                    ../Xrd/XrdScheduler.cc
+                    XrdFrmXfrMain.cc
 frm_xfrd_LDADD = libXrdFrm.la
 frm_xfrd_LDFLAGS = -static -export-dynamic -ldl

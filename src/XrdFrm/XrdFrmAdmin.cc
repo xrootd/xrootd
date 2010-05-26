@@ -672,13 +672,11 @@ char XrdFrmAdmin::VerifyMP(const char *func, const char *path)
 // Resolve attributes to the options in effect
 //
         if (Opt.MPType == 'm')
-           {if (!(Popts & XRDEXP_MIG)) msg = " is not migratable";}
+           {if (!(Popts & XRDEXP_MIG))   msg = " is not migratable";}
    else if (Opt.MPType == 'p')
-           {if (!(Popts & XRDEXP_MIG) && (Popts & XRDEXP_NOSTAGE))
-                msg = " is not stageable";
-           }
-   else if (Popts & XRDEXP_MIG) Opt.MPType = 'm';
-   else if (!(Popts & XRDEXP_NOSTAGE)) Opt.MPType = 'p';
+           {if (!(Popts & XRDEXP_STAGE)) msg = " is not stageable"; }
+   else if (Popts & XRDEXP_MIG)   Opt.MPType = 'm';
+   else if (Popts & XRDEXP_STAGE) Opt.MPType = 'p';
 
    if (msg) return XrdFrmUtils::Ask('n', path, msg, "; continue?");
    return 'y';

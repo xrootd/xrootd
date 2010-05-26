@@ -17,13 +17,14 @@
 
 #include "XrdOss/XrdOssSpace.hh"
 
-class XrdCmsNotify;
 class XrdOss;
+class XrdOucCmsNotify;
 class XrdOucMsubs;
 class XrdOucName2Name;
 class XrdOucProg;
 class XrdOucStream;
 class XrdOucTList;
+class XrdSysLogger;
 
 class XrdFrmConfigSE;
 
@@ -40,8 +41,6 @@ const char         *lockFN;
 char               *AdminPath;
 char               *myInstance;
 char               *StopPurge;
-char               *qPath;
-char               *c2sFN;
 char               *MSSCmd;
 XrdOucProg         *MSSProg;
 
@@ -49,15 +48,16 @@ struct Cmd
       {const char  *Desc;
        char        *theCmd;
        XrdOucMsubs *theVec;
-       int          hasMDP;
-       int          Stats;
+       int          TLimit;
+       short        hasMDP;
+       short        Stats;
       }             xfrCmd[4];
 int                 xfrIN;
 int                 xfrOUT;
 
 XrdOucName2Name    *the_N2N;   // -> File mapper object
 XrdOss             *ossFS;
-XrdCmsNotify       *cmsPath;
+XrdOucCmsNotify    *cmsPath;
 uid_t               myUid;
 gid_t               myGid;
 long long           cmdFree;
@@ -142,6 +142,7 @@ int          ConfigMP(const char *);
 int          ConfigMss();
 int          ConfigOTO(char *Parms);
 int          ConfigPaths();
+void         ConfigPF(const char *pFN);
 int          ConfigProc();
 int          ConfigXeq(char *var, int mbok);
 int          ConfigXfr();
@@ -151,9 +152,8 @@ XrdOucTList *InsertPL(XrdOucTList *pP, const char *Path, int Plen, int isRW);
 void         InsertXD(const char *Path);
 void         Usage(int rc);
 int          xapath();
-int          xcache(int isPrg=0);
-void         xcacheBuild(char *grp, char *fn, int isxa);
 int          xcopy();
+int          xcopy(int &TLim);
 int          xcmax();
 int          xdpol();
 int          xitm(const char *What, int &tDest);
@@ -161,6 +161,9 @@ int          xnml();
 int          xmon();
 int          xpol();
 int          xpolprog();
+int          xspace(int isPrg=0, int isXA=1);
+void         xspaceBuild(char *grp, char *fn, int isxa);
+int          xxfr();
 
 char               *ConfigFN;
 char               *ossLib;

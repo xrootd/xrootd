@@ -21,11 +21,11 @@ const char *XrdFrmReqBossCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmReqAgent.hh"
 #include "XrdFrm/XrdFrmReqBoss.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
@@ -58,7 +58,11 @@ void XrdFrmReqBoss::Add(XrdFrmRequest &Request)
 
 // Now add it to the queue
 //
-   rQueue[Request.Prty]->Add(&Request);
+   rQueue[static_cast<int>(Request.Prty)]->Add(&Request);
+
+// Now wake ourselves up
+//
+   Wakeup(1);
 }
 
 /******************************************************************************/
@@ -74,24 +78,6 @@ void XrdFrmReqBoss::Del(XrdFrmRequest &Request)
    for (i = 0; i <= XrdFrmRequest::maxPrty; i++) rQueue[i]->Can(&Request);
 }
 
-/******************************************************************************/
-/* Public:                          L i s t                                   */
-/******************************************************************************/
-  
-void XrdFrmReqBoss::List(XrdFrmReqFile::Item *Items, int Num)
-{
-   char myLfn[4096];
-   int i, Offs;
-
-// List entries in each priority queue
-//
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
-       {Offs = 0;
-        while(rQueue[i]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
-             cout <<myLfn <<endl;
-       }
-}
-  
 /******************************************************************************/
 /* Public:                       P r o c e s s                                */
 /******************************************************************************/
@@ -123,41 +109,30 @@ do{Wakeup(0);
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-int XrdFrmReqBoss::Start()
+int XrdFrmReqBoss::Start(char *aPath, int aMode)
 {
    pthread_t tid;
    char buff[2048], *qPath;
    int retc, i;
 
-// Make the queue path
+// Generate the queue directory path
 //
-   if ((qPath = Config.qPath))
-      {if ((retc = XrdOucUtils::makePath(qPath, Config.AdminMode)))
-          {Say.Emsg("Config", retc, "create queue directory", qPath);
-           return 0;
-          }
-      } else qPath = Config.AdminPath;
+   if (!(qPath = XrdFrmUtils::makeQDir(aPath, aMode))) return 0;
 
 // Initialize the request queues if all went well
 //
    for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
        {sprintf(buff, "%s%sQ.%d", qPath, Persona, i);
-        rQueue[i] = new XrdFrmReqFile(buff);
+        rQueue[i] = new XrdFrmReqFile(buff, 0);
         if (!rQueue[i]->Init()) return 0;
        }
-
-// We are done if this is an agent
-//
-   if (Config.isAgent) return 1;
-
-// Construct the stop file name
 
 // Start the request processing thread
 //
    if ((retc = XrdSysThread::Run(&tid, mainServerXeq, (void *)this,
                                  XRDSYSTHREAD_BIND, Persona)))
       {sprintf(buff, "create %s request thread", Persona);
-       Say.Emsg("main", retc, buff);
+       Say.Emsg("Start", retc, buff);
        return 0;
       }
 

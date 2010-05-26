@@ -18,6 +18,7 @@
 #include "XrdOuc/XrdOucHash.hh"
 
 class XrdFrmFileset;
+class XrdFrmXfrQueue;
 class XrdOucTList;
 
 class XrdFrmMigrate
@@ -28,7 +29,7 @@ static void          Display();
 
 static void          Queue(XrdFrmFileset *sP);
 
-static void          Migrate();
+static void          Migrate(int doinit=1);
 
                      XrdFrmMigrate() {}
                     ~XrdFrmMigrate() {}

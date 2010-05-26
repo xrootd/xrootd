@@ -22,8 +22,8 @@ const char *XrdFrmTransferCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdCms/XrdCmsNotify.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
+#include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdFrm/XrdFrmReqFile.hh"
 #include "XrdFrm/XrdFrmRequest.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
@@ -32,13 +32,13 @@ const char *XrdFrmTransferCVSID = "$Id$";
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssLock.hh"
+#include "XrdOuc/XrdOucCmsNotify.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdXrootd/XrdXrootdMonitor.hh"
 
 using namespace XrdFrm;
 
@@ -241,7 +241,7 @@ const char *XrdFrmTransfer::Fetch()
           {snprintf(lfnpath+lfnEnd, sizeof(lfnpath)-lfnEnd-1,
                     "\n&tod=%lld&sz=%lld&qt=%d&tm=%d",
                     static_cast<long long>(eNow), fSize, inqT, xfrT);
-           XrdXrootdMonitor::Map(XROOTD_MON_MAPSTAG,xfrP->reqData.User,lfnpath);
+           XrdFrmMonitor::Map(XROOTD_MON_MAPSTAG,xfrP->reqData.User,lfnpath);
           }
      }
 
@@ -379,7 +379,7 @@ void XrdFrmTransfer::Start()
          DEBUG(xfrP->Type <<" starting " <<xfrP->reqData.LFN
                <<" for " <<xfrP->reqData.User);
 
-         Msg = (xfrP->qNum & XrdFrmXfrQueue::outQ ? Throw() : Fetch());
+         Msg = (xfrP->qNum & XrdFrmRequest::outQ ? Throw() : Fetch());
          if (Msg && !(xfrP->RetCode)) xfrP->RetCode = 1;
          xfrP->PFN[xfrP->pfnEnd] = 0;
 

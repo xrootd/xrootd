@@ -23,14 +23,15 @@ const char *XrdFrmConfigCVSID = "$Id$";
 #include <sys/stat.h>
 
 #include "Xrd/XrdInfo.hh"
-#include "XrdCms/XrdCmsNotify.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmTrace.hh"  // Add to GNUmake
+#include "XrdFrm/XrdFrmMonitor.hh"
+#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucCmsNotify.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
@@ -48,7 +49,6 @@ const char *XrdFrmConfigCVSID = "$Id$";
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdXrootd/XrdXrootdMonitor.hh"
 
 using namespace XrdFrm;
 
@@ -148,8 +148,6 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    xfrCmd[0].Desc = "copycmd in";     xfrCmd[1].Desc = "copycmd out";
    xfrCmd[2].Desc = "copycmd in url"; xfrCmd[3].Desc = "copycmd out url";
    xfrIN    = xfrOUT = 0;
-   qPath    = 0;
-   c2sFN    = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
    ossLib   = 0;
    cmsPath  = 0;
@@ -291,8 +289,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    // Bind the log file if we have one
    //
        if (logfn)
-          {if (logkeep) Logger.setKeep(logkeep);
-           Logger.Bind(logfn, 24*60*60);
+          {if (logkeep) Say.logger()->setKeep(logkeep);
+           Say.logger()->Bind(logfn, 24*60*60);
           }
       }
 
@@ -353,9 +351,11 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (!NoGo) switch(ssID)
       {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss());
                      break;
-       case ssPurg:  NoGo = (ConfigN2N() || ConfigMP("purgeable"));
+       case ssPurg:  if (!(NoGo = (ConfigN2N() || ConfigMP("purgeable"))))
+                        ConfigPF("frm_purged");
                      break;
-       case ssXfr:   if (!isAgent) NoGo = ConfigXfr();
+       case ssXfr:   if (!isAgent && !(NoGo = ConfigXfr()))
+                        ConfigPF("frm_xfrd");
                      break;
        default:      break;
       }
@@ -607,7 +607,7 @@ int XrdFrmConfig::ConfigMP(const char *pType)
    if (!NoGo)
       {XrdOucPList *fp = XrdOssRPList->First();
        while(fp)
-            {if (fp->Flag() & (XRDEXP_REMOTE | XRDEXP_PURGE))
+            {if (fp->Flag() & (XRDEXP_STAGE | XRDEXP_PURGE))
                 fp->Set(fp->Flag() & ~XRDEXP_NOTRW);
              fp = fp->Next();
             }
@@ -756,14 +756,12 @@ int XrdFrmConfig::ConfigOTO(char *Parms)
   
 int XrdFrmConfig::ConfigPaths()
 {
-   char *xPath, *yPath, buff[MAXPATHLEN]; 
+   char *xPath, buff[MAXPATHLEN];
    const char *insName;
-   int retc;
 
-// Establish the cmsd notification path
+// Get the directory for the meta information. If we don't get it from the
+// config, then use XRDADMINPATH which already contains the instance name.
 //
-   
-
 // Set the directory where the meta information is to go
 // XRDADMINPATH already contains the instance name
 
@@ -772,39 +770,52 @@ int XrdFrmConfig::ConfigPaths()
             insName = myInst;
            }
    
+// Establish the cmsd notification object. We need to do this using an
+// unqualified admin path that we determined above.
+//
    if (haveCMS)
-      cmsPath = new XrdCmsNotify(&Say, xPath, insName, XrdCmsNotify::isServ);
-
-   yPath = XrdOucUtils::genPath(xPath, insName, "frm");
-   if (AdminPath) free(AdminPath); AdminPath = yPath;
+      cmsPath = new XrdOucCmsNotify(&Say,xPath,insName,XrdOucCmsNotify::isServ);
 
 // Create the admin directory if it does not exists
 //
-   if ((retc = XrdOucUtils::makePath(AdminPath, AdminMode)))
-      {Say.Emsg("Config", retc, "create admin directory", AdminPath);
-       return 0;
-      }
-
-// Estblish the client/server udp path
-//
-   sprintf(buff, "%sxfrd.udp", Config.AdminPath);
-   c2sFN = strdup(buff);
+   if (!(xPath = XrdFrmUtils::makePath(insName, xPath, AdminMode))) return 1;
+   if (AdminPath) free(AdminPath); AdminPath = xPath;
 
 // Create the purge stop file name
 //
    strcpy(buff, Config.AdminPath); strcat(buff, "STOPPURGE");
    StopPurge = strdup(buff);
 
-// If a qpath was specified, differentiate it by the instance name
-//
-   if (qPath)
-      {xPath = XrdOucUtils::genPath(qPath, myInst, "frm");
-       free(qPath); qPath = xPath;
-      }
-
 // All done
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                              C o n f i g P F                               */
+/******************************************************************************/
+  
+void XrdFrmConfig::ConfigPF(const char *pFN)
+{
+   static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
+   char buff[80], data[24];
+   int pfFD, n;
+
+// Construct pidfile name
+//
+   if (myInst) sprintf(buff, "/tmp/%s/%s.pid", myInst, pFN);
+      else sprintf(buff, "/tmp/%s.pid", pFN);
+
+// Open the pidfile creating it if necessary
+//
+   if ((pfFD = open(buff, O_WRONLY|O_CREAT|O_TRUNC, Mode)) < 0)
+      {Say.Emsg("Config",errno,"open",buff); return;}
+
+// Write out our pid
+//
+   n = sprintf(data, "%lld", static_cast<long long>(getpid()));
+   if (write(pfFD, data, n) < 0) Say.Emsg("Config",errno,"writing",buff);
+   close(pfFD);
 }
 
 /******************************************************************************/
@@ -862,30 +873,31 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
    if (ssID == ssAdmin)
       {
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
-       if (!strcmp(var, "oss.cache"     )) return xcache();
+       if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
+       if (!strcmp(var, "oss.space"     )) return xspace();
 //     if (!strcmp(var, "oss.mssgwcmd"  )) return Grab(var, &MSSCmd,    0);
 //     if (!strcmp(var, "oss.msscmd"    )) return Grab(var, &MSSCmd,    0);
       }
 
    if (ssID == ssXfr)
-      {if (!strcmp(var, "qpath"         )) return Grab(var, &qPath,     0);
-
+      {
        if (isAgent) return 0;           // Server-oriented directives
 
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
-       if (!strcmp(var, "oss.cache"     )) return xcache();
+       if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
+       if (!strcmp(var, "oss.xfr"       )) return xxfr();
        if (!strcmp(var, "xrootd.monitor")) return xmon();
 
        if (!strcmp(var, "copycmd"       )) return xcopy();
        if (!strcmp(var, "copymax"       )) return xcmax();
-       if (!strcmp(var, "failhold"      )) return xitm("fail time", FailHold);
        if (!strcmp(var, "qcheck"        )) return xitm("qchk time", WaitQChk);
+       if (!strcmp(var, "oss.space"     )) return xspace();
 
        if (!strncmp(var, "migr.", 5))   // xfr.migr
       {char *vas = var+5;
@@ -897,11 +909,12 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
    if (ssID == ssPurg)
       {
        if (!strcmp(var, "dirhold"       )) return xdpol();
-       if (!strcmp(var, "oss.cache"     )) return xcache(1);
+       if (!strcmp(var, "oss.cache"     )) return xspace(1,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "policy"        )) return xpol();
        if (!strcmp(var, "polprog"       )) return xpolprog();
+       if (!strcmp(var, "oss.space"     )) return xspace(1);
        if (!strcmp(var, "waittime"      )) return xitm("purge wait",WaitPurge);
       }
 
@@ -960,7 +973,7 @@ int XrdFrmConfig::ConfigXfr()
 
 // Finally configure monitoring
 //
-   isBad |= (monStage &&!XrdXrootdMonitor::Init(0, &Say));
+   isBad |= (monStage &&!XrdFrmMonitor::Init());
 
 // All done
 //
@@ -1139,124 +1152,33 @@ int XrdFrmConfig::xapath()
 }
 
 /******************************************************************************/
-/*                                x c a c h e                                 */
-/******************************************************************************/
-
-/* Function: xcache
-
-   Purpose:  To parse the directive: cache <group> <path> [xa]
-
-             <group>  logical group name for the cache filesystem.
-             <path>   path to the cache.
-             xa       support extended attributes
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdFrmConfig::xcache(int isPrg)
-{
-   char *val, *pfxdir, *sfxdir;
-   char grp[XrdOssSpace::minSNbsz], fn[MAXPATHLEN], dn[MAXNAMLEN];
-   int i, k, rc, pfxln, isxa = 0, cnum = 0;
-   struct dirent *dp;
-   struct stat buff;
-   DIR *DFD;
-
-   if (!(val = cFile->GetWord()))
-      {Say.Emsg("Config", "cache group not specified"); return 1;}
-   if (strlen(val) >= (int)sizeof(grp))
-      {Say.Emsg("Config","excessively long cache name - ",val); return 1;}
-   strcpy(grp, val);
-
-   if (!(val = cFile->GetWord()))
-      {Say.Emsg("Config", "cache path not specified"); return 1;}
-
-   k = strlen(val);
-   if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
-      {Say.Emsg("Config", "invalid cache path - ", val); return 1;}
-   strcpy(fn, val);
-
-   if ((val = cFile->GetWord()))
-      {if (strcmp("xa", val))
-          {Say.Emsg("Config","invalid cache option - ",val); return 1;}
-          else isxa = 1;
-      }
-
-   if (fn[k-1] != '*')
-      {for (i = k-1; i; i--) if (fn[i] != '/') break;
-       fn[i+1] = '/'; fn[i+2] = '\0';
-       xcacheBuild(grp, fn, isxa);
-       return 0;
-      }
-
-   for (i = k-1; i; i--) if (fn[i] == '/') break;
-   i++; strcpy(dn, &fn[i]); fn[i] = '\0';
-   sfxdir = &fn[i]; pfxdir = dn; pfxln = strlen(dn)-1;
-   if (!(DFD = opendir(fn)))
-      {Say.Emsg("Config", errno, "open cache directory", fn); return 1;}
-
-   errno = 0;
-   while((dp = readdir(DFD)))
-        {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")
-         || (pfxln && strncmp(dp->d_name, pfxdir, pfxln)))
-            continue;
-         strcpy(sfxdir, dp->d_name);
-         if (stat(fn, &buff)) break;
-         if ((buff.st_mode & S_IFMT) == S_IFDIR)
-            {val = sfxdir + strlen(sfxdir) - 1;
-            if (*val++ != '/') {*val++ = '/'; *val = '\0';}
-            xcacheBuild(grp, fn, isxa);
-            cnum++;
-            }
-         errno = 0;
-        }
-
-   if ((rc = errno))
-      Say.Emsg("Config", errno, "process cache directory", fn);
-      else if (!cnum) Say.Say("Config warning: no cache directories found in ",val);
-
-   closedir(DFD);
-   return rc != 0;
-}
-
-void XrdFrmConfig::xcacheBuild(char *grp, char *fn, int isxa)
-{
-   struct VPInfo *nP = VPList;
-   XrdOucTList *tP;
-
-   while(nP && strcmp(nP->Name, grp)) nP = nP->Next;
-
-   if (!nP) VPList = nP = new VPInfo(grp, 0, VPList);
-
-   tP = nP->Dir;
-   while(tP && strcmp(tP->text, fn)) tP = tP->next;
-   if (!tP) nP->Dir = new XrdOucTList(fn, isxa, nP->Dir);
-}
-
-/******************************************************************************/
 /* Private:                        x c o p y                                  */
 /******************************************************************************/
 
 /* Function: copycmd
 
-   Purpose:  To parse the directive: copycmd [in] [out] [stats] [url] cmd [args]
+   Purpose:  To parse the directive: copycmd [Options] cmd [args]
 
-             <in>      use command for incomming copies.
-             <out>     use command for outgoing copies.
-             <stats>   print transfer statistics in the log.
-             <url>     use command for url-based transfers.
+   Options:  [in] [out] [stats] [timeout <sec>] [url] cmd [args]
+
+             in        use command for incomming copies.
+             out       use command for outgoing copies.
+             stats     print transfer statistics in the log.
+             timeout   how long the cmd can run before it is killed.
+             url       use command for url-based transfers.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcopy()
-{  int cmdIO[2] = {0,0}, Stats = 0, cmdMDP = 0, cmdUrl = 0;
+{  int cmdIO[2] = {0,0}, TLim = 0, Stats = 0, cmdMDP = 0, cmdUrl = 0;
    char *val, *theCmd = 0;
    struct copyopts {const char *opname; int *oploc;} cpopts[] =
          {
-          {"in",   &cmdIO[0]},
-          {"out",  &cmdIO[1]},
-          {"stats",&Stats},
-          {"url",  &cmdUrl}
+          {"in",     &cmdIO[0]},
+          {"out",    &cmdIO[1]},
+          {"stats",  &Stats},
+          {"timeout",&TLim},
+          {"url",    &cmdUrl}
          };
    int i, n, numopts = sizeof(cpopts)/sizeof(struct copyopts);
 
@@ -1265,7 +1187,11 @@ int XrdFrmConfig::xcopy()
    val = cFile->GetWord();
    while(val && *val != '/')
         {for (i = 0; i < numopts; i++)
-             if (!strcmp(val,cpopts[i].opname)) {*cpopts[i].oploc = 1; break;}
+             {if (!strcmp(val,cpopts[i].opname))
+                 {if (strcmp("timeout", val)) {*cpopts[i].oploc = 1; break;}
+                     else if (!xcopy(TLim)) return 1;
+                 }
+             }
          if (i >= numopts)
             Say.Say("Config warning: ignoring invalid copycmd option '",val,"'.");
          val = cFile->GetWord();
@@ -1291,6 +1217,7 @@ int XrdFrmConfig::xcopy()
            xfrCmd[n].theCmd = strdup(theCmd);
            xfrCmd[n].Stats  = Stats;
            xfrCmd[n].hasMDP = cmdMDP;
+           xfrCmd[n].TLimit = TLim;
           }
        n--;
       } while(i--);
@@ -1299,6 +1226,18 @@ int XrdFrmConfig::xcopy()
 //
    free(theCmd);
    return 0;
+}
+
+/******************************************************************************/
+
+int XrdFrmConfig::xcopy(int &TLim)
+{
+   char *val;
+
+   if (!(val = cFile->GetWord()) || !*val)
+      {Say.Emsg("Config", "copy command timeout not specified"); return 0;}
+   if (XrdOuca2x::a2tm(Say,"copy command timeout", val, &TLim, 0)) return 0;
+   return 1;
 }
 
 /******************************************************************************/
@@ -1481,10 +1420,7 @@ int XrdFrmConfig::xmon()
 
 // Set the monitor defaults
 //
-   XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
-   if (monDest[0]) monMode[0] |= XROOTD_MON_ALL;
-   if (monDest[1]) monMode[1] |= XROOTD_MON_ALL;
-   XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
+   XrdFrmMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
    return 0;
 }
 
@@ -1743,4 +1679,143 @@ int XrdFrmConfig::xpolprog()
    if (pProg) free(pProg);
    pProg = strdup(pBuff);
    return 0;
+}
+
+/******************************************************************************/
+/*                                x s p a c e                                 */
+/******************************************************************************/
+
+/* Function: xspace
+
+   Purpose:  To parse the directive: space <group> <path>
+
+             <group>  logical group name for the filesystem.
+             <path>   path to the filesystem.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdFrmConfig::xspace(int isPrg, int isXA)
+{
+   char *val, *pfxdir, *sfxdir;
+   char grp[XrdOssSpace::minSNbsz], fn[MAXPATHLEN], dn[MAXNAMLEN];
+   int i, k, rc, pfxln, cnum = 0;
+   struct dirent *dp;
+   struct stat buff;
+   DIR *DFD;
+
+   if (!(val = cFile->GetWord()))
+      {Say.Emsg("Config", "space name not specified"); return 1;}
+   if (strlen(val) >= (int)sizeof(grp))
+      {Say.Emsg("Config","excessively long space name - ",val); return 1;}
+   strcpy(grp, val);
+
+   if (!(val = cFile->GetWord()))
+      {Say.Emsg("Config", "path to space not specified"); return 1;}
+
+   k = strlen(val);
+   if (k >= (int)(sizeof(fn)-1) || val[0] != '/' || k < 2)
+      {Say.Emsg("Config", "invalid space path - ", val); return 1;}
+   strcpy(fn, val);
+
+   if (!isXA && (val = cFile->GetWord()))
+      {if (strcmp("xa", val))
+          {Say.Emsg("Config","invalid cache option - ",val); return 1;}
+          else isXA = 1;
+      }
+
+   if (fn[k-1] != '*')
+      {for (i = k-1; i; i--) if (fn[i] != '/') break;
+       fn[i+1] = '/'; fn[i+2] = '\0';
+       xspaceBuild(grp, fn, isXA);
+       return 0;
+      }
+
+   for (i = k-1; i; i--) if (fn[i] == '/') break;
+   i++; strcpy(dn, &fn[i]); fn[i] = '\0';
+   sfxdir = &fn[i]; pfxdir = dn; pfxln = strlen(dn)-1;
+   if (!(DFD = opendir(fn)))
+      {Say.Emsg("Config", errno, "open space directory", fn); return 1;}
+
+   errno = 0;
+   while((dp = readdir(DFD)))
+        {if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")
+         || (pfxln && strncmp(dp->d_name, pfxdir, pfxln)))
+            continue;
+         strcpy(sfxdir, dp->d_name);
+         if (stat(fn, &buff)) break;
+         if ((buff.st_mode & S_IFMT) == S_IFDIR)
+            {val = sfxdir + strlen(sfxdir) - 1;
+            if (*val++ != '/') {*val++ = '/'; *val = '\0';}
+            xspaceBuild(grp, fn, isXA);
+            cnum++;
+            }
+         errno = 0;
+        }
+
+   if ((rc = errno))
+      Say.Emsg("Config", errno, "process space directory", fn);
+      else if (!cnum) Say.Say("Config warning: no space directories found in ",val);
+
+   closedir(DFD);
+   return rc != 0;
+}
+
+void XrdFrmConfig::xspaceBuild(char *grp, char *fn, int isxa)
+{
+   struct VPInfo *nP = VPList;
+   XrdOucTList *tP;
+
+   while(nP && strcmp(nP->Name, grp)) nP = nP->Next;
+
+   if (!nP) VPList = nP = new VPInfo(grp, 0, VPList);
+
+   tP = nP->Dir;
+   while(tP && strcmp(tP->text, fn)) tP = tP->next;
+   if (!tP) nP->Dir = new XrdOucTList(fn, isxa, nP->Dir);
+}
+
+/******************************************************************************/
+/*                                  x x f r                                   */
+/******************************************************************************/
+  
+/* Function: xxfr
+
+   Purpose:  To parse the directive: xfr [deny <sec>] [keep <sec>]
+
+             deny      number of seconds that a fail file rejects a request
+             keep      number of seconds to keep queued requests (ignored)
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdFrmConfig::xxfr()
+{
+    char *val;
+    int       htime = 3*60*60;
+    int       haveparm = 0;
+
+    while((val = cFile->GetWord()))        // deny | keep
+         {     if (!strcmp("deny", val))
+                  {if ((val = cFile->GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Say,"xfr deny",val,&htime,0))
+                          return 1;
+                       FailHold = htime, haveparm=1;
+                      }
+                  }
+          else if (!strcmp("keep", val))
+                  {if ((val = cFile->GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Say,"xfr keep",val,&htime,0))
+                          return 1;
+                       haveparm=1;
+                      }
+                  }
+          else break;
+         };
+
+    if (!val) if (haveparm) return 0;
+                  else {Say.Emsg("Config", "xfr parameter not specified");
+                        return 1;
+                       }
+    return 0;
 }

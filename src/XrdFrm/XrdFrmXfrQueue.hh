@@ -12,6 +12,7 @@
 
 //          $Id$
 
+#include "XrdFrm/XrdFrmRequest.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -32,14 +33,6 @@ static XrdFrmXfrJob *Get();
 static int           Init();
 
 static void          StopMon(void *parg);
-
-static const int     stgQ = 0;  // Stage    queue
-static const int     migQ = 1;  // Migrate  queue
-static const int     getQ = 2;  // Copy in  queue
-static const int     putQ = 3;  // Copy out queue
-static const int     nilQ = 4;  // Empty    queue
-static const int     numQ = 5;
-static const int     outQ = 1;  // Used as a mask only
 
                      XrdFrmXfrQueue() {}
                     ~XrdFrmXfrQueue() {}
@@ -72,6 +65,6 @@ struct theQueue
               theQueue() : Avail(0),Free(0),First(0),Last(0),Alert(0),Stop(0) {}
              ~theQueue() {}
       };
-static theQueue                  xfrQ[numQ];
+static theQueue                  xfrQ[XrdFrmRequest::numQ];
 };
 #endif

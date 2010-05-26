@@ -181,23 +181,21 @@ const char *XrdFrmMigrate::Eligible(XrdFrmFileset *sP, time_t &xTime)
   
 void *XrdMigrateStart(void *parg)
 {
-    XrdFrmMigrate::Migrate();
+    XrdFrmMigrate::Migrate(0);
     return (void *)0;
 }
   
-void XrdFrmMigrate::Migrate()
+void XrdFrmMigrate::Migrate(int doinit)
 {
-   static int InitDone = 0;
    XrdFrmFileset *fP;
    char buff[80];
    int migWait, wTime;
 
 // If we have not initialized yet, start a thread to handle this
 //
-   if (!InitDone)
+   if (doinit)
       {pthread_t tid;
        int retc;
-       InitDone = 1;
        if ((retc = XrdSysThread::Run(&tid, XrdMigrateStart, (void *)0,
                                      XRDSYSTHREAD_BIND, "migration scan")))
           Say.Emsg("Migrate", retc, "create migrtion thread");
@@ -238,7 +236,7 @@ void XrdFrmMigrate::Queue(XrdFrmFileset *sP)
    myReq.Options = XrdFrmRequest::Migrate;
    myReq.addTOD  = static_cast<long long>(time(0));
    if (Config.LogicalPath(sP->basePath(), myReq.LFN, sizeof(myReq.LFN)))
-      {XrdFrmXfrQueue::Add(&myReq, 0, XrdFrmXfrQueue::migQ); numMig++;}
+      {XrdFrmXfrQueue::Add(&myReq, 0, XrdFrmRequest::migQ); numMig++;}
 
 // All done
 //

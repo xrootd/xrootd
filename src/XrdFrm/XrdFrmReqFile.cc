@@ -34,7 +34,7 @@ using namespace XrdFrm;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdFrmReqFile::XrdFrmReqFile(const char *fn)
+XrdFrmReqFile::XrdFrmReqFile(const char *fn, int aVal)
 {
    char buff[1200];
 
@@ -43,6 +43,7 @@ XrdFrmReqFile::XrdFrmReqFile(const char *fn)
    strcpy(buff, fn); strcat(buff, ".lock");
    lokFN = strdup(buff);
    lokFD = reqFD = -1;
+   isAgent = aVal;
 }
   
 /******************************************************************************/
@@ -204,6 +205,7 @@ int XrdFrmReqFile::Init()
 //
    if ((lokFD = open(lokFN, O_RDWR|O_CREAT, Mode)) < 0)
       {Say.Emsg("Init",errno,"open",lokFN); return 0;}
+   fcntl(lokFD, F_SETFD, FD_CLOEXEC);
 
 // Obtain a lock
 //
@@ -216,6 +218,7 @@ int XrdFrmReqFile::Init()
        Say.Emsg("Init",errno,"open",reqFN); 
        return 0;
       }
+   fcntl(reqFD, F_SETFD, FD_CLOEXEC);
 
 // Check for a new file here
 //
@@ -230,7 +233,7 @@ int XrdFrmReqFile::Init()
 
 // We are done if this is a agent
 //
-   if (Config.isAgent)
+   if (isAgent)
       {FileLock(lkNone);
        return 1;
       }
@@ -268,7 +271,7 @@ int XrdFrmReqFile::Init()
 /******************************************************************************/
   
 char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
-                           Item *ITList, int ITNum)
+                           XrdFrmRequest::Item *ITList, int ITNum)
 {
    XrdFrmRequest tmpReq;
    int rc;
@@ -311,61 +314,82 @@ char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
 /******************************************************************************/
   
 void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
-                          Item *ITList, int ITNum)
+                          XrdFrmRequest::Item *ITList, int ITNum)
 {
    char What, tbuf[32];
    long long tval;
    int i, k, n, bln = bsz-2, Lfo;
 
-   for (i = 0; i < ITNum && bln; i++)
+   for (i = 0; i < ITNum && bln > 0; i++)
        {Lfo = tmpReq.LFO;
         switch(ITList[i])
-              {case getOBJ:     Lfo = 0;
-               case getLFN:     n = strlen(tmpReq.LFN+Lfo);
-                                strlcpy(Buff, tmpReq.LFN+Lfo, bln);
-                                break;
-               case getOBJCGI:  Lfo = 0;
-               case getLFNCGI:  n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';
-                                if (!tmpReq.Opaque) tmpReq.LFN[n+1] = '\0';
-                                strlcpy(Buff, tmpReq.LFN+Lfo, bln);
-                                k = strlen(tmpReq.LFN+Lfo);
-                                tmpReq.LFN[n] = '\0'; n = k;
-                                break;
-               case getMODE:    n = 0;
-                                What = (tmpReq.Options & XrdFrmRequest::makeRW
-                                     ? 'w' : 'r');
-                                if (bln) {Buff[n] = What; n++;}
-                                if (tmpReq.Options & XrdFrmRequest::msgFail)
-                                if (bln-n > 0) {Buff[n] = 'f'; n++;}
-                                if (tmpReq.Options & XrdFrmRequest::msgSucc)
-                                if (bln-n > 0) {Buff[n] = 'n'; n++;}
-                                break;
-               case getNOTE:    n = strlen(tmpReq.Notify);
-                                strlcpy(Buff, tmpReq.Notify, bln);
-                                break;
-               case getOP:      *Buff     = tmpReq.OPc[0];
-                                *(Buff+1) = tmpReq.OPc[1];
-                                n = 2;
-                                break;
-               case getPRTY:    if (tmpReq.Prty == 2) What = '2';
-                                   else if (tmpReq.Prty == 1) What = '1';
-                                           else What = '0';
-                                n = 1;
-                                if (bln) *Buff = What;
-                                break;
-               case getQWT:
-               case getTOD:     tval = tmpReq.addTOD;
-                                if (ITList[i] == getQWT) tval = time(0)-tval;
-                                if ((n = sprintf(tbuf, "%lld", tval)) >= 0)
-                                   strlcpy(Buff, tbuf, bln);
-                                break;
-               case getRID:     n = strlen(tmpReq.ID);
-                                strlcpy(Buff, tmpReq.ID, bln);
-                                break;
-               case getUSER:    n = strlen(tmpReq.User);
-                                strlcpy(Buff, tmpReq.User, bln);
-                                break;
-               default:         n = 0; break;
+              {case XrdFrmRequest::getOBJ:
+                    Lfo = 0;
+
+               case XrdFrmRequest::getLFN:     
+                    n = strlen(tmpReq.LFN+Lfo);
+                    strlcpy(Buff, tmpReq.LFN+Lfo, bln);
+                    break;
+
+               case XrdFrmRequest::getOBJCGI:
+                    Lfo = 0;
+
+               case XrdFrmRequest::getLFNCGI:
+                    n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';
+                    if (!tmpReq.Opaque) tmpReq.LFN[n+1] = '\0';
+                    strlcpy(Buff, tmpReq.LFN+Lfo, bln);
+                    k = strlen(tmpReq.LFN+Lfo);
+                    tmpReq.LFN[n] = '\0'; n = k;
+                    break;
+
+               case XrdFrmRequest::getMODE:
+                    n = 0;
+                    What = (tmpReq.Options & XrdFrmRequest::makeRW
+                         ? 'w' : 'r');
+                    if (bln) {Buff[n] = What; n++;}
+                    if (tmpReq.Options & XrdFrmRequest::msgFail)
+                    if (bln-n > 0) {Buff[n] = 'f'; n++;}
+                    if (tmpReq.Options & XrdFrmRequest::msgSucc)
+                    if (bln-n > 0) {Buff[n] = 'n'; n++;}
+                    break;
+
+               case XrdFrmRequest::getNOTE:
+                    n = strlen(tmpReq.Notify);
+                    strlcpy(Buff, tmpReq.Notify, bln);
+                    break;
+
+               case XrdFrmRequest::getOP:
+                    *Buff     = tmpReq.OPc;
+                    n = 1;
+                    break;
+
+               case XrdFrmRequest::getPRTY:
+                    if (tmpReq.Prty == 2) What = '2';
+                       else if (tmpReq.Prty == 1) What = '1';
+                               else What = '0';
+                    n = 1;
+                    if (bln) *Buff = What;
+                    break;
+
+               case XrdFrmRequest::getQWT:
+               case XrdFrmRequest::getTOD:
+                    tval = tmpReq.addTOD;
+                    if (ITList[i] == XrdFrmRequest::getQWT) tval = time(0)-tval;
+                    if ((n = sprintf(tbuf, "%lld", tval)) >= 0)
+                       strlcpy(Buff, tbuf, bln);
+                    break;
+
+               case XrdFrmRequest::getRID:
+                    n = strlen(tmpReq.ID);
+                    strlcpy(Buff, tmpReq.ID, bln);
+                    break;
+
+               case XrdFrmRequest::getUSER:
+                    n = strlen(tmpReq.User);
+                    strlcpy(Buff, tmpReq.User, bln);
+                    break;
+
+               default: n = 0; break;
               }
         if (bln > 0) {bln -= n; Buff += n;}
         if (bln > 0) {*Buff++ = ' '; bln--;}
@@ -429,7 +453,7 @@ int XrdFrmReqFile::FileLock(LockType lktype)
    bzero(&lock_args, sizeof(lock_args));
    if (lktype == lkNone)
       {lock_args.l_type = F_UNLCK; What = "unlock";
-       if (Config.isAgent && reqFD >= 0) {close(reqFD); reqFD = -1;}
+       if (isAgent && reqFD >= 0) {close(reqFD); reqFD = -1;}
       }
       else {lock_args.l_type = (lktype == lkShare ? F_RDLCK : F_WRLCK);
             What = "lock";
@@ -449,6 +473,7 @@ int XrdFrmReqFile::FileLock(LockType lktype)
            FileLock(lkNone);
            return 0;
           }
+       fcntl(reqFD, F_SETFD, FD_CLOEXEC);
        do {rc = pread(reqFD, (void *)&HdrData, sizeof(HdrData), 0);}
            while(rc < 0 && errno == EINTR);
        if (rc < 0) {Say.Emsg("reqRead",errno,"refresh hdr from", reqFN);
@@ -507,6 +532,7 @@ int XrdFrmReqFile::ReWrite(XrdFrmReqFile::recEnt *rP)
    strcpy(newFN, reqFN); strcat(newFN, ".new");
    if ((newFD = open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
       {Say.Emsg("ReWrite",errno,"open",newFN); FileLock(lkNone); return 0;}
+   fcntl(newFD, F_SETFD, FD_CLOEXEC);
 
 // Setup to write/swap the file
 //
@@ -548,41 +574,4 @@ int XrdFrmReqFile::ReWrite(XrdFrmReqFile::recEnt *rP)
       else  {close(newFD); reqFD = oldFD;}
    reqFN = oldFN;
    return aOK;
-}
-
-/******************************************************************************/
-/*                                U n i q u e                                 */
-/******************************************************************************/
-  
-  
-int XrdFrmReqFile::Unique(const char *lkfn)
-{
-   static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
-   FLOCK_t lock_args;
-   int myFD, rc;
-
-// Open the lock file first in r/w mode
-//
-   if ((myFD = open(lkfn, O_RDWR|O_CREAT, Mode)) < 0)
-      {Say.Emsg("Unique",errno,"open",lkfn); return 0;}
-
-// Establish locking options
-//
-   bzero(&lock_args, sizeof(lock_args));
-   lock_args.l_type =  F_WRLCK;
-
-// Perform action.
-//
-   do {rc = fcntl(myFD,F_SETLK,&lock_args);}
-       while(rc < 0 && errno == EINTR);
-   if (rc < 0) 
-      {Say.Emsg("Unique", errno, "obtain the run lock on", lkfn);
-       Say.Emsg("Unique", "Another", Config.myProg, "may already be running!");
-       close(myFD);
-       return 0;
-      }
-
-// All done
-//
-   return 1;
 }

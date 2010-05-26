@@ -18,13 +18,13 @@ const char *XrdFrmAdminUnlinkCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdCms/XrdCmsNotify.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssPath.hh"
+#include "XrdOuc/XrdOucCmsNotify.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 
 using namespace XrdFrm;
