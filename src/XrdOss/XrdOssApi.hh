@@ -109,6 +109,7 @@ char            cxid[4];
 /*                              o o s s _ S y s                               */
 /******************************************************************************/
   
+class XrdFrmProxy;
 class XrdOssCache_Group;
 class XrdOssCache_Space;
 class XrdOucMsubs;
@@ -171,7 +172,7 @@ void     *MSS_Opendir(const char *, int &rc);
 int       MSS_Readdir(void *fd, char *buff, int blen);
 int       MSS_Remdir(const char *, const char *) {return -ENOTSUP;}
 int       MSS_Rename(const char *, const char *);
-int       MSS_Stat(const char *, struct stat *);
+int       MSS_Stat(const char *, struct stat *buff=0);
 int       MSS_Unlink(const char *);
 
 static const int MaxArgs = 15;
@@ -188,6 +189,7 @@ int       StageFormat;    //    Format for default stagecmd
 char     *StageCmd;       // -> Staging command to use
 char     *StageMsg;       // -> Staging message to be passed
 XrdOucMsubs *StageSnd;    // -> Parsed Message
+XrdFrmProxy *StageFrm;    // -> Built-in stagecmd or zero
 
 char     *StageEvents;    // -> file:////<adminpath> if async staging
 int       StageEvSize;    //    Length of above
@@ -197,9 +199,10 @@ char     *StageAction;    // -> "wq " if sync | "wfn " if async
 char     *StageArg[MaxArgs];
 int       StageAln[MaxArgs];
 int       StageAnum;      //    Count of valid Arg/Aln array elements
-char     *MSSgwCmd;       // -> MSS Gateway command to use
-int       MSSgwTMO;       //    MSS Gateway command response timeout
-long long MaxDBsize;      //    Maximum database size (*obsolete*)
+char     *RSSCmd;         // -> Remote Storage Service Command
+int       isMSSC;         //    RSSCmd is old-style msscmd
+int       RSSTout;        //    RSSCmd response timeout
+long long MaxSize;        //    Maximum file size (*obsolete*)
 int       FDFence;        //    Smallest file FD number allowed
 int       FDLimit;        //    Largest  file FD number allowed
 unsigned long long DirFlags;//  Default directory settings
@@ -208,7 +211,6 @@ int       Solitary;       //    True if running in stand-alone mode
 char     *CompSuffix;     // -> Compressed file suffix or null for autodetect
 int       CompSuflen;     //    Length of suffix
 int       OptFlags;       //    General option flags
-char     *DeprLine;       //    Temporrary to catch deprecated options
 
 char             *N2N_Lib;   // -> Name2Name Library Path
 char             *N2N_Parms; // -> Name2Name Object Parameters
@@ -244,7 +246,7 @@ int       totreqs;           //    Total   successful requests
 int       badreqs;           //    Total unsuccessful requests
 
 XrdOucProg     *StageProg;    //    Command or manager than handles staging
-XrdOucProg     *MSSgwProg;    //    Command for MSS meta-data operations
+XrdOucProg     *RSSProg;      //    Command for Remote Storage Services
 
 char           *UDir;         // -> Usage logdir
 char           *QFile;        // -> Quota file
@@ -266,28 +268,31 @@ int                Stage_RT(const char *, const char *, XrdOucEnv &, unsigned lo
 
 // Configuration related methods
 //
-int    chkDep(const char *var);
 void   ConfigMio(XrdSysError &Eroute);
 int    ConfigN2N(XrdSysError &Eroute);
 int    ConfigProc(XrdSysError &Eroute);
 void   ConfigSpace();
 void   ConfigSpace(const char *Lfn);
+void   ConfigSpath(XrdSysError &Eroute, const char *Pn,
+                   unsigned long long &Fv, int noMSS);
 int    ConfigStage(XrdSysError &Eroute);
+int    ConfigStageC(XrdSysError &Eroute);
 void   ConfigStats(XrdSysError &Eroute);
 void   ConfigStats(dev_t Devnum, char *lP);
 int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
 void   List_Path(const char *, const char *, unsigned long long, XrdSysError &);
 int    xalloc(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcache(XrdOucStream &Config, XrdSysError &Eroute);
-int    xcacheBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xcompdct(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdSysError &Eroute);
 int    xdefault(XrdOucStream &Config, XrdSysError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdSysError &Eroute);
-int    xmaxdbsz(XrdOucStream &Config, XrdSysError &Eroute);
+int    xmaxsz(XrdOucStream &Config, XrdSysError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdSysError &Eroute);
 int    xnml(XrdOucStream &Config, XrdSysError &Eroute);
 int    xpath(XrdOucStream &Config, XrdSysError &Eroute);
+int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
+int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
 int    xusage(XrdOucStream &Config, XrdSysError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdSysError &Eroute);

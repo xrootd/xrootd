@@ -643,7 +643,7 @@ void *XrdOssCache::Scan(int cscanint)
                  if ((fsdp->stat & XrdOssFSData_REFRESH)
                  || !(fsdp->stat & XrdOssFSData_ADJUSTED) || cscanint <= 0)
                      {frsz = XrdOssCache_FS::freeSpace(llT,fsdp->path);
-                      if (frsz < 0) OssEroute.Emsg("XrdOssCacheScan", errno ,
+                      if (frsz < 0) OssEroute.Emsg("CacheScan", errno ,
                                     "state file system ",(char *)fsdp->path);
                          else {fsdp->frsz = frsz;
                                fsdp->stat &= ~(XrdOssFSData_REFRESH |

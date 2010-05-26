@@ -84,7 +84,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts)
 // The file may be offline in a mass storage system, check if this is possible
 //
    if (!IsRemote(path) || opts & XRDOSS_resonly) return -errno;
-   if (!MSSgwCmd) return -ENOMSG;
+   if (!RSSCmd) return (popts & XRDEXP_NOCHECK ? -ENOENT : -ENOMSG);
 
 // Generate remote path
 //
@@ -126,8 +126,8 @@ int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
 // Get the values for this file system
 //
    StatFS(path, Opt, fSize, fSpace);
-   sVal = (Opt & XRDEXP_REMOTE ? 1 : 0);
-   wVal = (Opt & XRDEXP_NOTRW  ? 0 : 1);
+   sVal = (Opt & XRDEXP_STAGE ? 1 : 0);
+   wVal = (Opt & XRDEXP_NOTRW ? 0 : 1);
 
 // Size the value to fit in an int
 //
@@ -169,7 +169,7 @@ int XrdOssSys::StatFS(const char *path, unsigned long long &Opt,
 // For in-place paths we just get the free space in that partition, otherwise
 // get the maximum available in any partition.
 //
-   if ((Opt & XRDEXP_REMOTE) || !(Opt & XRDEXP_NOTRW))
+   if ((Opt & XRDEXP_STAGE) || !(Opt & XRDEXP_NOTRW))
       if ((Opt & XRDEXP_INPLACE) || !XrdOssCache_Group::fsgroups)
          {char lcl_path[MAXPATHLEN+1];
           if (lcl_N2N)

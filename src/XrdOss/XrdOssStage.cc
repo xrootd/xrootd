@@ -46,6 +46,7 @@ const char *XrdOssStageCVSID = "$Id$";
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
+#include "XrdFrm/XrdFrmProxy.hh"
 
 /******************************************************************************/
 /*            G l o b a l s   a n d   S t a t i c   O b j e c t s             */
@@ -142,6 +143,16 @@ int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env,
    PTMutex.UnLock();
    if (Found) return CalcTime();
 
+// Check if we should use our built-in frm interface
+//
+   if (StageFrm)
+      {char idbuff[64];
+       ReqID.ID(idbuff, sizeof(idbuff));
+       int n;
+       return (n = StageFrm->Add('+', fn, env.Env(n), Tid, idbuff,
+                   StageEvents, StageAction)) ? n : CalcTime();
+      }
+
 // If a stagemsg template was not defined; use our default template
 //
    if (!StageSnd)
@@ -233,7 +244,7 @@ int XrdOssSys::Stage_RT(const char *Tid, const char *fn, XrdOucEnv &env,
 // Create a new request
 //
    if (!(newreq = new XrdOssStage_Req(req.hash, fn)))
-       return OssEroute.Emsg("XrdOssStage",-ENOMEM,"create req for",fn);
+       return OssEroute.Emsg("Stage",-ENOMEM,"create req for",fn);
 
 // Add this request to the list of requests
 //
