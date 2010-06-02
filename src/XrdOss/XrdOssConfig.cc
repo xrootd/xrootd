@@ -714,7 +714,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
 //
    if (!NoGo && (StageCmd || stgp))
       {const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
-       if (StageCmd && !*StageCmd) NoGo = ConfigStageC(Eroute);
+       if (StageCmd && *StageCmd) NoGo = ConfigStageC(Eroute);
           else {StageFrm = new XrdFrmProxy(Eroute.logger(), getenv("XRDNAME"),
                                            OssTrace.What & TRACE_Debug);
                 NoGo = !StageFrm->Init(XrdFrmProxy::opStg,
