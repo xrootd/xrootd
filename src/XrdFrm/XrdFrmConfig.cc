@@ -544,7 +544,7 @@ int XrdFrmConfig::ConfigMP(const char *pType)
         if (*psVal == '/')
            {pOpts = XrdOssRPList->Find(psVal);
             if (pOpts & xOpt) mypList = InsertPL(mypList, psVal, psLen,
-                                                (pOpts & XRDEXP_NOTRW ? 0 : 1));
+                                                (pOpts & XRDEXP_MAKELF ? 1:0));
                else {Say.Say("Config", psVal, "not marked", pType); NoGo = 1;}
            } else {
             VPInfo *vP = VPList;
@@ -566,7 +566,7 @@ int XrdFrmConfig::ConfigMP(const char *pType)
       {XrdOucPList *fP = XrdOssRPList->First();
        short sval[2];
        while(fP)
-            {sval[0] = (fP->Flag() & XRDEXP_NOTRW ? 0 : 1);
+            {sval[0] = (fP->Flag() & XRDEXP_MAKELF ? 1 : 0);
              sval[1] = fP->Plen();
              if (fP->Flag() & xOpt)
                  mypList = new XrdOucTList(fP->Path(), sval, mypList);
