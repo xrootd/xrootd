@@ -1,11 +1,11 @@
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
-// XrdCommandLine                                                       //
+// XrdStagetool                                                         //
 //                                                                      //
-// Author: Fabrizio Furano (INFN Padova, 2005)                          //
+// Author: Fabrizio Furano (CERN, 2007)                                 //
 //                                                                      //
-// A command line tool for xrootd environments. The executable normally //
-// is named xrd.                                                        //
+// A command line tool for xrootd environments, to trigger sync or async//
+// staging of files                                                     //
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
@@ -234,6 +234,7 @@ int main(int argc, char**argv) {
    }
 
    EnvPutInt(NAME_DEBUG, dbglvl);
+   EnvPutInt(NAME_TRANSACTIONTIMEOUT, 3600);
 
    if (useprepare) {
      // Fire all the prepare requests at max speed
