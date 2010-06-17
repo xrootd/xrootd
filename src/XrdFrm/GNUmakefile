@@ -301,7 +301,8 @@ $(OBJDIR)/XrdFrmReqBoss.o: XrdFrmReqBoss.hh  XrdFrmReqBoss.cc \
 $(OBJDIR)/XrdFrmReqFile.o: XrdFrmReqFile.cc      XrdFrmReqFile.hh \
                            XrdFrmRequest.hh \
                            XrdFrmTrace.hh \
-                           XrdSysError.hh        XrdSysPlatform.hh
+                           XrdSysError.hh        XrdSysPthread.hh \
+                           XrdSysPlatform.hh
 	@echo Compiling XrdFrmReqFile.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmReqFile.o XrdFrmReqFile.cc
 

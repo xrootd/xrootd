@@ -31,6 +31,12 @@ const char *XrdFrmReqFileCVSID = "$Id$";
 using namespace XrdFrm;
 
 /******************************************************************************/
+/*                      S t a t i c   V a r i a b l e s                       */
+/******************************************************************************/
+  
+XrdSysMutex XrdFrmReqFile::rqMonitor::rqMutex;
+
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
@@ -52,6 +58,7 @@ XrdFrmReqFile::XrdFrmReqFile(const char *fn, int aVal)
   
 void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 {
+   rqMonitor rqMon(isAgent);
    XrdFrmRequest tmpReq;
    char *qP;
    int fP;
@@ -104,6 +111,7 @@ void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 
 void XrdFrmReqFile::Can(XrdFrmRequest *rP)
 {
+   rqMonitor rqMon(isAgent);
    XrdFrmRequest tmpReq;
    int Offs, numCan = 0, numBad = 0;
    struct stat buf;
@@ -144,6 +152,7 @@ void XrdFrmReqFile::Can(XrdFrmRequest *rP)
 
 void XrdFrmReqFile::Del(XrdFrmRequest *rP)
 {
+   rqMonitor rqMon(isAgent);
    XrdFrmRequest tmpReq;
 
 // Lock the file
@@ -273,6 +282,7 @@ int XrdFrmReqFile::Init()
 char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
                            XrdFrmRequest::Item *ITList, int ITNum)
 {
+   rqMonitor rqMon(isAgent);
    XrdFrmRequest tmpReq;
    int rc;
 
