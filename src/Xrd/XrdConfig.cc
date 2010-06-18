@@ -226,7 +226,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhk:l:n:p:P:R:")) 
+      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -240,6 +240,9 @@ int XrdConfig::Configure(int argc, char **argv)
                  putenv((char *)"XRDDEBUG=1"); // XrdOucEnv::Export()
                  break;
        case 'h': Usage(0);
+                 break;
+       case 'H': Usage(-1);
+                 break;
        case 'k': n = strlen(optarg)-1;
                  retc = (isalpha(optarg[n])
                         ? XrdOuca2x::a2sz(XrdLog,"keep size", optarg,&logkeep)
@@ -792,10 +795,13 @@ void XrdConfig::UnderCover()
   
 void XrdConfig::Usage(int rc)
 {
+  extern const char *XrdLicense;
 
+  if (rc < 0) cerr <<XrdLicense;
+     else
      cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-k {n|sz}] [-l <fn>] "
-            "[-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
-     _exit(rc);
+            "[-L] [-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
+     _exit(rc > 0 ? rc : 0);
 }
 
 /******************************************************************************/

@@ -103,7 +103,7 @@ $(OBJDIR)/XrdInet.o:    XrdInet.hh         XrdInet.cc   \
 	@echo Compiling XrdInet.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInet.o XrdInet.cc
 
-$(OBJDIR)/XrdInfo.o: XrdInfo.hh
+$(OBJDIR)/XrdInfo.o: XrdInfo.hh XrdInfo.cc ../XrdVersion.hh ../../LICENSE
 	@echo Compiling XrdInfo.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdInfo.o XrdInfo.cc
 
