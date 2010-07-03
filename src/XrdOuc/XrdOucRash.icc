@@ -15,7 +15,6 @@
 #include <errno.h>
 
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdOuc/XrdOucRash.hh"
 
 /******************************************************************************/
 /*                                   A d d                                    */

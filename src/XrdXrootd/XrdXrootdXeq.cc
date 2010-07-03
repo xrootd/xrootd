@@ -228,7 +228,7 @@ int XrdXrootdProtocol::do_Bind()
    cp = strdup(lp->ID);
    if ( (dp = rindex(cp, '@'))) *dp = '\0';
    if (!(dp = rindex(cp, '.'))) pPid = 0;
-      {*dp++ = '\0'; pPid = strtol(dp, (char **)NULL, 10);}
+      else {*dp++ = '\0'; pPid = strtol(dp, (char **)NULL, 10);}
    Link->setID(cp, pPid);
    free(cp);
    CapVer = pp->CapVer;
@@ -565,7 +565,7 @@ int XrdXrootdProtocol::do_Login()
    static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
    int i, pid, rc, sendSID = 0;
-   char uname[9];
+   char uname[sizeof(Request.login.username)+1];
 
 // Keep Statistics
 //
@@ -574,7 +574,7 @@ int XrdXrootdProtocol::do_Login()
 // Unmarshall the data
 //
    pid = (int)ntohl(Request.login.pid);
-   for (i = 0; i < (int)sizeof(uname); i++)
+   for (i = 0; i < (int)sizeof(Request.login.username); i++)
       {if (Request.login.username[i] == '\0' ||
            Request.login.username[i] == ' ') break;
        uname[i] = Request.login.username[i];

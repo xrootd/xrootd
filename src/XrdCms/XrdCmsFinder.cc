@@ -959,7 +959,7 @@ int XrdCmsFinderTRG::Process(XrdCmsRRData &Data)
 
 // Parse the arguments
 //
-   if (!Parser.Parse(int(Data.Request.rrCode), myArgs, myArgt, &Data))
+   if (!myArgs || !Parser.Parse(int(Data.Request.rrCode),myArgs,myArgt,&Data))
       {Say.Emsg("Finder", "Local cmsd sent a badly formed",Act,"request");
        return 1;
       }

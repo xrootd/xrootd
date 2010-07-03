@@ -385,6 +385,7 @@ void XrdXrootdProtocol::PidFile()
                     }
             }
 
+    free(ppath);
     if (xop) eDest.Emsg("Config", errno, xop, pidFN);
 }
 
@@ -540,7 +541,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 // Verify we have an algoritm
 //
-   if (*palg == '/')
+   if (!palg || *palg == '/')
       {eDest.Emsg("Config", "chksum algorithm not specified"); return 1;}
    if (JobCKT) free(JobCKT);
    JobCKT = strdup(palg);

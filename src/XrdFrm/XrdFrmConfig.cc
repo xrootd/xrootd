@@ -99,7 +99,7 @@ void *XrdFrmConfigMum(void *parg)
 
 // Check if we should add a newline character
 //
-   if (theSE->Buff[bp-(theSE->Buff)-1] != '\n') *bp++ = '\n';
+   if (theSE->Buff[bp-(theSE->Buff)-1L] != '\n') *bp++ = '\n';
    theSE->BLen = bp-(theSE->Buff);
 
 // All done
@@ -511,7 +511,7 @@ XrdOucMsubs *XrdFrmConfig::ConfigCmd(const char *cname, char *cdata)
       {Say.Emsg("Config", errno, "set up", cdata);
        return 0;
       }
-   *cP = ' ';
+   if (cP) *cP = ' ';
 
    msubs = new XrdOucMsubs(&Say);
    if (msubs->Parse(cname, cdata)) return msubs;
@@ -1055,7 +1055,7 @@ int XrdFrmConfig::Grab(const char *var, char **Dest, int nosubs)
 XrdOucTList *XrdFrmConfig::InsertPL(XrdOucTList *pL, const char *Path,
                                     int Plen, int isRW)
 {
-   short sval[2] = {isRW, Plen};
+   short sval[4] = {isRW, Plen};
    XrdOucTList *pP = 0, *tP = pL;
 
 // Find insertion point

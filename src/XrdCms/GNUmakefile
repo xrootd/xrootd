@@ -171,7 +171,8 @@ $(OBJDIR)/XrdCmsCache.o:     XrdCmsCache.cc      XrdCmsCache.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsCache.o XrdCmsCache.cc
 
 $(OBJDIR)/XrdCmsClientConfig.o: XrdCmsClientConfig.cc   XrdCmsClientConfig.hh \
-                                XrdCmsClientMsg.hh      XrdCmsTrace.hh \
+                                XrdCmsClientMsg.hh      XrdCmsSecurity.hh \
+                                XrdCmsTrace.hh \
                                 XrdNetDNS.hh            XrdSysHeaders.hh \
                                 XrdOuca2x.hh            XrdOucEnv.hh \
                                 XrdOucStream.hh         XrdOucTList.hh \
@@ -450,7 +451,8 @@ $(OBJDIR)/XrdCmsRouting.o:   XrdCmsRouting.cc    XrdCmsRouting.hh \
 
 $(OBJDIR)/XrdCmsSecurity.o:  XrdCmsSecurity.cc   XrdCmsSecurity.hh \
                              XrdCmsTalk.hh       XrdCmsTrace.hh \
-                             XrdOucErrInfo.hh \
+                             XrdOucEnv.hh        XrdOucErrInfo.hh \
+                             XrdOucTList.hh \
                              XrdSecInterface.hh \
                              XrdSysError.hh      XrdSysPthread.hh \
                              XrdLink.hh \

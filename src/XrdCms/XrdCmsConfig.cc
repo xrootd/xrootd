@@ -738,7 +738,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
   char *var;
   int  cfgFD, retc, NoGo = 0;
   XrdOucEnv myEnv;
-  XrdOucStream CFile(&Say, myInstance, &myEnv, "=====> ");
+  XrdOucStream CFile(&Say, getenv("XRDINSTANCE"), &myEnv, "=====> ");
 
 // Try to open the configuration file.
 //
@@ -935,6 +935,7 @@ int XrdCmsConfig::PidFile()
               sprintf(benv,"%s=%s", envPIDFN, pidFN); putenv(benv);
              }
 
+     free(ppath);
      return xop != 0;
 }
 
@@ -1052,50 +1053,17 @@ int XrdCmsConfig::setupServer()
   
 char *XrdCmsConfig::setupSid()
 {
-   static const char *envCNAME = "XRDCMSCLUSTERID";
-   XrdOucTList *tpF, *tp = (NanList ? NanList : ManList);
-   const char *insName = (myInsName ? myInsName : "anon");
-   char sidbuff[8192], *sidend = sidbuff+sizeof(sidbuff)-32, *sp, *cP;
-   char *fMan, *fp, *xp, sfx; 
-   int n;
+   XrdOucTList *tp = (NanList ? NanList : ManList);
+   char sfx;
 
-// The system ID starts with the semi-unique name of this node
+// Determine what type of role we are playing
 //
    if (isManager && isServer) sfx = 'u';
       else sfx = (isManager ? 'm' : 's');
-   sp = sidbuff + sprintf(sidbuff, "%s-%c ", insName, sfx); cP = sp;
 
-// Develop a unique cluster name for this cluster
+// Generate the system ID and set the cluster ID
 //
-   if (!tp) {strcpy(sp, myInstance); sp += strlen(myInstance);}
-      else {tpF = tp;
-            fMan = tp->text + strlen(tp->text) - 1;
-            while((tp = tp->next))
-                 {fp = fMan; xp = tp->text + strlen(tp->text) - 1;
-                  do {if (*fp != *xp) break;
-                      xp--;
-                     } while(fp-- != tpF->text);
-                  if ((n = xp - tp->text + 1) > 0)
-                     {sp += sprintf(sp, "%d", tp->val);
-                      if (sp+n >= sidend) return (char *)0;
-                      strncpy(sp, tp->text, n); sp += n;
-                     }
-                 }
-            sp += sprintf(sp, "%d", tpF->val);
-            n = strlen(tpF->text);
-            if (sp+n >= sidend) return (char *)0;
-            strcpy(sp, tpF->text); sp += n;
-           }
-
-// Set envar to hold the cluster name
-//
-   *sp = '\0';
-   char *benv = (char *) malloc(strlen(envCNAME) + strlen(cP) + 2);
-   sprintf(benv,"%s=%s", envCNAME, cP); putenv(benv);
-
-// Return the system ID
-//
-   return  strdup(sidbuff);
+   return XrdCmsSecurity::setSystemID(tp, myInsName, myName, sfx);
 }
 
 /******************************************************************************/
@@ -1747,6 +1715,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
                }
        } while(--i);
 
+    if (mval) free(mval);
     return 0;
 }
   

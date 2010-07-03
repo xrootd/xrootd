@@ -127,8 +127,7 @@ void XrdOucEnv::PutInt(const char *varname, long value)
 {
 // Convert the long into a char* and the put it into the hash table
 //
-  char *stringValue = (char*) malloc(20);
+  char stringValue[24];
   sprintf(stringValue, "%ld", value);
   env_Hash.Rep(varname, strdup(stringValue), 0, Hash_dofree);
-  free(stringValue);
 }

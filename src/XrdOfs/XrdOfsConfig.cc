@@ -366,7 +366,9 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
    iName = getenv("XRDNAME");
    if (poscLog) aPath = XrdOucUtils::genPath(poscLog, iName, ".ofs/posc.log");
       else {if (!(aPath = getenv("XRDADMINPATH")))
-               XrdOucUtils::genPath(pBuff, MAXPATHLEN, "/tmp", iName);
+               {XrdOucUtils::genPath(pBuff, MAXPATHLEN, "/tmp", iName);
+                aPath = pBuff;
+               }
             aPath = XrdOucUtils::genPath(aPath, (char *)0, ".ofs/posc.log");
            }
    rc = strlen(aPath)-1;

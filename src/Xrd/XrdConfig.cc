@@ -443,7 +443,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
   
 int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 {
-   char xpath[1024], sokpath[108];
+   char xpath[MAXPATHLEN+8], sokpath[108];
    int  plen = strlen(path), flen = strlen(fname);
    int rc;
 

@@ -1039,7 +1039,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 // Make sure this node is the right one
 //
    if (!(nP = NodeTab[sent]) || nP->Inst() != sinst)
-      {if (djp == nP->DropJob) {nP->DropJob = 0; nP->DropTime = 0;}
+      {if (nP && djp == nP->DropJob) {nP->DropJob = 0; nP->DropTime = 0;}
        DEBUG(sent <<'.' <<sinst <<" cancelled.");
        return 0;
       }

@@ -600,21 +600,29 @@ int XrdFrmAdmin::ParseOwner(const char *What, char *Uname)
 
 // Process username
 //
-   if (Uname && *Uname >= 0 && *Uname <= 9)
-      {if (XrdOuca2x::a2i(Say,"uid",Uname, &Unum)) return 0; Opt.Uid = Unum;}
-      else {if (!(pwP = getpwnam(Uname)))
-               {Emsg("Invalid user name - ", Uname); return 0;}
-            Opt.Uid = pwP->pw_uid; Opt.Gid = pwP->pw_gid;
-           }
+   if (Uname)
+      {if (*Uname >= 0 && *Uname <= 9)
+          {if (XrdOuca2x::a2i(Say,"uid",Uname, &Unum)) return 0;
+           Opt.Uid = Unum;
+          }
+          else {if (!(pwP = getpwnam(Uname)))
+                   {Emsg("Invalid user name - ", Uname); return 0;}
+                Opt.Uid = pwP->pw_uid; Opt.Gid = pwP->pw_gid;
+               }
+      }
 
 // Process groupname
 //
-   if (Gname && *Gname >= 0 && *Gname <= 9)
-      {if (XrdOuca2x::a2i(Say, "gid", Gname, &Gnum)) return 0; Opt.Gid = Gnum;}
-      else {if (!(grP = getgrnam(Gname)))
-               {Emsg("Invalid group name - ", Gname); return 0;}
-            Opt.Gid = grP->gr_gid;
-           }
+   if (Gname)
+      {if (*Gname >= 0 && *Gname <= 9)
+          {if (XrdOuca2x::a2i(Say, "gid", Gname, &Gnum))  return 0;
+           Opt.Gid = Gnum;
+          }
+          else {if (!(grP = getgrnam(Gname)))
+                   {Emsg("Invalid group name - ", Gname); return 0;}
+                Opt.Gid = grP->gr_gid;
+               }
+      }
 
 // All done
 //
