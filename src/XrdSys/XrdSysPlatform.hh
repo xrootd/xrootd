@@ -21,11 +21,13 @@
 #include <sys/types.h>
 #include <asm/param.h>
 #include <byteswap.h>
+#define MAXNAMELEN NAME_MAX
 #endif
 #ifdef __macos__
 #include <AvailabilityMacros.h>
 #include <sys/types.h>
 #define fdatasync(x) fsync(x)
+#define MAXNAMELEN NAME_MAX
 #ifndef dirent64
 #  define dirent64 dirent
 #endif

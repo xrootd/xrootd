@@ -79,7 +79,7 @@ $(OBJDIR)/XrdSysError.o: XrdSysError.cc XrdSysError.hh XrdSysLogger.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysError.cc -o $(OBJDIR)/XrdSysError.o
 
 $(OBJDIR)/XrdSysLogger.o: XrdSysLogger.cc XrdSysLogger.hh \
-                          XrdSysTimer.hh  XrdSysPthread.hh
+                          XrdSysTimer.hh  XrdSysPlatform.hh XrdSysPthread.hh
 	@echo Compiling XrdSysLogger.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdSysLogger.cc -o $(OBJDIR)/XrdSysLogger.o
 

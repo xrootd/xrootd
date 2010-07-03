@@ -18,6 +18,7 @@ const char *XrdSysLoggerCVSID = "$Id$";
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #ifndef WIN32
@@ -29,6 +30,7 @@ const char *XrdSysLoggerCVSID = "$Id$";
 #endif // WIN32
 
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
  
@@ -194,7 +196,7 @@ int XrdSysLogger::ReBind(int dorename)
    unsigned int i;
    int newfd;
    struct tm nowtime;
-   char *bp, buff[1280];
+   char *bp, buff[MAXPATHLEN+MAXNAMELEN];
    struct stat bf;
 
 // Rename the file to be of the form yyyymmdd corresponding to the date it was
@@ -263,7 +265,7 @@ void XrdSysLogger::Trim()
           } logList(0,0,0);
 
    struct LogFile *logEnt, *logPrev, *logNow;
-   char eBuff[2048], logFN[256], logDir[1024], *logSfx;
+   char eBuff[2048], logFN[MAXNAMELEN+8], logDir[MAXPATHLEN+8], *logSfx;
    struct dirent *dp;
    struct stat buff;
    long long totSz = 0;
