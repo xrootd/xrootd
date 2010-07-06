@@ -344,17 +344,24 @@ void *ReaderThread_xrd_xtreme(void *parm)
          if ( nr >= 0 ) {
             lastread = lr;
             noutstanding--;
-            cpnfo.queue.PutBuffer(buf, blknfo->offs, nr);
 
             // If this block was stolen by somebody else then this client has to be penalized
             // If this client stole the blk to some other client, then this client has to be rewarded
             int reward = thrnfo->xtrdhandler->MarkBlkAsRead(lr);
+            if (reward >= 0) 
+               // Enqueue the block only if it was not already read
+               cpnfo.queue.PutBuffer(buf, blknfo->offs, nr);
+
             if (reward > 0) {
                thrnfo->maxoutstanding++;
                thrnfo->maxoutstanding = xrdmin(20, thrnfo->maxoutstanding);
                thrnfo->cli->SetCacheParameters(XRDCP_BLOCKSIZE*4*thrnfo->maxoutstanding*2, 0, XrdClientReadCache::kRmBlk_FIFO);
             }
-            if (reward < 0) thrnfo->maxoutstanding--;
+            if (reward < 0) {
+               thrnfo->maxoutstanding--;
+               free(buf);
+            }
+
             if (thrnfo->maxoutstanding <= 0) {
                sleep(1);
                thrnfo->maxoutstanding = 1;
@@ -688,7 +695,11 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       cout << endl;
    }
 
-   if (cpnfo.len != bytesread) retvalue = 13;
+   if (cpnfo.len != bytesread) {
+      cerr << endl << endl << 
+         "File length mismatch. Read:" << bytesread << " Length:" << cpnfo.len << endl;
+      retvalue = 13;
+   }
 
 #ifdef HAVE_XRDCRYPTO
    if (md5) MD_5->Final();
