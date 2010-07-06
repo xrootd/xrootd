@@ -1715,7 +1715,6 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
                }
        } while(--i);
 
-    if (mval) free(mval);
     return 0;
 }
   
