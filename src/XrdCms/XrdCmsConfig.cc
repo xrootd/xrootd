@@ -931,9 +931,7 @@ int XrdCmsConfig::PidFile()
             }
 
      if (xop) Say.Emsg("Config", errno, xop, pidFN);
-        else {char *benv = (char *) malloc(strlen(envPIDFN) + strlen(pidFN) + 2);
-              sprintf(benv,"%s=%s", envPIDFN, pidFN); putenv(benv);
-             }
+        else XrdOucEnv::Export("XRDCMSPIDFN", pidFN);
 
      free(ppath);
      return xop != 0;

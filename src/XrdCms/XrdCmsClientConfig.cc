@@ -409,7 +409,8 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
           }
 
     i = strlen(mval);
-    if (mval[i-1] != '+') i = 0;
+    if (mval[i-1] != '+')
+       {i = 0; val = mval; mval = XrdNetDNS::getHostName(mval); free(val);}
         else {bval = strdup(mval); mval[i-1] = '\0';
               if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
                  {Say.Emsg("Config","Manager host", mval, "not found");
