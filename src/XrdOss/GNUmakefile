@@ -183,7 +183,7 @@ $(OBJDIR)/XrdOssRename.o: XrdOssApi.hh  XrdOssError.hh XrdOssLock.hh \
 
 $(OBJDIR)/XrdOssSpace.o: XrdOssSpace.hh XrdOssSpace.cc \
                          XrdOssCache.hh \
-                         XrdOuca2x.hh   XrdOucStream.hh \
+                         XrdOuca2x.hh     XrdOucEnv.hh   XrdOucStream.hh \
                          XrdSysHeaders.hh XrdSysError.hh XrdSysPlatform.hh
 	@echo Compiling XrdOssSpace.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssSpace.o XrdOssSpace.cc

@@ -22,6 +22,7 @@ const char *XrdOssSpaceCVSID = "$Id$";
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -194,8 +195,7 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
    if (qPath)
       {qFname = strdup(qPath);
        if (!Quotas()) return 0;
-       sprintf(buff, "XRDOSSQUOTAFILE=%s", qFname);
-       putenv(strdup(buff));
+       XrdOucEnv::Export("XRDOSSQUOTAFILE", qFname);
       }
 
 // Construct the file path for the usage file
@@ -210,8 +210,7 @@ int XrdOssSpace::Init(const char *aPath, const char *qPath, int isSOL)
       }
    strcpy(aP, ".Usage");
    uFname = strdup(buff);
-   sprintf(buff, "XRDOSSUSAGEFILE=%s", uFname);
-   putenv(strdup(buff));
+   XrdOucEnv::Export("XRDOSSUSAGEFILE", uFname);
 
 // First check if the file really exists, if not, create it
 //
