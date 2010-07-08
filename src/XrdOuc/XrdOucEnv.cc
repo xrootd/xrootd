@@ -81,6 +81,10 @@ int XrdOucEnv::Export(const char *Var, const char *Val)
    int vLen = strlen(Var);
    char *eBuff;
 
+// If this is a null value then substitute a null string
+//
+   if (!Val) Val = "";
+
 // Allocate memory. Note that this memory will appear to be lost.
 //
    eBuff = (char *)malloc(vLen+strlen(Val)+2); // +2 for '=' and '\0'

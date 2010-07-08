@@ -14,7 +14,10 @@ const char *XrdOucUtilsCVSID = "$Id$";
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef WIN32
 #include <direct.h>
@@ -296,4 +299,56 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 
    free(logfn);
    return strdup(buff);
+}
+
+/******************************************************************************/
+/*                            U n d e r c o v e r                             */
+/******************************************************************************/
+
+void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
+{
+   static const int maxFiles = 256;
+   pid_t mypid;
+   int myfd;
+
+// Issue warning if there is no logfile attached
+//
+   if (noLog) eDest.Emsg("Config", "Warning! No log file specified; "
+                                   "backgrounding disables all logging!");
+
+// Fork so that we are not tied to a shell
+//
+   if ((mypid = fork()) < 0)
+      {eDest.Emsg("Config", errno, "fork process 1 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Become the process group leader
+//
+   if (setsid() < 0)
+      {eDest.Emsg("Config", errno, "doing setsid() for backgrounding");
+       return;
+      }
+
+// Fork to that we are cannot get a controlling terminal
+//
+   if ((mypid = fork()) < 0)
+      {eDest.Emsg("Config", errno, "fork process 2 for backgrounding");
+       return;
+      }
+      else if (mypid) _exit(0);
+
+// Switch stdin, stdout, and stderr to /dev/null (we can't use /dev/console
+// unless we are root which is unlikely).
+//
+   if ((myfd = open("/dev/null", O_RDWR)) < 0)
+      {eDest.Emsg("Config", errno, "open /dev/null for backgrounding");
+       return;
+      }
+   dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
+
+// Close any open file descriptors left open by the parent process
+//
+  for (myfd = 3; myfd < maxFiles; myfd++) close(myfd);
 }
