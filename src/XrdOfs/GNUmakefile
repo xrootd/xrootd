@@ -110,7 +110,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc \
 $(OBJDIR)/XrdOfsEvr.o:  XrdOfsEvr.cc      XrdOfsEvr.hh \
                         XrdOfsStats.hh    XrdOfsTrace.hh   XrdOucTrace.hh \
                         XrdOucErrInfo.hh  XrdOucHash.hh    XrdOucHash.icc \
-                        XrdSysPthread.hh  XrdOucStream.hh \
+                        XrdSysPthread.hh  XrdOucStream.hh  XrdOucEnv.hh \
                         XrdSysTimer.hh    XrdCmsClient.hh \
                         XrdNetOpts.hh     XrdNetSocket.hh
 	@echo Compiling XrdOfsEvr.cc
