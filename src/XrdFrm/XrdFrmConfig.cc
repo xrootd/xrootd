@@ -137,6 +137,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    uInfo    = uinfo;
    ssID     = ss;
    AdminPath= 0;
+   QPath    = 0;
    AdminMode= 0740;
    xfrMax   = 2;
    FailHold = 3*60*60;
@@ -213,7 +214,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
    XrdFrmConfigSE theSE;
-   int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0;
+   int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
    const char *temp;
    char c, buff[1024], *logfn = 0;
    long long logkeep = 0;
@@ -234,6 +235,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
       while ((c = getopt(argc,argv,vOpts)) && ((unsigned char)c != 0xff))
      { switch(c)
        {
+       case 'b': optBG = 1;
+                 break;
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
                  break;
@@ -293,6 +296,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
           {if (logkeep) Say.logger()->setKeep(logkeep);
            Say.logger()->Bind(logfn, 24*60*60);
           }
+
+   // If undercover desired and we are not an agent, do so
+   //
+       if (optBG && !isAgent) XrdOucUtils::Undercover(Say, !logfn);
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
@@ -787,6 +794,11 @@ int XrdFrmConfig::ConfigPaths()
    strcpy(buff, Config.AdminPath); strcat(buff, "STOPPURGE");
    StopPurge = strdup(buff);
 
+// If there is no QPath then make it the admin path
+//
+   if (QPath) return !XrdFrmUtils::makePath(0, QPath, AdminMode);
+      else QPath = AdminPath;
+
 // All done
 //
    return 0;
@@ -799,13 +811,14 @@ int XrdFrmConfig::ConfigPaths()
 void XrdFrmConfig::ConfigPF(const char *pFN)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
-   char buff[80], data[24];
+   const char *ppP = (PidPath ? PidPath : "/tmp");
+   char buff[1032], data[24];
    int pfFD, n;
 
 // Construct pidfile name
 //
-   if (myInst) sprintf(buff, "/tmp/%s/%s.pid", myInst, pFN);
-      else sprintf(buff, "/tmp/%s.pid", pFN);
+   if (myInst) sprintf(buff, "%s/%s/%s.pid", ppP, myInst, pFN);
+      else sprintf(buff, "%s/%s.pid", ppP, pFN);
 
 // Open the pidfile creating it if necessary
 //
@@ -867,6 +880,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 // Process common items to all subsystems
 //
    if (!strcmp(var, "all.adminpath" )) return xapath();
+   if (!strcmp(var, "all.pidpath"   )) return Grab(var, &PidPath, 0);
    if (!strcmp(var, "all.manager"   )) {haveCMS = 1; return 0;}
 
 // Process directives specific to each subsystem
@@ -885,6 +899,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 
    if (ssID == ssXfr)
       {
+       if (!strcmp(var, "qcheck"        )) return xqchk();
        if (isAgent) return 0;           // Server-oriented directives
 
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
@@ -897,7 +912,6 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 
        if (!strcmp(var, "copycmd"       )) return xcopy();
        if (!strcmp(var, "copymax"       )) return xcmax();
-       if (!strcmp(var, "qcheck"        )) return xitm("qchk time", WaitQChk);
        if (!strcmp(var, "oss.space"     )) return xspace();
 
        if (!strncmp(var, "migr.", 5))   // xfr.migr
@@ -1298,9 +1312,7 @@ int XrdFrmConfig::xdpol()
 
    Purpose:  To parse the directive: xxxxtime <sec>
 
-             <sec>     number of seconds file must be unused before migration
-                       if idletime directive or seconds between queue checks
-                       of qchktime directive.
+             <sec>     number of seconds applicable to the directive.
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1679,6 +1691,46 @@ int XrdFrmConfig::xpolprog()
 //
    if (pProg) free(pProg);
    pProg = strdup(pBuff);
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                        x q c h k                                  */
+/******************************************************************************/
+
+/* Function: xqchk
+
+   Purpose:  To parse the directive: qcheck <sec> <path>
+
+             <sec>     number of seconds between forced queue checks. This is
+                       optional is <path> is specified.
+             <path>    the absolute location of the queue directory.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdFrmConfig::xqchk()
+{   int itime;
+    char *val;
+
+// Get the next token, we must have one here
+//
+   if (!(val = cFile->GetWord()))
+      {Say.Emsg("Config", "qcheck time not specified"); return 1;}
+
+// If not a path, then it must be a time
+//
+   if (*val != '/')
+      {if (XrdOuca2x::a2tm(Say, "qcheck time", val, &itime)) return 1;
+       WaitQChk = itime;
+       if (!(val = cFile->GetWord())) return 0;
+      }
+
+// The next token has to be an absolute path if it is present at all
+//
+   if (*val != '/')
+      {Say.Emsg("Config", "qcheck path not absolute"); return 1;}
+   if (QPath) free(QPath);
+   QPath = strdup(val);
    return 0;
 }
 

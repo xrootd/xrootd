@@ -246,10 +246,10 @@ int XrdFrmXfrAgent::Start()
 
 // Prepare our agents
 //
-   if (!StgAgent.Start(Config.AdminPath, Config.AdminMode)
-   ||  !MigAgent.Start(Config.AdminPath, Config.AdminMode)
-   ||  !GetAgent.Start(Config.AdminPath, Config.AdminMode)
-   ||  !PutAgent.Start(Config.AdminPath, Config.AdminMode)) return 2;
+   if (!StgAgent.Start(Config.QPath, Config.AdminMode)
+   ||  !MigAgent.Start(Config.QPath, Config.AdminMode)
+   ||  !GetAgent.Start(Config.QPath, Config.AdminMode)
+   ||  !PutAgent.Start(Config.QPath, Config.AdminMode)) return 2;
 
 // Attach stdin to the Request stream
 //

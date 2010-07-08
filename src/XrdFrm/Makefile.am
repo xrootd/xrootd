@@ -18,6 +18,7 @@ xrootdfrmincdir = $(includedir)/xrootd/XrdFrm
 bin_PROGRAMS = frm_admin frm_purged frm_xfragent frm_xfrd
 
 xrootdfrminc_HEADERS = XrdFrmAdmin.hh   \
+                       XrdFrmCID.hh     \
                        XrdFrmConfig.hh  \
                        XrdFrmFiles.hh   \
                        XrdFrmMigrate.hh \
@@ -53,6 +54,7 @@ libXrdFrm_la_SOURCES = \
                   XrdFrmAdminQuery.cc  \
                   XrdFrmAdminReloc.cc  \
                   XrdFrmAdminUnlink.cc \
+                  XrdFrmCID.cc     \
                   XrdFrmConfig.cc  \
                   XrdFrmFiles.cc   \
                   XrdFrmMonitor.cc\

@@ -41,6 +41,7 @@ static char     *c2sFN;
 XrdFrmReqFile   *rQueue[XrdFrmRequest::maxPQE];
 const char      *Persona;
 const char      *pingMsg;
+const char      *myName;
 int              theQ;
 };
 #endif

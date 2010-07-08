@@ -23,6 +23,7 @@ const char *XrdFrmTransferCVSID = "$Id$";
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#include "XrdFrm/XrdFrmCID.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdFrm/XrdFrmReqFile.hh"
@@ -54,10 +55,11 @@ XrdOucProg  *theCmd;
 XrdOucMsubs *theVec;
 char        *theSrc;
 char        *theDst;
+char        *theINS;
 char         theMDP[8];
 
             XrdFrmTranArg(XrdOucEnv *Env)
-                         : theEnv(Env), theSrc(0), theDst(0)
+                         : theEnv(Env), theSrc(0), theDst(0), theINS(0)
                            {theMDP[0] = '0'; theMDP[1] = 0;}
            ~XrdFrmTranArg() {}
 };
@@ -175,10 +177,11 @@ const char *XrdFrmTransfer::Fetch()
 
 // Setup the command
 //
-   cmdArg.theCmd    = xfrCmd[iXfr];
-   cmdArg.theVec    = Config.xfrCmd[iXfr].theVec;
-   cmdArg.theSrc    = theSrc;
-   cmdArg.theDst    = xfrP->PFN;
+   cmdArg.theCmd = xfrCmd[iXfr];
+   cmdArg.theVec = Config.xfrCmd[iXfr].theVec;
+   cmdArg.theSrc = theSrc;
+   cmdArg.theDst = xfrP->PFN;
+   cmdArg.theINS = xfrP->reqData.iName;
    if (!SetupCmd(&cmdArg)) return "incoming transfer setup failed";
 
 // We now need a placeholder in the filesystem for this transfer. We remove any
@@ -306,6 +309,10 @@ int XrdFrmTransfer::Init()
    pthread_t tid;
    int retc, n;
 
+// Initialize the cluster identification object first
+//
+   CID.Init(Config.QPath);
+
 // Initialize the transfer queue first
 //
    if (!XrdFrmXfrQueue::Init()) return 0;
@@ -339,6 +346,13 @@ int XrdFrmTransfer::SetupCmd(XrdFrmTranArg *argP)
                    argP->theSrc, xfrP->reqData.Prty,
                    xfrP->reqData.Options & XrdFrmRequest::makeRW?O_RDWR:O_RDONLY,
                    argP->theMDP, xfrP->reqData.ID, xfrP->PFN, argP->theDst);
+
+// We must establish the cluster and instance name if we have one
+//
+   if (argP->theINS && argP->theEnv)
+      {CID.Get(argP->theINS, CMS_CID, argP->theEnv);
+       argP->theEnv->Put(XRD_INS, argP->theINS);
+      }
 
 // Substitute in the parameters
 //
@@ -526,6 +540,7 @@ const char *XrdFrmTransfer::Throw()
    cmdArg.theVec = Config.xfrCmd[iXfr].theVec;
    cmdArg.theDst = theDest;
    cmdArg.theSrc = xfrP->PFN;
+   cmdArg.theINS = xfrP->reqData.iName;
    if (Config.xfrCmd[iXfr].hasMDP)
       mDP = TrackDC(lfnpath+xfrP->reqData.LFO, cmdArg.theMDP, Rfn);
    if (!SetupCmd(&cmdArg)) return "outgoing transfer setup failed";
