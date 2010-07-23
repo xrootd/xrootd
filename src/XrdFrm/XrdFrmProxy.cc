@@ -262,7 +262,7 @@ int XrdFrmProxy::Init2(const char *ConfigFN)
 /******************************************************************************/
   
 int XrdFrmProxy::qChk(XrdOucStream &cfgFile)
-{   int itime;
+{
     char *val;
 
 // Get the next token, we must have one here
