@@ -840,14 +840,13 @@ int XrdCmsConfig::MergeP()
 //
    while(plp)
         {Opts = plp->Flag();
-         npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | XRDEXP_NOTRW) ? 0 : 1);
-         npinfo.ssvec = (Opts & XRDEXP_STAGE ? 1 : 0);
-         if (PathList.Find(plp->Path(), opinfo))
-            Say.Emsg("Config","Ignoring unexpected duplicate path",plp->Path());
-            else if (!(Opts & XRDEXP_LOCAL))
-                    {PathList.Insert(plp->Path(), &npinfo);
-                     if (npinfo.ssvec) DiskSS = 1;
-                    }
+         if (!(Opts & XRDEXP_LOCAL))
+            {npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | XRDEXP_NOTRW) ? 0 : 1);
+             npinfo.ssvec = (Opts & XRDEXP_STAGE ? 1 : 0);
+             if (!PathList.Add(plp->Path(), &npinfo))
+                Say.Emsg("Config","Ignoring duplicate export path",plp->Path());
+                else if (npinfo.ssvec) DiskSS = 1;
+            }
           plp = plp->Next();
          }
 
@@ -890,7 +889,6 @@ int XrdCmsConfig::MergeP()
   
 int XrdCmsConfig::PidFile()
 {
-    static const char *envPIDFN = "XRDCMSPIDFN=";
     int rc, xfd;
     const char *clID;
     char buff[1024];
