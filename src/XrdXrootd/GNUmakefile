@@ -238,7 +238,7 @@ $(OBJDIR)/XrdXrootdXeq.o: XrdXrootdFile.hh      XrdXrootdFileLock.hh  \
                           XrdXrootdPio.hh       XrdXrootdStat.icc \
                           XrdBuffer.hh          XrdLink.hh            \
                           XrdSfsInterface.hh    XrdSecInterface.hh \
-                          XrdSecEntity.hh \
+                          XrdSecEntity.hh       XrdSysTimer.hh \
                           XrdSysError.hh        XrdOucTrace.hh  \
                           XrdSysPlatform.hh     XrdOucTList.hh \
                           XrdOucReqID.hh        XrdOucStream.hh \

@@ -16,6 +16,7 @@ const char *XrdXrootdXeqCVSID = "$Id$";
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -96,7 +97,7 @@ int XrdXrootdProtocol::do_Auth()
     XrdSecParameters *parm = 0;
     XrdOucErrInfo     eMsg;
     const char *eText;
-    int rc;
+    int rc, n;
 
 // Ignore authenticate requests if security turned off
 //
@@ -104,7 +105,8 @@ int XrdXrootdProtocol::do_Auth()
    cred.size   = Request.header.dlen;
    cred.buffer = argp->buff;
 
-// If we have no auth protocol, try to get it
+// If we have no auth protocol, try to get it. Track number of times we got a
+// protocol object as the read count (we will zero it out later).
 //
    if (!AuthProt)
       {Link->Name(&netaddr);
@@ -113,7 +115,7 @@ int XrdXrootdProtocol::do_Auth()
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
-       AuthProt->Entity.tident = Link->ID;
+       AuthProt->Entity.tident = Link->ID; numReads++;
       }
 
 // Now try to authenticate the client using the current protocol
@@ -122,7 +124,7 @@ int XrdXrootdProtocol::do_Auth()
       {const char *msg = (Status & XRD_ADMINUSER ? "admin login as"
                                                  : "login as");
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
-       Client = &AuthProt->Entity;
+       Client = &AuthProt->Entity; numReads = 0;
        if (Client->name) 
           eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
@@ -142,7 +144,15 @@ int XrdXrootdProtocol::do_Auth()
        return Response.Send(kXR_ServerError,"invalid authentication exchange");
       }
 
-// We got an error, bail out
+// Authentication failed. We will delete the authentication object and zero
+// out the pointer. We can do this without any locks because this section is
+// single threaded relative to a connection. To prevent guessing attacks, we
+// wait a variable amount of time if there have been 3 or more tries.
+//
+   if (AuthProt) {AuthProt->Delete(); AuthProt = 0;}
+   if ((n = numReads - 2) > 0) XrdSysTimer::Snooze(n > 5 ? 5 : n);
+
+// We got an error, bail out.
 //
    eText = eMsg.getErrText(rc);
    eDest.Emsg("Xeq", "User authentication failed;", eText);
