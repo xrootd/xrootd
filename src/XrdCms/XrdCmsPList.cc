@@ -103,7 +103,8 @@ SMask_t XrdCmsPList_Anchor::Insert(const char *pname, XrdCmsPInfo *pinfo)
    rc = 1;
    while(p && p->pathlen >= plen)
         {if (p->pathlen == plen && !(rc = strcmp(p->pathname,pname))) break;
-            else if (!strncmp(p->pathname,pname,plen))
+            else if (!strncmp(p->pathname,pname,plen)
+                 &&  !(p->pathmask.rovec & pinfo->rovec))
                     {p->pathmask.And(~(pinfo->rovec)); p->pathmask.Or(pinfo);}
          pp = p; 
           p = p->next;
