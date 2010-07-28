@@ -111,7 +111,6 @@ vpath YProtocol% ../XProtocol
 vpath XrdCms%    ../XrdCms
 vpath XrdFrm%    ../XrdFrm
 vpath XrdNet%    ../XrdNet
-vpath XrdOdc%    ../XrdOdc
 vpath XrdOss%    ../XrdOss
 vpath XrdOuc%    ../XrdOuc
 vpath XrdSec%    ../XrdSec
@@ -192,7 +191,7 @@ $(OBJDIR)/XrdCmsClientMsg.o: XrdCmsClientMsg.cc    XrdCmsClientMsg.hh \
 $(OBJDIR)/XrdCmsClientMan.o: XrdCmsClientMan.cc   XrdCmsClientMan.hh \
                              XrdCmsClientMsg.hh   XrdCmsLogin.hh \
                              XrdCmsResp.hh        XrdCmsTrace.hh \
-                             XrdNetBuffer.hh      XrdOdcFinder.hh \
+                             XrdNetBuffer.hh \
                              XrdOucErrInfo.hh \
                              XrdSysError.hh       XrdSysPthread.hh \
                              XrdSysTimer.hh \
@@ -248,7 +247,7 @@ $(OBJDIR)/XrdCmsFinder.o:    XrdCmsFinder.cc     XrdCmsFinder.hh \
                              XrdCmsParser.hh     XrdCmsResp.hh \
                              XrdCmsRRData.hh     XrdCmsTrace.hh \
                              XrdNetDNS.hh        XrdNetOpts.hh \
-                             XrdNetSocket.hh     XrdOdcFinder.hh \
+                             XrdNetSocket.hh \
                              XrdOucEnv.hh        XrdOucErrInfo.hh \
                              XrdOucReqID.hh  \
                              XrdOucStream.hh     XrdOucUtils.hh \
