@@ -76,12 +76,10 @@ SUBDIRS = XrdSys \
           XrdSfs \
           XrdAcc \
           XrdBwm \
-          XrdOdc \
           XrdOss \
           Xrd \
           XrdCms \
           XrdOfs \
-          XrdOlb \
           XrdRootd \
           XrdXrootd \
           XrdFrm \

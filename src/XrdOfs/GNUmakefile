@@ -40,7 +40,6 @@ TARGETS  = $(LIBARCH)
 #------------------------------------------------------------------------------#
 
 vpath XrdNet% ../XrdNet
-vpath XrdOdc% ../XrdOdc
 vpath XrdOfs% ../XrdOfs
 vpath XrdOss% ../XrdOss
 vpath XrdOuc% ../XrdOuc
@@ -103,7 +102,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc \
                            XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
                            XrdSysHeaders.hh \
                            XrdOucEnv.hh      XrdAccAuthorize.hh \
-                           XrdCmsClient.hh   XrdCmsFinder.hh  XrdOdcFinder.hh
+                           XrdCmsClient.hh   XrdCmsFinder.hh
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 

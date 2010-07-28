@@ -6,7 +6,7 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdAcc -lXrdCms -lXrdOdc -lXrd -lXrdNet -lXrdOuc -lXrdSys $(TYPELIBSF)
+BINLIBS = -L$(LIBDIR) -lXrdAcc -lXrdCms -lXrd -lXrdNet -lXrdOuc -lXrdSys $(TYPELIBSF)
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -60,7 +60,6 @@ OBJDEPS = \
           $(LIBDIR)/libXrdOuc.a \
           $(LIBDIR)/libXrdAcc.a \
           $(LIBDIR)/libXrdCms.a \
-          $(LIBDIR)/libXrdOdc.a \
           $(OBJFS)
 
 TARGETS  = $(BINDIR)/xrootd

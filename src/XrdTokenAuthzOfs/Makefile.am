@@ -50,7 +50,6 @@ libXrdTokenAuthzOfs_la_LIBTOOLFLAGS = --tag=disable-static
 
 libXrdTokenAuthzOfs_la_LIBADD = $(top_builddir)/src/XrdAcc/libXrdAcc.la \
                          $(top_builddir)/src/XrdOss/libXrdOss.la \
-                         $(top_builddir)/src/XrdOdc/libXrdOdc.la \
                          $(top_builddir)/src//XrdNet/libXrdNet.la \
                          $(top_builddir)/src//XrdOuc/libXrdOuc.la \
                          $(top_builddir)/src/XrdXr/libXrdXr.la \
