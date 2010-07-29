@@ -18,4 +18,3 @@ TYPESHLIB  = so
 
 TYPELIBS   =  -lnsl -lsocket $(PTHREAD) -lrt -ldl -lc
 TYPELIBSF  = -lsendfile
-TYPELIBSM  = -lsunmath

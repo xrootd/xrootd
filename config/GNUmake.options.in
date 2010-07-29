@@ -19,7 +19,6 @@ LD="$(TYPELD)" \
 LDOP="$(@buildopt@)" \
 LDSO="$(TYPELDSO)" \
 LIBS=" @ldsyslibs@ $(TYPELIBS)" \
-LIBM="$(TYPELIBSM)" \
 TYPE="$(TYPE)"
 
 perlmodule:
@@ -37,7 +36,6 @@ LD="$(TYPELD)" \
 LDOP="$(@buildopt@)" \
 LDSO="$(TYPELDSO)" \
 LIBS=" @ldsyslibs@ $(TYPELIBS)" \
-LIBM="$(TYPELIBSM)" \
 TYPE="$(TYPE)"
 
 clean:

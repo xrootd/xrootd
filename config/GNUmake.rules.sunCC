@@ -16,7 +16,6 @@ TYPEDBG    = $(TYPEMISC) $(SUNMT) -g -xs
 TYPELDSO   = -G
 TYPESHLIB  = so
 
-TYPELIBS   =  -lposix4 -lsocket -lnsl $(PTHREAD) -ldl -lCstd
-TYPELIBMT  =  -lmtmalloc
+TYPELIBS   =  -lposix4 -lsocket -lnsl $(PTHREAD) -ldl
+TYPELIBMT  =  -lumem
 TYPELIBSF  =  -lsendfile
-TYPELIBSM  =  -lsunmath
