@@ -28,11 +28,11 @@ const char *XrdFrmConfigCVSID = "$Id$";
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmUtils.hh"
+#include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucCmsNotify.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
@@ -782,7 +782,7 @@ int XrdFrmConfig::ConfigPaths()
 // unqualified admin path that we determined above.
 //
    if (haveCMS)
-      cmsPath = new XrdOucCmsNotify(&Say,xPath,insName,XrdOucCmsNotify::isServ);
+      cmsPath = new XrdNetCmsNotify(&Say,xPath,insName,XrdNetCmsNotify::isServ);
 
 // Create the admin directory if it does not exists
 //

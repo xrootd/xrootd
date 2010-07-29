@@ -17,8 +17,8 @@
 
 #include "XrdOss/XrdOssSpace.hh"
 
+class XrdNetCmsNotify;
 class XrdOss;
-class XrdOucCmsNotify;
 class XrdOucMsubs;
 class XrdOucName2Name;
 class XrdOucProg;
@@ -59,7 +59,7 @@ int                 xfrOUT;
 
 XrdOucName2Name    *the_N2N;   // -> File mapper object
 XrdOss             *ossFS;
-XrdOucCmsNotify    *cmsPath;
+XrdNetCmsNotify    *cmsPath;
 uid_t               myUid;
 gid_t               myGid;
 long long           cmdFree;

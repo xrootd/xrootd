@@ -209,7 +209,7 @@ $(OBJDIR)/XrdFrmAdminUnlink.o: XrdFrmAdmin.hh    XrdFrmAdminUnlink.cc \
                                XrdFrmConfig.hh   XrdFrmTrace.hh \
                                XrdFrmUtils.hh    XrdSysError.hh \
                                XrdOss.hh         XrdOssPath.hh \
-                               XrdOucNSWalk.hh   XrdOucCmsNotify.hh
+                               XrdOucNSWalk.hh   XrdNetCmsNotify.hh
 	@echo Compiling XrdFrmAdminUnlink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmAdminUnlink.o XrdFrmAdminUnlink.cc
 
@@ -220,7 +220,7 @@ $(OBJDIR)/XrdFrmCID.o: XrdFrmCID.hh    XrdFrmCID.cc    XrdFrmTrace.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmCID.o XrdFrmCID.cc
 
 $(OBJDIR)/XrdFrmConfig.o: XrdFrmConfig.hh  XrdFrmConfig.cc    XrdFrmTrace.hh \
-                          XrdFrmMonitor.hh XrdOucCmsNotify.hh \
+                          XrdFrmMonitor.hh XrdNetCmsNotify.hh \
                           XrdInfo.hh       XrdNetDNS.hh       XrdOss.hh \
                           XrdOuca2x.hh     XrdOucEnv.hh       XrdOucExport.hh \
                           XrdOucUtils.hh   XrdOucName2Name.hh XrdOucMsubs.hh \
@@ -272,7 +272,7 @@ $(OBJDIR)/XrdFrmProxy.o: XrdFrmProxy.hh       XrdFrmProxy.cc \
 
 $(OBJDIR)/XrdFrmPurge.o:  XrdFrmPurge.hh   XrdFrmPurge.cc    XrdFrmTrace.hh \
                           XrdFrmConfig.hh  XrdFrmFiles.hh    XrdFrmTSort.hh \
-                          XrdOucCmsNotify.hh \
+                          XrdNetCmsNotify.hh \
                           XrdOss.hh        XrdOssPath.hh     XrdOssSpace.hh \
                           XrdOucHash.hh    XrdOucNSWalk.hh   XrdOucUtils.hh \
                           XrdOucProg.hh    XrdOucStream.hh   XrdSysError.hh \
@@ -332,7 +332,7 @@ $(OBJDIR)/XrdFrmTransfer.o: XrdFrmTransfer.cc     XrdFrmTransfer.hh \
                             XrdOucEnv.hh          XrdOucHash.hh \
                             XrdOucMsubs.hh        XrdOucProg.hh \
                             XrdOucSxeq.hh  \
-                            XrdOucCmsNotify.hh \
+                            XrdNetCmsNotify.hh \
                             XrdSysError.hh        XrdSysPlatform.hh \
                             XrdSysPthread.hh
 	@echo Compiling XrdFrmTransfer.cc

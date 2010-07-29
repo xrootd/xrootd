@@ -13,6 +13,7 @@ include ../GNUmake.env
 SOURCES = \
         XrdNet.cc            \
         XrdNetBuffer.cc      \
+        XrdNetCmsNotify.cc   \
         XrdNetConnect.cc     \
         XrdNetDNS.cc         \
         XrdNetLink.cc        \
@@ -24,6 +25,7 @@ SOURCES = \
 OBJECT1 = \
         $(OBJDIR)/XrdNet.o             \
         $(OBJDIR)/XrdNetBuffer.o       \
+        $(OBJDIR)/XrdNetCmsNotify.o    \
         $(OBJDIR)/XrdNetConnect.o      \
         $(OBJDIR)/XrdNetLink.o         \
         $(OBJDIR)/XrdNetMsg.o          \
@@ -100,6 +102,14 @@ $(OBJDIR)/XrdNetBuffer.o: XrdNetBuffer.cc XrdNetBuffer.hh \
                           XrdOucChain.hh  XrdSysPlatform.hh  XrdSysPthread.hh
 	@echo Compiling XrdNetBuffer.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdNetBuffer.cc -o $(OBJDIR)/XrdNetBuffer.o
+
+$(OBJDIR)/XrdNetCmsNotify.o: XrdNetCmsNotify.cc  XrdNetCmsNotify.hh \
+                             XrdNetMsg.hh \
+                             XrdOucUtils.hh \
+                             XrdSysError.hh      XrdSysPthread.hh \
+                             XrdSysTimer.hh
+	@echo Compiling XrdNetCmsNotify.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdNetCmsNotify.o XrdNetCmsNotify.cc
 
 $(OBJDIR)/XrdNetConnect.o: XrdNetConnect.cc XrdNetConnect.hh XrdSysPlatform.hh
 	@echo Compiling XrdNetConnect.cc

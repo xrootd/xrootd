@@ -19,9 +19,9 @@ const char *XrdFrmPurgeCVSID = "$Id$";
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssPath.hh"
-#include "XrdOuc/XrdOucCmsNotify.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucProg.hh"

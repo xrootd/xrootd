@@ -13,7 +13,6 @@ include ../GNUmake.env
 SOURCES = \
         XrdOuca2x.cc         \
         XrdOucArgs.cc        \
-        XrdOucCmsNotify.cc   \
         XrdOucCRC.cc         \
         XrdOucEnv.cc         \
         XrdSysError.cc       \
@@ -37,7 +36,6 @@ SOURCES = \
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
         $(OBJDIR)/XrdOucArgs.o         \
-        $(OBJDIR)/XrdOucCmsNotify.o    \
         $(OBJDIR)/XrdOucCRC.o          \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdSysError.o        \
@@ -105,14 +103,6 @@ $(OBJDIR)/XrdOucArgs.o: XrdOucArgs.cc  XrdOucArgs.hh XrdOucTokenizer.hh \
                         XrdSysError.hh
 	@echo Compiling XrdOucArgs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucArgs.cc -o $(OBJDIR)/XrdOucArgs.o
-
-$(OBJDIR)/XrdOucCmsNotify.o: XrdOucCmsNotify.cc  XrdOucCmsNotify.hh \
-                             XrdNetMsg.hh \
-                             XrdOucUtils.hh \
-                             XrdSysError.hh      XrdSysPthread.hh \
-                             XrdSysTimer.hh
-	@echo Compiling XrdOucCmsNotify.cc 
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOucCmsNotify.o XrdOucCmsNotify.cc
 
 $(OBJDIR)/XrdOucCRC.o: XrdOucCRC.cc XrdOucCRC.hh
 	@echo Compiling XrdOucCRC.cc
