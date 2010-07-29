@@ -6,10 +6,14 @@
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdSec $(LIBDIR)/libsslGridSite.a \
-           $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a $(LIBDIR)/libXrdNet.a $(LIBSSL) $(LIBXML)
+MORELIBS = -L$(LIBDIR) -lXrdSec        $(LIBDIR)/libsslGridSite.a \
+             $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
+             $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a \
+             $(LIBSSL) $(LIBXML)
 
-LIBDEPS = $(LIBDIR)/libsslGridSite.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a $(LIBDIR)/libXrdNet.a
+LIBDEPS = $(LIBDIR)/libsslGridSite.a  $(LIBDIR)/libXrdNet.a \
+          $(LIBDIR)/libXrdNetUtil.a   $(LIBDIR)/libXrdOuc.a \
+          $(LIBDIR)/libXrdSys.a
 
 NCXXFLAGS = $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
 NCFLAGS = $(INCXML) $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 -U_FORTIFY_SOURCE $(subst deprecated,deprecated-declarations,$(CFLAGS)) 

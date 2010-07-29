@@ -21,20 +21,25 @@ SOURCES = \
         XrdNetSocket.cc      \
         XrdNetWork.cc
   
-OBJECTS = \
+OBJECT1 = \
         $(OBJDIR)/XrdNet.o             \
         $(OBJDIR)/XrdNetBuffer.o       \
         $(OBJDIR)/XrdNetConnect.o      \
-        $(OBJDIR)/XrdNetDNS.o          \
         $(OBJDIR)/XrdNetLink.o         \
         $(OBJDIR)/XrdNetMsg.o          \
         $(OBJDIR)/XrdNetSecurity.o     \
         $(OBJDIR)/XrdNetSocket.o       \
         $(OBJDIR)/XrdNetWork.o
+  
+OBJECT2 = \
+        $(OBJDIR)/XrdNetDNS.o
 
-LIBRARY = $(LIBDIR)/libXrdNet.a
+OBJECTS = $(OBJECT1) $(OBJECT2)
 
-TARGETS = $(LIBRARY)
+LIBNET1 = $(LIBDIR)/libXrdNet.a
+LIBNET2 = $(LIBDIR)/libXrdNetUtil.a
+
+TARGETS = $(LIBNET1) $(LIBNET2)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -57,18 +62,32 @@ anything: $(TARGETS)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(TARGETS): $(OBJECTS)
-	@echo Creating archive $(LIBRARY) 
-	$(ECHO)rm -f $(LIBRARY)
+$(LIBNET1): $(OBJECT1)
+	@echo Creating archive $(LIBNET1)
+	$(ECHO)rm -f $(LIBNET1)
 	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
 	          if [ "x$(SUNCACHE)" != "x" ]; then \
-	             $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+	             $(CC) -xar -o $(LIBNET1) $(OBJDIR)$(SUNCACHE)/*/*.o; \
 		  else \
-	             $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
+	             $(CC) -xar -o $(LIBNET1) $(OBJECT1); \
 		  fi; \
 	       else \
-	          ar -rc $(LIBRARY) $(OBJECTS); \
-	          ranlib $(LIBRARY); \
+	          ar -rc $(LIBNET1) $(OBJECT1); \
+	          ranlib $(LIBNET1); \
+               fi
+
+$(LIBNET2): $(OBJECT2)
+	@echo Creating archive $(LIBNET2)
+	$(ECHO)rm -f $(LIBNET2)
+	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
+	          if [ "x$(SUNCACHE)" != "x" ]; then \
+	             $(CC) -xar -o $(LIBNET2) $(OBJDIR)$(SUNCACHE)/*/*.o; \
+		  else \
+	             $(CC) -xar -o $(LIBNET2) $(OBJECT2); \
+		  fi; \
+	       else \
+	          ar -rc $(LIBNET2) $(OBJECT2); \
+	          ranlib $(LIBNET2); \
                fi
 
 $(OBJDIR)/XrdNet.o: XrdNet.cc       XrdNet.hh         XrdNetBuffer.hh \

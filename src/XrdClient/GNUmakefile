@@ -5,15 +5,17 @@
 #-----------------------------------------------------------------------------#
 include ../GNUmake.env
 
-LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys $(LIBM)
+LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
 
 ifneq ($(CFHASXRDCRYPTO),)
 BINLIBS = $(LIBDIR)/libXrdClient.a \
-          $(LIBDIR)/libXrdCrypto.a $(LIBDIR)/libXrdSut.a \
-          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdCrypto.a  $(LIBDIR)/libXrdSut.a \
+          $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
+          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a
 else
 BINLIBS = $(LIBDIR)/libXrdClient.a \
-          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a 
+          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a
 endif
 
 LIBDEPS = $(BINLIBS)
@@ -184,27 +186,27 @@ $(CLASS_JNI_TARGET): $(CLASS_JNI).java
 
 $(BINDIR)/TestXrdClient_read: $(OBJECTS) $(OBJECTD) $(LIBDEPS)
 	@echo Creating executable $(BINDIR)/TestXrdClient_read 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTD) $(BINLIBS) $(LIBM) $(LIBS) -o $(BINDIR)/TestXrdClient_read
+	$(ECHO)$(LD) $(LDOP) $(OBJECTD) $(BINLIBS) $(LIBS) -o $(BINDIR)/TestXrdClient_read
 
 $(BINDIR)/TestXrdClient: $(OBJECTS) $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(BINDIR)/TestXrdClient 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBM) $(LIBS) -o $(BINDIR)/TestXrdClient
+	$(ECHO)$(LD) $(LDOP) $(OBJECTB) $(BINLIBS) $(LIBS) -o $(BINDIR)/TestXrdClient
 
 $(XRDCP): $(OBJECTS) $(OBJECTC) $(LIBDEPS)
 	@echo Creating executable $(XRDCP) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBM) $(LIBS) $(LIBZ) -o $(XRDCP)
+	$(ECHO)$(LD) $(LDOP) $(OBJECTC) $(BINLIBS) $(LIBS) $(LIBZ) -o $(XRDCP)
 
 $(XRDPREPTOOL): $(OBJECTS) $(OBJECT_PREPTOOL) $(LIBDEPS)
 	@echo Creating executable $(XRDPREPTOOL)
-	$(ECHO)$(LD) $(LDOP) $(OBJECT_PREPTOOL) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDPREPTOOL)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_PREPTOOL) $(BINLIBS) $(LIBS) -o $(XRDPREPTOOL)
 
 $(XRDSTAGETOOL): $(OBJECTS) $(OBJECT_STAGETOOL) $(LIBDEPS)
 	@echo Creating executable $(XRDSTAGETOOL) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECT_STAGETOOL) $(BINLIBS) $(LIBM) $(LIBS) -o $(XRDSTAGETOOL)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_STAGETOOL) $(BINLIBS) $(LIBS) -o $(XRDSTAGETOOL)
 
 $(XRDCLI): $(OBJECTS) $(OBJECT_CLI) $(LIBDEPS)
 	@echo Creating executable $(XRDCLI) 
-	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBM) $(LIBS) $(LIBREADLINE) -o $(XRDCLI)
+	$(ECHO)$(LD) $(LDOP) $(OBJECT_CLI) $(BINLIBS) $(LIBS) $(LIBREADLINE) -o $(XRDCLI)
 
 $(XRDADMIN): $(PERLMOD)
 	$(ECHO)if [ "$(PERLBIN)" != "" ]; then \
@@ -215,7 +217,7 @@ $(XRDADMIN): $(PERLMOD)
 
 $(PERLMOD): $(OBJECTS) $(OBJECTC) $(OBJECTPERLMOD) $(LIBDEPS)
 	@echo Creating perl module library $(PERLMOD) 
-	$(ECHO)$(CC) $(OBJECTC) $(OBJECTPERLMOD) $(BINLIBS) $(LIBM) $(LDSO) $(PERLCCFLAGS) $(LIBS) -o $(PERLMOD)
+	$(ECHO)$(CC) $(OBJECTC) $(OBJECTPERLMOD) $(BINLIBS) $(LDSO) $(PERLCCFLAGS) $(LIBS) -o $(PERLMOD)
 
 $(OBJDIR)/XrdClientAdmin_c_wrap.o:        XrdClientAdmin_c_wrap.c
 	@echo Compiling XrdClientAdmin_c_wrap.c

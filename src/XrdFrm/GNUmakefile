@@ -6,7 +6,8 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdNet -lXrdOuc -lXrdSys $(TYPELIBSF)
+BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
+            $(TYPELIBSF)
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -83,6 +84,7 @@ OBJADDS = \
 
 OBJDEPS = \
           $(LIBDIR)/libXrdNet.a \
+          $(LIBDIR)/libXrdNetUtil.a \
           $(LIBDIR)/libXrdOss.a \
           $(LIBDIR)/libXrdOuc.a \
           $(LIBDIR)/libXrdSys.a

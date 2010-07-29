@@ -26,10 +26,11 @@ OBJECTT  = \
 
 OBJECTU  = $(LIBDIR)/libXrdClient.a
 
-MORELIBS = -L$(LIBDIR) $(LIBM) -lXrdNet -lXrdOuc -lXrdSys
+MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdNet.a \
+           $(LIBDIR)/libXrdNetUtil.a \
            $(LIBDIR)/libXrdOuc.a \
            $(LIBDIR)/libXrdSys.a
 

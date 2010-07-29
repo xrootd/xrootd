@@ -6,10 +6,10 @@
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdCryptoLite -lXrdOuc -lXrdNet -lXrdSys
+MORELIBS = -L$(LIBDIR) -lXrdCryptoLite -lXrdOuc -lXrdNetUtil -lXrdSys
 
 LIBDEPS = $(LIBDIR)/libXrdCryptoLite.a $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdNetUtil.a    $(LIBDIR)/libXrdSys.a
 
 FSSL = $(SSLEXTRACFLAGS)
 
