@@ -23,7 +23,6 @@ const char *XrdFrmReqFileCVSID = "$Id$";
 #include <sys/stat.h>
 
 #include "XrdFrm/XrdFrmCID.hh"
-#include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmReqFile.hh"
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdSys/XrdSysError.hh"
