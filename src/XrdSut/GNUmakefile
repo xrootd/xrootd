@@ -62,16 +62,8 @@ anything: $(TARGETS)
 $(LIBARCH): $(OBJECTS)
 	@echo Creating archive $(LIBARCH) 
 	$(ECHO)rm -f $(LIBARCH)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	          if [ "x$(SUNCACHE)" != "x" ]; then \
-	             $(CC) -xar -o $(LIBARCH) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-	             $(CC) -xar -o $(LIBARCH) $(OBJECTS); \
-		  fi; \
-	       else \
-	          ar -rc $(LIBARCH) $(OBJECTS); \
-	          ranlib $(LIBARCH); \
-               fi
+	$(ECHO)ar -rc $(LIBARCH) $(OBJECTS)
+	$(ECHO)ranlib $(LIBARCH)
 
 $(LIBRARY): $(OBJECTS) $(LIBDIR)/libXrdOuc.a
 	@echo Creating shared library $(LIBRARY) 

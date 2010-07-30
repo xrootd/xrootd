@@ -67,30 +67,14 @@ anything: $(TARGETS)
 $(LIBNET1): $(OBJECT1)
 	@echo Creating archive $(LIBNET1)
 	$(ECHO)rm -f $(LIBNET1)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	          if [ "x$(SUNCACHE)" != "x" ]; then \
-	             $(CC) -xar -o $(LIBNET1) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-	             $(CC) -xar -o $(LIBNET1) $(OBJECT1); \
-		  fi; \
-	       else \
-	          ar -rc $(LIBNET1) $(OBJECT1); \
-	          ranlib $(LIBNET1); \
-               fi
+	$(ECHO)ar -rc $(LIBNET1) $(OBJECT1)
+	$(ECHO)ranlib $(LIBNET1)
 
 $(LIBNET2): $(OBJECT2)
 	@echo Creating archive $(LIBNET2)
 	$(ECHO)rm -f $(LIBNET2)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	          if [ "x$(SUNCACHE)" != "x" ]; then \
-	             $(CC) -xar -o $(LIBNET2) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-	             $(CC) -xar -o $(LIBNET2) $(OBJECT2); \
-		  fi; \
-	       else \
-	          ar -rc $(LIBNET2) $(OBJECT2); \
-	          ranlib $(LIBNET2); \
-               fi
+	$(ECHO)ar -rc $(LIBNET2) $(OBJECT2)
+	$(ECHO)ranlib $(LIBNET2)
 
 $(OBJDIR)/XrdNet.o: XrdNet.cc       XrdNet.hh         XrdNetBuffer.hh \
                     XrdNetDNS.hh    XrdNetOpts.hh     XrdNetSecurity.hh \

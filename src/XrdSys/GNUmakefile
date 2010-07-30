@@ -55,17 +55,8 @@ anything: $(TARGETS)
 $(TARGETS): $(OBJECTS)
 	@echo Creating archive $(LIBRARY) 
 	$(ECHO)rm -f $(LIBRARY)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	          if [ "x$(SUNCACHE)" != "x" ]; then \
-	             $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-	             $(CC) -xar -o $(LIBRARY) $(OBJECTS); \
-		  fi; \
-	       else \
-	          ar -rc $(LIBRARY) $(OBJECTS); \
-	          ranlib $(LIBRARY); \
-               fi
-
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
+	$(ECHO)ranlib $(LIBRARY)
 
 $(OBJDIR)/XrdSysDir.o: XrdSysDir.cc  XrdSysDir.hh
 	@echo Compiling XrdSysDir.cc

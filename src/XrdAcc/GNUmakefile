@@ -66,16 +66,8 @@ anything: $(TARGETS)
 $(LIBRARY): $(OBJECTA)
 	@echo Creating archive $(LIBRARY)
 	$(ECHO)rm -f $(LIBRARY)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-		  if [ "x$(SUNCACHE)" != "x" ]; then \
-		     $(CC) -xar -o $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-		     $(CC) -xar -o $(LIBRARY) $(OBJECTA); \
-		  fi; \
-	       else \
-	          ar -rc $(LIBRARY) $(OBJECTA); \
-	          ranlib $(LIBRARY); \
-	       fi
+	$(ECHO)ar -rc $(LIBRARY) $(OBJECTA)
+	$(ECHO)ranlib $(LIBRARY)
 
 $(TESTBIN): $(OBJECTB) $(LIBDEPS)
 	@echo Creating executable $(TESTBIN) 

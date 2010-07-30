@@ -86,16 +86,8 @@ $(LIBRARY): $(OBJECTS) $(LIBDEPS)
 $(LIBGRST): $(OBJGRST)
 	@echo Creating archive $(LIBGRST)
 	$(ECHO)rm -f $(LIBGRST)
-	$(ECHO)if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	          if [ "x$(SUNCACHE)" != "x" ]; then \
-		     $(CC) -xar -o $(LIBGRST) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-		  else \
-		     $(CC) -xar -o $(LIBGRST) $(OBJGRST); \
-		  fi; \
-	       else \
-		  ar -rc $(LIBGRST) $(OBJGRST); \
-		  ranlib $(LIBGRST); \
-	       fi
+	$(ECHO)ar -rc $(LIBGRST) $(OBJGRST)
+	$(ECHO)ranlib $(LIBGRST)
 
 $(SECSSLTEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECSSLTEST)

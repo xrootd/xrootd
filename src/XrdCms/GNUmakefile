@@ -144,11 +144,6 @@ $(LIBRARY): $(OBJCLNT) $(OBJBOTH)
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJCLNT) $(OBJBOTH)
 	$(ECHO)ranlib $(LIBRARY)
-	$(ECHO)if [ "x$(SUNCACHE)" != "x" ]; then \
-	   if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-	      ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*/*.o; \
-	   fi;\
-	fi
 
 $(OBJDIR)/XrdCmsAdmin.o:     XrdCmsAdmin.cc      XrdCmsAdmin.hh \
                              XrdCmsState.hh      XrdCmsConfig.hh \

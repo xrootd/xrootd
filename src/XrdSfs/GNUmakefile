@@ -43,12 +43,6 @@ anything: $(TARGETS)
 #------------------------------------------------------------------------------#
 
 $(TARGETS): $(OBJECTS)
-#	@echo Creating archive $(LIBRARY) 
-#	@rm -f $(LIBRARY)
-#	@ar -rc $(LIBRARY) $(OBJECTS)
-#	@if [ "$(TYPE)" = "SunOS" -a "$(CC)" = "CC" ]; then \
-#	@ar -rc $(LIBRARY) $(OBJDIR)$(SUNCACHE)/*.o; \
-#fi
 
 $(OBJDIR)/XrdSfsNative.o:  XrdSfsInterface.hh XrdSfsNative.hh  XrdSecInterface.hh \
                            XrdSysError.hh     XrdOucErrInfo.hh XrdSysLogger.hh \

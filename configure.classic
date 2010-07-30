@@ -48,7 +48,6 @@ strlcpy="noidea"
 clientonly="no"
 seconly="no"
 usearchdirs="yes"
-suncache="/SunWS_cache"
 type=`uname -s`
 compile_log=config.log
 rm -f $compile.log
@@ -976,10 +975,7 @@ if test "x$platform" = "xsolaris"; then
          esac
       done
       if test ! "x$ccver" = "x"; then
-	ccsub=`echo $ccver | sed -e 's/5.//'`
-      fi
-      if test $ccsub -gt 4; then
-         suncache=""
+         ccsub=`echo $ccver | sed -e 's/5.//'`
       fi
       if test "x$nccflv" = "xsunCCamd"; then
          if test $ccsub -lt 10; then
@@ -2815,7 +2811,6 @@ sed -e "s|@arch@|$arch|"                   \
     -e "s|@xrdsec@|$xrdsec|" \
     -e "s|@dbgsfx@|$dbgsfx|g"   \
     -e "s|@dbgmsg@|$dbgmsg|g"   \
-    -e "s|@suncache@|$suncache|" \
     -e "s|@inst_prefix@|$inst_prefix|" \
     -e "s|@inst_libdir@|$inst_libdir|" \
     -e "s|@inst_etcdir@|$inst_etcdir|" \
@@ -2875,7 +2870,6 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasreadline@|$hasreadline|" \
     -e "s|@libreadline@|$libreadline|" \
     -e "s|@tracedbg@|$tracedbg|" \
-    -e "s|@suncache@|$suncache|" \
     -e "s|@perlbin@|$perlbin|" \
     -e "s|@javacbin@|$javacbin|" \
     -e "s|@javadir@|$javadir|" \

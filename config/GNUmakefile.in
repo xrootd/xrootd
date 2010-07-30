@@ -36,8 +36,6 @@ TYPE    = @type@
 RM      = @rmpath@
 LN      = @lnpath@
 
-SUNCACHE= @suncache@
-
 #
 # Envvars influencing what 'make install' does
 export INSTPFX = @inst_prefix@
