@@ -1866,9 +1866,10 @@ int XrdFrmConfig::xxfr()
           else break;
          };
 
-    if (!val) if (haveparm) return 0;
+    if (!val) {if (haveparm) return 0;
                   else {Say.Emsg("Config", "xfr parameter not specified");
                         return 1;
                        }
+              }
     return 0;
 }
