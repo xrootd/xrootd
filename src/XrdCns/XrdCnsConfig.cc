@@ -384,6 +384,8 @@ int XrdCnsConfig::Configure()
           {eVar = strdup(eVar); mToks.Attach(eVar); mToks.GetLine();
            while((dP = mToks.GetToken()))
                 {if ((tP = index(dP, ':'))) *tP = '\0';
+                 sprintf(buff, "%s:%d", tP, Port);
+                 if (*tP) *tP = ':';
                  Dest = new XrdOucTList(dP, Port, Dest);
                  TRACE(DEBUG, "CNS dest=" <<dP <<':' <<Port);
                 }
