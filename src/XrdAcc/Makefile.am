@@ -8,19 +8,28 @@
 ## Checked in by $Author$
 #######################################################################
 
+AM_CPPFLAGS = -I$(top_srcdir)/src
+
+#############################################################################
+## extra directory definitions for install area
+
+xrootdaccincdir = $(includedir)/xrootd/XrdAcc
+
+#############################################################################
+## deliverables
+
 lib_LTLIBRARIES = libXrdAcc.la
 
 bin_PROGRAMS = XrdAccTest
 
-xrootdaccincdir = $(includedir)/xrootd/XrdAcc
 
 xrootdaccinc_HEADERS = \
     XrdAccAccess.hh  XrdAccAuthFile.hh    XrdAccConfig.hh \
     XrdAccAudit.hh   XrdAccAuthorize.hh   XrdAccGroups.hh \
     XrdAccAuthDB.hh  XrdAccCapability.hh  XrdAccPrivs.hh
 
-
-INCLUDES = -I$(top_srcdir)/src
+#############################################################################
+## Build rules
 
 libXrdAcc_la_SOURCES = \
         XrdAccAccess.cc XrdAccAccess.hh     \
@@ -34,4 +43,6 @@ XrdAccTest_SOURCES = XrdAccTest.cc XrdAccAuthorize.hh
 XrdAccTest_LDADD = libXrdAcc.la \
                    ../XrdOuc/libXrdOuc.la \
                    ../XrdNet/libXrdNet.la \
-                   ../XrdSys/libXrdSys.la -ldl
+                   ../XrdSys/libXrdSys.la \
+                   ../XrdNet/libXrdNetUtil.la \
+                   -ldl

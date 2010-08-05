@@ -41,7 +41,8 @@ mpxstats_SOURCES = XrdMpxStats.cc
 mpxstats_LDADD = \
                        ../XrdNet/libXrdNet.la   \
                        ../XrdOuc/libXrdOuc.la     \
-                       ../XrdSys/libXrdSys.la
+                       ../XrdSys/libXrdSys.la \
+                       ../XrdNet/libXrdNetUtil.la
 
 mpxstats_LDFLAGS = -static -export-dynamic
 

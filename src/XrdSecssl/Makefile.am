@@ -8,18 +8,35 @@
 ## Checked in by $Author$
 #######################################################################
 
+AM_CPPFLAGS = -I$(top_srcdir)/src -I${XROOTD_INCDIR}/  -IlibsslGridSite ${OPENSSL_INCDIR}
+
 SUBDIRS = libsslGridSite
+
+#############################################################################
+## extra installation directory definitions
+
+#############################################################################
+## deliverables (to be built / installed)
+lib_LTLIBRARIES = libXrdSecssl.la
 
 bin_PROGRAMS = xrdsecssltest
 
-lib_LTLIBRARIES = libXrdSecssl.la
+#############################################################################
+# Build rules
 
-INCLUDES = -I$(top_srcdir)/src -I${XROOTD_INCDIR}/  -IlibsslGridSite ${OPENSSL_INCDIR}
 libXrdSecssl_la_SOURCES = XrdSecProtocolssl.cc XrdSecProtocolssl.hh XrdSecProtocolsslTrace.hh
-libXrdSecssl_la_LIBADD = 
-libXrdSecssl_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdSec -lXrdSys -lXrdOuc -lXrdNet ${SSLLINKLIB} libsslGridSite/libsslGridSite.la ${OPENSSL_LIBDIR} -lcrypto -lssl ${XML2_LIBDIR} -lxml2 -module  
+
+libXrdSecssl_la_LIBADD = libsslGridSite/libsslGridSite.la
+
+libXrdSecssl_la_LDFLAGS = -L${XROOTD_LIBDIR}/ -lXrdSec -lXrdSys -lXrdOuc -lXrdNet \
+                          ${SSLLINKLIB} \
+                          ${OPENSSL_LIBDIR} -lcrypto -lssl ${XML2_LIBDIR} \
+                          -lxml2 -module  
+
 libXrdSecssl_la_CXXFLAGS = -Wall -Werror -Wno-deprecated-declarations ${CXXFLAGS}
+
 libXrdSecssl_la_LIBTOOLFLAGS = --tag=disable-static
+
 
 xrdsecssltest_SOURCES = XrdSecProtocolsslTest.cc
 xrdsecssltest_LDADD = libXrdSecssl.la

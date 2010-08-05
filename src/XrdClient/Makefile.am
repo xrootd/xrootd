@@ -12,16 +12,16 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR) $(JAVA_INCDIR) 
 
 #############################################################################
-## extra directory definitions
+## extra directory definitions for install area
 javaclassdir = $(JAVA_CLASSPATH)
 xrootdclientincdir = $(includedir)/xrootd/XrdClient
 
 
 #############################################################################
-## deliverables
+## deliverables (to be built / installed)
 bin_PROGRAMS = xrdcp TestXrdClient TestXrdClient_read xrd xprep xrdstagetool
 
-## old automake does not know += operator, so we have to do this
+## old automake versions do not know += operator for adding to a variable, so we have to do this
 ## very awkwardly using the EXTRA_ definition
 if ENABLE_JAVAINT
   BUILDJAVA = libXrdClientAdminJNI.la
@@ -82,7 +82,8 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdSut/libXrdSut.la \
               ../XrdNet/libXrdNet.la \
               ../XrdOuc/libXrdOuc.la \
-              ../XrdSys/libXrdSys.la
+              ../XrdSys/libXrdSys.la \
+              ../XrdNet/libXrdNetUtil.la
 
 clientlibs =  libXrdClient.la \
               -ldl $(LIBZ)
