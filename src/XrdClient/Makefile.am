@@ -32,7 +32,7 @@ if ENABLE_PERLINT
 endif
 lib_LTLIBRARIES = libXrdClient.la $(BUILDPERL) $(BUILDJAVA)
 
-xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh \
+xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh XrdClientCallback.hh \
                XrdClientVector.hh XrdClientConnMgr.hh \
                XrdClientAbs.hh XrdClientUnsolMsg.hh XrdClientMessage.hh \
                XrdClientProtocol.hh XrdClientSock.hh XrdClientUrlInfo.hh \
@@ -152,6 +152,7 @@ if REBUILD_SWIGFILE
 $(SWIG_TARGETS): XrdClientAdmin_c.hh
 	echo Creating swig perl interface
 	$(SWIG) -perl -o $@ $(srcdir)/XrdClientAdmin_c.hh
+CLEANFILES = $(SWIG_TARGETS)
 else
 XrdClientAdmin_c_wrap.cc: XrdClientAdmin_c_wrap.c
 	cp $(srcdir)/XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc

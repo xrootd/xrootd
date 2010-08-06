@@ -24,7 +24,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 # N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
 xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixOsDep.hh XrdPosixLinkage.hh \
-                        XrdPosix.hh XrdPosixExtern.hh
+                        XrdPosix.hh XrdPosixExtern.hh XrdPosixCallBack.hh
 
 #############################################################################
 ## deliverables

@@ -35,6 +35,7 @@ xrootdfrminc_HEADERS = XrdFrmAdmin.hh   \
                        XrdFrmMonitor.hh \
                        XrdFrmProxy.hh   \
                        XrdFrmPurge.hh   \
+                       XrdFrmReqAgent.hh \
                        XrdFrmReqBoss.hh \
                        XrdFrmReqFile.hh \
                        XrdFrmRequest.hh \

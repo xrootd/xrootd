@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,v20090930-1117,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,v20100805-1700,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh])
 
 # use C++ for the compilation of tests
@@ -263,6 +263,10 @@ case "$target_os" in
 esac
 
 AM_INIT_AUTOMAKE(1.6 subdir-objects)
+dnl We add the option to build silently (but only if the symbol is available
+dnl    which should be supported by automake >= 1.11)
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES])
+
 
 # we save the environment's value for CPPFLAGS,etc 
 # because we will modify them for some of the tests

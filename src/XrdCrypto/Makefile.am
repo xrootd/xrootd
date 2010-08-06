@@ -8,14 +8,18 @@
 ## Checked in by $Author$
 #######################################################################
 
-## Note: These two files are not used in any part of the build. I still
-## include them in the distribution via the EXTRA_DIST keyword
-EXTRA_DIST = XrdCryptosslX509Store.cc XrdCryptosslX509Store.hh
+AM_CPPFLAGS = -I$(top_srcdir)/src $(OPENSSL_INCDIR) $(KRB5_INCDIR)
+
+#############################################################################
+## extra installation directory definitions
+xrdcryptoincdir = $(includedir)/xrootd/XrdCrypto
+
+#############################################################################
+## deliverables (to be built / installed)
 
 lib_LTLIBRARIES = libXrdCrypto.la libXrdCryptossl.la libXrdCryptoLite.la
 noinst_LTLIBRARIES = libXrdSSLutil.la 
 
-xrdcryptoincdir = $(includedir)/xrootd/XrdCrypto
 xrdcryptoinc_HEADERS = \
       PC1.hh                   XrdCryptolocalFactory.hh  XrdCryptosslgsiX509Chain.hh  XrdCryptosslX509Store.hh \
       PC3.hh                   XrdCryptoMsgDigest.hh     XrdCryptosslMsgDigest.hh     XrdCryptoTrace.hh \
@@ -28,8 +32,8 @@ xrdcryptoinc_HEADERS = \
 
 check_PROGRAMS = xrdcryptotest
 
-INCLUDES = -I$(top_srcdir)/src $(OPENSSL_INCDIR) $(KRB5_INCDIR)
-
+#############################################################################
+# Build rules
 
 libXrdSSLutil_la_SOURCES = \
         XrdCryptosslAux.cc XrdCryptosslAux.hh XrdCryptosslTrace.hh       \
@@ -64,7 +68,8 @@ libXrdCrypto_la_SOURCES = \
 libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdSys/libXrdSys.la \
-                         ../XrdNet/libXrdNet.la
+                         ../XrdNet/libXrdNet.la \
+                         ../XrdNet/libXrdNetUtil.la
 
 libXrdCryptoLite_la_SOURCES = \
         XrdCryptoLite.hh \
@@ -92,3 +97,8 @@ libXrdCryptossl_la_CXXFLAGS = $(SSLCXXFLAGS)
 xrdcryptotest_SOURCES = XrdCryptotest.cc
 xrdcryptotest_LDADD = libXrdCrypto.la \
                       $(OPENSSL_LIBDIR) -lcrypto
+
+# sources not named in rules that still need to get rolled into the distribution tarball
+## Note: These two files are not used in any part of the build. I still
+## include them in the distribution via the EXTRA_DIST keyword
+EXTRA_DIST = XrdCryptosslX509Store.cc XrdCryptosslX509Store.hh
