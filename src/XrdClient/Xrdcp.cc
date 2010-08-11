@@ -883,7 +883,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
          nfo->cli = xtremeclients[iii];
          nfo->clientidx = xrdxtrdfile->GimmeANewClientIdx();
          nfo->startfromblk = iii*xrdxtrdfile->GetNBlks() / xtremeclients.GetSize();
-         nfo->maxoutstanding = xrdmin( 3, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() );
+         nfo->maxoutstanding = xrdmax(xrdmin( 3, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() ), 1);
 
          XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, (void *)nfo);
       }
