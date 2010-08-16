@@ -190,10 +190,6 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
    if (!(Options & isManager) 
    && !evrObject.Init(&Eroute, Balancer)) NoGo = 1;
 
-// Now configure the storage system
-//
-   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
-
 // Initialize redirection.  We type te herald here to minimize confusion
 //
    if (Options & haveRole)
@@ -212,6 +208,10 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
           fwdMV.Reset();    fwdRM.Reset();    fwdRMDIR.Reset();
           fwdTRUNC.Reset();
          }
+
+// Now configure the storage system
+//
+   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
 
 // If we need to send notifications, initialize the interface
 //
@@ -436,7 +436,12 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
           {delete Finder; Finder = 0; return 1;}
       }
 
-// For server roles find the port number and create the object
+// For server roles find the port number and create the object. We used to pass
+// the storage system object to the finder to allow it to process cms storage
+// requests. The cms no longer sends such requests so there is no need to do
+// so. And, in fact, we need to defer creating a storage system until after the
+// finder is created. So, it's just as well we pass a numm pointer. At some
+// point the finder should remove all storage system related code.
 //
    if (Options & (isServer | (isPeer & ~isManager)))
       {if (!myPort)
@@ -444,8 +449,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
            return 1;
           }
        Balancer = new XrdCmsFinderTRG(Eroute.logger(),
-                         (isRedir ? XrdCms::IsRedir : 0), myPort, 
-                         (Options & isProxy ? 0 : XrdOfsOss));
+                         (isRedir ? XrdCms::IsRedir : 0), myPort, 0);
        if (!Balancer->Configure(ConfigFN))
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & isProxy) Balancer = 0; // No chatting for proxies
