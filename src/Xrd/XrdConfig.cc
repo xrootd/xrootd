@@ -344,7 +344,7 @@ int XrdConfig::Configure(int argc, char **argv)
    putenv(myInstance);   // XrdOucEnv::Export("XRDINSTANCE",...)
    myInstance += strlen(xrdInst);
    XrdOucEnv::Export("XRDHOST", myName);
-   XrdOucEnv::Export("XRDNAME", myInsName);
+   XrdOucEnv::Export("XRDNAME", ProtInfo.myInst);
    XrdOucEnv::Export("XRDPROG", myProg);
 
 // Put out the herald
