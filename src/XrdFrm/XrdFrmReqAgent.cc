@@ -194,5 +194,6 @@ int XrdFrmReqAgent::Start(char *aPath, int aMode)
 
 // All done
 //
+   if (myClid) Ping();
    return 1;
 }
