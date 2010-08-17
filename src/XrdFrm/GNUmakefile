@@ -257,6 +257,7 @@ $(OBJDIR)/XrdFrmProxy.o: XrdFrmProxy.hh       XrdFrmProxy.cc \
                          XrdFrmReqAgent.hh    XrdFrmRequest.hh \
                          XrdFrmTrace.hh       XrdFrmUtils.hh \
                          XrdOucEnv.hh         XrdOucStream.hh \
+                         XrdOucUtils.hh \
                          XrdSysError.hh       XrdSysLogger.hh \
                          XrdSysPlatform.hh
 	@echo Compiling XrdFrmProxy.cc

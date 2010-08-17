@@ -83,8 +83,7 @@ int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
 // Preset some values
 //
    myHost = getenv("XRDHOST");
-   myName = getenv("XRDNAME");
-   if (!myName || !*myName) myName = "anon";
+   myName = XrdOucUtils::InstName(1);
    CMSPath= strdup("/tmp/");
    isMeta = How & configMeta;
    isMan  = What& configMan;
@@ -104,7 +103,7 @@ int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
 
 // Set proper local socket path
 //
-   temp=XrdOucUtils::genPath(CMSPath,(strcmp("anon",myName)?myName:0), ".olb");
+   temp=XrdOucUtils::genPath(CMSPath, XrdOucUtils::InstName(-1), ".olb");
    free(CMSPath); CMSPath = temp;
    XrdOucEnv::Export("XRDCMSPATH", temp);
    XrdOucEnv::Export("XRDOLBPATH", temp); //Compatability

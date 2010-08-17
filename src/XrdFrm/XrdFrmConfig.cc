@@ -177,7 +177,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 
 // Establish our instance name
 //
-   myInst = ((sP = getenv("XRDNAME")) && *sP ? sP : 0);
+   myInst = XrdOucUtils::InstName(-1);
 
 // Establish default config file
 //
@@ -312,12 +312,13 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // Set the Environmental variables to hold some config information
 // XRDINSTANCE=<pgm> <instance name>@<host name>
 //
-   sprintf(buff,"XRDINSTANCE=%s %s@%s",myProg,(myInst ? myInst:"anon"),myName);
+   sprintf(buff,"XRDINSTANCE=%s %s@%s",myProg,
+                 XrdOucUtils::InstName(myInst), myName);
    putenv(strdup(buff)); // XRDINSTANCE
    myInstance = strdup(index(buff,'=')+1);
    XrdOucEnv::Export("XRDHOST", myName);
    XrdOucEnv::Export("XRDPROG", myProg);
-   if (myInst) XrdOucEnv::Export("XRDNAME", myInst);
+   XrdOucEnv::Export("XRDNAME", XrdOucUtils::InstName(myInst));
 
 // We need to divert the output if we are in admin mode with no logfile
 //

@@ -51,6 +51,7 @@ const char *XrdOssConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -715,8 +716,8 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
    if (!NoGo && (StageCmd || stgp))
       {const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
        if (StageCmd && *StageCmd) NoGo = ConfigStageC(Eroute);
-          else {StageFrm = new XrdFrmProxy(Eroute.logger(), getenv("XRDNAME"),
-                                           OssTrace.What & TRACE_Debug);
+          else {StageFrm = new XrdFrmProxy(Eroute.logger(),
+                           XrdOucUtils::InstName(),OssTrace.What & TRACE_Debug);
                 NoGo = !StageFrm->Init(XrdFrmProxy::opStg,
                                        getenv("XRDADMINPATH"), AMode);
                 StageRealTime = 0; StageAsync = 1;

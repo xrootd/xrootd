@@ -34,7 +34,7 @@ XrdNetCmsNotify::XrdNetCmsNotify(XrdSysError *erp, const char *aPath,
 
 // Make sure we are not getting anon as an instance name
 //
-   if (iName && !strcmp("anon", iName)) iName = 0;
+   if (iName) iName = XrdOucUtils::InstName(iName,0);
 
 // Construct the path for notification
 //

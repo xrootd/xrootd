@@ -25,6 +25,7 @@ const char *XrdFrmProxyCVSID = "$Id$";
 #include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -66,9 +67,8 @@ XrdFrmProxy::XrdFrmProxy(XrdSysLogger *lP, const char *iName, int Debug)
 // Develop our internal name
 //
    QPath = 0;
-   if (iName) insName = (strcmp(iName, "anon") ? iName : 0);
-       insName = 0;
-   sprintf(buff, "%s.%d", (iName ? iName : "anon"),static_cast<int>(getpid()));
+   insName = XrdOucUtils::InstName(iName,0);
+   sprintf(buff,"%s.%d",XrdOucUtils::InstName(iName),static_cast<int>(getpid()));
    intName = strdup(buff);
 }
 

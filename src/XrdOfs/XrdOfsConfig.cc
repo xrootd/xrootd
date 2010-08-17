@@ -358,12 +358,13 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
    XrdOfsPoscq::recEnt  *rP, *rPP;
    XrdOfsPoscq::Request *qP;
    XrdOfsHandle *hP;
-   char pBuff[MAXPATHLEN], *iName, *aPath;
+   const char *iName;
+   char pBuff[MAXPATHLEN], *aPath;
    int NoGo, rc;
 
 // Construct the proper path to the recovery file
 //
-   iName = getenv("XRDNAME");
+   iName = XrdOucUtils::InstName(-1);
    if (poscLog) aPath = XrdOucUtils::genPath(poscLog, iName, ".ofs/posc.log");
       else {if (!(aPath = getenv("XRDADMINPATH")))
                {XrdOucUtils::genPath(pBuff, MAXPATHLEN, "/tmp", iName);
@@ -997,7 +998,7 @@ int XrdOfs::xred(XrdOucStream &Config, XrdSysError &Eroute)
     if (val)
        {if (strcmp("if", val)) Config.RetToken();
         if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
-                                   getenv("XRDHOST"), getenv("XRDNAME"),
+                                   getenv("XRDHOST"), XrdOucUtils::InstName(1),
                                    getenv("XRDPROG"))) <= 0)
            return (rc < 0);
        }
@@ -1113,7 +1114,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 //
     if (val && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
-                                   getenv("XRDHOST"), getenv("XRDNAME"),
+                                   getenv("XRDHOST"), XrdOucUtils::InstName(1),
                                    getenv("XRDPROG"))) <= 0)
            return (rc < 0);
 

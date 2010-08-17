@@ -370,7 +370,7 @@ void XrdXrootdProtocol::PidFile()
 {
     int rc, xfd;
     char buff[32], pidFN[1200];
-    char *ppath=XrdOucUtils::genPath(pidPath,getenv("XRDNAME"));
+    char *ppath=XrdOucUtils::genPath(pidPath,XrdOucUtils::InstName(-1));
     const char *xop = 0;
 
     if ((rc = XrdOucUtils::makePath(ppath,XrdOucUtils::pathMode)))

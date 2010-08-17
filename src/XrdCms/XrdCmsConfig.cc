@@ -240,7 +240,7 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 
 // Establish my instance name
 //
-   sprintf(buff, "%s@%s", (myInsName ? myInsName : "anon"), myName);
+   sprintf(buff, "%s@%s", XrdOucUtils::InstName(myInsName), myName);
    myInstance = strdup(buff);
 
 // Print herald
@@ -337,7 +337,7 @@ int XrdCmsConfig::Configure2()
 
 // Establish the path to be used for admin functions
 //
-   p = XrdOucUtils::genPath(AdminPath,(strcmp("anon",myInsName)?myInsName:0),".olb");
+   p = XrdOucUtils::genPath(AdminPath,XrdOucUtils::InstName(myInsName,0),".olb");
    free(AdminPath);
    AdminPath = p;
 
@@ -893,7 +893,7 @@ int XrdCmsConfig::PidFile()
     const char *clID;
     char buff[1024];
     char pidFN[1200], *ppath=XrdOucUtils::genPath(pidPath,
-                              (strcmp("anon",myInsName)?myInsName:0));
+                             XrdOucUtils::InstName(myInsName,0));
     const char *xop = 0;
 
     if ((rc = XrdOucUtils::makePath(ppath, XrdOucUtils::pathMode)))

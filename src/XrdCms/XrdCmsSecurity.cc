@@ -300,8 +300,8 @@ char *XrdCmsSecurity::setSystemID(XrdOucTList *tp, const char *iName,
 
 // The system ID starts with the semi-unique name of this node
 //
-   if (!iName) iName = "anon";
-   if (!iHost) iHost = "localhost";
+   if (!iName || !*iName) iName = "anon";
+   if (!iHost || !*iHost) iHost = "localhost";
    strcpy(sidbuff, iName); strcat(sidbuff, "-");
    sp = sidbuff + strlen(sidbuff);
    *sp++ = iType; *sp++ = ' '; cP = sp;

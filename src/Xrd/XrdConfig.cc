@@ -332,7 +332,7 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdNetDNS::getHostAddr(myName, &myIPAddr);
    ProtInfo.myName = myName;
    ProtInfo.myAddr = &myIPAddr;
-   ProtInfo.myInst = (myInsName && *myInsName ? myInsName : "anon");
+   ProtInfo.myInst = XrdOucUtils::InstName(myInsName);
    ProtInfo.myProg = myProg;
 
 // Set the Environmental variable to hold the instance name

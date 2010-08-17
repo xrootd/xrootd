@@ -214,6 +214,32 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
 }
 
 /******************************************************************************/
+/*                              I n s t N a m e                               */
+/******************************************************************************/
+  
+const char *XrdOucUtils::InstName(int TranOpt)
+{
+   const char *iName = getenv("XRDNAME");
+
+// If tran is zero, return what we have
+//
+   if (!TranOpt) return iName;
+
+// If trans is positive then make sure iName has a value. Otherwise, make sure
+// iName has no value if it's actually "anon".
+//
+   if (TranOpt > 0) {if (!iName || !*iName) iName = "anon";}
+      else if (iName && !strcmp(iName, "anon")) iName = 0;
+   return iName;
+}
+/******************************************************************************/
+  
+const char *XrdOucUtils::InstName(const char *name, int Fillit)
+{ return (Fillit ? name && *name                        ? name : "anon"
+                 : name && strcmp(name,"anon") && *name ? name :     0);
+}
+  
+/******************************************************************************/
 /*                                 i s 1 o f                                  */
 /******************************************************************************/
   

@@ -162,7 +162,7 @@ int XrdFrmReqAgent::Start(char *aPath, int aMode)
 
 // Get the instance name
 //
-   if (!(myName = getenv("XRDNAME"))) myName = "anon";
+   myName = XrdOucUtils::InstName(1);
 
 // Generate the queue directory path
 //
