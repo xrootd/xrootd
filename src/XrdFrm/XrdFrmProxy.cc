@@ -98,7 +98,7 @@ int XrdFrmProxy::Add(char Opc, const char *Lfn, const char *Opq,
    n = strlen(Lfn);
    if (Opq && *Opq)
       {if (n + strlen(Opq) + 2 > sizeof(myReq.LFN)) return -ENAMETOOLONG;
-       strcpy(myReq.LFN, Lfn); strcpy(myReq.LFN+n+1, Opq), myReq.Opaque = n;
+       strcpy(myReq.LFN, Lfn); strcpy(myReq.LFN+n+1, Opq), myReq.Opaque = n+1;
       } else if (n < int(sizeof(myReq.LFN))) strcpy(myReq.LFN, Lfn);
                 else return -ENAMETOOLONG;
 

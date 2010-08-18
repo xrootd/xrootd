@@ -67,14 +67,6 @@ void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 //
    if (!FileLock()) {FailAdd(rP->LFN, 0); return;}
 
-// Process the Opaque information
-//
-   if (!(qP = index(rP->LFN, '?'))) rP->Opaque = 0;
-      else {*qP = '\0';
-            if (*(qP+1)) rP->Opaque = qP-(rP->LFN)+1;
-               else rP->Opaque = 0;
-           }
-
 // Obtain a free slot
 //
    if ((fP = HdrData.Free))

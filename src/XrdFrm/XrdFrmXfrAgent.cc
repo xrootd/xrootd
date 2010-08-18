@@ -98,7 +98,7 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
 // Add all paths in the request
 //
    do {strlcpy(myReq.LFN, tp, sizeof(myReq.LFN));
-       if ((op = index(tp, '?'))) myReq.Opaque = op-tp;
+       if ((op = index(tp, '?'))) {myReq.Opaque = op-tp+1; *op = '\0';}
           else myReq.Opaque = 0;
        myReq.LFO = 0;
        if (myReq.LFN[0] != '/' && !(myReq.LFO = XrdFrmUtils::chkURL(myReq.LFN)))
