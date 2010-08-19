@@ -290,16 +290,16 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
               }
           } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
 
+   // If undercover desired and we are not an agent, do so
+   //
+       if (optBG && !isAgent) XrdOucUtils::Undercover(Say, !logfn);
+
    // Bind the log file if we have one
    //
        if (logfn)
           {if (logkeep) Say.logger()->setKeep(logkeep);
            Say.logger()->Bind(logfn, 24*60*60);
           }
-
-   // If undercover desired and we are not an agent, do so
-   //
-       if (optBG && !isAgent) XrdOucUtils::Undercover(Say, !logfn);
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
