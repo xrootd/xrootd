@@ -105,7 +105,7 @@ char *XrdFrmUtils::makePath(const char *iName, const char *Path, int Mode)
   
 char *XrdFrmUtils::makeQDir(const char *Path, int Mode)
 {
-   char qPath[1024], qLink[2048];
+   char qPath[1032], qLink[2048];
    int n, lksz, rc;
 
 // Generate an frm-specific queue path

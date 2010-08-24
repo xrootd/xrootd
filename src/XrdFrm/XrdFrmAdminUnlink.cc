@@ -215,7 +215,7 @@ int XrdFrmAdmin::UnlinkDir(XrdOucNSWalk::NSEnt *&nP, XrdOucNSWalk::NSEnt *&dP)
   
 int XrdFrmAdmin::UnlinkFile(const char *lclPath)
 {
-   static const int ulOpts = XRDOSS_Online | XRDOSS_isPFN;
+   static const int ulOpts = XRDOSS_Online | XRDOSS_isMIG | XRDOSS_isPFN;
    int rc;
 
 // Remove this file as needed
