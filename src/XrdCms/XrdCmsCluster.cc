@@ -1159,7 +1159,7 @@ void XrdCmsCluster::Record(char *path, const char *reason)
 int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 {
     EPNAME("SelNode")
-    const char *act=0, *reason, *reason2;
+    const char *act=0, *reason, *reason2 = "";
     int pspace, needspace, delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
     SMask_t mask;
     XrdCmsNode *nP = 0;

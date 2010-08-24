@@ -432,7 +432,7 @@ const char *XrdOfsEvs::eName(int eNum)
                                     "opnw",   "rm",     "rmdir",  "trunc"};
 
   eNum = (eNum & Mask);
-  return (eNum < 0 || eNum > nCount ? "?" : eventName[eNum]);
+  return (eNum < 0 || eNum >= nCount ? "?" : eventName[eNum]);
 }
 
 /******************************************************************************/

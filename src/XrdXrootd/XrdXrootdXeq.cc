@@ -759,7 +759,7 @@ int XrdXrootdProtocol::do_Offload(int pathID, int isWrite)
 
 // Verify that the path actually exists
 //
-   if (pathID > maxStreams || !(pp = Stream[pathID]))
+   if (pathID >= maxStreams || !(pp = Stream[pathID]))
       return Response.Send(kXR_ArgInvalid, "invalid path ID");
 
 // Verify that this path is still functional
@@ -1178,6 +1178,7 @@ int XrdXrootdProtocol::do_Prepare()
             pargs.user=Link->ID;
             pargs.paths=pFirst;
             XrdXrootdPrepare::Log(pargs);
+            pargs.reqid = 0;
            }
    return rc;
 }
