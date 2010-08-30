@@ -83,7 +83,9 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc             XrdOfs.hh \
 	@echo Compiling XrdOfs.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
 
-$(OBJDIR)/XrdOfsFS.o:  XrdOfsFS.cc             XrdOfs.hh
+$(OBJDIR)/XrdOfsFS.o:  XrdOfsFS.cc             XrdOfs.hh \
+                       XrdSysError.hh          XrdSysPthread.hh \
+                    ../XrdVersion.hh
 	@echo Compiling XrdOfsFS.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsFS.o XrdOfsFS.cc
 
