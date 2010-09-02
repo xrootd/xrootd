@@ -149,7 +149,7 @@ $(BINAGNT): $(BINXFRD)
 	$(ECHO)ln $(BINXFRD) $(BINAGNT)
 
 $(OBJDIR)/XrdFrmAdmin.o:  XrdFrmAdmin.hh    XrdFrmAdmin.cc  XrdFrmTrace.hh \
-                          XrdFrmConfig.hh   XrdFrmUtils.hh  \
+                          XrdFrmConfig.hh   XrdFrmProxy.hh  XrdFrmUtils.hh  \
                           XrdOss.hh         XrdOucExport.hh \
                           XrdOuca2x.hh      XrdOucArgs.hh   \
                           XrdOucTList.hh    XrdOucTokenizer.hh \
@@ -190,7 +190,9 @@ $(OBJDIR)/XrdFrmAdminMain.o:  XrdFrmAdmin.hh     XrdFrmAdminMain.cc \
 
 $(OBJDIR)/XrdFrmAdminQuery.o:  XrdFrmAdmin.hh    XrdFrmAdminQuery.cc \
                                XrdFrmConfig.hh   XrdFrmFiles.hh  \
-                               XrdFrmTrace.hh    XrdSysError.hh \
+                               XrdFrmRequest.hh  XrdFrmProxy.hh \
+                               XrdFrmTrace.hh    XrdFrmUtils.hh \
+                               XrdSysError.hh \
                                XrdOssPath.hh     XrdOssSpace.hh \
                                XrdOucArgs.hh     XrdOucNSWalk.hh \
                                XrdOucTList.hh

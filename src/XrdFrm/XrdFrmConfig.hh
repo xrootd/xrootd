@@ -39,6 +39,7 @@ const char         *myFrmid;
 const char         *myFrmID;
 const char         *lockFN;
 char               *AdminPath;
+char               *APath;
 char               *QPath;
 char               *PidPath;
 char               *myInstance;
@@ -51,9 +52,12 @@ struct Cmd
        char        *theCmd;
        XrdOucMsubs *theVec;
        int          TLimit;
-       short        hasMDP;
-       short        Stats;
+       int          Opts;
       }             xfrCmd[4];
+static const int    cmdAlloc = 0x0001;
+static const int    cmdMDP   = 0x0002;
+static const int    cmdStats = 0x0004;
+
 int                 xfrIN;
 int                 xfrOUT;
 

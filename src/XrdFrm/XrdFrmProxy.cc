@@ -185,21 +185,43 @@ do{if (!State.Active)
 }
 
 /******************************************************************************/
+  
+int XrdFrmProxy::List(int qType, int qPrty, XrdFrmRequest::Item *Items, int Num)
+{
+   int i, n, Cnt = 0;
+
+// List each queue
+//
+   while(qType & opAll)
+        {for (i = 0; i < oqNum; i++) if (oqMap[i].oType & qType) break;
+         if (i >= oqNum) return Cnt;
+         qType &= ~oqMap[i].oType; n = oqMap[i].qType;
+         if (!Agent[n]) continue;
+         if (qPrty < 0) Cnt += Agent[n]->List(Items, Num);
+            else Cnt += Agent[n]->List(Items, Num, qPrty);
+        }
+
+// All done
+//
+   return Cnt;
+}
+
+/******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
 
-int XrdFrmProxy::Init(int opX, const char *aPath, int aMode)
+int XrdFrmProxy::Init(int opX, const char *aPath, int aMode, const char *qPath)
 {
-   const char *configFN = getenv("XRDCONFIGFN"), *iName = insName;
+   const char *configFN = getenv("XRDCONFIGFN"), *iName = 0;
    int i;
 
 // If there is a config file then we need to see if a specific qpath is there.
-// Otherwise, we will use the adminpath as the queue path.
+// Otherwise, we will use the adminpath as the queue path. Note that we qualify
+// the queue path with the instance name unless there is no config file.
 //
-   if (configFN)
-      {if (!Init2(configFN)) iName = 0;
-          else return 0;
-      }
+        if (qPath) QPath = strdup(qPath);
+   else if (!configFN) iName = insName;
+   else if (Init2(configFN)) return 0;
 
 // Create the queue path directory if it does not exists
 //

@@ -60,7 +60,6 @@ void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 {
    rqMonitor rqMon(isAgent);
    XrdFrmRequest tmpReq;
-   char *qP;
    int fP;
 
 // Lock the file

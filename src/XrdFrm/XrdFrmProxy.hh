@@ -48,7 +48,9 @@ class Queues
 
 int   List(Queues &State, char *Buff, int Bsz);
 
-int   Init(int opX, const char *aPath, int aMode);
+int   List(int qType, int qPrty, XrdFrmRequest::Item *Items, int Num);
+
+int   Init(int opX, const char *aPath, int aMode, const char *qPath=0);
 
       XrdFrmProxy(XrdSysLogger *lP, const char *iName, int Debug=0);
      ~XrdFrmProxy() {}

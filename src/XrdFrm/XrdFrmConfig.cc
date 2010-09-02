@@ -137,6 +137,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    uInfo    = uinfo;
    ssID     = ss;
    AdminPath= 0;
+   APath    = 0;
    QPath    = 0;
    AdminMode= 0740;
    xfrMax   = 2;
@@ -785,6 +786,11 @@ int XrdFrmConfig::ConfigPaths()
    if (haveCMS)
       cmsPath = new XrdNetCmsNotify(&Say,xPath,insName,XrdNetCmsNotify::isServ);
 
+// If there is no QPath then make it the unqualified admin path
+//
+   APath = strdup(xPath);
+   if (!QPath) QPath = APath;
+
 // Create the admin directory if it does not exists
 //
    if (!(xPath = XrdFrmUtils::makePath(insName, xPath, AdminMode))) return 1;
@@ -794,11 +800,6 @@ int XrdFrmConfig::ConfigPaths()
 //
    strcpy(buff, Config.AdminPath); strcat(buff, "STOPPURGE");
    StopPurge = strdup(buff);
-
-// If there is no QPath then make it the admin path
-//
-   if (QPath) return !XrdFrmUtils::makePath(0, QPath, AdminMode);
-      else QPath = AdminPath;
 
 // All done
 //
@@ -888,6 +889,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 //
    if (ssID == ssAdmin)
       {
+       if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
@@ -1178,6 +1180,7 @@ int XrdFrmConfig::xapath()
    Options:  [in] [out] [stats] [timeout <sec>] [url] cmd [args]
 
              in        use command for incomming copies.
+             noalloc   do not pre-allocate space for incomming copies.
              out       use command for outgoing copies.
              stats     print transfer statistics in the log.
              timeout   how long the cmd can run before it is killed.
@@ -1186,12 +1189,13 @@ int XrdFrmConfig::xapath()
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcopy()
-{  int cmdIO[2] = {0,0}, TLim = 0, Stats = 0, cmdMDP = 0, cmdUrl = 0;
+{  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0;
    char *val, *theCmd = 0;
    struct copyopts {const char *opname; int *oploc;} cpopts[] =
          {
           {"in",     &cmdIO[0]},
           {"out",    &cmdIO[1]},
+          {"noalloc",&noAlo},
           {"stats",  &Stats},
           {"timeout",&TLim},
           {"url",    &cmdUrl}
@@ -1222,7 +1226,7 @@ int XrdFrmConfig::xcopy()
 // Find if $MDP is present here
 //
    if (!cmdIO[0] && !cmdIO[1]) cmdIO[0] = cmdIO[1] = 1;
-   if (cmdIO[1]) cmdMDP = (strstr(theCmd, "$MDP") != 0);
+   if (cmdIO[1]) hasMDP = (strstr(theCmd, "$MDP") != 0);
 
 // Initialzie the appropriate command structures
 //
@@ -1231,8 +1235,10 @@ int XrdFrmConfig::xcopy()
    do {if (cmdIO[i])
           {if (xfrCmd[n].theCmd) free(xfrCmd[n].theCmd);
            xfrCmd[n].theCmd = strdup(theCmd);
-           xfrCmd[n].Stats  = Stats;
-           xfrCmd[n].hasMDP = cmdMDP;
+           if (Stats)  xfrCmd[n].Opts  |= cmdStats;
+           if (hasMDP) xfrCmd[n].Opts  |= cmdMDP;
+           if (noAlo)  xfrCmd[n].Opts  &=~cmdAlloc;
+              else     xfrCmd[n].Opts  |= cmdAlloc;
            xfrCmd[n].TLimit = TLim;
           }
        n--;

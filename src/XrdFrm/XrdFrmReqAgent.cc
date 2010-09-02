@@ -99,18 +99,41 @@ void XrdFrmReqAgent::Del(XrdFrmRequest &Request)
 /* Public:                          L i s t                                   */
 /******************************************************************************/
   
-void XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num)
+int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num)
 {
-   char myLfn[4096];
-   int i, Offs;
+   char myLfn[8192];
+   int i, Offs, n = 0;
 
 // List entries in each priority queue
 //
    for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
        {Offs = 0;
         while(rQueue[i]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
-             cout <<myLfn <<endl;
+             {cout <<myLfn <<endl; n++;}
        }
+// All done
+//
+   return n;
+}
+
+/******************************************************************************/
+  
+int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num, int Prty)
+{
+   char myLfn[8192];
+   int Offs, n = 0;
+
+// List entries in each priority queue
+//
+   if (Prty <= XrdFrmRequest::maxPrty)
+       {Offs = 0;
+        while(rQueue[Prty]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
+             {cout <<myLfn <<endl; n++;}
+       }
+
+// All done
+//
+   return n;
 }
   
 /******************************************************************************/

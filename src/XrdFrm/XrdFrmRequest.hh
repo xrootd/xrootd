@@ -61,7 +61,7 @@ static const int maxPQE   = 3;
 // The following define what can be listed from the queue
 //
 enum Item {getOBJ = 0, getLFN, getOBJCGI, getLFNCGI, getMODE, getNOTE, getOP,
-           getPRTY,    getQWT, getRID,    getTOD,    getUSER};
+           getPRTY,    getQWT, getRID,    getTOD,    getUSER, getLast};
 
 // These define possible queues along with the "nil" queue
 //
