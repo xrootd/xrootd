@@ -14,14 +14,15 @@ const char *XrdOucUtilsCVSID = "$Id$";
 
 #include <ctype.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #ifdef WIN32
 #include <direct.h>
 #include "XrdSys/XrdWin32.hh"
+#else
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #endif
 #include "XrdNet/XrdNetDNS.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -330,7 +331,11 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 /******************************************************************************/
 /*                            U n d e r c o v e r                             */
 /******************************************************************************/
-
+#ifdef WIN32
+void XrdOucUtils::Undercover(XrdSysError &, int)
+{
+}
+#else
 void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
 {
    static const int maxFiles = 256;
@@ -378,3 +383,5 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
 //
   for (myfd = 3; myfd < maxFiles; myfd++) close(myfd);
 }
+#endif
+
