@@ -15,5 +15,9 @@ TYPEOPT    = $(TYPEMISC) -O2
 TYPEDBG    = $(TYPEMISC) -g
 TYPELDSO   = -m32 -shared
 TYPESHLIB  = so
+ifneq (,$(findstring i386,$(ARCH)))
+TYPEMISC  += -m32
+TYPELDSO  += -m32
+endif
 
 TYPELIBS   =  -lnsl $(PTHREAD) -lrt -ldl -lc
