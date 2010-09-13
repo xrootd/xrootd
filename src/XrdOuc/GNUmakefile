@@ -32,6 +32,9 @@ SOURCES = \
         XrdOucTokenizer.cc   \
         XrdOucTrace.cc       \
         XrdOucUtils.cc
+ifneq ($(LIBDNSSD),)
+SOURCES += XrdOucBonjour.cc XrdOucFactoryBonjour.cc
+endif
 
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
@@ -54,7 +57,12 @@ OBJECTS = \
         $(OBJDIR)/XrdOucSxeq.o         \
         $(OBJDIR)/XrdOucTokenizer.o    \
         $(OBJDIR)/XrdOucTrace.o        \
-        $(OBJDIR)/XrdOucUtils.o
+        $(OBJDIR)/XrdOucUtils.o        \
+        $(OBJDIR)/XrdOucCRC.o
+ifneq ($(LIBDNSSD),)
+OBJECTS +=  $(OBJDIR)/XrdOucBonjour.o  $(OBJDIR)/XrdOucFactoryBonjour.o
+endif
+
 
 LIBRARY = $(LIBDIR)/libXrdOuc.a
 
@@ -67,6 +75,7 @@ TARGETS = $(LIBRARY)
 vpath XrdNet% ../XrdNet
 vpath XrdOuc% ../XrdOuc
 vpath XrdSys% ../XrdSys
+vpath Xrd% ../Xrd
 
 #------------------------------------------------------------------------------#
 #                          I n i t i a l   R u l e s                           #
@@ -175,3 +184,17 @@ $(OBJDIR)/XrdOucUtils.o: XrdOucUtils.cc XrdOucUtils.hh \
                       XrdSysError.hh XrdOucStream.hh XrdNetDNS.hh
 	@echo Compiling XrdOucUtils.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucUtils.cc -o $(OBJDIR)/XrdOucUtils.o
+
+$(OBJDIR)/XrdOucBonjour.o: XrdOucBonjour.cc XrdOucBonjour.hh XrdSysError.hh \
+                           XrdSysHeaders.hh XrdOucString.hh XrdSysPthread.hh \
+                           XrdOucAppleBonjour.hh XrdOucAvahiBonjour.hh \
+                           XrdProtLoad.hh
+	@echo Compiling XrdOucBonjour.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFHASLIBDNSSD) $(CFHASLIBAVAHI) $(INCLUDE) XrdOucBonjour.cc -o $(OBJDIR)/XrdOucBonjour.o
+
+$(OBJDIR)/XrdOucFactoryBonjour.o: XrdOucBonjour.hh XrdSysError.hh \
+                                XrdSysHeaders.hh XrdOucString.hh XrdSysPthread.hh \
+                                XrdOucFactoryBonjour.hh XrdOucFactoryBonjour.cc XrdConfig.hh \
+                                XrdInet.hh XrdProtLoad.hh
+	@echo Compiling XrdOucFactoryBonjour.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFHASLIBDNSSD) $(INCLUDE) XrdOucFactoryBonjour.cc -o $(OBJDIR)/XrdOucFactoryBonjour.o
