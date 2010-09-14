@@ -2309,6 +2309,18 @@ fi
 #
 ### echo %%% Check for Bonjour and Avahi libraries
 #
+
+case $platform in
+    linux|macos) 
+        ;;
+    *)
+      if test "x$enable_bonjour" = "xyes" ; then
+        echo "Sorry, the Bonjour/Avahi interface currently supported only for Linux/MacOsX - disabling ..."
+      fi
+      enable_bonjour=no
+        ;;
+esac
+
 haslibdnssd=""
 
 if test "x$enable_bonjour" = "xyes" ; then
