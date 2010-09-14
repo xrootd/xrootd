@@ -2311,11 +2311,11 @@ fi
 #
 
 case $platform in
-    linux|macos) 
+    linux|macosx) 
         ;;
     *)
       if test "x$enable_bonjour" = "xyes" ; then
-        echo "Sorry, the Bonjour/Avahi interface currently supported only for Linux/MacOsX - disabling ..."
+        echo "Sorry, the Bonjour/Avahi interface currently supported only for Linux/MacOsX - disabling ... (platform: $platform)"
       fi
       enable_bonjour=no
         ;;
@@ -2349,21 +2349,20 @@ if test "x$enable_bonjour" = "xyes" ; then
           bjrlibdir=""
        fi
 
-       if test "x$haslibdnssd" != "x"; then
-          # Mac OS X has Bonjour embedded in libSystem.
-          if test "x$platform" = "xmacosx"; then
+       # Mac OS X has Bonjour embedded in libSystem.
+       if test "x$platform" = "xmacosx"; then
+          libdnssd=""
+       else
+          check_library "libdns_sd" "$enable_shared" $bjrlibdir $what2look4
+          if test "x$found_lib" = "x" ; then
+             haslibdnssd=""
              libdnssd=""
+             enable_bonjour="no"
           else
-             check_library "libdns_sd" "$enable_shared" $bjrlibdir $what2look4
-             if test "x$found_lib" = "x" ; then
-                haslibdnssd=""
-                libdnssd=""
-                enable_bonjour="no"
-             else
-                libdnssd="$found_dir $found_lib"
-             fi
+             libdnssd="$found_dir $found_lib"
           fi
-      fi
+       fi
+	  
    fi
 fi
 
@@ -2479,21 +2478,32 @@ rm -fr "src/XrdOuc/XrdOucFactoryBonjour.cc" "src/XrdOuc/XrdOucFactoryBonjour.hh"
 # Check.
 if test "x$enable_bonjour" = "xyes" && test "x$haslibavahi" != "x" ; then
    # Having Avahi implies having also the dns_sd compatibility layer.
-   ln -s "XrdOucAvahiBonjour.cc" "src/XrdOuc/XrdOucFactoryBonjour.cc"
-   ln -s "XrdOucAvahiBonjour.hh" "src/XrdOuc/XrdOucFactoryBonjour.hh"
+   echo "Creating XrdOucFactoryBonjour symlinks to XrdOucAppleBonjour ..."
+   cd src/XrdOuc
+   ln -s "XrdOucAvahiBonjour.cc" "XrdOucFactoryBonjour.cc"
+   ln -s "XrdOucAvahiBonjour.hh" "XrdOucFactoryBonjour.hh"
+   cd ../..
 else
    if test "x$enable_bonjour" = "xyes" && test "x$haslibdnssd" != "x" ; then
       # If we don't have Avahi, it means that everything will be on Bonjour.
-      ln -s "src/XrdOuc/XrdOucAppleBonjour.cc" "src/XrdOuc/XrdOucFactoryBonjour.cc"
-      ln -s "src/XrdOuc/XrdOucAppleBonjour.hh" "src/XrdOuc/XrdOucFactoryBonjour.hh"
+      echo "Creating XrdOucFactoryBonjour symlinks to XrdOucAppleBonjour ..."
+      cd src/XrdOuc
+      ln -s "XrdOucAppleBonjour.cc" "XrdOucFactoryBonjour.cc"
+      ln -s "XrdOucAppleBonjour.hh" "XrdOucFactoryBonjour.hh"
+      cd ../../
    else
       if test "x$enable_bonjour" = "xyes" ; then
          # Reaching this poing means that we want Bonjour, but not libraries were
          # installed.
          echo "Bonjour libraries not found."
+         enable_bonjour="no"
          exit 1
       fi
    fi
+fi
+buildbjr=
+if test "x$enable_bonjour" = "xyes" ; then
+   buildbjr="yes"
 fi
 
 ######################################################################
@@ -3059,6 +3069,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasepoll@|$hasepoll|" \
     -e "s|@haslibz@|$haslibz|" \
     -e "s|@libz@|$libz|" \
+    -e "s|@buildbjr@|$buildbjr|" \
     -e "s|@haslibdnssd@|$haslibdnssd|" \
     -e "s|@libdnssd@|$libdnssd|" \
     -e "s|@haslibavahi@|$haslibavahi|" \

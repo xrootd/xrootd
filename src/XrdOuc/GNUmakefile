@@ -32,7 +32,7 @@ SOURCES = \
         XrdOucTokenizer.cc   \
         XrdOucTrace.cc       \
         XrdOucUtils.cc
-ifneq ($(LIBDNSSD),)
+ifneq ($(BUILDBJR),)
 SOURCES += XrdOucBonjour.cc XrdOucFactoryBonjour.cc
 endif
 
@@ -59,7 +59,7 @@ OBJECTS = \
         $(OBJDIR)/XrdOucTrace.o        \
         $(OBJDIR)/XrdOucUtils.o        \
         $(OBJDIR)/XrdOucCRC.o
-ifneq ($(LIBDNSSD),)
+ifneq ($(BUILDBJR),)
 OBJECTS +=  $(OBJDIR)/XrdOucBonjour.o  $(OBJDIR)/XrdOucFactoryBonjour.o
 endif
 
@@ -187,14 +187,14 @@ $(OBJDIR)/XrdOucUtils.o: XrdOucUtils.cc XrdOucUtils.hh \
 
 $(OBJDIR)/XrdOucBonjour.o: XrdOucBonjour.cc XrdOucBonjour.hh XrdSysError.hh \
                            XrdSysHeaders.hh XrdOucString.hh XrdSysPthread.hh \
-                           XrdOucAppleBonjour.hh XrdOucAvahiBonjour.hh \
+                           XrdOucFactoryBonjour.hh \
                            XrdProtLoad.hh
 	@echo Compiling XrdOucBonjour.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFHASLIBDNSSD) $(CFHASLIBAVAHI) $(INCLUDE) XrdOucBonjour.cc -o $(OBJDIR)/XrdOucBonjour.o
 
 $(OBJDIR)/XrdOucFactoryBonjour.o: XrdOucBonjour.hh XrdSysError.hh \
                                 XrdSysHeaders.hh XrdOucString.hh XrdSysPthread.hh \
-                                XrdOucFactoryBonjour.hh XrdOucFactoryBonjour.cc XrdConfig.hh \
+                                XrdOucFactoryBonjour.hh XrdConfig.hh \
                                 XrdInet.hh XrdProtLoad.hh
 	@echo Compiling XrdOucFactoryBonjour.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFHASLIBDNSSD) $(INCLUDE) XrdOucFactoryBonjour.cc -o $(OBJDIR)/XrdOucFactoryBonjour.o

@@ -13,11 +13,7 @@
 #include "Xrd/XrdProtLoad.hh"
 
 // Conditional inclusion of headers dependent on platform.
-#if defined(__macos__)
-#include "XrdOuc/XrdOucAppleBonjour.hh"
-#elif defined(__linux__)
-#include "XrdOuc/XrdOucAvahiBonjour.hh"
-#endif
+#include "XrdOuc/XrdOucFactoryBonjour.hh"
 
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
@@ -29,7 +25,7 @@ extern XrdSysError  XrdLog;               // Defined in XrdMain.cc
 /*                        B o n j o u r   r e c o r d                         */
 /******************************************************************************/
 
-#if defined(__linux__)
+#if !defined(__macos__)
 AvahiStringList *XrdOucBonjourRecord::GetTXTAvahiList()
 {
    AvahiStringList *list;
