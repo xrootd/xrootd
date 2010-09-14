@@ -231,6 +231,12 @@ extern "C"
 #define net_errno errno
 #endif
 
+#ifdef WIN32
+#define MAXNAMELEN 256
+#define MAXPATHLEN 1024
+#else
+#include <sys/param.h>
+#endif
 // The following gets arround a relative new gcc compiler bug
 //
 #define XRDABS(x) (x < 0 ? -x : x)
