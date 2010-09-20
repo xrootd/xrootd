@@ -26,6 +26,8 @@ CCOMPILE = gcc
 
 SOURCES = \
         XrdSecProtocolssl.cc \
+	XrdSecProtocolsslProc.cc \
+        XrdSecProtocolsslProc.hh \
         XrdSecProtocolsslTest.cc \
         libsslGridSite/grst_asn1.c \
         libsslGridSite/grst_err.c \
@@ -34,9 +36,6 @@ SOURCES = \
         libsslGridSite/grst_verifycallback.c \
         libsslGridSite/grst_x509.c \
         libsslGridSite/grst_xacml.c \
-
-OBJECTS = \
-        $(OBJDIR)/XrdSecProtocolssl.o
 
 OBJECTA = \
         $(OBJDIR)/XrdSecProtocolsslTest.o
@@ -49,6 +48,11 @@ OBJGRST = \
         $(OBJDIR)/grst_verifycallback.o \
         $(OBJDIR)/grst_x509.o \
         $(OBJDIR)/grst_xacml.o\
+
+OBJECTS = $(OBJGRST) $(OBJECTA) \
+        $(OBJDIR)/XrdSecProtocolssl.o \
+        $(OBJDIR)/XrdSecProtocolsslProc.o
+
 
 LIBGRST = $(LIBDIR)/libsslGridSite.a
 LIBRARY = $(LIBDIR)/libXrdSecssl.$(TYPESHLIB)
@@ -93,7 +97,14 @@ $(SECSSLTEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECSSLTEST)
 	$(ECHO)$(LD) $(LDOP) $(OBJECTA) -L$(LIBDIR) -lXrdSecssl $(MORELIBS) $(LIBS) -o $(SECSSLTEST)
 
+$(OBJDIR)/XrdSecProtocolsslProc.o:  XrdSecProtocolsslProc.cc 	XrdSecProtocolsslProc.hh \
+			        XrdOucString.hh 	XrdOucHash.hh
+
+	@echo Compiling XrdSecProtocolsslProc.cc
+	$(ECHO)$(CC) -c $(NCXXFLAGS)  $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolsslProc.o XrdSecProtocolsslProc.cc
+
 $(OBJDIR)/XrdSecProtocolssl.o:  XrdSecProtocolssl.cc 	XrdSecProtocolssl.hh 	XrdSecInterface.hh \
+                                XrdSecProtocolsslProc.cc XrdSecProtocolsslProc.hh \
                                 XrdSysHeaders.hh 	XrdNetDNS.hh 		XrdOucErrInfo.hh XrdOucHash.hh \
 				XrdOucString.hh 	XrdOucTrace.hh 		XrdOucTokenizer.hh XrdSysPthread.hh \
 				XrdSysLogger.hh 	XrdSecInterface.hh 	XrdSecTLayer.hh \

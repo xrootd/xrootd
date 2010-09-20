@@ -978,6 +978,63 @@ CPPFLAGS="$CPPFLAGS_BUP"
 AM_CONDITIONAL(ENABLE_KRB5,test x"$activate_krb5" = xyes -o x"$activate_krb5" = xdefault_yes)
 
 
+###########################################
+# libxml2 checks
+ACX_LIBOPTION(secssl,[ SecSSL support], no)
+ACX_LIBOPTION(xml2,[   xml library],yes)
+
+if test x"$activate_xml2" = xyes -o x"$activate_xml2" = xdefault_yes; then
+ xmltests=ok
+ if test x"$acx_xml2_incdir" != x; then
+   searchpath=$acx_xml2_incdir
+ else
+   searchpath="/usr/include/libxml2"
+  fi
+
+  ACX_LOCATEFILE([libxml/xmlmemory.h],[$searchpath],
+                 [XML2_INCDIR="-I$acx_founddir"
+                  AC_MSG_NOTICE([xml2 header dir set to: $dir ]) ],
+                 [xmltests=failed]
+                )
+
+  CPPFLAGS_BUP="$CPPFLAGS"
+  LDFLAGS_BUP=$LDFLAGS
+
+  CPPFLAGS="$XML2_INCDIR $CPPFLAGS"
+
+  AC_CHECK_HEADER([libxml/xmlmemory.h],
+                  [],[xmltests=failed]
+                  )
+
+  LDFLAGS="$XML2_LIBDIR $LDFLAGS"
+  AC_CHECK_LIB([xml2],[xmlReaderForMemory],
+               [:],[xmltests=failed],[]
+              )
+
+  CPPFLAGS="$CPPFLAGS_BUP"
+  LDFLAGS=$LDFLAGS_BUP
+
+  AC_SUBST(XML2_INCDIR)
+  AC_SUBST(XML2_LIBDIR)
+else
+  xmltests=failed
+fi
+
+if test x"$activate_secssl" = xyes -o x"$activate_secssl" = xdefault_yes; then
+   secssltests=ok
+   if test x"$ssltests" != xok; then
+     secssltests=failed
+     AC_MSG_WARN([Cannot build SecSSL plugin without SSL support])
+   fi
+   if test x"$xmltests" != xok; then
+     secssltests=failed
+     AC_MSG_WARN([Cannot build SecSSL plugin without XML2 support])
+   fi
+   activate_krb5=disabled
+fi
+
+AM_CONDITIONAL(ENABLE_SECSSL,test x"$activate_secssl" = xyes -o x"$activate_secssl" = xdefault_yes)
+
 
 ###########################################
 # tkauthz checks
@@ -1022,6 +1079,8 @@ AC_OUTPUT(Makefile
 	  src/XrdSeckrb5/Makefile
 	  src/XrdSecgsi/Makefile
           src/XrdSecsss/Makefile
+	  src/XrdSecssl/Makefile
+	  src/XrdSecssl/libsslGridSite/Makefile
 	  src/XrdSecunix/Makefile
 	  src/XrdSfs/Makefile
           src/XrdAcc/Makefile
