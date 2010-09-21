@@ -14,17 +14,39 @@ bin_PROGRAMS = xrdsecssltest
 
 lib_LTLIBRARIES = libXrdSecssl.la
 
-INCLUDES = -I$(top_srcdir)/src -I${XROOTD_INCDIR}/  -IlibsslGridSite ${OPENSSL_INCDIR} ${XML2_INCDIR}
-libXrdSecssl_la_SOURCES = XrdSecProtocolssl.cc XrdSecProtocolssl.hh XrdSecProtocolsslTrace.hh XrdSecProtocolsslProc.cc XrdSecProtocolsslProc.hh
-libXrdSecssl_la_LIBADD = 
-libXrdSecssl_la_LDFLAGS = -L${XROOTD_LIBDIR}/ ../XrdSec/libXrdSec.la ../XrdSys/libXrdSys.la \
-	../XrdOuc/libXrdOuc.la ../XrdNet/libXrdNet.la ${SSLLINKLIB} libsslGridSite/libsslGridSite.la ${OPENSSL_LIBDIR} -lcrypto -lssl ${XML2_LIBDIR} -lxml2 -module  
-libXrdSecssl_la_CXXFLAGS = -Wall -Wno-deprecated-declarations ${CXXFLAGS}
-libXrdSecssl_la_LIBTOOLFLAGS = --tag=disable-static
+INCLUDES = \
+	-I$(top_srcdir)/src \
+	-I${XROOTD_INCDIR}/ \
+	-IlibsslGridSite    \
+	${OPENSSL_INCDIR}   \
+	${XML2_INCDIR}
+
+libXrdSecssl_la_SOURCES = \
+	XrdSecProtocolssl.cc      \
+	XrdSecProtocolssl.hh      \
+	XrdSecProtocolsslTrace.hh \
+	XrdSecProtocolsslProc.cc  \
+	XrdSecProtocolsslProc.hh
+
+libXrdSecssl_la_LIBADD  =
+libXrdSecssl_la_LDFLAGS = \
+	-L${XROOTD_LIBDIR}/ \
+	../XrdSec/libXrdSec.la \
+	../XrdSys/libXrdSys.la \
+	../XrdOuc/libXrdOuc.la \
+	../XrdNet/libXrdNet.la \
+	${SSLLINKLIB}          \
+	libsslGridSite/libsslGridSite.la \
+	${OPENSSL_LIBDIR} \
+	-lcrypto -lssl \
+	${XML2_LIBDIR} -lxml2 \
+	-module
+
+libXrdSecssl_la_CXXFLAGS = ${CXXFLAGS}
 
 xrdsecssltest_SOURCES = XrdSecProtocolsslTest.cc
-xrdsecssltest_LDADD = libXrdSecssl.la ../XrdNet/libXrdNetUtil.la
-
+xrdsecssltest_LDADD   = ${OPENSSL_LIBDIR} libXrdSecssl.la ../XrdNet/libXrdNetUtil.la ../XrdOuc/libXrdOuc.la -lssl -lcrypto
+xrdsecssltest_LDFLAGS = -static
 
 
 EXTRA_DIST = README GNUmakefile.classic XrdSec/XrdSecTLayer.hh

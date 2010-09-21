@@ -33,6 +33,10 @@
  * For more about GridSite: http://www.gridsite.org/             *
  *---------------------------------------------------------------*/
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef GRST_VERSION
 #define GRST_VERSION 010500
 #endif
@@ -453,3 +457,7 @@ int    GRSThtcpNOPresponseMake(char **, int *, unsigned int);
 int    GRSThtcpTSTrequestMake(char **, int *, unsigned int, char *, char *, char *);
 int    GRSThtcpTSTresponseMake(char **, int *, unsigned int, char *, char *, char *);
 int    GRSThtcpMessageParse(GRSThtcpMessage *, char *, int);
+
+#ifdef __cplusplus
+}
+#endif

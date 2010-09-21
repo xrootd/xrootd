@@ -22,7 +22,7 @@ NCFLAGS = $(INCXML) $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 -U_FORTIFY_SOU
 #                             C o m p o n e n t s                              #
 #------------------------------------------------------------------------------#
 
-CCOMPILE = gcc
+CCOMPILE = cc
 
 SOURCES = \
         XrdSecProtocolssl.cc \
@@ -59,7 +59,7 @@ LIBRARY = $(LIBDIR)/libXrdSecssl.$(TYPESHLIB)
 
 SECSSLTEST = $(BINDIR)/xrdsecssltest
 
-TARGETS = $(LIBGRST) $(LIBRARY)
+TARGETS = $(LIBGRST) $(LIBRARY) $(SECSSLTEST)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #

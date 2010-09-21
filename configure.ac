@@ -535,32 +535,17 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
   PERL_CCOPTS=`${PERL} -MExtUtils::Embed -e ccopts`
 
   # since MacOS now allows packing several archs into one file and
-  # this results in link errors for the unwanted arch, we need to filter
-  # the wrong flags out. This present solution is not nice!
-  twoarchsld=`expr "$PERL_LDOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
-  if test x"$twoarchsld" != x; then
-    AC_MSG_WARN([perl says it was linked with multiple -arch flags ($twoarchsld)! Will try to remove one])
-    if test x"$target_cpu" = xi386 -o x"$target_cpu" = xi686; then
-      PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *ppc//'` 
-    fi
-    twoarchsld=`expr "$PERL_LDOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
-  fi
-
-  twoarchscc=`expr "$PERL_CCOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
-  if test x"$twoarchscc" != x; then
-    AC_MSG_WARN([perl says it was compiled with multiple -arch flags ($twoarchscc)! Will try to remove one])
-    if test x"$target_cpu" = xi386 -o x"$target_cpu" = xi686; then
-      PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *ppc//'` 
-    fi
-    twoarchscc=`expr "$PERL_CCOPTS" : '.*\(-arch  *[[a-z0-9]]*.*-arch  *[[a-z0-9]]*\)'`
-  fi
-
-  if test x"$twoarchsld" != x -o x"$twoarchscc" != x; then
-     AC_MSG_ERROR([Failed to remove extra -arch flags
-                     LD: $PERL_LDOPTS
-                     CC: $PERL_CCOPTS
-!!!!!!  Please notify maintainers at $PACKAGE_BUGREPORT !!!!!!])
-  fi
+  # this results in link errors for the unwanted arch
+  # we remove all the arch flags and let the toolchain use the
+  # platform defaults
+  PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *ppc//'`
+  PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *i386//'`
+  PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *x86_64//'`
+  PERL_LDOPTS=`echo $PERL_LDOPTS | sed -e 's/-arch  *ppc64//'`
+  PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *ppc//'`
+  PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *i386//'`
+  PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *x86_64//'`
+  PERL_CCOPTS=`echo $PERL_CCOPTS | sed -e 's/-arch  *ppc64//'`
 
   AC_MSG_NOTICE([perlembed libraries to link: $PERL_LIBS])
   AC_MSG_NOTICE([perlembed link flags: $PERL_LDOPTS])
@@ -580,18 +565,19 @@ if test x"$activate_perlint" = xyes -o x"$activate_perlint" = xdefault_yes ; the
   if test $enable_swig = "no"; then activate_swig=no; fi
 	
   AC_PATH_PROG(SWIG,swig,[no],[$SWIG_DIR:$PATH])
+  AC_MSG_NOTICE([Using SWIG: $SWIG])
   if test x"$SWIG" = xno; then activate_swig=disabled; fi
 
   if test $activate_swig = "yes" -o $activate_swig = "default_yes"; then
      AC_MSG_CHECKING([for swig version])
-     verstr=`$SWIG -version 2>/dev/null`
-     vermajor=`expr x"$verstr" : '.*\([[0-9]][[0-9]]*\).[[0-9]][[0-9]]*.[[0-9]][[0-9]]*'`
+     verstr=`$SWIG -version | grep Version 2>/dev/null`
+     vermajor=`expr x"$verstr" : '.*\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*'`
      verminor=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)\.[[0-9]][[0-9]]*'`
      verrelease=`expr x"$verstr" : '.*[[0-9]][[0-9]]*\.[[0-9]][[0-9]]*\.\([[0-9]][[0-9]]*\)'`
      vernum=`expr 10000 \* 0"$vermajor" + 100 \* 0"$verminor" + 0"$verrelease"`
      ##AC_MSG_NOTICE([SWIG version $vermajor.$verminor.$verrelease])
-     if test 0"$vernum" -lt 10322; then
-	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; NOT OK! need at least 1.3.22])
+     if test 0"$vernum" -lt 10333; then
+	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; NOT OK! need at least 1.3.33])
 	activate_swig=disabled					
      else
 	AC_MSG_RESULT([$vermajor.$verminor.$verrelease; OK!])
@@ -754,6 +740,7 @@ case "$target_os" in
       # note: this is for the SunCC compiler
       if test x"$GCC" != xyes ; then
          CXXFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS -xarch=v8plus"
+         CFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS -xarch=v8plus"
          LDFLAGS="$LDFLAGS -mt"
          AC_SUBST(LIBSUNMATH,[-lsunmath])
       fi
