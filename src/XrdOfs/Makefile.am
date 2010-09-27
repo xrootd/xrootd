@@ -33,6 +33,6 @@ libXrdOfs_la_SOURCES = \
         XrdOfsPoscq.cc  XrdOfsStats.cc
 
 libXrdOfs_la_LIBTOOLFLAGS = --tag=disable-static
-libXrdOfs_la_LDFLAGS = -module
+libXrdOfs_la_LDFLAGS =
 
 libXrdOfs_la_LIBADD =

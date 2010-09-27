@@ -31,6 +31,10 @@ XRDSECPWD = XrdSecpwd
 XRDSECSSS = XrdSecsss
 endif
 
+if ENABLE_SECSSL
+XRDSECSSL = XrdSecssl
+endif
+
 if ENABLE_KRB4
 XRDSECKRB4 = XrdSeckrb4
 endif
@@ -88,7 +92,9 @@ SUBDIRS = XrdSys \
           $(XRDAPPS) \
           $(XRDPSS) \
           $(XRDCNS) \
-          $(XRDMON)
+          $(XRDMON) \
+          $(XRDSECSSL)
+
 
 
 
