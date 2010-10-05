@@ -1103,22 +1103,34 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
     // map groups & role from VOMS mapfile
     XrdOucString defaultgroup="";                                     
     XrdOucString allgroups="";  
-    if (VomsMapGroups(vomsroles.c_str(), allgroups,defaultgroup)) {
-      if (!strcmp(allgroups.c_str(),":")) {
-	// map the group from the passwd/group file
-	struct passwd* pwd;
-	struct group*  grp;
-	StoreMutex.Lock();
-	if ( (pwd = getpwnam(Entity.name)) && (grp = getgrgid(pwd->pw_gid))) {
-	  allgroups    = grp->gr_name;
-	  defaultgroup = grp->gr_name;
+    if (vomsroles.length()) {
+      if (VomsMapGroups(vomsroles.c_str(), allgroups,defaultgroup)) {
+	if (!strcmp(allgroups.c_str(),":")) {
+	  // map the group from the passwd/group file
+	  struct passwd* pwd;
+	  struct group*  grp;
+	  StoreMutex.Lock();
+	  if ( (pwd = getpwnam(Entity.name)) && (grp = getgrgid(pwd->pw_gid))) {
+	    allgroups    = grp->gr_name;
+	    defaultgroup = grp->gr_name;
+	  }
+	  StoreMutex.UnLock();
 	}
-	StoreMutex.UnLock();
+	Entity.grps   = strdup(allgroups.c_str());
+	Entity.role   = strdup(defaultgroup.c_str());
+      } else {
+	Fatal(error,"incomplete VOMS mapping",-1);
       }
-      Entity.grps   = strdup(allgroups.c_str());
-      Entity.role   = strdup(defaultgroup.c_str());
     } else {
-      Fatal(error,"incomplete VOMS mapping",-1);
+      // map the group from the passwd/group file
+      struct passwd* pwd;
+      struct group*  grp;
+      StoreMutex.Lock();
+      if ( (pwd = getpwnam(Entity.name)) && (grp = getgrgid(pwd->pw_gid))) {
+        Entity.grps   = strdup(grp->gr_name);
+        Entity.role   = strdup(grp->gr_name);
+      }
+      StoreMutex.UnLock();
     }
   }
 

@@ -967,7 +967,7 @@ AM_CONDITIONAL(ENABLE_KRB5,test x"$activate_krb5" = xyes -o x"$activate_krb5" = 
 
 ###########################################
 # libxml2 checks
-ACX_LIBOPTION(secssl,[ SecSSL support], no)
+ACX_LIBOPTION(secssl,[ SecSSL support], yes)
 ACX_LIBOPTION(xml2,[   xml library],yes)
 
 if test x"$activate_xml2" = xyes -o x"$activate_xml2" = xdefault_yes; then

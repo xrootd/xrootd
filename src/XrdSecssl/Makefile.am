@@ -49,7 +49,7 @@ xrdsecssltest_LDADD   = ${OPENSSL_LIBDIR} libXrdSecssl.la ../XrdNet/libXrdNetUti
 xrdsecssltest_LDFLAGS = -static
 
 
-EXTRA_DIST = README GNUmakefile.classic XrdSec/XrdSecTLayer.hh
+EXTRA_DIST = README GNUmakefile.classic
 
 test:  xrdsecssltest
 	if [ -d "/etc/grid-security/certificates" ] && [ -e "/etc/grid-security/hostcert.pem" ] && [ -e "/etc/grid-security/hostkey.pem" ] &&  [ -e "/tmp/x509up_u$$UID" ] ; then\
