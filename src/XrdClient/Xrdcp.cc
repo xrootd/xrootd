@@ -309,6 +309,8 @@ void *ReaderThread_xrd_xtreme(void *parm)
    int lastprefetched = thrnfo->startfromblk;
    int lastread = lastprefetched;
 
+   thrnfo->cli->Open(0, 0, true);
+
    thrnfo->cli->SetCacheParameters(XRDCP_BLOCKSIZE*4*thrnfo->maxoutstanding*2, 0, XrdClientReadCache::kRmBlk_FIFO);
    if (thrnfo->cli->IsOpen_wait())
    while (nr > 0) {

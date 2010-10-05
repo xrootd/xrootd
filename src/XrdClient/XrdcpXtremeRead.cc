@@ -174,13 +174,8 @@ int XrdXtRdFile::GetListOfSources(XrdClient *ref, XrdOucString xtrememgr, XrdCli
 
       XrdClient *cli = new XrdClient(loc.c_str());
       if (cli) {
-         if (cli->Open(0, 0, true)) {
             clients.Push_back(cli);
-         }
-         else {
-            delete cli;
-            cli = 0;
-         }
+
       }
 
    }
