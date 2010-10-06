@@ -151,7 +151,7 @@ int XrdXtRdFile::GetListOfSources(XrdClient *ref, XrdOucString xtrememgr, XrdCli
    XrdClientAdmin adm(xtrememgr.c_str());
    if (!adm.Connect()) return 0;
 
-   int locateok = adm.Locate((kXR_char *)ref->GetCurrentUrl().File.c_str(), hosts);
+   int locateok = adm.Locate((kXR_char *)ref->GetCurrentUrl().File.c_str(), hosts, kXR_nowait);
    if (!locateok || !hosts.GetSize()) return 0;
 
    // Here we have at least a result... hopefully
