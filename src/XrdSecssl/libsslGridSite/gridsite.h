@@ -110,9 +110,6 @@ typedef struct { char                      *auri;
                  void                      *next;     } GRSTgaclCred;
 
 /* used by pre-AURI GRSTgaclCred structs */ 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 typedef struct { char                      *name;
                  char                      *value;
                  void                      *next;  } GRSTgaclNamevalue;
@@ -238,16 +235,10 @@ typedef struct { unsigned char total_length_msb;
 
 int GRSTgaclInit(void);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 GRSTgaclCred *GRSTgaclCredNew(char *);
 
 GRSTgaclCred *GRSTgaclCredCreate(char *, char *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 int	GRSTgaclCredAddValue(GRSTgaclCred *, char *, char *);
 
 #define GRSTgaclCredGetAuri(cred) ((cred)->auri)
@@ -349,9 +340,6 @@ int       GRSTgaclUserAddCred(GRSTgaclUser *, GRSTgaclCred *);
 /*  #define GACLuserHasCred(x,y)	GRSTgaclUserHasCred((x),(y)) */
 int       GRSTgaclUserHasCred(GRSTgaclUser *, GRSTgaclCred *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 int       GRSTgaclUserSetDNlists(GRSTgaclUser *, char *);
 
 int       GRSTgaclUserLoadDNlists(GRSTgaclUser *, char *);
@@ -359,9 +347,6 @@ int       GRSTgaclUserLoadDNlists(GRSTgaclUser *, char *);
 /*  #define GACLuserFindCredType(x,y) GRSTgaclUserFindCredtype((x),(y)) */
 GRSTgaclCred *GRSTgaclUserFindCredtype(GRSTgaclUser *, char *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 int GRSTgaclDNlistHasUser(char *, GRSTgaclUser *);
 
 int GRSTgaclUserHasAURI(GRSTgaclUser *, char *);
@@ -389,19 +374,10 @@ int GRSTx509IsCA(X509 *);
 int GRSTx509CheckChain(int *, X509_STORE_CTX *);
 int GRSTx509VerifyCallback(int, X509_STORE_CTX *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 int GRSTx509GetVomsCreds(int *, int, size_t, char *, X509 *, STACK_OF(X509) *, char *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 GRSTgaclCred *GRSTx509CompactToCred(char *);
 
-#ifndef SUNCC
-__attribute__ ((deprecated))
-#endif
 int GRSTx509CompactCreds(int *, int, size_t, char *, STACK_OF(X509) *, char *, X509 *);
 #endif 
 

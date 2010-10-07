@@ -1,4 +1,3 @@
-
 /******************************************************************************/
 /*                                                                            */
 /*                 X r d S e c P r o t o c o l s s l . c c                    */
@@ -18,8 +17,8 @@ const char *XrdSecProtocolsslCVSID = "$Id$";
 
 char*  XrdSecProtocolssl::sslcadir=0;
 char*  XrdSecProtocolssl::sslvomsdir=0;
-char*  XrdSecProtocolssl::procdir="";
-XrdSecProtocolsslProc* XrdSecProtocolssl::proc=0;
+char*  XrdSecProtocolssl::procdir=(char*)"";
+XrdSecProtocolsslProc* XrdSecProtocolssl::proc=(XrdSecProtocolsslProc*)0;
 int    XrdSecProtocolssl::verifydepth=10;
 int    XrdSecProtocolssl::verifyindex=0;
 int    XrdSecProtocolssl::sslselecttimeout=10;
@@ -242,6 +241,10 @@ int XrdSecProtocolssl::Fatal(XrdOucErrInfo *erp, const char *msg, int rc)
 
 
 int ssl_select(int fd) {
+
+  if (fd<0)
+    return -1;
+
   fd_set read_mask;
 
   struct timeval timeout;
@@ -833,7 +836,6 @@ XrdSecProtocolssl::secServer(int theFD, XrdOucErrInfo      *error) {
     SSL_set_app_data(ssl,0);
     
     if (grst_chain) {
-      GRSTerrorLog(GRST_LOG_INFO,"Free Chain %llx", grst_chain);
       GRST_free_chain((void*)grst_chain);
     }
     ERR_remove_state(0);

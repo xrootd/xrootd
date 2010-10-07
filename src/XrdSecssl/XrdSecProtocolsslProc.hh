@@ -56,7 +56,10 @@ public:
   bool Open() {
     XrdOucString doit="mkdir -p ";
     doit+=procdirectory;
-    system(doit.c_str());
+    int rc = system(doit.c_str());
+    if (rc == -1)
+      return false;
+
     DIR* pd=opendir(procdirectory.c_str());
     if (!pd) {
       return false;
