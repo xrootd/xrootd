@@ -739,8 +739,16 @@ case "$target_os" in
    solaris*)
       # note: this is for the SunCC compiler
       if test x"$GCC" != xyes ; then
-         CXXFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS -xarch=v8plus"
-         CFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS -xarch=v8plus"
+         CXXFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS"
+         CFLAGS="-DSUNCC -D_POSIX_PTHREAD_SEMANTICS"
+         if test x$target_cpu != x"i386"; then
+             CXXFLAGS="$CXXFLAGS -xarch=v8plus"
+             CFLAGS="$CFLAGS -xarch=v8plus"
+         else
+	     # workaround to a bug in swig
+             PERL_CCOPTS="$PERL_CCOPTS -include sys/vnode.h"
+         fi
+
          LDFLAGS="$LDFLAGS -mt"
          AC_SUBST(LIBSUNMATH,[-lsunmath])
       fi
