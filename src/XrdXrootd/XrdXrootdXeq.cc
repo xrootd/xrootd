@@ -911,6 +911,9 @@ int XrdXrootdProtocol::do_Open()
 
         if (opts & kXR_new)
            {openopts |= SFS_O_CREAT;   *op++ = 'n';
+            if (opts & kXR_replica)   {*op++ = '+';
+                                       openopts |= SFS_O_REPLICA;
+                                      }
             if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
                                        mode |= SFS_O_MKPTH;
                                       }
