@@ -4,13 +4,11 @@
 /*                                                                            */
 /*                    X r d S f s I n t e r f a c e . h h                     */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC03-76-SFO0515 with the Department of Energy              */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//        $Id$
 
 #include <string.h>      // For strlcpy()
 #include <sys/types.h>
@@ -230,14 +228,19 @@ protected:
 /*              F i l e   S y s t e m   I n s t a n t i a t o r               */
 /******************************************************************************/
 
-class XrdSysLogger;
+/* When building a shared library plugin, the following "C" entry point must
+   exist in the library:
 
-extern "C"
-{
-XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *native_fs,
-                                      XrdSysLogger     *Logger,
-                                      const char       *config_fn);
-}
+   extern "C"
+         {XrdSfsFileSystem *XrdSfsGetFileSystem(XrdSfsFileSystem *nativeFS,
+                                                XrdSysLogger     *Logger,
+                                                const char       *configFn);
+         }
+
+   This entry is called to get an instance of the file system. Return 0 if upon
+   failure to properly create such an object. For statically linked file systems
+   the non-extern C XrdSfsGetDefaultFileSystem() is used instead.
+*/
 
 /******************************************************************************/
 /*                            X r d S f s F i l e                             */
