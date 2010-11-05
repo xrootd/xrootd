@@ -137,7 +137,6 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    uInfo    = uinfo;
    ssID     = ss;
    AdminPath= 0;
-   APath    = 0;
    QPath    = 0;
    AdminMode= 0740;
    xfrMax   = 2;
