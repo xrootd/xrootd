@@ -22,7 +22,7 @@
 
 AC_PREREQ(2.57)
 AC_INIT(xrootd,v20100805-1700,xrootd-l@slac.stanford.edu)
-AC_CONFIG_SRCDIR([src/XrdVersion.hh])
+AC_CONFIG_SRCDIR([src/XrdVersion.hh.in])
 
 # use C++ for the compilation of tests
 dnl currently commented out, since older versions of libtool (<1.5) contain

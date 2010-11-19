@@ -49,7 +49,7 @@ export INCPATH = @inst_incdir@
 #                                  R u l e s                                   #
 #------------------------------------------------------------------------------#
 
-all:
+all: version
 	@$(MAKE) $(TARGETS) MAKEXEQ=all XMSG=Making XDBG=@dbgmsg@ --no-print-directory
 	@if [ "x$(ARCHDIR)" != "x" ]; then \
 	    $(RM) -fr bin/arch@dbgsfx@ lib/arch@dbgsfx@ obj/arch@dbgsfx@;\
@@ -249,5 +249,10 @@ XrdXrootd: FORCE
 	@echo $(XMSG) xrootd $(XDBG) component...
 	$(ECHO)cd src/XrdXrootd;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+version: FORCE
+	@echo Creatiing version header...
+	@./genversion.sh
+
 
 FORCE: ;

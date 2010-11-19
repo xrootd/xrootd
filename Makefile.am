@@ -31,7 +31,7 @@ if NEED_MACOS_DEPLOYMENT_TARGET
 export MACOSX_DEPLOYMENT_TARGET = 10.3
 endif
 
-.PHONY: doc silent
+.PHONY: doc silent version
 
 silent:
 	@cd src; $(MAKE) | sed -n -e '/libtool/d' \
@@ -55,7 +55,7 @@ doc: Doxyfile
         fi
 endif
 
-
+BUILT_SOURCES = version
 
 ################################################################
 ## Here we define general includes (not specific to any module)
@@ -122,3 +122,7 @@ TESTS = test/test1.sh test/test2.sh
 rpm:    dist
 	cp $(DIST_ARCHIVES) /usr/src/redhat/SOURCES/
 	rpmbuild -bb xrootd.spec
+
+version:
+	@echo "Generating version header"
+	@./genversion.sh
