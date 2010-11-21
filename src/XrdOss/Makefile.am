@@ -21,7 +21,7 @@ xrootdossinc_HEADERS = \
     XrdOssApi.hh     XrdOssLock.hh     XrdOssTrace.hh \
     XrdOssCache.hh   XrdOssMio.hh      XrdOssPath.hh \
     XrdOssCopy.hh    XrdOssSpace.hh    XrdOssStage.hh \
-    XrdOssConfig.hh  XrdOssMioFile.hh
+    XrdOssConfig.hh  XrdOssMioFile.hh  XrdOssXFiles.hh
 
 
 libXrdOss_la_SOURCES = \
@@ -40,5 +40,6 @@ libXrdOss_la_SOURCES = \
         XrdOssStage.cc  \
         XrdOssSpace.cc XrdOssSpace.hh \
         XrdOssStat.cc \
-        XrdOssUnlink.cc
+        XrdOssUnlink.cc \
+        XrdOssXFiles.cc XrdOssXFiles.hh
 libXrdOss_la_LIBADD = $(LIBRT)
