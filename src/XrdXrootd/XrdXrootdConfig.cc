@@ -2,15 +2,11 @@
 /*                                                                            */
 /*                    X r d X r o o t d C o n f i g . c c                     */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
-
-//       $Id$
-
-const char *XrdXrootdConfigCVSID = "$Id$";
  
 #include <unistd.h>
 #include <ctype.h>
@@ -107,6 +103,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
   Output:   0 upon success or !0 otherwise.
 */
+   extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
+                            (XrdSfsFileSystem *nativeFS,
+                             XrdSysLogger     *Logger,
+                             const char       *configFn);
    extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, char *);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, char *, 
                                                     const char *);
@@ -229,7 +229,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (FSLib)
       {TRACE(DEBUG, "Loading filesystem library " <<FSLib);
        osFS = XrdXrootdloadFileSystem(&eDest, FSLib, pi->ConfigFN);
-      } else osFS = XrdSfsGetFileSystem(0, eDest.logger(), pi->ConfigFN);
+      } else osFS = XrdSfsGetDefaultFileSystem(0, eDest.logger(), pi->ConfigFN);
    if (!osFS)
       {eDest.Emsg("Config", "Unable to load file system.");
        return 0;

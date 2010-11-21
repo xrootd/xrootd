@@ -8,7 +8,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
+//       $Id: XrdSecProtocolssl.hh 36190 2010-10-08 11:53:35Z ganis $
 
 #include <unistd.h>
 #include <ctype.h>
@@ -88,7 +88,6 @@
 #ifdef SUNCC
 #define __FUNCTION__ "-unknown-"
 #endif
-
 
 static XrdOucTrace        *SSLxTrace=0;
 

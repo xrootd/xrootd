@@ -500,7 +500,7 @@ void XrdCmsFinderRMT::SelectManFail(XrdOucErrInfo &Resp)
    if (nextMsg < now)
       {nextMsg = now + 60;
        myData.UnLock();
-       Say.Emsg("Finder", "All managers are disfunctional.");
+       Say.Emsg("Finder", "All managers are dysfunctional.");
       } else myData.UnLock();
    Resp.setErrInfo(ConWait, "");
    TRACE(Redirect, "user=" <<Resp.getErrUser() <<" No managers available; wait " <<ConWait);

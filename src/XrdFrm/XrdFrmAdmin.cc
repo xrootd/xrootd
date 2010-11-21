@@ -572,7 +572,7 @@ void XrdFrmAdmin::ConfigProxy()
 //
    if (qTypes)
       {frmProxy = new XrdFrmProxy(Say.logger(),Config.myInst,Trace.What != 0);
-       frmProxz = frmProxy->Init(qTypes, Config.APath, -1, Config.QPath);
+       frmProxz = frmProxy->Init(qTypes, 0, -1, Config.QPath);
       } else {
        *qBase = 0; frmProxz = 1;
        Emsg("No transfer queues found in ", qBuff);

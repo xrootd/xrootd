@@ -2,7 +2,7 @@
 #
 # Author: Derek Feichtinger, 19 Oct 2005
 
-if test ! -e src/XrdVersion.hh; then
+if test ! -e src/XrdVersion.hh.in; then
    echo "Sanity check. Could not find src/XrdVersion.hh. You need to bootstrap from the xrootd main directory" >&2
    exit 1
 fi

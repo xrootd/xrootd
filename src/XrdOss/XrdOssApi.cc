@@ -130,10 +130,9 @@ int XrdOssSys::Init(XrdSysLogger *lp, const char *configfn)
 {
      int retc;
 
-// Do the herald thing
+// No need to do the herald thing as we are the default storage system
 //
    OssEroute.logger(lp);
-   OssEroute.Say("Copr.  2008, Stanford University, oss Version " XrdVSTRING);
 
 // Initialize the subsystems
 //
