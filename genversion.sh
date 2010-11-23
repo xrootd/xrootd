@@ -3,6 +3,9 @@
 #-------------------------------------------------------------------------------
 # Process the git decoration expansion and try to derive version number
 #-------------------------------------------------------------------------------
+EXP1='^v[12][0-9][0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9]$'
+EXP2='^v[0-9]+\.[0-9]+\.[0-9]+$'
+
 function getVersionFromRefs()
 {
   REFS=${1/RefNames:/}
@@ -10,11 +13,19 @@ function getVersionFromRefs()
   REFS=${REFS/(/}
   REFS=${REFS/)/}
   REFS=($REFS)
-  if test ${#REFS[@]} -eq 3; then
-    echo "${REFS[1]}"
-  else
-    echo "unknown"
-  fi
+
+  for i in ${REFS[@]}; do
+    if test x`echo $i | egrep $EXP1` != x; then
+      echo "$i"
+      return 0
+    fi
+    if test x`echo $i | egrep $EXP2` != x; then
+       echo "$i"
+       return 0
+    fi
+  done
+  echo "unknown"
+  return 0
 }
 
 #-------------------------------------------------------------------------------
@@ -51,18 +62,30 @@ if test ! -d .git; then
 #-------------------------------------------------------------------------------
 else
   echo "[I] Determining version from git"
-  GIT=`which git 2>/dev/null`
-  if test ! -x ${GIT}; then
+  EX="`which git`"
+  if test x"${EX}" == x -o ! -x "${EX}"; then
     echo "[!] Unable to find git in the path: setting the version tag to unknown"
     VERSION="unknown"
-  fi
-
-  git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
-
-  if test ${?} -eq 0; then
-    VERSION="`git describe --tags --abbrev=0 --exact-match`"
   else
-    VERSION="`git describe --tags --abbrev=0`+more"
+    #---------------------------------------------------------------------------
+    # Sanity check
+    #---------------------------------------------------------------------------
+    git log -1 >/dev/null 2>&1
+    if test $? -ne 0; then
+      echo "[!] Error while generating src/XrdVersion.hh, the git repository may be corrupted"
+      echo "[!] Setting the version tag to unknown"
+      VERSION="unknown"
+    else
+      #-------------------------------------------------------------------------
+      # Can we match the exact tag?
+      #-------------------------------------------------------------------------
+      git describe --tags --abbrev=0 --exact-match >/dev/null 2>&1
+      if test ${?} -eq 0; then
+        VERSION="`git describe --tags --abbrev=0 --exact-match`"
+      else
+        VERSION="`git describe --tags --abbrev=0`+more"
+      fi
+    fi
   fi
 fi
 
