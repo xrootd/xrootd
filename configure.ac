@@ -1075,6 +1075,8 @@ fi
 
 AM_CONDITIONAL(ENABLE_SECSSL,test x"$activate_secssl" = xyes -o x"$activate_secssl" = xdefault_yes)
 
+# Record the extension of dynamic libraries on this platform
+LT_SYS_MODULE_EXT
 
 ###########################################
 # tkauthz checks

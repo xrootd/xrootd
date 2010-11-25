@@ -70,11 +70,13 @@ libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdSys/libXrdSys.la \
                          ../XrdNet/libXrdNet.la \
                          ../XrdNet/libXrdNetUtil.la
+libXrdCrypto_la_LDFLAGS = -module
 
 libXrdCryptoLite_la_SOURCES = \
         XrdCryptoLite.hh \
         XrdCryptoLite.cc \
         XrdCryptoLite_bf32.cc
+libXrdCryptoLite_la_LDFLAGS = -module
 libXrdCrytoLite_la_CXXFLAGS = $(SSLCXXFLAGS)
 
 
@@ -91,6 +93,7 @@ libXrdCryptossl_la_SOURCES = \
         XrdCryptosslgsiX509Chain.cc
 libXrdCryptossl_la_LIBADD = ../XrdSut/libXrdSut.la \
                             $(OPENSSL_LIBDIR) -lssl -lcrypto
+libXrdCryptossl_la_LDFLAGS = -module
 libXrdCryptossl_la_CXXFLAGS = $(SSLCXXFLAGS)
 
 
