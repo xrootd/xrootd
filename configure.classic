@@ -2345,7 +2345,15 @@ fi
 #
 
 case $platform in
-    linux|macosx) 
+    linux) 
+        if test "x$nccflv" = "xicc" ; then
+           if test "x$enable_bonjour" = "xyes" ; then
+              echo "Sorry, the Bonjour/Avahi interface is not currently supported for Linux-ICC - disabling ... (platform: $platform)"
+           fi
+           enable_bonjour=no
+        fi
+        ;;
+    macosx) 
         ;;
     *)
       if test "x$enable_bonjour" = "xyes" ; then
