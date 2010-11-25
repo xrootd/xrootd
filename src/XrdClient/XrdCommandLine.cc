@@ -1754,7 +1754,6 @@ int main(int argc, char**argv)
 {
 
     int retval = 0;
-    bool quit = false;
 
     DebugSetLevel(0);
 
@@ -1905,6 +1904,7 @@ int main(int argc, char**argv)
             if( strcmp( cmd, "exit" ) == 0 )
             {
                 std::cout << "Goodbye." << std::endl << std::endl;
+                free( linebuf );
                 break;
             }
             std::cout << "Command not recognized." << std::endl;
