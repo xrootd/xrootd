@@ -37,7 +37,7 @@ XrdSecSSLUSERCERT	: client certificate (default proxy /tmp/x509up_u$UID)
 XrdSecSSLUSERKEY	: client key         (default proxy /tmp/x509up_u$UID)
 XrdSecSSLPROXYFORWARD   : foward the proxy certificate to the remote service
 XrdSecSSLVERIFYDEPTH    : verification level depth (default 10)
-XrdSecSSLSESSION        : enable/disable ssl session reuse (default 1 [yes])
+XrdSecSSLSESSION        : enable/disable ssl session reuse (default 0 [no])
 XrdSecSSLSELECTTIMEOUT  : timeout for the full non-blocking SSL handshake (default 10)
 
 # for Globus compatibility
