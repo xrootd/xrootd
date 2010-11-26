@@ -77,8 +77,8 @@ libXrdCryptoLite_la_SOURCES = \
         XrdCryptoLite.cc \
         XrdCryptoLite_bf32.cc
 libXrdCryptoLite_la_LDFLAGS = -module
-libXrdCrytoLite_la_CXXFLAGS = $(SSLCXXFLAGS)
-
+libXrdCryptoLite_la_CXXFLAGS = $(SSLCXXFLAGS)
+libXrdCryptoLite_la_LIBADD = $(OPENSSL_LIBDIR) -lcrypto
 
 libXrdCryptossl_la_SOURCES = \
         XrdCryptosslAux.cc         \
