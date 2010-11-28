@@ -36,7 +36,7 @@ LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdSecsss.a \
            $(LIBDIR)/libXrdSys.a
 
-LIBRARY  = $(LIBDIR)/libXrdProxy.$(TYPESHLIB)
+LIBRARY  = $(LIBDIR)/libXrdPss.$(TYPESHLIB)
 
 TARGETS  = $(LIBRARY)
 
