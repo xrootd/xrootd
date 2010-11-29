@@ -15,7 +15,7 @@ xrootdpssinc_HEADERS = XrdPss.hh
 
 INCLUDES = -I$(top_srcdir)/src
 
-libXrPss_la_SOURCES = \
+libXrdPss_la_SOURCES = \
         XrdPss.cc  XrdPss.hh \
         XrdPssAio.cc \
         XrdPssConfig.cc

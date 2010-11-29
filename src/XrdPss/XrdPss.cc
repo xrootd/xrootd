@@ -710,8 +710,8 @@ char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
                  const char *Cgi,   int CgiLn, const char *Ident)
 {
    int   pfxLen, pathln = strlen(path);
-   const char *theID = 0;
-   char  idBuff[8], *idP, *subPath, *retPath;
+   const char *theID = 0, *subPath;
+   char  idBuff[8], *idP, *retPath;
 
 // If we have an Ident then usethe fd number as the userid. This allows us to
 // have one stream per open connection.
