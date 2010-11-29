@@ -100,6 +100,7 @@ enable_ssl=
 enable_thread=yes
 enable_javaint=no
 enable_oldhdrs=no
+enable_xrootdfs=no
 
 #
 # ./configure arguments and defaults set via supported env vars
@@ -1208,7 +1209,7 @@ if test "x$enable_xrootdfs" = "xyes" ; then
       fi
    fi
    message "Checking for fuse"
-   if test ! "x$hasfuse" = "x" ; then
+   if test "x$hasfuse" != "x" ; then
       echo "yes"
    else
       echo "no"
