@@ -443,9 +443,9 @@ AM_CONDITIONAL(ENABLE_OPENSSL,test x"$activate_openssl" = xyes -o x"$activate_op
 AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes)
 
 #################################################################
-# Optional building of FUSE bindings for Xrootd
+# Optional building of FUSE bindings for XrdFfs
 
-ACX_LIBOPTION(fuse,[Build FUSE support, previously known as Xrootdfs],yes)
+ACX_LIBOPTION(fuse,[Build FUSE support for XrdFfs],yes)
 
 if test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes ; then
   fusetests=ok
@@ -490,8 +490,7 @@ if test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes ; then
   LDFLAGS="$LDFLAGS_BUP"
 
 fi
-
-AM_CONDITIONAL(ENABLE_FFS,test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes)
+AM_CONDITIONAL(ENABLE_FUSE,test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes)
 
 #################################################################
 # optional building of APPS
@@ -524,8 +523,19 @@ AC_ARG_ENABLE(posix,
               [],[enable_posix=$activate_posix]
              )
 ACX_COLLECT_OPTION(posix,$enable_posix)
+
 AM_CONDITIONAL(ENABLE_POSIX,test x"$activate_posix" = xyes -o x"$activate_posix" = xdefault_yes)
 
+#################################################################
+# Build XrdFfs
+ACX_LIBOPTION(ffs,[Build XrdFfs], yes)
+AM_CONDITIONAL(ENABLE_FFS,test x"$activate_ffs" = xyes -o x"$activate_ffs" = xdefault_yes)
+# Ffs is required by Pss.
+if test x"$activate_posix" = xyes -o x"$activate_posix" = xdefault_yes ; then
+   if test x"$activate_ffs" = xno ; then
+     AC_MSG_ERROR([posix module requires enabling of XrdFfs module - please re-run configure with ffs enabled.])
+   fi
+fi
 
 ####################################################################
 # monitoring

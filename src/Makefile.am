@@ -93,11 +93,11 @@ SUBDIRS = XrdSys \
           XrdClient \
           $(XRDPOSIX) \
           $(XRDAPPS) \
+          $(XRDFFS) \
           $(XRDPSS) \
           $(XRDCNS) \
           $(XRDMON) \
-          $(XRDSECSSL) \
-          $(XRDFFS)
+          $(XRDSECSSL)
 
 
 

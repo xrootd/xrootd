@@ -11,7 +11,11 @@
 include $(top_srcdir)/src/Makefile_include
 
 # preprocessor flags
+if ENABLE_FUSE
+AM_CPPFLAGS = -I$(top_srcdir)/src -DHAVE_FUSE=1
+else
 AM_CPPFLAGS = -I$(top_srcdir)/src
+endif
 
 #############################################################################
 ## extra directory definitions for install area
