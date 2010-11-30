@@ -94,6 +94,7 @@ bool XrdClientEnv::ImportStr( const char *varname )
      return false;
 
   fShellEnv->Put( varname, value );
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -110,6 +111,7 @@ bool XrdClientEnv::ImportInt( const char *varname )
      return false;
 
   fShellEnv->PutInt( varname, value );
+  return true;
 }
 
 //------------------------------------------------------------------------------
