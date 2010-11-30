@@ -16,7 +16,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/src
 #############################################################################
 ## extra directory definitions for install area
 xrootdffsincdir = $(includedir)/xrootd/XrdFfs
-xrootdffsinc_HEADERS = XrdFfsDent.hh XrdFfsDent.hh XrdFfsFsinfo.hh \
+xrootdffsinc_HEADERS =  XrdFfsDent.hh XrdFfsFsinfo.hh \
                         XrdFfsMisc.hh XrdFfsQueue.hh XrdFfsWcache.hh
 
 #############################################################################
