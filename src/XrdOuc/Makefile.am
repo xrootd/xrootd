@@ -32,6 +32,8 @@ xrootdoucinc_HEADERS = \
 
 lib_LTLIBRARIES = libXrdOuc.la
 
+# Convenience libs to use for objs common to multiple binaries in this dir
+noinst_LTLIBRARIES = libXrdOuc.la
 
 #############################################################################
 # Build rules

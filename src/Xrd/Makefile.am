@@ -18,6 +18,9 @@ xrootdxrdincdir = $(includedir)/xrootd/Xrd
 ## deliverables (to be built / installed)
 lib_LTLIBRARIES = libXrd.la
 
+# Convenience libs to use for objs common to multiple binaries in this dir
+noinst_LTLIBRARIES = libXrd.la
+
 xrootdxrdinc_HEADERS = \
     XrdBuffer.hh  XrdLinkMatch.hh  XrdProtocol.hh \
     XrdConfig.hh  XrdObject.hh     XrdScheduler.hh \

@@ -12,6 +12,9 @@ noinst_HEADERS = XrdOss.hh
 
 lib_LTLIBRARIES = libXrdOss.la
 
+# Convenience libs to use for objs common to multiple binaries in this dir
+noinst_LTLIBRARIES = libXrdOss.la
+
 INCLUDES = -I$(top_srcdir)/src
 
 xrootdossincdir = $(includedir)/xrootd/XrdOss
