@@ -21,7 +21,7 @@ xrootdsysincdir = $(includedir)/xrootd/XrdSys
 lib_LTLIBRARIES = libXrdSys.la
 
 # convenience lib since these files are also used for builds in other dirs
-noinst_LTLIBRARIES = libXrdSys.la libXrdSysErrLog.la
+noinst_LTLIBRARIES = libXrdSysErrLog.la
 
 xrootdsysinc_HEADERS = \
      XrdSysDir.hh    XrdSysLogger.hh    XrdSysPlugin.hh \

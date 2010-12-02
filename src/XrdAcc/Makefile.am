@@ -20,9 +20,6 @@ xrootdaccincdir = $(includedir)/xrootd/XrdAcc
 
 lib_LTLIBRARIES = libXrdAcc.la
 
-# Convenience libs to use for objs common to multiple binaries in this dir
-noinst_LTLIBRARIES = libXrdAcc.la
-
 bin_PROGRAMS = XrdAccTest
 
 
