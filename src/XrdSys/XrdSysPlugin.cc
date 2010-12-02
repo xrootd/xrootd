@@ -52,14 +52,22 @@ XrdSysPlugin::~XrdSysPlugin()
 /******************************************************************************/
 /*                             g e t P l u g i n                              */
 /******************************************************************************/
-  
+
+
 void *XrdSysPlugin::getPlugin(const char *pname, int errok)
+{
+   return getPlugin(pname, errok, false);
+}
+
+void *XrdSysPlugin::getPlugin(const char *pname, int errok, bool global)
 {
    void *ep;
 
 // Open the plugin library if not already opened
 //
-   if (!libHandle && !(libHandle = dlopen(libPath, RTLD_NOW)))
+   int flags = RTLD_NOW;
+   flags |= global ? RTLD_GLOBAL : RTLD_LOCAL;
+   if (!libHandle && !(libHandle = dlopen(libPath, flags)))
       {eDest->Emsg("getPlugin", "Unable to open", libPath, dlerror());
        return 0;
       }
