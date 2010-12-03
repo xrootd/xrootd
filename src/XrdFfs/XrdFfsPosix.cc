@@ -708,11 +708,17 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
 
     if (XrdFfsDent_cache_search(dir, file))
     {
-         free(p1);
-         free(p2);
          XrdFfsMisc_xrd_secsss_editurl(rootpath, user_uid);
          res = XrdFfsPosix_stat(rootpath, stbuf);
-         if (res == 0)  return 0; // maybe a data server is down since the last _readdir()? in that case, continue 
+// maybe a data server is down since the last _readdir()? in that case, continue 
+// we also saw a case where redirectors report the file exist but meta redirector report
+// that the file doesn't exist, and we need to continue at here
+         if (res == 0) 
+         {
+             free(p1);
+             free(p2);
+             return 0;
+         }
     }
     free(p1);
     free(p2);    
