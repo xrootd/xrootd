@@ -20,8 +20,6 @@ xrootdnetincdir = $(includedir)/xrootd/XrdNet
 
 lib_LTLIBRARIES = libXrdNet.la libXrdNetUtil.la 
 
-# Convenience libs to use for objs common to multiple binaries in this dir
-noinst_LTLIBRARIES =  libXrdNet.la libXrdNetUtil.la
 
 xrootdnetinc_HEADERS = XrdNet.hh XrdNetOpts.hh XrdNetPeer.hh \
                        XrdNetBuffer.hh XrdNetConnect.hh XrdNetDNS.hh \
