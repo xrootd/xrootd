@@ -145,7 +145,7 @@ void Usage(const char *);
 Access_Operation optype;
 XrdAccPrivCaps pargs;
 XrdAccPrivs auth;
-XrdSecEntity Entity;
+XrdSecEntity Entity("");
 
 // Make sure user specified
 //

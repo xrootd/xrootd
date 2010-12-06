@@ -28,3 +28,4 @@ libXrdPss_la_LIBADD =   ../XrdFfs/libXrdFfs.la  \
                         ../XrdNet/libXrdNetUtil.la \
                         ../XrdOuc/libXrdOuc.la \
                         ../XrdSys/libXrdSys.la
+

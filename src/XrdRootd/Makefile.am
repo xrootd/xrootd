@@ -8,9 +8,11 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdRootd.la
+noinst_LTLIBRARIES = libXrdRootd.la
 
 INCLUDES = -I$(top_srcdir)/src
 
 libXrdRootd_la_SOURCES = XrdRootdProtocol.cc XrdRootdProtocol.hh
-libXrdRootd_la_LIBADD = ../XrdOuc/libXrdOuc.la
+libXrdRootd_la_LIBADD = ../XrdOuc/libXrdOuc.la \
+                        ../XrdSys/libXrdSys.la
+

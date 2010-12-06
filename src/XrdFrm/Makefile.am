@@ -49,10 +49,8 @@ xrootdfrminc_HEADERS = XrdFrmAdmin.hh   \
                        XrdFrmXfrQueue.hh
 
 
-lib_LTLIBRARIES = libXrdFrm.la
-
 # Convenience libs to use for objs common to multiple binaries in this dir
-noinst_LTLIBRARIES = libXrdFrmConv.la libXrdFrmConvAgent.la
+noinst_LTLIBRARIES = libXrdFrm.la libXrdFrmConv.la libXrdFrmConvAgent.la
 
 
 #############################################################################

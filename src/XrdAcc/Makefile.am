@@ -18,7 +18,7 @@ xrootdaccincdir = $(includedir)/xrootd/XrdAcc
 #############################################################################
 ## deliverables
 
-lib_LTLIBRARIES = libXrdAcc.la
+noinst_LTLIBRARIES = libXrdAcc.la
 
 bin_PROGRAMS = XrdAccTest
 

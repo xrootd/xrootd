@@ -7,10 +7,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdXrootdXeqCVSID = "$Id$";
-
 #include <stdio.h>
 
 #include "XrdSfs/XrdSfsInterface.hh"
@@ -105,11 +101,18 @@ int XrdXrootdProtocol::do_Auth()
    cred.size   = Request.header.dlen;
    cred.buffer = argp->buff;
 
-// If we have no auth protocol, try to get it. Track number of times we got a
-// protocol object as the read count (we will zero it out later).
+// If we have no auth protocol or the current protocol is being changed by the
+// client (the client can do so at any time), try to get it. Track number of
+// times we got a protocol object as the read count (we will zero it out later).
+// The credtype change check is dependent on credtype being present in the
+// header. Not all protocols provided this information in the past. So, to be
+// backward compatible, we check for the presence of this information.
 //
-   if (!AuthProt)
-      {Link->Name(&netaddr);
+   if (!AuthProt || (*Request.auth.credtype &&
+        strncmp(AuthProt->Entity.prot, (const char *)Request.auth.credtype,
+                                              sizeof(Request.auth.credtype))));
+      {if (AuthProt) AuthProt->Delete();
+       Link->Name(&netaddr);
        if (!(AuthProt = CIA->getProtocol(Link->Host(),netaddr,&cred,&eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);

@@ -333,7 +333,7 @@ pthread_mutex_t XrdFfsMiscSecsss_mutex = PTHREAD_MUTEX_INITIALIZER;
 void XrdFfsMisc_xrd_secsss_init()
 {
     XrdFfsMiscSecsss = true;
-    XrdFfsMiscUent = new XrdSecEntity;
+    XrdFfsMiscUent = new XrdSecEntity("");
     XrdFfsMiscSssid = new XrdSecsssID(XrdSecsssID::idDynamic);
 }
 
