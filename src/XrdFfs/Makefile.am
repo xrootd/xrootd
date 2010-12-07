@@ -13,8 +13,10 @@ include $(top_srcdir)/src/Makefile_include
 # preprocessor flags
 if ENABLE_FUSE
 AM_CPPFLAGS = -I$(top_srcdir)/src -DHAVE_FUSE=1
+FUSELIB=-lfuse
 else
 AM_CPPFLAGS = -I$(top_srcdir)/src
+FUSELIB=
 endif
 
 #############################################################################
@@ -47,7 +49,8 @@ libXrdFfs_la_LIBADD = ../XrdPosix/libXrdPosix.la \
                       ../XrdNet/libXrdNet.la \
                       ../XrdNet/libXrdNetUtil.la \
                       ../XrdOuc/libXrdOuc.la \
-                      ../XrdSys/libXrdSys.la
+                      ../XrdSys/libXrdSys.la \
+                      $(FUSELIB)
 
 xrootdfs_SOURCES = XrdFfsXrootdfs.cc
 xrootdfs_LDADD = libXrdFfs.la
