@@ -30,7 +30,7 @@ xrootdoucinc_HEADERS = \
     XrdOucPup.hh    XrdOucCRC.hh        XrdOucArgs.hh \
     XrdOucNSWalk.hh XrdOucSxeq.hh
 
-noinst_LTLIBRARIES = libXrdOuc.la
+lib_LTLIBRARIES = libXrdOuc.la
 
 
 #############################################################################
@@ -61,7 +61,7 @@ libXrdOuc_la_SOURCES = \
 #        XrdOucHash.icc
 
 
-libXrdOuc_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL)
+libXrdOuc_la_LIBADD = $(LIBPTHREAD) $(SEM_LIBRT) $(LIBNSL) ../XrdSys/libXrdSysErrLog.la
 
 # sources not named in rules that still need to get rolled into the distribution tarball
 EXTRA_DIST = XrdOucRash.hh XrdOucRash.icc

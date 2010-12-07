@@ -27,7 +27,6 @@ libXrdSecgsi_la_LIBADD = ../XrdCrypto/libXrdCryptossl.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdNet/libXrdNet.la \
                          ../XrdSys/libXrdSys.la
-
 # following line disabled. Look for reason in XrdSec/Makefile.am
 #libXrdSecgsi_la_LIBTOOLFLAGS = --tag=disable-static
 
@@ -48,6 +47,5 @@ xrdgsiproxy_LDADD = libXrdSecgsi.la \
 #xrdsecgsitest_LDADD = libXrdSecgsi.la \
 #                     ../XrdSec/libXrdSec.la \
 #                     ../XrdOuc/libXrdOuc.la \
-#                     ../XrdSys/libXrdSysErrLog.la \
 #                     ../XrdNet/libXrdNet.la
 

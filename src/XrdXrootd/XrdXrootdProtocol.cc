@@ -7,6 +7,10 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
+
+//       $Id$
+
+const char *XrdXrootdProtocolCVSID = "$Id$";
  
 #include "XrdVersion.hh"
 
@@ -161,8 +165,7 @@ int XrdgetProtocolPort(const char *pname, char *parms, XrdProtocol_Config *pi)
 /******************************************************************************/
 
 XrdXrootdProtocol::XrdXrootdProtocol() 
-                    : XrdProtocol("xrootd protocol handler"), ProtLink(this),
-                      Entity("")
+                    : XrdProtocol("xrootd protocol handler"), ProtLink(this)
 {
    Reset();
 }

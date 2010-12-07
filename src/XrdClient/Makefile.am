@@ -77,6 +77,7 @@ libXrdClient_la_SOURCES = \
         XrdcpXtremeRead.cc XrdcpXtremeRead.hh
 
 libXrdClient_la_LIBADD = $(LIBSUNMATH) \
+              ../XrdSys/libXrdSys.la \
 	      ../XrdCrypto/libXrdCrypto.la \
               ../XrdSut/libXrdSut.la \
               ../XrdNet/libXrdNet.la \

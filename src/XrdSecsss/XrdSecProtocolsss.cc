@@ -8,6 +8,10 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+//       $Id$
+
+const char *XrdSecProtocolsssCVSID = "$Id$";
+
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -69,7 +73,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssRR_Hdr    *rrHdr = (XrdSecsssRR_Hdr *)(cred->buffer);
    XrdSecsssRR_Data    rrData;
    XrdSecsssKT::ktEnt  decKey;
-   XrdSecEntity        myID("sss");
+   XrdSecEntity        myID;
    char lidBuff[16],  eType, *idP, *dP, *eodP, *theHost = 0;
    int idTLen = 0, idSz, dLen;
 

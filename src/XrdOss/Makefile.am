@@ -10,7 +10,7 @@
 
 noinst_HEADERS = XrdOss.hh
 
-noinst_LTLIBRARIES = libXrdOss.la
+lib_LTLIBRARIES = libXrdOss.la
 
 INCLUDES = -I$(top_srcdir)/src
 

@@ -8,6 +8,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+//       $Id: XrdSecProtocolssl.hh 36190 2010-10-08 11:53:35Z ganis $
+
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -131,7 +133,6 @@ public:
     Entity.name = 0;
     Entity.grps = 0;
     Entity.endorsements = 0;
-    strncpy(Entity.prot,"ssl", sizeof(Entity.prot));
     host        = hostname;
     if (ipaddr)
       Entity.host = (XrdNetDNS::getHostName((sockaddr&)*ipaddr));

@@ -11,6 +11,10 @@
 /*                   (author: G. Ganis, CERN)                                 */
 /******************************************************************************/
 
+//       $Id$
+
+const char *XrdSecProtocolkrb5CVSID = "$Id$";
+
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -96,7 +100,6 @@ static  void               setExpFile(char *expfile)
         XrdSecProtocolkrb5(const char                *KP,
                            const char                *hname,
                            const struct sockaddr     *ipadd)
-                          : XrdSecProtocol(XrdSecPROTOIDENT)
                           {Service = (KP ? strdup(KP) : 0);
                            Entity.host = strdup(hname);
                            memcpy(&hostaddr, ipadd, sizeof(hostaddr));

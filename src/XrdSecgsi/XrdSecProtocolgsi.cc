@@ -1,3 +1,6 @@
+// $Id$
+
+const char *XrdSecProtocolgsiCVSID = "$Id$";
 /******************************************************************************/
 /*                                                                            */
 /*                 X r d S e c P r o t o c o l g s i . c c                    */
@@ -226,7 +229,7 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
 //_____________________________________________________________________________
 XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
                                      const struct sockaddr *ipadd,
-                                     const char *parms) : XrdSecProtocol("gsi")
+                                     const char *parms)
 {
    // Default constructor
    EPNAME("XrdSecProtocolgsi");
@@ -242,6 +245,9 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    } else {
       DEBUG("could not create handshake vars object");
    }
+
+   // Set protocol ID
+   strncpy(Entity.prot, XrdSecPROTOIDENT, sizeof(Entity.prot));
 
    // Set host name
    if (ipadd) {
