@@ -34,7 +34,7 @@ libXrdSecsss_la_LIBADD = ../XrdCrypto/libXrdCryptoLite.la \
                       ../XrdOuc/libXrdOuc.la \
                       ../XrdNet/libXrdNet.la \
                       ../XrdSys/libXrdSys.la \
-                     ../XrdNet/libXrdNetUtil.la
+                      ../XrdNet/libXrdNetUtil.la
 
 libXrdSecsss_la_LDFLAGS = -module $(CRYPTLIB) $(OPENSSL_LIBDIR)
 
