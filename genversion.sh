@@ -5,6 +5,7 @@
 #-------------------------------------------------------------------------------
 EXP1='^v[12][0-9][0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9]$'
 EXP2='^v[0-9]+\.[0-9]+\.[0-9]+$'
+EXP3='^v[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
 
 function getVersionFromRefs()
 {
@@ -14,17 +15,24 @@ function getVersionFromRefs()
   REFS=${REFS/)/}
   REFS=($REFS)
 
+  VERSION="unknown"
+
   for i in ${REFS[@]}; do
-    if test x`echo $i | egrep $EXP1` != x; then
-      echo "$i"
-      return 0
-    fi
     if test x`echo $i | egrep $EXP2` != x; then
        echo "$i"
        return 0
     fi
+
+    if test x`echo $i | egrep $EXP1` != x; then
+      VERSION="$i"
+    fi
+
+    if test x`echo $i | egrep $EXP3` != x; then
+      VERSION="$i"
+    fi
+
   done
-  echo "unknown"
+  echo $VERSION
   return 0
 }
 

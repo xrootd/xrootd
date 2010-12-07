@@ -18,7 +18,7 @@ xrootdnetincdir = $(includedir)/xrootd/XrdNet
 #############################################################################
 ## deliverables (to be built / installed)
 
-lib_LTLIBRARIES = libXrdNet.la libXrdNetUtil.la 
+noinst_LTLIBRARIES = libXrdNet.la libXrdNetUtil.la 
 
 
 xrootdnetinc_HEADERS = XrdNet.hh XrdNetOpts.hh XrdNetPeer.hh \

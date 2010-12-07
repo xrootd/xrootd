@@ -16,7 +16,7 @@ xrootdxrdincdir = $(includedir)/xrootd/Xrd
 
 #############################################################################
 ## deliverables (to be built / installed)
-lib_LTLIBRARIES = libXrd.la
+noinst_LTLIBRARIES = libXrd.la
 
 xrootdxrdinc_HEADERS = \
     XrdBuffer.hh  XrdLinkMatch.hh  XrdProtocol.hh \

@@ -62,6 +62,9 @@ if ENABLE_APPS
 XRDAPPS=XrdApps
 endif
 
+if ENABLE_FFS
+XRDFFS=XrdFfs
+endif
 
 #######################################################################
 
@@ -90,6 +93,7 @@ SUBDIRS = XrdSys \
           XrdClient \
           $(XRDPOSIX) \
           $(XRDAPPS) \
+          $(XRDFFS) \
           $(XRDPSS) \
           $(XRDCNS) \
           $(XRDMON) \

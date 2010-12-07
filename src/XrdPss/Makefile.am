@@ -8,19 +8,24 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdProxy.la
+lib_LTLIBRARIES = libXrdPss.la
 
 xrootdpssincdir = $(includedir)/xrootd/XrdPss
 xrootdpssinc_HEADERS = XrdPss.hh
 
 INCLUDES = -I$(top_srcdir)/src
 
-libXrdProxy_la_SOURCES = \
+libXrdPss_la_SOURCES = \
         XrdPss.cc  XrdPss.hh \
         XrdPssAio.cc \
         XrdPssConfig.cc
 
-libXrdProxy_la_LIBADD = ../XrdClient/libXrdClient.la \
+libXrdPss_la_LIBADD =   ../XrdFfs/libXrdFfs.la  \
+                        ../XrdClient/libXrdClient.la \
+                        ../XrdSecsss//libXrdSecsss.la \
+                        ../XrdSec//libXrdSec.la \
                         ../XrdNet/libXrdNet.la \
+                        ../XrdNet/libXrdNetUtil.la \
                         ../XrdOuc/libXrdOuc.la \
                         ../XrdSys/libXrdSys.la
+

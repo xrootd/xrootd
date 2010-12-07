@@ -272,12 +272,20 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
      Eroute.Say(buff);
 
      if (Options & Forwarding)
-        {if (ConfigDispFwd(buff, fwdCHMOD)) Eroute.Say(buff);
-         if (ConfigDispFwd(buff, fwdMKDIR)) Eroute.Say(buff);
-         if (ConfigDispFwd(buff, fwdMV))    Eroute.Say(buff);
-         if (ConfigDispFwd(buff, fwdRM))    Eroute.Say(buff);
-         if (ConfigDispFwd(buff, fwdRMDIR)) Eroute.Say(buff);
-         if (ConfigDispFwd(buff, fwdTRUNC)) Eroute.Say(buff);
+        {*fwbuff = 0;
+         if (ConfigDispFwd(buff, fwdCHMOD))
+            {Eroute.Say(buff); strcat(fwbuff, " ch");}
+         if (ConfigDispFwd(buff, fwdMKDIR))
+            {Eroute.Say(buff); strcat(fwbuff, " mk");}
+         if (ConfigDispFwd(buff, fwdMV))
+            {Eroute.Say(buff); strcat(fwbuff, " mv");}
+         if (ConfigDispFwd(buff, fwdRM))
+            {Eroute.Say(buff); strcat(fwbuff, " rm");}
+         if (ConfigDispFwd(buff, fwdRMDIR))
+            {Eroute.Say(buff); strcat(fwbuff, " rd");}
+         if (ConfigDispFwd(buff, fwdTRUNC))
+            {Eroute.Say(buff); strcat(fwbuff, " tr");}
+         if (*fwbuff) XrdOucEnv::Export("XRDOFS_FWD", fwbuff);
         }
 
      if (evsObject)

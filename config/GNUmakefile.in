@@ -22,7 +22,7 @@ XRDCLIENT = XrdClient
 
 XRDMON    = XrdMon
 
-XRDPOSIX  = XrdPosix XrdPss XrdCns XrdApps
+XRDPOSIX  = XrdPosix XrdFfs XrdPss XrdCns XrdApps
 
 TARGETS = @targets@
 
@@ -143,6 +143,11 @@ XrdCrypto: FORCE
 XrdNet: FORCE
 	@echo $(XMSG) net $(XDBG) component...
 	@cd src/XrdNet;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdFfs: FORCE
+	@echo $(XMSG) ffs $(XDBG) component...
+	@cd src/XrdFfs;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdFrm: FORCE

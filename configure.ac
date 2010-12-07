@@ -21,7 +21,7 @@
 
 
 AC_PREREQ(2.57)
-AC_INIT(xrootd,v20100805-1700,xrootd-l@slac.stanford.edu)
+AC_INIT(xrootd,3.0.0,xrootd-l@slac.stanford.edu)
 AC_CONFIG_SRCDIR([src/XrdVersion.hh.in])
 
 # use C++ for the compilation of tests
@@ -442,6 +442,55 @@ fi
 AM_CONDITIONAL(ENABLE_OPENSSL,test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes)
 AM_CONDITIONAL(ENABLE_GSI,test x"$activate_gsi" = xyes -o x"$activate_gsi" = xdefault_yes)
 
+#################################################################
+# Optional building of FUSE bindings for XrdFfs
+
+ACX_LIBOPTION(fuse,[Build FUSE support for XrdFfs],yes)
+
+if test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes ; then
+  fusetests=ok
+
+  if test x"$acx_fuse_incdir" != x; then
+     searchpath=$acx_fuse_incdir
+  else
+     searchpath="$std_inc_path"
+  fi
+
+  ACX_LOCATEFILE([fuse.h],[$searchpath],
+                 [FUSE_INCDIR="-I$acx_founddir"
+                  AC_MSG_NOTICE([fuse header dir set to: $dir ]) ],
+                 [if test  x"$activate_fuse" = xyes ; then
+                    AC_MSG_ERROR([Could not locate fuse.h])
+                  else
+                    activate_fuse=disabled
+                  fi
+                 ]
+                )
+
+  CPPFLAGS="$FUSE_INCDIR $CPPFLAGS"
+  AC_CHECK_HEADER([fuse.h],
+                [],[fusetests=failed]
+                )
+
+
+  LDFLAGS="$FUSE_LIBDIR $LDFLAGS"
+  AC_CHECK_LIB([fuse],[fuse_version],
+               [:],[fusetests=failed],[-lfuse]
+              )
+
+  if test x"$fusetests" != xok ; then
+    if test x"$activate_fuse" = xyes ; then
+      AC_MSG_ERROR([tests for fuse failed. Change configure options])
+    fi
+    AC_MSG_WARN([disabling fuse support])
+    activate_fuse=disabled
+  fi
+
+  CPPFLAGS="$CPPFLAGS_BUP"
+  LDFLAGS="$LDFLAGS_BUP"
+
+fi
+AM_CONDITIONAL(ENABLE_FUSE,test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes)
 
 #################################################################
 # optional building of APPS
@@ -474,8 +523,19 @@ AC_ARG_ENABLE(posix,
               [],[enable_posix=$activate_posix]
              )
 ACX_COLLECT_OPTION(posix,$enable_posix)
+
 AM_CONDITIONAL(ENABLE_POSIX,test x"$activate_posix" = xyes -o x"$activate_posix" = xdefault_yes)
 
+#################################################################
+# Build XrdFfs
+ACX_LIBOPTION(ffs,[Build XrdFfs], yes)
+AM_CONDITIONAL(ENABLE_FFS,test x"$activate_ffs" = xyes -o x"$activate_ffs" = xdefault_yes)
+# Ffs is required by Pss.
+if test x"$activate_posix" = xyes -o x"$activate_posix" = xdefault_yes ; then
+   if test x"$activate_ffs" = xno ; then
+     AC_MSG_ERROR([posix module requires enabling of XrdFfs module - please re-run configure with ffs enabled.])
+   fi
+fi
 
 ####################################################################
 # monitoring
@@ -1025,6 +1085,8 @@ fi
 
 AM_CONDITIONAL(ENABLE_SECSSL,test x"$activate_secssl" = xyes -o x"$activate_secssl" = xdefault_yes)
 
+# Record the extension of dynamic libraries on this platform
+LT_SYS_MODULE_EXT
 
 ###########################################
 # tkauthz checks
@@ -1088,6 +1150,7 @@ AC_OUTPUT(Makefile
           src/XrdMon/Makefile
           src/XrdCns/Makefile
           src/XrdApps/Makefile
+          src/XrdFfs/Makefile
           test/testconfig.sh
           xrootd.spec)
 
