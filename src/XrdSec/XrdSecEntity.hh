@@ -37,7 +37,7 @@ public:
          char   *endorsements;            // Protocol specific endorsements
          char   *tident;                  // Trace identifier (do not touch)
 
-         XrdSecEntity(const char *pName)
+         XrdSecEntity(const char *pName = "")
                         {strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
                          prot[XrdSecPROTOIDSIZE-1] = '\0';
                          name=host=vorg=role=grps=endorsements=tident = 0;
