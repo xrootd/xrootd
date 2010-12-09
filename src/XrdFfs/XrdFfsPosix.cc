@@ -418,23 +418,21 @@ void* XrdFfsPosix_x_readdirall(void* x)
 int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direntarray, uid_t user_uid)
 {
     int i, j, n, nents, nurls; 
+    bool hasDirLock = false;
 
     char *newurls[XrdFfs_MAX_NUM_NODES];
     int res_i[XrdFfs_MAX_NUM_NODES];
     int errno_i[XrdFfs_MAX_NUM_NODES];
-    struct XrdFfsDentnames *dir_i[XrdFfs_MAX_NUM_NODES];
+    struct XrdFfsDentnames *dir_i[XrdFfs_MAX_NUM_NODES] = {0};
     struct XrdFfsPosixX_readdirall_args args[XrdFfs_MAX_NUM_NODES];
     struct XrdFfsQueueTasks *jobs[XrdFfs_MAX_NUM_NODES];
 
-    for (i = 0; i < XrdFfs_MAX_NUM_NODES; i++)
-        dir_i[i] = NULL;
+//    for (i = 0; i < XrdFfs_MAX_NUM_NODES; i++)
+//        dir_i[i] = NULL;
 
     nurls = XrdFfsMisc_get_all_urls(rdrurl, newurls, XrdFfs_MAX_NUM_NODES);
     if (nurls < 0) 
     {
-//        for (i = 0; i < nurls; i++)
-//            free(newurls[i]);
-
         errno = EACCES;
         return -1;
     }
@@ -485,9 +483,13 @@ int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direnta
     nents = 0;
     for (i = 0; i < n; i++)
     {
-        // if we filter DIR_LOCK, the rm -rf will stop working ...
+        // put DIR_LOCK to the last one to allow rm -rf to work...
         //
-        // if (! strcmp(dnarraytmp[i], "DIR_LOCK")) continue;  
+        if (! strcmp(dnarraytmp[i], "DIR_LOCK")) 
+        {
+            hasDirLock = true;
+            continue;  
+        }
 
         if (i != 0)   // can be used to filter out .lock .fail, etc. 
         {
@@ -524,10 +526,12 @@ int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direnta
 
 /* inject this list into dent cache */
 
-     char *p;
-     p = strdup(path);
-     XrdFfsDent_cache_fill(p, direntarray, nents);
-     free(p);
+    char *p;
+    p = strdup(path);
+    XrdFfsDent_cache_fill(p, direntarray, nents);
+    free(p);
+
+    if (hasDirLock) (*direntarray)[nents++] = strdup("DIR_LOCK");
 
     return nents;
 }
