@@ -66,7 +66,13 @@ void *XrdSysPlugin::getPlugin(const char *pname, int errok, bool global)
 // Open the plugin library if not already opened
 //
    int flags = RTLD_NOW;
+#ifndef WIN32
    flags |= global ? RTLD_GLOBAL : RTLD_LOCAL;
+#else
+   if (global)
+      eDest->Emsg("getPlugin",
+                  "request for global symbols unsupported under Windows - ignored");
+#endif
    if (!libHandle && !(libHandle = dlopen(libPath, flags)))
       {eDest->Emsg("getPlugin", "Unable to open", libPath, dlerror());
        return 0;
