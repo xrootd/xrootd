@@ -13,7 +13,7 @@ XRDADLER32_OBJ = $(OBJDIR)/Xrdadler32.o
 XRDADLER32 = $(BINDIR)/xrdadler32
 
 XrdCCODEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
-             $(LIBDIR)/libXrdOuc.a $(LIBDIR)/LibXrdSys.a
+             $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
 XRDCCOLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
 XRDCCOOBJ  = $(OBJDIR)/XrdAppsCconfig.o
 XRDCCOBIN  = $(BINDIR)/cconfig
