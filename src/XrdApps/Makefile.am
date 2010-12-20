@@ -18,7 +18,7 @@
 #############################################################################
 ## deliverables
 
-bin_PROGRAMS = xrdadler32 mpxstats wait41
+bin_PROGRAMS = xrdadler32 cconfig mpxstats wait41
 
 
 #############################################################################
@@ -35,6 +35,16 @@ xrdadler32_LDADD = \
                        ../XrdSys/libXrdSys.la
 
 xrdadler32_LDFLAGS = -static -export-dynamic -ldl -lz
+
+cconfig_SOURCES = XrdAppsCconfig.cc
+
+cconfig_LDADD = \
+                       ../XrdNet/libXrdNet.la   \
+                       ../XrdOuc/libXrdOuc.la     \
+                       ../XrdSys/libXrdSys.la \
+                       ../XrdNet/libXrdNetUtil.la
+
+cconfig_LDFLAGS = -static -export-dynamic
 
 mpxstats_SOURCES = XrdMpxStats.cc
 
