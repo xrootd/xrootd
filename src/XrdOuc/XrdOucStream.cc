@@ -518,6 +518,7 @@ char *XrdOucStream::GetMyFirstWord(int lowcase)
                         Eroute->Emsg("Stream", "No preceeding 'if' for 'fi'.");
                      ecode = EINVAL;
                     }
+            continue;
            }
         if (var && (!myEnv || !isSet(var))) return add2llB(var, 1);
        } while (1);
