@@ -96,7 +96,7 @@ $(OBJDIR)/XrdFfsMisc.o: XrdFfsMisc.cc   XrdFfsMisc.hh       XrdFfsDent.hh \
                         XrdFfsFsinfo.hh XrdFfsPosix.hh      XrdFfsQueue.hh \
                         XrdClient.hh    XrdClientAdmin.hh   XrdClientConst.hh \
                         XrdClientEnv.hh XrdClientUrlInfo.hh \
-                        XrdOucString.hh XrdPosixXrootd.hh \
+                        XrdOucString.hh \
                         XrdSecEntity.hh XrdSecsssID.hh
 	@echo Compiling XrdFfsMisc.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdFfsMisc.cc -o $(OBJDIR)/XrdFfsMisc.o
@@ -119,6 +119,7 @@ $(OBJDIR)/XrdFfsWcache.o: XrdFfsWcache.cc  XrdFfsWcache.hh \
 $(OBJDIR)/XrdFfsXrootdfs.o: XrdFfsXrootdfs.cc \
                             XrdFfsDent.hh      XrdFfsFsinfo.hh \
                             XrdFfsMisc.hh      XrdFfsPosix.hh \
-                            XrdFfsQueue.hh     XrdFfsWcache.hh
+                            XrdFfsQueue.hh     XrdFfsWcache.hh \
+                            XrdPosixXrootd.hh
 	@echo Compiling XrdFfsXrootdfs.cc
 	$(ECHO)$(CC) -c  $(CFLAGS) $(INCLUDE) $(CFHASFUSE) XrdFfsXrootdfs.cc -o $(OBJDIR)/XrdFfsXrootdfs.o

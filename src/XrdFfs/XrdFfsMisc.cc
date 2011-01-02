@@ -22,7 +22,6 @@
 #include <syslog.h>
 
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClient.hh"
@@ -261,7 +260,6 @@ void XrdFfsMisc_refresh_url_cache(const char* url)
 
 void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
 {
-    static XrdPosixXrootd abc;
     static int OneTimeInitDone = 0;
 
 // Do not execute this more than once
