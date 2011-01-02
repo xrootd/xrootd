@@ -87,7 +87,7 @@ $(OBJDIR)/XrdPssAio.o:  XrdPssAio.cc   XrdPss.hh \
 	@echo Compiling XrdPssAio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPssAio.o XrdPssAio.cc
 
-$(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh \
+$(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh         XrdFfsDent.hh \
                            XrdFfsMisc.hh     XrdFfsWcache.hh   XrdFfsQueue.hh \
                            XrdOuca2x.hh      XrdOucEnv.hh      XrdSysError.hh \
                            XrdOucStream.hh   XrdOucTList.hh    XrdOucUtils.hh \
