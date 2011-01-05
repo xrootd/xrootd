@@ -212,6 +212,14 @@ do{if (!doNames) strcpy(pDir, pP->text+pP->val);
    if (pP) {Act = 0; while(pP) {tP = pP; pP = pP->next; delete tP;}}
       else if (ec) Act = 0;
 
+// Check for old-style spaces
+//
+   if (numOld && doNames)
+      {sprintf(pDir, "%d old-style dataspace file%s found.", numOld,
+                     (numOld == 1 ? "" : "s"));
+       Msg(pDir);
+      }
+
 // Print ending status here
 //
    if (!Act) Msg("Conversion aborted!");
@@ -227,28 +235,25 @@ do{if (!doNames) strcpy(pDir, pP->text+pP->val);
 //
    Config.runOld = 0; Config.runNew = 1;
 
-// If we ended check if we have more conversions that we can do
+// If no space conversion, check if it is really needed
 //
-   if (Act && !numProb)
-      {if (numOld)
-          {sprintf(pDir, "%d old-style dataspace file%s found.", numOld,
-                         (numOld == 1 ? "" : "s"));
-           Msg(pDir);
-           if (doSpaces) return Old2New(0,1);
-              else Msg("You are encouraged to run 'convert old2new spaces'.");
-          } else {
-           if (doNames && doSpaces)
-              Msg("No old-style dataspace files found; space conversion skipped.");
-          }
-      } else {
-       if (doNames && doSpaces && numOld && Act)
-          Msg("Space conversion bypassed until namespace problems are fixed.");
-       return 2;
+   if (!doSpaces && Act)
+      {if (Config.hasCache) 
+          Msg("Please change 'oss.cache' to 'oss.space' directives.");
+       if (numOld) Msg("You are encouraged to run 'convert old2new spaces'.");
+       return 0;
+      }
+
+// Check if we should and can run space conversion
+//
+   if (doSpaces == 1)
+      {if (Act && !numProb) return Old2New(0,2);
+       Msg("Space conversion bypassed until namespace problems are fixed.");
       }
 
 // All done
 //
-   return 0;
+   return (Act && !numProb ? 0 : 2);
 }
   
 /******************************************************************************/

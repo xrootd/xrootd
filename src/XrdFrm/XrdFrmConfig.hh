@@ -83,6 +83,7 @@ int                 Verbose;
 int                 runOld;    // Backward compatability
 int                 runNew;    // Forward  compatability
 int                 nonXA;     // Backward compatability for noXA spaces
+int                 hasCache;  // Backward compatability for noXA spaces
 char              **vectArg;
 int                 nextArg;
 int                 numcArg;

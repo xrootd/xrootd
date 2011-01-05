@@ -888,7 +888,8 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
       {
        if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
-       if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
+       if (!strcmp(var, "oss.cache"     )) hasCache = 1; // runOld
+                                           return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
