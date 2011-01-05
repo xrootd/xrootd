@@ -13,10 +13,10 @@ include $(top_srcdir)/src/Makefile_include
 # preprocessor flags
 if ENABLE_FUSE
 AM_CPPFLAGS = -I$(top_srcdir)/src -DHAVE_FUSE=1
-FUSELIB = -lfuse
+FUSELIB=-lfuse
 else
 AM_CPPFLAGS = -I$(top_srcdir)/src
-FUSELIB = 
+FUSELIB=
 endif
 
 #############################################################################
@@ -28,7 +28,7 @@ xrootdffsinc_HEADERS =  XrdFfsDent.hh XrdFfsFsinfo.hh \
 #############################################################################
 ## deliverables
 
-noinst_LTLIBRARIES = libXrdFfs.la
+lib_LTLIBRARIES = libXrdFfs.la
 bin_PROGRAMS = xrootdfs
 
 #############################################################################
@@ -42,16 +42,15 @@ libXrdFfs_la_SOURCES = \
         XrdFfsQueue.cc \
         XrdFfsWcache.cc
 
-libXrdFfs_la_LIBADD = $(FUSELIB) \
-                      ../XrdPosix/libXrdPosix.la
+libXrdFfs_la_LIBADD = ../XrdPosix/libXrdPosix.la \
+                      ../XrdClient/libXrdClient.la \
+                      ../XrdSec/libXrdSec.la \
+                      ../XrdSecsss/libXrdSecsss.la \
+                      ../XrdNet/libXrdNet.la \
+                      ../XrdNet/libXrdNetUtil.la \
+                      ../XrdOuc/libXrdOuc.la \
+                      ../XrdSys/libXrdSys.la \
+                      $(FUSELIB)
 
 xrootdfs_SOURCES = XrdFfsXrootdfs.cc
-xrootdfs_LDADD = libXrdFfs.la \
-                 ../XrdOuc/libXrdOuc.la \
-                 ../XrdSys/libXrdSys.la \
-                 ../XrdClient/libXrdClient.la \
-                 ../XrdSec/libXrdSec.la \
-                 ../XrdSecsss/libXrdSecsss.la \
-                 ../XrdNet/libXrdNet.la \
-                 ../XrdNet/libXrdNetUtil.la
-
+xrootdfs_LDADD = libXrdFfs.la

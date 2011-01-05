@@ -41,6 +41,7 @@
 #include "XrdFfs/XrdFfsQueue.hh"
 //#include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsFsinfo.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
 
 char *rdr, *cns, *fastls="", *daemon_user;
 //enum Boolean {false, true} ofsfwd;
@@ -1019,6 +1020,7 @@ static struct fuse_operations xrootdfs_oper;
 
 int main(int argc, char *argv[])
 {
+    static XrdPosixXrootd abc; // Do one time init for posix interface
     xrootdfs_oper.init		= xrootdfs_init;
     xrootdfs_oper.getattr	= xrootdfs_getattr;
     xrootdfs_oper.access	= xrootdfs_access;

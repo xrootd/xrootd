@@ -141,6 +141,4 @@ testParser_LDADD = libXrdMonCommon.la
 xrdmonCout2file_SOURCES = XrdMonCout2FileApp.cc 
 xrdmonCout2file_LDADD = libXrdMonDecoder.la \
                         ../XrdOuc/libXrdOuc.la \
-                        ../XrdSys/libXrdSys.la \
                         libXrdMonCommon.la
-

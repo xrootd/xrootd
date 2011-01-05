@@ -12,8 +12,10 @@
 # TARGETS
 bin_PROGRAMS = cmsd
 
+lib_LTLIBRARIES = libXrdCms.la
+
 # convenience library for the common sources, just used for the build
-noinst_LTLIBRARIES = libXrdCms.la libXrdCmsConv.la 
+noinst_LTLIBRARIES = libXrdCmsConv.la 
 
 #####################################################
 # HEADERS to be installed

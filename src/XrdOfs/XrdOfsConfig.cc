@@ -162,8 +162,8 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 // Set the redirect option for other layers
 //
    if (Options & isManager)
-           putenv((char *)"XRDREDIRECT=R");  // XrdOucEnv::Export()
-      else putenv((char *)"XRDREDIRECT=0");  // XrdOucEnv::Export()
+           XrdOucEnv::Export("XRDREDIRECT", (Options & isMeta ? "M" : "R"));
+      else XrdOucEnv::Export("XRDREDIRECT", "0");
 
 // Configure the storage system at this point. This must be done prior to
 // configuring cluster processing. First check if we will be proxying.

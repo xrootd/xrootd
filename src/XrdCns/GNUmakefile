@@ -47,15 +47,16 @@ OBJSSI = \
 OBJECTS = $(OBJCNSD) $(OBJCOM) $(OBJSSI)
 
 LIBDEP   = \
-        $(LIBDIR)/libXrdNet.a \
-        $(LIBDIR)/libXrdNetUtil.a \
         $(LIBDIR)/libXrdOss.a \
+        $(LIBDIR)/libXrdFrm.a \
+        $(LIBDIR)/libXrdClient.a \
         $(LIBDIR)/libXrdOuc.a \
         $(LIBDIR)/libXrdSys.a \
-        $(LIBDIR)/libXrdClient.a
+        $(LIBDIR)/libXrdNet.a \
+        $(LIBDIR)/libXrdNetUtil.a
 
 
-MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOss -lXrdOuc -lXrdNetUtil -lXrdSys
+MORELIBS = -L$(LIBDIR)
 
 TARGCNSD = $(BINDIR)/XrdCnsd
 

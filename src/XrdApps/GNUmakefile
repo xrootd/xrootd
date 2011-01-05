@@ -12,6 +12,12 @@ XRDADLERLIBS = -L$(LIBDIR) -lXrdPosix -lXrdClient -lXrdOuc \
 XRDADLER32_OBJ = $(OBJDIR)/Xrdadler32.o
 XRDADLER32 = $(BINDIR)/xrdadler32
 
+XrdCCODEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
+             $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
+XRDCCOLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+XRDCCOOBJ  = $(OBJDIR)/XrdAppsCconfig.o
+XRDCCOBIN  = $(BINDIR)/cconfig
+
 XrdMPXDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
              $(LIBDIR)/libXrdOuc.a
 XRDMPXLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
@@ -23,7 +29,7 @@ XRDW41LIBS = $(LIBS) -L$(LIBDIR) -lXrdOuc -lXrdSys
 XRDW41_OBJ = $(OBJDIR)/XrdWait41.o
 XRDW41     = $(BINDIR)/wait41
 
-TARGETS = $(XRDADLER32) $(XRDMPXBIN) $(XRDW41)
+TARGETS = $(XRDADLER32) $(XRDCCOBIN) $(XRDMPXBIN) $(XRDW41)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -62,10 +68,24 @@ $(XRDADLER32_OBJ): Xrdadler32.cc \
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(XRDADLER32_OBJ) Xrdadler32.cc
 
 #------------------------------------------------------------------------------#
+#                              l s c c o n f i g                               #
+#------------------------------------------------------------------------------#
+
+$(XRDCCOBIN): $(XRDCCOOBJ) $(XrdCCODEPS)
+	@echo Creating executable $(XRDCCOBIN)
+	$(ECHO)$(LD) $(LDOP) $(XRDCCOOBJ) $(XRDCCOLIBS) $(LIBS) -o $(XRDCCOBIN)
+ 
+$(XRDCCOOBJ): XrdAppsCconfig.cc XrdNetDNS.hh \
+              XrdOucEnv.hh  XrdOucNList.hh XrdOucStream.hh XrdOucUtils.hh \
+              XrdSysError.hh XrdSysLogger.hh XrdSysHeaders.hh XrdSysPthread.hh
+	@echo Compiling XrdAppsCconfig.cc
+	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(XRDCCOOBJ) XrdAppsCconfig.cc
+
+#------------------------------------------------------------------------------#
 #                               m p x s t a t s                                #
 #------------------------------------------------------------------------------#
 
-$(XRDMPXBIN): $(XRDMPXOBJ)
+$(XRDMPXBIN): $(XRDMPXOBJ) $(XrdMPXDEPS)
 	@echo Creating executable $(XRDMPXBIN)
 	$(ECHO)$(LD) $(LDOP) $(XRDMPXOBJ) $(XRDMPXLIBS) $(LIBS) -o $(XRDMPXBIN)
  

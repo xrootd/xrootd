@@ -157,12 +157,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
      { switch(c)
        {
        case 'r': deper = 1;
-       case 'm': putenv((char *)"XRDREDIRECT=R"); // XrdOucEnv::Export()
+       case 'm': XrdOucEnv::Export("XRDREDIRECT", "R");
                  break;
        case 't': deper = 1;
-       case 's': putenv((char *)"XRDRETARGET=1"); // XrdOucEnv::Export()
+       case 's': XrdOucEnv::Export("XRDRETARGET", "1");
                  break;
-       case 'y': putenv((char *)"XRDREDPROXY=1"); // XrdOucEnv::Export()
+       case 'y': XrdOucEnv::Export("XRDREDPROXY", "1");
                  break;
        default:  eDest.Say("Config warning: ignoring invalid option '",pi->argv[optind-1],"'.");
        }
@@ -280,7 +280,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Set the redirect flag if we are a pure redirector
 //
-   isRedir = ((rdf = getenv("XRDREDIRECT")) && !strcmp(rdf, "R"));
+   if ((rdf = getenv("XRDREDIRECT"))
+   && (!strcmp(rdf, "R") || !strcmp(rdf, "M"))) isRedir = *rdf;
 
 // Check if monitoring should be enabled
 //

@@ -209,8 +209,10 @@ static  struct hs_response
                 kXR_int32 rlen;
                 kXR_int32 pval;
                 kXR_int32 styp;
-               } hsresp={0, 0, htonl(8), htonl(XROOTD_VERSBIN),
-                               htonl(kXR_DataServer)};
+               } hsresp={(isRedir == 'M' ? 0xffff : 0), 0, htonl(8),
+                         htonl(XROOTD_VERSBIN),
+                         (isRedir ? htonl(kXR_LBalServer)
+                                  : htonl(kXR_DataServer))};
 
 XrdXrootdProtocol *xp;
 int dlen;
@@ -235,7 +237,6 @@ int dlen;
 
 // Respond to this request with the handshake response
 //
-   if (isRedir) hsresp.styp =  static_cast<kXR_int32>(htonl(kXR_LBalServer));
    if (!lp->Send((char *)&hsresp, sizeof(hsresp)))
       {lp->setEtext("handshake failed");
        return (XrdProtocol *)0;

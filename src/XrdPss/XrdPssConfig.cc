@@ -20,6 +20,7 @@
 #include <sys/un.h>
 #include <fcntl.h>
 
+#include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
 #include "XrdFfs/XrdFfsWcache.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
@@ -103,7 +104,8 @@ int XrdPssSys::Configure(const char *cfn)
                                                  {" tr", &allTrunc},
                                                  {0,     0        }
                                                 };
-   char *eP, theRdr[maxHLen];
+   const char *xP;
+   char *eP, theRdr[maxHLen+1024];
    int i, NoGo = 0;
 
 // Preset tracing options
@@ -140,18 +142,33 @@ int XrdPssSys::Configure(const char *cfn)
       while(Fwd[i].Typ)
            {if (!strstr(eP, Fwd[i].Typ)) *(Fwd[i].Loc) = 1; i++;}
 
-// Initialize the Ffs
+// Create a plain url for future use
 //
    urlPlen = sprintf(theRdr, hdrData, "", "", "", "", "", "", "", "");
    urlPlain= strdup(theRdr);
-   XrdFfsMisc_xrd_init(theRdr,0);
-   XrdFfsMisc_xrd_secsss_init();
+
+// We would really like that the Ffs interface use the generic method of
+// keeping track of data servers. It does not and it even can't handle more
+// than one export (really). But it does mean we need to give it a valid one.
+//
+   if (!(eP = getenv("XRDEXPORTS")) || *eP != '/') xP = "/tmp";
+      else if ((xP = rindex(eP, ' '))) xP++;
+              else xP = eP;
+
+// Initialize the Ffs (we don't use xrd_init() as it messes up the settings
+// We also do not initialize secsss as we don't know how to effectively use it.
+//
+   strcpy(&theRdr[urlPlen], xP);
+// XrdFfsMisc_xrd_secsss_init();
+   XrdFfsMisc_refresh_url_cache(theRdr);
+   XrdFfsDent_cache_init();
    XrdFfsWcache_init();
    XrdFfsQueue_create_workers(Workers);
 
-// Allocate an Xroot proxy object (only one needed here)
+// Allocate an Xroot proxy object (only one needed here). Tell it to not
+// shadow open files with real file descriptors (we will be honest).
 //
-   Xroot = new XrdPosixXrootd(32768, 16384);
+   Xroot = new XrdPosixXrootd(-32768, 16384);
    return 0;
 }
 
@@ -391,13 +408,12 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
          "DataServerConn_ttl",
          "DebugLevel",
          "DfltTcpWindowSize",
-         "LBServerConn_ttl"
+         "LBServerConn_ttl",
          "ParStreamsPerPhyConn",
          "ParStreamsPerPhyConn",
          "RedirCntTimeout",
          "ReadAheadSize",
          "ReadAheadStrategy",
-         "ReadCacheBlk",
          "ReadCacheBlkRemPolicy",
          "ReadCacheSize",
          "ReadTrimBlockSize",

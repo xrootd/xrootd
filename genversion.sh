@@ -37,6 +37,25 @@ function getVersionFromRefs()
 }
 
 #-------------------------------------------------------------------------------
+# Generate the version string from the date and the hash
+#-------------------------------------------------------------------------------
+function getVersionFromLog()
+{
+  AWK=gawk
+  EX="`which gawk`"
+  if test x"${EX}" == x -o ! -x "${EX}"; then
+    AWK=awk
+  fi
+
+  VERSION="`echo $@ | $AWK '{ gsub("-","",$1); print $1"-"$4; }'`"
+  if test $? -ne 0; then
+    echo "unknown";
+    return 1
+  fi
+  echo v$VERSION
+}
+
+#-------------------------------------------------------------------------------
 # We're not inside a git repo
 #-------------------------------------------------------------------------------
 if test ! -d .git; then
@@ -61,7 +80,9 @@ if test ! -d .git; then
       SHORTHASH="`grep ShortHash VERSION_INFO`"
       SHORTHASH=${SHORTHASH/ShortHash:/}
       SHORTHASH=${SHORTHASH// /}
-      VERSION="untagged-$SHORTHASH"
+      DATE="`grep Date VERSION_INFO`"
+      DATE=${DATE/Date:/}
+      VERSION="`getVersionFromLog $DATE $SHORTHASH`"
     fi
   fi
 
@@ -91,7 +112,8 @@ else
       if test ${?} -eq 0; then
         VERSION="`git describe --tags --abbrev=0 --exact-match`"
       else
-        VERSION="`git describe --tags --abbrev=0`+more"
+        LOGINFO="`git log -1 --format='%ai %h'`"
+        VERSION="`getVersionFromLog $LOGINFO`"
       fi
     fi
   fi

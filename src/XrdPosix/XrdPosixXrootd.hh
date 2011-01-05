@@ -114,7 +114,9 @@ static bool    isXrootdDir(DIR *dirp);
 static int     mapError(int rc);
 
 static
-inline bool    myFD(int fd) {return fd <= highFD && myFiles && myFiles[fd];}
+inline bool    myFD(int fd) {return fd >= baseFD && fd <= (highFD+baseFD)
+                                      && myFiles && myFiles[fd-baseFD];
+                            }
 
 static void    OpenCB(XrdPosixFile *fp, void *cbArg, int res);
 
@@ -147,10 +149,13 @@ static XrdPosixFile **myFiles;
 static XrdPosixDir  **myDirs;
 static int            lastFD;
 static int            highFD;
+static int            baseFD;
+static int            freeFD;
 static int            lastDir;
 static int            highDir;
 static int            devNull;
 static int            pllOpen;
 static int            maxThreads;
+static int            initDone;
 };
 #endif
