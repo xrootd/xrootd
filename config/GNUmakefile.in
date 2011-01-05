@@ -95,6 +95,12 @@ distclean: FORCE
 	$(ECHO)$(RM) -f config.log
 	$(ECHO)$(RM) -f test-comp.*
 	$(ECHO)$(RM) -f src/XrdOuc/XrdOucFactoryBonjour.*
+	$(ECHO)$(RM) -f src/XrdVersion.hh src/XrdVersion.hh.new
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCC
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCamd
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCamd510
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCamd64
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCi86pc
 
 install: FORCE
 	@echo Installing...

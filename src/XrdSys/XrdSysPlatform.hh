@@ -10,7 +10,7 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-//        $Id$
+//        $Id: XrdSysPlatform.hh 37681 2010-12-21 16:40:47Z rdm $
 
 // Include stdlib so that ENDIAN macros are defined properly
 //
@@ -142,9 +142,11 @@ typedef off_t off64_t;
      (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
 #if !defined(__GNUC__) || defined(__macos__)
 
+#if !defined(__sun) || (defined(__sun) && !defined(_LP64))
 extern "C" unsigned long long Swap_n2hll(unsigned long long x);
 #define htonll(_x_) Swap_n2hll(_x_)
 #define ntohll(_x_) Swap_n2hll(_x_)
+#endif
 
 #else
 
