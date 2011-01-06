@@ -5,9 +5,12 @@
 #-----------------------------------------------------------------------------#
 include ../GNUmake.env
 
-XRDADLERDEPS = $(LIBDIR)/libXrdPosix.a $(LIBDIR)/libXrdClient.a \
-               $(LIBDIR)/libXrdOuc.a
-XRDADLERLIBS = -L$(LIBDIR) -lXrdPosix -lXrdClient -lXrdOuc \
+XRDADLERDEPS = $(LIBDIR)/libXrdPosix.a   $(LIBDIR)/libXrdClient.a
+XRDADLERDEPT = $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
+               $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a \
+               $(XRDADLERDEPS)
+               
+XRDADLERLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
                $(PTHREAD) $(LIBS) $(LIBZ)
 XRDADLER32_OBJ = $(OBJDIR)/Xrdadler32.o
 XRDADLER32 = $(BINDIR)/xrdadler32
@@ -54,9 +57,9 @@ anything: $(TARGETS)
 #                             x r d a d l e r 3 2                              #
 #------------------------------------------------------------------------------#
   
-$(XRDADLER32): $(XRDADLER32_OBJ) $(XRDADLERDEPS)
+$(XRDADLER32): $(XRDADLER32_OBJ) $(XRDADLERDEPT)
 	@echo Creating executable $(XRDADLER32)
-	$(ECHO)$(LD) $(LDOP) $(XRDADLER32_OBJ) $(XRDADLERLIBS) -o $(XRDADLER32)
+	$(ECHO)$(LD) $(LDOP) $(XRDADLER32_OBJ) $(XRDADLERDEPS) $(XRDADLERLIBS) -o $(XRDADLER32)
 
 $(XRDADLER32_OBJ): Xrdadler32.cc \
                    XrdPosixExtern.hh    XrdPosixXrootd.hh \
