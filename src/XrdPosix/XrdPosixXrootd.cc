@@ -394,8 +394,10 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
    if (fdnum < 0)
       {fdnum = -fdnum;
        baseFD = ( getrlimit(RLIMIT_NOFILE, &rlim) ? 32768 : (int)rlim.rlim_cur);
-      } else if (!getrlimit(RLIMIT_NOFILE, &rlim))  fdnum = (int)rlim.rlim_cur;
-   if (fdnum > 32768) fdnum = 32768;
+      } else {
+       if (!getrlimit(RLIMIT_NOFILE, &rlim))  fdnum = (int)rlim.rlim_cur;
+       if (fdnum > 65536) fdnum = 65536;
+      }
    isize = fdnum * sizeof(XrdPosixFile *);
 
 // Allocate the table for fd-type pointers

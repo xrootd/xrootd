@@ -130,6 +130,18 @@ static void    setEnv(const char *var, long val);
 
 static int     Debug;
 
+/* There must be one instance of this object per executable image. Typically,
+   this object is declared in main() or at file level. This is necessary to
+   properly do one-time initialization of the static members. When declaring
+   this object, you can pass the following information:
+   maxfd  - maximum number of simultaneous files to support (i.e. fdlimit).
+            The value returned by getrlimit() over-rides the passed value
+            unless maxfd is negative. When negative, abs(maxfd) becomes the
+            absolute maximum and shadow file descriptors are not used.
+   maxdir - maximum number of open directories that can be supported. This
+            is independent of maxfd.
+   maxthr - maximum number of threads to use for the callback function.
+*/
                XrdPosixXrootd(int maxfd=255, int maxdir=255, int maxthr=255);
               ~XrdPosixXrootd();
 
