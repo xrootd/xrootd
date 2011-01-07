@@ -105,6 +105,7 @@ int GRST_verify_cert_wrapper(X509_STORE_CTX *ctx, void *p)
    called early enough */
 {
    ctx->check_issued = GRST_X509_check_issued_wrapper;
+   X509_STORE_CTX_set_flags(ctx, X509_V_FLAG_ALLOW_PROXY_CERTS);
    return X509_verify_cert(ctx);
 }
 
