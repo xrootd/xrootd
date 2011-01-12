@@ -1100,8 +1100,13 @@ echo "Configuring for $arch and compiler $ccflv"
 
 # Grep out the real compiler program name
 ccbin=""
-if test -f config/GNUmake.rules.$ccflv ; then
+if   test -f config/GNUmake.rules.$ccflv ; then
    ll=`grep TYPECC config/GNUmake.rules.$ccflv`
+   for i in $ll ; do
+      ccbin=$i
+   done
+elif test -f config/GNUmake.rules.$ccflv.in ; then
+   ll=`grep TYPECC config/GNUmake.rules.$ccflv.in`
    for i in $ll ; do
       ccbin=$i
    done
