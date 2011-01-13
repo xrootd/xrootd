@@ -28,7 +28,13 @@
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
 #include <readline/history.h>
+
+// define NOMACROS prevents the insanity of some courses implementations from
+// breaking this app
+#define NOMACROS
 #include <curses.h>
+#undef NOMACROS
+
 #include <term.h>
 #endif
 
