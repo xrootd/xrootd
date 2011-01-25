@@ -158,7 +158,11 @@ else
 XrdClientAdmin_c_wrap.cc: XrdClientAdmin.pm
 	cp $(srcdir)/XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
 XrdClientAdmin.pm: FORCE
-	cp $(srcdir)/XrdClientAdmin.pm XrdClientAdmin.pm;
+	if diff $(srcdir)/XrdClientAdmin.pm XrdClientAdmin.pm >/dev/null 2>&1; then \
+	  echo "Identical - nothing to do";                                         \
+	else                                                                        \
+	  cp $(srcdir)/XrdClientAdmin.pm XrdClientAdmin.pm;                         \
+	fi
 endif
 
 FORCE:
