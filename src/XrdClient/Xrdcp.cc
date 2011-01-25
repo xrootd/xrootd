@@ -734,6 +734,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    }
 
    delete *xrddest;
+   *xrddest = 0;
 
    return retvalue;
 }
