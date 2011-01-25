@@ -58,15 +58,15 @@ function getVersionFromLog()
 #-------------------------------------------------------------------------------
 # We're not inside a git repo
 #-------------------------------------------------------------------------------
-if test ! -d .git; then
+if test ! -d ${1}.git; then
   #-----------------------------------------------------------------------------
   # We cannot figure out what version we are
   #----------------------------------------------------------------------------
   echo "[I] No git repository info found. Trying to interpret VERSION_INFO"
-  if test ! -r VERSION_INFO; then
+  if test ! -r ${1}VERSION_INFO; then
     echo "[!] VERSION_INFO file absent. Unable to determine the version. Using \"unknown\""
     VERSION="unknown"
-  elif test x"`grep Format VERSION_INFO`" != x; then
+  elif test x"`grep Format ${1}VERSION_INFO`" != x; then
     echo "[!] VERSION_INFO file invalid. Unable to determine the version. Using \"unknown\""
     VERSION="unknown"
 
@@ -74,13 +74,13 @@ if test ! -d .git; then
   # The version file exists and seems to be valid so we know the version
   #----------------------------------------------------------------------------
   else
-    REFNAMES="`grep RefNames VERSION_INFO`"
+    REFNAMES="`grep RefNames ${1}VERSION_INFO`"
     VERSION="`getVersionFromRefs "$REFNAMES"`"
     if test x$VERSION == xunknown; then
-      SHORTHASH="`grep ShortHash VERSION_INFO`"
+      SHORTHASH="`grep ShortHash ${1}VERSION_INFO`"
       SHORTHASH=${SHORTHASH/ShortHash:/}
       SHORTHASH=${SHORTHASH// /}
-      DATE="`grep Date VERSION_INFO`"
+      DATE="`grep Date ${1}VERSION_INFO`"
       DATE=${DATE/Date:/}
       VERSION="`getVersionFromLog $DATE $SHORTHASH`"
     fi
@@ -99,6 +99,10 @@ else
     #---------------------------------------------------------------------------
     # Sanity check
     #---------------------------------------------------------------------------
+    CURRENTDIR=$PWD
+    if [ x${1} != x ]; then
+      cd ${1}
+    fi
     git log -1 >/dev/null 2>&1
     if test $? -ne 0; then
       echo "[!] Error while generating src/XrdVersion.hh, the git repository may be corrupted"
@@ -116,18 +120,19 @@ else
         VERSION="`getVersionFromLog $LOGINFO`"
       fi
     fi
+    cd $CURRENTDIR
   fi
 fi
 
 #-------------------------------------------------------------------------------
 # Create XrdVersion.hh
 #-------------------------------------------------------------------------------
-if test ! -r src/XrdVersion.hh.in; then
+if test ! -r ${1}src/XrdVersion.hh.in; then
    echo "[!] Unable to find src/XrdVersion.hh.in"
    exit 1
 fi
 
-sed -e "s/#define XrdVERSION  \"unknown\"/#define XrdVERSION  \"$VERSION\"/" src/XrdVersion.hh.in > src/XrdVersion.hh.new
+sed -e "s/#define XrdVERSION  \"unknown\"/#define XrdVERSION  \"$VERSION\"/" ${1}src/XrdVersion.hh.in > src/XrdVersion.hh.new
 
 if test $? -ne 0; then
   echo "[!] Error while generating src/XrdVersion.hh from the input template"

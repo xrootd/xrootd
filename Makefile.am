@@ -123,4 +123,4 @@ rpm:    dist
 
 version:
 	@echo "Generating version header"
-	@./genversion.sh
+	@$(top_srcdir)/genversion.sh $(top_srcdir)/

@@ -9,7 +9,7 @@
 #######################################################################
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR) $(JAVA_INCDIR) 
+AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR) $(JAVA_INCDIR)  -I$(top_builddir)/src
 
 #############################################################################
 ## extra directory definitions for install area
