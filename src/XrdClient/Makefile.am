@@ -147,6 +147,7 @@ clean-local:
 # This needs to be done outside the ENABLE_PERLINT clause, to get a working
 # "make dist" target
 SWIG_TARGETS = XrdClientAdmin_c_wrap.cc XrdClientAdmin.pm
+.PHONY: FORCE
 if REBUILD_SWIGFILE
 # This creates both the .cc file and the .pm perl module
 $(SWIG_TARGETS): XrdClientAdmin_c.hh
@@ -154,16 +155,13 @@ $(SWIG_TARGETS): XrdClientAdmin_c.hh
 	$(SWIG) -perl -o $@ $(srcdir)/XrdClientAdmin_c.hh
 CLEANFILES = $(SWIG_TARGETS)
 else
-XrdClientAdmin_c_wrap.cc: XrdClientAdmin_c_wrap.c
+XrdClientAdmin_c_wrap.cc: XrdClientAdmin.pm
 	cp $(srcdir)/XrdClientAdmin_c_wrap.c XrdClientAdmin_c_wrap.cc
-XrdClientAdmin.pm:
-	@if test -e $(srcdir)/XrdClientAdmin.pm; then \
-           cp $(srcdir)/XrdClientAdmin.pm XrdClientAdmin.pm; \
-        else \
-           echo "ERROR: You lost distribution's original $@. Refetch it."; \
-           exit 1; \
-        fi         
+XrdClientAdmin.pm: FORCE
+	cp $(srcdir)/XrdClientAdmin.pm XrdClientAdmin.pm;
 endif
+
+FORCE:
 
 if ENABLE_PERLINT
 
