@@ -13,6 +13,7 @@ Version 3.0.2
    * Fix the build on Solaris 10.
    * Fix the build on SLC4.
    * Fix the out-of-the-source-tree builds with autotools.
+   * Fix a segfault while doing a recursive copy from root:// to root://.
 
 -------------
 Version 3.0.1
