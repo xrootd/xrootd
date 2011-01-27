@@ -86,7 +86,7 @@ libXrdClient_la_LIBADD = $(LIBSUNMATH) \
               ../XrdNet/libXrdNet.la \
               ../XrdOuc/libXrdOuc.la \
               ../XrdSys/libXrdSys.la \
-              ../XrdNet/libXrdNetUtil.la
+              ../XrdNet/libXrdNetUtil.la -lpthread
 
 clientlibs =  libXrdClient.la \
               -ldl $(LIBZ)
