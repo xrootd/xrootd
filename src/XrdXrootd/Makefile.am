@@ -14,7 +14,7 @@
 
 bin_PROGRAMS = xrootd
 
-INCLUDES = -I$(top_srcdir)/src
+INCLUDES = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 EXTRA_DIST = XrdXrootdStat.icc
 

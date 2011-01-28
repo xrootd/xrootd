@@ -13,7 +13,7 @@ lib_LTLIBRARIES = libXrdPss.la
 xrootdpssincdir = $(includedir)/xrootd/XrdPss
 xrootdpssinc_HEADERS = XrdPss.hh
 
-INCLUDES = -I$(top_srcdir)/src
+INCLUDES = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 libXrdPss_la_SOURCES = \
         XrdPss.cc  XrdPss.hh \

@@ -623,7 +623,7 @@ guess_architecture () {
           if [ "$rele" = "5.10" ]; then
              ccflv=sunCCamd510
           else
-             ccflv=sunCCamd
+             ccflv=sunCCamd64
           fi
        else
           ccflv=sunCC
@@ -756,6 +756,7 @@ Advanced options:
    --has-readline      Do not check for readline
    --syslibs           Base directory where to look for system libraries to link with
    --incpfx            Base directory where to look for include files
+   --use-sun-stl4port  Use STL4 port on Solaris
 
 Install-related options:
 
@@ -849,6 +850,9 @@ inst_bindir=""
 inst_utilsdir=""
 inst_incdir=""
 
+sunstlport=""
+suncstd="-lCstd"
+
 if test $# -gt 0 ; then
    while test ! "x$1" = "x" ; do
       case "$1" in
@@ -876,6 +880,7 @@ if test $# -gt 0 ; then
       --has-fstatat)           hasfstatat="yes"      ;;
       --has-readline)          hasreadline="yes"     ;;
       --use-libtcmalloc)       enable_libtcmalloc="yes"  ;;
+      --use-sun-stl4port)      sunstlport="-library=stlport4" ; suncstd="" ;;
       --with-afs=*)            afsdir=$optarg        ; enable_afs="yes"     ;;
       --with-afs-incdir=*)     afsincdir=$optarg     ; enable_afs="yes"    ;;
       --with-afs-libdir=*)     afslibdir=$optarg     ; enable_afs="yes"    ;;
@@ -1095,8 +1100,13 @@ echo "Configuring for $arch and compiler $ccflv"
 
 # Grep out the real compiler program name
 ccbin=""
-if test -f config/GNUmake.rules.$ccflv ; then
+if   test -f config/GNUmake.rules.$ccflv ; then
    ll=`grep TYPECC config/GNUmake.rules.$ccflv`
+   for i in $ll ; do
+      ccbin=$i
+   done
+elif test -f config/GNUmake.rules.$ccflv.in ; then
+   ll=`grep TYPECC config/GNUmake.rules.$ccflv.in`
    for i in $ll ; do
       ccbin=$i
    done
@@ -3170,6 +3180,20 @@ sed -e "s|@dbgsfx@|$dbgsfx|g"   \
 rm -f GNUmake.options.tmp
 
 echo "done"
+
+#---------------------------------------------------------------------
+# Solaris GNUmake.rules.xxx
+#
+sunccrules="sunCC sunCCamd sunCCamd510 sunCCamd64 sunCCi86pc"
+for f in $sunccrules; do
+   message "Writing config/$f "
+   cp -rp config/GNUmake.rules.$f.in GNUmake.rules.$f.tmp
+   sed -e "s|@sunstlport@|$sunstlport|"   \
+       -e "s|@suncstd@|$suncstd|"   \
+       < GNUmake.rules.$f.tmp > config/GNUmake.rules.$f
+   rm -f GNUmake.rules.$f.tmp
+   echo "done"
+done
 
 #---------------------------------------------------------------------
 # Cleanup the temp directory

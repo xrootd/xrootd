@@ -16,7 +16,7 @@
 #
 
 
-AM_CPPFLAGS = -I$(top_srcdir)/src $(READLINE_INCDIR)
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src $(READLINE_INCDIR)
 
 #############################################################################
 ## extra directory definitions

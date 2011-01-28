@@ -10,7 +10,7 @@
 
 lib_LTLIBRARIES = libXrdOfs.la
 
-INCLUDES = -I$(top_srcdir)/src
+INCLUDES = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 xrootdofsincdir = $(includedir)/xrootd/XrdOfs
 

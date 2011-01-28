@@ -9,6 +9,11 @@ GNUmakefile.classic
 aclocal.m4
 autom4te.cache/
 compile
+config/GNUmake.rules.sunCC
+config/GNUmake.rules.sunCCamd
+config/GNUmake.rules.sunCCamd510
+config/GNUmake.rules.sunCCamd64
+config/GNUmake.rules.sunCCi86pc
 config.guess
 config.log
 config.status

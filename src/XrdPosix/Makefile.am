@@ -17,7 +17,7 @@
 include $(top_srcdir)/src/Makefile_include
 
 # preprocessor flags
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 #############################################################################
 ## extra directory definitions for install area

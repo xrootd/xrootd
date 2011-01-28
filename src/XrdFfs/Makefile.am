@@ -12,10 +12,10 @@ include $(top_srcdir)/src/Makefile_include
 
 # preprocessor flags
 if ENABLE_FUSE
-AM_CPPFLAGS = -I$(top_srcdir)/src -DHAVE_FUSE=1
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src -DHAVE_FUSE=1
 FUSELIB=-lfuse
 else
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 FUSELIB=
 endif
 

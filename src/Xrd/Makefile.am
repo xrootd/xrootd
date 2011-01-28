@@ -8,7 +8,7 @@
 ## Checked in by $Author$
 #######################################################################
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 #############################################################################
 ## extra directory definitions for install area

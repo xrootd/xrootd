@@ -24,7 +24,7 @@ bin_PROGRAMS = xrdadler32 cconfig mpxstats wait41
 #############################################################################
 ## Build rules
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 
 xrdadler32_SOURCES = Xrdadler32.cc
 
