@@ -1588,8 +1588,11 @@ int main(int argc, char**argv) {
 	       retval = doCp_xrd2loc(src.c_str(), d.c_str());
 	    }
 	    else
+            {
 	       cerr << "Error " << strerror(errno) <<
 		     " accessing path for " << d << endl;
+               retval = -1;
+            }
 	 }
       }
       else {

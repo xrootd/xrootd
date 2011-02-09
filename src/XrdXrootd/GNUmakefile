@@ -108,7 +108,8 @@ $(OBJDIR)/XrdXrootdAdmin.o: XrdXrootdAdmin.hh      XrdXrootdAdmin.cc \
 	@echo Compiling XrdXrootdAdmin.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdXrootdAdmin.o XrdXrootdAdmin.cc
 
-$(OBJDIR)/XrdXrootdAio.o: XrdXrootdAio.hh      XPtypes.hh           \
+$(OBJDIR)/XrdXrootdAio.o: XrdXrootdAio.hh \
+                          XPtypes.hh           XProtocol.hh \
                           XrdBuffer.hh         XrdLink.hh           \
                           XrdScheduler.hh \
                           XrdSysError.hh       XrdSysPthread.hh     \
