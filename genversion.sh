@@ -189,5 +189,7 @@ if test ! -e src/XrdVersion.hh; then
   mv src/XrdVersion.hh.new src/XrdVersion.hh
 elif test x"`diff src/XrdVersion.hh.new src/XrdVersion.hh`" != x; then
   mv src/XrdVersion.hh.new src/XrdVersion.hh
+else
+  rm src/XrdVersion.hh.new
 fi
 echo "[I] src/XrdVersion.hh successfuly generated" 1>&2
