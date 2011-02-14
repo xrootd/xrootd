@@ -33,3 +33,6 @@
    * Fix frm_admin command line option parsing so it does not trip over
      subcommand options. This also fixes a SEGV in MacOS when this actually
      happens.
+
++ **Documentation**
+   * Added man pages for: xprep, xrd, xrdcp, xrdstagetool, xrdgsiproxy
