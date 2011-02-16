@@ -344,11 +344,10 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
     if (XrdFfsMiscSecsss)
     {
         sprintf(user_num, "%d", user_uid);
-        pw = getpwuid(user_uid);
-        gr = getgrgid(user_gid);
-
         pthread_mutex_lock(&XrdFfsMiscSecsss_mutex);
     
+        pw = getpwuid(user_uid);
+        gr = getgrgid(user_gid);
         XrdFfsMiscUent->name = pw->pw_name;
         XrdFfsMiscUent->grps = gr->gr_name;
         XrdFfsMiscSssid->Register(user_num, XrdFfsMiscUent, 1);
