@@ -299,8 +299,20 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
         strcat(rootpath,path);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+/* 
+   Around May 2008, the O_EXCL was added to the _open(). No reason was given. It is removed again 
+   due to the following reason (the situation that redirector thinks a file exist while it doesn't):
+
+   1. FUSE will use _getattr to determine file status. _mknod() will be called only if _getattr() 
+      determined that the file does not exist.
+   2. In the case that rootd security is enabled, if a user create a file at an unauthorized path 
+      (and fail), redirector thinks the files exist but it actually does't exist (enabling security 
+      on redirector doesn't seems to help. An authorized user won't be able to create the same file
+      until the redirector forgets about it.
+
         res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
-//        res = XrdFfsPosix_open(rootpath, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
+*/
+        res = XrdFfsPosix_open(rootpath, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
         if (res == -1)
             return -errno;
         XrdFfsPosix_close(res);
@@ -320,6 +332,8 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     }
     return 0;
 }
+
+pthread_mutex_t XrdFfsXrootdfs_mkdir_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int xrootdfs_mkdir(const char *path, mode_t mode)
 {
@@ -343,7 +357,15 @@ static int xrootdfs_mkdir(const char *path, mode_t mode)
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+
+/* clean the redirecotr cache, see _mknod() for more explaitation. */
+    pthread_mutex_lock(&XrdFfsXrootdfs_mkdir_mutex);
+    res = XrdFfsPosix_open(rootpath, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
+    if (res != -1) XrdFfsPosix_close(res);
+    XrdFfsPosix_unlink(rootpath);
+
     res = XrdFfsPosix_mkdir(rootpath, mode);
+    pthread_mutex_unlock(&XrdFfsXrootdfs_mkdir_mutex);
     return ((res == -1)? -errno : 0);
 }
 
@@ -933,24 +955,32 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
     }
     else if (!strcmp(name, "xrootdfs.fs.dataserverlist"))
     {
-        char hostlist[4096 * 1024];
+        char *hostlist;
+
+        hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
         XrdFfsMisc_get_list_of_data_servers(hostlist);
 
         if (size == 0)
-            return strlen(hostlist);
+        {
+            xattrlen = strlen(hostlist);
+            free(hostlist);
+            return xattrlen;
+        }
         else if (size >= strlen(hostlist))
         {
-             size = strlen(hostlist);
-             if (size != 0)
-             {
-                  value[0] = '\0';
-                  strcat(value, hostlist);
-             }
-             return size;
+            size = strlen(hostlist);
+            if (size != 0)
+            {
+                value[0] = '\0';
+                strcat(value, hostlist);
+            }
+            free(hostlist);
+            return size;
         }
         else
         {
             errno = ERANGE;
+            free(hostlist);
             return -1;
         }
     }
