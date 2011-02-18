@@ -333,8 +333,6 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
     return 0;
 }
 
-pthread_mutex_t XrdFfsXrootdfs_mkdir_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 static int xrootdfs_mkdir(const char *path, mode_t mode)
 {
     int res;
@@ -358,14 +356,18 @@ static int xrootdfs_mkdir(const char *path, mode_t mode)
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
 
-/* clean the redirecotr cache, see _mknod() for more explaitation. */
-    pthread_mutex_lock(&XrdFfsXrootdfs_mkdir_mutex);
-    res = XrdFfsPosix_open(rootpath, O_CREAT | O_WRONLY, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
-    if (res != -1) XrdFfsPosix_close(res);
-    XrdFfsPosix_unlink(rootpath);
+    res = XrdFfsPosix_mkdir(rootpath, mode);
+    if (res == 0) return 0;
+/* 
+   now we are here either because there is either a race to create the directory, or the redirector 
+   incorrectly cached a non-existing one (see _mknod() for more explaitation)
+
+   the following code try to clear the redirector cache. In the case of two racing mkdir(), it doesn't 
+   care which one will success/fail.
+*/
+    XrdFfsPosix_clear_from_rdr_cache(rootpath);
 
     res = XrdFfsPosix_mkdir(rootpath, mode);
-    pthread_mutex_unlock(&XrdFfsXrootdfs_mkdir_mutex);
     return ((res == -1)? -errno : 0);
 }
 
@@ -439,7 +441,6 @@ static int xrootdfs_rmdir(const char *path)
     }
     /* 
       clear cache in redirector. otherwise, an immediate mkdir(path) will fail
-     */
     if (ofsfwd == false)
     {
         rootpath[0]='\0';
@@ -447,8 +448,9 @@ static int xrootdfs_rmdir(const char *path)
         strcat(rootpath,path);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
-        XrdFfsPosix_rmdir(rootpath);
+        XrdFfsPosix_clear_from_rdr_cache(rootpath);  // no needed. _mkdir() is doing this.
     }
+     */
     return 0;
 }
 
@@ -478,18 +480,14 @@ static int xrootdfs_rename(const char *from, const char *to)
     strcat(to_path, rdr);
     strcat(to_path, to);
 /*
-  As of 2009-11-19(20), the CVS head has a bug in XrdFfsPosix_rename() fixed so that 
-  the removal of old file and creation of new file is notified to redirector
-  (to update its cache). Until this is bundled in main stream xrootd releases,
-  we will just retuen a -EXDEV for now.
-
-  After the main stream xrootd includes this fix, the ideal way is:
   1. do actual renaming on data servers if if is a file in order to speed up
      renaming
   2. return -EXDEV for renaming of directory so that files in the directory
      are renamed individually (in order for the .pfn pointing back correctly).
  */
-    return -EXDEV;
+
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_editurl(from_path, fuse_get_context()->uid);
 
     XrdFfsPosix_stat(from_path, &stbuf);
     if (S_ISDIR(stbuf.st_mode)) /* && cns == NULL && ofsfwd == false) */
@@ -502,6 +500,9 @@ static int xrootdfs_rename(const char *from, const char *to)
 
     if (res == -1)
         return -errno;
+    
+/* data servers may not notify redirector about the renaming. So we notify redirector */
+    XrdFfsPosix_clear_from_rdr_cache(from_path);
 
     if (cns != NULL && ofsfwd == false)
     {
