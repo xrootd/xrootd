@@ -58,6 +58,7 @@ OBJFS   = \
 
 OBJDEPS = \
           $(LIBDIR)/libXrd.a \
+          $(LIBDIR)/libXrdSys.a \
           $(LIBDIR)/libXrdNet.a \
           $(LIBDIR)/libXrdNetUtil.a \
           $(LIBDIR)/libXrdOuc.a \

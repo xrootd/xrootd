@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*                DE-AC02-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
-
-//         $Id$
-
-const char *XrdFrmConfigCVSID = "$Id$";
   
 #include <unistd.h>
 #include <ctype.h>
@@ -167,6 +163,9 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    pProg    = 0;
    Fix      = 0;
    dirHold  = 40*60*60;
+   runOld   = 0;
+   runNew   = 1;
+   nonXA    = 0;
 
    myUid    = geteuid();
    myGid    = getegid();
@@ -213,6 +212,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
+   extern int *XrdOssRunMode;
    XrdFrmConfigSE theSE;
    int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
    const char *temp;
@@ -231,8 +231,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // Process the options
 //
    opterr = 0; nextArg = 1;
-   if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,vOpts)) && ((unsigned char)c != 0xff))
+   while(nextArg < argc && '-' == *argv[nextArg]
+         && (c=getopt(argc,argv,vOpts)) && (c != -1))
      { switch(c)
        {
        case 'b': optBG = 1;
@@ -348,7 +348,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
       {XrdOucEnv::Export("XRDREDIRECT", "Q");
        XrdOucEnv::Export("XRDOSSTYPE",  myFrmID);
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
-       if (!NoGo && !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib))) NoGo=1;
+       if (!NoGo)
+          {if (!(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib))) NoGo=1;
+              else runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
+          }
       }
 
 // Now we can create a home directory for core files and do a cwd to it
@@ -885,7 +888,9 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
       {
        if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
-       if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
+       if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
+                                           return xspace(0,0);
+                                          }
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
@@ -1827,6 +1832,8 @@ void XrdFrmConfig::xspaceBuild(char *grp, char *fn, int isxa)
    tP = nP->Dir;
    while(tP && strcmp(tP->text, fn)) tP = tP->next;
    if (!tP) nP->Dir = new XrdOucTList(fn, isxa, nP->Dir);
+
+   if (!isxa) nonXA = 1;
 }
 
 /******************************************************************************/

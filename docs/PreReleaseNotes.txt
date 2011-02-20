@@ -1,0 +1,38 @@
++ **New features**
+   * Change the oss and fm components to use file extended attributes instead
+     of meta-files. This affects copy, create, reloc, rename, and unlink in the
+     oss layer. Migrate, purge, transfer, and most admin commands in the frm
+     component. The 'all.export' directive now accepts the noxattr/xattr option.
+     WARNING: If the migrator or purge options have been specified for any path
+     in the 'all.export; directive then this change requires either the the
+     'oss.runmodeold' directive be added to the configuration file to provide
+     backward compatibility or that the name and data spaces be migrated using
+     the frm_admin command. See "Migrating tp Extended Attributes" manual for
+     detailed information and the new 'frm_admin convert' subcommand.
+   * Avoid physical copy if the operation can be handled using hard links. This
+     greatly speeds up static space token reassignment.
+   * Add platform independent interface to extended file attributes.
+
++ **Major bug fixes**
+   * Add missing braces that caused config failure in frm_admin command.
+   * Account for correct path when -M value is zero in hpsscp command.
+
++ **Minor bug fixes**
+   * Correct oss partition selection algorithm to further spread out file
+     allocation.
+   * Allow underscores in set/setenv variables.
+   * Add null byte after checksum value response.
+   * Move mapping of errno to xrootd error code to the protocol package where it
+     belongs. This also removes a cross dependency.
+   * Correct RetToken() behaviour in the presence of multiple spaces between tokens and
+     the previous call returned the remainder of the line (very obscure circumstances).
+   * [bug #77535] xrdcp now returns an error to the shell when it fails to copy the file
+   * Reset the transaction timeout for the Query method.
+     This fixes transaction timeout issues for clients doing only queries.
+   * Rename variable to remove conflict between it and global of the same name.
+   * Fix frm_admin command line option parsing so it does not trip over
+     subcommand options. This also fixes a SEGV in MacOS when this actually
+     happens.
+
++ **Documentation**
+   * Added man pages for: xprep, xrd, xrdcp, xrdstagetool, xrdgsiproxy
