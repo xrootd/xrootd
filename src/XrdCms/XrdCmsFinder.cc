@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdCmsFinderCVSID = "$Id$";
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
@@ -115,11 +111,12 @@ int XrdCmsFinderRMT::Configure(char *cfn)
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configHow  How;
    XrdCmsClientConfig::configWhat What;
+   int Topts = IsRedir;
 
 // Establish what we will be configuring
 //
    if (myPersona == XrdCmsClient::amProxy) 
-      How = XrdCmsClientConfig::configProxy;
+      {How = XrdCmsClientConfig::configProxy; Topts |= IsProxy;}
       else if (isMeta) How = XrdCmsClientConfig::configMeta;
               else     How = XrdCmsClientConfig::configNorm;
    What = (isTarget ? XrdCmsClientConfig::configSuper
@@ -146,7 +143,7 @@ int XrdCmsFinderRMT::Configure(char *cfn)
 // a responder (that we will hide) to pass through the port number.
 //
    if (!isMeta && !isTarget && config.haveMeta)
-      {XrdCmsFinderTRG *Rsp = new XrdCmsFinderTRG(Say.logger(),IsRedir,myPort);
+      {XrdCmsFinderTRG *Rsp = new XrdCmsFinderTRG(Say.logger(),Topts,myPort);
        return Rsp->RunAdmin(CMSPath);
       }
 
