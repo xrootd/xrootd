@@ -12,6 +12,7 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <stdio.h>
   
 #include "XProtocol/YProtocol.hh"
 #include "XProtocol/XPtypes.hh"
