@@ -164,7 +164,7 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
        int xLife = dmLife;
        Path[fnPos] = '\0';
        if (!Config.ossFS->Stat(Path, &buf, XRDOSS_resonly))
-          {xLife =dpLife; xVal = &dirPres;}
+          {xLife = dpLife; xVal = &dirPres;}
        fsMutex.Lock();
        fsDirMP.Rep(Path, xVal, xLife, Hash_keepdata);
        fsMutex.UnLock();
@@ -221,8 +221,9 @@ void XrdCmsBaseFS::Limit(int rLim, int Qmax)
 //
    if (rLim < 0) {theQ.rAgain=theQ.rLeft = -1; rLim = -rLim;    Fixed = 1;}
       else {theQ.rAgain = theQ.rLeft = (rLim > 1 ? rLim/2 : 1); Fixed = 0;}
-   theQ.rLimit = (rLim < 1000 ? rLim : 0);
-   theQ.qMax   = Qmax;
+   theQ.rLimit = (rLim <= 1000 ? rLim : 0);
+   if (Qmax > 0) theQ.qMax = Qmax;
+      else if (!(theQ.qMax = theQ.rLimit*2 + theQ.rLimit/2)) theQ.qMax = 1;
 }
 
 /******************************************************************************/
@@ -232,26 +233,26 @@ void XrdCmsBaseFS::Limit(int rLim, int Qmax)
 void XrdCmsBaseFS::Pacer()
 {
    XrdCmsBaseFR *rP;
-   int rqRate = 1000/theQ.rLimit;
+   int inQ, rqRate = 1000/theQ.rLimit;
 
 // Process requests at the given rate
 //
 do{theQ.pqAvail.Wait();
-   theQ.Mutex.Lock();
+   theQ.Mutex.Lock(); inQ = 1;
    while((rP = theQ.pqFirst))
-        {if (!(theQ.pqFirst = rP->Next)) theQ.pqLast = 0;
-         theQ.pqNum--;
+        {if (!(theQ.pqFirst = rP->Next)) {theQ.pqLast = 0; inQ = 0;}
          theQ.Mutex.UnLock();
          if (rP->PDirLen > 0 && !hasDir(rP->Path, rP->PDirLen))
             {delete rP; continue;}
-         theQ.Mutex.Lock(); theQ.rqNum++;
+         theQ.Mutex.Lock();
          if (theQ.rqFirst) {theQ.rqLast->Next = rP; theQ.rqLast = rP;}
             else {theQ.rqFirst  = theQ.rqLast = rP; theQ.rqAvail.Post();}
          theQ.Mutex.UnLock();
          XrdSysTimer::Wait(rqRate);
+         if (!inQ) break;
          theQ.Mutex.Lock();
         }
-   theQ.Mutex.UnLock();
+   if (inQ) theQ.Mutex.UnLock();
   } while(1);
 }
   
@@ -263,9 +264,9 @@ void XrdCmsBaseFS::Queue(XrdCmsRRData &Arg, XrdCmsPInfo &Who,
                          int fnpos, int Force)
 {
    EPNAME("Queue");
-   static time_t nextMsg = time(0) - 1;
+   static int noMsg = 1;
    XrdCmsBaseFR *rP;
-   int n;
+   int Msg, n, prevHWM;
 
 // If we can bypass the queue and execute this now. Avoid the grabbing the buff.
 //
@@ -278,27 +279,26 @@ void XrdCmsBaseFS::Queue(XrdCmsRRData &Arg, XrdCmsPInfo &Who,
 // Queue this request for callback after an appropriate time.
 // We will also steal the underlying data buffer from the Arg.
 //
-   DEBUG("inq " <<theQ.pqNum <<'/' <<theQ.rqNum <<" pace " <<Arg.Path);
+   DEBUG("inq " <<theQ.qNum <<" pace " <<Arg.Path);
    rP = new XrdCmsBaseFR(Arg, Who, fnpos);
 
 // Add the element to the queue
 //
    theQ.Mutex.Lock();
-   n = ++theQ.pqNum;
+   n = ++theQ.qNum; prevHWM = theQ.qHWM;
+   if ((Msg = (n > prevHWM))) theQ.qHWM = n;
    if (theQ.pqFirst) {theQ.pqLast->Next = rP; theQ.pqLast = rP;}
       else {theQ.pqFirst = theQ.pqLast  = rP; theQ.pqAvail.Post();}
    theQ.Mutex.UnLock();
 
 // Issue a warning message if we have an excessive number of requests queued
 //
-   if (n > theQ.qMax)
-      {time_t tNow = time(0);
-       if (tNow >= nextMsg)
-          {char Buff[40];
-           sprintf(Buff, "%d now in pacer queue", n);
-           Say.Emsg("Pacer", "Queue overrun;", Buff);
-           nextMsg = tNow+60;
-          }
+   if (n > theQ.qMax && Msg && (n-prevHWM > 3 || noMsg))
+      {int Pct = n/theQ.qMax;
+       char Buff[80];
+       noMsg = 0;
+       sprintf(Buff, "Queue overrun %d%%; %d requests now queued.", Pct, n);
+       Say.Emsg("Pacer", Buff);
       }
 }
   
@@ -309,19 +309,21 @@ void XrdCmsBaseFS::Queue(XrdCmsRRData &Arg, XrdCmsPInfo &Who,
 void XrdCmsBaseFS::Runner()
 {
    XrdCmsBaseFR *rP;
+   int inQ;
 
 // Process requests at the given rate
 //
 do{theQ.rqAvail.Wait();
-   theQ.Mutex.Lock();
+   theQ.Mutex.Lock(); inQ = 1;
    while((rP = theQ.rqFirst))
-        {if (!(theQ.rqFirst = rP->Next)) theQ.rqLast = 0;
-         theQ.rqNum--;
+        {if (!(theQ.rqFirst = rP->Next)) {theQ.rqLast = 0; inQ = 0;}
+         theQ.qNum--;
          theQ.Mutex.UnLock();
          Xeq(rP); delete rP;
+         if (!inQ) break;
          theQ.Mutex.Lock();
         }
-   theQ.Mutex.UnLock();
+   if (inQ) theQ.Mutex.UnLock();
   } while(1);
 }
 
@@ -383,7 +385,7 @@ void XrdCmsBaseFS::Xeq(XrdCmsBaseFR *rP)
 // If we have exceeded the queue limit and this is a meta-manager request
 // then just deep-six it. Local requests must complete
 //
-   if (theQ.rqNum >= theQ.qMax)
+   if (theQ.qNum > theQ.qMax)
       {Say.Emsg("Xeq", "Queue limit exceeded; ignoring lkup for", rP->Path);
        return;
       }

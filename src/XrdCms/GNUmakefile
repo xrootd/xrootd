@@ -379,7 +379,6 @@ $(OBJDIR)/XrdCmsPrepArgs.o:  XrdCmsPrepArgs.cc   XrdCmsPrepArgs.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsPrepArgs.o XrdCmsPrepArgs.cc
 
 $(OBJDIR)/XrdCmsPrepare.o:   XrdCmsPrepare.cc    XrdCmsPrepare.hh \
-                             XrdCmsBaseFS.hh \
                              XrdCmsConfig.hh     XrdCmsPrepArgs.hh \
                              XrdCmsTrace.hh      XrdNetMsg.hh \
                              XrdFrmProxy.hh      XrdOss.hh \

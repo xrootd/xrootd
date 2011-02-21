@@ -140,15 +140,15 @@ struct RequestQ
        XrdCmsBaseFR    *pqLast;
        XrdCmsBaseFR    *rqFirst;
        XrdCmsBaseFR    *rqLast;
-       int              pqNum;    // Number elements in pacer  queue
-       int              rqNum;    // Number elements in runner queue
        int              rLimit;   // Maximum number of requests per second
+       int              qHWM;     // Queue high watermark
        int              qMax;     // Maximum elements to be queued
+       int              qNum;     // Total number of queued elements (pq + rq)
        int              rLeft;    // Number of non-queue requests allowed
        int              rAgain;   // Value to reinitialize rLeft
        RequestQ() : pqAvail(0), rqAvail(0),
                     pqFirst(0), pqLast(0), rqFirst(0), rqLast(0),
-                    pqNum(0),   rqNum(0),  rLimit(0),  qMax(0),
+                    rLimit(0),  qHWM(0),   qMax(1),    qNum(0),
                     rLeft(0),   rAgain(0)  {}
       ~RequestQ() {}
       }                 theQ;
