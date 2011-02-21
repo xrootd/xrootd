@@ -474,7 +474,7 @@ if test x"$activate_fuse" = xyes -o x"$activate_fuse" = xdefault_yes ; then
 
 
   LDFLAGS="$FUSE_LIBDIR $LDFLAGS"
-  AC_CHECK_LIB([fuse],[fuse_version],
+  AC_CHECK_LIB([fuse],[fuse_main],
                [:],[fusetests=failed],[-lfuse]
               )
 
