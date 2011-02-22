@@ -1384,7 +1384,7 @@ int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
                                  Zero (default) turns this off.
 
              qmax <n>          - maximum number of requests that may be queued.
-                                 Zero turns this off. The default qmax is 2.5
+                                 One is the minimum. The default qmax is 2.5
                                  the limit value.
 
              redirect {immed | verify}
