@@ -623,7 +623,7 @@ guess_architecture () {
           if [ "$rele" = "5.10" ]; then
              ccflv=sunCCamd510
           else
-             ccflv=sunCCamd64
+             ccflv=sunCCi86pc
           fi
        else
           ccflv=sunCC
