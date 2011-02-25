@@ -1729,9 +1729,9 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
        {if ((xMeta  = !strcmp("meta", val))
         ||  (xPeer  = !strcmp("peer", val))
         ||  (xProxy = !strcmp("proxy", val)))
-            {if (xMeta  && (isServer || isPeer)
-             || (xPeer  && !isPeer)
-             || (xProxy && !isProxy)) return CFile.noEcho();
+            {if ((xMeta  && (isServer || isPeer))
+             ||  (xPeer  && !isPeer)
+             ||  (xProxy && !isProxy)) return CFile.noEcho();
             val = CFile.GetWord();
            } else if (isPeer) return CFile.noEcho();
        }
