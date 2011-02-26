@@ -263,7 +263,7 @@ void XrdFfsMisc_refresh_url_cache(const char* url)
     hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 256);
     i = XrdFfsMisc_get_list_of_data_servers(hostlist);
 
-    syslog(LOG_INFO, "INFO: Starting with %d data servers :", i);
+    syslog(LOG_INFO, "INFO: use the following %d data servers :", i);
     p1 = hostlist;
     p2 = strchr(p1, '\n');
     while (p2 != NULL)
