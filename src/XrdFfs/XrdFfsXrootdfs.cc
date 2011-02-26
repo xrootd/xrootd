@@ -31,6 +31,7 @@
 #include <pwd.h>
 #include <libgen.h>
 #include <syslog.h>
+#include <signal.h>
 #if !defined(__solaris__)
 #include <sys/xattr.h>
 #endif
@@ -877,27 +878,7 @@ static int xrootdfs_setxattr(const char *path, const char *name, const char *val
         return -EPERM;
 
     if (!strcmp(name,"xrootdfs.fs.dataserverlist"))
-    {
-        int i;
-        char *hostlist, *p1, *p2;
-
         XrdFfsMisc_refresh_url_cache(rdr);
-
-        hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
-        i = XrdFfsMisc_get_list_of_data_servers(hostlist);
-
-        syslog(LOG_INFO, "INFO: Will use the following %d data servers", i);
-        p1 = hostlist;
-        p2 = strchr(p1, '\n');
-        while (p2 != NULL)
-        {
-            p2[0] = '\0';
-            syslog(LOG_INFO, "   %s", p1);
-            p1 = p2 +1;
-            p2 = strchr(p1, '\n');
-        }
-        free(hostlist);
-    }
     else if (!strcmp(name,"xrootdfs.fs.nworkers"))
     {
         int i, j;
@@ -958,7 +939,7 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
     {
         char *hostlist;
 
-        hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
+        hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 256);
         XrdFfsMisc_get_list_of_data_servers(hostlist);
 
         if (size == 0)
@@ -1047,6 +1028,26 @@ static int xrootdfs_removexattr(const char *path, const char *name)
     return 0;
 }
 
+
+void xrootdfs_sighup_handler(int sig) 
+{
+/* Do this in a new thread because XrdFfsMisc_refresh_url_cache() contents mutex. */
+    pthread_t *thread;
+    pthread_attr_t attr;
+    size_t stacksize = 2*1024*1024;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, stacksize);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    thread = (pthread_t*) malloc(sizeof(pthread_t));
+    pthread_create(thread, &attr, (void* (*)(void*))XrdFfsMisc_refresh_url_cache, rdr);
+    pthread_detach(*thread);
+    free(thread);
+
+    pthread_attr_destroy(&attr);
+}
+
 static struct fuse_operations xrootdfs_oper; 
 
 int main(int argc, char *argv[])
@@ -1083,7 +1084,7 @@ int main(int argc, char *argv[])
     rdr = getenv("XROOTDFS_RDRURL");
     cns = getenv("XROOTDFS_CNSURL");
 /* convert xroot://... to root://... */
-    if (rdr[0] == 'x') rdr = rdr+1;
+    if (rdr != NULL && rdr[0] == 'x') rdr = rdr+1;
     if (cns != NULL && cns[0] == 'x') cns = cns+1;
 
     fastls = getenv("XROOTDFS_FASTLS");
@@ -1106,6 +1107,8 @@ int main(int argc, char *argv[])
 
     XrdFfsMisc_xrd_init(rdr,0);
     XrdFfsWcache_init();
+
+    signal(SIGHUP,xrootdfs_sighup_handler);
 
     umask(0);
     return fuse_main(argc, argv, &xrootdfs_oper, NULL);

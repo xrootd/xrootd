@@ -256,6 +256,24 @@ void XrdFfsMisc_refresh_url_cache(const char* url)
     free(surl);
     for (i = 0; i < nurls; i++) free(turls[i]);
     free(turls);
+
+// Logging
+    char *hostlist, *p1, *p2;
+
+    hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 256);
+    i = XrdFfsMisc_get_list_of_data_servers(hostlist);
+
+    syslog(LOG_INFO, "INFO: use the following %d data servers :", i);
+    p1 = hostlist;
+    p2 = strchr(p1, '\n');
+    while (p2 != NULL)
+    {
+        p2[0] = '\0';
+        syslog(LOG_INFO, "   %s", p1);
+        p1 = p2 +1;
+        p2 = strchr(p1, '\n');
+    }
+    free(hostlist);
 }
 
 void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
@@ -282,28 +300,8 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
     if (getenv("XROOTDFS_SECMOD") != NULL && !strcmp(getenv("XROOTDFS_SECMOD"), "sss"))
         XrdFfsMisc_xrd_secsss_init();
 
-    int i;
-    char *hostlist, *p1, *p2;
-
-    XrdFfsMisc_refresh_url_cache(rdrurl);
-
-    hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
-    i = XrdFfsMisc_get_list_of_data_servers(hostlist);
-
     openlog("XrootdFS", LOG_ODELAY | LOG_PID, LOG_DAEMON);
-    syslog(LOG_INFO, "INFO: Starting with %d data servers :", i);
-    p1 = hostlist;
-    p2 = strchr(p1, '\n');
-    while (p2 != NULL)
-    {
-        p2[0] = '\0';
-        syslog(LOG_INFO, "   %s", p1);
-        p1 = p2 +1;
-        p2 = strchr(p1, '\n');
-    }
-//    closelog();
-
-    free(hostlist);
+    XrdFfsMisc_refresh_url_cache(rdrurl);
 
 #ifndef NOUSE_QUEUE
    if (startQueue)
