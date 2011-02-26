@@ -1,4 +1,10 @@
 + **New features**
+   * Optimize handling of shared-everything ile systems (e.g., dCache, GPFS,
+     DFS, Lustre, etc.) in the cmsd.
+   * Implement optional throttling for meta-manager requests in the cmsd.
+   * New cmsd directive, cms.dfs, declares that the underlying file system
+     is a shared-everything system (i.e., distributed file system) and allow
+     for optimal configuration and meta-manager throttling.
    * Change the oss and fm components to use file extended attributes instead
      of meta-files. This affects copy, create, reloc, rename, and unlink in the
      oss layer. Migrate, purge, transfer, and most admin commands in the frm

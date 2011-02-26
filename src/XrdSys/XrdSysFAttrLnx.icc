@@ -78,7 +78,7 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
 int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 {
    AList *aNew;
-   char *Buff, *bP, *bEnd;
+   char *Buff = 0, *bP, *bEnd;
    int  ec, Tlen, maxSz = 0, *msP = (getSz ? &maxSz : 0);
 
 // First obtain the amount of storage we will need for the whole list
