@@ -40,6 +40,30 @@ static XrdSysLogger Logger;
 static XrdSysError eDest(0,"cryptossl_");
 XrdOucTrace *sslTrace = 0;
 
+// Mutexes for OpenSSL
+XrdSysMutex*             XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
+
+/******************************************************************************/
+/*             T h r e a d - S a f e n e s s   F u n c t i o n s              */
+/******************************************************************************/
+static unsigned long sslfactory_id_callback(void) {
+  return (unsigned long)XrdSysThread::ID();
+}
+
+void sslfactory_lock(int mode, int n, const char *file, int line)
+{
+  if (mode & CRYPTO_LOCK) {
+    if (XrdCryptosslFactory::CryptoMutexPool[n]) {
+      XrdCryptosslFactory::CryptoMutexPool[n]->Lock();
+    }
+  } else {
+    if (XrdCryptosslFactory::CryptoMutexPool[n]) {
+      XrdCryptosslFactory::CryptoMutexPool[n]->UnLock();
+    }
+  }
+}
+
+
 //______________________________________________________________________________
 XrdCryptosslFactory::XrdCryptosslFactory() :
                      XrdCryptoFactory("ssl",XrdCryptosslFactoryID)
@@ -54,6 +78,26 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
    OpenSSL_add_all_ciphers();
    // Load Msg Digests
    OpenSSL_add_all_digests();
+
+  // This code taken from XrdSecProtocolssl
+  // thread-safety
+  for (int i=0; i< SSLFACTORY_MAX_CRYPTO_MUTEX; i++) {
+    XrdCryptosslFactory::CryptoMutexPool[i] = new XrdSysMutex();
+  }
+
+  if (SSLFACTORY_MAX_CRYPTO_MUTEX < CRYPTO_num_locks() ) {
+    fprintf(stderr,"Error: (%s) I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing SSLFACTORY_MAX_CRYPTO_MUTEX to %d] \n",__FUNCTION__,CRYPTO_num_locks());
+  }
+
+#if defined(OPENSSL_THREADS)
+  // thread support enabled
+#else
+  fprintf(stderr,"Error: SSL lacks thread support: Abort!");
+#endif
+
+  // set callback functions
+  CRYPTO_set_locking_callback(sslfactory_lock);
+  CRYPTO_set_id_callback(sslfactory_id_callback);
 
    // Init Random machinery
    int klen = 32;
