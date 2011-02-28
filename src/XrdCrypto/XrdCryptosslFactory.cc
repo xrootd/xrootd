@@ -86,7 +86,7 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
   }
 
   if (SSLFACTORY_MAX_CRYPTO_MUTEX < CRYPTO_num_locks() ) {
-    fprintf(stderr,"Error: (%s) I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing SSLFACTORY_MAX_CRYPTO_MUTEX to %d] \n",__FUNCTION__,CRYPTO_num_locks());
+    fprintf(stderr,"Error: (XrdCryptosslFactory) I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing SSLFACTORY_MAX_CRYPTO_MUTEX to %d] \n", CRYPTO_num_locks());
   }
 
 #if defined(OPENSSL_THREADS)
