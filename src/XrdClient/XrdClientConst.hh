@@ -139,6 +139,10 @@
 #define DFLT_ENABLE_FORK_HANDLERS 0
 #define NAME_ENABLE_FORK_HANDLERS (char *)"EnableForkHandlers"
 
+// Use TCP keepalive
+#define DFLT_ENABLE_TCP_KEEPALIVE 0
+#define NAME_ENABLE_TCP_KEEPALIVE (char *)"EnableTCPKeepAlive"
+
 #define TRUE  1
 #define FALSE 0
 

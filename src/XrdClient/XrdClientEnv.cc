@@ -61,6 +61,7 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_TRANSACTIONTIMEOUT, DFLT_TRANSACTIONTIMEOUT);
    PutInt(NAME_REMUSEDCACHEBLKS, DFLT_REMUSEDCACHEBLKS);
    PutInt(NAME_ENABLE_FORK_HANDLERS, DFLT_ENABLE_FORK_HANDLERS);
+   PutInt(NAME_ENABLE_TCP_KEEPALIVE, DFLT_ENABLE_TCP_KEEPALIVE);
 
    ImportInt( NAME_CONNECTTIMEOUT );
    ImportInt( NAME_REQUESTTIMEOUT );
@@ -82,6 +83,7 @@ XrdClientEnv::XrdClientEnv() {
    ImportInt( NAME_TRANSACTIONTIMEOUT );
    ImportInt( NAME_REMUSEDCACHEBLKS );
    ImportInt( NAME_ENABLE_FORK_HANDLERS );
+   ImportInt( NAME_ENABLE_TCP_KEEPALIVE );
 }
 
 //------------------------------------------------------------------------------
