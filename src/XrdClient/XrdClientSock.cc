@@ -422,7 +422,8 @@ int XrdClientSock::TryConnect_low(bool isUnix, int altport, int windowsz)
     }
 
     if( !isUnix && EnvGetLong( NAME_ENABLE_TCP_KEEPALIVE ) )
-      XrdNetSocket::setOpts( sock, XRDNET_KEEPALIVE, 0 );
+      if( XrdNetSocket::setOpts( sock, XRDNET_KEEPALIVE, 0 ) != 0 )
+        Error( "ClientSock::TryConnect_low", "Unable to set the TCP Keep Alive option" );
 
     return sock;
 }
