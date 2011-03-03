@@ -164,7 +164,7 @@ XrdClientEnv::~XrdClientEnv() {
 //------------------------------------------------------------------------------
 static void prepare()
 {
-  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) )
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->ShutDown();
     SessionIDRepo.Purge();
@@ -176,7 +176,7 @@ static void prepare()
 //------------------------------------------------------------------------------
 static void parent()
 {
-  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) )
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->BootUp();
   }
@@ -187,7 +187,7 @@ static void parent()
 //------------------------------------------------------------------------------
 static void child()
 {
-  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) )
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->BootUp();
   }
