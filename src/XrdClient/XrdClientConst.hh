@@ -143,6 +143,20 @@
 #define DFLT_ENABLE_TCP_KEEPALIVE 0
 #define NAME_ENABLE_TCP_KEEPALIVE (char *)"EnableTCPKeepAlive"
 
+// Tweak the TCP keepalive - these are only meaningful on Linux
+
+// Interval (in seconds) between the last data packet and the first probe
+#define DFLT_TCP_KEEPALIVE_TIME 7200
+#define NAME_TCP_KEEPALIVE_TIME (char *)"TCPKeepAliveTime"
+
+// Interval (in seconds) between the probes
+#define DFLT_TCP_KEEPALIVE_INTERVAL 75
+#define NAME_TCP_KEEPALIVE_INTERVAL (char *)"TCPKeepAliveInterval"
+
+// Number of probes lost to consider the connection broken
+#define DFLT_TCP_KEEPALIVE_PROBES 9
+#define NAME_TCP_KEEPALIVE_PROBES (char *)"TCPKeepAliveProbes"
+
 #define TRUE  1
 #define FALSE 0
 
