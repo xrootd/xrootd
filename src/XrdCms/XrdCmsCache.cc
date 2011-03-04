@@ -73,7 +73,7 @@ void *XrdCmsStartTickTock(void *carg)
 // Key was found:  Location information is updated depending on mask
 // mask == 0       Indicates that the information is being refreshed.
 //                 Location information is nullified. The update deadline is set
-//                 DLTime seconds in the future. The entry window is set to the
+//                 QDelay seconds in the future. The entry window is set to the
 //                 current window to be held for a full fxhold period.
 // mask != 0       Indicates that some location information is now known.
 //                 Location information is updated according to the mask.
@@ -114,7 +114,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
 //
    if (iP)
       {if (!mask)
-          {iP->Loc.deadline = DLTime + time(0);
+          {iP->Loc.deadline = QDelay + time(0);
            iP->Loc.hfvec = 0; iP->Loc.pfvec = 0; iP->Loc.qfvec = 0;
            iP->Loc.TOD_B = BClock;
            iP->Key.TOD = Tock;
@@ -140,7 +140,7 @@ int XrdCmsCache::AddFile(XrdCmsSelect &Sel, SMask_t mask)
                      iP->Loc.hfvec    = mask;
                      iP->Loc.TOD_B    = BClock;
                      iP->Loc.qfvec    = 0;
-                     iP->Loc.deadline = DLTime + time(0);
+                     iP->Loc.deadline = QDelay + time(0);
                      Sel.Path.Ref     = iP->Key.Ref;
                      Sel.Path.TODRef  = iP; isnew = 1;
                     }
@@ -223,7 +223,7 @@ int  XrdCmsCache::GetFile(XrdCmsSelect &Sel, SMask_t mask)
           {iP->Loc.hfvec &= ~bVec; 
            iP->Loc.pfvec &= ~bVec;
            iP->Loc.qfvec &= ~mask;
-           iP->Loc.deadline = DLTime + time(0); 
+           iP->Loc.deadline = QDelay + time(0);
            retc = -1;
           } else if (iP->Loc.deadline)
                     if (iP->Loc.deadline > time(0)) retc = -1;
@@ -348,7 +348,7 @@ void XrdCmsCache::Drop(SMask_t smask, int SNum, int xHi)
 /* public                           I n i t                                   */
 /******************************************************************************/
   
-int XrdCmsCache::Init(int fxHold, int fxDelay, int seFS)
+int XrdCmsCache::Init(int fxHold, int fxDelay, int fxQuery, int seFS)
 {
    XrdCmsKeyItem *iP;
    pthread_t tid;
@@ -360,7 +360,7 @@ int XrdCmsCache::Init(int fxHold, int fxDelay, int seFS)
 
 // Initialize the delay time and the bounce clock tick window
 //
-   DLTime = fxDelay;
+   DLTime = fxDelay; QDelay = fxQuery;
    if (!(Tick = fxHold/XrdCmsKeyItem::TickRate)) Tick = 1;
 
 // Start the clock thread
