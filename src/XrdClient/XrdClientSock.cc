@@ -157,6 +157,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
                  "seconds reading " << length << " bytes" <<
                  " from server " << fHost.TcpHost.Host <<
                  ":" << fHost.TcpHost.Port);
+         Disconnect();
          return TXSOCK_ERR_TIMEOUT;
       }
 
