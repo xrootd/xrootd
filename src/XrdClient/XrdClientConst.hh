@@ -135,6 +135,14 @@
 #define DFLT_LBSERVERCONN_TTL      1200
 #define NAME_LBSERVERCONN_TTL      (char *)"LBServerConn_ttl"
 
+// Switch on/off the fork handlers
+#define DFLT_ENABLE_FORK_HANDLERS 0
+#define NAME_ENABLE_FORK_HANDLERS (char *)"EnableForkHandlers"
+
+// Use TCP keepalive
+#define DFLT_ENABLE_TCP_KEEPALIVE 0
+#define NAME_ENABLE_TCP_KEEPALIVE (char *)"EnableTCPKeepAlive"
+
 #define TRUE  1
 #define FALSE 0
 

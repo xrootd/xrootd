@@ -118,7 +118,7 @@ int XrdPssSys::Configure(const char *cfn)
 //
    XrdPosixXrootd::setEnv("ReadAheadSize",           1024*1024);
    XrdPosixXrootd::setEnv("ReadCacheSize",       512*1024*1024);
-   XrdPosixXrootd::setEnv("ParStreamsPerPhyConn",            2);
+   XrdPosixXrootd::setEnv("ParStreamsPerPhyConn",      long(0)); // Temp!
    XrdPosixXrootd::setEnv("PurgeWrittenBlocks",              1);
    XrdPosixXrootd::setEnv("DataServerConn_ttl",          20*60);
    XrdPosixXrootd::setEnv("LBServerConn_ttl",            60*60);

@@ -308,7 +308,8 @@ int XrdCmsConfig::Configure2()
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
 //
-   if (isManager) NoGo = !Cache.Init(cachelife, LUPDelay, baseFS.isDFS());
+   if (isManager) 
+      NoGo = !Cache.Init(cachelife, LUPDelay, QryDelay, baseFS.isDFS());
 
 // Issue warning if the adminpath resides in /tmp
 //
@@ -577,6 +578,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    myName   = (char *)"localhost"; // Correctly set in Configure()
    myDomain = 0;
    LUPDelay = 5;
+   QryDelay = 5;
    LUPHold  = 178;
    DRPDelay = 10*60;
    PSDelay  = 0;
@@ -1252,7 +1254,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
                                            [full <sec>] [discard <cnt>]
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
-                                           [peer <sec>] [rw <lvl>]
+                                           [peer <sec>] [rw <lvl>] [qdl <sec>]
 
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
@@ -1262,6 +1264,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
    overload  <sec>     seconds to delay client when all servers overloaded.
    peer      <sec>     maximum seconds client may be delayed before peer
                        selection is triggered.
+   qdl       <sec>     the query response deadline.
    rw        <lvl>     how to delay r/w lookups (one of three levels):
                        0 - always use fast redirect when possible
                        1 - delay update requests only
@@ -1289,6 +1292,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
         {"lookup",   &LUPDelay, 1},
         {"overload", &MaxDelay,-1},
         {"peer",     &PSDelay,  1},
+        {"qdl",      &QryDelay, 1},
         {"rw",       &RWDelay,  0},
         {"servers",  &SUPCount, 0},
         {"service",  &SUPDelay, 1},

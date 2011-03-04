@@ -14,6 +14,8 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
+#include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientConnMgr.hh"
 #include <string>
 #include <algorithm>
 #include <ctype.h>
@@ -58,6 +60,8 @@ XrdClientEnv::XrdClientEnv() {
    PutInt(NAME_READTRIMBLKSZ, DFLT_READTRIMBLKSZ);
    PutInt(NAME_TRANSACTIONTIMEOUT, DFLT_TRANSACTIONTIMEOUT);
    PutInt(NAME_REMUSEDCACHEBLKS, DFLT_REMUSEDCACHEBLKS);
+   PutInt(NAME_ENABLE_FORK_HANDLERS, DFLT_ENABLE_FORK_HANDLERS);
+   PutInt(NAME_ENABLE_TCP_KEEPALIVE, DFLT_ENABLE_TCP_KEEPALIVE);
 
    ImportInt( NAME_CONNECTTIMEOUT );
    ImportInt( NAME_REQUESTTIMEOUT );
@@ -78,6 +82,8 @@ XrdClientEnv::XrdClientEnv() {
    ImportInt( NAME_READTRIMBLKSZ );
    ImportInt( NAME_TRANSACTIONTIMEOUT );
    ImportInt( NAME_REMUSEDCACHEBLKS );
+   ImportInt( NAME_ENABLE_FORK_HANDLERS );
+   ImportInt( NAME_ENABLE_TCP_KEEPALIVE );
 }
 
 //------------------------------------------------------------------------------
@@ -151,4 +157,61 @@ XrdClientEnv::~XrdClientEnv() {
    delete fgInstance;
 
    fgInstance = 0;
+}
+
+//------------------------------------------------------------------------------
+// To be called prior to forking
+//------------------------------------------------------------------------------
+static void prepare()
+{
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
+  {
+    ConnectionManager->ShutDown();
+    SessionIDRepo.Purge();
+  }
+}
+
+//------------------------------------------------------------------------------
+// To be called in the parent just after forking
+//------------------------------------------------------------------------------
+static void parent()
+{
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
+  {
+    ConnectionManager->BootUp();
+  }
+}
+
+//------------------------------------------------------------------------------
+// To be called in the child just after forking
+//------------------------------------------------------------------------------
+static void child()
+{
+  if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
+  {
+    ConnectionManager->BootUp();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Install the fork handlers on application startup
+//------------------------------------------------------------------------------
+namespace
+{
+  static struct Initializer
+  {
+    Initializer()
+    {
+      //------------------------------------------------------------------------
+      // Install the fork handlers
+      //------------------------------------------------------------------------
+#ifndef WIN32
+      if( pthread_atfork( prepare, parent, child ) != 0 )
+      {
+        std::cerr << "Unable to install the fork handlers - safe forking not ";
+        std::cerr << "possible" << std::endl;
+      }
+#endif
+    }
+  } initializer;
 }

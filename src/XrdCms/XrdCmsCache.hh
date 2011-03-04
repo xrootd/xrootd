@@ -54,7 +54,7 @@ void        Bounce(SMask_t smask, int SNum);
 
 void        Drop(SMask_t mask, int SNum, int xHi);
 
-int         Init(int fxHold, int fxDelay, int seFS);
+int         Init(int fxHold, int fxDelay, int fxQuery, int seFS);
 
 void       *TickTock();
 
@@ -86,6 +86,7 @@ unsigned int  Tick;
 unsigned int  Tock;
 unsigned int  BClock;
          int  DLTime;
+         int  QDelay;
          int  Bhits;
          int  Bmiss;
          int  vecHi;
