@@ -215,6 +215,7 @@ int XrdConfig::Configure(int argc, char **argv)
    gid_t myGid = 0;
    extern char *optarg;
    extern int optind, opterr;
+   int pipeFD[2] = {-1, -1};
 
 // Obtain the protocol name we will be using
 //
@@ -290,7 +291,16 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Resolve background/foreground issues
 //
-   if (optbg) XrdOucUtils::Undercover(XrdLog, !logfn);
+   if (optbg)
+   {
+#ifdef WIN32
+      XrdOucUtils::Undercover(XrdLog, !logfn);
+#else
+      if (pipe( pipeFD ) == -1)
+         {XrdLog.Emsg("Config", errno, "create a pipe"); exit(17);}
+      XrdOucUtils::Undercover(XrdLog, !logfn, pipeFD);
+#endif
+   }
 
 // Bind the log file if we have one
 //
@@ -382,12 +392,24 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (myInsName) XrdOucUtils::makeHome(XrdLog, myInsName);
 
+   // if we call this it means that the daemon has forked and we are
+   // in the child process
+#ifndef WIN32
+   if (optbg)
+   {
+      int status = NoGo ? 1 : 0;
+      write( pipeFD[1], &status, sizeof( status ) );
+      close( pipeFD[1]);
+   }
+#endif
+
 // All done, close the stream and return the return code.
 //
    temp = (NoGo ? " initialization failed." : " initialization completed.");
    sprintf(buff, "%s:%d", myInstance, PortTCP);
    XrdLog.Say("------ ", buff, temp);
    if (logfn) new XrdLogWorker(buff);
+
    return NoGo;
 }
 

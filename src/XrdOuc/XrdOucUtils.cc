@@ -332,11 +332,11 @@ char *XrdOucUtils::subLogfn(XrdSysError &eDest, const char *inst, char *logfn)
 /*                            U n d e r c o v e r                             */
 /******************************************************************************/
 #ifdef WIN32
-void XrdOucUtils::Undercover(XrdSysError &, int)
+void XrdOucUtils::Undercover(XrdSysError &, int, int *)
 {
 }
 #else
-void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
+void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
 {
    static const int maxFiles = 256;
    pid_t mypid;
@@ -353,7 +353,27 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
       {eDest.Emsg("Config", errno, "fork process 1 for backgrounding");
        return;
       }
-      else if (mypid) _exit(0);
+   else if (mypid)
+   {
+      // we have been given a pair of pipe descriptors to be able to read the
+      // status of the child process
+      if( pipeFD )
+      {
+         int status = 1;
+         close( pipeFD[1] );
+         // read will wait untill the status is communicated by the
+         // child process, if the child process dies before being able
+         // to comunicate the status then read will see EOF
+         if( read( pipeFD[0], &status, sizeof(status) ) != sizeof(status) )
+            _exit(1);
+         _exit(status);
+      }
+      // no pipes given, return success
+      else _exit(0);
+   }
+
+   if( pipeFD )
+      close( pipeFD[0] );
 
 // Become the process group leader
 //
@@ -380,8 +400,11 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog)
    dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
 
 // Close any open file descriptors left open by the parent process
+// but the communication pipe
 //
-  for (myfd = 3; myfd < maxFiles; myfd++) close(myfd);
+  for (myfd = 3; myfd < maxFiles; myfd++)
+    if( !pipeFD || myfd != pipeFD[1] )
+       close(myfd);
 }
 #endif
 

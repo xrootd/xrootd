@@ -48,7 +48,7 @@ static int   makePath(char *path, mode_t mode);
  
 static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
-static void  Undercover(XrdSysError &eDest, int noLog);
+static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
 
        XrdOucUtils() {}
       ~XrdOucUtils() {}

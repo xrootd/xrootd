@@ -220,6 +220,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    long long logkeep = 0;
    extern char *optarg;
    extern int opterr, optopt;
+   int pipeFD[2] = {-1, -1};
 
 // Obtain the program name (used for logging)
 //
@@ -292,7 +293,16 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 
    // If undercover desired and we are not an agent, do so
    //
-       if (optBG && !isAgent) XrdOucUtils::Undercover(Say, !logfn);
+       if (optBG && !isAgent)
+       {
+#ifdef WIN32
+          XrdOucUtils::Undercover( Say, !logfn );
+#else
+          if (pipe( pipeFD ) == -1)
+             {Say.Emsg("Config", errno, "create a pipe"); exit(17);}
+          XrdOucUtils::Undercover( Say, !logfn, pipeFD );
+#endif
+       }
 
    // Bind the log file if we have one
    //
@@ -385,6 +395,17 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
           {Say.Emsg("Config", retc, "create logger thread"); NoGo = 1;}
       }
 
+   // if we call this it means that the daemon has forked and we are
+   // in the child process
+#ifndef WIN32
+   if (optBG && !isAgent)
+   {
+      int status = NoGo ? 1 : 0;
+      write( pipeFD[1], &status, sizeof( status ) );
+      close( pipeFD[1]);
+   }
+#endif
+
 // Print ending message
 //
    temp = (NoGo ? " initialization failed." : " initialization completed.");
@@ -397,6 +418,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        theSE.mySem.Wait();
        if (NoGo && write(STDERR_FILENO, theSE.Buff, theSE.BLen)) {}
       }
+
 
 // All done
 //
