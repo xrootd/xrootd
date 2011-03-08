@@ -406,5 +406,27 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
     if( !pipeFD || myfd != pipeFD[1] )
        close(myfd);
 }
+
+bool XrdOucUtils::PidFile(XrdSysError &eDest, const char *path)
+{
+   char buff[32];
+   int  fd;
+
+   if( (fd = open( path, O_WRONLY|O_CREAT|O_TRUNC, 0644 )) < 0 )
+   {
+      eDest.Emsg( "Config", errno, "create pidfile" );
+      return false;
+   }
+
+   if( write( fd, buff, snprintf( buff, sizeof(buff), "%d",
+                                  static_cast<int>(getpid()) ) ) < 0 )
+   {
+      eDest.Emsg( "Config", errno, "write to pidfile" );
+      return false;
+   }
+
+   close(fd);
+   return true;
+}
 #endif
 

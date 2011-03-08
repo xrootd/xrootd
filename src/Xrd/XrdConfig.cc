@@ -216,6 +216,7 @@ int XrdConfig::Configure(int argc, char **argv)
    extern char *optarg;
    extern int optind, opterr;
    int pipeFD[2] = {-1, -1};
+   const char *pidFN = 0;
 
 // Obtain the protocol name we will be using
 //
@@ -227,7 +228,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:"))
+      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:s:"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -262,6 +263,9 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'R': if (!(getUG(optarg, myUid, myGid))) Usage(1);
                  break;
+       case 's': pidFN = optarg;
+                 break;
+
        default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
                     {XrdLog.Emsg("Config", argv[optind-1],
                                  "parameter not specified.");
@@ -400,6 +404,9 @@ int XrdConfig::Configure(int argc, char **argv)
       int status = NoGo ? 1 : 0;
       write( pipeFD[1], &status, sizeof( status ) );
       close( pipeFD[1]);
+
+      if (pidFN && !XrdOucUtils::PidFile( XrdLog, pidFN ) )
+         NoGo = 1;
    }
 #endif
 
@@ -771,7 +778,7 @@ void XrdConfig::Usage(int rc)
   if (rc < 0) cerr <<XrdLicense;
      else
      cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-k {n|sz}] [-l <fn>] "
-            "[-L] [-n name] [-p <port>] [-P <prot>] [<prot_options>]" <<endl;
+            "[-L] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
 

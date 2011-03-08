@@ -221,6 +221,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    extern char *optarg;
    extern int opterr, optopt;
    int pipeFD[2] = {-1, -1};
+   const char *pidFN = 0;
 
 // Obtain the program name (used for logging)
 //
@@ -271,6 +272,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                  break;
        case 'w': if (XrdOuca2x::a2tm(Say,"wait time",optarg,&WaitPurge))
                     Usage(1);
+                 break;
+       case 's': pidFN = optarg;
                  break;
        default:  sprintf(buff,"'%c'", optopt);
                  if (c == ':') Say.Emsg("Config", buff, "value not specified.");
@@ -403,6 +406,9 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
       int status = NoGo ? 1 : 0;
       write( pipeFD[1], &status, sizeof( status ) );
       close( pipeFD[1]);
+
+      if (pidFN && !XrdOucUtils::PidFile( Say, pidFN ) )
+         NoGo = 1;
    }
 #endif
 
@@ -418,7 +424,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        theSE.mySem.Wait();
        if (NoGo && write(STDERR_FILENO, theSE.Buff, theSE.BLen)) {}
       }
-
 
 // All done
 //
