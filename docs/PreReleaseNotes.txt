@@ -1,4 +1,6 @@
 + **New features**
+   * Add 'pss.namelib' directive to allow proxies to pre-translate the lfn
+     for servers that cannot do so (e.g., dCache xrootd door).
    * Optimize handling of shared-everything ile systems (e.g., dCache, GPFS,
      DFS, Lustre, etc.) in the cmsd.
    * Implement optional throttling for meta-manager requests in the cmsd.
