@@ -401,12 +401,12 @@ int XrdConfig::Configure(int argc, char **argv)
 #ifndef WIN32
    if (optbg)
    {
+      if (pidFN && !XrdOucUtils::PidFile( XrdLog, pidFN ) )
+         NoGo = 1;
+
       int status = NoGo ? 1 : 0;
       write( pipeFD[1], &status, sizeof( status ) );
       close( pipeFD[1]);
-
-      if (pidFN && !XrdOucUtils::PidFile( XrdLog, pidFN ) )
-         NoGo = 1;
    }
 #endif
 
