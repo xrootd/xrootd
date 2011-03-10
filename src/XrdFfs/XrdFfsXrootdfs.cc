@@ -895,7 +895,10 @@ static int xrootdfs_setxattr(const char *path, const char *name, const char *val
         return -EPERM;
 
     if (!strcmp(name,"xrootdfs.fs.dataserverlist"))
+    {
         XrdFfsMisc_refresh_url_cache(xrootdfs.rdr);
+        XrdFfsMisc_logging_url_cache(NULL);
+    }
     else if (!strcmp(name,"xrootdfs.fs.nworkers"))
     {
         int i, j;
@@ -1057,7 +1060,7 @@ void xrootdfs_sigusr1_handler(int sig)
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     thread = (pthread_t*) malloc(sizeof(pthread_t));
-    pthread_create(thread, &attr, (void* (*)(void*))XrdFfsMisc_refresh_url_cache, xrootdfs.rdr);
+    pthread_create(thread, &attr, (void* (*)(void*))XrdFfsMisc_logging_url_cache, xrootdfs.rdr);
     pthread_detach(*thread);
     free(thread);
 

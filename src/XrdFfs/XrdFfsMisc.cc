@@ -29,6 +29,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
+#include "XrdNet/XrdNetDNS.hh"
 #include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsFsinfo.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
@@ -206,6 +207,7 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
 {
     int i;
     char *url, *rc, *hostname, *hostip, *port, *p;
+    char *haddr[1], *hname[1];
   
     rc = (char*)malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
     rc[0] = '\0';
@@ -220,12 +222,18 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
         p = strchr(port, '/');
         p[0] = '\0';
 
-        hostname = XrdFfsMisc_getNameByAddr(hostip);
+//        hostname = XrdFfsMisc_getNameByAddr(hostip);
+        if (XrdNetDNS::getAddrName(hostip, 1, haddr, hname))
+            hostname = hname[0];
+        else
+            hostname = hostip;
         strcat(rc, hostname); 
         strcat(rc, ":");
         strcat(rc, port);
         strcat(rc, "\n");
-        free(hostname);
+//        free(hostname);
+        free(haddr[0]);
+        free(hname[0]);
         free(url);
     }
     pthread_mutex_unlock(&XrdFfsMiscUrlcache_mutex);
@@ -256,9 +264,14 @@ void XrdFfsMisc_refresh_url_cache(const char* url)
     free(surl);
     for (i = 0; i < nurls; i++) free(turls[i]);
     free(turls);
+}
 
-// Logging
+void XrdFfsMisc_logging_url_cache(const char* url)
+{
+    int i;
     char *hostlist, *p1, *p2;
+
+    if (url != NULL) XrdFfsMisc_refresh_url_cache(url);
 
     hostlist = (char*) malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 256);
     i = XrdFfsMisc_get_list_of_data_servers(hostlist);
@@ -302,6 +315,7 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
 
     openlog("XrootdFS", LOG_ODELAY | LOG_PID, LOG_DAEMON);
     XrdFfsMisc_refresh_url_cache(rdrurl);
+    XrdFfsMisc_logging_url_cache(NULL);
 
 #ifndef NOUSE_QUEUE
    if (startQueue)
