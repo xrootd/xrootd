@@ -1151,8 +1151,7 @@ AC_OUTPUT(Makefile
           src/XrdCns/Makefile
           src/XrdApps/Makefile
           src/XrdFfs/Makefile
-          test/testconfig.sh
-          xrootd.spec)
+          test/testconfig.sh)
 
 
 #####################################################################
