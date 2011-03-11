@@ -308,6 +308,7 @@ int XrdCmsConfig::Configure2()
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
 //
+   if (QryDelay < 0) QryDelay = LUPDelay;
    if (isManager) 
       NoGo = !Cache.Init(cachelife, LUPDelay, QryDelay, baseFS.isDFS());
 
@@ -578,7 +579,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    myName   = (char *)"localhost"; // Correctly set in Configure()
    myDomain = 0;
    LUPDelay = 5;
-   QryDelay = 5;
+   QryDelay =-1;
    LUPHold  = 178;
    DRPDelay = 10*60;
    PSDelay  = 0;
