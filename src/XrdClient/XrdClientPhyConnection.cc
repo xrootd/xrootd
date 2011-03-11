@@ -134,6 +134,11 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 //____________________________________________________________________________
 bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
 {
+   Connect( RemoteHost, isUnix, -1 );
+}
+
+bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix, int fd)
+{
    // Connect to remote server
    XrdSysMutexHelper l(fMutex);
 
@@ -148,7 +153,7 @@ bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
    if (EnvGetLong(NAME_MULTISTREAMCNT))
        fSocket = new XrdClientPSock(RemoteHost);
    else
-       fSocket = new XrdClientSock(RemoteHost);
+       fSocket = new XrdClientSock(RemoteHost, 0, fd );
 
    if(!fSocket) {
       Error("Connect","Unable to create a client socket. Aborting.");

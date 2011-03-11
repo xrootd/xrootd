@@ -43,16 +43,21 @@ const char *XrdClientSockCVSID = "$Id$";
 #endif
 
 //_____________________________________________________________________________
-XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize)
+XrdClientSock::XrdClientSock(XrdClientUrlInfo Host, int windowsize, int fd)
 {
     // Constructor
 
     fHost.TcpHost = Host;
     fHost.TcpWindowSize = windowsize;
-    fConnected = FALSE;
     fRDInterrupt = 0;
     fWRInterrupt = 0;
-    fSocket = -1;
+    fSocket = fd;
+
+    if( fSocket >= 0 )
+      fConnected = TRUE;
+    else
+      fConnected = FALSE;
+
     fRequestTimeout = EnvGetLong(NAME_REQUESTTIMEOUT);
 }
 
