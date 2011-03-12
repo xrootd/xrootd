@@ -1,4 +1,9 @@
 + **New features**
+   * Use native memory synchronization primitives when available when doing
+     network I/O. This will eventually be extended to cover all other cases.
+   * Add the qdl option to the cms.delay directive to allow changing the
+     query window independently of the time a client is asked to wait for the
+     query to actually complete.
    * Add 'pss.namelib' directive to allow proxies to pre-translate the lfn
      for servers that cannot do so (e.g., dCache xrootd door).
    * Optimize handling of shared-everything ile systems (e.g., dCache, GPFS,

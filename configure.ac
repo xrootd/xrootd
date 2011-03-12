@@ -247,6 +247,31 @@ if test x"$GCC" = xyes ; then
    AC_GNU_SOURCE
 fi
 
+# Check for GCC's new atomic ops (as of 4.1.2)
+AC_CACHE_CHECK([whether gcc provide atomic ops], [ac_atomic_ops],
+[AC_TRY_RUN([
+int main()
+{
+    unsigned long val = 111, tmp, *mem = &val;
+
+    if (__sync_fetch_and_add(&val, 111) != 111 || val != 222) return 1;
+    if (__sync_add_and_fetch(&val, 111) != 333)               return 1;
+    if (__sync_sub_and_fetch(&val, 111) != 222)               return 1;
+    if (__sync_fetch_and_sub(&val, 111) != 222 || val != 111) return 1;
+
+    if (__sync_fetch_and_or (&val, 0)   != 111 || val != 111) return 1;
+    if (__sync_fetch_and_and(&val, 0)   != 111 || val != 0  ) return 1;
+
+    if (__sync_bool_compare_and_swap(mem, 0, 444) == 0 || val != 444)
+        return 1;
+
+    return 0;
+}], ac_atomic_ops=yes, ac_atomic_ops=no, ac_atomic_ops=no)])
+
+if test "x$ac_atomic_ops" = "xyes"; then
+  AC_DEFINE(HAVE_ATOMICS)
+fi
+
 # Need to find a cleaner solution for the large file support settings
 # The standard autoconf macro AC_SYS_LARGEFILE is not enough for xrootd which
 # explicitely tests for a number of compilation flags in XrdPosixExtern.hh

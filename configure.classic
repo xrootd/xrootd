@@ -1546,14 +1546,29 @@ fi
 
 ######################################################################
 #
+### echo %%% Check for builtin atomics
+#
+if test "x$hasatomics" = "x"; then
+   message "Checking for builtin atomics"
+   check_prototype "__sync_" $ccbin "-c"
+   if test "x$found_prototype" = "xyes" ; then
+      echo "yes"
+      hasatomics=" -DHAVE_ATOMICS"
+   else
+      echo "no"
+   fi
+else
+   hasatomics=" -DHAVE_ATOMICS"
+fi
+
+######################################################################
+#
 ### echo %%% Flags steering echoing of command lines
 #
 xrdecho="@"
 if test "x$enable_echo" = "xyes" ; then
    xrdecho=""
 fi
-
-
 
 ######################################################################
 #
@@ -3136,6 +3151,7 @@ sed -e "s|@arch@|$arch|"                 \
     -e "s|@hasstrlcpy@|$hasstrlcpy|" \
     -e "s|@hasprotor@|$hasprotor|" \
     -e "s|@hasfstatat@|$hasfstatat|" \
+    -e "s|@hasatomics@|$hasatomics|" \
     -e "s|@hasfuse@|$hasfuse|" \
     -e "s|@libfuse@|$libfuse|" \
     -e "s|@hasreadline@|$hasreadline|" \
