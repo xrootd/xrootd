@@ -134,7 +134,7 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
 //____________________________________________________________________________
 bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix)
 {
-   Connect( RemoteHost, isUnix, -1 );
+   return Connect( RemoteHost, isUnix, -1 );
 }
 
 bool XrdClientPhyConnection::Connect(XrdClientUrlInfo RemoteHost, bool isUnix, int fd)
