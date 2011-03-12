@@ -568,7 +568,7 @@ int XrdLink::Recv(char *Buff, int Blen)
    if (LockReads) rdMutex.Lock();
    isIdle = 0;
    do {rlen = read(FD, Buff, Blen);} while(rlen < 0 && errno == EINTR);
-   if (rlen > 0) BytesIn += rlen;
+   if (rlen > 0) AtomicAdd(BytesIn, rlen);
    if (LockReads) rdMutex.UnLock();
 
    if (rlen >= 0) return int(rlen);
@@ -597,8 +597,10 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
          if (retc != 1)
             {if (retc == 0)
                 {tardyCnt++;
-                 if (totlen  && (++stallCnt & 0xff) == 1)
-                    TRACEI(DEBUG, "read timed out");
+                 if (totlen)
+                    {if ((++stallCnt & 0xff) == 1) TRACEI(DEBUG,"read timed out");
+                     AtomicAdd(BytesIn, totlen);
+                    }
                  return int(totlen);
                 }
              return (FD >= 0 ? XrdLog.Emsg("Link", -errno, "poll", ID) : -1);
@@ -620,9 +622,10 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
             {if (!rlen) return -ENOMSG;
              return (FD<0 ? -1 : XrdLog.Emsg("Link",-errno,"receive from",ID));
             }
-         BytesIn += rlen; totlen += rlen; Blen -= rlen; Buff += rlen;
+         totlen += rlen; Blen -= rlen; Buff += rlen;
         }
 
+   AtomicAdd(BytesIn, totlen);
    return int(totlen);
 }
 
@@ -658,7 +661,7 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
    if (LockReads) rdMutex.Lock();
    isIdle = 0;
    do {rlen = recv(FD,Buff,Blen,MSG_WAITALL);} while(rlen < 0 && errno == EINTR);
-   if (rlen > 0) BytesIn += rlen;
+   if (rlen > 0) AtomicAdd(BytesIn, rlen);
    if (LockReads) rdMutex.UnLock();
 
    if (int(rlen) == Blen) return Blen;
@@ -674,7 +677,7 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
   
 int XrdLink::Send(const char *Buff, int Blen)
 {
-   ssize_t retc = 0, bytesleft = Blen;
+   ssize_t retc = 0, bytesleft = Blen, myBytes = 0;
 
 // Get a lock
 //
@@ -688,11 +691,12 @@ int XrdLink::Send(const char *Buff, int Blen)
             {if (errno == EINTR) continue;
                 else break;
             }
-         BytesOut += retc; bytesleft -= retc; Buff += retc;
+         myBytes += retc; bytesleft -= retc; Buff += retc;
         }
 
 // All done
 //
+   AtomicAdd(BytesOut, myBytes);
    wrMutex.UnLock();
    if (retc >= 0) return Blen;
    XrdLog.Emsg("Link", errno, "send to", ID);
@@ -716,7 +720,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 //
    wrMutex.Lock();
    isIdle = 0;
-   BytesOut += bytes;
+   AtomicAdd(BytesOut, bytes);
 
 // Write the data out. On some version of Unix (e.g., Linux) a writev() may
 // end at any time without writing all the bytes when directed to a socket.
@@ -795,7 +799,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 // Check if all went well and return if so (usual case)
 //
    if (xframt == bytes)
-      {BytesOut += bytes;
+      {AtomicAdd(BytesOut, bytes);
        wrMutex.UnLock();
        return totamt;
       }
@@ -807,7 +811,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 // Try to resume the transfer
 //
    if (xframt > 0)
-      {BytesOut += xframt; bytes -= xframt; SfIntr++;
+      {AtomicAdd(BytesOut, xframt); bytes -= xframt; SfIntr++;
        while(xframt > 0 && sfN)
             {if ((ssize_t)xframt < (ssize_t)vecSFP->sfv_len)
                 {vecSFP->sfv_off += xframt; vecSFP->sfv_len -= xframt; break;}
@@ -874,7 +878,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 // All done
 //
    if (xIntr > sfN) SfIntr += (xIntr - sfN);
-   BytesOut += xfrbytes;
+   AtomicAdd(BytesOut, xfrbytes);
    wrMutex.UnLock();
    return xfrbytes;
 #endif
