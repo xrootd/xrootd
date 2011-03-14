@@ -29,6 +29,10 @@
 + **Major bug fixes**
    * Add missing braces that caused config failure in frm_admin command.
    * Account for correct path when -M value is zero in hpsscp command.
+   * In XrdCryptossl, fix for thread-safeness; solves random crashes observed on the
+     server side under high authentication frequency
+   * In XrdOucBonjour, fix important issue with host domain name registration, preventing
+     the correct domain to be posted.
 
 + **Minor bug fixes**
    * Correct oss partition selection algorithm to further spread out file
