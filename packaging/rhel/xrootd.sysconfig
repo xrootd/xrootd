@@ -19,13 +19,16 @@ XROOTD_USER=daemon
 #            without whitespaces is valid
 #-------------------------------------------------------------------------------
 #XROOTD_MAIN_OPTIONS="-l /var/log/xrootd/xrootd-main.log -c /etc/xrootd/xrootd-main.cf"
+#XROOTD_SECOND_OPTIONS="-l /var/log/xrootd/xrootd-second.log -c /etc/xrootd/xrootd-second.cf"
 #CMSD_MAIN_OPTIONS="-l /var/log/xrootd/cmsd-main.log -c /etc/xrootd/cmsd-main.cf"
 #FRMD_MAIN_OPTIONS="-l /var/log/xrootd/frmd-main.log -c /etc/xrootd/frmd-main.cf"
 
 #-------------------------------------------------------------------------------
 # Names of the instances to be started by default, the case doesn't matter,
-# the names will be converted to uppercase automatically
+# the names will be converted to uppercase automatically, use space as a
+# separator
 #-------------------------------------------------------------------------------
 #XROOTD_INSTANCES="main"
+#XROOTD_INSTANCES="main second"
 #CMSD_INSTANCES="main"
 #FRMD_INSTANCES="main"
