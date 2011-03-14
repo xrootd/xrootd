@@ -17,7 +17,13 @@ Source8:   cmsd-main.cf
 Source9:   frmd-main.cf
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
-BuildRequires: autoconf automake libtool readline-devel openssl-devel fuse-devel libxml2-devel
+BuildRequires: autoconf automake libtool readline-devel openssl-devel fuse-devel
+BuildRequires: libxml2-devel krb5-devel zlib-devel
+
+# For configure.ac perl ldopts
+%if 0%{?rhel} >= 6
+BuildRequires: perl-ExtUtils-Embed
+%endif
 
 %description
 %{summary}
