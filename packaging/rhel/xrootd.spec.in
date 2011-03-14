@@ -1,20 +1,16 @@
 Name:      xrootd
+Epoch:     1
 Version:   __VERSION__
 Release:   1%{?dist}
 Summary:   An eXtended Root Daemon (xrootd)
 Group:     System Environment/Daemons
 License:   Stanford (modified BSD with advert clause)
 URL:       http://xrootd.org/
+
+# git clone http://xrootd.org/repo/xrootd.git xrootd
+# cd xrootd
+# git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
-Source1:   xrootd.sysconfig
-Source2:   cmsd.init
-Source3:   frm_purged.init
-Source4:   frm_xfrd.init
-Source5:   xrootd.init
-Source6:   xrootd.functions
-Source7:   xrootd-main.cf
-Source8:   cmsd-main.cf
-Source9:   frmd-main.cf
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires: autoconf automake libtool readline-devel openssl-devel fuse-devel
@@ -95,20 +91,21 @@ mkdir -p $RPM_BUILD_ROOT%{_var}/run/%{name}
 # init stuff
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
-install -m 644 %{SOURCE1} $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
-install -m 755 %{SOURCE2} $RPM_BUILD_ROOT%{_initrddir}/cmsd
-install -m 755 %{SOURCE3} $RPM_BUILD_ROOT%{_initrddir}/frm_purged
-install -m 755 %{SOURCE4} $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
-install -m 755 %{SOURCE5} $RPM_BUILD_ROOT%{_initrddir}/xrootd
-install -m 755 %{SOURCE6} $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
-install -m 644 %{SOURCE7} $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-main.cf
-install -m 644 %{SOURCE8} $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/cmsd-main.cf
-install -m 644 %{SOURCE9} $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/frmd-main.cf
+install -m 644 packaging/rhel/xrootd.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
+install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
+install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_purged
+install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
+install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
+install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
+install -m 644 packaging/common/xrootd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-main.cf
+install -m 644 packaging/common/cmsd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/cmsd-main.cf
+install -m 644 packaging/common/frmd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/frmd-main.cf
 
 %clean
 rm -rf $RPM_BUILD_ROOT
 
 %post
+/sbin/ldconfig
 /sbin/chkconfig --add xrootd
 /sbin/chkconfig --add cmsd
 /sbin/chkconfig --add frm_purged
@@ -123,6 +120,7 @@ if [ "$1" = "0" ]; then
 fi
 
 %postun
+/sbin/ldconfig
 if [ "$1" -ge "1" ] ; then
     /sbin/service xrootd condrestart >/dev/null 2>&1 || :
     /sbin/service cmsd condrestart >/dev/null 2>&1 || :

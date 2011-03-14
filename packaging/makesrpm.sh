@@ -65,7 +65,7 @@ if test $PRINTHELP -eq 1; then
 fi
 
 echo "[i] Working on: $SOURCEPATH"
-echo "[i] Stoing the output to: $OUTPUTPATH"
+echo "[i] Storing the output to: $OUTPUTPATH"
 
 #-------------------------------------------------------------------------------
 # Check if the source and the output dirs
@@ -128,11 +128,12 @@ echo "[i] RPM compliant version: $VERSION"
 # exit on any error
 set -e
 
-TEMPDIR=`mktemp -d`
+TEMPDIR=`mktemp -d /tmp/xrootd.srpm.XXXXXXXXXX`
 RPMSOURCES=$TEMPDIR/rpmbuild/SOURCES
 mkdir -p $RPMSOURCES
+mkdir -p $TEMPDIR/rpmbuild/SRPMS
 
-echo "[i] Woring in: $TEMPDIR" 1>&2
+echo "[i] Working in: $TEMPDIR" 1>&2
 
 if test -d rhel -a -r rhel; then
   for i in rhel/*; do
@@ -154,7 +155,7 @@ set +e
 
 CWD=$PWD
 cd $SOURCEPATH
-COMMIT=`git log --format="%H" -1`
+COMMIT=`git log --pretty=format:"%H" -1`
 
 if test $? -ne 0; then
   echo "[!] Unable to figure out the git commit hash" 1>&2
@@ -185,8 +186,11 @@ cat rhel/xrootd.spec.in | sed "s/__VERSION__/$VERSION/" > $TEMPDIR/xrootd.spec
 echo "[i] Creating the source RPM..."
 
 # Dirty, dirty hack!
-export HOME=$TEMPDIR
-rpmbuild -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log
+echo "%_sourcedir $RPMSOURCES" >> $TEMPDIR/rpmmacros
+rpmbuild --define "_topdir $TEMPDIR/rpmbuild"    \
+         --define "%_sourcedir $RPMSOURCES"      \
+         --define "%_srcrpmdir %{_topdir}/SRPMS" \
+  -bs $TEMPDIR/xrootd.spec > $TEMPDIR/log
 if test $? -ne 0; then
   echo "[!] RPM creation failed" 1>&2
   exit 8
@@ -194,3 +198,5 @@ fi
 
 cp $TEMPDIR/rpmbuild/SRPMS/xrootd*.src.rpm $OUTPUTPATH
 rm -rf $TEMPDIR
+
+echo "[i] Done."
