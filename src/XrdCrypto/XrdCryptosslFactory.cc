@@ -41,11 +41,14 @@ static XrdSysError eDest(0,"cryptossl_");
 XrdOucTrace *sslTrace = 0;
 
 // Mutexes for OpenSSL
-XrdSysMutex*             XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
+XrdSysMutex *XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
 
 /******************************************************************************/
 /*             T h r e a d - S a f e n e s s   F u n c t i o n s              */
 /******************************************************************************/
+#ifdef __solaris__
+extern "C" {
+#endif
 static unsigned long sslfactory_id_callback(void) {
   return (unsigned long)XrdSysThread::ID();
 }
@@ -62,6 +65,9 @@ void sslfactory_lock(int mode, int n, const char *file, int line)
     }
   }
 }
+#ifdef __solaris__
+}
+#endif
 
 
 //______________________________________________________________________________
@@ -69,6 +75,7 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
                      XrdCryptoFactory("ssl",XrdCryptosslFactoryID)
 {
    // Constructor: init the needed components of the OpenSSL library
+   EPNAME("sslFactory::XrdCryptosslFactory");
 
    // Init SSL ...
    SSL_library_init();
@@ -79,25 +86,26 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
    // Load Msg Digests
    OpenSSL_add_all_digests();
 
-  // This code taken from XrdSecProtocolssl
-  // thread-safety
-  for (int i=0; i< SSLFACTORY_MAX_CRYPTO_MUTEX; i++) {
-    XrdCryptosslFactory::CryptoMutexPool[i] = new XrdSysMutex();
-  }
-
-  if (SSLFACTORY_MAX_CRYPTO_MUTEX < CRYPTO_num_locks() ) {
-    fprintf(stderr,"Error: (XrdCryptosslFactory) I don't have enough crypto mutexes as required by crypto_ssl [recompile increasing SSLFACTORY_MAX_CRYPTO_MUTEX to %d] \n", CRYPTO_num_locks());
-  }
+   if (SSLFACTORY_MAX_CRYPTO_MUTEX < CRYPTO_num_locks() ) {
+      SetTrace(0);
+      TRACE(ALL, "WARNING: do not have enough crypto mutexes as required by crypto_ssl");
+      TRACE(ALL, "        (suggestion: recompile increasing SSLFACTORY_MAX_CRYPTO_MUTEX to "<< CRYPTO_num_locks()<<")");
+   } else {
+      // This code taken from XrdSecProtocolssl thread-safety
+      for (int i = 0; i < SSLFACTORY_MAX_CRYPTO_MUTEX; i++) {
+         XrdCryptosslFactory::CryptoMutexPool[i] = new XrdSysMutex();
+      }
+   }
 
 #if defined(OPENSSL_THREADS)
-  // thread support enabled
+   // Thread support enabled: set callback functions
+   CRYPTO_set_locking_callback(sslfactory_lock);
+   CRYPTO_set_id_callback(sslfactory_id_callback);
 #else
-  fprintf(stderr,"Error: SSL lacks thread support: Abort!");
+   SetTrace(0);
+   TRACE(ALL, "WARNING: OpenSSL lacks thread support: possible thread-safeness problems!");
+   TRACE(ALL, "         (suggestion: recompile enabling thread support)");
 #endif
-
-  // set callback functions
-  CRYPTO_set_locking_callback(sslfactory_lock);
-  CRYPTO_set_id_callback(sslfactory_id_callback);
 
    // Init Random machinery
    int klen = 32;
