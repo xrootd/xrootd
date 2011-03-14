@@ -45,14 +45,14 @@ Headers for compiling and linking against xrootd
 Summary: XRootD filesystem
 Group:   System Environment/Filesystems
 Requires: %{name}-client = %{version}-%{release}
+Requires: %{name}-libs   = %{version}-%{release}
 %description fuse
-Headers for compiling and linking against xrootd
+Fuse driver for xrootd
 
 %package server
 Summary: XRootD server
 Group:   System Environment/Daemons
 Requires: %{name}-libs = %{version}-%{release}, %{name}-client = %{version}-%{release}
-Requires: %{name}-fuse = %{version}-%{release}
 %description server
 XRootD server
 
@@ -136,6 +136,7 @@ fi
 %{_libdir}/libXrdNet*.so*
 %{_libdir}/libXrdOuc.so*
 %{_libdir}/libXrdSys.so*
+%{_libdir}/libXrdFfs.so*
 
 %files devel
 %defattr(-,root,root,-)
@@ -156,9 +157,6 @@ fi
 %files fuse
 %defattr(-,root,root,-)
 %{_bindir}/xrootdfs
-%{_libdir}/libXrdFfs.so
-%{_libdir}/libXrdFfs.so.0
-%{_libdir}/libXrdFfs.so.0.0.0
 
 %files server
 %defattr(-,root,root,-)
