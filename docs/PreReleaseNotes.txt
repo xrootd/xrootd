@@ -25,6 +25,37 @@
    * Avoid physical copy if the operation can be handled using hard links. This
      greatly speeds up static space token reassignment.
    * Add platform independent interface to extended file attributes.
+   * RPM packaging and Red Hat Enterprise Linux compatible init scripts
+     capable of handling multiple instances of the xrootd daemons. The instances
+     can be defined in the /etc/sysconfig/xrootd file and then handled using standard::
+
+       service xrootd start|stop|...
+       service cmsd start|stop|...
+       ...
+
+     or handled by name::
+
+       service xrootd start instance1 instance5
+
+   * New '-s' commandline option for xrootd, cmsd, frm_purged and frm_xfrd
+     creating a pidfile.
+   * xrootd, cmsd, frm_purged and frm_xfrd now return failure to the shell
+     when called with '-b' option (daemonization) and the daemon fails to
+     initialize.
+   * New 'EnableTCPKeepAlive' client environment option added enabling the TCP
+     stack keep-alive functionality for the sockets.
+     On Linux three addtional fine-tunning options are available:
+
+     - TCPKeepAliveTime - interval (in seconds) between the last data packet and the first keep-alive
+       probe
+     - TCPKeepAliveInterval - interval (in seconds) between the probes
+     - TCPKeepAliveProbes - number of probes lost to consider the connection broken
+
+   * New functionality handling process forking. When enabled (via the 'EnableForkHandlers'
+     env option) prior to a call to fork it shuts down all the xrootd connection management
+     facilities (including the connections themselves) and reinitializes them after the fork
+     both in the parent and the child process. This ensures relative fork safety provided
+     that all the XrdClient and XrdAdmin instances are closed when the fork function is invoked.
 
 + **Major bug fixes**
    * Add missing braces that caused config failure in frm_admin command.
@@ -50,6 +81,7 @@
    * Fix frm_admin command line option parsing so it does not trip over
      subcommand options. This also fixes a SEGV in MacOS when this actually
      happens.
+   * Enable the '-md5' option when OpenSSL is present and xrootd is built with autotools.
 
 + **Documentation**
    * Added man pages for: xprep, xrd, xrdcp, xrdstagetool, xrdgsiproxy
