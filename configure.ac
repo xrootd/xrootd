@@ -445,6 +445,7 @@ if test x"$activate_openssl" = xyes -o x"$activate_openssl" = xdefault_yes ; the
     activate_openssl=disabled
     activate_gsi=disabled
   else
+    AC_DEFINE(HAVE_XRDCRYPTO)
     AC_DEFINE(R__SSL)
     # note: -DPERL5 is needed for resolving a clash between unistd.h and
     # openssl/des.h regarding the crypt function on some older systems (e.g. RH7.3)
