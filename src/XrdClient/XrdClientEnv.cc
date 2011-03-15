@@ -166,6 +166,12 @@ XrdClientEnv::~XrdClientEnv() {
 }
 
 //------------------------------------------------------------------------------
+// The fork handlers need to have C linkage (no symbol name mangling)
+//------------------------------------------------------------------------------
+extern "C"
+{
+
+//------------------------------------------------------------------------------
 // To be called prior to forking
 //------------------------------------------------------------------------------
 static void prepare()
@@ -198,6 +204,8 @@ static void child()
     ConnectionManager->BootUp();
   }
 }
+
+} // extern "C"
 
 //------------------------------------------------------------------------------
 // Install the fork handlers on application startup
