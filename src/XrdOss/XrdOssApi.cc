@@ -363,8 +363,13 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
 {
     struct stat statbuff;
     char actual_path[MAXPATHLEN+1], *local_path;
+    unsigned long long Popts, Hopts;
     long long oldsz;
     int retc;
+
+// Make sure we can modify this path
+//
+   Popts = Check_RO(Truncate, Hopts, path, "truncating ");
 
 // Generate local path
 //
@@ -377,6 +382,7 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
 // Get file info to do the correct adjustment
 //
    if (lstat(local_path, &statbuff)) return -errno;
+       else if ((statbuff.st_mode & S_IFMT) == S_IFDIR) return -EISDIR;
        else if ((statbuff.st_mode & S_IFMT) == S_IFLNK)
                {struct stat buff;
                 if (stat(local_path, &buff)) return -errno;
