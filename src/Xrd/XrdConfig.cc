@@ -405,7 +405,7 @@ int XrdConfig::Configure(int argc, char **argv)
          NoGo = 1;
 
       int status = NoGo ? 1 : 0;
-      write( pipeFD[1], &status, sizeof( status ) );
+      if(write( pipeFD[1], &status, sizeof( status ) )) {};
       close( pipeFD[1]);
    }
 #endif
