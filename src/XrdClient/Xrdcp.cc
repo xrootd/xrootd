@@ -1179,7 +1179,7 @@ void PrintUsage() {
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -D proxyaddr:proxyport" << endl <<
            "        :         use proxyaddr:proxyport as a SOCKS4 proxy."
-     " Only numerical addresses are supported." << endl <<
+     " Only numerical addresses are supported." << endl;
    cerr << " -DSparmname stringvalue" << endl <<
 	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
 	   "                   See XrdClientConst.hh for a list of parameters." << endl;
