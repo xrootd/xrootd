@@ -55,7 +55,7 @@ struct XROOTDFS {
 };
 
 struct XROOTDFS xrootdfs;
-static struct fuse_opt xrootdfs_opts[9];
+static struct fuse_opt xrootdfs_opts[10];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
@@ -1075,14 +1075,14 @@ static void xrootdfs_usage(const char *progname)
 "usage: %s mountpoint options\n"
 "\n"
 "XrootdFS options:\n"
-"    -h   --help            print help\n"
+"    -h -help --help        print help\n"
 "\n"
 "[Required]\n"
-"    -daemon-user=username  cause XrootdFS to switch effective uid to that of username if possible\n"
 "    -rdr=redirector_url    root URL of the Xrootd redirector\n"
 "\n"
 "[Optional]\n"
 "    -cns=cns_server_url    root URL of the CNS server\n"
+"    -R=username            cause XrootdFS to switch effective uid to that of username if possible\n"
 "    -fastls=RDR            set to RDR when CNS is presented will cause stat() to go to redirector\n"
 "    -sss                   use Xrootd seciruty module \"sss\"\n"
 "\n", progname);
@@ -1103,7 +1103,7 @@ static int xrootdfs_opt_proc(void* data, const char* arg, int key, struct fuse_a
 /* this specify using "sss" security module. the actually location of the key is 
    determined by shell enviornment variable XrdSecsssKT (or default locations). 
    The location of the key should not appear in command line. */
-        setenv("XROOTDFS_SECSSS", "sss", 1);
+        setenv("XROOTDFS_SECMOD", "sss", 1);
         return 0;
       case OPT_KEY_HELP:
         xrootdfs_usage(outargs->argv[0]);
@@ -1163,7 +1163,7 @@ int main(int argc, char *argv[])
     xrootdfs_opts[2].offset = offsetof(struct XROOTDFS, fastls);
     xrootdfs_opts[2].value = 0;
 
-    xrootdfs_opts[3].templ = "-daemon_user=%s";
+    xrootdfs_opts[3].templ = "-R=%s";
     xrootdfs_opts[3].offset = offsetof(struct XROOTDFS, daemon_user);
     xrootdfs_opts[3].value = 0;
 
@@ -1179,11 +1179,15 @@ int main(int argc, char *argv[])
     xrootdfs_opts[6].offset = -1U;
     xrootdfs_opts[6].value = OPT_KEY_HELP;
 
-    xrootdfs_opts[7].templ = "--help";
+    xrootdfs_opts[7].templ = "-help";
     xrootdfs_opts[7].offset = -1U;
     xrootdfs_opts[7].value = OPT_KEY_HELP;
 
-    xrootdfs_opts[8].templ = NULL;
+    xrootdfs_opts[8].templ = "--help";
+    xrootdfs_opts[8].offset = -1U;
+    xrootdfs_opts[8].value = OPT_KEY_HELP;
+
+    xrootdfs_opts[9].templ = NULL;
 
 /* initialize struct xrootdfs */
 //    memset(&xrootdfs, 0, sizeof(xrootdfs));
@@ -1203,6 +1207,15 @@ int main(int argc, char *argv[])
 
 /* Parse XrootdFS options, will overwrite those defined in environment variables */
     fuse_opt_parse(&args, &xrootdfs, xrootdfs_opts, xrootdfs_opt_proc);
+
+/* make sure xrootdfs.rdr is specified */
+    if (xrootdfs.rdr == NULL)
+    {
+        argc = 2;
+        argv[1] = strdup("-h");
+        struct fuse_args xargs = FUSE_ARGS_INIT(argc, argv);
+        fuse_opt_parse(&xargs, &xrootdfs, xrootdfs_opts, xrootdfs_opt_proc);
+    }
 
 /* convert xroot://... to root://... */
     if (xrootdfs.rdr != NULL && xrootdfs.rdr[0] == 'x') xrootdfs.rdr += 1;
