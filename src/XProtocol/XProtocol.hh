@@ -618,6 +618,20 @@ struct ALIGN_CHECK {char chkszreq[25-sizeof(ClientRequest)];
 /******************************************************************************/
 
 #include <errno.h>
+#if defined(WIN32)
+#if !defined(ENOTBLK)
+#  define ENOTBLK 15
+#endif
+#if !defined(ETXTBSY)
+#define ETXTBSY 26
+#endif
+#if !defined(ENOBUFS)
+#define ENOBUFS 105
+#endif
+#if !defined(ENETUNREACH)
+#define ENETUNREACH 114
+#endif
+#endif
   
 class XProtocol
 {
