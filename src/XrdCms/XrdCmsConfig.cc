@@ -375,10 +375,6 @@ int XrdCmsConfig::Configure2()
 //
    if (!NoGo && XmiPath) NoGo = setupXmi();
 
-// Set the default scheduling options if they have not already been set
-//
-   Sched->setParms(8, 200, 40, -1, 1);
-
 // All done, check for success or failure
 //
    sprintf(buff, " phase 2 %s initialization %s.", myRole,
