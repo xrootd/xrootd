@@ -134,6 +134,7 @@ int XrdCmsFinderRMT::Configure(char *cfn)
    RepNone    = config.RepNone;
    RepWait    = config.RepWait;
    ConWait    = config.ConWait;
+   FwdWait    = config.FwdWait;
    PrepWait   = config.PrepWait;
    if (myPersona == XrdCmsClient::amProxy)
            {SMode = config.SModeP; StartManagers(config.PanList);}
@@ -160,6 +161,8 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
                              const char *arg1,    const char *arg2,
                              const char *arg3,    const char *arg4)
 {
+   static XrdSysMutex fwdMutex;
+   static struct timeval fwdClk = {time(0),0};
    static const int xNum   = 12;
 
    XrdCmsClientMan *Manp;
@@ -212,6 +215,23 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 //
    if (is2way) return send2Man(Resp, (arg1 ? arg1 : "/"), xmsg, iovcnt+1);
 
+// Check if we have exceeded the maximum rate for requests. If we have, we
+// will wait to repace the stream so as to not burden the cmsd.
+//
+   if (doAll && FwdWait)
+      {struct timeval nowClk;
+       time_t Window;
+       fwdMutex.Lock();
+       gettimeofday(&nowClk, 0);
+       fwdClk.tv_sec  = nowClk.tv_sec  - fwdClk.tv_sec;
+       fwdClk.tv_usec = nowClk.tv_usec - fwdClk.tv_usec;
+       if (fwdClk.tv_usec < 0) {fwdClk.tv_sec--; fwdClk.tv_usec += 1000000;}
+       Window = fwdClk.tv_sec*1000 + fwdClk.tv_usec/1000;
+       if (Window < FwdWait) XrdSysTimer::Wait(FwdWait - Window);
+       fwdClk = nowClk;
+       fwdMutex.UnLock();
+      }
+
 // Select the right manager for this request
 //
    if (!(Manp = SelectManager(Resp, (arg1 ? arg1 : "/")))) return ConWait;
@@ -219,7 +239,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 // Send message and simply wait for the reply
 //
    if (Manp->Send(xmsg, iovcnt+1))
-      {if (doAll && !is2way)
+      {if (doAll)
           {Data.Request.modifier |= kYR_dnf;
            Inform(Manp, xmsg, iovcnt+1);
           }
