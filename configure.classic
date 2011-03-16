@@ -1550,12 +1550,16 @@ fi
 #
 if test "x$hasatomics" = "x"; then
    message "Checking for builtin atomics"
-   check_prototype "__sync_" $ccbin "-c"
+   testout="__sync_.out"
+   check_prototype "__sync_" $ccbin "-o $testout"
    if test "x$found_prototype" = "xyes" ; then
       echo "yes"
       hasatomics=" -DHAVE_ATOMICS"
    else
       echo "no"
+   fi
+   if test -f $testout ; then
+      rm -fr $testout
    fi
 else
    hasatomics=" -DHAVE_ATOMICS"
