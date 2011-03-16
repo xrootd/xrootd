@@ -159,7 +159,6 @@ XrdConfig::XrdConfig(void)
    Net_Opts = 0;
    Wan_Blen = 1024*1024; // Default window size 1M
    Wan_Opts = 0;
-   setSched = 1;
    repDest[0] = 0;
    repDest[1] = 0;
    repInt     = 600;
@@ -1307,7 +1306,6 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 
 // Establish scheduler options
 //
-   if (V_mint > 0 || V_maxt > 0 || V_avlt > 0) setSched = 0;
    XrdSched.setParms(V_mint, V_maxt, V_avlt, V_idle);
    return 0;
 }
