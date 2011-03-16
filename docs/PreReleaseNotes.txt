@@ -1,4 +1,8 @@
 + **New features**
+   * Change configure.classic to handle various versions of processors in a
+     more sane way (this fixes several Solaris issues and atomics for i686).
+   * Add fwdwait option to cms.request directive to allow pacing of forwarded
+     requests (off by default).
    * Use native memory synchronization primitives when available when doing
      network I/O. This will eventually be extended to cover all other cases.
    * Add the qdl option to the cms.delay directive to allow changing the
