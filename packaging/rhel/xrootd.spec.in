@@ -27,32 +27,32 @@ BuildRequires: perl-ExtUtils-Embed
 %package devel
 Summary: Headers for compiling and linking against xrootd
 Group:   System Environment/Libraries
-Requires: %{name}-libs = %{version}-%{release}
-Requires: %{name}-client = %{version}-%{release}
-Requires: %{name}-server = %{version}-%{release}
-Requires: %{name}-fuse = %{version}-%{release}
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+Requires: %{name}-server = %{epoch}:%{version}-%{release}
+Requires: %{name}-fuse = %{epoch}:%{version}-%{release}
 %description devel
 Headers for compiling and linking against xrootd
 
 %package client
 Summary: XRootD client
 Group:   System Environment/Applications
-Requires: %{name}-libs = %{version}-%{release}
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 %description client
 Headers for compiling and linking against xrootd
 
 %package fuse
 Summary: XRootD filesystem
 Group:   System Environment/Filesystems
-Requires: %{name}-client = %{version}-%{release}
-Requires: %{name}-libs   = %{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+Requires: %{name}-libs   = %{epoch}:%{version}-%{release}
 %description fuse
 Fuse driver for xrootd
 
 %package server
 Summary: XRootD server
 Group:   System Environment/Daemons
-Requires: %{name}-libs = %{version}-%{release}, %{name}-client = %{version}-%{release}
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}, %{name}-client = %{epoch}:%{version}-%{release}
 %description server
 XRootD server
 
@@ -196,3 +196,4 @@ fi
 %{_initrddir}/xrootd
 %{_initrddir}/xrootd.functions
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+
