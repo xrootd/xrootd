@@ -87,6 +87,7 @@ mv $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/* $RPM_BUILD_ROOT%{_datadir}/%{name}/sc
 # var paths
 mkdir -p $RPM_BUILD_ROOT%{_var}/log/%{name}
 mkdir -p $RPM_BUILD_ROOT%{_var}/run/%{name}
+mkdir -p $RPM_BUILD_ROOT%{_var}/spool/%{name}
 
 # init stuff
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
@@ -187,6 +188,7 @@ fi
 %config(noreplace) %{_sysconfdir}/%{name}/frmd-main.cf
 %attr(-,daemon,daemon) %dir %{_var}/log/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/run/%{name}
+%attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
 %{_datadir}/%{name}/scripts
 %{_datadir}/%{name}/utils
 %{_initrddir}/%{name}

@@ -13,11 +13,16 @@ function startDaemon()
 {
   ulimit -n 65536
   echo -n "Starting xrootd ($1, $4): "
+  DAEMON=$1
   EXEC=$2
   XROOTD_USER=$3
   INSTANCE=$4
   PIDFILE="/var/run/xrootd/$DAEMON-$4.pid"
-  shift; shift; shift; shift
+  shift 4
+
+  # useful for storing coredumps
+  mkdir -p /var/spool/xrootd/$INSTANCE
+  cd /var/spool/xrootd/$INSTANCE
   daemon --user $XROOTD_USER --pidfile $PIDFILE $EXEC $@ -b -s $PIDFILE -n $INSTANCE
   RETVAL=$?
   echo
