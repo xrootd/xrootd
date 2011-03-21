@@ -79,6 +79,7 @@
    * Correct RetToken() behaviour in the presence of multiple spaces between tokens and
      the previous call returned the remainder of the line (very obscure circumstances).
    * [bug #77535] xrdcp now returns an error to the shell when it fails to copy the file
+   * [bug #79710] xrdcp now gracefully aborts when it encounters a corrupted local file
    * Reset the transaction timeout for the Query method.
      This fixes transaction timeout issues for clients doing only queries.
    * Rename variable to remove conflict between it and global of the same name.
