@@ -97,7 +97,13 @@ install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
 install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_purged
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
 install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
+
+%if 0%{?rhel} < 5
+install -m 755 packaging/rhel/xrootd.functions-slc4 $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
+%else
 install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
+%endif
+
 install -m 644 packaging/common/xrootd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-main.cf
 install -m 644 packaging/common/cmsd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/cmsd-main.cf
 install -m 644 packaging/common/frmd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/frmd-main.cf
