@@ -419,10 +419,22 @@ void *ReaderThread_loc(void *) {
 	 abort();
       }
 
-      if ( (nr = read(cpnfo.localfile, buf, XRDCP_BLOCKSIZE)) ) {
-         cpnfo.queue.PutBuffer(buf, offs, nr);
-	 bread += nr;
-	 offs += nr;
+      //------------------------------------------------------------------------
+      // If this read fails it means that either the program logic is
+      // flawed, or there was a low level hardware failure. In either case
+      // continuing may cause more harm than good.
+      //------------------------------------------------------------------------
+      nr = read( cpnfo.localfile, buf, XRDCP_BLOCKSIZE );
+      if( nr < 0 )
+      {
+        cerr << "Local read failed: " << strerror( errno ) << endl;
+        abort();
+      }
+      if( nr > 0)
+      {
+        cpnfo.queue.PutBuffer(buf, offs, nr);
+        bread += nr;
+        offs += nr;
       }
    }
 
