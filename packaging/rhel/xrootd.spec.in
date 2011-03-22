@@ -39,7 +39,7 @@ Summary: XRootD client
 Group:   System Environment/Applications
 Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 %description client
-Headers for compiling and linking against xrootd
+The XRootD client software.
 
 %package fuse
 Summary: XRootD filesystem
