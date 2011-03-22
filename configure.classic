@@ -619,9 +619,9 @@ guess_architecture () {
     fi
     if [ "$platform" = "solaris" -a "$chip" = "i86pc" ]; then
        if `isainfo -b | grep "64" > /dev/null  2>&1` ; then
-          ccflv=sunCCi86pc
+          ccflv=sunCCi8664pc
        else
-          ccflv=sunCC
+          ccflv=sunCCi86pc
        fi
     fi
     echo "$osys | $chip | $rele | $arch | $ccflv"
@@ -3199,7 +3199,7 @@ echo "done"
 #---------------------------------------------------------------------
 # Solaris GNUmake.rules.xxx
 #
-sunccrules="sunCC sunCCamd sunCCamd510 sunCCamd64 sunCCi86pc"
+sunccrules="sunCC sunCCamd sunCCamd510 sunCCamd64 sunCCi86pc sunCCi8664pc"
 for f in $sunccrules; do
    message "Writing config/$f "
    cp -rp config/GNUmake.rules.$f.in GNUmake.rules.$f.tmp
