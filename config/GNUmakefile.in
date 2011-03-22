@@ -101,6 +101,7 @@ distclean: FORCE
 	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCamd510
 	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCamd64
 	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCi86pc
+	$(ECHO)$(RM) -f config/GNUmake.rules.sunCCi8664pc
 
 install: FORCE
 	@echo Installing...
