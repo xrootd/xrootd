@@ -621,7 +621,9 @@ guess_architecture () {
        if `isainfo -b | grep "64" > /dev/null  2>&1` ; then
           ccflv=sunCCi8664pc
        else
-          ccflv=sunCCi86pc
+          if [ "$arch" != "sunx86_510" ]; then
+             ccflv=sunCCi86pc
+          fi
        fi
     fi
     echo "$osys | $chip | $rele | $arch | $ccflv"
