@@ -300,7 +300,7 @@ int XrdOssSys::SetFattr(XrdOssCreateInfo &crInfo, int fd, time_t mtime)
           int         theFD;
           int         Done(int rc) {if (rc) unlink(Path); return rc;}
                       fdCloser(const char *pn, int fd) : Path(pn), theFD(fd) {}
-                      fdCloser() {close(theFD);}
+                     ~fdCloser() {close(theFD);}
          } Act(crInfo.Path, fd);
 
    XrdOucXAttr<XrdFrmXAttrCpy> crX;
