@@ -29,6 +29,7 @@ function startDaemon()
     shift 4
     # change the CWD to have some room for core dumps
     mkdir -p /var/spool/xrootd/$INSTANCE
+    chown $XROOTD_USER /var/spool/xrootd/$INSTANCE
     cd /var/spool/xrootd/$INSTANCE
     daemon --user $XROOTD_USER $EXEC $@ -b -s $PIDFILE -n $INSTANCE
   fi

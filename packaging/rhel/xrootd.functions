@@ -22,6 +22,7 @@ function startDaemon()
 
   # useful for storing coredumps
   mkdir -p /var/spool/xrootd/$INSTANCE
+  chown $XROOTD_USER /var/spool/xrootd/$INSTANCE
   cd /var/spool/xrootd/$INSTANCE
   daemon --user $XROOTD_USER --pidfile $PIDFILE $EXEC $@ -b -s $PIDFILE -n $INSTANCE
   RETVAL=$?
