@@ -111,14 +111,14 @@ install -m 644 packaging/common/frmd-main.cf $RPM_BUILD_ROOT%{_sysconfdir}/%{nam
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post
+%post server
 /sbin/ldconfig
 /sbin/chkconfig --add xrootd
 /sbin/chkconfig --add cmsd
 /sbin/chkconfig --add frm_purged
 /sbin/chkconfig --add frm_xfrd
 
-%preun
+%preun server
 if [ "$1" = "0" ]; then
     /sbin/chkconfig --del xrootd
     /sbin/chkconfig --del cmsd
@@ -126,7 +126,7 @@ if [ "$1" = "0" ]; then
     /sbin/chkconfig --del frm_xfrd
 fi
 
-%postun
+%postun server
 /sbin/ldconfig
 if [ "$1" -ge "1" ] ; then
     /sbin/service xrootd condrestart >/dev/null 2>&1 || :
@@ -134,6 +134,11 @@ if [ "$1" -ge "1" ] ; then
     /sbin/service frm_purged condrestart >/dev/null 2>&1 || :
     /sbin/service frm_xfrd condrestart >/dev/null 2>&1 || :
 fi
+
+%post client -p /sbin/ldconfig
+%postun client -p /sbin/ldconfig
+%post libs -p /sbin/ldconfig
+%postun libs -p /sbin/ldconfig
 
 %files libs
 %defattr(-,root,root,-)
