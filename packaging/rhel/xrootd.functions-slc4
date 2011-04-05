@@ -27,6 +27,12 @@ function startDaemon()
 
   if test $? -ne 0; then
     shift 4
+
+    # make sure that the permissions to the xrootd system directories are right
+    chown $XROOTD_USER -R /var/log/xrootd
+    chown $XROOTD_USER -R /var/run/xrootd
+    chown $XROOTD_USER -R /var/spool/xrootd
+
     # change the CWD to have some room for core dumps
     mkdir -p /var/spool/xrootd/$INSTANCE
     chown $XROOTD_USER /var/spool/xrootd/$INSTANCE
