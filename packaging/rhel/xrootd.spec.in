@@ -81,8 +81,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/*.la
 rm -f $RPM_BUILD_ROOT%{_libdir}/*.a
 
 # configuration stuff
-mkdir -p $RPM_BUILD_ROOT%{_datadir}/%{name}/scripts
-mv $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/* $RPM_BUILD_ROOT%{_datadir}/%{name}/scripts
+rm -rf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/*
 
 # var paths
 mkdir -p $RPM_BUILD_ROOT%{_var}/log/%{name}
@@ -200,7 +199,6 @@ fi
 %attr(-,daemon,daemon) %dir %{_var}/log/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/run/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
-%{_datadir}/%{name}/scripts
 %{_datadir}/%{name}/utils
 %{_initrddir}/%{name}
 %{_initrddir}/cmsd
