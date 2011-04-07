@@ -254,7 +254,8 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'l': if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
-       case 'n': myInsName = (strcmp(optarg, "anon") ? optarg : 0);
+       case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
+                           ? 0 : optarg);
                  break;
        case 'p': if ((clPort = yport(&XrdLog, "tcp", optarg)) < 0) Usage(1);
                  break;
