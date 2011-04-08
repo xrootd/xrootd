@@ -161,7 +161,7 @@ function statusOfTheDaemon()
 #-------------------------------------------------------------------------------
 function condrestartDaemon()
 {
-  PIDFILE="/var/run/xrootd/$1-$4.pid"
+  PIDFILE="/var/run/xrootd/$1-$5.pid"
   status -p $PIDFILE $1 > /dev/null
   if test $? -ne 0; then
      return 0
