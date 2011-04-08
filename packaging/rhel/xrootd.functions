@@ -22,6 +22,26 @@ function setupInstallation()
   chown $XROOTD_USER:$XROOTD_GROUP -R /var/log/xrootd
   chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
   chown $XROOTD_USER:$XROOTD_GROUP -R /etc/xrootd
+  chown $XROOTD_USER:$XROOTD_GROUP /etc/sysconfig/xrootd
+}
+
+#-------------------------------------------------------------------------------
+# Check if a file has the right permissions
+#-------------------------------------------------------------------------------
+function checkFile()
+{
+  FILE=$1
+  XROOTD_USER=$2
+  XROOTD_GROUP=$3
+
+  if test x"`stat -c %U $FILE`" != x$XROOTD_USER; then
+    echo "$FILE has wrong user ownership: \"`stat -c %U $FILE`\" instead of \"$XROOTD_USER\""
+    return 1
+  fi
+  if test x"`stat -c %G $FILE`" != x$XROOTD_GROUP; then
+    echo "$FILE has wrong group ownership: \"`stat -c %G $FILE`\" instead of \"$XROOTD_GROUP\""
+    return 1
+  fi
 }
 
 #-------------------------------------------------------------------------------
@@ -30,8 +50,8 @@ function setupInstallation()
 function checkDirectory()
 {
   DIRECTORY=$1
-  USER=$2
-  GROUP=$3
+  XROOTD_USER=$2
+  XROOTD_GROUP=$3
 
   if test ! -d $DIRECTORY; then
     echo "Directory: $DIRECTORY does not exist"
@@ -39,12 +59,8 @@ function checkDirectory()
   fi
 
   for i in `find $DIRECTORY`; do
-    if test x"`stat -c %U $i`" != x$XROOTD_USER; then
-      echo "$i has wrong user ownership: \"`stat -c %U $i`\" instead of \"$XROOTD_USER\""
-      return 1
-    fi
-    if test x"`stat -c %G $i`" != x$XROOTD_GROUP; then
-      echo "$i has wrong group ownership: \"`stat -c %G $i`\" instead of \"$XROOTD_GROUP\""
+    checkFile $i $XROOTD_USER $XROOTD_GROUP
+    if test $? -ne 0; then
       return 1
     fi
   done
@@ -97,6 +113,8 @@ function checkSanity()
   if test $? -ne 0; then
     return 6
   fi
+
+  checkFile /etc/sysconfig/xrootd $XROOTD_USER $XROOTD_GROUP
 }
 
 #-------------------------------------------------------------------------------
@@ -122,10 +140,9 @@ function startDaemon()
 
   echo -n "Starting xrootd ($DAEMON, $INSTANCE): "
   shift 5
+
   # useful for storing coredumps
-  mkdir -p /var/spool/xrootd/$INSTANCE
-  chown $XROOTD_USER /var/spool/xrootd/$INSTANCE
-  cd /var/spool/xrootd/$INSTANCE
+  cd /var/spool/xrootd
   daemon --user $XROOTD_USER --pidfile $PIDFILE $EXEC $@ -b -s $PIDFILE -n $INSTANCE
   RETVAL=$?
   echo
@@ -253,14 +270,15 @@ function handleDaemons()
   else
     INSTANCES=$@
   fi
-  INSTANCES=`echo $INSTANCES | tr '[[:lower:]]' '[[:upper:]]'`
+  INSTANCES=`echo $INSTANCES | tr '[[:upper:]]' '[[:lower:]]'`
 
   #-----------------------------------------------------------------------------
   # Exec the command on the instances
   #-----------------------------------------------------------------------------
   STATUS=0
   for INSTANCE in $INSTANCES; do
-    eval OPTS=\$${CONFIG_NAME}_${INSTANCE}_OPTIONS
+    INSTANCE_UPPER=`echo $INSTANCE | tr '[[:lower:]]' '[[:upper:]]'`
+    eval OPTS=\$${CONFIG_NAME}_${INSTANCE_UPPER}_OPTIONS
     if test x"$OPTS" = x; then
       continue
     fi
