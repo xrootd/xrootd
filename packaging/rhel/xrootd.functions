@@ -38,10 +38,6 @@ function checkFile()
     echo "$FILE has wrong user ownership: \"`stat -c %U $FILE`\" instead of \"$XROOTD_USER\""
     return 1
   fi
-  if test x"`stat -c %G $FILE`" != x$XROOTD_GROUP; then
-    echo "$FILE has wrong group ownership: \"`stat -c %G $FILE`\" instead of \"$XROOTD_GROUP\""
-    return 1
-  fi
 }
 
 #-------------------------------------------------------------------------------
@@ -91,30 +87,19 @@ function checkSanity()
   fi
 
   #-----------------------------------------------------------------------------
-  # Check if all the required directories exist and all the files in them
-  # have proper permissions
+  # We need these directories to be owned by the xroot user for the init
+  # scripts to work properly, and we can safely change the ownership if
+  # it is wrong.
   #-----------------------------------------------------------------------------
   checkDirectory /var/spool/xrootd $XROOTD_USER $XROOTD_GROUP
   if test $? -ne 0; then
-    return 3
-  fi
-
-  checkDirectory /var/log/xrootd $XROOTD_USER $XROOTD_GROUP
-  if test $? -ne 0; then
-    return 4
+    chown $XROOTD_USER:$XROOTD_GROUP -R /var/spool/xrootd
   fi
 
   checkDirectory /var/run/xrootd $XROOTD_USER $XROOTD_GROUP
   if test $? -ne 0; then
-    return 5
+    chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
   fi
-
-  checkDirectory /etc/xrootd $XROOTD_USER $XROOTD_GROUP
-  if test $? -ne 0; then
-    return 6
-  fi
-
-  checkFile /etc/sysconfig/xrootd $XROOTD_USER $XROOTD_GROUP
 }
 
 #-------------------------------------------------------------------------------
