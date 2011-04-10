@@ -192,11 +192,12 @@ fi
 %{_libdir}/libXrdOss.so*
 %{_libdir}/libXrdRootd.so*
 %{_libdir}/libXrd.so*
-%config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
-%config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
-%dir %{_var}/log/%{name}
-%dir %{_var}/run/%{name}
-%dir %{_var}/spool/%{name}
+%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
+%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
+%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+%attr(-,daemon,daemon) %dir %{_var}/log/%{name}
+%attr(-,daemon,daemon) %dir %{_var}/run/%{name}
+%attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
 %{_datadir}/%{name}/utils
 %{_initrddir}/%{name}
 %{_initrddir}/cmsd
@@ -204,7 +205,6 @@ fi
 %{_initrddir}/frm_purged
 %{_initrddir}/xrootd
 %{_initrddir}/xrootd.functions
-%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 
 
 %changelog

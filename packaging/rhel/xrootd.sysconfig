@@ -8,8 +8,8 @@
 #-------------------------------------------------------------------------------
 # Define the user account name which will be used to start the daemons
 #-------------------------------------------------------------------------------
-XROOTD_USER=xrootd
-XROOTD_GROUP=xrootd
+XROOTD_USER=daemon
+XROOTD_GROUP=daemon
 
 #-------------------------------------------------------------------------------
 # Define the commandline options for the instances of the daemons.
