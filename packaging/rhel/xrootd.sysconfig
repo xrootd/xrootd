@@ -6,7 +6,9 @@
 #-------------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------------
-# Define the user account name which will be used to start the daemons
+# Define the user account name which will be used to start the daemons.
+# These may have many unexpected side effects, so be sure you know what you're
+# doing before playing with them.
 #-------------------------------------------------------------------------------
 XROOTD_USER=daemon
 XROOTD_GROUP=daemon
