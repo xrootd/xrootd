@@ -1,7 +1,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   1%{?dist}
+Release:   1%{?dist}%{?_with_xrootd_user:.xu}
 Summary:   An eXtended Root Daemon (xrootd)
 Group:     System Environment/Daemons
 License:   Stanford (modified BSD with advert clause)
@@ -91,7 +91,16 @@ mkdir -p $RPM_BUILD_ROOT%{_var}/spool/%{name}
 # init stuff
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
+
+%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
+cat packaging/rhel/xrootd.sysconfig | sed -e 's/XROOTD_USER=daemon/XROOTD_USER=xrootd/g' \
+  -e 's/XROOTD_GROUP=daemon/XROOTD_GROUP=xrootd/g' > $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
+chmod 644 $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
+%else
 install -m 644 packaging/rhel/xrootd.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
+%endif
+
+
 install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
 install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_purged
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
@@ -115,6 +124,15 @@ rm -rf $RPM_BUILD_ROOT
 /sbin/chkconfig --add cmsd
 /sbin/chkconfig --add frm_purged
 /sbin/chkconfig --add frm_xfrd
+
+%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
+%pre server
+getent group xrootd >/dev/null || groupadd -r xrootd
+getent passwd xrootd >/dev/null || \
+       useradd -r -g xrootd -c "XRootD runtime user" \
+       -s /sbin/nologin -d /etc/xrootd xrootd
+exit 0
+%endif
 
 %preun server
 if [ "$1" = "0" ]; then
@@ -192,12 +210,23 @@ fi
 %{_libdir}/libXrdOss.so*
 %{_libdir}/libXrdRootd.so*
 %{_libdir}/libXrd.so*
+
+%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
+%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+%attr(-,xrootd,xrootd) %dir %{_var}/log/%{name}
+%attr(-,xrootd,xrootd) %dir %{_var}/run/%{name}
+%attr(-,xrootd,xrootd) %dir %{_var}/spool/%{name}
+%else
 %attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
 %attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
 %attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/log/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/run/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
+%endif
+
 %{_datadir}/%{name}/utils
 %{_initrddir}/%{name}
 %{_initrddir}/cmsd
