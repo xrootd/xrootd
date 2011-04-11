@@ -14,7 +14,7 @@ Source0:   xrootd.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires: autoconf automake libtool readline-devel openssl-devel fuse-devel
-BuildRequires: libxml2-devel krb5-devel zlib-devel
+BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 
 # For configure.ac perl ldopts
 %if 0%{?rhel} >= 6
