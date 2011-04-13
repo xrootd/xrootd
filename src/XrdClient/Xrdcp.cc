@@ -88,7 +88,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (8*1024*1024)
 #define XRDCP_XRDRASIZE          (30*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004-2010 by the Xrootd group. $Revision$ - Xrootd version: "XrdVSTRING
+#define XRDCP_VERSION            "(C) 2004-2011 by the XRootD collaboration. Version: "XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
@@ -1236,6 +1236,12 @@ int main(int argc, char**argv) {
    char *srcpath = 0, *destpath = 0;
    memset (BWMHost, 0, sizeof(BWMHost));
 
+   if (argc == 2 && !strcmp( argv[1], "-version" ) )
+   {
+      std::cerr << XRDCP_VERSION << std::endl;
+      exit(0);
+   }
+
    if (argc < 3) {
       PrintUsage();
       exit(1);
@@ -1281,7 +1287,7 @@ int main(int argc, char**argv) {
 	continue;
       }
 
-      if ( (strstr(argv[i], "-v") == argv[i])) {
+      if ( !strcmp(argv[i], "-v") ) {
 	summary=true;
 	continue;
       }
@@ -1458,6 +1464,11 @@ int main(int argc, char**argv) {
 	continue;
      }
 #endif
+
+      if ( !strcmp(argv[i], "-version") ) {
+         std::cerr << XRDCP_VERSION << std::endl;
+         continue;
+      }
 
       // Any other par is ignored
       if ( (strstr(argv[i], "-") == argv[i]) && (strlen(argv[i]) > 1) ) {
