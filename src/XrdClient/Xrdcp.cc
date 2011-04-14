@@ -988,7 +988,11 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       cout << endl;
    }
 
-   if (cpnfo.len != bytesread) retvalue = 13;
+   if (cpnfo.len != bytesread)
+   {
+      PrintLastServerError( cpnfo.XrdCli );
+      retvalue = 13;
+   }
 
 #ifdef HAVE_XRDCRYPTO
    if (md5) MD_5->Final();
