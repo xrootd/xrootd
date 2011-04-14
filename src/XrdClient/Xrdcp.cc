@@ -30,6 +30,7 @@ const char *XrdcpCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sstream>
 #ifndef WIN32
 #include <sys/time.h>
 #include <unistd.h>
@@ -1052,10 +1053,28 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
      return -1;
    }
 
+   //---------------------------------------------------------------------------
+   // Check if the opaque data provide the file size information and add it
+   // if needed
+   //---------------------------------------------------------------------------
+   XrdOucString dest = dst;
+   std::stringstream s;
+   if( dest.find( "?oss.asize=" ) == STR_NPOS &&
+       dest.find( "&oss.asize=" ) == STR_NPOS )
+   {
+     s << dst;
+     if( dest.find( "?" ) == STR_NPOS )
+       s << "?";
+     else
+       s << "&";
+     s << "oss.asize=" << stat.st_size;
+     dest = s.str().c_str();
+   }
+
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest) {
 
-      *xrddest = new XrdClient(dst);
+      *xrddest = new XrdClient(dest.c_str());
       if (!PedanticOpen4Write(*xrddest, kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
                            xrd_wr_flags) ) {
 	 cerr << "Error opening remote destination file " << dst << endl;
