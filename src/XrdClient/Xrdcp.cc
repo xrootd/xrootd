@@ -208,7 +208,27 @@ void print_chksum(const char* src, unsigned long long bytesread, unsigned adler)
   }
 }
 
-
+//------------------------------------------------------------------------------
+// Check if the opaque data provide the file size information and add it
+// if needed
+//------------------------------------------------------------------------------
+XrdOucString AddSizeHint( const char *dst, off_t size )
+{
+  XrdOucString dest = dst;
+  std::stringstream s;
+  if( dest.find( "?oss.asize=" ) == STR_NPOS &&
+      dest.find( "&oss.asize=" ) == STR_NPOS )
+  {
+    s << dst;
+    if( dest.find( "?" ) == STR_NPOS )
+      s << "?";
+    else
+      s << "&";
+    s << "oss.asize=" << size;
+    dest = s.str().c_str();
+  }
+  return dest;
+}
 
 
 // The body of a thread which reads from the global
@@ -582,9 +602,11 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    cpnfo.XrdCli->Stat(&stat);
    cpnfo.len = stat.size;
    
+   XrdOucString dest = AddSizeHint( dst, stat.size );
+
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest) {
-      *xrddest = new XrdClient(dst);
+      *xrddest = new XrdClient(dest.c_str());
       
       if (!PedanticOpen4Write(*xrddest, kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or,
                               xrd_wr_flags)) {
@@ -1057,23 +1079,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
      return -1;
    }
 
-   //---------------------------------------------------------------------------
-   // Check if the opaque data provide the file size information and add it
-   // if needed
-   //---------------------------------------------------------------------------
-   XrdOucString dest = dst;
-   std::stringstream s;
-   if( dest.find( "?oss.asize=" ) == STR_NPOS &&
-       dest.find( "&oss.asize=" ) == STR_NPOS )
-   {
-     s << dst;
-     if( dest.find( "?" ) == STR_NPOS )
-       s << "?";
-     else
-       s << "&";
-     s << "oss.asize=" << stat.st_size;
-     dest = s.str().c_str();
-   }
+   XrdOucString dest = AddSizeHint( dst, stat.st_size );
 
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest) {
