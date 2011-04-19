@@ -768,6 +768,12 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       }
    }
 
+   if( !(*xrddest)->Close() )
+   {
+      PrintLastServerError(*xrddest);
+      return 1;
+   }
+
    delete *xrddest;
    *xrddest = 0;
 
@@ -1190,6 +1196,12 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
+
+   if( !(*xrddest)->Close() )
+   {
+      PrintLastServerError(*xrddest);
+      return 1;
+   }
 
    delete *xrddest;
    *xrddest = 0;
