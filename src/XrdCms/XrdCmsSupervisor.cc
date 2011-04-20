@@ -62,10 +62,13 @@ int XrdCmsSupervisor::Init(const char *AdminPath, int AdminMode)
 
 // We need to force the minimum number of subscribers to be one and never a
 // percentage, regardless of what was specified in the config file. This is
-// because supervisors may loose their subscribers in unusual ways.
+// because supervisors may loose their subscribers in unusual ways. We also
+// set the drop delay to zero to immediately drop servers from the config to
+// avoid stalling clients at a supervisor node.
 //
    Config.SUPCount = 1;
    Config.SUPLevel = 0;
+   Config.DRPDelay = 0;
 
 // All done
 //
