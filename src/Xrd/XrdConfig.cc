@@ -227,7 +227,7 @@ int XrdConfig::Configure(int argc, char **argv)
    if (*dfltProt != '.' )
       {char *p = dfltProt;
        while (*p && *p != '.') p++;
-       if (*p == '.') {*p = '\0'; dfltProt = strdup(dfltProt); *p = ',';}
+       if (*p == '.') {*p = '\0'; dfltProt = strdup(dfltProt); *p = '.';}
       }
 
 // Process the options
