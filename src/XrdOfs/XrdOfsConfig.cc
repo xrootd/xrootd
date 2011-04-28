@@ -290,7 +290,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
 
      if (evsObject)
         {bp = buff;
-         setBuff("       ofs.notify ", 11);              //  1234567890
+         setBuff("       ofs.notify ", 18);              //  1234567890
          if (evsObject->Enabled(XrdOfsEvs::Chmod))  setBuff("chmod ",  6);
          if (evsObject->Enabled(XrdOfsEvs::Closer)) setBuff("closer ", 7);
          if (evsObject->Enabled(XrdOfsEvs::Closew)) setBuff("closew ", 7);
