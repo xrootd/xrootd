@@ -30,6 +30,7 @@ xrootdffsinc_HEADERS =  XrdFfsDent.hh XrdFfsFsinfo.hh \
 
 lib_LTLIBRARIES = libXrdFfs.la
 bin_PROGRAMS = xrootdfs
+man8_MANS = ../../docs/man/xrootdfsd.8
 
 #############################################################################
 ## Build rules
