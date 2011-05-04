@@ -288,6 +288,7 @@ private:
    static String           DefError;
    static String           GMAPFile;
    static int              GMAPOpt;
+   static bool             GMAPuseDNname;
    static int              GMAPCacheTimeOut;
    static XrdSysPlugin    *GMAPPlugin;
    static XrdSecgsiGMAP_t  GMAPFun;

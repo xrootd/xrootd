@@ -112,6 +112,7 @@ int    XrdSecProtocolgsi::DefBits  = 512;
 int    XrdSecProtocolgsi::CACheck  = 1;
 int    XrdSecProtocolgsi::CRLCheck = 1;
 int    XrdSecProtocolgsi::GMAPOpt  = 1;
+bool   XrdSecProtocolgsi::GMAPuseDNname = 0;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
 String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
 String XrdSecProtocolgsi::DefMD    = "sha1:md5";
@@ -657,13 +658,22 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       //
       // GRID map check option
       //
-      //    0   do not use (DN will be used as identifier)
-      //    1   use if available
+      //    0   do not use (DN hash will be used as identifier)
+      //    1   use if available; otherwise as 0
       //    2   require
+      //   10   do not use (DN name will be used as identifier)
+      //   11   use if available; otherwise as 10
       const char *cogmap[] = { "do-not-use", "use-if-available", "require" };
+      const char *codnnm[] = { "DN hash", "DN name"};
+      if (opt.ogmap >= 10) {
+         GMAPuseDNname = 1;
+         opt.ogmap %= 10;
+      }
       if (opt.ogmap >= 0 && opt.ogmap <= 2)
          GMAPOpt = opt.ogmap;
       DEBUG("grid map file option: "<<cogmap[GMAPOpt]);
+      if (GMAPOpt < 2)
+         DEBUG("default option for entity name if no mapping available: "<<codnnm[(int)GMAPuseDNname]);
 
       //
       // Check existence of GRID map file
@@ -1676,8 +1686,10 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       // If not set, use DN
       if (!Entity.name || (strlen(Entity.name) <= 0)) {
          // No grid map: set the hash of the client DN as name
-         if (hs->Chain->EEChash()) {
+         if (!GMAPuseDNname && hs->Chain->EEChash()) {
             Entity.name = strdup(hs->Chain->EEChash());
+         } else if (GMAPuseDNname && hs->Chain->EECname()) {
+            Entity.name = strdup(hs->Chain->EECname());
          } else {
             DEBUG("WARNING: DN missing: corruption? ");
          }
