@@ -1009,19 +1009,39 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
             return strlen(nworkers);
         else if (size >= strlen(nworkers))
         {
-             size = strlen(nworkers);
-             if (size != 0)
-             {
-                  value[0] = '\0';
-                  strcat(value, nworkers);
-             }
-             return size;
+            size = strlen(nworkers);
+            if (size != 0)
+            {
+                 value[0] = '\0';
+                 strcat(value, nworkers);
+            }
+            return size;
         }
         else
         {
             errno = ERANGE;
             return -1;
         }
+    }
+    else if (!strcmp(name, "xrootdfs.file.permission"))
+    {
+        char xattr[256];
+        strcat(rootpath,xrootdfs.rdr);
+        strcat(rootpath,path);
+
+        XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+
+        xattrlen = XrdFfsPosix_getxattr(rootpath, "xroot.xattr.ofs.ap", xattr, 255);
+        if (size == 0) 
+            return xattrlen;
+        else
+            size = xattrlen;
+
+        strncpy(value, xattr, size);
+        value[size] = '\0';
+       
+        return size;
     }
 
     if (xrootdfs.cns != NULL)
