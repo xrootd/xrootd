@@ -46,6 +46,7 @@ Summary: XRootD filesystem
 Group:   System Environment/Filesystems
 Requires: %{name}-client = %{epoch}:%{version}-%{release}
 Requires: %{name}-libs   = %{epoch}:%{version}-%{release}
+Requires: fuse
 %description fuse
 Fuse driver for xrootd
 
