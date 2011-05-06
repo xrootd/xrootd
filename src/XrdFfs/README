@@ -87,6 +87,14 @@ Run:
 xrootdfs.template is a template "rc" script for starting and stopping XrootdFS.
 One can make necessary changes and put it in /etc/init.d.
 
+One can also put XrootdFS mount points in /etc/fstab. That require mount.fuse be 
+installed (it is part of fuse RPM). The following is an example line in /etc/fstab:
+
+xrootdfsd /mnt fuse rdr=root://rdr.my.com//xrootd,uid=daemon,allow_other,fsname=xrootdfs,max_write=131072,attr_timeout=10,entry_timeout=10 0 0
+
+Note XrootdFS binary (xrootdfsd) much be in $PATH, and all options are passed to 
+xrootdfsd via command line parameters without using environment variable.
+
 Extended file system attributes:
 ===============================
 
