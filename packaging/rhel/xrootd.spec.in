@@ -24,22 +24,21 @@ BuildRequires: perl-ExtUtils-Embed
 %description
 %{summary}
 
-%package devel
-Summary: Headers for compiling and linking against xrootd
-Group:   System Environment/Libraries
-Requires: %{name}-libs = %{epoch}:%{version}-%{release}
-Requires: %{name}-client = %{epoch}:%{version}-%{release}
-Requires: %{name}-server = %{epoch}:%{version}-%{release}
-Requires: %{name}-fuse = %{epoch}:%{version}-%{release}
-%description devel
-Headers for compiling and linking against xrootd
-
 %package client
 Summary: XRootD client
 Group:   System Environment/Applications
 Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 %description client
 The XRootD client software.
+
+%package client-devel
+Summary: Headers for compiling against xrootd-client
+Group:   System Environment/Libraries
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+Requires: %{name}-libs-devel = %{epoch}:%{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+%description client-devel
+Headers for compiling against xrootd-client
 
 %package fuse
 Summary: XRootD filesystem
@@ -57,11 +56,29 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}, %{name}-client = %{epoc
 %description server
 XRootD server
 
+%package server-devel
+Summary: Headers for compiling against xrootd-server
+Group:   System Environment/Libraries
+Requires: %{name}-server = %{epoch}:%{version}-%{release}
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+Requires: %{name}-libs-devel = %{epoch}:%{version}-%{release}
+Requires: %{name}-client-devel = %{epoch}:%{version}-%{release}
+%description server-devel
+Headers for compiling against xrootd-server
+
 %package libs
 Summary: XRootD core libraries
 Group:   System Environment/Libraries
 %description libs
 XRootD core libraries
+
+%package libs-devel
+Summary: Headers for compiling against xrootd-lib
+Group:   System Environment/Libraries
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+%description libs-devel
+Headers for compiling against xrootd-libs
 
 %prep
 %setup -c -n %{name}
@@ -167,9 +184,17 @@ fi
 %{_libdir}/libXrdSys.so*
 %{_libdir}/libXrdFfs.so*
 
-%files devel
+%files libs-devel
 %defattr(-,root,root,-)
-%{_includedir}/%{name}
+%{_includedir}/%{name}/XrdVersion.hh
+%{_includedir}/%{name}/XrdSec
+%{_includedir}/%{name}/XrdSecsss
+%{_includedir}/%{name}/XrdCrypto
+%{_includedir}/%{name}/XrdSut
+%{_includedir}/%{name}/XrdNet
+%{_includedir}/%{name}/XrdOuc
+%{_includedir}/%{name}/XrdSys
+%{_includedir}/%{name}/XrdFfs
 
 %files client
 %defattr(-,root,root,-)
@@ -184,13 +209,17 @@ fi
 %{_bindir}/xrdstagetool
 %doc %{_mandir}/man1
 
+%files client-devel
+%defattr(-,root,root,-)
+%{_includedir}/%{name}/XrdClient
+%{_includedir}/%{name}/XrdPosix
+
 %files fuse
 %defattr(-,root,root,-)
 %{_bindir}/xrootdfs
 
 %files server
 %defattr(-,root,root,-)
-%{_libdir}/libXrdPss*.so*
 %{_bindir}/cconfig
 %{_bindir}/cmsd
 %{_bindir}/cns_ssi
@@ -210,6 +239,7 @@ fi
 %{_libdir}/libXrdCms.so*
 %{_libdir}/libXrdOfs.so*
 %{_libdir}/libXrdOss.so*
+%{_libdir}/libXrdPss*.so*
 %{_libdir}/libXrdRootd.so*
 %{_libdir}/libXrd.so*
 %doc %{_mandir}/man8
@@ -238,6 +268,19 @@ fi
 %{_initrddir}/xrootd
 %{_initrddir}/xrootd.functions
 
+%files server-devel
+%defattr(-,root,root,-)
+%{_includedir}/%{name}/XrdAcc
+%{_includedir}/%{name}/XrdBwm
+%{_includedir}/%{name}/XrdCms
+%{_includedir}/%{name}/XrdCns
+%{_includedir}/%{name}/XrdFrm
+%{_includedir}/%{name}/XrdOfs
+%{_includedir}/%{name}/XrdOss
+%{_includedir}/%{name}/XrdPss
+%{_includedir}/%{name}/XrdSfs
+%{_includedir}/%{name}/Xrd
+%{_includedir}/%{name}/XProtocol
 
 %changelog
 * Tue Apr 11 2011 Lukasz Janyst <ljanyst@cern.ch> 3.0.3-1
