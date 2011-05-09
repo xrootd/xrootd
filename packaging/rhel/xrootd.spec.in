@@ -182,7 +182,6 @@ fi
 %{_libdir}/libXrdNet*.so*
 %{_libdir}/libXrdOuc.so*
 %{_libdir}/libXrdSys.so*
-%{_libdir}/libXrdFfs.so*
 
 %files libs-devel
 %defattr(-,root,root,-)
@@ -194,13 +193,13 @@ fi
 %{_includedir}/%{name}/XrdNet
 %{_includedir}/%{name}/XrdOuc
 %{_includedir}/%{name}/XrdSys
-%{_includedir}/%{name}/XrdFfs
 
 %files client
 %defattr(-,root,root,-)
 %{_libdir}/libXrdClient*.so*
 %{_libdir}/libXrdPosix.so*
 %{_libdir}/libXrdPosixPreload.so*
+%{_libdir}/libXrdFfs.so*
 %{_libdir}/XrdClientAdmin.pm
 %{_bindir}/xprep
 %{_bindir}/xrd
@@ -213,6 +212,7 @@ fi
 %defattr(-,root,root,-)
 %{_includedir}/%{name}/XrdClient
 %{_includedir}/%{name}/XrdPosix
+%{_includedir}/%{name}/XrdFfs
 
 %files fuse
 %defattr(-,root,root,-)
