@@ -1,7 +1,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   1%{?dist}%{?_with_xrootd_user:.xu}
+Release:   __RELEASE__%{?dist}%{?_with_xrootd_user:.xu}
 Summary:   An eXtended Root Daemon (xrootd)
 Group:     System Environment/Daemons
 License:   Stanford (modified BSD with advert clause)
