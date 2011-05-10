@@ -3,8 +3,22 @@ Version 3.0.4
 -------------
 
 + **New features**
+   * xrdcp now has -version parameter
+   * xrdcp automatically ads the oss.asize hint to the url opaque data
+   * RPM: devel package split into libs-devel, client-devel and server-devel
    * XrootdFS: all paramenters can be passed via command line, add -h.
 
 + **Major bug fixes**
+   * Async write errors are now being properly caught and reacted to.
+     XrdClient::Close will now fail if it cannot recover from async
+     write errors.
+   * xrdcp prints an error message and returns failure to the shell
+     when some of the write requests it issues fail.
+   * libXrdPosixPreload now builds with autotools and is included into
+     the xrootd-client RPM
+   * RPM: FFS moved from libs to client
 
-+ **Minor buf fixes**
++ **Minor bug fixes**
+   * Test for 64-bit atomics instead 32-bit ones. Fixes build on 32-bit PowerPC.
+   * RPM: xrootd-fuse now depends on fuse
+
