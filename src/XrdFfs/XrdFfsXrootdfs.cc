@@ -1107,7 +1107,10 @@ static void xrootdfs_usage(const char *progname)
 "usage: %s mountpoint options\n"
 "\n"
 "XrootdFS options:\n"
-"    -h -help --help        print help\n"
+"    -h -help --help          print help\n"
+"\n"
+"Default options:\n"
+"    fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5\n"
 "\n"
 "[Required]\n"
 "    -o rdr=redirector_url    root URL of the Xrootd redirector\n"
@@ -1178,7 +1181,16 @@ int main(int argc, char *argv[])
     xrootdfs_oper.removexattr	= xrootdfs_removexattr;
 
 /* Define XrootdFS options */
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+    char **cmdline_opts;
+
+    cmdline_opts = (char **) malloc(sizeof(char*) * (argc + 3));
+    cmdline_opts[0] = argv[0];
+    cmdline_opts[1] = strdup("-o");
+    cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
+    for (int i = 1; i <= argc; i++)
+        cmdline_opts[i+2] = argv[i];
+
+    struct fuse_args args = FUSE_ARGS_INIT(argc + 2, cmdline_opts);
 
     xrootdfs_opts[0].templ = "rdr=%s";
     xrootdfs_opts[0].offset = offsetof(struct XROOTDFS, rdr);
