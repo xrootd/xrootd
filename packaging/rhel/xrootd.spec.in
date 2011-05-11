@@ -174,6 +174,16 @@ fi
 %post libs -p /sbin/ldconfig
 %postun libs -p /sbin/ldconfig
 
+%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
+%pre fuse
+getent group xrootd >/dev/null || groupadd -r xrootd
+getent passwd xrootd >/dev/null || \
+       useradd -r -g xrootd -c "XRootD runtime user" \
+       -s /sbin/nologin -d /etc/xrootd xrootd
+exit 0
+%endif
+
+
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdSec*.so*
