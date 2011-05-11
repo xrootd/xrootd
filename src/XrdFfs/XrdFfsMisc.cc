@@ -345,6 +345,9 @@ void XrdFfsMisc_xrd_secsss_init()
     XrdFfsMiscSecsss = true;
     XrdFfsMiscUent = new XrdSecEntity("");
     XrdFfsMiscSssid = new XrdSecsssID(XrdSecsssID::idDynamic);
+
+/* Enforce "sss" security */
+    setenv("XrdSecPROTOCOL", "sss", 1);
 }
 
 void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
