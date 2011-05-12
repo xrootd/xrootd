@@ -216,7 +216,12 @@ exit 0
 %{_bindir}/xrdcp
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdstagetool
-%doc %{_mandir}/man1
+%doc %{_mandir}/man1/xprep.1.gz
+%doc %{_mandir}/man1/xrd.1.gz
+%doc %{_mandir}/man1/xrdadler32.1.gz
+%doc %{_mandir}/man1/xrdcp.1.gz
+%doc %{_mandir}/man1/xrdstagetool.1.gz
+%doc %{_mandir}/man1/xrdgsiproxy.1.gz
 
 %files client-devel
 %defattr(-,root,root,-)
@@ -227,6 +232,7 @@ exit 0
 %files fuse
 %defattr(-,root,root,-)
 %{_bindir}/xrootdfs
+%doc %{_mandir}/man1/xrootdfs.1.gz
 
 %files server
 %defattr(-,root,root,-)
