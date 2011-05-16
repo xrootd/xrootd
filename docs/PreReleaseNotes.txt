@@ -1,3 +1,6 @@
++ **Major bug fixes
+   * Properly parse oss.asize. This because a major problem when xrdcp started
+     adding this to the url which causes the copy to fail.
 -------------
 Version 3.0.4
 -------------

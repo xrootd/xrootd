@@ -214,7 +214,7 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 // Grab the suggested size from the environment
 //
    if ((tmp = env.Get(OSS_ASIZE))
-   &&  !XrdOuca2x::a2ll(OssEroute,"invalid asize",tmp,&aInfo.cgSize,0))
+   &&  XrdOuca2x::a2sz(OssEroute,"invalid asize",tmp,&aInfo.cgSize,0))
       return -XRDOSS_E8018;
 
 // Get the correct cache group and partition path
