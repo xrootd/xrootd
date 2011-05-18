@@ -5,6 +5,7 @@
      adding this to the url which causes the copy to fail.
    * Spin connection portion of proxy initialization to a background thread.
      This prevents init.d hangs when a redirector is not available.
+   * Fix incorrect lock handling for multiple waiters.
 -------------
 Version 3.0.4
 -------------

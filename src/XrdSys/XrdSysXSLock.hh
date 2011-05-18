@@ -31,10 +31,8 @@ void        Lock(const XrdSysXS_Type usage);
 
 void      UnLock(const XrdSysXS_Type usage=xs_None);
 
-          XrdSysXSLock()
-               {cur_usage = xs_None; cur_count = 0;
-                exc_wait = 0; shr_wait = 0; toggle = 0;}
-
+          XrdSysXSLock() : cur_usage(xs_None), cur_count(0), exc_wait(0),
+                           shr_wait(0), toggle(0), WantShr(0), WantExc(0) {}
          ~XrdSysXSLock();
 
 private:

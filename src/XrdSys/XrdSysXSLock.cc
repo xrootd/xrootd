@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdSysXSLockCVSID = "$Id$";
   
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysXSLock.hh"
@@ -37,7 +33,7 @@ XrdSysXSLock::~XrdSysXSLock()
 /******************************************************************************/
   
 void XrdSysXSLock::Lock(const XrdSysXS_Type usage)
-{  int FirstTime = 1;
+{
 
 // Serialize access to this object
 //
@@ -54,11 +50,8 @@ void XrdSysXSLock::Lock(const XrdSysXS_Type usage)
 
         // Indicate that we are waiting
         //
-        if (FirstTime)
-           {FirstTime = 0;
-            if (usage == xs_Shared) shr_wait++;
-               else exc_wait++;
-           }
+           if (usage == xs_Shared) shr_wait++;
+              else exc_wait++;
 
         // Usage is not compatible. We must wait for current lock mode to end
         //
