@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -13,6 +11,9 @@ include ../GNUmake.env
 SOURCES = \
         XrdOuca2x.cc         \
         XrdOucArgs.cc        \
+        XrdOucCache.cc       \
+        XrdOucCacheData.cc   \
+        XrdOucCacheReal.cc   \
         XrdOucCRC.cc         \
         XrdOucEnv.cc         \
         XrdOucExport.cc      \
@@ -37,6 +38,9 @@ endif
 OBJECTS = \
         $(OBJDIR)/XrdOuca2x.o          \
         $(OBJDIR)/XrdOucArgs.o         \
+        $(OBJDIR)/XrdOucCache.o        \
+        $(OBJDIR)/XrdOucCacheData.o    \
+        $(OBJDIR)/XrdOucCacheReal.o    \
         $(OBJDIR)/XrdOucCRC.o          \
         $(OBJDIR)/XrdOucEnv.o          \
         $(OBJDIR)/XrdOucExport.o       \
@@ -100,6 +104,25 @@ $(OBJDIR)/XrdOucArgs.o: XrdOucArgs.cc  XrdOucArgs.hh XrdOucTokenizer.hh \
                         XrdSysError.hh
 	@echo Compiling XrdOucArgs.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucArgs.cc -o $(OBJDIR)/XrdOucArgs.o
+
+$(OBJDIR)/XrdOucCache.o: XrdOucCache.cc   XrdOucCache.hh   XrdOucCacheSlot.hh \
+                         XrdSysHeaders.hh XrdSysPthread.hh XrdSysXSLock.hh
+	@echo Compiling XrdOucCache.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucCache.cc -o $(OBJDIR)/XrdOucCache.o
+
+$(OBJDIR)/XrdOucCacheData.o: XrdOucCacheData.cc   XrdOucCacheData.hh \
+                             XrdOucCache.hh       XrdOucCacheReal.hh \
+                             XrdSysHeaders.hh     XrdSysPthread.hh   \
+                             XrdSysXSLock.hh
+	@echo Compiling XrdOucCacheData.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucCacheData.cc -o $(OBJDIR)/XrdOucCacheData.o
+
+$(OBJDIR)/XrdOucCacheReal.o: XrdOucCacheReal.cc   XrdOucCacheReal.hh \
+                             XrdOucCache.hh       XrdOucCacheData.hh \
+                             XrdOucCacheSlot.hh \
+                             XrdSysHeaders.hh     XrdSysPthread.hh
+	@echo Compiling XrdOucCacheReal.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucCacheReal.cc -o $(OBJDIR)/XrdOucCacheReal.o
 
 $(OBJDIR)/XrdOucCRC.o: XrdOucCRC.cc XrdOucCRC.hh
 	@echo Compiling XrdOucCRC.cc

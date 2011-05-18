@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -113,9 +111,14 @@ $(OBJDIR)/XrdPosixPreload32.o:  XrdPosixPreload32.cc   XrdPosixLinkage.hh \
 	@echo Compiling XrdPosixPreload32.cc
 	$(ECHO)$(CC) -c $(CFLAGS32) $(CFUSENEWHDRS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdPosixPreload32.o XrdPosixPreload32.cc
 
-$(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc   XrdPosixXrootd.hh \
-                             XrdClient.hh        XrdPosixExtern.hh \
-                             XrdSysHeaders.hh    XrdPosixCallBack.hh \
-                             XrdPosixOsDep.hh
+$(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc    XrdPosixXrootd.hh   \
+                             XrdClient.hh         XrdClientAdmin.hh   \
+                             XrdClientCallback.hh XrdClientEnv.hh     \
+                             XrdClientUrlInfo.hh  XrdClientVector.hh  \
+                             XrdOucCache.hh       XrdOucEnv.hh        \
+                             XrdOucString.hh      XrdPosixCallBack.hh \
+                             XrdPosixLinkage.hh   XrdPosixOsDep.hh    \
+                             XrdPosixXrootd.hh    XrdSysHeaders.hh    \
+                             XrdSysPlatform.hh    XrdSysPthread.hh
 	@echo Compiling XrdPosixXrootd.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixXrootd.o XrdPosixXrootd.cc

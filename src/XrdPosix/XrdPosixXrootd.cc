@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-  
-const char *XrdPosixXrootdCVSID = "$Id$";
-
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -27,6 +23,8 @@ const char *XrdPosixXrootdCVSID = "$Id$";
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
 #include "XrdPosix/XrdPosixLinkage.hh"
@@ -101,11 +99,12 @@ private:
 /*                    X r d P o s i x F i l e   C l a s s                     */
 /******************************************************************************/
   
-class XrdPosixFile : public XrdClientCallback
+class XrdPosixFile : public XrdOucCacheIO, public XrdClientCallback
 {
 public:
 
-XrdClient *XClient;
+XrdOucCacheIO *XCio;
+XrdClient     *XClient;
 
 int        Active() {return doClose;}
 
@@ -118,6 +117,20 @@ long long  addOffset(long long offs, int updtSz=0)
                      if (updtSz && currOffset > stat.size) stat.size=currOffset;
                      return currOffset;
                     }
+
+const char *Path()
+            {return iPath ? iPath : XClient->GetCurrentUrl().GetUrl().c_str();}
+
+int         Read (char *Buff, long long Offs, int Len)
+                {return XClient->Read (Buff, Offs, Len);}
+
+int         Sync() {return (XClient->Sync() ? 0 : -1);}
+
+int         Trunc(long long Offset)
+                 {return (XClient->Truncate(Offset) ? 0 : -1);}
+
+int         Write(char *Buff, long long Offs, int Len)
+                {return XClient->Write(Buff, Offs, Len);}
 
 long long  setOffset(long long offs)
                     {currOffset = offs;
@@ -139,10 +152,15 @@ XrdPosixFile     *Next;
 int               FD;
 int               cbResult;
 
+static XrdOucCache *CacheR;
+static XrdOucCache *CacheW;
+static char        *sfSFX;
+static int          sfSLN;
+
 static const int realFD = 1;
 static const int isSync = 2;
 
-           XrdPosixFile(int fd, const char *path,
+           XrdPosixFile(int fd, const char *path, int oMode,
                         XrdPosixCallBack *cbP=0, int Opts=realFD);
           ~XrdPosixFile();
 
@@ -150,6 +168,7 @@ private:
 
 XrdSysMutex myMutex;
 long long   currOffset;
+const char *iPath;
 short       doClose;
 short       cbDone;
 short       fdClose;
@@ -169,7 +188,13 @@ typedef XrdClientVector<bool> vecBool;
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
-int            XrdPosixDir::maxname = 255;
+XrdOucCache   *XrdPosixFile::CacheR   =  0;
+XrdOucCache   *XrdPosixFile::CacheW   =  0;
+char          *XrdPosixFile::sfSFX    =  0;
+int            XrdPosixFile::sfSLN    =  0;
+
+int            XrdPosixDir::maxname   = 255;
+
 XrdSysMutex    XrdPosixXrootd::myMutex;
 XrdPosixFile **XrdPosixXrootd::myFiles  =  0;
 XrdPosixDir  **XrdPosixXrootd::myDirs   =  0;
@@ -321,13 +346,14 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdPosixFile::XrdPosixFile(int fd, const char *path, XrdPosixCallBack *cbP,
-                           int Opts)
+XrdPosixFile::XrdPosixFile(int fd, const char *path, int oMode,
+                           XrdPosixCallBack *cbP, int Opts)
              : theCB(cbP),
                Next(0),
                FD(fd),
                cbResult(0),
                currOffset(0),
+               iPath(path),
                doClose(0),
                cbDone(0),
                fdClose(Opts & realFD)
@@ -335,10 +361,32 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path, XrdPosixCallBack *cbP,
    static int OneVal = 1;
    XrdClientCallback *myCB = (cbP ? (XrdClientCallback *)this : 0);
    void *cbArg = (Opts & isSync ? (void *)&OneVal : 0);
+   int cOpt;
 
 // Allocate a new client object
 //
-   if (!(XClient = new XrdClient(path, myCB, cbArg))) stat.size = 0;
+   if (!(XClient = new XrdClient(path, myCB, cbArg)))
+      {stat.size = 0; iPath = 0; XCio = (XrdOucCacheIO *)this; return;}
+
+// Check for structured file check
+//
+   if (sfSFX)
+      {int n = strlen(path);
+       if (n > sfSLN && !strcmp(sfSFX, path + n - sfSLN))
+          cOpt = XrdOucCache::optFIS;
+      } else cOpt = 0;
+
+// See if we need to use a cache
+//
+        if (oMode & kXR_open_read && CacheR)
+           XCio = CacheR->Attach((XrdOucCacheIO *)this, cOpt);
+   else if (CacheW)
+           {cOpt |= XrdOucCache::optRW;
+            if (oMode & (kXR_new | kXR_delete)) cOpt |= XrdOucCache::optNEW;
+            XCio = CacheW->Attach((XrdOucCacheIO *)this, cOpt);
+           }
+   else XCio = (XrdOucCacheIO *)this;
+   iPath = 0;
 }
   
 /******************************************************************************/
@@ -349,7 +397,8 @@ XrdPosixFile::~XrdPosixFile()
 {
    XrdClient *cP;
    if ((cP = XClient))
-      {XClient = 0;
+      {if (XCio) XCio = XCio->Detach();
+       XClient = 0;
        if (doClose) {doClose = 0; cP->Close();}
        delete cP;
       }
@@ -603,7 +652,7 @@ int     XrdPosixXrootd::Fsync(int fildes)
 
 // Do the sync
 //
-   if (!fp->XClient->Sync()) return Fault(fp);
+   if (fp->XCio->Sync() < 0) return Fault(fp);
    fp->UnLock();
    return 0;
 }
@@ -622,7 +671,7 @@ int     XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 
 // Do the sync
 //
-   if (!fp->XClient->Truncate(offset)) return Fault(fp);
+   if (fp->XCio->Trunc(offset) < 0) return Fault(fp);
    fp->UnLock();
    return 0;
 }
@@ -763,7 +812,8 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 
 // Allocate the new file object
 //
-   if (fd >= lastFD || !(fp = new XrdPosixFile(fd+baseFD, path, cbP, Opts)))
+   if (fd >= lastFD 
+   ||  !(fp = new XrdPosixFile(fd+baseFD, path, XOflags, cbP, Opts)))
       {myMutex.UnLock(); errno = EMFILE; return -1;}
    myFiles[fd] = fp;
    if (fd > highFD) highFD = fd;
@@ -921,7 +971,8 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 // Issue the read
 //
    offs = static_cast<long long>(offset);
-   if ((bytes = fp->XClient->Read(buf,offs,(int)iosz))<=0) return Fault(fp,-1);
+   bytes = fp->XCio->Read((char *)buf, offs, (int)iosz);
+   if (bytes < 0) return Fault(fp,-1);
 
 // All went well
 //
@@ -937,7 +988,7 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 {
    XrdPosixFile *fp;
    long long     offs;
-   int           iosz;
+   int           iosz, bytes;
 
 // Find the file object
 //
@@ -951,7 +1002,8 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 // Issue the write
 //
    offs = static_cast<long long>(offset);
-   if (!fp->XClient->Write(buf, offs, iosz) && iosz) return Fault(fp);
+   bytes = fp->XCio->Write((char *)buf, offs, (int)iosz);
+   if (bytes <= 0 && iosz) return Fault(fp);
 
 // All went well
 //
@@ -982,8 +1034,8 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 
 // Issue the read
 //
-   if ((bytes = fp->XClient->Read(buf, fp->Offset(), iosz)) <= 0)
-      return Fault(fp,-1);
+   bytes = fp->XCio->Read((char *)buf,fp->Offset(),(int)iosz);
+   if (bytes < 0) return Fault(fp,-1);
 
 // All went well
 //
@@ -1358,7 +1410,7 @@ int XrdPosixXrootd::Unlink(const char *path)
 ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 {
    XrdPosixFile *fp;
-   int           iosz;
+   int           iosz, bytes;
 
 // Find the file object
 //
@@ -1371,7 +1423,8 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 
 // Issue the write
 //
-   if (!fp->XClient->Write(buf, fp->Offset(), iosz) && iosz) return Fault(fp);
+   bytes = fp->XCio->Write((char *)buf,fp->Offset(),(int)iosz);
+   if (bytes <= 0 && iosz) return Fault(fp);
 
 // All went well
 //
@@ -1455,6 +1508,126 @@ void XrdPosixXrootd::initEnv()
                                 <<nval <<'(' <<Posix_Env[i].xName <<')' <<endl;
                    }
           }
+
+// Now we must check if we have a new cache over-ride
+//
+   if ((evar = getenv("XRDPOSIX_CACHE")) && *evar) initEnv(evar);
+}
+
+/******************************************************************************/
+
+// Parse options specified as a cgi string (i.e. var=val&var=val&...). Vars:
+
+// aprcalc=n   - bytes at which to recalculate preread performance
+// aprminp     - auto preread min read pages
+// aprperf     - auto preread performance
+// aprtrig=n   - auto preread min read length   (can be suffized in k, m, g).
+// cachesz=n   - the size of the cache in bytes (can be suffized in k, m, g).
+// debug=n     - debug level (0 off, 1 low, 2 medium, 3 high).
+// max2cache=n - maximum read to cache          (can be suffized in k, m, g).
+// maxfiles=n  - maximum number of files to support.
+// mode={c|s}  - running as a client (default) or server.
+// optlg=1     - log statistics
+// optpr=1     - enable pre-reads
+// optsf=<val> - optimize structured file: 1 = all, 0 = off, .<sfx> specific
+// optwr=1     - cache can be written to.
+// pagesz=n    - individual byte size of a page (can be suffized in k, m, g).
+//
+
+void XrdPosixXrootd::initEnv(char *eData)
+{
+   XrdOucEnv theEnv(eData);
+   XrdOucCache::Parms myParms;
+   XrdOucCacheIO::aprParms apParms;
+   long long Val;
+   int isRW = 0;
+   char * tP;
+
+// Get numeric type variable (errors force a default)
+//
+   initEnv(theEnv, "aprcalc",   Val); if (Val >= 0) apParms.prRecalc  = Val;
+   initEnv(theEnv, "aprminp",   Val); if (Val >= 0) apParms.minPages  = Val;
+   initEnv(theEnv, "aprperf",   Val); if (Val >= 0) apParms.minPerf   = Val;
+   initEnv(theEnv, "aprtrig",   Val); if (Val >= 0) apParms.Trigger   = Val;
+   initEnv(theEnv, "cachesz",   Val); if (Val >= 0) myParms.CacheSize = Val;
+   initEnv(theEnv, "maxfiles",  Val); if (Val >= 0) myParms.MaxFiles  = Val;
+   initEnv(theEnv, "max2cache", Val); if (Val >= 0) myParms.Max2Cache = Val;
+   initEnv(theEnv, "pagesz",    Val); if (Val >= 0) myParms.PageSize  = Val;
+
+// Get Debug setting
+//
+   if ((tP = theEnv.Get("debug")))
+      {if (*tP >= '0' && *tP <= '3') myParms.Options |= (*tP - '0');
+          else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=debug=" <<tP <<"' is invalid." <<endl;
+      }
+
+// Get Mode
+//
+   if ((tP = theEnv.Get("mode")))
+      {if (*tP == 's') myParms.Options |= XrdOucCache::isServer;
+          else if (*tP != 'c') cerr <<"XrdPosix: 'XRDPOSIX_CACHE=mode=" <<tP
+                                    <<"' is invalid." <<endl;
+      }
+
+// Get the structured file option
+//
+   if ((tP = theEnv.Get("optsf")) && *tP && *tP != '0')
+      {     if (*tP == '1') myParms.Options |= XrdOucCache::isStructured;
+       else if (*tP == '.') {XrdPosixFile::sfSFX = strdup(tP);
+                             XrdPosixFile::sfSLN = strlen(tP);
+                            }
+       else cerr <<"XrdPosix: 'XRDPOSIX_CACHE=optfs=" <<tP
+                 <<"' is invalid." <<endl;
+      }
+
+// Get final options, any non-zero value will do here
+//
+   if ((tP = theEnv.Get("optlg")) && *tP && *tP != '0')
+      myParms.Options |= XrdOucCache::logStats;
+   if ((tP = theEnv.Get("optpr")) && *tP && *tP != '0')
+      myParms.Options |= XrdOucCache::canPreRead;
+   if ((tP = theEnv.Get("optwr")) && *tP && *tP != '0') isRW = 1;
+
+// Now allocate a cache. Indicate that we already serialize the I/O to avoid
+// additional but unnecessary locking.
+//
+   myParms.Options |= XrdOucCache::Serialized;
+   if (!(XrdPosixFile::CacheR = XrdOucCache::Create(myParms, &apParms)))
+      cerr <<"XrdPosix: " <<strerror(errno) <<" creating memory cache." <<endl;
+      else {setEnv(NAME_READAHEADSIZE, (long)0);
+            setEnv(NAME_READCACHESIZE, (long)0);
+            if (isRW) XrdPosixFile::CacheW = XrdPosixFile::CacheR;
+           }
+}
+
+/******************************************************************************/
+
+void XrdPosixXrootd::initEnv(XrdOucEnv &theEnv, const char *vName, long long &Dest)
+{
+   char *eP, *tP;
+
+// Extract variable
+//
+   Dest = -1;
+   if (!(tP = theEnv.Get(vName)) || !(*tP)) return;
+
+// Convert the value
+//
+   errno = 0;
+   Dest = strtoll(tP, &eP, 10);
+   if (Dest > 0 || (!errno && tP != eP))
+      {if (!(*eP)) return;
+            if (*eP == 'k' || *eP == 'K') Dest *= 1024LL;
+       else if (*eP == 'm' || *eP == 'M') Dest *= 1024LL*1024LL;
+       else if (*eP == 'g' || *eP == 'G') Dest *= 1024LL*1024LL*1024LL;
+       else if (*eP == 't' || *eP == 'T') Dest *= 1024LL*1024LL*1024LL*1024LL;
+       else eP--;
+       if (*(eP+1))
+          {cerr <<"XrdPosix: 'XRDPOSIX_CACHE=" <<vName <<'=' <<tP
+                             <<"' is invalid." <<endl;
+           Dest = -1;
+          }
+      }
 }
 
 /******************************************************************************/

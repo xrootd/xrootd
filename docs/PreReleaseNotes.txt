@@ -1,5 +1,11 @@
 + **New Features**
    *Allow a plugin (notably the proxy plugin) to disable async I/O.
+   *Implement a general memory caching object. Currently, this will be used
+    by the Posix object.
+   *Allow optional memory caching when using the Posix library. This is
+    primarily used by the proxy object to reduce trips to a data server when
+    small blocks are accessed via the proxy server. This requires
+    configuration using the new 'pss.memcache' directive.
 + **Major bug fixes**
    * Properly parse oss.asize. This because a major problem when xrdcp started
      adding this to the url which causes the copy to fail.

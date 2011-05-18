@@ -29,6 +29,7 @@
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdOucEnv;
 class XrdPosixCallBack;
 class XrdPosixFile;
 class XrdPosixDir;
@@ -148,6 +149,8 @@ static int     Debug;
 private:
 
 static void                  initEnv();
+static void                  initEnv(char *eData);
+static void                  initEnv(XrdOucEnv &, const char *, long long &);
 static int                   Fault(XrdPosixFile *fp, int complete=1);
 static XrdPosixFile         *findFP(int fildes, int glk=0);
 static XrdPosixDir          *findDIR(DIR *dirp, int glk=0);
