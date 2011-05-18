@@ -43,7 +43,7 @@ int        Write(char *Buff, long long  Off,  int  Len) {return Len;}
 
 XrdOucCacheData::XrdOucCacheData(XrdOucCacheReal *cP, XrdOucCacheIO *ioP,
                                  long long    vn,     int            opts)
-                                : rPLock(0), pPLock(0),  wPLock(0),
+                                : pPLock(0), rPLock(0),  wPLock(0),
                                   Cache(cP), ioObj(ioP), VNum(vn)
 {
 // We need to map the cache options to our local options
@@ -219,12 +219,19 @@ do{if ((oVal = prOpt[prNext]))
 
 void XrdOucCacheData::Preread(long long Offs, int rLen, int Opts)
 {
+   int How;
+
+// Determine how to place the pages. We do this via assignment to avoid a gcc
+// bug that doesn't optimize out static const int's except via assignment.
+//
+   if (Opts & SingleUse) How = prSUSE;
+      else How = prLRU;
 
 // Verify that this preread will succeed then schedule it if so
 //
    if (prOK && rLen > 0 && Offs > 0
    &&  Offs < XrdOucCacheReal::MaxFO && (Offs + rLen) < XrdOucCacheReal::MaxFO) return;
-      QueuePR(Offs>>SegShft, rLen, (Opts & SingleUse ? prSUSE : prLRU));
+      QueuePR(Offs>>SegShft, rLen, How);
 }
 
 /******************************************************************************/
@@ -340,10 +347,13 @@ int XrdOucCacheData::Read(char *Buff, long long Offs, int rLen)
    if (XrdOucCacheReal::MaxFO <  Offs || Offs < 0
    ||  XrdOucCacheReal::MaxFO < (Offs + rLen)) return -EOVERFLOW;
 
-// Check for preread request
+// Check for preread request and Determine how to place the pages.
 //
    if (!Buff)
-      {QueuePR(segNum, rLen, (rLen > maxCache ? prSUSE : prLRU));
+      {int How;
+       if (rLen > maxCache) How = prSUSE;
+          else How = prLRU;
+       QueuePR(segNum, rLen, How);
        return 0;
       }
 
@@ -476,8 +486,6 @@ do{if ((cBuff = Cache->Get(0, segNum, rGot, noIO)))
 
 int XrdOucCacheData::setAPR(aprParms &Dest, aprParms &Src, int pSize)
 {
-   static const int maxInt = 0x7fffffff;
-
 
 // Copy over the information
 //
