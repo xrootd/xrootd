@@ -12,6 +12,7 @@
    is used to front a XrdOucCacheIO object with an XrdOucCacheReal object.
 */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "XrdOuc/XrdOucCacheData.hh"
