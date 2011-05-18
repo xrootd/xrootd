@@ -13,12 +13,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <values.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucCacheData.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+  
+#ifdef __macos__
+#ifndef MAP_ANONYMOUS
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+#endif
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
