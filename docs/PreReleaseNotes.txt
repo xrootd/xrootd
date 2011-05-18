@@ -1,6 +1,10 @@
-+ **Major bug fixes
++ **New Features**
+   *Allow a plugin (notably the proxy plugin) to disable async I/O.
++ **Major bug fixes**
    * Properly parse oss.asize. This because a major problem when xrdcp started
      adding this to the url which causes the copy to fail.
+   * Spin connection portion of proxy initialization to a background thread.
+     This prevents init.d hangs when a redirector is not available.
 -------------
 Version 3.0.4
 -------------
