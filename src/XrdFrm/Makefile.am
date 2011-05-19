@@ -88,7 +88,6 @@ libXrdFrm_la_LIBADD = \
                   ../XrdNet/libXrdNet.la     \
                   ../XrdOuc/libXrdOuc.la     \
                   ../XrdSys/libXrdSys.la     \
-                  ../XrdNet/libXrdNetUtil.la \
                   ../XrdOss/libXrdOss.la \
                   ../Xrd/libXrd.la $(READLINE_LIBDIR) $(READLINE_LIBS)
 

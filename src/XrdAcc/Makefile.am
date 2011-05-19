@@ -44,5 +44,4 @@ XrdAccTest_LDADD = libXrdAcc.la \
                    ../XrdOuc/libXrdOuc.la \
                    ../XrdNet/libXrdNet.la \
                    ../XrdSys/libXrdSys.la \
-                   ../XrdNet/libXrdNetUtil.la \
                    -ldl

@@ -50,6 +50,5 @@ xrootdfs_LDADD = libXrdFfs.la $(FUSELIB) \
                  ../XrdSec/libXrdSec.la \
                  ../XrdSecsss/libXrdSecsss.la \
                  ../XrdNet/libXrdNet.la \
-                 ../XrdNet/libXrdNetUtil.la \
                  ../XrdOuc/libXrdOuc.la \
                  ../XrdSys/libXrdSys.la

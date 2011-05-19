@@ -42,8 +42,7 @@ cconfig_SOURCES = XrdAppsCconfig.cc
 cconfig_LDADD = \
                        ../XrdNet/libXrdNet.la   \
                        ../XrdOuc/libXrdOuc.la     \
-                       ../XrdSys/libXrdSys.la \
-                       ../XrdNet/libXrdNetUtil.la
+                       ../XrdSys/libXrdSys.la
 
 cconfig_LDFLAGS = -static -export-dynamic
 
@@ -52,8 +51,7 @@ mpxstats_SOURCES = XrdMpxStats.cc
 mpxstats_LDADD = \
                        ../XrdNet/libXrdNet.la   \
                        ../XrdOuc/libXrdOuc.la     \
-                       ../XrdSys/libXrdSys.la \
-                       ../XrdNet/libXrdNetUtil.la
+                       ../XrdSys/libXrdSys.la
 
 mpxstats_LDFLAGS = -static -export-dynamic
 
