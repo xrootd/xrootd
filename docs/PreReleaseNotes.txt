@@ -20,3 +20,7 @@ Version 3.1.0
    * Make the default file system a pointer to a dynamic instance of XrdOfs
      instead of a global static (i.e. the Andreas Peters patch). This makes
      writing an ofs plugin easier.
+
++ **Miscellaneous**
+   * Rename XrdNetDNS to XrdSysDNS to avoid cross-dependencies. This means that all
+     plug-in developers will need to do the same as XrdNetDNS no longer exists.
