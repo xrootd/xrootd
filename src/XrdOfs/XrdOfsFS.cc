@@ -22,13 +22,15 @@
 // If additional configuration is needed, over-ride the Config() method. At the
 // the end of your config, return the result of the XrdOfs::Config().
 
-XrdOfs XrdOfsFS;
-  
+
+XrdOfs *XrdOfsFS = 0;
+
 XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                              XrdSysLogger     *lp,
                                              const char       *configfn)
 {
    extern XrdSysError OfsEroute;
+   static XrdOfs XrdDefaultOfsFS;
 
 // No need to herald this as it's now the default filesystem
 //
@@ -37,10 +39,11 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
 
 // Initialize the subsystems
 //
-   XrdOfsFS.ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-   if ( XrdOfsFS.Configure(OfsEroute) ) return 0;
+   XrdOfsFS = &XrdDefaultOfsFS;
+   XrdOfsFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
+   if ( XrdOfsFS->Configure(OfsEroute) ) return 0;
 
 // All done, we can return the callout vector to these routines.
 //
-   return &XrdOfsFS;
+   return XrdOfsFS;
 }
