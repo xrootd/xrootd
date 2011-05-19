@@ -1,3 +1,7 @@
+-------------
+Version 3.1.0
+-------------
+
 + **New Features**
    * Allow a plugin (notably the proxy plugin) to disable async I/O.
    * Implement a general memory caching object. Currently, this will be used
@@ -6,39 +10,13 @@
      primarily used by the proxy object to reduce trips to a data server when
      small blocks are accessed via the proxy server. This requires
      configuration using the new 'pss.memcache' directive.
+
 + **Major bug fixes**
-   * Properly parse oss.asize. This because a major problem when xrdcp started
-     adding this to the url which causes the copy to fail.
-   * Spin connection portion of proxy initialization to a background thread.
-     This prevents init.d hangs when a redirector is not available.
    * Fix incorrect lock handling for multiple waiters.
+
 + **Minor bug fixes**
    * Report correct port when locate is directly issued to a data server
      (before it was being reported as 0).
    * Make the default file system a pointer to a dynamic instance of XrdOfs
      instead of a global static (i.e. the Andreas Peters patch). This makes
      writing an ofs plugin easier.
--------------
-Version 3.0.4
--------------
-
-+ **New features**
-   * xrdcp now has -version parameter
-   * xrdcp automatically ads the oss.asize hint to the url opaque data
-   * RPM: devel package split into libs-devel, client-devel and server-devel
-   * XrootdFS: all paramenters can be passed via command line, add -h.
-
-+ **Major bug fixes**
-   * Async write errors are now being properly caught and reacted to.
-     XrdClient::Close will now fail if it cannot recover from async
-     write errors.
-   * xrdcp prints an error message and returns failure to the shell
-     when some of the write requests it issues fail.
-   * libXrdPosixPreload now builds with autotools and is included into
-     the xrootd-client RPM
-   * RPM: FFS moved from libs to client
-
-+ **Minor bug fixes**
-   * Test for 64-bit atomics instead 32-bit ones. Fixes build on 32-bit PowerPC.
-   * RPM: xrootd-fuse now depends on fuse
-
