@@ -87,7 +87,7 @@ cd %{name}
 
 %build
 cd %{name}
-%configure --enable-gsi --enable-fuse --enable-dbg-build --with-utils-dir=%{_datadir}/%{name}/utils
+%configure --enable-gsi --enable-fuse --enable-dbg-build --with-utils-dir=%{_datadir}/%{name}/utils --disable-dependency-tracking
 make %{?_smp_mflags}
 
 %install
