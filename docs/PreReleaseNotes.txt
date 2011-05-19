@@ -1,10 +1,3 @@
-+ **New Features**
-   *Allow a plugin (notably the proxy plugin) to disable async I/O.
-+ **Major bug fixes**
-   * Properly parse oss.asize. This because a major problem when xrdcp started
-     adding this to the url which causes the copy to fail.
-   * Spin connection portion of proxy initialization to a background thread.
-     This prevents init.d hangs when a redirector is not available.
 -------------
 Version 3.0.4
 -------------
@@ -14,6 +7,7 @@ Version 3.0.4
    * xrdcp automatically ads the oss.asize hint to the url opaque data
    * RPM: devel package split into libs-devel, client-devel and server-devel
    * XrootdFS: all paramenters can be passed via command line, add -h.
+   * Allow a plugin (notably the proxy plugin) to disable async I/O.
 
 + **Major bug fixes**
    * Async write errors are now being properly caught and reacted to.
@@ -24,6 +18,10 @@ Version 3.0.4
    * libXrdPosixPreload now builds with autotools and is included into
      the xrootd-client RPM
    * RPM: FFS moved from libs to client
+   * Properly parse oss.asize. This because a major problem when xrdcp started
+     adding this to the url which causes the copy to fail.
+   * Spin connection portion of proxy initialization to a background thread.
+     This prevents init.d hangs when a redirector is not available.
 
 + **Minor bug fixes**
    * Test for 64-bit atomics instead 32-bit ones. Fixes build on 32-bit PowerPC.
