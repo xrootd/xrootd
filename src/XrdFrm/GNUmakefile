@@ -4,7 +4,7 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
+BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdNet -lXrdOuc -lXrdSys \
             $(TYPELIBSF)
 
 #------------------------------------------------------------------------------#
@@ -84,9 +84,8 @@ OBJADDS = \
 
 OBJDEPS = \
           $(LIBDIR)/libXrdFrm.a \
-          $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdNetUtil.a \
           $(LIBDIR)/libXrdOss.a \
+          $(LIBDIR)/libXrdNet.a \
           $(LIBDIR)/libXrdOuc.a \
           $(LIBDIR)/libXrdSys.a
 
@@ -229,7 +228,7 @@ $(OBJDIR)/XrdFrmCID.o: XrdFrmCID.hh    XrdFrmCID.cc    XrdFrmTrace.hh \
 
 $(OBJDIR)/XrdFrmConfig.o: XrdFrmConfig.hh  XrdFrmConfig.cc    XrdFrmTrace.hh \
                           XrdFrmMonitor.hh XrdNetCmsNotify.hh \
-                          XrdInfo.hh       XrdNetDNS.hh       XrdOss.hh \
+                          XrdInfo.hh       XrdSysDNS.hh       XrdOss.hh \
                           XrdOuca2x.hh     XrdOucEnv.hh       XrdOucExport.hh \
                           XrdOucUtils.hh   XrdOucName2Name.hh XrdOucMsubs.hh \
                           XrdOucPList.hh   XrdOucProg.hh \
@@ -264,7 +263,7 @@ $(OBJDIR)/XrdFrmMigrate.o: XrdFrmMigrate.cc     XrdFrmMigrate.hh \
 
 $(OBJDIR)/XrdFrmMonitor.o: XrdFrmMonitor.hh     XrdFrmMonitor.cc \
                            XrdFrmTrace.hh \
-                           XrdNet.hh            XrdNetDNS.hh \
+                           XrdNet.hh            XrdSysDNS.hh \
                            XrdNetPeer.hh \
                            XrdSysError.hh       XrdSysPlatform.hh \
                            XrdXrootdMonData.hh  XPtypes.hh

@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -72,7 +70,7 @@ $(TARGETS): $(OBJECTS) $(OBJFS) $(LIBDEP)
 $(OBJDIR)/XrdBwm.o:  XrdBwm.cc           XrdBwm.hh \
                      XrdAccAuthorize.hh \
                      XrdBwmHandle.hh     XrdBwmTrace.hh \
-                     XrdNetDNS.hh \
+                     XrdSysDNS.hh \
                      XrdOucEnv.hh        XrdOucTrace.hh \
                      XrdSecEntity.hh \
                      XrdSfsAio.hh        XrdSfsInterface.hh \

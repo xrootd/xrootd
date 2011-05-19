@@ -35,8 +35,6 @@
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -172,7 +170,7 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
                    else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
                          while(bp != buff && *(bp-1) != '/') bp--;
                         }
-                strcpy(bp, "libXrdProxy.so");
+                strcpy(bp, "libXrdPss.so");
                 OssLib = strdup(buff);
                }
       }

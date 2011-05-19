@@ -16,11 +16,11 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucNList.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -101,10 +101,10 @@ int main(int argc, char *argv[])
 
 // Get full host name
 //
-   if (!Host) Host = XrdNetDNS::getHostName();
+   if (!Host) Host = XrdSysDNS::getHostName();
       else {sockaddr IPAddr;
-            Host = (XrdNetDNS::getHostAddr(Host, &IPAddr)
-                 ?  XrdNetDNS::getHostName(IPAddr) : 0);
+            Host = (XrdSysDNS::getHostAddr(Host, &IPAddr)
+                 ?  XrdSysDNS::getHostName(IPAddr) : 0);
            }
    if (!Host) {Say.Say(Pgm, "Unable to determine host name."); exit(3);}
 

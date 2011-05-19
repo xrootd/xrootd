@@ -18,11 +18,11 @@ xrootdnetincdir = $(includedir)/xrootd/XrdNet
 #############################################################################
 ## deliverables (to be built / installed)
 
-lib_LTLIBRARIES = libXrdNet.la libXrdNetUtil.la 
+lib_LTLIBRARIES = libXrdNet.la
 
 
 xrootdnetinc_HEADERS = XrdNet.hh XrdNetOpts.hh XrdNetPeer.hh \
-                       XrdNetBuffer.hh XrdNetConnect.hh XrdNetDNS.hh \
+                       XrdNetBuffer.hh XrdNetConnect.hh \
 		       XrdNetLink.hh XrdNetSecurity.hh XrdNetSocket.hh \
 		       XrdNetWork.hh XrdNetCmsNotify.hh
 
@@ -42,13 +42,5 @@ libXrdNet_la_SOURCES = \
 
 libXrdNet_la_LIBADD = $(LIBSOCKET) $(LIBNSL)
 
-
-libXrdNetUtil_la_SOURCES = \
-        XrdNetDNS.cc XrdNetDNS.hh
-
-libXrdNetUtil_la_LIBADD = $(LIBSOCKET) $(LIBNSL)
-
-
 #REFAC libXrdNet_la_CXXFLAGS = -prefer-pic
 #REFAC libXrdNet_la_LDFLAGS = -static
-

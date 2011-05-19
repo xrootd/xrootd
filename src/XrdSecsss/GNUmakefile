@@ -1,15 +1,13 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdCryptoLite -lXrdOuc -lXrdNetUtil -lXrdSys
+MORELIBS = -L$(LIBDIR) -lXrdCryptoLite -lXrdOuc -lXrdSys
 
 LIBDEPS = $(LIBDIR)/libXrdCryptoLite.a $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdNetUtil.a    $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdSys.a
 
 FSSL = $(SSLEXTRACFLAGS)
 
@@ -51,7 +49,6 @@ TARGETS = $(TARGLIB) $(TARGBIN)
 #------------------------------------------------------------------------------#
 
 vpath XrdCrypto% ../XrdCrypto
-vpath XrdNet%    ../XrdNet
 vpath XrdOuc%    ../XrdOuc
 vpath XrdSec%    ../XrdSec
 vpath XrdSys%    ../XrdSys
@@ -84,7 +81,7 @@ $(TARGBIN): $(OBJSBIN)
 	$(ECHO)$(LD) $(LDOP) $(OBJSBIN) $(MORELIBS) $(LIBS) -o $(TARGBIN);
 
 $(OBJDIR)/XrdSecProtocolsss.o: XrdSecProtocolsss.cc    XrdSecProtocolsss.hh \
-                               XrdNetDNS.hh            XrdOucErrInfo.hh \
+                               XrdSysDNS.hh            XrdOucErrInfo.hh \
                                XrdOucPup.hh            XrdOucTokenizer.hh \
                                XrdCryptoLite.hh        XrdSecInterface.hh \
                                XrdSecsssID.hh          XrdSecsssKT.hh \

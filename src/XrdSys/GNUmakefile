@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -11,6 +9,7 @@ include ../GNUmake.env
 #------------------------------------------------------------------------------#
 SOURCES = \
         XrdSysDir.cc \
+        XrdSysDNS.cc \
         XrdSysError.cc \
         XrdSysFAttr.cc \
         XrdSysLogger.cc \
@@ -22,6 +21,7 @@ SOURCES = \
         XrdSysXSLock.cc
 
 OBJECTS = \
+        $(OBJDIR)/XrdSysDNS.o \
         $(OBJDIR)/XrdSysDir.o \
         $(OBJDIR)/XrdSysError.o \
         $(OBJDIR)/XrdSysFAttr.o \
@@ -59,6 +59,11 @@ $(TARGETS): $(OBJECTS)
 	$(ECHO)rm -f $(LIBRARY)
 	$(ECHO)ar -rc $(LIBRARY) $(OBJECTS)
 	$(ECHO)ranlib $(LIBRARY)
+
+$(OBJDIR)/XrdSysDNS.o: XrdSysDNS.cc XrdSysDNS.hh XrdSysHeaders.hh \
+                       XrdSysPlatform.hh XrdSysPthread.hh
+	@echo Compiling XrdSysDNS.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(CFGETHBYXR) $(CFNAMEINFO) $(CFPROTOR) $(INCLUDE) XrdSysDNS.cc -o $(OBJDIR)/XrdSysDNS.o
 
 $(OBJDIR)/XrdSysDir.o: XrdSysDir.cc  XrdSysDir.hh
 	@echo Compiling XrdSysDir.cc

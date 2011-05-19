@@ -2,22 +2,18 @@
 /*                                                                            */
 /*                      X r d C m s M a n L i s t . c c                       */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 // Original Version: 1.4 2007/01/22 03:40:24 abh
-
-const char *XrdCmsManListCVSID = "$Id$";
 
 #include <ctype.h>
 #include <unistd.h>
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdCms/XrdCmsManList.hh"
 
@@ -82,8 +78,8 @@ void XrdCmsManList::Add(unsigned int ref, char *manp, int manport, int lvl)
 
 // Check if we need to translate ip address to name
 //
-   if (!isdigit((int)*manp) || !XrdNetDNS::getHostAddr(manp, InetAddr)
-   || !(ipname =  XrdNetDNS::getHostName(InetAddr))) ipname = strdup(manp);
+   if (!isdigit((int)*manp) || !XrdSysDNS::getHostAddr(manp, InetAddr)
+   || !(ipname =  XrdSysDNS::getHostName(InetAddr))) ipname = strdup(manp);
    if (cp) *cp = ':';
 
 // Start up

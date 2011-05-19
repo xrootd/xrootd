@@ -2,15 +2,11 @@
 /*                                                                            */
 /*                 X r d C m s C l i e n t C o n f i g . c c                  */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdCmsClientConfigCVSID = "$Id$";
 
 // Based on: XrdCmsClientConfig.cc,v 1.24 2007/07/31 02:24:52 abh
 
@@ -30,13 +26,13 @@ const char *XrdCmsClientConfigCVSID = "$Id$";
 #include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdNet/XrdNetDNS.hh"
 
 using namespace XrdCms;
 
@@ -392,7 +388,7 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
            {if (XrdOuca2x::a2i(Say,"manager port",val,&port,1,65535))
                port = 0;
            }
-           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
+           else if (!(port = XrdSysDNS::getPort(val, "tcp")))
                    {Say.Emsg("Config", "unable to find tcp service", val);
                     port = 0;
                    }
@@ -409,9 +405,9 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 
     i = strlen(mval);
     if (mval[i-1] != '+')
-       {i = 0; val = mval; mval = XrdNetDNS::getHostName(mval); free(val);}
+       {i = 0; val = mval; mval = XrdSysDNS::getHostName(mval); free(val);}
         else {bval = strdup(mval); mval[i-1] = '\0';
-              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
+              if (!(i = XrdSysDNS::getHostAddr(mval, InetAddr, 8)))
                  {Say.Emsg("Config","Manager host", mval, "not found");
                   free(bval); free(mval); return 1;
                  }
@@ -422,7 +418,7 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 
     do {if (i)
            {i--; free(mval);
-            mval = XrdNetDNS::getHostName(InetAddr[i]);
+            mval = XrdSysDNS::getHostName(InetAddr[i]);
             Say.Emsg("Config", bval, "-> all.manager", mval);
            }
         tp = (isProxy ? PanList : ManList); tpp = 0; j = 1;

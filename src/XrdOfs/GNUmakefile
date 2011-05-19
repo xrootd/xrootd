@@ -73,7 +73,7 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc             XrdOfs.hh \
                      XrdOucMsubs.hh        XrdCmsClient.hh \
                      XrdOucLock.hh    XrdSysLogger.hh       XrdSysPlugin.hh \
                      XrdOucPList.hh   XrdSysPthread.hh      XrdOucTrace.hh     \
-                     XrdNetDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
+                     XrdSysDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
                      XrdSfsNative.hh  XrdSfsAio.hh          XrdSfsInterface.hh \
                      XrdOss.hh        XrdSysHeaders.hh      XrdSysPlatform.hh \
                      XrdOucTList.hh   XrdCmsClient.hh       XrdAccAuthorize.hh
@@ -90,7 +90,7 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc \
                            XrdOfs.hh         XrdOfsEvs.hh     XrdOfsHandle.hh \
                            XrdOfsPoscq.hh    XrdOfsStats.hh   XrdOfsTrace.hh  \
                            XrdOuca2x.hh      XrdSysError.hh   XrdOucStream.hh \
-                           XrdOucTrace.hh    XrdOucUtils.hh   XrdNetDNS.hh   \
+                           XrdOucTrace.hh    XrdOucUtils.hh \
                            XrdSysHeaders.hh \
                            XrdOucEnv.hh      XrdAccAuthorize.hh \
                            XrdCmsClient.hh   XrdCmsFinder.hh

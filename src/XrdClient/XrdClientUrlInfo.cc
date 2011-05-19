@@ -11,13 +11,9 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//       $Id$
-
-const char *XrdClientUrlInfoCVSID = "$Id$";
-
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #ifndef WIN32
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -246,7 +242,7 @@ void XrdClientUrlInfo::SetAddrFromHost()
    struct sockaddr_in ip[2];
    char buf[255], **errmsg = 0;
 
-   int numaddr = XrdNetDNS::getHostAddr((char *)Host.c_str(),
+   int numaddr = XrdSysDNS::getHostAddr((char *)Host.c_str(),
                            (struct sockaddr *)ip, 1, errmsg);
    if (numaddr > 0)
       HostAddr = inet_ntop(ip[0].sin_family, &ip[0].sin_addr, buf, sizeof(buf));

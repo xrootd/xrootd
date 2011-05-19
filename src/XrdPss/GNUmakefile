@@ -25,15 +25,14 @@ OBJECTT  = \
 OBJECTU  = $(LIBDIR)/libXrdFfs.a    $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdSecsss.a $(LIBDIR)/libXrdSec.a
 
-MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
            $(LIBDIR)/libXrdFfs.a \
-           $(LIBDIR)/libXrdNet.a \
-           $(LIBDIR)/libXrdNetUtil.a \
-           $(LIBDIR)/libXrdOuc.a \
            $(LIBDIR)/libXrdSec.a \
            $(LIBDIR)/libXrdSecsss.a \
+           $(LIBDIR)/libXrdNet.a \
+           $(LIBDIR)/libXrdOuc.a \
            $(LIBDIR)/libXrdSys.a
 
 LIBRARY  = $(LIBDIR)/libXrdPss.$(TYPESHLIB)
@@ -92,7 +91,7 @@ $(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh         XrdFfsDent.hh \
                            XrdFfsMisc.hh     XrdFfsWcache.hh   XrdFfsQueue.hh \
                            XrdOuca2x.hh      XrdOucEnv.hh      XrdSysError.hh \
                            XrdOucStream.hh   XrdOucTList.hh    XrdOucUtils.hh \
-                           XrdNetDNS.hh      XrdSysPlatform.hh XrdSysHeaders.hh \
+                           XrdSysDNS.hh      XrdSysPlatform.hh XrdSysHeaders.hh \
                            XrdPosixXrootd.hh XrdOucName2Name.hh
 	@echo Compiling XrdPssConfig.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPssConfig.o XrdPssConfig.cc

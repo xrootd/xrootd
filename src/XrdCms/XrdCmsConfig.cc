@@ -47,7 +47,6 @@
 #include "XrdCms/XrdCmsXmi.hh"
 #include "XrdCms/XrdCmsXmiReq.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -56,17 +55,18 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;
@@ -1758,7 +1758,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
            {if (XrdOuca2x::a2i(*eDest,"manager port",val,&port,1,65535))
                port = 0;
            }
-           else if (!(port = XrdNetDNS::getPort(val, "tcp")))
+           else if (!(port = XrdSysDNS::getPort(val, "tcp")))
                    {eDest->Emsg("Config", "Unable to find tcp service '",val,"'.");
                     port = 0;
                    }
@@ -1780,14 +1780,14 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     i = strlen(mval);
     if (mval[i-1] != '+') 
        {i = 1;
-        if (!XrdNetDNS::getHostAddr(mval, InetAddr))
+        if (!XrdSysDNS::getHostAddr(mval, InetAddr))
            {eDest->Emsg("CFile","Manager host", mval, "not found");
             return 1;
            }
-        free(mval); mval = XrdNetDNS::getHostName(InetAddr[0]);
+        free(mval); mval = XrdSysDNS::getHostName(InetAddr[0]);
        }
         else {bval = strdup(mval); mval[i-1] = '\0'; multi = 1;
-              if (!(i = XrdNetDNS::getHostAddr(mval, InetAddr, 8)))
+              if (!(i = XrdSysDNS::getHostAddr(mval, InetAddr, 8)))
                  {eDest->Emsg("CFile","Manager host", mval, "not found");
                   return 1;
                  }
@@ -1810,7 +1810,7 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
            {free(mval);
             char mvBuff[1024];
             if (Prt) sprintf(mvBuff, "%s -> all.manager ", bval);
-            mval = XrdNetDNS::getHostName(InetAddr[i-1]);
+            mval = XrdSysDNS::getHostName(InetAddr[i-1]);
             if (Prt) eDest->Say("Config ", mvBuff, mval);
            }
         tp = (Prt ? ManList : NanList); tpp = 0; j = 1;

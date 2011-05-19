@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//      $Id$
-
-const char *XrdNetSecurityCVSID = "$Id$";
 
 #ifndef WIN32
 #include <netdb.h>
@@ -33,7 +29,7 @@ int innetgr(const char *netgroup, const char *host, const char *user,
 #include "XrdSys/XrdWin32.hh"
 #endif
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
@@ -74,7 +70,7 @@ void XrdNetSecurity::AddHost(char *hname)
 
 // If host is an ip address then do short circuit add otherwise do a full add
 //
-   if (isdigit(*hname) && (Hname = XrdNetDNS::getHostName(hname)))
+   if (isdigit(*hname) && (Hname = XrdSysDNS::getHostName(hname)))
       OKHosts.Add(hname, Hname, 0, Hash_dofree);
       else {XrdOucNList *nlp = new XrdOucNList(hname);
             HostList.Insert(nlp);
@@ -125,7 +121,7 @@ char *XrdNetSecurity::Authorize(struct sockaddr *addr)
 
 // Get the hostname for this IP address
 //
-   if (!(hname = XrdNetDNS::getHostName(*addr))) hname = strdup(ipname);
+   if (!(hname = XrdSysDNS::getHostName(*addr))) hname = strdup(ipname);
 
 // Check if this host is in the the appropriate netgroup, if any
 //

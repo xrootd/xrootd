@@ -83,14 +83,14 @@ LFLAGS   =
 
 ####### Files
 
-HEADERS =   XrdNet.hh XrdNetBuffer.hh XrdNetConnect.hh XrdNetDNS.hh XrdNetLink.hh \
+HEADERS =   XrdNet.hh XrdNetBuffer.hh XrdNetConnect.hh XrdNetLink.hh \
             XrdNetOpts.hh XrdNetPeer.hh XrdNetSecurity.hh XrdNetSocket.hh XrdNetWork.hh
 
-SOURCES =   XrdNet.cc XrdNetBuffer.cc XrdNetConnect.cc XrdNetDNS.cc XrdNetLink.cc \
+SOURCES =   XrdNet.cc XrdNetBuffer.cc XrdNetConnect.cc XrdNetLink.cc \
             XrdNetSecurity.cc XrdNetSocket.cc XrdNetWork.cc
 
 OBJECTS =   $(OUTDIR)/XrdNet.obj $(OUTDIR)/XrdNetBuffer.obj $(OUTDIR)/XrdNetConnect.obj \
-            $(OUTDIR)/XrdNetDNS.obj $(OUTDIR)/XrdNetLink.obj $(OUTDIR)/XrdNetSecurity.obj \
+            $(OUTDIR)/XrdNetLink.obj $(OUTDIR)/XrdNetSecurity.obj \
             $(OUTDIR)/XrdNetSocket.obj $(OUTDIR)/XrdNetWork.obj
 
 ####### Build rules

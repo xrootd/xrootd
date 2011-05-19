@@ -38,12 +38,11 @@
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -362,7 +361,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
            unsigned int ipaddr;
            char *hP;
            Link->Name(&netaddr);
-           ipaddr = XrdNetDNS::IPAddr(&netaddr);
+           ipaddr = XrdSysDNS::IPAddr(&netaddr);
            myMans.Del(ipaddr);
            while((hP = hList.GetToken()))
                  myMans.Add(ipaddr, hP, Config.PortTCP, Lvl+1);

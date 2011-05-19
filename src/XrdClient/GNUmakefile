@@ -1,21 +1,19 @@
-#              $Id$
-
 #-----------------------------------------------------------------------------#
 #                            E n v i r o n m e n t                            #
 #-----------------------------------------------------------------------------#
 include ../GNUmake.env
 
-LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys -lpthread
+LIBLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys -lpthread
 
 ifneq ($(CFHASXRDCRYPTO),)
 BINLIBS = $(LIBDIR)/libXrdClient.a \
           $(LIBDIR)/libXrdCrypto.a  $(LIBDIR)/libXrdSut.a \
           $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdSys.a
 else
 BINLIBS = $(LIBDIR)/libXrdClient.a \
-          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a 
-          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a  \
+          $(LIBDIR)/libXrdSys.a
 endif
 
 LIBDEPS = $(BINLIBS)
@@ -344,7 +342,7 @@ $(OBJDIR)/XrdClientConn.o: XrdClientConn.cc XrdClientConn.hh ../XrdClient/XrdCli
   ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientThread.hh \
   ../XrdClient/XrdClientConn.hh ../XrdClient/XrdClientReadCache.hh \
   ../XrdSec/XrdSecInterface.hh ../XrdSec/XrdSecEntity.hh \
-  ../XrdNet/XrdNetDNS.hh  \
+  ../XrdSys/XrdSysDNS.hh  \
   ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
   ../XrdSys/XrdSysPlatform.hh
@@ -456,7 +454,7 @@ $(OBJDIR)/XrdClientReadCache.o: XrdClientReadCache.cc \
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientReadCache.o XrdClientReadCache.cc
 
 $(OBJDIR)/XrdClientUrlInfo.o: XrdClientUrlInfo.cc ../XrdClient/XrdClientUrlInfo.hh \
-   ../XrdNet/XrdNetDNS.hh
+   ../XrdSys/XrdSysDNS.hh
 	@echo Compiling XrdClientUrlInfo.cc
 	$(ECHO)$(CC) -g -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdClientUrlInfo.o XrdClientUrlInfo.cc
 
@@ -635,7 +633,7 @@ $(OBJDIR)/XrdClientMStream.o: XrdClientMStream.cc ../XrdClient/XrdClientDebug.hh
   ../XrdClient/XrdClientVector.hh ../XrdClient/XrdClientThread.hh \
   ../XrdClient/XrdClientConn.hh ../XrdClient/XrdClientReadCache.hh \
   ../XrdSec/XrdSecInterface.hh ../XrdSec/XrdSecEntity.hh \
-  ../XrdNet/XrdNetDNS.hh  \
+  ../XrdSys/XrdSysDNS.hh  \
   ../XrdClient/XrdClientAbs.hh ../XrdClient/XrdClientSid.hh \
   ../XrdOuc/XrdOucRash.hh ../XrdOuc/XrdOucRash.icc \
   ../XrdSys/XrdSysPlatform.hh

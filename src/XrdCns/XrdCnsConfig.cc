@@ -2,15 +2,11 @@
 /*                                                                            */
 /*                       X r d C n s C o n f i g . c c                        */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//         $Id$
-
-const char *XrdCnsConfigCVSID = "$Id$";
 
 #include <unistd.h>
 #include <string.h>
@@ -22,7 +18,6 @@ const char *XrdCnsConfigCVSID = "$Id$";
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -34,6 +29,7 @@ const char *XrdCnsConfigCVSID = "$Id$";
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -222,7 +218,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
              if ((cP = index(hBuff+1, ':'))
              &&  XrdOuca2x::a2i(MLog,"-b port",cP+1,&bPort,1,65535)) *buff = 0;
              if (cP) *cP = '\0';
-             bHost = XrdNetDNS::getHostName(hBuff+1, &dnsEtxt);
+             bHost = XrdSysDNS::getHostName(hBuff+1, &dnsEtxt);
              if (dnsEtxt)
                 {*hBuff = '\''; strcat(hBuff+1, "\'"); *buff = 0;
                  MLog.Emsg("Config", hBuff, dnsEtxt);
@@ -259,7 +255,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                      NoGo = 1; continue;
                     } else *tP = '\0';
          dnsEtxt = 0;
-         tP = XrdNetDNS::getHostName(dP, &dnsEtxt);
+         tP = XrdSysDNS::getHostName(dP, &dnsEtxt);
          if (dnsEtxt)
             {buff[0] = '\''; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
              MLog.Emsg("Config", "'", dP, buff);

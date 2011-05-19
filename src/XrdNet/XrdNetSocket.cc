@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Deprtment of Energy               */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdNetSocketCVSID = "$Id$";
-
 #ifndef WIN32
 #include <unistd.h>
 #include <errno.h>
@@ -38,11 +34,11 @@ const char *XrdNetSocketCVSID = "$Id$";
 #endif
 
 #include "XrdNet/XrdNetConnect.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -236,9 +232,9 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
        if ((SockFD = socket(PF_INET, SockType, 0)) < 0)
           return Err(Open, errno, "create inet socket to", epath);
        if (port < 0 && *path)
-                     XrdNetDNS::Host2Dest(inpath,(sockaddr &)InetAddr,&errtxt);
-             else   {XrdNetDNS::getHostAddr(path,(sockaddr &)InetAddr,&errtxt);
-                     XrdNetDNS::setPort((sockaddr &)InetAddr, port);
+                     XrdSysDNS::Host2Dest(inpath,(sockaddr &)InetAddr,&errtxt);
+             else   {XrdSysDNS::getHostAddr(path,(sockaddr &)InetAddr,&errtxt);
+                     XrdSysDNS::setPort((sockaddr &)InetAddr, port);
                     }
           if (errtxt)
              {if(eroute) eroute->Emsg("Open", "Unable to obtain address for",
@@ -282,7 +278,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
               else if (connect(SockFD, SockAddr, SockSize)) myEC = errno;
           }
        if (!myEC) {PeerName = strdup((path ? path : "?"));
-                   if (*path == '/') XrdNetDNS::getHostAddr(0, PeerAddr);
+                   if (*path == '/') XrdSysDNS::getHostAddr(0, PeerAddr);
                       else memcpy((void *)&PeerAddr,SockAddr,sizeof(PeerAddr));
                   }
       }
@@ -318,7 +314,7 @@ const char *XrdNetSocket::Peername(struct sockaddr **InetAddr)
 // Get the host name on the other side of this socket
 //
    if (!PeerName 
-   &&  !(PeerName = XrdNetDNS::Peername(SockFD, &PeerAddr, &errtxt)))
+   &&  !(PeerName = XrdSysDNS::Peername(SockFD, &PeerAddr, &errtxt)))
       {if (eroute) 
           eroute->Emsg("Peername", "Unable to obtain peer name;",errtxt);
        ErrCode = ESRCH;
@@ -339,7 +335,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
    int rc = 0;
    const int one = 1;
    const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
-   static int tcpprotid = XrdNetDNS::getProtoID("tcp");
+   static int tcpprotid = XrdSysDNS::getProtoID("tcp");
    static struct linger liopts = {1, XRDNETSOCKET_LINGER};
    const SOCKLEN_t szlio = (SOCKLEN_t)sizeof(liopts);
 
@@ -418,10 +414,10 @@ const char *XrdNetSocket::socketAddr(XrdSysError *Say, const char *dest,
        SockSize = sizeof(UnixAddr);
       } else {
        if (*dest && *dest != ':')
-                     XrdNetDNS::Host2Dest(dest,(sockaddr &)InetAddr,&errtxt);
-          else      {XrdNetDNS::getHostAddr(dest,(sockaddr &)InetAddr,&errtxt);
+                     XrdSysDNS::Host2Dest(dest,(sockaddr &)InetAddr,&errtxt);
+          else      {XrdSysDNS::getHostAddr(dest,(sockaddr &)InetAddr,&errtxt);
                      if (*dest && *dest == ':') port = atoi(dest+1);
-                     XrdNetDNS::setPort((sockaddr &)InetAddr, port);
+                     XrdSysDNS::setPort((sockaddr &)InetAddr, port);
                     }
        if (errtxt)
           {if (Say) Say->Emsg("Net","Unable to obtain address for",dest,errtxt);

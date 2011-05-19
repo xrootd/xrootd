@@ -6,7 +6,7 @@ include ../GNUmake.env
 
 LIBBASE = $(LIBDIR)/libXrdCrypto.a  $(LIBDIR)/libXrdSut.a \
           $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdSys.a
 
 ifneq ($(TYPE),Darwin)
 
@@ -148,7 +148,7 @@ $(OBJDIR)/XrdSecProtocolgsi.o: XrdSecProtocolgsi.cc XrdSysLogger.hh \
 		XrdCryptosslgsiAux.hh XrdCryptosslgsiX509Chain.hh \
 		XrdCryptoX509Chain.hh XrdCryptoX509.hh XrdCryptoRSA.hh XrdCryptoAux.hh \
 		XrdCryptoX509Crl.hh XrdCryptoX509Req.hh XrdSecProtocolgsi.hh \
-		XrdOucErrInfo.hh XrdSysPlatform.hh  XrdOucTokenizer.hh \
+		XrdOucErrInfo.hh XrdSysDNS.hh XrdSysPlatform.hh  XrdOucTokenizer.hh \
 		XrdSecInterface.hh XrdSecEntity.hh XrdSecgsiTrace.hh \
 		XrdOucTrace.hh XrdSutPFile.hh XrdSutBuffer.hh XrdSutBuckList.hh \
 		XrdSutRndm.hh XrdCryptoCipher.hh XrdCryptoFactory.hh

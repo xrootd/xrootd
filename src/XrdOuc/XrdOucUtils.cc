@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdOucUtilsCVSID = "$Id$";
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -24,10 +20,10 @@ const char *XrdOucUtilsCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
   
 /******************************************************************************/
@@ -87,7 +83,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 // Check if we are one of the listed hosts
 //
    if (!is1of(val, brk))
-      {do {hostok = XrdNetDNS::isMatch(hname, val);
+      {do {hostok = XrdSysDNS::isMatch(hname, val);
            val = Config.GetWord();
           } while(!hostok && val && !is1of(val, brk));
       if (hostok)

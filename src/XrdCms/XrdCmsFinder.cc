@@ -47,7 +47,6 @@
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSfs/XrdSfsInterface.hh"

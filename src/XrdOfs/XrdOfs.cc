@@ -36,17 +36,17 @@
 
 #include "XrdOss/XrdOss.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
-#include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucLock.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+#include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucLock.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -124,10 +124,10 @@ XrdOfs::XrdOfs()
 
 // Establish our hostname and IPV4 address
 //
-   HostName      = XrdNetDNS::getHostName();
-   if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+   HostName      = XrdSysDNS::getHostName();
+   if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
    strcpy(buff, "[::"); bp = buff+3;
-   bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+   bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
    *bp++ = ']'; *bp++ = ':';
    sprintf(bp, "%d", myPort);
    locResp = strdup(buff); locRlen = strlen(buff);

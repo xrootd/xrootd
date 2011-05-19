@@ -1,16 +1,14 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
 
-BINLIBS  = -L$(LIBDIR) -lXrdSec -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+BINLIBS  = -L$(LIBDIR) -lXrdSec -lXrdNet -lXrdOuc -lXrdSys
 
-LIBDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
+LIBDEPS = $(LIBDIR)/libXrdNet.a \
           $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
 
 #------------------------------------------------------------------------------#
@@ -105,7 +103,7 @@ $(OBJDIR)/XrdSecProtocolhost.o: XrdSecProtocolhost.cc XrdSecProtocolhost.hh \
 	@echo Compiling XrdSecProtocolhost.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolhost.o XrdSecProtocolhost.cc
 $(OBJDIR)/XrdSecServer.o: XrdSecServer.cc       XrdSecServer.hh \
-                          XrdNetDNS.hh          XrdSysHeaders.hh \
+                          XrdSysDNS.hh          XrdSysHeaders.hh \
                           XrdOucErrInfo.hh      XrdSysError.hh \
                           XrdSysLogger.hh       XrdOucStream.hh \
                           XrdSecInterface.hh    XrdSecPManager.hh \

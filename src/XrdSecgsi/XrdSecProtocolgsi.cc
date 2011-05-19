@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
@@ -246,7 +246,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
 
    // Set host name
    if (ipadd) {
-      Entity.host = XrdNetDNS::getHostName((sockaddr&)*ipadd);
+      Entity.host = XrdSysDNS::getHostName((sockaddr&)*ipadd);
       // Set host addr
       memcpy(&hostaddr, ipadd, sizeof(hostaddr));
    } else {

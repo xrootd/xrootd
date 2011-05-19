@@ -25,7 +25,6 @@
 #include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -39,6 +38,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTokenizer.hh" // Add to GNUmake
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -318,7 +318,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
-   if (!(myName = XrdNetDNS::getHostName()))
+   if (!(myName = XrdSysDNS::getHostName()))
       {Say.Emsg("Config","Unable to determine host name; execution terminated.");
        _exit(16);
       }

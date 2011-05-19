@@ -8,20 +8,16 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-/*   $Id$           */
-
-const char *XrdMpxStatsCVSID = "$Id$";
-
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -369,7 +365,7 @@ void *XrdMpxOut::Run(XrdMpxXml *xP)
          myMutex.UnLock();
          if (!sbP) continue;
          if (xP)
-            {Host = (Opts & addSender ? XrdNetDNS::getHostName(sbP->From) : 0);
+            {Host = (Opts & addSender ? XrdSysDNS::getHostName(sbP->From) : 0);
              wLen = xP->Format(Host, sbP->Data, obuff);
              bP = obuff;
              if (Host) free(Host);

@@ -31,9 +31,9 @@
 
 #endif
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdSys/XrdSysAtomics.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -219,7 +219,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    memcpy((void *)&(lp->InetAddr), (const void *)&Peer.InetAddr,
           sizeof(struct sockaddr));
    if (Peer.InetName) strlcpy(lp->Lname, Peer.InetName, sizeof(lp->Lname));
-      else {char *host = XrdNetDNS::getHostName(Peer.InetAddr);
+      else {char *host = XrdSysDNS::getHostName(Peer.InetAddr);
             strlcpy(lp->Lname, host, sizeof(lp->Lname));
             free(host);
            }

@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
- 
-//         $Id$
-
-const char *XrdNetCVSID = "$Id$";
 
 #include <errno.h>
 #include <stdio.h>
@@ -25,7 +21,6 @@ const char *XrdNetCVSID = "$Id$";
 #endif
 
 #include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdNet/XrdNetSecurity.hh"
@@ -33,6 +28,7 @@ const char *XrdNetCVSID = "$Id$";
 
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysDNS.hh"
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -134,7 +130,7 @@ int XrdNet::Bind(int bindport, const char *contype)
 
 // Obtain port number of generic port being used
 //
-   Portnum = (bindport ? bindport : XrdNetDNS::getPort(iofd));
+   Portnum = (bindport ? bindport : XrdSysDNS::getPort(iofd));
 
 // For udp sockets, we must allocate a buffer queue object
 //
@@ -318,13 +314,13 @@ int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
    if (Police)
       {if (!(hname = Police->Authorize(&addr)))
           {eDest->Emsg("Accept", EACCES, "accept TCP connection from",
-                      (hname = XrdNetDNS::getHostName(addr)));
+                      (hname = XrdSysDNS::getHostName(addr)));
            free(hname);
            close(newfd);
            return 0;
           }
-      } else hname = (opts & XRDNET_NORLKUP ? XrdNetDNS::getHostID(addr)
-                                            : XrdNetDNS::getHostName(addr));
+      } else hname = (opts & XRDNET_NORLKUP ? XrdSysDNS::getHostID(addr)
+                                            : XrdSysDNS::getHostName(addr));
 
 // Set all required fd options are set
 //
@@ -373,16 +369,16 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 // Authorize this connection. We don't accept messages that set the
 // loopback address since this can be trivially spoofed in UDP packets.
 //
-   if (XrdNetDNS::isLoopback(addr)
+   if (XrdSysDNS::isLoopback(addr)
    || (Police && !(hname = Police->Authorize(&addr))))
       {eDest->Emsg("Accept", -EACCES, "accept connection from",
-                     (hname = XrdNetDNS::getHostName(addr)));
+                     (hname = XrdSysDNS::getHostName(addr)));
        free(hname);
        BuffQ->Recycle(bp);
        return 0;
       } else {
-       if (!hname) hname=(opts & XRDNET_NORLKUP ? XrdNetDNS::getHostID(addr)
-                                                : XrdNetDNS::getHostName(addr));
+       if (!hname) hname=(opts & XRDNET_NORLKUP ? XrdSysDNS::getHostID(addr)
+                                                : XrdSysDNS::getHostName(addr));
       }
 
 // Fill in the peer structure. We use our base FD for outgoing messages.

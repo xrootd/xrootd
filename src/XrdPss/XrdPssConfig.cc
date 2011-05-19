@@ -30,6 +30,7 @@
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -39,8 +40,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-
-#include "XrdNet/XrdNetDNS.hh"
 
 #include "XrdPosix/XrdPosixXrootd.hh"
 
@@ -618,7 +617,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
             {if (XrdOuca2x::a2i(*errp,"origin port",val,&port,1,65535))
                 port = 0;
             }
-            else if (!(port = XrdNetDNS::getPort(val, "tcp")))
+            else if (!(port = XrdSysDNS::getPort(val, "tcp")))
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }

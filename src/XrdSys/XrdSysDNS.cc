@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d N e t D N S . c c                           */
+/*                          X r d S y s D N S . c c                           */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-//         $Id$
-
-const char *XrdNetDNSCVSID = "$Id$";
-
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -26,7 +22,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 #include <arpa/inet.h>
 #endif
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -35,7 +31,7 @@ const char *XrdNetDNSCVSID = "$Id$";
 /*                           g e t H o s t A d d r                            */
 /******************************************************************************/
   
-int XrdNetDNS::getHostAddr(const  char     *InetName,
+int XrdSysDNS::getHostAddr(const  char     *InetName,
                            struct sockaddr  InetAddr[],
                                   int       maxipa,
                                   char    **errtxt)
@@ -138,7 +134,7 @@ int XrdNetDNS::getHostAddr(const  char     *InetName,
 /*                           g e t A d d r N a m e                            */
 /******************************************************************************/
   
-int XrdNetDNS::getAddrName(const char *InetName,
+int XrdSysDNS::getAddrName(const char *InetName,
                            int maxipa, char **Addr, char **Name,
                            char    **errtxt)
 {
@@ -153,7 +149,7 @@ int XrdNetDNS::getAddrName(const char *InetName,
 
 // Number of addresses
    struct sockaddr_in ip[10];
-   int n = XrdNetDNS::getHostAddr(InetName,(struct sockaddr *)ip, maxipa, errtxt);
+   int n = XrdSysDNS::getHostAddr(InetName,(struct sockaddr *)ip, maxipa, errtxt);
 
    // Fill address / name strings, if required
    int i = 0;
@@ -184,7 +180,7 @@ int XrdNetDNS::getAddrName(const char *InetName,
 /*                             g e t H o s t I D                              */
 /******************************************************************************/
   
-char *XrdNetDNS::getHostID(struct sockaddr &InetAddr)
+char *XrdSysDNS::getHostID(struct sockaddr &InetAddr)
 {
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    char mybuff[256];
@@ -202,7 +198,7 @@ char *XrdNetDNS::getHostID(struct sockaddr &InetAddr)
 /*               g e t H o s t N a m e   ( V a r i a n t   1 )                */
 /******************************************************************************/
 
-char *XrdNetDNS::getHostName(const char *InetName, char **errtxt)
+char *XrdSysDNS::getHostName(const char *InetName, char **errtxt)
 {
    char myname[256];
    const char *hp;
@@ -228,7 +224,7 @@ char *XrdNetDNS::getHostName(const char *InetName, char **errtxt)
 /*               g e t H o s t N a m e   ( V a r i a n t   2 )                */
 /******************************************************************************/
 
-char *XrdNetDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
+char *XrdSysDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
 {
      char *result;
      if (getHostName(InetAddr, &result, 1, errtxt)) return result;
@@ -246,7 +242,7 @@ char *XrdNetDNS::getHostName(struct sockaddr &InetAddr, char **errtxt)
 /*               g e t H o s t N a m e   ( V a r i a n t   3 )                */
 /******************************************************************************/
   
-int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
+int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
                                   char     *InetName[],
                                   int       maxipn,
                                   char    **errtxt)
@@ -373,7 +369,7 @@ int XrdNetDNS::getHostName(struct sockaddr &InetAddr,
 /*                               g e t P o r t                                */
 /******************************************************************************/
   
-int XrdNetDNS::getPort(const char  *servname,
+int XrdSysDNS::getPort(const char  *servname,
                        const char  *servtype,
                              char **errtxt)
 {
@@ -415,7 +411,7 @@ int XrdNetDNS::getPort(const char  *servname,
  
 /******************************************************************************/
 
-int XrdNetDNS::getPort(int fd, char **errtxt)
+int XrdSysDNS::getPort(int fd, char **errtxt)
 {
    struct sockaddr InetAddr;
    struct sockaddr_in *ip = (struct sockaddr_in *)&InetAddr;
@@ -437,7 +433,7 @@ int XrdNetDNS::getPort(int fd, char **errtxt)
 
 #define NET_IPPROTO_TCP 6
 
-int XrdNetDNS::getProtoID(const char *pname)
+int XrdSysDNS::getProtoID(const char *pname)
 {
 #ifdef HAVE_PROTOR
     struct protoent pp;
@@ -473,7 +469,7 @@ int XrdNetDNS::getProtoID(const char *pname)
 /*                             H o s t 2 D e s t                              */
 /******************************************************************************/
   
-int XrdNetDNS::Host2Dest(const char      *hostname,
+int XrdSysDNS::Host2Dest(const char      *hostname,
                          struct sockaddr &DestAddr,
                          char           **errtxt)
 { char *cp, hbuff[256];
@@ -519,7 +515,7 @@ int XrdNetDNS::Host2Dest(const char      *hostname,
 /*                               H o s t 2 I P                                */
 /******************************************************************************/
   
-int XrdNetDNS::Host2IP(const char *hname, unsigned int *ipaddr)
+int XrdSysDNS::Host2IP(const char *hname, unsigned int *ipaddr)
 {
    struct sockaddr_in InetAddr;
 
@@ -534,14 +530,14 @@ int XrdNetDNS::Host2IP(const char *hname, unsigned int *ipaddr)
 /*                                I P A d d r                                 */
 /******************************************************************************/
   
-unsigned int XrdNetDNS::IPAddr(struct sockaddr *InetAddr)
+unsigned int XrdSysDNS::IPAddr(struct sockaddr *InetAddr)
   {return (unsigned int)(((struct sockaddr_in *)InetAddr)->sin_addr.s_addr);}
 
 /******************************************************************************/
 /*                             I P 2 S t r i n g                              */
 /******************************************************************************/
   
-int XrdNetDNS::IP2String(unsigned int ipaddr, int port, char *buff, int blen)
+int XrdSysDNS::IP2String(unsigned int ipaddr, int port, char *buff, int blen)
 {
    struct in_addr in;
    int sz;
@@ -560,7 +556,7 @@ int XrdNetDNS::IP2String(unsigned int ipaddr, int port, char *buff, int blen)
 /*                              i s D o m a i n                               */
 /******************************************************************************/
   
-int XrdNetDNS::isDomain(const char *Hostname, const char *Domname, int Domlen)
+int XrdSysDNS::isDomain(const char *Hostname, const char *Domname, int Domlen)
 {
    int hlen = strlen(Hostname);
 
@@ -571,7 +567,7 @@ int XrdNetDNS::isDomain(const char *Hostname, const char *Domname, int Domlen)
 /*                            i s L o o p b a c k                             */
 /******************************************************************************/
   
-int XrdNetDNS::isLoopback(struct sockaddr &InetAddr)
+int XrdSysDNS::isLoopback(struct sockaddr &InetAddr)
 {
    struct sockaddr_in *ip = (struct sockaddr_in *)&InetAddr;
    return ip->sin_addr.s_addr == 0x7f000001;
@@ -581,7 +577,7 @@ int XrdNetDNS::isLoopback(struct sockaddr &InetAddr)
 /*                               i s M a t c h                                */
 /******************************************************************************/
 
-int XrdNetDNS::isMatch(const char *HostName, char *HostPat)
+int XrdSysDNS::isMatch(const char *HostName, char *HostPat)
 {
     struct sockaddr InetAddr[16];
     char *mval;
@@ -618,7 +614,7 @@ int XrdNetDNS::isMatch(const char *HostName, char *HostPat)
 /*                              P e e r n a m e                               */
 /******************************************************************************/
   
-char *XrdNetDNS::Peername(int snum, struct sockaddr *sap, char **errtxt)
+char *XrdSysDNS::Peername(int snum, struct sockaddr *sap, char **errtxt)
 {
    struct sockaddr addr;
    SOCKLEN_t addrlen = sizeof(addr);
@@ -640,7 +636,7 @@ char *XrdNetDNS::Peername(int snum, struct sockaddr *sap, char **errtxt)
 /*                               s e t P o r t                                */
 /******************************************************************************/
   
-void XrdNetDNS::setPort(struct sockaddr &InetAddr, int port, int anyaddr)
+void XrdSysDNS::setPort(struct sockaddr &InetAddr, int port, int anyaddr)
 {
    unsigned short int sport = static_cast<unsigned short int>(port);
    struct sockaddr_in *ip = (struct sockaddr_in *)&InetAddr;
@@ -658,7 +654,7 @@ void XrdNetDNS::setPort(struct sockaddr &InetAddr, int port, int anyaddr)
 /*                               L o w C a s e                                */
 /******************************************************************************/
   
-char *XrdNetDNS::LowCase(char *str)
+char *XrdSysDNS::LowCase(char *str)
 {
    char *sp = str;
 
@@ -671,7 +667,7 @@ char *XrdNetDNS::LowCase(char *str)
 /*                                 s e t E T                                  */
 /******************************************************************************/
   
-int XrdNetDNS::setET(char **errtxt, int rc)
+int XrdSysDNS::setET(char **errtxt, int rc)
 {
     if (rc) *errtxt = strerror(rc);
        else *errtxt = (char *)"unexpected error";
@@ -682,7 +678,7 @@ int XrdNetDNS::setET(char **errtxt, int rc)
 /*                               s e t E T n i                                */
 /******************************************************************************/
   
-int XrdNetDNS::setETni(char **errtxt, int rc)
+int XrdSysDNS::setETni(char **errtxt, int rc)
 {
 #ifndef HAVE_NAMEINFO
     return setET(errtxt, rc);

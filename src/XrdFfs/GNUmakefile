@@ -41,7 +41,6 @@ BINDEPS = \
           $(LIBDIR)/libXrdSec.a \
           $(LIBDIR)/libXrdSecsss.a \
           $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdNetUtil.a \
           $(LIBDIR)/libXrdOuc.a \
           $(LIBDIR)/libXrdSys.a 
 

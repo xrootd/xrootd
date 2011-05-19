@@ -1,5 +1,3 @@
-#              $Id$
-
 #-----------------------------------------------------------------------------#
 #                            E n v i r o n m e n t                            #
 #-----------------------------------------------------------------------------#
@@ -7,23 +5,22 @@ include ../GNUmake.env
 
 XRDADLERDEPS = $(LIBDIR)/libXrdPosix.a   $(LIBDIR)/libXrdClient.a
 XRDADLERDEPT = $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
-               $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a \
+               $(LIBDIR)/libXrdSys.a \
                $(XRDADLERDEPS)
                
-XRDADLERLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
+XRDADLERLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys \
                $(PTHREAD) $(LIBS) $(LIBZ)
 XRDADLER32_OBJ = $(OBJDIR)/Xrdadler32.o
 XRDADLER32 = $(BINDIR)/xrdadler32
 
-XrdCCODEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
+XrdCCODEPS = $(LIBDIR)/libXrdNet.a \
              $(LIBDIR)/libXrdOuc.a $(LIBDIR)/libXrdSys.a
-XRDCCOLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+XRDCCOLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
 XRDCCOOBJ  = $(OBJDIR)/XrdAppsCconfig.o
 XRDCCOBIN  = $(BINDIR)/cconfig
 
-XrdMPXDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdNetUtil.a \
-             $(LIBDIR)/libXrdOuc.a
-XRDMPXLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys
+XrdMPXDEPS = $(LIBDIR)/libXrdNet.a $(LIBDIR)/libXrdOuc.a
+XRDMPXLIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
 XRDMPXOBJ  = $(OBJDIR)/XrdMpxStats.o
 XRDMPXBIN  = $(BINDIR)/mpxstats
 
@@ -78,7 +75,7 @@ $(XRDCCOBIN): $(XRDCCOOBJ) $(XrdCCODEPS)
 	@echo Creating executable $(XRDCCOBIN)
 	$(ECHO)$(LD) $(LDOP) $(XRDCCOOBJ) $(XRDCCOLIBS) $(LIBS) -o $(XRDCCOBIN)
  
-$(XRDCCOOBJ): XrdAppsCconfig.cc XrdNetDNS.hh \
+$(XRDCCOOBJ): XrdAppsCconfig.cc XrdSysDNS.hh \
               XrdOucEnv.hh  XrdOucNList.hh XrdOucStream.hh XrdOucUtils.hh \
               XrdSysError.hh XrdSysLogger.hh XrdSysHeaders.hh XrdSysPthread.hh
 	@echo Compiling XrdAppsCconfig.cc
@@ -93,7 +90,7 @@ $(XRDMPXBIN): $(XRDMPXOBJ) $(XrdMPXDEPS)
 	$(ECHO)$(LD) $(LDOP) $(XRDMPXOBJ) $(XRDMPXLIBS) $(LIBS) -o $(XRDMPXBIN)
  
 $(XRDMPXOBJ): XrdMpxStats.cc \
-              XrdNetDNS.hh       XrdNetSocket.hh   XrdNetOpts.hh \
+              XrdSysDNS.hh       XrdNetSocket.hh   XrdNetOpts.hh \
               XrdOucTokenizer.hh \
               XrdSysError.hh     XrdSysLogger.hh \
               XrdSysHeaders.hh   XrdSysPlatform.hh XrdSysPthread.hh

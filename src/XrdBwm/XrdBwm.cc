@@ -8,10 +8,6 @@
 /*               DE-AC03-76-SFO0515 with the Deprtment of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdBwmCVSID = "$Id$";
-
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
@@ -28,8 +24,6 @@ const char *XrdBwmCVSID = "$Id$";
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
@@ -38,6 +32,7 @@ const char *XrdBwmCVSID = "$Id$";
 #include "XrdSfs/XrdSfsAio.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -92,10 +87,10 @@ XrdBwm::XrdBwm()
 
 // Establish our hostname and IPV4 address
 //
-   HostName      = XrdNetDNS::getHostName();
-   if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+   HostName      = XrdSysDNS::getHostName();
+   if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
    strcpy(buff, "[::"); bp = buff+3;
-   bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+   bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
    *bp++ = ']'; *bp++ = ':';
    sprintf(bp, "%d", myPort);
    locResp = strdup(buff); locRlen = strlen(buff);
@@ -296,9 +291,9 @@ int XrdBwmFile::open(const char          *path,      // In
 
 // Determine the direction of flow
 //
-        if (XrdNetDNS::isDomain(theSrc, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
+        if (XrdSysDNS::isDomain(theSrc, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
            {incomming = 0; lclNode = theSrc; rmtNode = theDst;}
-   else if (XrdNetDNS::isDomain(theDst, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
+   else if (XrdSysDNS::isDomain(theDst, XrdBwmFS.myDomain, XrdBwmFS.myDomLen))
            {incomming = 1; lclNode = theDst; rmtNode = theSrc;}
    else return XrdBwmFS.Emsg("open", error, EREMOTE, "open", path);
 

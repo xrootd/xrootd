@@ -38,10 +38,9 @@
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdCms/XrdCmsXmi.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPup.hh"
@@ -153,7 +152,7 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
 // Get our address (the long way)
 //
    lnkp->Name(&netaddr);
-   hAddr= XrdNetDNS::IPAddr(&netaddr);
+   hAddr= XrdSysDNS::IPAddr(&netaddr);
 
 // Check if this is a duplicate
 //
@@ -176,7 +175,7 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
 
    strcpy(IPV6, "[::");
    bp = IPV6+3;
-   bp += XrdNetDNS::IP2String(IPAddr, 0, bp, 24); // We're cheating
+   bp += XrdSysDNS::IP2String(IPAddr, 0, bp, 24); // We're cheating
    *bp++ = ']';
    if (Port) {*bp++ = ':'; bp += sprintf(bp, "%d", Port);}
    IPV6Len = bp - IPV6;
@@ -947,7 +946,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
-              else if (XrdNetDNS::Host2IP(Avoid, &IPaddr))
+              else if (XrdSysDNS::Host2IP(Avoid, &IPaddr))
                               Sel.nmask |= Cluster.getMask(IPaddr);
            Avoid = Comma+1;
           } while(Comma && *Avoid);
