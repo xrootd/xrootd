@@ -290,7 +290,6 @@ exit 0
 %{_includedir}/%{name}/XrdBwm
 %{_includedir}/%{name}/XrdCms
 %{_includedir}/%{name}/XrdCns
-%{_includedir}/%{name}/XrdFrm
 %{_includedir}/%{name}/XrdOfs
 %{_includedir}/%{name}/XrdOss
 %{_includedir}/%{name}/XrdPss

@@ -25,7 +25,7 @@ xrootdfrcincdir = $(includedir)/xrootd/XrdFrc
 #############################################################################
 ## deliverables
 
-xrootdfrcinc_HEADERS = XrdFrcCID.hh     \
+noinst_HEADERS = XrdFrcCID.hh     \
                        XrdFrcProxy.hh   \
                        XrdFrcReqAgent.hh \
                        XrdFrcReqFile.hh \
