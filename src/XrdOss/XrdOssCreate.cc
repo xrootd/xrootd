@@ -26,7 +26,7 @@
 #include <sys/vnode.h>
 #endif
 
-#include "XrdFrm/XrdFrmXAttr.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
@@ -231,7 +231,7 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 // Set the pfn as the extended attribute if we are in new mode
 //
    if (!runOld && !(crInfo.pOpts & XRDEXP_NOXATTR)
-   &&  (rc = XrdSysFAttr::Set(XrdFrmXAttrPfn::Name(), crInfo.Path,
+   &&  (rc = XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), crInfo.Path,
                               strlen(crInfo.Path)+1, pbuff, datfd))) return rc;
 
 // Set extended attributes for this newly created file if allowed to do so.
@@ -303,7 +303,7 @@ int XrdOssSys::SetFattr(XrdOssCreateInfo &crInfo, int fd, time_t mtime)
                      ~fdCloser() {close(theFD);}
          } Act(crInfo.Path, fd);
 
-   XrdOucXAttr<XrdFrmXAttrCpy> crX;
+   XrdOucXAttr<XrdFrcXAttrCpy> crX;
    int rc;
 
 // Skip all of this if we do not need to create a lock file

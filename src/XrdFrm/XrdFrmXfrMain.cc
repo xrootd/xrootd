@@ -55,8 +55,8 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmXfrAgent.hh"
 #include "XrdFrm/XrdFrmXfrDaemon.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -64,6 +64,7 @@ Where:
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/

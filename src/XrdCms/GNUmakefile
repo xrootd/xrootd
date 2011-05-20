@@ -4,10 +4,10 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdOss -lXrdFrm -lXrd -lXrdNet -lXrdOuc \
+BINLIBS = -L$(LIBDIR) -lXrdOss -lXrdFrc -lXrd -lXrdNet -lXrdOuc \
                       -lXrdSys $(TYPELIBSF)
 
-LIBDEPS =  $(LIBDIR)/libXrdFrm.a     $(LIBDIR)/libXrdNet.a \
+LIBDEPS =  $(LIBDIR)/libXrdFrc.a     $(LIBDIR)/libXrdNet.a \
            $(LIBDIR)/libXrdOss.a     $(LIBDIR)/libXrd.a    \
            $(LIBDIR)/libXrdOuc.a     $(LIBDIR)/libXrdSys.a
 
@@ -111,7 +111,7 @@ vpath XProtocol% ../XProtocol
 vpath XPtypes%   ../XProtocol
 vpath YProtocol% ../XProtocol
 vpath XrdCms%    ../XrdCms
-vpath XrdFrm%    ../XrdFrm
+vpath XrdFrc%    ../XrdFrc
 vpath XrdNet%    ../XrdNet
 vpath XrdOss%    ../XrdOss
 vpath XrdOuc%    ../XrdOuc
@@ -381,7 +381,7 @@ $(OBJDIR)/XrdCmsPrepArgs.o:  XrdCmsPrepArgs.cc   XrdCmsPrepArgs.hh \
 $(OBJDIR)/XrdCmsPrepare.o:   XrdCmsPrepare.cc    XrdCmsPrepare.hh \
                              XrdCmsConfig.hh     XrdCmsPrepArgs.hh \
                              XrdCmsTrace.hh      XrdNetMsg.hh \
-                             XrdFrmProxy.hh      XrdOss.hh \
+                             XrdFrcProxy.hh      XrdOss.hh \
                              XrdOucEnv.hh        XrdOucHash.hh \
                              XrdOucMsubs.hh      XrdOucStream.hh \
                              XrdOucTList.hh \

@@ -16,19 +16,20 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "XrdFrc/XrdFrcProxy.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmProxy.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOucArgs.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -205,16 +206,16 @@ int XrdFrmAdmin::QueryUsage(XrdOucArgs &Spec)
 int XrdFrmAdmin::QueryXfrQ(XrdOucArgs &Spec)
 {
    static struct {const char *qName; char qType;} qN2T[] =
-                 {{"all",    XrdFrmProxy::opAll},
-                  {"get",    XrdFrmProxy::opGet},
-                  {"migr",   XrdFrmProxy::opMig},
-                  {"put",    XrdFrmProxy::opPut},
-                  {"migrate",XrdFrmProxy::opMig},
-                  {"stage",  XrdFrmProxy::opStg},
+                 {{"all",    XrdFrcProxy::opAll},
+                  {"get",    XrdFrcProxy::opGet},
+                  {"migr",   XrdFrcProxy::opMig},
+                  {"put",    XrdFrcProxy::opPut},
+                  {"migrate",XrdFrcProxy::opMig},
+                  {"stage",  XrdFrcProxy::opStg},
                   {0, 0}};
 
-   XrdFrmRequest::Item Items[XrdFrmRequest::getLast];
-   XrdFrmProxy::Queues xfrQ(0);
+   XrdFrcRequest::Item Items[XrdFrcRequest::getLast];
+   XrdFrcProxy::Queues xfrQ(0);
    char *qName;
    int i, qPrty, QList = 0;
 
@@ -233,13 +234,13 @@ int XrdFrmAdmin::QueryXfrQ(XrdOucArgs &Spec)
 
 // Set queue if none specified
 //
-   if (!QList) QList = XrdFrmProxy::opAll;
+   if (!QList) QList = XrdFrcProxy::opAll;
 
 // Check if priority
 //
    if (qName && strlen(qName) == 1 && *qName >= '0' && *qName <= '9')
       {qPrty = *qName - '0';
-       if (qPrty > XrdFrmRequest::maxPrty)
+       if (qPrty > XrdFrcRequest::maxPrty)
           {Emsg("Invalid xfrq priority - ", qName); return 1;}
        qName = Spec.getarg();
       } else qPrty = -1;
@@ -248,11 +249,11 @@ int XrdFrmAdmin::QueryXfrQ(XrdOucArgs &Spec)
 //
    i = 0;
    if (qName)
-      {do {if (XrdFrmUtils::MapV2I(qName, Items[i])) i++;
+      {do {if (XrdFrcUtils::MapV2I(qName, Items[i])) i++;
               else {Emsg("Invalid xfrq variable - ", qName); return 1;}
-          } while((qName = Spec.getarg()) && i < XrdFrmRequest::getLast);
+          } while((qName = Spec.getarg()) && i < XrdFrcRequest::getLast);
        if (qName) {Emsg("Too many xfrq variables starting at ",qName);return 1;}
-      } else Items[i++] = XrdFrmRequest::getLFN;
+      } else Items[i++] = XrdFrcRequest::getLFN;
 
 // Produce the listing
 //

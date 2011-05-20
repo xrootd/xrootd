@@ -10,21 +10,19 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class  XrdFrmReqFile;
-class  XrdFrmRequest;
+class  XrdFrcReqFile;
+class  XrdFrcRequest;
 class  XrdFrmXfrJob;
 
 class XrdFrmXfrQueue
 {
 public:
 
-static int           Add(XrdFrmRequest *rP, XrdFrmReqFile *reqF, int theQ);
+static int           Add(XrdFrcRequest *rP, XrdFrcReqFile *reqF, int theQ);
 
 static void          Done(XrdFrmXfrJob *xP, const char *Msg);
 
@@ -40,11 +38,11 @@ static void          StopMon(void *parg);
 private:
 
 static XrdFrmXfrJob *Pull();
-static int           Notify(XrdFrmRequest *rP,int qN,int rc,const char *msg=0);
+static int           Notify(XrdFrcRequest *rP,int qN,int rc,const char *msg=0);
 static void          Send2File(char *Dest, char *Msg, int Mln);
 static void          Send2UDP(char *Dest, char *Msg, int Mln);
 static int           Stopped(int qNum);
-static const char   *xfrName(XrdFrmRequest &reqData, int isOut);
+static const char   *xfrName(XrdFrcRequest &reqData, int isOut);
 
 static XrdSysMutex               hMutex;
 static XrdOucHash<XrdFrmXfrJob>  hTab;
@@ -65,6 +63,6 @@ struct theQueue
               theQueue() : Avail(0),Free(0),First(0),Last(0),Alert(0),Stop(0) {}
              ~theQueue() {}
       };
-static theQueue                  xfrQ[XrdFrmRequest::numQ];
+static theQueue                  xfrQ[XrdFrcRequest::numQ];
 };
 #endif

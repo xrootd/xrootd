@@ -12,16 +12,17 @@
 #include <string.h>
 #include <sys/param.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -49,7 +50,7 @@ int XrdFrmAdmin::AuditNameNB(XrdFrmFileset *sP)
    numProb += num;
    if (!Opt.Fix || !num) return 1;
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('n', "Remove orphaned files?");
+      {Resp = XrdFrcUtils::Ask('n', "Remove orphaned files?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -83,7 +84,7 @@ int XrdFrmAdmin::AuditNameNF(XrdFrmFileset *sP)
 //
    if (!Opt.Fix) return 1;
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('n', "Remove symlink?");
+      {Resp = XrdFrcUtils::Ask('n', "Remove symlink?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -120,14 +121,14 @@ int XrdFrmAdmin::AuditNameNL(XrdFrmFileset *sP)
 //
    if (!Opt.Fix) return -1;
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('y', mkCPT);
+      {Resp = XrdFrcUtils::Ask('y', mkCPT);
        if (Resp != 'y') return Resp != 'a';
       }
 
 // Set copy time or create a lock file
 //
    if (Config.runNew)
-      {if (XrdFrmUtils::updtCpy(sP->basePath(),(Opt.MPType == 'p' ? 0 : -113)))
+      {if (XrdFrcUtils::updtCpy(sP->basePath(),(Opt.MPType == 'p' ? 0 : -113)))
           {numFix++;
            Msg("Copy time set.");
           }
@@ -191,7 +192,7 @@ int XrdFrmAdmin::AuditNames()
   
 int XrdFrmAdmin::AuditNameXA(XrdFrmFileset *sP)
 {
-   XrdOucXAttr<XrdFrmXAttrPfn> pfnInfo;
+   XrdOucXAttr<XrdFrcXAttrPfn> pfnInfo;
    const char *doWhat = "Recreate pfn xref?";
    char  Resp, dfltAns = 'n';
    int rc;
@@ -213,7 +214,7 @@ int XrdFrmAdmin::AuditNameXA(XrdFrmFileset *sP)
 //
    if (!Opt.Fix || rc < 0) return 1;
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask(dfltAns, doWhat);
+      {Resp = XrdFrcUtils::Ask(dfltAns, doWhat);
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -286,9 +287,9 @@ int XrdFrmAdmin::AuditNameXL(XrdFrmFileset *sP, int dorm)
    if (!Opt.Fix || dorm < 0) return 1;
    if (!Opt.Force)
       {if (dorm)
-          Resp = XrdFrmUtils::Ask('n', "Recreate pfn symlink?");
+          Resp = XrdFrcUtils::Ask('n', "Recreate pfn symlink?");
           else
-          Resp = XrdFrmUtils::Ask('y',   "Create pfn symlink?");
+          Resp = XrdFrcUtils::Ask('y',   "Create pfn symlink?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -420,7 +421,7 @@ int XrdFrmAdmin::AuditSpaceAXDB(const char *Path)
 //
    if (Opt.Fix)
       {if (!Opt.Force)
-          {Resp = XrdFrmUtils::Ask('n', "Delete file?");
+          {Resp = XrdFrcUtils::Ask('n', "Delete file?");
            if (Resp != 'y') return Resp != 'a';
           }
        if (unlink(Path)) Emsg(errno, "remove ", Path);
@@ -487,9 +488,9 @@ int XrdFrmAdmin::AuditSpaceAXDL(int dorm, const char *Path, const char *Dest)
    if (!Opt.Fix) return -1;
    if (!Opt.Force)
       {if (dorm)
-          Resp = XrdFrmUtils::Ask('n', "Recreate pfn symlink?");
+          Resp = XrdFrcUtils::Ask('n', "Recreate pfn symlink?");
           else
-          Resp = XrdFrmUtils::Ask('y',   "Create pfn symlink?");
+          Resp = XrdFrcUtils::Ask('y',   "Create pfn symlink?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -544,7 +545,7 @@ int XrdFrmAdmin::AuditSpaceXA(const char *Space, const char *Path)
   
 int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
 {
-   XrdOucXAttr<XrdFrmXAttrPfn> pfnInfo;
+   XrdOucXAttr<XrdFrcXAttrPfn> pfnInfo;
    struct stat buf;
    const char *Plug;
    char Resp = 0, tempPath[1032], lkbuff[1032], *Pfn = pfnInfo.Attr.Pfn;
@@ -566,7 +567,7 @@ int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
        Msg("Data file xrefs missing pfn ", Pfn);
        if (Opt.Fix)
           {if (Opt.Force) Resp = 'y';
-              else Resp = XrdFrmUtils::Ask('y',"Create pfn symlink?");
+              else Resp = XrdFrcUtils::Ask('y',"Create pfn symlink?");
            if (Resp == 'y')
               {if (!symlink(sP->basePath(), Pfn))
                   {Msg("pfn symlink created."); numFix++; return 1;}
@@ -584,7 +585,7 @@ int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
        Msg("Data file xrefs non-symlink pfn ", Pfn);
        if (Opt.Fix)
           {if (Opt.Force) Resp = 'n';
-              else Resp = XrdFrmUtils::Ask('n',"Remove data file?");
+              else Resp = XrdFrcUtils::Ask('n',"Remove data file?");
            if (Resp == 'y')
               {if (unlink(sP->basePath())) Emsg(errno,"remove ",sP->basePath());
                   else {Msg("Data file removed."); numFix++; return -1;}
@@ -620,14 +621,14 @@ int XrdFrmAdmin::AuditSpaceXA(XrdFrmFileset *sP)
 //
    if (*Plug == 'e')
       {if (Opt.Force) Resp = 'n';
-           else Resp = XrdFrmUtils::Ask('n',"Remove unreferenced data file?");
+           else Resp = XrdFrcUtils::Ask('n',"Remove unreferenced data file?");
        if (Resp == 'y')
           {if (unlink(sP->basePath())) Emsg(errno,"remove ",sP->basePath());
               else {Msg("Data file removed."); numFix++; return -1;}
           }
       } else {
        if (Opt.Force) Resp = 'n';
-          else Resp = XrdFrmUtils::Ask('n',"Change pfn symlink?");
+          else Resp = XrdFrcUtils::Ask('n',"Change pfn symlink?");
        if (Resp == 'y')
           {*tempPath = ' '; strcpy(tempPath+1, Pfn); unlink(tempPath);
            if (symlink(sP->basePath(), tempPath) || rename(tempPath, Pfn))
@@ -695,7 +696,7 @@ int XrdFrmAdmin::AuditSpaceXANB(XrdFrmFileset *sP)
 //
    if (!Opt.Fix) return -1;
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('n', "Remove data file?");
+      {Resp = XrdFrcUtils::Ask('n', "Remove data file?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -805,7 +806,7 @@ int XrdFrmAdmin::AuditUsage(char *Space)
       {if (theDiff < 500000) Sfx = "byte";
           {theDiff = (theDiff+512)/1024; Sfx = "KB";}
        sprintf(buff, "Fix %lld %s difference?", theDiff, Sfx);
-       Resp = XrdFrmUtils::Ask('n', "Fix usage information?");
+       Resp = XrdFrcUtils::Ask('n', "Fix usage information?");
        if (Resp != 'y') return Resp != 'a';
       }
 

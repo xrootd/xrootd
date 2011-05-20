@@ -19,17 +19,18 @@
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMigrate.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmTransfer.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -218,17 +219,17 @@ do{migWait = Config.WaitMigr; numMig = 0;
 void XrdFrmMigrate::Queue(XrdFrmFileset *sP)
 {
    static int reqID = 0;
-   XrdFrmRequest myReq;
+   XrdFrcRequest myReq;
 
 // Convert the fileset to a request element
 //
    memset(&myReq, 0, sizeof(myReq));
    strlcpy(myReq.User, Config.myProg, sizeof(myReq.User));
    sprintf(myReq.ID, "Internal%d", reqID++);
-   myReq.Options = XrdFrmRequest::Migrate;
+   myReq.Options = XrdFrcRequest::Migrate;
    myReq.addTOD  = static_cast<long long>(time(0));
    if (Config.LogicalPath(sP->basePath(), myReq.LFN, sizeof(myReq.LFN)))
-      {XrdFrmXfrQueue::Add(&myReq, 0, XrdFrmRequest::migQ); numMig++;}
+      {XrdFrmXfrQueue::Add(&myReq, 0, XrdFrcRequest::migQ); numMig++;}
 
 // All done
 //

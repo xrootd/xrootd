@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdFrmReqBossCVSID = "$Id$";
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,16 +17,16 @@ const char *XrdFrmReqBossCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdFrm/XrdFrmCID.hh"
+#include "XrdFrc/XrdFrcCID.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmReqBoss.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                     T h r e a d   I n t e r f a c e s                      */
@@ -47,13 +43,13 @@ void *mainServerXeq(void *parg)
 /* Public:                           A d d                                    */
 /******************************************************************************/
   
-void XrdFrmReqBoss::Add(XrdFrmRequest &Request)
+void XrdFrmReqBoss::Add(XrdFrcRequest &Request)
 {
 
 // Complete the request including verifying the priority
 //
-   if (Request.Prty > XrdFrmRequest::maxPrty)
-      Request.Prty = XrdFrmRequest::maxPrty;
+   if (Request.Prty > XrdFrcRequest::maxPrty)
+      Request.Prty = XrdFrcRequest::maxPrty;
       else if (Request.Prty < 0)Request.Prty = 0;
    Request.addTOD = time(0);
 
@@ -70,13 +66,13 @@ void XrdFrmReqBoss::Add(XrdFrmRequest &Request)
 /* Public:                           D e l                                    */
 /******************************************************************************/
   
-void XrdFrmReqBoss::Del(XrdFrmRequest &Request)
+void XrdFrmReqBoss::Del(XrdFrcRequest &Request)
 {
    int i;
   
 // Remove all pending requests for this id
 //
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++) rQueue[i]->Can(&Request);
+   for (i = 0; i <= XrdFrcRequest::maxPrty; i++) rQueue[i]->Can(&Request);
 }
 
 /******************************************************************************/
@@ -86,17 +82,17 @@ void XrdFrmReqBoss::Del(XrdFrmRequest &Request)
 void XrdFrmReqBoss::Process()
 {
    EPNAME("Process");
-   XrdFrmRequest myReq;
+   XrdFrcRequest myReq;
    int i, rc, numXfr, numPull;;
 
 // Perform staging in an endless loop
 //
 do{Wakeup(0);
    do{numXfr = 0;
-      for (i = XrdFrmRequest::maxPrty; i >= 0; i--)
+      for (i = XrdFrcRequest::maxPrty; i >= 0; i--)
           {numPull = i+1;
            while(numPull && (rc = rQueue[i]->Get(&myReq)))
-                {if (myReq.Options & XrdFrmRequest::Register) Register(myReq,i);
+                {if (myReq.Options & XrdFrcRequest::Register) Register(myReq,i);
                     else {numPull -= XrdFrmXfrQueue::Add(&myReq,rQueue[i],theQ);
                           numXfr++;
                           DEBUG(Persona <<" from Q " << i <<' ' <<numPull <<" left");
@@ -112,7 +108,7 @@ do{Wakeup(0);
 /* Private:                     R e g i s t e r                               */
 /******************************************************************************/
 
-void XrdFrmReqBoss::Register(XrdFrmRequest &Req, int qNum)
+void XrdFrmReqBoss::Register(XrdFrcRequest &Req, int qNum)
 {
    EPNAME("Register");
    char *eP;
@@ -143,13 +139,13 @@ int XrdFrmReqBoss::Start(char *aPath, int aMode)
 
 // Generate the queue directory path
 //
-   if (!(qPath = XrdFrmUtils::makeQDir(aPath, aMode))) return 0;
+   if (!(qPath = XrdFrcUtils::makeQDir(aPath, aMode))) return 0;
 
 // Initialize the request queues if all went well
 //
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
+   for (i = 0; i <= XrdFrcRequest::maxPrty; i++)
        {sprintf(buff, "%s%sQ.%d", qPath, Persona, i);
-        rQueue[i] = new XrdFrmReqFile(buff, 0);
+        rQueue[i] = new XrdFrcReqFile(buff, 0);
         if (!rQueue[i]->Init()) return 0;
        }
 

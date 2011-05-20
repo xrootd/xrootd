@@ -15,8 +15,8 @@
 
 #include "XrdOuc/XrdOucNSWalk.hh"
 
+class  XrdFrcProxy;
 class  XrdFrmFileset;
-class  XrdFrmProxy;
 class  XrdOucArgs;
 class  XrdOucTList;
 
@@ -165,7 +165,7 @@ static const char *RemoveHelp;
 
 // Frm agent/proxy control
 //
-XrdFrmProxy *frmProxy;
+XrdFrcProxy *frmProxy;
 int          frmProxz;
 
 // Command control

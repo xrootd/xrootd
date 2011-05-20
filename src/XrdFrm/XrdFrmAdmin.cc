@@ -19,11 +19,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcProxy.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmProxy.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucArgs.hh"
@@ -32,6 +32,7 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -541,10 +542,10 @@ int XrdFrmAdmin::xeqArgs(char *Cmd)
 void XrdFrmAdmin::ConfigProxy()
 {
    static struct {const char *qFN; int qID;} qVec[] =
-                 {{"getfQ.0", XrdFrmProxy::opGet},
-                  {"migrQ.0", XrdFrmProxy::opMig},
-                  {"pstgQ.0", XrdFrmProxy::opStg},
-                  {"putfQ.0", XrdFrmProxy::opPut},
+                 {{"getfQ.0", XrdFrcProxy::opGet},
+                  {"migrQ.0", XrdFrcProxy::opMig},
+                  {"pstgQ.0", XrdFrcProxy::opStg},
+                  {"putfQ.0", XrdFrcProxy::opPut},
                   {0, 0}};
    struct stat Stat;
    char qBuff[1032], *qBase;
@@ -557,7 +558,7 @@ void XrdFrmAdmin::ConfigProxy()
 // Construct the directory where the queue files reside
 //
    strcpy(qBuff, Config.QPath);
-   qBase = XrdFrmUtils::makeQDir(qBuff, -1);
+   qBase = XrdFrcUtils::makeQDir(qBuff, -1);
    strcpy(qBuff, qBase); free(qBase); qBase = qBuff+strlen(qBuff);
 
 // Since routines will create queue files we want to only look at queue files
@@ -571,7 +572,7 @@ void XrdFrmAdmin::ConfigProxy()
 // Check if we actually found any queues create them, otherwise complain.
 //
    if (qTypes)
-      {frmProxy = new XrdFrmProxy(Say.logger(),Config.myInst,Trace.What != 0);
+      {frmProxy = new XrdFrcProxy(Say.logger(),Config.myInst,Trace.What != 0);
        frmProxz = frmProxy->Init(qTypes, 0, -1, Config.QPath);
       } else {
        *qBase = 0; frmProxz = 1;
@@ -818,6 +819,6 @@ char XrdFrmAdmin::VerifyMP(const char *func, const char *path)
    else if (Popts & XRDEXP_MIG)   Opt.MPType = 'm';
    else if (Popts & XRDEXP_STAGE) Opt.MPType = 'p';
 
-   if (msg) return XrdFrmUtils::Ask('n', path, msg, "; continue?");
+   if (msg) return XrdFrcUtils::Ask('n', path, msg, "; continue?");
    return 'y';
 }

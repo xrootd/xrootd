@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdFrmXfrQueueCVSID = "$Id$";
-
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
@@ -22,9 +18,9 @@ const char *XrdFrmXfrQueueCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcReqFile.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmXfrJob.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdNet/XrdNetMsg.hh"
@@ -33,6 +29,7 @@ const char *XrdFrmXfrQueueCVSID = "$Id$";
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/
@@ -45,23 +42,23 @@ XrdOucHash<XrdFrmXfrJob>  XrdFrmXfrQueue::hTab;
 XrdSysMutex               XrdFrmXfrQueue::qMutex;
 XrdSysSemaphore           XrdFrmXfrQueue::qReady(0);
 
-XrdFrmXfrQueue::theQueue  XrdFrmXfrQueue::xfrQ[XrdFrmRequest::numQ];
+XrdFrmXfrQueue::theQueue  XrdFrmXfrQueue::xfrQ[XrdFrcRequest::numQ];
 
 /******************************************************************************/
 /* Public:                           A d d                                    */
 /******************************************************************************/
   
-int XrdFrmXfrQueue::Add(XrdFrmRequest *rP, XrdFrmReqFile *reqFQ, int qNum)
+int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
 {
    XrdFrmXfrJob *xP;
    struct stat buf;
    const char *xfrType = xfrName(*rP, qNum);
    char *Lfn, lclpath[MAXPATHLEN];
-   int Outgoing = (qNum & XrdFrmRequest::outQ);
+   int Outgoing = (qNum & XrdFrcRequest::outQ);
 
 // Validate queue number
 //
-   if (qNum < 0 || qNum >= XrdFrmRequest::numQ-1)
+   if (qNum < 0 || qNum >= XrdFrcRequest::numQ-1)
       {sprintf(lclpath, "%d", qNum);
        Say.Emsg("Queue", lclpath, " is an invalid queue; skipping", rP->LFN);
        if (reqFQ) reqFQ->Del(rP);
@@ -75,7 +72,7 @@ int XrdFrmXfrQueue::Add(XrdFrmRequest *rP, XrdFrmReqFile *reqFQ, int qNum)
    Lfn = (Outgoing ? rP->LFN : (rP->LFN)+rP->LFO);
    hMutex.Lock();
    if ((xP = hTab.Find(Lfn)))
-      {if (rP->Options & (XrdFrmRequest::msgSucc | XrdFrmRequest::msgFail)
+      {if (rP->Options & (XrdFrcRequest::msgSucc | XrdFrcRequest::msgFail)
        &&  strcmp(xP->reqData.Notify, rP->Notify))
           {XrdOucTList *tP = new XrdOucTList(rP->Notify, 0, xP->NoteList);
            xP->NoteList = tP;
@@ -233,7 +230,7 @@ int XrdFrmXfrQueue::Init()
 
 // Initialize each queue
 //
-   for (qNum= 0; qNum < XrdFrmRequest::numQ-1; qNum++)
+   for (qNum= 0; qNum < XrdFrcRequest::numQ-1; qNum++)
       {
 
    // Initialize the stop file name and set the queue name and number
@@ -281,13 +278,13 @@ XrdFrmXfrJob *XrdFrmXfrQueue::Pull()
 //
    qMutex.Lock();
 do{ioX = (ioX + 1) & 1;
-   if (ioX) {Q1 = XrdFrmRequest::migQ; Q2 = XrdFrmRequest::putQ; pikQ = 1;}
-      else  {Q1 = XrdFrmRequest::stgQ; Q2 = XrdFrmRequest::getQ; pikQ = 0;}
+   if (ioX) {Q1 = XrdFrcRequest::migQ; Q2 = XrdFrcRequest::putQ; pikQ = 1;}
+      else  {Q1 = XrdFrcRequest::stgQ; Q2 = XrdFrcRequest::getQ; pikQ = 0;}
 
 // Check if we should avoid either queue because it is stopped
 //
-   if (xfrQ[Q1].Stop || Stopped(Q1)) Q1 = XrdFrmRequest::nilQ;
-   if (xfrQ[Q2].Stop || Stopped(Q2)) Q2 = XrdFrmRequest::nilQ;
+   if (xfrQ[Q1].Stop || Stopped(Q1)) Q1 = XrdFrcRequest::nilQ;
+   if (xfrQ[Q2].Stop || Stopped(Q2)) Q2 = XrdFrcRequest::nilQ;
 
 // Pick the oldest possible request
 //
@@ -316,7 +313,7 @@ do{ioX = (ioX + 1) & 1;
 /* Private:                       N o t i f y                                 */
 /******************************************************************************/
   
-int XrdFrmXfrQueue::Notify(XrdFrmRequest *rP, int qNum, int rc, const char *msg)
+int XrdFrmXfrQueue::Notify(XrdFrcRequest *rP, int qNum, int rc, const char *msg)
 {
    static const char *isFile = "file:///";
    static const int   lnFile = 8;
@@ -328,8 +325,8 @@ int XrdFrmXfrQueue::Notify(XrdFrmRequest *rP, int qNum, int rc, const char *msg)
 
 // Check if message really needs to be sent
 //
-   if ((!rc && !(rP->Options & XrdFrmRequest::msgSucc))
-   ||  ( rc && !(rP->Options & XrdFrmRequest::msgFail))) return 0;
+   if ((!rc && !(rP->Options & XrdFrcRequest::msgSucc))
+   ||  ( rc && !(rP->Options & XrdFrcRequest::msgFail))) return 0;
 
 // Multiple destinations can be specified, each destination separated by a
 // carriable rturn. We don't screen out duplicates.
@@ -464,7 +461,7 @@ int XrdFrmXfrQueue::Stopped(int qNum) // Called with qMutex locked!
 /* Private:                      x f r N a m e                                */
 /******************************************************************************/
   
-const char *XrdFrmXfrQueue::xfrName(XrdFrmRequest &reqData, int qNum)
+const char *XrdFrmXfrQueue::xfrName(XrdFrcRequest &reqData, int qNum)
 {
 
 // Return a human name for this transfer:
@@ -476,18 +473,18 @@ const char *XrdFrmXfrQueue::xfrName(XrdFrmRequest &reqData, int qNum)
 // Copy+rm
 //
    switch(qNum)
-         {case XrdFrmRequest::getQ:
+         {case XrdFrcRequest::getQ:
                return "CopyIn ";
                break;
-          case XrdFrmRequest::migQ: 
-               return (reqData.Options & XrdFrmRequest::Purge ?
+          case XrdFrcRequest::migQ: 
+               return (reqData.Options & XrdFrcRequest::Purge ?
                        "Migr+rm ":"Migrate ");
                break;
-          case XrdFrmRequest::putQ:
-               return (reqData.Options&XrdFrmRequest::Purge ?
+          case XrdFrcRequest::putQ:
+               return (reqData.Options&XrdFrcRequest::Purge ?
                        "Copy+rm " : "CopyOut ");
                break;
-          case XrdFrmRequest::stgQ:
+          case XrdFrcRequest::stgQ:
                return "Staging ";
                break;
           default:   break;

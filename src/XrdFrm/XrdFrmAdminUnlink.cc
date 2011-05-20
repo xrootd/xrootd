@@ -14,15 +14,16 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/
@@ -80,7 +81,7 @@ int XrdFrmAdmin::Unlink(const char *Path)
 // Get confirmation unless not wanted
 //
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('n', "Remove EVERYTHING starting at ",Path,"?");
+      {Resp = XrdFrcUtils::Ask('n', "Remove EVERYTHING starting at ",Path,"?");
        if (Resp != 'y') return Resp != 'a';
       }
 
@@ -171,7 +172,7 @@ int XrdFrmAdmin::UnlinkDir(const char *Path, const char *lclPath)
 // If neither 'all' nor 'force' not specified, then we must ask for permission
 //
    if (!Opt.Force)
-      {Resp = XrdFrmUtils::Ask('n', "Remove EVERYTHING in ",Path,"?");
+      {Resp = XrdFrcUtils::Ask('n', "Remove EVERYTHING in ",Path,"?");
        if (Resp != 'y') return Resp != 'a';
       }
                                                                                

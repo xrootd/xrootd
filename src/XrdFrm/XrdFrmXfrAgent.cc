@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdFrmXfrAgentCVSID = "$Id$";
-
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -20,36 +16,37 @@ const char *XrdFrmXfrAgentCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdFrm/XrdFrmXfrAgent.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
 
-XrdFrmReqAgent XrdFrmXfrAgent::GetAgent("getf", XrdFrmRequest::getQ);
+XrdFrcReqAgent XrdFrmXfrAgent::GetAgent("getf", XrdFrcRequest::getQ);
 
-XrdFrmReqAgent XrdFrmXfrAgent::MigAgent("migr", XrdFrmRequest::migQ);
+XrdFrcReqAgent XrdFrmXfrAgent::MigAgent("migr", XrdFrcRequest::migQ);
 
-XrdFrmReqAgent XrdFrmXfrAgent::StgAgent("pstg", XrdFrmRequest::stgQ);
+XrdFrcReqAgent XrdFrmXfrAgent::StgAgent("pstg", XrdFrcRequest::stgQ);
 
-XrdFrmReqAgent XrdFrmXfrAgent::PutAgent("putf", XrdFrmRequest::putQ);
+XrdFrcReqAgent XrdFrmXfrAgent::PutAgent("putf", XrdFrcRequest::putQ);
   
 /******************************************************************************/
 /* Private:                          A d d                                    */
 /******************************************************************************/
   
 void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
-                         XrdFrmReqAgent &Server)
+                         XrdFrcReqAgent &Server)
 {
-   XrdFrmRequest myReq;
+   XrdFrcRequest myReq;
    const char *Miss = 0;
    char *tp, *op;
 
@@ -59,7 +56,7 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
 //
    memset(&myReq, 0, sizeof(myReq));
    myReq.OPc = *Tok;
-   if (*Tok == '=' || *Tok == '^') myReq.Options |= XrdFrmRequest::Purge;
+   if (*Tok == '=' || *Tok == '^') myReq.Options |= XrdFrcRequest::Purge;
    Tok++;
 
    if (*Tok) strlcpy(myReq.User, Tok, sizeof(myReq.User));
@@ -77,14 +74,14 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
       {if (!(tp = Request.GetToken())) Miss = "priority";
           else {myReq.Prty = atoi(tp);
                 if (myReq.Prty < 0) myReq.Prty = 0;
-                   else if (myReq.Prty > XrdFrmRequest::maxPrty)
-                            myReq.Prty = XrdFrmRequest::maxPrty;
+                   else if (myReq.Prty > XrdFrcRequest::maxPrty)
+                            myReq.Prty = XrdFrcRequest::maxPrty;
                }
       }
 
    if (!Miss)
       {if (!(tp = Request.GetToken())) Miss = "mode";
-          else myReq.Options = XrdFrmUtils::MapM2O(myReq.Notify, tp);
+          else myReq.Options = XrdFrcUtils::MapM2O(myReq.Notify, tp);
       }
 
    if (!Miss && !(tp = Request.GetToken())) Miss = "path";
@@ -101,7 +98,7 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
        if ((op = index(tp, '?'))) {myReq.Opaque = op-tp+1; *op = '\0';}
           else myReq.Opaque = 0;
        myReq.LFO = 0;
-       if (myReq.LFN[0] != '/' && !(myReq.LFO = XrdFrmUtils::chkURL(myReq.LFN)))
+       if (myReq.LFN[0] != '/' && !(myReq.LFO = XrdFrcUtils::chkURL(myReq.LFN)))
           Say.Emsg("Agent_Add", "Invalid url -", myReq.LFN);
           else Server.Add(myReq);
        if ((tp = Request.GetToken())) memset(myReq.LFN, 0, sizeof(myReq.LFN));
@@ -112,7 +109,7 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
 /* Private:                        A g e n t                                  */
 /******************************************************************************/
 
-XrdFrmReqAgent *XrdFrmXfrAgent::Agent(char bType)
+XrdFrcReqAgent *XrdFrmXfrAgent::Agent(char bType)
 {
 
 // Return the agent corresponding to the type
@@ -135,9 +132,9 @@ XrdFrmReqAgent *XrdFrmXfrAgent::Agent(char bType)
 /******************************************************************************/
   
 void XrdFrmXfrAgent::Del(XrdOucStream  &Request, char *Tok,
-                         XrdFrmReqAgent &Server)
+                         XrdFrcReqAgent &Server)
 {
-   XrdFrmRequest myReq;
+   XrdFrcRequest myReq;
 
 // If the requestid is adjacent to the operation, use it o/w get it
 //
@@ -159,13 +156,13 @@ void XrdFrmXfrAgent::Del(XrdOucStream  &Request, char *Tok,
   
 void XrdFrmXfrAgent::List(XrdOucStream &Request, char *Tok)
 {
-   XrdFrmRequest::Item Items[XrdFrmRequest::getLast];
-   XrdFrmReqAgent *agentP;
+   XrdFrcRequest::Item Items[XrdFrcRequest::getLast];
+   XrdFrcReqAgent *agentP;
    int n = 0;
    char *tp;
 
-   while((tp = Request.GetToken()) && n < XrdFrmRequest::getLast)
-        {if (XrdFrmUtils::MapV2I(tp, Items[n])) n++;}
+   while((tp = Request.GetToken()) && n < XrdFrcRequest::getLast)
+        {if (XrdFrcUtils::MapV2I(tp, Items[n])) n++;}
 
 // List entries queued for specific servers
 //

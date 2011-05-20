@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
 #include <inttypes.h>
 #include <time.h>
 #include <netinet/in.h>

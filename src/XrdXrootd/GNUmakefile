@@ -51,7 +51,7 @@ OBJFS   = \
           $(OBJDIR)/XrdOfsFS.o  \
           $(LIBDIR)/libXrdOfs.a \
           $(LIBDIR)/libXrdOss.a \
-          $(LIBDIR)/libXrdFrm.a \
+          $(LIBDIR)/libXrdFrc.a \
           $(LIBDIR)/libXrdAcc.a
 
 OBJDEPS = \

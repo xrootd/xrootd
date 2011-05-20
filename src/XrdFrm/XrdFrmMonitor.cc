@@ -15,7 +15,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
@@ -23,7 +23,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                     S t a t i c   A l l o c a t i o n                      */

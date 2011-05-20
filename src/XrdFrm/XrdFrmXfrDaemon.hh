@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 #include "XrdFrm/XrdFrmReqBoss.hh"
 
 class XrdFrmXfrDaemon

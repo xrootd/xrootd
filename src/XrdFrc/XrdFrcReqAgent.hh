@@ -1,8 +1,8 @@
-#ifndef __FRMREQBOSS_H__
-#define __FRMREQBOSS_H__
+#ifndef __FRCREQAGENT_H__
+#define __FRCREQAGENT_H__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d F r m R e q b o s s . h h                       */
+/*                     X r d F r c R e q A g e n t . h h                      */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -12,9 +12,8 @@
 
 #include "XrdFrc/XrdFrcReqFile.hh"
 #include "XrdFrc/XrdFrcRequest.hh"
-#include "XrdSys/XrdSysPthread.hh"
 
-class XrdFrmReqBoss
+class XrdFrcReqAgent
 {
 public:
 
@@ -22,25 +21,26 @@ void Add(XrdFrcRequest &Request);
 
 void Del(XrdFrcRequest &Request);
 
-void Process();
+int  List(XrdFrcRequest::Item *Items, int Num);
+int  List(XrdFrcRequest::Item *Items, int Num, int Prty);
 
-int  Server();
+int  NextLFN(char *Buff, int Bsz, int Prty, int &Offs);
+
+void Ping(const char *Msg=0);
 
 int  Start(char *aPath, int aMode);
 
-void Wakeup(int PushIt=1);
-
-     XrdFrmReqBoss(const char *Me, int qVal)
-                  : rqReady(0),Persona(Me),theQ(qVal),isPosted(0) {}
-    ~XrdFrmReqBoss() {}
+     XrdFrcReqAgent(const char *Me, int qVal);
+    ~XrdFrcReqAgent() {}
 
 private:
-void Register(XrdFrcRequest &Req, int qNum);
 
-XrdSysSemaphore  rqReady;
+static char     *c2sFN;
+
 XrdFrcReqFile   *rQueue[XrdFrcRequest::maxPQE];
 const char      *Persona;
+const char      *pingMsg;
+const char      *myName;
 int              theQ;
-int              isPosted;
 };
 #endif

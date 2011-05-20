@@ -17,12 +17,13 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/

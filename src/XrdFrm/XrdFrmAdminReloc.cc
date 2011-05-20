@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//          $Id$
-
-const char *XrdFrmAdminRelockCVSID = "$Id$";
 
 #include <errno.h>
 #include <fcntl.h>
@@ -23,9 +19,9 @@ const char *XrdFrmAdminRelockCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssOpaque.hh"
 #include "XrdOss/XrdOssPath.hh"
@@ -35,6 +31,7 @@ const char *XrdFrmAdminRelockCVSID = "$Id$";
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/

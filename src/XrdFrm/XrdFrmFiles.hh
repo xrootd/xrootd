@@ -13,7 +13,7 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "XrdFrm/XrdFrmXAttr.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
@@ -32,8 +32,8 @@ friend class XrdFrmFiles;
 
 // The following are the extended attributes describing file characteristics
 //
-XrdOucXAttr<XrdFrmXAttrCpy> cpyInfo;   // Last copy time
-XrdOucXAttr<XrdFrmXAttrPin> pinInfo;   // Pin information
+XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;   // Last copy time
+XrdOucXAttr<XrdFrcXAttrPin> pinInfo;   // Pin information
 
 // These are inline function to return most common file information
 //

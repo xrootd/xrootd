@@ -14,13 +14,14 @@
 #include <time.h>
 #include <sys/param.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdOuc/XrdOucArgs.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -63,7 +64,7 @@ int XrdFrmAdmin::FindFail(XrdOucArgs &Spec)
   
 int XrdFrmAdmin::FindMmap(XrdOucArgs &Spec)
 {
-   XrdOucXAttr<XrdFrmXAttrMem> memInfo;
+   XrdOucXAttr<XrdFrcXAttrMem> memInfo;
    XrdFrmFileset *sP;
    XrdFrmFiles   *fP;
    char buff[128], pDir[MAXPATHLEN], *lDir = Opt.Args[1];
@@ -77,8 +78,8 @@ int XrdFrmAdmin::FindMmap(XrdOucArgs &Spec)
        while((sP = fP->Get(ec)))
             {if (memInfo.Get(sP->basePath()) >= 0
              &&  (mFlag = memInfo.Attr.Flags))
-                {const char *Kp = (mFlag&XrdFrmXAttrMem::memKeep ? "-keep ":0);
-                 const char *Lk = (mFlag&XrdFrmXAttrMem::memLock ? "-lock ":0);
+                {const char *Kp = (mFlag&XrdFrcXAttrMem::memKeep ? "-keep ":0);
+                 const char *Lk = (mFlag&XrdFrcXAttrMem::memLock ? "-lock ":0);
                  Msg("mmap ", Kp, Lk, sP->basePath()); num++;
                 }
              delete sP;
@@ -177,7 +178,7 @@ int XrdFrmAdmin::FindPins(XrdFrmFileset *sP)
 
 // If it's pinned forever, we can blither the message right away
 //
-   if (pinFlag & XrdFrmXAttrPin::pinPerm)
+   if (pinFlag & XrdFrcXAttrPin::pinPerm)
       {Msg("pin -k forever ", sP->basePath()); return 1;}
 
 // Be optimistic and get the pin time value
@@ -188,11 +189,11 @@ int XrdFrmAdmin::FindPins(XrdFrmFileset *sP)
 // If it's a keep then decide how to format it. If the keep has been exceeed
 // then just delete the attribute, since it isn't pinned anymore.
 //
-   if (pinFlag & XrdFrmXAttrPin::pinKeep)
+   if (pinFlag & XrdFrcXAttrPin::pinKeep)
       {time_t nowT = time(0);
        if (pinVal <= nowT) {sP->pinInfo.Del(sP->basePath()); return 0;}
        if ((pinVal - nowT) <= Week)
-          {pinFlag = XrdFrmXAttrPin::pinIdle;
+          {pinFlag = XrdFrcXAttrPin::pinIdle;
            pinVal = pinVal - nowT;
            Pfx = "";
           } else {
@@ -204,7 +205,7 @@ int XrdFrmAdmin::FindPins(XrdFrmFileset *sP)
 
 // Check for idle pin or convert keep pin to suedo-idle formatting
 //
-   if (pinFlag & XrdFrmXAttrPin::pinIdle)
+   if (pinFlag & XrdFrcXAttrPin::pinIdle)
       {     if ( pinVal        <= 180) Scale = 's';
        else if ((pinVal /= 60) <=  90) Scale = 'm';
        else if ((pinVal /= 60) <=  45) Scale = 'h';

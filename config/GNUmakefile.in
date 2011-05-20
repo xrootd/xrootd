@@ -16,7 +16,7 @@ XRDCOMMON  = XrdSys XrdOuc XrdNet XrdSec
 XRDSEC  = @xrdsec@
 
 SERVER  = XrdSfs XrdAcc Xrd \
-          XrdOss XrdBwm XrdFrm XrdCms XrdOfs XrdRootd XrdXrootd
+          XrdOss XrdBwm XrdFrc XrdFrm XrdCms XrdOfs XrdRootd XrdXrootd
 
 XRDCLIENT = XrdClient
 
@@ -155,6 +155,11 @@ XrdNet: FORCE
 XrdFfs: FORCE
 	@echo $(XMSG) ffs $(XDBG) component...
 	@cd src/XrdFfs;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdFrc: FORCE
+	@echo $(XMSG) frc $(XDBG) component...
+	@cd src/XrdFrc;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdFrm: FORCE
