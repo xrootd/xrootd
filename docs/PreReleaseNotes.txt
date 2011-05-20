@@ -24,3 +24,5 @@ Version 3.1.0
 + **Miscellaneous**
    * Rename XrdNetDNS to XrdSysDNS to avoid cross-dependencies. This means that all
      plug-in developers will need to do the same as XrdNetDNS no longer exists.
+   * Split XrdFrm into XrdFrm and XrdFrc. This prevents cross-dependencies in
+     packages that use the File Residency Manager.
