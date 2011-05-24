@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 #ifndef WIN32
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -23,8 +21,8 @@
 #endif
 
 #include "XrdNet/XrdNetBuffer.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucChain.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 // Options for SetOpts and Alloc()
@@ -80,7 +78,7 @@ int           LastError();
 
 // Addr() returns the IPV4 address of the endpoint
 //
-unsigned int Addr() {return XrdNetDNS::IPAddr(&InetAddr);}
+unsigned int Addr() {return XrdSysDNS::IPAddr(&InetAddr);}
 
 // Moniker() returns the short form of the host name at the endpoint
 //

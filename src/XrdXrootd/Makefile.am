@@ -42,10 +42,9 @@ xrootd_LDADD = -ldl \
                   ../XrdOfs/libXrdOfs.la \
                   ../XrdAcc/libXrdAcc.la \
                   ../XrdOss/libXrdOss.la \
-                  ../XrdFrm/libXrdFrm.la \
+                  ../XrdFrc/libXrdFrc.la \
                   ../XrdCms/libXrdCms.la \
                   ../XrdNet/libXrdNet.la \
-                  ../XrdNet/libXrdNetUtil.la \
                   ../XrdOuc/libXrdOuc.la \
                   ../XrdSys/libXrdSys.la 
 

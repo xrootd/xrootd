@@ -1,8 +1,8 @@
-#ifndef __FRMREQUEST_H__
-#define __FRMREQUEST_H__
+#ifndef __FRCREQUEST_H__
+#define __FRCREQUEST_H__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d F r m R e q u e s t . h h                       */
+/*                      X r d F r c R e q u e s t . h h                       */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -10,9 +10,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-class XrdFrmRequest
+class XrdFrcRequest
 {
 public:
 

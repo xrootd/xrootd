@@ -1,8 +1,8 @@
-#ifndef __XRDFRMPROXY__
-#define __XRDFRMPROXY__
+#ifndef __XRDFRCPROXY__
+#define __XRDFRCPROXY__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m P r o x y . h h                         */
+/*                        X r d F r c P r o x y . h h                         */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -10,15 +10,13 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
+#include "XrdFrc/XrdFrcRequest.hh"
 
-#include "XrdFrm/XrdFrmRequest.hh"
-
-class XrdFrmReqAgent;
+class XrdFrcReqAgent;
 class XrdOucStream;
 class XrdSysLogger;
   
-class XrdFrmProxy
+class XrdFrcProxy
 {
 public:
 
@@ -35,7 +33,7 @@ static const int opStg =  8;
 static const int opAll = 15;
 
 class Queues
-      {friend class XrdFrmProxy;
+      {friend class XrdFrcProxy;
        int   Offset;
        char  Prty;
        char  QList;
@@ -48,12 +46,12 @@ class Queues
 
 int   List(Queues &State, char *Buff, int Bsz);
 
-int   List(int qType, int qPrty, XrdFrmRequest::Item *Items, int Num);
+int   List(int qType, int qPrty, XrdFrcRequest::Item *Items, int Num);
 
 int   Init(int opX, const char *aPath, int aMode, const char *qPath=0);
 
-      XrdFrmProxy(XrdSysLogger *lP, const char *iName, int Debug=0);
-     ~XrdFrmProxy() {}
+      XrdFrcProxy(XrdSysLogger *lP, const char *iName, int Debug=0);
+     ~XrdFrcProxy() {}
 
 private:
 
@@ -65,7 +63,7 @@ struct o2qMap {const char *qName; int qType; int oType;};
 static o2qMap   oqMap[];
 static int      oqNum;
 
-XrdFrmReqAgent *Agent[XrdFrmRequest::numQ];
+XrdFrcReqAgent *Agent[XrdFrcRequest::numQ];
 const char     *insName;
 char           *intName;
 char           *QPath;

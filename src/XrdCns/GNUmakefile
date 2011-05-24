@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -50,10 +48,9 @@ LIBDEP   = \
         $(LIBDIR)/libXrdOss.a \
         $(LIBDIR)/libXrdFrm.a \
         $(LIBDIR)/libXrdClient.a \
-        $(LIBDIR)/libXrdOuc.a \
-        $(LIBDIR)/libXrdSys.a \
         $(LIBDIR)/libXrdNet.a \
-        $(LIBDIR)/libXrdNetUtil.a
+        $(LIBDIR)/libXrdOuc.a \
+        $(LIBDIR)/libXrdSys.a
 
 
 MORELIBS = -L$(LIBDIR)
@@ -101,7 +98,7 @@ $(OBJDIR)/XrdCnsConfig.o:  XrdCnsConfig.hh    XrdCnsConfig.cc \
                            XrdCnsLogServer.hh XrdCnsXref.hh \
                            XrdClientConst.hh  XrdClientEnv.hh \
                            XrdNetOpts.hh      XrdNetSocket.hh \
-                           XrdNetDNS.hh       XrdTrace.hh \
+                           XrdSysDNS.hh       XrdTrace.hh \
                            XrdOuca2x.hh \
                            XrdOucArgs.hh      XrdOucName2Name.hh \
                            XrdOucStream.hh    XrdOucTList.hh \
@@ -121,7 +118,7 @@ $(OBJDIR)/XrdCnsDaemon.o: XrdCnsDaemon.hh    XrdCnsDaemon.cc \
 
 $(OBJDIR)/XrdCnsLog.o: XrdCnsLog.hh    XrdCnsLog.cc   XrdCnsLogRec.hh \
                        XrdOucNSWalk.hh XrdOucTList.hh \
-                       XrdNetDNS.hh \
+                       XrdSysDNS.hh \
                        XrdSysError.hh
 	@echo Compiling XrdCnsLog.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCnsLog.o XrdCnsLog.cc
@@ -140,7 +137,7 @@ $(OBJDIR)/XrdCnsLogClient.o: XrdCnsLogClient.hh  XrdCnsLogClient.cc  \
                              XrdCnsConfig.hh     XrdCnsLog.hh \
                              XrdCnsInventory.hh \
                              XrdClient.hh        XrdClientAdmin.hh \
-                             XrdNetDNS.hh \
+                             XrdSysDNS.hh \
                              XrdOucTList.hh \
                              XrdOucNSWalk.hh     XrdOucUtils.hh \
                              XrdSysError.hh      XrdSysPthread.hh \

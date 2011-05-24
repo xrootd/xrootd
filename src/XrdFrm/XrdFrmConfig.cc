@@ -20,12 +20,11 @@
 #include <sys/stat.h>
 
 #include "Xrd/XrdInfo.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssSpace.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -37,8 +36,9 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucTList.hh"
-#include "XrdOuc/XrdOucTokenizer.hh" // Add to GNUmake
+#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -47,6 +47,7 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -318,7 +319,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
-   if (!(myName = XrdNetDNS::getHostName()))
+   if (!(myName = XrdSysDNS::getHostName()))
       {Say.Emsg("Config","Unable to determine host name; execution terminated.");
        _exit(16);
       }
@@ -817,7 +818,7 @@ int XrdFrmConfig::ConfigPaths()
 
 // Create the admin directory if it does not exists and set QPath
 //
-   if (!(xPath = XrdFrmUtils::makePath(insName, xPath, AdminMode))) return 1;
+   if (!(xPath = XrdFrcUtils::makePath(insName, xPath, AdminMode))) return 1;
    if (AdminPath) free(AdminPath); AdminPath = xPath;
    if (!QPath) QPath = AdminPath;
 

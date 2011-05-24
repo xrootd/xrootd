@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdFrmTSortCVSID = "$Id$";
-
 #include "XrdFrm/XrdFrmFiles.hh"
 #include "XrdFrm/XrdFrmTSort.hh"
 //#include "iostream.h"

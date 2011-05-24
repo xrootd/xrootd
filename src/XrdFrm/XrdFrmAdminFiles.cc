@@ -19,11 +19,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcUtils.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
-#include "XrdFrm/XrdFrmXAttr.hh"
 
 #include "XrdOuc/XrdOucXAttr.hh"
 
@@ -64,7 +64,7 @@ char XrdFrmAdmin::ckAttr(int What, const char *Lfn, char *Pfn, int Pfnsz)
 //
    sprintf(Buff, "%s ALL files in directory ", Msg);
    Buff[0] = toupper(*Buff);
-   if ((Resp = XrdFrmUtils::Ask('n', Buff, Lfn)) == 'y') return 'd';
+   if ((Resp = XrdFrcUtils::Ask('n', Buff, Lfn)) == 'y') return 'd';
    return (Resp == 'a' ? 'a' : 0);
 }
 
@@ -88,7 +88,7 @@ int XrdFrmAdmin::mkMark(const char *Lfn)
 // If this is a file then do one file
 //
    if (Resp == 'f')
-      {if (XrdFrmUtils::updtCpy(Pfn, Adj)) numFiles++;
+      {if (XrdFrcUtils::updtCpy(Pfn, Adj)) numFiles++;
        return 1;
       }
 
@@ -97,7 +97,7 @@ int XrdFrmAdmin::mkMark(const char *Lfn)
    fP = new XrdFrmFiles(Pfn, opts | XrdFrmFiles::NoAutoDel);
    while((sP = fP->Get(ec,1)))
         {if (sP->baseFile()
-         &&  XrdFrmUtils::updtCpy(sP->basePath(), Adj)) numFiles++;
+         &&  XrdFrcUtils::updtCpy(sP->basePath(), Adj)) numFiles++;
          delete sP;
         }
 
@@ -114,7 +114,7 @@ int XrdFrmAdmin::mkMark(const char *Lfn)
   
 int XrdFrmAdmin::mkMmap(const char *Lfn)
 {
-   XrdOucXAttr<XrdFrmXAttrMem> memInfo;
+   XrdOucXAttr<XrdFrcXAttrMem> memInfo;
    XrdFrmFileset *sP;
    XrdFrmFiles   *fP;
    const char *bFn;
@@ -130,9 +130,9 @@ int XrdFrmAdmin::mkMmap(const char *Lfn)
 // Construct the proper mmap attribute
 //
    if (!Opt.Local)
-      {      doSet = memInfo.Attr.Flags  = XrdFrmXAttrMem::memMap;
-       if (Opt.Fix)  memInfo.Attr.Flags |= XrdFrmXAttrMem::memLock;
-       if (Opt.Keep) memInfo.Attr.Flags |= XrdFrmXAttrMem::memKeep;
+      {      doSet = memInfo.Attr.Flags  = XrdFrcXAttrMem::memMap;
+       if (Opt.Fix)  memInfo.Attr.Flags |= XrdFrcXAttrMem::memLock;
+       if (Opt.Keep) memInfo.Attr.Flags |= XrdFrcXAttrMem::memKeep;
       }
 
 // If this is a file then do one file
@@ -165,7 +165,7 @@ int XrdFrmAdmin::mkMmap(const char *Lfn)
   
 int XrdFrmAdmin::mkPin(const char *Lfn)
 {
-   XrdOucXAttr<XrdFrmXAttrPin> pinInfo;
+   XrdOucXAttr<XrdFrcXAttrPin> pinInfo;
    XrdFrmFileset *sP;
    XrdFrmFiles   *fP;
    const char *bFn;
@@ -180,11 +180,11 @@ int XrdFrmAdmin::mkPin(const char *Lfn)
 
 // Construct the proper pin attribute
 //
-        if (Opt.ktAlways)   pinInfo.Attr.Flags = XrdFrmXAttrPin::pinPerm;
+        if (Opt.ktAlways)   pinInfo.Attr.Flags = XrdFrcXAttrPin::pinPerm;
    else if (Opt.KeepTime)
            {pinInfo.Attr.pinTime = static_cast<long long>(Opt.KeepTime);
-            if (Opt.ktIdle) pinInfo.Attr.Flags = XrdFrmXAttrPin::pinIdle;
-               else         pinInfo.Attr.Flags = XrdFrmXAttrPin::pinKeep;
+            if (Opt.ktIdle) pinInfo.Attr.Flags = XrdFrcXAttrPin::pinIdle;
+               else         pinInfo.Attr.Flags = XrdFrcXAttrPin::pinKeep;
            }
    doSet = (Opt.ktAlways || Opt.KeepTime ? 1 : 0);
 
@@ -295,7 +295,7 @@ int XrdFrmAdmin::mkFile(int What, const char *Path, const char *Data, int DLen)
                }
            }
    close(theFD);
-   if (!XrdFrmUtils::Utime(tempFN,Tid)) {unlink(tempFN); return 0;}
+   if (!XrdFrcUtils::Utime(tempFN,Tid)) {unlink(tempFN); return 0;}
 
 // Finish up
 //
@@ -384,6 +384,6 @@ char XrdFrmAdmin::mkStat(int What, const char *Lfn, char *Pfn, int Pfnsz)
 //
    Msg = (What & mkLF ? "Apply makelf to ALL files in directory "
                       : "Apply pin to ALL files in directory ");
-   if ((Resp = XrdFrmUtils::Ask('n', Msg, Lfn)) == 'y') return 'd';
+   if ((Resp = XrdFrcUtils::Ask('n', Msg, Lfn)) == 'y') return 'd';
    return (Resp == 'a' ? 'a' : 0);
 }

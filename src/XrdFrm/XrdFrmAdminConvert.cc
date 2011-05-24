@@ -14,12 +14,12 @@
 #include <time.h>
 #include <sys/param.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
-#include "XrdFrm/XrdFrmXAttr.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssPath.hh"
 #include "XrdOuc/XrdOucArgs.hh"
@@ -28,6 +28,7 @@
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -192,7 +193,7 @@ int XrdFrmAdmin::Old2New(int doNames, int doSpaces)
 do{if (!doNames) strcpy(pDir, pP->text+pP->val);
       else if (!Config.LocalPath(pP->text,pDir,sizeof(pDir))) {Act = 0; break;}
    Msg("Converting ", What, " starting at ", pDir);
-   if (!Opt.Force && (Resp = XrdFrmUtils::Ask('y', fMsg)) == 'a') break;
+   if (!Opt.Force && (Resp = XrdFrcUtils::Ask('y', fMsg)) == 'a') break;
    if (Resp == 'y')
       {fP = new XrdFrmFiles(pDir, fsetOpts);
        while(Act && (sP = fP->Get(ec,1)))
@@ -275,7 +276,7 @@ int XrdFrmAdmin::o2nFiles(XrdFrmFileset *sP, int &numOld)
                Msg("Missing target: ", sP->baseFile()->Link);
               }
            if (Opt.Force) Resp = (Opt.Fix ? 'y' : 'n');
-              else if ((Resp = XrdFrmUtils::Ask('y', "Remove symlink?")) == 'a')
+              else if ((Resp = XrdFrcUtils::Ask('y', "Remove symlink?")) == 'a')
                       return 0;
            if (Resp == 'n')
               {if (sP->lockFile())
@@ -308,7 +309,7 @@ int XrdFrmAdmin::o2nFiles(XrdFrmFileset *sP, int &numOld)
 //
    if (sP->baseFile() && (linkPath = sP->baseFile()->Link))
       {if (!isXA(sP->baseFile())) {numOld++; return 1;}
-       if (XrdSysFAttr::Set(XrdFrmXAttrPfn::Name(), basePath,
+       if (XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), basePath,
                                 strlen(basePath)+1, basePath))
           {Msg("Unable to set pfn xattr for ", basePath, "->", linkPath);
            return 0;
@@ -328,7 +329,7 @@ int XrdFrmAdmin::o2nFiles(XrdFrmFileset *sP, int &numOld)
   
 int XrdFrmAdmin::o2nSpace(XrdFrmFileset *sP, const char *Space)
 {
-   XrdFrmXAttrPfn pfnInfo;
+   XrdFrcXAttrPfn pfnInfo;
    int rc, oldNP;
 
 // If we have no basefile or this is not an old-style file, skip it

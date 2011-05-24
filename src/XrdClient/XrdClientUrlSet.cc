@@ -11,13 +11,9 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//         $Id$
-
-const char *XrdClientUrlSetCVSID = "$Id$";
-
-#include <XrdClient/XrdClientUrlSet.hh>
+#include "XrdClient/XrdClientUrlSet.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
-#include <XrdNet/XrdNetDNS.hh>
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 #include <math.h>
@@ -362,7 +358,7 @@ void XrdClientUrlSet::ConvertDNSAlias(UrlArray& urls, XrdOucString proto,
 
    // Resolv the DNS information
    char *haddr[10] = {0}, *hname[10] = {0};
-   int naddr = XrdNetDNS::getAddrName(newurl->Host.c_str(), 10, haddr, hname);
+   int naddr = XrdSysDNS::getAddrName(newurl->Host.c_str(), 10, haddr, hname);
 
    // Fill the list
    int i = 0;

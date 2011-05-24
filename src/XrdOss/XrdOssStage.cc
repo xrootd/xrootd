@@ -41,7 +41,7 @@
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucReqID.hh"
-#include "XrdFrm/XrdFrmProxy.hh"
+#include "XrdFrc/XrdFrcProxy.hh"
 
 /******************************************************************************/
 /*            G l o b a l s   a n d   S t a t i c   O b j e c t s             */

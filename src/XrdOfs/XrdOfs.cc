@@ -8,25 +8,6 @@
 /*               DE-AC03-76-SFO0515 with the Deprtment of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdOfsCVSID = "$Id$";
-
-/* Available compile-time define symbols:
-
-   -DAIX       mangles some includes to accomodate AIX.
-
-   -DNODEBUG   suppresses inline dbugging statement.
-
-   -DNOSEC     suppresses security code generation.
-
-   Note: This is a C++ mt-safe 64-bit clean program and must be compiled with:
-
-         Solaris: -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_REENTRANT
-
-         AIX:     -D_THREAD_SAFE
-*/
-
 #include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
@@ -55,17 +36,17 @@ const char *XrdOfsCVSID = "$Id$";
 
 #include "XrdOss/XrdOss.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
-#include "XrdSys/XrdSysHeaders.hh"
-#include "XrdOuc/XrdOuca2x.hh"
-#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdOuc/XrdOucLock.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+#include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucLock.hh"
+#include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
@@ -103,7 +84,7 @@ int               XrdOfs::OSSDelay = 30;
 /*                    F i l e   S y s t e m   O b j e c t                     */
 /******************************************************************************/
   
-extern XrdOfs XrdOfsFS;
+extern XrdOfs* XrdOfsFS;
 
 /******************************************************************************/
 /*                 S t o r a g e   S y s t e m   O b j e c t                  */
@@ -128,7 +109,11 @@ XrdOfs::XrdOfs()
    Balancer      = 0;
    evsObject     = 0;
    myRole        = strdup("server");
-   myPort        = 0;
+
+// Obtain port number we will be using. Note that the constructor must occur
+// after the port number is known (i.e., this cannot be a global static).
+//
+   myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
 
 // Defaults for POSC
 //
@@ -139,10 +124,10 @@ XrdOfs::XrdOfs()
 
 // Establish our hostname and IPV4 address
 //
-   HostName      = XrdNetDNS::getHostName();
-   if (!XrdNetDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
+   HostName      = XrdSysDNS::getHostName();
+   if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
    strcpy(buff, "[::"); bp = buff+3;
-   bp += XrdNetDNS::IP2String(myIPaddr, 0, bp, 128);
+   bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
    *bp++ = ']'; *bp++ = ':';
    sprintf(bp, "%d", myPort);
    locResp = strdup(buff); locRlen = strlen(buff);
@@ -151,7 +136,7 @@ XrdOfs::XrdOfs()
    HostPref = strdup(HostName);
    HostName[i] = '.';
 
-// Set the configuration file name abd dummy handle
+// Set the configuration file name and dummy handle
 //
    ConfigFN = 0;
    XrdOfsHandle::Alloc(&dummyHandle);
@@ -207,7 +192,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // Verify that this object is not already associated with an open directory
 //
    if (dp) return
-      XrdOfsFS.Emsg(epname, error, EADDRINUSE, "open directory", dir_path);
+      XrdOfsFS->Emsg(epname, error, EADDRINUSE, "open directory", dir_path);
 
 // Apply security, as needed
 //
@@ -224,7 +209,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 
 // Encountered an error
 //
-   return XrdOfsFS.Emsg(epname, error, retc, "open directory", dir_path);
+   return XrdOfsFS->Emsg(epname, error, retc, "open directory", dir_path);
 }
 
 /******************************************************************************/
@@ -257,7 +242,7 @@ const char *XrdOfsDirectory::nextEntry()
 
 // Check if this directory is actually open
 //
-   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADF, "read directory");
+   if (!dp) {XrdOfsFS->Emsg(epname, error, EBADF, "read directory");
              return 0;
             }
 
@@ -268,7 +253,7 @@ const char *XrdOfsDirectory::nextEntry()
 // Read the next directory entry
 //
    if ((retc = dp->Readdir(dname, sizeof(dname))) < 0)
-      {XrdOfsFS.Emsg(epname, error, retc, "read directory", fname);
+      {XrdOfsFS->Emsg(epname, error, retc, "read directory", fname);
        return 0;
       }
 
@@ -310,7 +295,7 @@ int XrdOfsDirectory::close()
 
 // Check if this directory is actually open
 //
-   if (!dp) {XrdOfsFS.Emsg(epname, error, EBADF, "close directory");
+   if (!dp) {XrdOfsFS->Emsg(epname, error, EBADF, "close directory");
              return SFS_ERROR;
             }
    XTRACE(closedir, fname, "");
@@ -318,7 +303,7 @@ int XrdOfsDirectory::close()
 // Close this directory
 //
     if ((retc = dp->Close()))
-       retc = XrdOfsFS.Emsg(epname, error, retc, "close", fname);
+       retc = XrdOfsFS->Emsg(epname, error, retc, "close", fname);
        else retc = SFS_OK;
 
 // All done
@@ -386,7 +371,7 @@ int XrdOfsFile::open(const char          *path,      // In
                        ~OpenHelper()
                        {if (hP) hP->Retire();
                         if (fP) delete fP;
-                        if (poscNum > 0) XrdOfsFS.poscQ->Del(Path, poscNum, 1);
+                        if (poscNum > 0) XrdOfsFS->poscQ->Del(Path, poscNum, 1);
                        }
          } oP(path);
 
@@ -401,19 +386,19 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Verify that this object is not already associated with an open file
 //
-   XrdOfsFS.ocMutex.Lock();
+   XrdOfsFS->ocMutex.Lock();
    if (oh != XrdOfs::dummyHandle)
-      {XrdOfsFS.ocMutex.UnLock();
-       return XrdOfsFS.Emsg(epname,error,EADDRINUSE,"open file",path);
+      {XrdOfsFS->ocMutex.UnLock();
+       return XrdOfsFS->Emsg(epname,error,EADDRINUSE,"open file",path);
       }
-   XrdOfsFS.ocMutex.UnLock();
+   XrdOfsFS->ocMutex.UnLock();
 
 // Handle the open mode options
 //
    if (open_mode & crMask)
       {crOpts = (Mode & SFS_O_MKPTH ? XRDOSS_mkpath : 0);
-       if (XrdOfsFS.poscQ && ((open_mode & SFS_O_POSC) ||
-           XrdOfsFS.poscAuto || Open_Env.Get("ofs.posc")))
+       if (XrdOfsFS->poscQ && ((open_mode & SFS_O_POSC) ||
+           XrdOfsFS->poscAuto || Open_Env.Get("ofs.posc")))
            {isPosc = 1; isRW = XrdOfsHandle::opPC;}
           else isRW = XrdOfsHandle::opRW;
        if (open_mode & SFS_O_CREAT)
@@ -431,12 +416,12 @@ int XrdOfsFile::open(const char          *path,      // In
                       break;
    case SFS_O_WRONLY: open_flag = O_WRONLY; find_flag |= SFS_O_WRONLY;
                       isRW = XrdOfsHandle::opRW;
-                      if (XrdOfsFS.poscQ && ((open_mode & SFS_O_POSC) ||
+                      if (XrdOfsFS->poscQ && ((open_mode & SFS_O_POSC) ||
                           Open_Env.Get("ofs.posc"))) oP.poscNum = -1;
                       break;
    case SFS_O_RDWR:   open_flag = O_RDWR;   find_flag |= SFS_O_RDWR;
                       isRW = XrdOfsHandle::opRW;
-                      if (XrdOfsFS.poscQ && ((open_mode & SFS_O_POSC) ||
+                      if (XrdOfsFS->poscQ && ((open_mode & SFS_O_POSC) ||
                           Open_Env.Get("ofs.posc"))) oP.poscNum = -1;
                       break;
    default:           open_flag = O_RDONLY; find_flag |= SFS_O_RDONLY;
@@ -447,9 +432,9 @@ int XrdOfsFile::open(const char          *path,      // In
 // If we have a finder object, use it to direct the client. The final
 // destination will apply the security that is needed
 //
-   if (XrdOfsFS.Finder && (retc = XrdOfsFS.Finder->Locate(error, path,
+   if (XrdOfsFS->Finder && (retc = XrdOfsFS->Finder->Locate(error, path,
                                                    find_flag, &Open_Env)))
-      return XrdOfsFS.fsError(error, retc);
+      return XrdOfsFS->fsError(error, retc);
 
 // Create the file if so requested o/w try to attach the file
 //
@@ -461,30 +446,30 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // For ephemeral file, we must enter the file into the queue
        //
-       if (isPosc && (oP.poscNum = XrdOfsFS.poscQ->Add(tident,path)) < 0)
-          return XrdOfsFS.Emsg(epname, error, oP.poscNum, "pcreate", path);
+       if (isPosc && (oP.poscNum = XrdOfsFS->poscQ->Add(tident,path)) < 0)
+          return XrdOfsFS->Emsg(epname, error, oP.poscNum, "pcreate", path);
 
        // Create the file. If ENOTSUP is returned, promote the creation to
        // the subsequent open. This is to accomodate proxy support.
        //
        if ((retc = XrdOfsOss->Create(tident, path, theMode, Open_Env,
                                      ((open_flag << 8) | crOpts))))
-          {if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
+          {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
            if (retc == -EINPROGRESS)
-              {XrdOfsFS.evrObject.Wait4Event(path,&error);
-               return XrdOfsFS.fsError(error, retc);
+              {XrdOfsFS->evrObject.Wait4Event(path,&error);
+               return XrdOfsFS->fsError(error, retc);
               }
            if (retc != -ENOTSUP)
-              {if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Removed(path);
-               return XrdOfsFS.Emsg(epname, error, retc, "create", path);
+              {if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
+               return XrdOfsFS->Emsg(epname, error, retc, "create", path);
               }
           } else {
-            if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(path, isPosc);
+            if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Added(path, isPosc);
             open_flag  = O_RDWR|O_TRUNC;
-            if (XrdOfsFS.evsObject 
-            &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Create))
+            if (XrdOfsFS->evsObject 
+            &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Create))
                {XrdOfsEvsInfo evInfo(tident,path,info,&Open_Env,Mode);
-                XrdOfsFS.evsObject->Notify(XrdOfsEvs::Create, evInfo);
+                XrdOfsFS->evsObject->Notify(XrdOfsEvs::Create, evInfo);
                }
           }
 
@@ -499,18 +484,18 @@ int XrdOfsFile::open(const char          *path,      // In
 // Get a handle for this file.
 //
    if ((retc = XrdOfsHandle::Alloc(path, isRW, &oP.hP)))
-      {if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
-       return XrdOfsFS.Emsg(epname, error, retc, "attach", path);
+      {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
+       return XrdOfsFS->Emsg(epname, error, retc, "attach", path);
       }
 
 // Assign/transfer posc ownership. We may need to delay the client if the
 // file create ownership does not match and this is not a create request.
 //
    if (oP.hP->isRW == XrdOfsHandle::opPC)
-      {if (!isRW) return XrdOfsFS.Stall(error, -1, path);
+      {if (!isRW) return XrdOfsFS->Stall(error, -1, path);
        if ((retc = oP.hP->PoscSet(tident, oP.poscNum, theMode)))
-          {if (retc > 0) XrdOfsFS.poscQ->Del(path, retc);
-              else return XrdOfsFS.Emsg(epname, error, retc, "access", path);
+          {if (retc > 0) XrdOfsFS->poscQ->Del(path, retc);
+              else return XrdOfsFS->Emsg(epname, error, retc, "access", path);
           }
       }
 
@@ -518,9 +503,9 @@ int XrdOfsFile::open(const char          *path,      // In
 //
    if (!(oP.hP->Inactive()))
       {dorawio = (oh->isCompressed && open_mode & SFS_O_RAWIO ? 1 : 0);
-       XrdOfsFS.ocMutex.Lock(); oh = oP.hP; XrdOfsFS.ocMutex.UnLock();
+       XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
        FTRACE(open, "attach use=" <<oh->Usage());
-       if (oP.poscNum > 0) XrdOfsFS.poscQ->Commit(path, oP.poscNum);
+       if (oP.poscNum > 0) XrdOfsFS->poscQ->Commit(path, oP.poscNum);
        oP.hP->UnLock(); 
        OfsStats.sdMutex.Lock();
        isRW ? OfsStats.Data.numOpenW++ : OfsStats.Data.numOpenR++;
@@ -532,27 +517,27 @@ int XrdOfsFile::open(const char          *path,      // In
 // Get a storage system object
 //
    if (!(oP.fP = XrdOfsOss->newFile(tident)))
-      return XrdOfsFS.Emsg(epname, error, ENOMEM, "open", path);
+      return XrdOfsFS->Emsg(epname, error, ENOMEM, "open", path);
 
 // Open the file
 //
    if ((retc = oP.fP->Open(path, open_flag, Mode, Open_Env)))
-      {if (retc > 0) return XrdOfsFS.Stall(error, retc, path);
+      {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
        if (retc == -EINPROGRESS)
-          {XrdOfsFS.evrObject.Wait4Event(path,&error);
-           return XrdOfsFS.fsError(error, retc);
+          {XrdOfsFS->evrObject.Wait4Event(path,&error);
+           return XrdOfsFS->fsError(error, retc);
           }
-       if (retc == -ETXTBSY) return XrdOfsFS.Stall(error, -1, path);
-       if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Removed(path);
-       return XrdOfsFS.Emsg(epname, error, retc, "open", path);
+       if (retc == -ETXTBSY) return XrdOfsFS->Stall(error, -1, path);
+       if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
+       return XrdOfsFS->Emsg(epname, error, retc, "open", path);
       }
 
 // Verify that we can actually use this file
 //
    if (oP.poscNum > 0)
       {if ((retc = oP.fP->Fchmod(static_cast<mode_t>(theMode | S_ISUID))))
-          return XrdOfsFS.Emsg(epname, error, retc, "fchmod", path);
-       XrdOfsFS.poscQ->Commit(path, oP.poscNum);
+          return XrdOfsFS->Emsg(epname, error, retc, "fchmod", path);
+       XrdOfsFS->poscQ->Commit(path, oP.poscNum);
       }
 
 // Set compression values and activate the handle
@@ -566,11 +551,11 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // Send an open event if we must
 //
-   if (XrdOfsFS.evsObject)
+   if (XrdOfsFS->evsObject)
       {XrdOfsEvs::Event theEvent = (isRW ? XrdOfsEvs::Openw : XrdOfsEvs::Openr);
-       if (XrdOfsFS.evsObject->Enabled(theEvent))
+       if (XrdOfsFS->evsObject->Enabled(theEvent))
           {XrdOfsEvsInfo evInfo(tident, path, info, &Open_Env);
-           XrdOfsFS.evsObject->Notify(theEvent, evInfo);
+           XrdOfsFS->evsObject->Notify(theEvent, evInfo);
           }
       }
 
@@ -583,7 +568,7 @@ int XrdOfsFile::open(const char          *path,      // In
 
 // All done
 //
-   XrdOfsFS.ocMutex.Lock(); oh = oP.hP; XrdOfsFS.ocMutex.UnLock();
+   XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
    return oP.OK();
 }
 
@@ -603,7 +588,7 @@ int XrdOfsFile::close()  // In
    EPNAME("close");
 
    class  CloseFH : public XrdOfsHanCB
-         {public: void Retired(XrdOfsHandle *hP) {XrdOfsFS.Unpersist(hP);}};
+         {public: void Retired(XrdOfsHandle *hP) {XrdOfsFS->Unpersist(hP);}};
    static XrdOfsHanCB *hCB = static_cast<XrdOfsHanCB *>(new CloseFH);
 
    XrdOfsHandle *hP;
@@ -616,15 +601,15 @@ int XrdOfsFile::close()  // In
 
 // Verify the handle (we briefly maintain a global lock)
 //
-    XrdOfsFS.ocMutex.Lock();
+    XrdOfsFS->ocMutex.Lock();
     if (oh == XrdOfs::dummyHandle)
-       {XrdOfsFS.ocMutex.UnLock(); return SFS_OK;}
+       {XrdOfsFS->ocMutex.UnLock(); return SFS_OK;}
     if ((oh->Inactive()))
-       {XrdOfsFS.ocMutex.UnLock();
-        return XrdOfsFS.Emsg(epname, error, EBADF, "close file");
+       {XrdOfsFS->ocMutex.UnLock();
+        return XrdOfsFS->Emsg(epname, error, EBADF, "close file");
        }
     hP = oh; oh = XrdOfs::dummyHandle;
-    XrdOfsFS.ocMutex.UnLock();
+    XrdOfsFS->ocMutex.UnLock();
     hP->Lock();
 
 // Maintain statistics
@@ -642,15 +627,15 @@ int XrdOfsFile::close()  // In
 //
    if ((poscNum = hP->PoscGet(theMode, !viaDel)))
       {if (viaDel)
-          {if (hP->Inactive() || !XrdOfsFS.poscHold)
-              {XrdOfsFS.Unpersist(hP, !hP->Inactive()); hP->Retire();}
-              else hP->Retire(hCB, XrdOfsFS.poscHold);
+          {if (hP->Inactive() || !XrdOfsFS->poscHold)
+              {XrdOfsFS->Unpersist(hP, !hP->Inactive()); hP->Retire();}
+              else hP->Retire(hCB, XrdOfsFS->poscHold);
            return SFS_OK;
           }
        if ((retc = hP->Select().Fchmod(theMode)))
-          XrdOfsFS.Emsg(epname, error, retc, "fchmod", hP->Name());
-          else {XrdOfsFS.poscQ->Del(hP->Name(), poscNum);
-                if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Added(hP->Name());
+          XrdOfsFS->Emsg(epname, error, retc, "fchmod", hP->Name());
+          else {XrdOfsFS->poscQ->Del(hP->Name(), poscNum);
+                if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Added(hP->Name());
                }
       }
 
@@ -660,8 +645,8 @@ int XrdOfsFile::close()  // In
 // close actually occurs. The path is not copied if it's not final and we
 // don't bother with any of it if we need not generate an event.
 //
-   if (XrdOfsFS.evsObject && tident
-   &&  XrdOfsFS.evsObject->Enabled(hP->isRW ? XrdOfsEvs::Closew
+   if (XrdOfsFS->evsObject && tident
+   &&  XrdOfsFS->evsObject->Enabled(hP->isRW ? XrdOfsEvs::Closew
                                             : XrdOfsEvs::Closer))
       {long long FSize, *retsz;
        char pathbuff[MAXPATHLEN+8];
@@ -670,7 +655,7 @@ int XrdOfsFile::close()  // In
           else {      theEvent = XrdOfsEvs::Closer; retsz = 0; FSize=0;}
        if (!(hP->Retire(retsz, pathbuff, sizeof(pathbuff))))
           {XrdOfsEvsInfo evInfo(tident, pathbuff, "" , 0, 0, FSize);
-           XrdOfsFS.evsObject->Notify(theEvent, evInfo);
+           XrdOfsFS->evsObject->Notify(theEvent, evInfo);
           } else hP->Retire();
       } else     hP->Retire();
 
@@ -726,13 +711,13 @@ int            XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Now preread the actual number of bytes
 //
    if ((retc = oh->Select().Read((off_t)offset, (size_t)blen)) < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)retc, "preread", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, (int)retc, "preread", oh->Name());
 
 // Return number of bytes read
 //
@@ -769,7 +754,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Now read the actual number of bytes
@@ -780,7 +765,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
           : (XrdSfsXferSize)(oh->Select().Read((void *)buff,
                             (off_t)offset, (size_t)blen)));
    if (nbytes < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "read", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "read", oh->Name());
 
 // Return number of bytes read
 //
@@ -823,13 +808,13 @@ int XrdOfsFile::read(XrdSfsAio *aiop)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "read", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "read", oh->Name());
 #endif
 
 // Issue the read. Only true errors are returned here.
 //
    if ((rc = oh->Select().Read(aiop)) < 0)
-      return XrdOfsFS.Emsg(epname, error, rc, "read", oh->Name());
+      return XrdOfsFS->Emsg(epname, error, rc, "read", oh->Name());
 
 // All done
 //
@@ -869,13 +854,13 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
 //
 #if _FILE_OFFSET_BITS!=64
    if (offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "write", oh);
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh);
 #endif
 
 // Silly Castor stuff
 //
-   if (XrdOfsFS.evsObject && !(oh->isChanged)
-   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
+   if (XrdOfsFS->evsObject && !(oh->isChanged)
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
 
 // Write the requested bytes
 //
@@ -883,7 +868,7 @@ XrdSfsXferSize XrdOfsFile::write(XrdSfsFileOffset  offset,    // In
    nbytes = (XrdSfsXferSize)(oh->Select().Write((const void *)buff,
                             (off_t)offset, (size_t)blen));
    if (nbytes < 0)
-      return XrdOfsFS.Emsg(epname, error, (int)nbytes, "write", oh);
+      return XrdOfsFS->Emsg(epname, error, (int)nbytes, "write", oh);
 
 // Return number of bytes written
 //
@@ -920,19 +905,19 @@ int XrdOfsFile::write(XrdSfsAio *aiop)
 //
 #if _FILE_OFFSET_BITS!=64
    if (aiop->sfsAio.aio_offset >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "write", oh->Name());
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "write", oh->Name());
 #endif
 
 // Silly Castor stuff
 //
-   if (XrdOfsFS.evsObject && !(oh->isChanged)
-   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
+   if (XrdOfsFS->evsObject && !(oh->isChanged)
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
 
 // Write the requested bytes
 //
    oh->isPending = 1;
    if ((rc = oh->Select().Write(aiop)) < 0)
-       return XrdOfsFS.Emsg(epname, error, rc, "write", oh->Name());
+       return XrdOfsFS->Emsg(epname, error, rc, "write", oh->Name());
 
 // All done
 //
@@ -983,7 +968,7 @@ int XrdOfsFile::stat(struct stat     *buf)         // Out
 // Perform the function
 //
    if ((retc = oh->Select().Fstat(buf)) < 0)
-      return XrdOfsFS.Emsg(epname,error,retc,"get state for",oh->Name());
+      return XrdOfsFS->Emsg(epname,error,retc,"get state for",oh->Name());
 
    return SFS_OK;
 }
@@ -1024,7 +1009,7 @@ int XrdOfsFile::sync()  // In
 //
    if ((retc = oh->Select().Fsync()))
       {oh->isPending = 1;
-       return XrdOfsFS.Emsg(epname, error, retc, "synchronize", oh);
+       return XrdOfsFS->Emsg(epname, error, retc, "synchronize", oh);
       }
 
 // Indicate all went well
@@ -1074,18 +1059,18 @@ int XrdOfsFile::truncate(XrdSfsFileOffset  flen)  // In
 // Make sure the offset is not too large
 //
    if (sizeof(off_t) < sizeof(flen) && flen >  0x000000007fffffff)
-      return  XrdOfsFS.Emsg(epname, error, EFBIG, "truncate", oh);
+      return  XrdOfsFS->Emsg(epname, error, EFBIG, "truncate", oh);
 
 // Silly Castor stuff
 //
-   if (XrdOfsFS.evsObject && !(oh->isChanged)
-   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
+   if (XrdOfsFS->evsObject && !(oh->isChanged)
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Fwrite)) GenFWEvent();
 
 // Perform the function
 //
    oh->isPending = 1;
    if ((retc = oh->Select().Ftruncate(flen)))
-      return XrdOfsFS.Emsg(epname, error, retc, "truncate", oh);
+      return XrdOfsFS->Emsg(epname, error, retc, "truncate", oh);
 
 // Indicate Success
 //
@@ -1134,7 +1119,7 @@ void XrdOfsFile::GenFWEvent()
    oh->UnLock();
    if (first_write)
       {XrdOfsEvsInfo evInfo(tident, oh->Name());
-       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Fwrite, evInfo);
+       XrdOfsFS->evsObject->Notify(XrdOfsEvs::Fwrite, evInfo);
       }
 }
 
@@ -1199,7 +1184,7 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // An error occured, return the error info
 //
-   return XrdOfsFS.Emsg(epname, einfo, retc, "change", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "change", path);
 }
 
 /******************************************************************************/
@@ -1262,7 +1247,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // An error occured, return the error info
 //
-   return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
 }
 
 /******************************************************************************/
@@ -1321,7 +1306,7 @@ int XrdOfs::fsctl(const int               cmd,
        &&  (retc = Finder->Locate(einfo, locArg, find_flag)))
           return fsError(einfo, retc);
        if ((retc = XrdOfsOss->Stat(Path, &fstat)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "locate", Path);
+          return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
        rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
        rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
        rType[2] = '\0';
@@ -1337,7 +1322,7 @@ int XrdOfs::fsctl(const int               cmd,
        &&  (retc = Finder->Space(einfo, args))) return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatFS(args, bP, blen)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "statfs", args);
+          return XrdOfsFS->Emsg(epname, einfo, retc, "statfs", args);
        einfo.setErrCode(blen+1);
        return SFS_DATA;
       }
@@ -1359,7 +1344,7 @@ int XrdOfs::fsctl(const int               cmd,
        &&  (retc = Finder->Space(einfo, path))) return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatLS(statls_Env, path, bP, blen)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "statls", path);
+          return XrdOfsFS->Emsg(epname, einfo, retc, "statls", path);
        einfo.setErrCode(blen+1);
        return SFS_DATA;
       }
@@ -1373,9 +1358,9 @@ int XrdOfs::fsctl(const int               cmd,
           return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatXA(args, bP, blen)))
-          return XrdOfsFS.Emsg(epname, einfo, retc, "statxa", args);
-       if (!client || !XrdOfsFS.Authorization) privs = XrdAccPriv_All;
-          else privs = XrdOfsFS.Authorization->Access(client, args, AOP_Any);
+          return XrdOfsFS->Emsg(epname, einfo, retc, "statxa", args);
+       if (!client || !XrdOfsFS->Authorization) privs = XrdAccPriv_All;
+          else privs = XrdOfsFS->Authorization->Access(client, args, AOP_Any);
        cP = bP + blen; strcpy(cP, "&ofs.ap="); cP += 8;
        if (privs == XrdAccPriv_All) *cP++ = 'a';
           else {for (i = 0; i < PrivNum; i++)
@@ -1389,7 +1374,7 @@ int XrdOfs::fsctl(const int               cmd,
 
 // Operation is not supported
 //
-   return XrdOfsFS.Emsg(epname, einfo, ENOTSUP, "fsctl", args);
+   return XrdOfsFS->Emsg(epname, einfo, ENOTSUP, "fsctl", args);
 
 }
 
@@ -1473,7 +1458,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 // Perform the actual operation
 //
     if ((retc = XrdOfsOss->Mkdir(path, acc_mode, mkpath)))
-       return XrdOfsFS.Emsg(epname, einfo, retc, "mkdir", path);
+       return XrdOfsFS->Emsg(epname, einfo, retc, "mkdir", path);
 
 // Check if we should generate an event
 //
@@ -1511,7 +1496,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 // If we have a finder object, use it to prepare the paths. Otherwise,
 // ignore this prepare request (we may change this in the future).
 //
-   if (XrdOfsFS.Finder && (retc = XrdOfsFS.Finder->Prepare(out_error, pargs)))
+   if (XrdOfsFS->Finder && (retc = XrdOfsFS->Finder->Prepare(out_error, pargs)))
       return fsError(out_error, retc);
    return 0;
 }
@@ -1574,7 +1559,7 @@ int XrdOfs::remove(const char              type,    // In
 // Perform the actual deletion
 //
     retc = (type=='d' ? XrdOfsOss->Remdir(path) : XrdOfsOss->Unlink(path,Opt));
-    if (retc) return XrdOfsFS.Emsg(epname, einfo, retc, "remove", path);
+    if (retc) return XrdOfsFS->Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f') XrdOfsHandle::Hide(path);
     if (Balancer) Balancer->Removed(path);
     return SFS_OK;
@@ -1638,7 +1623,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 // Perform actual rename operation
 //
    if ((retc = XrdOfsOss->Rename(old_name, new_name)))
-      return XrdOfsFS.Emsg(epname, einfo, retc, "rename", old_name);
+      return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
    XrdOfsHandle::Hide(old_name);
    if (Balancer) {Balancer->Removed(old_name);
                   Balancer->Added(new_name);
@@ -1686,7 +1671,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Now try to find the file or directory
 //
    if ((retc = XrdOfsOss->Stat(path, buf)))
-      return XrdOfsFS.Emsg(epname, einfo, retc, "locate", path);
+      return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
    return SFS_OK;
 }
 
@@ -1733,7 +1718,7 @@ int XrdOfs::stat(const char             *path,        // In
 // Now try to find the file or directory
 //
    if (!(retc = XrdOfsOss->Stat(path, &buf, XRDOSS_resonly))) mode=buf.st_mode;
-      else if ((-ENOMSG) != retc) return XrdOfsFS.Emsg(epname, einfo, retc,
+      else if ((-ENOMSG) != retc) return XrdOfsFS->Emsg(epname, einfo, retc,
                                                     "locate", path);
    return SFS_OK;
 }
@@ -1794,7 +1779,7 @@ int XrdOfs::truncate(const char             *path,    // In
 
 // An error occured, return the error info
 //
-   return XrdOfsFS.Emsg(epname, einfo, retc, "trunc", path);
+   return XrdOfsFS->Emsg(epname, einfo, retc, "trunc", path);
 }
 
 /******************************************************************************/
@@ -1818,7 +1803,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 //
    if (hP->isRW == XrdOfsHandle::opPC)
       {hP->Lock();
-       XrdOfsFS.Unpersist(hP);
+       XrdOfsFS->Unpersist(hP);
        hP->UnLock();
       }
 
@@ -1978,18 +1963,18 @@ void XrdOfs::Unpersist(XrdOfsHandle *oh, int xcev)
 
 // Generate a proper close event as one has not yet been generated
 //
-   if (xcev && XrdOfsFS.evsObject && *tident != '?'
-   &&  XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Closew))
+   if (xcev && XrdOfsFS->evsObject && *tident != '?'
+   &&  XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Closew))
        {XrdOfsEvsInfo evInfo(tident, oh->Name());
-        XrdOfsFS.evsObject->Notify(XrdOfsEvs::Closew, evInfo);
+        XrdOfsFS->evsObject->Notify(XrdOfsEvs::Closew, evInfo);
        }
 
 // Now generate a removal event
 //
-   if (XrdOfsFS.Balancer) XrdOfsFS.Balancer->Removed(oh->Name());
-   if (XrdOfsFS.evsObject && XrdOfsFS.evsObject->Enabled(XrdOfsEvs::Rm))
+   if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(oh->Name());
+   if (XrdOfsFS->evsObject && XrdOfsFS->evsObject->Enabled(XrdOfsEvs::Rm))
       {XrdOfsEvsInfo evInfo(tident, oh->Name());
-       XrdOfsFS.evsObject->Notify(XrdOfsEvs::Rm, evInfo);
+       XrdOfsFS->evsObject->Notify(XrdOfsEvs::Rm, evInfo);
       }
 
 // Count this

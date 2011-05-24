@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m T r a c e . c c                         */
+/*                        X r d F r c T r a c e . c c                         */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -8,16 +8,12 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdFrmXfrTraceCVSID = "$Id$";
-
-#include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
   
-       XrdSysError        XrdFrm::Say(0, "frm_");
+       XrdSysError        XrdFrc::Say(0, "frm_");
 
-       XrdOucTrace        XrdFrm::Trace(&Say);
+       XrdOucTrace        XrdFrc::Trace(&Say);

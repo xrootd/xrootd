@@ -18,7 +18,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdFrmProxy;
+class XrdFrcProxy;
 class XrdNetMsg;
 class XrdOucMsubs;
 class XrdOucName2Name;
@@ -69,7 +69,7 @@ XrdOucStream          prepSched;
 XrdOucName2Name      *N2N;
 XrdOucMsubs          *prepMsg;
 XrdNetMsg            *Relay;
-XrdFrmProxy          *PrepFrm;
+XrdFrcProxy          *PrepFrm;
 char                 *prepif;
 time_t                lastemsg;
 pid_t                 preppid;

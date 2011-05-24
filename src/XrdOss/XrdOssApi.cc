@@ -28,7 +28,7 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdFrm/XrdFrmXAttr.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
@@ -638,15 +638,15 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 // So, we read them here should we need them.
 //
    if (fd >= 0 && XrdOssSS->tryMmap)
-      {XrdOucXAttr<XrdFrmXAttrMem> Info;
+      {XrdOucXAttr<XrdFrcXAttrMem> Info;
        mopts = 0;
        if (!(popts & XRDEXP_NOXATTR) && XrdOssSS->chkMmap)
           Info.Get(local_path, fd);
-       if (popts & XRDEXP_MKEEP || Info.Attr.Flags & XrdFrmXAttrMem::memKeep)
+       if (popts & XRDEXP_MKEEP || Info.Attr.Flags & XrdFrcXAttrMem::memKeep)
           mopts |= OSSMIO_MPRM;
-       if (popts & XRDEXP_MLOK  || Info.Attr.Flags & XrdFrmXAttrMem::memLock)
+       if (popts & XRDEXP_MLOK  || Info.Attr.Flags & XrdFrcXAttrMem::memLock)
           mopts |= OSSMIO_MLOK;
-       if (popts & XRDEXP_MMAP  || Info.Attr.Flags & XrdFrmXAttrMem::memMap)
+       if (popts & XRDEXP_MMAP  || Info.Attr.Flags & XrdFrcXAttrMem::memMap)
           mopts |= OSSMIO_MMAP;
        if (mopts) mmFile = XrdOssMio::Map(local_path, fd, mopts);
       } else mmFile = 0;

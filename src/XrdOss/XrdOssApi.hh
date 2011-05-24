@@ -107,7 +107,7 @@ char            cxid[4];
 /*                              o o s s _ S y s                               */
 /******************************************************************************/
   
-class XrdFrmProxy;
+class XrdFrcProxy;
 class XrdOssCache_Group;
 class XrdOssCache_Space;
 class XrdOssCreateInfo;
@@ -190,7 +190,7 @@ int       StageFormat;    //    Format for default stagecmd
 char     *StageCmd;       // -> Staging command to use
 char     *StageMsg;       // -> Staging message to be passed
 XrdOucMsubs *StageSnd;    // -> Parsed Message
-XrdFrmProxy *StageFrm;    // -> Built-in stagecmd or zero
+XrdFrcProxy *StageFrm;    // -> Built-in stagecmd or zero
 
 char     *StageEvents;    // -> file:////<adminpath> if async staging
 int       StageEvSize;    //    Length of above

@@ -9,13 +9,11 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
   
 #include <sys/param.h>
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
 
-class XrdFrmReqFile;
+class XrdFrcReqFile;
 class XrdOucTList;
 
 class XrdFrmXfrJob
@@ -24,9 +22,9 @@ public:
 
 XrdFrmXfrJob  *Next;
 XrdOucTList   *NoteList;
-XrdFrmReqFile *reqFQ;
+XrdFrcReqFile *reqFQ;
 char          *reqFile;
-XrdFrmRequest  reqData;
+XrdFrcRequest  reqData;
 const char    *Type;
 char           PFN[MAXPATHLEN+16];
 int            pfnEnd;

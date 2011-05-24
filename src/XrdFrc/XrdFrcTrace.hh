@@ -1,16 +1,14 @@
-#ifndef _XRDFRM_TRACE_H
-#define _XRDFRM_TRACE_H
+#ifndef _XRDFRC_TRACE_H
+#define _XRDFRC_TRACE_H
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m T r a c e . h h                         */
+/*                        X r d F r c T r a c e . h h                         */
 /*                                                                            */
 /* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//         $Id$
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -49,7 +47,7 @@
 
 #define VSAY(a,...) if (Config.Verbose) Say.Say(a,__VA_ARGS__);
 
-namespace XrdFrm
+namespace XrdFrc
 {
 extern XrdSysError  Say;
 extern XrdOucTrace  Trace;

@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
-
-const char *XrdFrmMonitorCVSID = "$Id$";
 
 #include <errno.h>
 #include <stdlib.h>
@@ -19,15 +15,15 @@ const char *XrdFrmMonitorCVSID = "$Id$";
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                     S t a t i c   A l l o c a t i o n                      */
@@ -96,7 +92,7 @@ int XrdFrmMonitor::Init()
 
 // Get the address of the primary destination
 //
-   if (!XrdNetDNS::Host2Dest(Dest1, InetAddr1, &etext))
+   if (!XrdSysDNS::Host2Dest(Dest1, InetAddr1, &etext))
       {Say.Emsg("Monitor", "setup monitor collector;", etext);
        return 0;
       }
@@ -109,7 +105,7 @@ int XrdFrmMonitor::Init()
 // Do the same for the secondary destination
 //
    if (Dest2)
-      {if (!XrdNetDNS::Host2Dest(Dest2, InetAddr2, &etext))
+      {if (!XrdSysDNS::Host2Dest(Dest2, InetAddr2, &etext))
           {Say.Emsg("Monitor", "setup monitor collector;", etext);
            return 0;
           }

@@ -4,12 +4,12 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdOss -lXrdFrm -lXrdNet -lXrdOuc -lXrdNetUtil \
-                      -lXrd -lXrdSys $(TYPELIBSF)
+BINLIBS = -L$(LIBDIR) -lXrdOss -lXrdFrc -lXrd -lXrdNet -lXrdOuc \
+                      -lXrdSys $(TYPELIBSF)
 
-LIBDEPS =  $(LIBDIR)/libXrdFrm.a     $(LIBDIR)/libXrdNet.a \
-           $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdOss.a \
-           $(LIBDIR)/libXrdOuc.a     $(LIBDIR)/libXrdSys.a $(LIBDIR)/libXrd.a
+LIBDEPS =  $(LIBDIR)/libXrdFrc.a     $(LIBDIR)/libXrdNet.a \
+           $(LIBDIR)/libXrdOss.a     $(LIBDIR)/libXrd.a    \
+           $(LIBDIR)/libXrdOuc.a     $(LIBDIR)/libXrdSys.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -111,7 +111,7 @@ vpath XProtocol% ../XProtocol
 vpath XPtypes%   ../XProtocol
 vpath YProtocol% ../XProtocol
 vpath XrdCms%    ../XrdCms
-vpath XrdFrm%    ../XrdFrm
+vpath XrdFrc%    ../XrdFrc
 vpath XrdNet%    ../XrdNet
 vpath XrdOss%    ../XrdOss
 vpath XrdOuc%    ../XrdOuc
@@ -180,7 +180,7 @@ $(OBJDIR)/XrdCmsCache.o:     XrdCmsCache.cc      XrdCmsCache.hh \
 $(OBJDIR)/XrdCmsClientConfig.o: XrdCmsClientConfig.cc   XrdCmsClientConfig.hh \
                                 XrdCmsClientMsg.hh      XrdCmsSecurity.hh \
                                 XrdCmsTrace.hh \
-                                XrdNetDNS.hh            XrdSysHeaders.hh \
+                                XrdSysDNS.hh            XrdSysHeaders.hh \
                                 XrdOuca2x.hh            XrdOucEnv.hh \
                                 XrdOucStream.hh         XrdOucTList.hh \
                                 XrdOucUtils.hh
@@ -214,7 +214,7 @@ $(OBJDIR)/XrdCmsCluster.o:   XrdCmsCluster.cc    XrdCmsCluster.hh \
                              XrdCmsKey.hh        XrdCmsNode.hh \
                              XrdCmsSelect.hh     XrdCmsState.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
-                             XrdNetDNS.hh        XrdOucPup.hh \
+                             XrdSysDNS.hh        XrdOucPup.hh \
                              XrdOucTList.hh \
                              XrdSysPlatform.hh   XrdSysPthread.hh \
                              XrdSysTimer.hh \
@@ -234,7 +234,7 @@ $(OBJDIR)/XrdCmsConfig.o:    XrdCmsConfig.cc     XrdCmsConfig.hh \
                              XrdCmsState.hh      XrdCmsSupervisor.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdCmsXmi.hh        XrdCmsXmiReq.hh \
-                             XrdNetDNS.hh        XrdNetOpts.hh \
+                             XrdSysDNS.hh        XrdNetOpts.hh \
                              XrdNetSecurity.hh   XrdNetSocket.hh \
                              XrdOss.hh \
                              XrdOuca2x.hh        XrdOucEnv.hh \
@@ -255,7 +255,7 @@ $(OBJDIR)/XrdCmsFinder.o:    XrdCmsFinder.cc     XrdCmsFinder.hh \
                              XrdCmsClientMan.hh  XrdCmsClientMsg.hh \
                              XrdCmsParser.hh     XrdCmsResp.hh \
                              XrdCmsRRData.hh     XrdCmsTrace.hh \
-                             XrdNetDNS.hh        XrdNetOpts.hh \
+                             XrdSysDNS.hh        XrdNetOpts.hh \
                              XrdNetSocket.hh \
                              XrdOucEnv.hh        XrdOucErrInfo.hh \
                              XrdOucReqID.hh  \
@@ -296,7 +296,7 @@ $(OBJDIR)/XrdCmsLogin.o:     XrdCmsLogin.cc      XrdCmsLogin.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsLogin.o XrdCmsLogin.cc
 
 $(OBJDIR)/XrdCmsManList.o:   XrdCmsManList.cc    XrdCmsManList.hh \
-                             XrdOucPup.hh        XrdNetDNS.hh \
+                             XrdOucPup.hh        XrdSysDNS.hh \
                              XrdSysPlatform.hh   XrdSysPthread.hh
 	@echo Compiling XrdCmsManList.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsManList.o XrdCmsManList.cc
@@ -345,7 +345,7 @@ $(OBJDIR)/XrdCmsNode.o:      XrdCmsNode.cc       XrdCmsNode.hh \
                              XrdCmsRRQ.hh        XrdCmsSelect.hh \
                              XrdCmsState.hh      XrdCmsTrace.hh \
                              XrdCmsTypes.hh      XrdCmsXmi.hh \
-                             XrdOss.hh           XrdNetDNS.hh \
+                             XrdOss.hh           XrdSysDNS.hh \
                              XrdOucName2Name.hh  XrdOucProg.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
                              XrdOucUtils.hh \
@@ -381,7 +381,7 @@ $(OBJDIR)/XrdCmsPrepArgs.o:  XrdCmsPrepArgs.cc   XrdCmsPrepArgs.hh \
 $(OBJDIR)/XrdCmsPrepare.o:   XrdCmsPrepare.cc    XrdCmsPrepare.hh \
                              XrdCmsConfig.hh     XrdCmsPrepArgs.hh \
                              XrdCmsTrace.hh      XrdNetMsg.hh \
-                             XrdFrmProxy.hh      XrdOss.hh \
+                             XrdFrcProxy.hh      XrdOss.hh \
                              XrdOucEnv.hh        XrdOucHash.hh \
                              XrdOucMsubs.hh      XrdOucStream.hh \
                              XrdOucTList.hh \
@@ -400,7 +400,7 @@ $(OBJDIR)/XrdCmsProtocol.o:  XrdCmsProtocol.cc   XrdCmsProtocol.hh \
                              XrdCmsTypes.hh      XrdCmsTrace.hh \
                              XrdOucCRC.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
-                             XrdNetDNS.hh \
+                             XrdSysDNS.hh \
                              XrdSysError.hh      XrdSysPthread.hh \
                              XrdSysHeaders.hh    XrdSysTimer.hh \
                              XrdInet.hh          XrdLink.hh \

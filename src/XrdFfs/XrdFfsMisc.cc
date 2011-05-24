@@ -29,7 +29,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsFsinfo.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
@@ -223,7 +223,7 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
         p[0] = '\0';
 
 //        hostname = XrdFfsMisc_getNameByAddr(hostip);
-        if (XrdNetDNS::getAddrName(hostip, 1, haddr, hname))
+        if (XrdSysDNS::getAddrName(hostip, 1, haddr, hname))
             hostname = hname[0];
         else
             hostname = hostip;

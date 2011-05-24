@@ -83,6 +83,7 @@ SUBDIRS = XrdSys \
           XrdSfs \
           XrdAcc \
           XrdBwm \
+          XrdFrc \
           XrdOss \
           Xrd \
           XrdFrm \

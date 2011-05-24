@@ -1,8 +1,8 @@
-#ifndef __XRDFRMXATTR_HH__
-#define __XRDFRMXATTR_HH__
+#ifndef __XRDFRCXATTR_HH__
+#define __XRDFRCXATTR_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m X A t t r . h h                         */
+/*                        X r d F r c X A t t r . h h                         */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -17,17 +17,17 @@
 
 #include "XrdSys/XrdSysPlatform.hh"
 
-/* XrdFrmXAttr encapsulates the extended attributes needed to determine
+/* XrdFrcXAttr encapsulates the extended attributes needed to determine
    file residency. It is used by the FRM in migrate and purge processing as well
    as for the OSS to determine file residency in memory. It is self-contained
    to prevent circular dependencies.
 */
 
 /******************************************************************************/
-/*                        X r d F r m X A t t r C p y                         */
+/*                        X r d F r c X A t t r C p y                         */
 /******************************************************************************/
   
-class XrdFrmXAttrCpy
+class XrdFrcXAttrCpy
 {
 public:
 
@@ -44,7 +44,7 @@ char      Rsvd[16];    // Reserved fields
 /* preSet() will put cpyTime in network byte order to allow the attribute to
             to be copied to different architectures and still work.
 */
-       XrdFrmXAttrCpy *preSet(XrdFrmXAttrCpy &tmp)
+       XrdFrcXAttrCpy *preSet(XrdFrcXAttrCpy &tmp)
                              {tmp.cpyTime = htonll(cpyTime); return &tmp;}
 
 /* Name() returns the extended attribute name for this object.
@@ -53,18 +53,18 @@ static const char     *Name() {return "XrdFrm.Cpy";}
 
 /* sizeGet() and sizeSet() return the actual size of the object is used.
 */
-static int             sizeGet() {return sizeof(XrdFrmXAttrCpy);}
-static int             sizeSet() {return sizeof(XrdFrmXAttrCpy);}
+static int             sizeGet() {return sizeof(XrdFrcXAttrCpy);}
+static int             sizeSet() {return sizeof(XrdFrcXAttrCpy);}
 
-       XrdFrmXAttrCpy() : cpyTime(0) {memset(Rsvd, 0, sizeof(Rsvd));}
-      ~XrdFrmXAttrCpy() {}
+       XrdFrcXAttrCpy() : cpyTime(0) {memset(Rsvd, 0, sizeof(Rsvd));}
+      ~XrdFrcXAttrCpy() {}
 };
   
 /******************************************************************************/
-/*                        X r d F r m X A t t r M e m                         */
+/*                        X r d F r c X A t t r M e m                         */
 /******************************************************************************/
   
-class XrdFrmXAttrMem
+class XrdFrcXAttrMem
 {
 public:
 
@@ -80,7 +80,7 @@ static const char memLock = 0x04; // Mmap the file and lock it in memory
 /* postGet() and preSet() are minimal as no chages are needed
 */
 static int             postGet(int Result)         {return Result;}
-       XrdFrmXAttrMem *preSet(XrdFrmXAttrMem &tmp) {return this;}
+       XrdFrcXAttrMem *preSet(XrdFrcXAttrMem &tmp) {return this;}
 
 /* Name() returns the extended attribute name for this object.
 */
@@ -88,18 +88,18 @@ static const char     *Name() {return "XrdFrm.Mem";}
 
 /* sizeGet() and sizeSet() return the actual size of the object is used.
 */
-static int             sizeGet() {return sizeof(XrdFrmXAttrMem);}
-static int             sizeSet() {return sizeof(XrdFrmXAttrMem);}
+static int             sizeGet() {return sizeof(XrdFrcXAttrMem);}
+static int             sizeSet() {return sizeof(XrdFrcXAttrMem);}
 
-       XrdFrmXAttrMem() : Flags(0) {memset(Rsvd, 0, sizeof(Rsvd));}
-      ~XrdFrmXAttrMem() {}
+       XrdFrcXAttrMem() : Flags(0) {memset(Rsvd, 0, sizeof(Rsvd));}
+      ~XrdFrcXAttrMem() {}
 };
 
 /******************************************************************************/
-/*                        X r d F r m X A t t r P i n                         */
+/*                        X r d F r c X A t t r P i n                         */
 /******************************************************************************/
   
-class XrdFrmXAttrPin
+class XrdFrcXAttrPin
 {
 public:
 
@@ -124,7 +124,7 @@ static const char pinSet  = 0x07; // Pin is valid
 /* preSet() will put pinTime in network byte order to allow the attribute to
             to be copied to different architectures and still work.
 */
-       XrdFrmXAttrPin *preSet(XrdFrmXAttrPin &tmp)
+       XrdFrcXAttrPin *preSet(XrdFrcXAttrPin &tmp)
                              {tmp.pinTime = htonll(pinTime); tmp.Flags = Flags;
                               return &tmp;
                              }
@@ -136,18 +136,18 @@ static const char     *Name() {return "XrdFrm.Pin";}
 
 /* sizeGet() and sizeSet() return the actual size of the object is used.
 */
-static int             sizeGet() {return sizeof(XrdFrmXAttrCpy);}
-static int             sizeSet() {return sizeof(XrdFrmXAttrCpy);}
+static int             sizeGet() {return sizeof(XrdFrcXAttrCpy);}
+static int             sizeSet() {return sizeof(XrdFrcXAttrCpy);}
 
-       XrdFrmXAttrPin() : pinTime(0), Flags(0) {memset(Rsvd, 0, sizeof(Rsvd));}
-      ~XrdFrmXAttrPin() {}
+       XrdFrcXAttrPin() : pinTime(0), Flags(0) {memset(Rsvd, 0, sizeof(Rsvd));}
+      ~XrdFrcXAttrPin() {}
 };
 
 /******************************************************************************/
-/*                        X r d F r m X A t t r P f n                         */
+/*                        X r d F r c X A t t r P f n                         */
 /******************************************************************************/
   
-class XrdFrmXAttrPfn
+class XrdFrcXAttrPfn
 {
 public:
 
@@ -156,7 +156,7 @@ char      Pfn[MAXPATHLEN+8]; // Enough room for the Pfn
 /* postGet() and preSet() are minimal as no chages are needed
 */
 static int             postGet(int Result)         {return Result;}
-       XrdFrmXAttrPfn *preSet(XrdFrmXAttrPfn &tmp) {return this;}
+       XrdFrcXAttrPfn *preSet(XrdFrcXAttrPfn &tmp) {return this;}
 
 /* Name() returns the extended attribute name for this object.
 */
@@ -164,13 +164,13 @@ static const char     *Name() {return "XrdFrm.Pfn";}
 
 /* sizeGet() return the actual size of the object is used.
 */
-static int             sizeGet() {return sizeof(XrdFrmXAttrPfn);}
+static int             sizeGet() {return sizeof(XrdFrcXAttrPfn);}
 
 /* sizeSet() returns the length of the Pfn string plus the null byte.
 */
        int             sizeSet() {return strlen(Pfn)+1;}
 
-       XrdFrmXAttrPfn() {*Pfn = 0;}
-      ~XrdFrmXAttrPfn() {}
+       XrdFrcXAttrPfn() {*Pfn = 0;}
+      ~XrdFrcXAttrPfn() {}
 };
 #endif

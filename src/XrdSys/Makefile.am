@@ -24,6 +24,7 @@ lib_LTLIBRARIES = libXrdSys.la
 noinst_LTLIBRARIES = libXrdSysErrLog.la
 
 xrootdsysinc_HEADERS = \
+     XrdSysDNS.hh \
      XrdSysDir.hh       XrdSysFAttr.hh     XrdSysFAttrBsd.icc \
      XrdSysFAttrLnx.icc XrdSysFAttrMac.icc XrdSysFAttrSun.icc \
      XrdSysLogger.hh    XrdSysPlugin.hh \
@@ -40,6 +41,7 @@ libXrdSysErrLog_la_SOURCES = \
         XrdSysLogger.cc XrdSysLogger.hh
 
 libXrdSys_la_SOURCES = \
+        XrdSysDNS.cc XrdSysDNS.hh \
         XrdSysDir.cc XrdSysDir.hh \
         XrdSysFAttr.cc XrdSysFAttr.hh \
         XrdSysPlugin.cc XrdSysPlugin.hh \

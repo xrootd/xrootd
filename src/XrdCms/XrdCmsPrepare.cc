@@ -7,12 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//         $Id$
-
-// Original Version: 1.11 2007/08/08 19:18:47 abh
-
-const char *XrdCmsPrepareCVSID = "$Id$";
   
 #include <fcntl.h>
 #include <stdlib.h>
@@ -23,7 +17,7 @@ const char *XrdCmsPrepareCVSID = "$Id$";
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsPrepare.hh"
 #include "XrdCms/XrdCmsTrace.hh"
-#include "XrdFrm/XrdFrmProxy.hh"
+#include "XrdFrc/XrdFrcProxy.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -324,11 +318,11 @@ void XrdCmsPrepare::Reset(const char *iName, const char *aPath, int aMode)
 // In any case, do a standard reset.
 //
    if (!*prepif)
-      {PrepFrm = new XrdFrmProxy(Say.logger(), iName);
+      {PrepFrm = new XrdFrcProxy(Say.logger(), iName);
        DEBUG("Initializing internal FRM prepare interface.");
        strcpy(baseAP, aPath); baseAP[strlen(baseAP)-1] = '\0';
        if ((Slash = rindex(baseAP, '/'))) *Slash = '\0';
-       if (!(prepOK = PrepFrm->Init(XrdFrmProxy::opStg, baseAP, aMode)))
+       if (!(prepOK = PrepFrm->Init(XrdFrcProxy::opStg, baseAP, aMode)))
           {Say.Emsg("Reset", "Built-in prepare init failed; prepare disabled.");
            return;
           }
@@ -402,7 +396,7 @@ void XrdCmsPrepare::Reset()  // Must be called with PTMutex locked!
 // Hanlde via built-in mechanism
 //
    if (PrepFrm)
-      {XrdFrmProxy::Queues State(XrdFrmProxy::opStg);
+      {XrdFrcProxy::Queues State(XrdFrcProxy::opStg);
        char Buff[1024];
        if (prepOK)
           {PTable.Purge(); NumFiles = 0;

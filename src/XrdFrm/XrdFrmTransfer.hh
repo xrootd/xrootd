@@ -13,8 +13,6 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class  XrdFrmReqFile;
-class  XrdFrmRequest;
 struct XrdFrmTranArg;
 struct XrdFrmTranChk;
 class  XrdFrmXfrJob;

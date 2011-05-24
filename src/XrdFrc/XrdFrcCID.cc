@@ -1,16 +1,12 @@
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d F r m C I D . c c                           */
+/*                          X r d F r c C I D . c c                           */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdFrmCIDCVSID = "$Id$";
 
 #include <string.h>
 #include <strings.h>
@@ -23,28 +19,28 @@ const char *XrdFrmCIDCVSID = "$Id$";
 #include <sys/stat.h>
 #include <sys/uio.h>
 
-#include "XrdFrm/XrdFrmCID.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrc/XrdFrcCID.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-XrdFrmCID   XrdFrm::CID;
+XrdFrcCID   XrdFrc::CID;
 
-XrdSysMutex XrdFrmCID::cidMon::cidMutex;
+XrdSysMutex XrdFrcCID::cidMon::cidMutex;
   
 /******************************************************************************/
 /*                                   A d d                                    */
 /******************************************************************************/
   
-int XrdFrmCID::Add(const char *iName, const char *cName, time_t addT, pid_t Pid)
+int XrdFrcCID::Add(const char *iName, const char *cName, time_t addT, pid_t Pid)
 {
    cidMon cidMonitor;
    cidEnt *cP;
@@ -81,7 +77,7 @@ int XrdFrmCID::Add(const char *iName, const char *cName, time_t addT, pid_t Pid)
 /* Private:                         F i n d                                   */
 /******************************************************************************/
 
-XrdFrmCID::cidEnt *XrdFrmCID::Find(const char *iName)
+XrdFrcCID::cidEnt *XrdFrcCID::Find(const char *iName)
 {
    cidEnt *cP;
 
@@ -104,7 +100,7 @@ XrdFrmCID::cidEnt *XrdFrmCID::Find(const char *iName)
 /* Public:                           G e t                                    */
 /******************************************************************************/
   
-int XrdFrmCID::Get(const char *iName, char *buff, int blen)
+int XrdFrcCID::Get(const char *iName, char *buff, int blen)
 {
    cidMon cidMonitor;
    cidEnt *cP;
@@ -120,7 +116,7 @@ int XrdFrmCID::Get(const char *iName, char *buff, int blen)
 }
 /******************************************************************************/
   
-int XrdFrmCID::Get(const char *iName, const char *vName, XrdOucEnv *evP)
+int XrdFrcCID::Get(const char *iName, const char *vName, XrdOucEnv *evP)
 {
    cidMon cidMonitor;
    cidEnt *cP;
@@ -139,7 +135,7 @@ int XrdFrmCID::Get(const char *iName, const char *vName, XrdOucEnv *evP)
 /* Public:                          I n i t                                   */
 /******************************************************************************/
 
-int XrdFrmCID::Init(const char *aPath)
+int XrdFrcCID::Init(const char *aPath)
 {
    EPNAME("Init");
    XrdOucStream cidFile(&Say);
@@ -186,7 +182,7 @@ int XrdFrmCID::Init(const char *aPath)
 
 /******************************************************************************/
 
-int XrdFrmCID::Init(XrdOucStream &cidFile)
+int XrdFrcCID::Init(XrdOucStream &cidFile)
 {
    EPNAME("Init");
    char *iP, *cP, *tP, *uP;
@@ -228,7 +224,7 @@ int XrdFrmCID::Init(XrdOucStream &cidFile)
 /* Public:                           R e f                                    */
 /******************************************************************************/
   
-void XrdFrmCID::Ref(const char *iName)
+void XrdFrcCID::Ref(const char *iName)
 {
    cidMon cidMonitor;
    cidEnt *cP;
@@ -242,7 +238,7 @@ void XrdFrmCID::Ref(const char *iName)
 /* Private:                       U p d a t e                                 */
 /******************************************************************************/
   
-int XrdFrmCID::Update()
+int XrdFrcCID::Update()
 {
    EPNAME("Update");
    static char buff[40];

@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
-const char *XrdSecServerCVSID = "$Id$";
-
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -22,12 +18,12 @@ const char *XrdSecServerCVSID = "$Id$";
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -555,7 +551,7 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
 // Translate "localhost" to our local hostname
 //
    if (!strcmp("localhost", thost))
-      {free(thost); thost = XrdNetDNS::getHostName();}
+      {free(thost); thost = XrdSysDNS::getHostName();}
 
 // Create new bind object
 //

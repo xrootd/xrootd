@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m U t i l s . c c                         */
+/*                        X r d F r c U t i l s . c c                         */
 /*                                                                            */
 /* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -15,10 +15,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
-#include "XrdFrm/XrdFrmXLock.hh"
-#include "XrdFrm/XrdFrmXAttr.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 
 #include "XrdOuc/XrdOucSxeq.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -28,13 +27,13 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
   
 /******************************************************************************/
 /*                                   A s k                                    */
 /******************************************************************************/
   
-char XrdFrmUtils::Ask(char dflt, const char *Msg1, const char *Msg2,
+char XrdFrcUtils::Ask(char dflt, const char *Msg1, const char *Msg2,
                                  const char *Msg3)
 {
    const char *Hint;
@@ -59,7 +58,7 @@ char XrdFrmUtils::Ask(char dflt, const char *Msg1, const char *Msg2,
 /*                                c h k U R L                                 */
 /******************************************************************************/
   
-int XrdFrmUtils::chkURL(const char *Url)
+int XrdFrcUtils::chkURL(const char *Url)
 {
    const char *Elem;
 
@@ -80,7 +79,7 @@ int XrdFrmUtils::chkURL(const char *Url)
 /*                              m a k e P a t h                               */
 /******************************************************************************/
   
-char *XrdFrmUtils::makePath(const char *iName, const char *Path, int Mode)
+char *XrdFrcUtils::makePath(const char *iName, const char *Path, int Mode)
 {
    char *bPath;
    int rc;
@@ -105,7 +104,7 @@ char *XrdFrmUtils::makePath(const char *iName, const char *Path, int Mode)
 /*                              m a k e Q D i r                               */
 /******************************************************************************/
   
-char *XrdFrmUtils::makeQDir(const char *Path, int Mode)
+char *XrdFrcUtils::makeQDir(const char *Path, int Mode)
 {
    char qPath[1032], qLink[2048];
    int n, lksz, rc;
@@ -142,18 +141,18 @@ char *XrdFrmUtils::makeQDir(const char *Path, int Mode)
 /*                                M a p M 2 O                                 */
 /******************************************************************************/
   
-int XrdFrmUtils::MapM2O(const char *Nop, const char *Pop)
+int XrdFrcUtils::MapM2O(const char *Nop, const char *Pop)
 {
    int Options = 0;
 
 // Map processing options to request options
 //
-   if (index(Pop, 'w')) Options |= XrdFrmRequest::makeRW;
+   if (index(Pop, 'w')) Options |= XrdFrcRequest::makeRW;
       if (*Nop != '-')
          {if (index(Pop, 's') ||  index(Pop, 'n'))
-             Options |= XrdFrmRequest::msgSucc;
+             Options |= XrdFrcRequest::msgSucc;
           if (index(Pop, 'f') || !index(Pop, 'q'))
-             Options |= XrdFrmRequest::msgFail;
+             Options |= XrdFrcRequest::msgFail;
          }
 
 // All done
@@ -165,43 +164,43 @@ int XrdFrmUtils::MapM2O(const char *Nop, const char *Pop)
 /*                                M a p R 2 Q                                 */
 /******************************************************************************/
   
-int XrdFrmUtils::MapR2Q(char Opc, int *Flags)
+int XrdFrcUtils::MapR2Q(char Opc, int *Flags)
 {
 
 // Simply map the request code to the relevant queue
 //
    switch(Opc)
          {case 0  :
-          case '+': return XrdFrmRequest::stgQ;
-          case '^': if (Flags) *Flags = XrdFrmRequest::Purge;
-          case '&': return XrdFrmRequest::migQ;
-          case '<': return XrdFrmRequest::getQ;
-          case '=': if (Flags) *Flags |= XrdFrmRequest::Purge;
-          case '>': return XrdFrmRequest::putQ;
+          case '+': return XrdFrcRequest::stgQ;
+          case '^': if (Flags) *Flags = XrdFrcRequest::Purge;
+          case '&': return XrdFrcRequest::migQ;
+          case '<': return XrdFrcRequest::getQ;
+          case '=': if (Flags) *Flags |= XrdFrcRequest::Purge;
+          case '>': return XrdFrcRequest::putQ;
           default:  break;
          }
-   return XrdFrmRequest::nilQ;
+   return XrdFrcRequest::nilQ;
 }
   
 /******************************************************************************/
 /*                                M a p V 2 I                                 */
 /******************************************************************************/
   
-int XrdFrmUtils::MapV2I(const char *vName, XrdFrmRequest::Item &ICode)
+int XrdFrcUtils::MapV2I(const char *vName, XrdFrcRequest::Item &ICode)
 {
-   static struct ITypes {const char *IName; XrdFrmRequest::Item ICode;}
-                 ITList[] = {{"lfn",    XrdFrmRequest::getLFN},
-                             {"lfncgi", XrdFrmRequest::getLFNCGI},
-                             {"mode",   XrdFrmRequest::getMODE},
-                             {"obj",    XrdFrmRequest::getOBJ},
-                             {"objcgi", XrdFrmRequest::getOBJCGI},
-                             {"op",     XrdFrmRequest::getOP},
-                             {"prty",   XrdFrmRequest::getPRTY},
-                             {"qwt",    XrdFrmRequest::getQWT},
-                             {"rid",    XrdFrmRequest::getRID},
-                             {"tod",    XrdFrmRequest::getTOD},
-                             {"note",   XrdFrmRequest::getNOTE},
-                             {"tid",    XrdFrmRequest::getUSER}};
+   static struct ITypes {const char *IName; XrdFrcRequest::Item ICode;}
+                 ITList[] = {{"lfn",    XrdFrcRequest::getLFN},
+                             {"lfncgi", XrdFrcRequest::getLFNCGI},
+                             {"mode",   XrdFrcRequest::getMODE},
+                             {"obj",    XrdFrcRequest::getOBJ},
+                             {"objcgi", XrdFrcRequest::getOBJCGI},
+                             {"op",     XrdFrcRequest::getOP},
+                             {"prty",   XrdFrcRequest::getPRTY},
+                             {"qwt",    XrdFrcRequest::getQWT},
+                             {"rid",    XrdFrcRequest::getRID},
+                             {"tod",    XrdFrcRequest::getTOD},
+                             {"note",   XrdFrcRequest::getNOTE},
+                             {"tid",    XrdFrcRequest::getUSER}};
    static const int ITNum = sizeof(ITList)/sizeof(struct ITypes);
    int i;
 
@@ -217,7 +216,7 @@ int XrdFrmUtils::MapV2I(const char *vName, XrdFrmRequest::Item &ICode)
 /*                                U n i q u e                                 */
 /******************************************************************************/
   
-int XrdFrmUtils::Unique(const char *lkfn, const char *myProg)
+int XrdFrcUtils::Unique(const char *lkfn, const char *myProg)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    FLOCK_t lock_args;
@@ -253,9 +252,9 @@ int XrdFrmUtils::Unique(const char *lkfn, const char *myProg)
 /*                               u p d t C p y                                */
 /******************************************************************************/
   
-int XrdFrmUtils::updtCpy(const char *Pfn, int Adj)
+int XrdFrcUtils::updtCpy(const char *Pfn, int Adj)
 {
-   XrdOucXAttr<XrdFrmXAttrCpy> cpyInfo;
+   XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
    struct stat Stat;
 
 // Make sure the base file exists
@@ -272,7 +271,7 @@ int XrdFrmUtils::updtCpy(const char *Pfn, int Adj)
 /*                                 U t i m e                                  */
 /******************************************************************************/
   
-int XrdFrmUtils::Utime(const char *Path, time_t tVal)
+int XrdFrcUtils::Utime(const char *Path, time_t tVal)
 {
    struct utimbuf tbuf = {tVal, tVal};
    int rc;

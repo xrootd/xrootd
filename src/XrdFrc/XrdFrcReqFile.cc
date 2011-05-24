@@ -1,16 +1,12 @@
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d F r m R e q F i l e . c c                       */
+/*                      X r d F r c R e q F i l e . c c                       */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdFrmReqFileCVSID = "$Id$";
 
 #include <string.h>
 #include <strings.h>
@@ -22,25 +18,25 @@ const char *XrdFrmReqFileCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdFrm/XrdFrmCID.hh"
-#include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
+#include "XrdFrc/XrdFrcCID.hh"
+#include "XrdFrc/XrdFrcReqFile.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-XrdSysMutex XrdFrmReqFile::rqMonitor::rqMutex;
+XrdSysMutex XrdFrcReqFile::rqMonitor::rqMutex;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdFrmReqFile::XrdFrmReqFile(const char *fn, int aVal)
+XrdFrcReqFile::XrdFrcReqFile(const char *fn, int aVal)
 {
    char buff[1200];
 
@@ -56,10 +52,10 @@ XrdFrmReqFile::XrdFrmReqFile(const char *fn, int aVal)
 /*                                   A d d                                    */
 /******************************************************************************/
   
-void XrdFrmReqFile::Add(XrdFrmRequest *rP)
+void XrdFrcReqFile::Add(XrdFrcRequest *rP)
 {
    rqMonitor rqMon(isAgent);
-   XrdFrmRequest tmpReq;
+   XrdFrcRequest tmpReq;
    int fP;
 
 // Lock the file
@@ -80,7 +76,7 @@ void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 
 // Chain in the request (registration requests go fifo)
 //
-   if (rP->Options & XrdFrmRequest::Register)
+   if (rP->Options & XrdFrcRequest::Register)
       {if (HdrData.First) rP->Next = HdrData.First;
           else {HdrData.First = HdrData.Last = fP; rP->Next = 0;}
       } else {
@@ -105,10 +101,10 @@ void XrdFrmReqFile::Add(XrdFrmRequest *rP)
 /*                                   C a n                                    */
 /******************************************************************************/
 
-void XrdFrmReqFile::Can(XrdFrmRequest *rP)
+void XrdFrcReqFile::Can(XrdFrcRequest *rP)
 {
    rqMonitor rqMon(isAgent);
-   XrdFrmRequest tmpReq;
+   XrdFrcRequest tmpReq;
    int Offs, numCan = 0, numBad = 0;
    struct stat buf;
    char txt[128];
@@ -146,10 +142,10 @@ void XrdFrmReqFile::Can(XrdFrmRequest *rP)
 /*                                   D e l                                    */
 /******************************************************************************/
 
-void XrdFrmReqFile::Del(XrdFrmRequest *rP)
+void XrdFrcReqFile::Del(XrdFrcRequest *rP)
 {
    rqMonitor rqMon(isAgent);
-   XrdFrmRequest tmpReq;
+   XrdFrcRequest tmpReq;
 
 // Lock the file
 //
@@ -168,7 +164,7 @@ void XrdFrmReqFile::Del(XrdFrmRequest *rP)
 /*                                   G e t                                    */
 /******************************************************************************/
   
-int XrdFrmReqFile::Get(XrdFrmRequest *rP)
+int XrdFrcReqFile::Get(XrdFrcRequest *rP)
 {
    int fP, rc;
 
@@ -197,11 +193,11 @@ int XrdFrmReqFile::Get(XrdFrmRequest *rP)
 /*                                  I n i t                                   */
 /******************************************************************************/
 
-int XrdFrmReqFile::Init()
+int XrdFrcReqFile::Init()
 {
    EPNAME("Init");
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
-   XrdFrmRequest tmpReq;
+   XrdFrcRequest tmpReq;
    struct stat buf;
    recEnt *RegList = 0, *First = 0, *rP, *pP, *tP;
    int    Offs, rc, numreq = 0;
@@ -250,7 +246,7 @@ int XrdFrmReqFile::Init()
         if (*tmpReq.LFN == '\0' || !tmpReq.addTOD
         ||  tmpReq.Opaque >= int(sizeof(tmpReq.LFN))) continue;
         pP = 0; rP = First; tP = new recEnt(tmpReq); numreq++;
-        if (tmpReq.Options & XrdFrmRequest::Register)
+        if (tmpReq.Options & XrdFrcRequest::Register)
            {tP->Next = RegList; RegList = tP;
            } else {
             while(rP && rP->reqData.addTOD < tmpReq.addTOD) {pP=rP;rP=rP->Next;}
@@ -291,11 +287,11 @@ int XrdFrmReqFile::Init()
 /*                                  L i s t                                   */
 /******************************************************************************/
   
-char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
-                           XrdFrmRequest::Item *ITList, int ITNum)
+char  *XrdFrcReqFile::List(char *Buff, int bsz, int &Offs,
+                           XrdFrcRequest::Item *ITList, int ITNum)
 {
    rqMonitor rqMon(isAgent);
-   XrdFrmRequest tmpReq;
+   XrdFrcRequest tmpReq;
    int rc;
 
 // Set Offs argument
@@ -314,7 +310,7 @@ char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
          {Offs += ReqSize;
           if (*tmpReq.LFN == '\0' || !tmpReq.addTOD
           ||  tmpReq.Opaque >= int(sizeof(tmpReq.LFN))
-          ||  tmpReq.Options & XrdFrmRequest::Register) continue;
+          ||  tmpReq.Options & XrdFrcRequest::Register) continue;
           FileLock(lkNone);
           if (!ITNum || !ITList) strlcpy(Buff, tmpReq.LFN, bsz);
              else ListL(tmpReq, Buff, bsz, ITList, ITNum);
@@ -336,8 +332,8 @@ char  *XrdFrmReqFile::List(char *Buff, int bsz, int &Offs,
 /*                                 L i s t L                                  */
 /******************************************************************************/
   
-void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
-                          XrdFrmRequest::Item *ITList, int ITNum)
+void XrdFrcReqFile::ListL(XrdFrcRequest &tmpReq, char *Buff, int bsz,
+                          XrdFrcRequest::Item *ITList, int ITNum)
 {
    char What, tbuf[32];
    long long tval;
@@ -346,18 +342,18 @@ void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
    for (i = 0; i < ITNum && bln > 0; i++)
        {Lfo = tmpReq.LFO;
         switch(ITList[i])
-              {case XrdFrmRequest::getOBJ:
+              {case XrdFrcRequest::getOBJ:
                     Lfo = 0;
 
-               case XrdFrmRequest::getLFN:     
+               case XrdFrcRequest::getLFN:     
                     n = strlen(tmpReq.LFN+Lfo);
                     strlcpy(Buff, tmpReq.LFN+Lfo, bln);
                     break;
 
-               case XrdFrmRequest::getOBJCGI:
+               case XrdFrcRequest::getOBJCGI:
                     Lfo = 0;
 
-               case XrdFrmRequest::getLFNCGI:
+               case XrdFrcRequest::getLFNCGI:
                     n = strlen(tmpReq.LFN); tmpReq.LFN[n] = '?';
                     if (!tmpReq.Opaque) tmpReq.LFN[n+1] = '\0';
                     strlcpy(Buff, tmpReq.LFN+Lfo, bln);
@@ -365,28 +361,28 @@ void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
                     tmpReq.LFN[n] = '\0'; n = k;
                     break;
 
-               case XrdFrmRequest::getMODE:
+               case XrdFrcRequest::getMODE:
                     n = 0;
-                    What = (tmpReq.Options & XrdFrmRequest::makeRW
+                    What = (tmpReq.Options & XrdFrcRequest::makeRW
                          ? 'w' : 'r');
                     if (bln) {Buff[n] = What; n++;}
-                    if (tmpReq.Options & XrdFrmRequest::msgFail)
+                    if (tmpReq.Options & XrdFrcRequest::msgFail)
                     if (bln-n > 0) {Buff[n] = 'f'; n++;}
-                    if (tmpReq.Options & XrdFrmRequest::msgSucc)
+                    if (tmpReq.Options & XrdFrcRequest::msgSucc)
                     if (bln-n > 0) {Buff[n] = 'n'; n++;}
                     break;
 
-               case XrdFrmRequest::getNOTE:
+               case XrdFrcRequest::getNOTE:
                     n = strlen(tmpReq.Notify);
                     strlcpy(Buff, tmpReq.Notify, bln);
                     break;
 
-               case XrdFrmRequest::getOP:
+               case XrdFrcRequest::getOP:
                     *Buff     = tmpReq.OPc;
                     n = 1;
                     break;
 
-               case XrdFrmRequest::getPRTY:
+               case XrdFrcRequest::getPRTY:
                     if (tmpReq.Prty == 2) What = '2';
                        else if (tmpReq.Prty == 1) What = '1';
                                else What = '0';
@@ -394,20 +390,20 @@ void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
                     if (bln) *Buff = What;
                     break;
 
-               case XrdFrmRequest::getQWT:
-               case XrdFrmRequest::getTOD:
+               case XrdFrcRequest::getQWT:
+               case XrdFrcRequest::getTOD:
                     tval = tmpReq.addTOD;
-                    if (ITList[i] == XrdFrmRequest::getQWT) tval = time(0)-tval;
+                    if (ITList[i] == XrdFrcRequest::getQWT) tval = time(0)-tval;
                     if ((n = sprintf(tbuf, "%lld", tval)) >= 0)
                        strlcpy(Buff, tbuf, bln);
                     break;
 
-               case XrdFrmRequest::getRID:
+               case XrdFrcRequest::getRID:
                     n = strlen(tmpReq.ID);
                     strlcpy(Buff, tmpReq.ID, bln);
                     break;
 
-               case XrdFrmRequest::getUSER:
+               case XrdFrcRequest::getUSER:
                     n = strlen(tmpReq.User);
                     strlcpy(Buff, tmpReq.User, bln);
                     break;
@@ -424,7 +420,7 @@ void XrdFrmReqFile::ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
 /*                               F a i l A d d                                */
 /******************************************************************************/
   
-void XrdFrmReqFile::FailAdd(char *lfn, int unlk)
+void XrdFrcReqFile::FailAdd(char *lfn, int unlk)
 {
    Say.Emsg("Add", lfn, "not added to prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -434,7 +430,7 @@ void XrdFrmReqFile::FailAdd(char *lfn, int unlk)
 /*                               F a i l C a n                                */
 /******************************************************************************/
   
-void XrdFrmReqFile::FailCan(char *rid, int unlk)
+void XrdFrcReqFile::FailCan(char *rid, int unlk)
 {
    Say.Emsg("Can", rid, "request not removed from prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -444,7 +440,7 @@ void XrdFrmReqFile::FailCan(char *rid, int unlk)
 /*                               F a i l D e l                                */
 /******************************************************************************/
   
-void XrdFrmReqFile::FailDel(char *lfn, int unlk)
+void XrdFrcReqFile::FailDel(char *lfn, int unlk)
 {
    Say.Emsg("Del", lfn, "not removed from prestage queue.");
    if (unlk) FileLock(lkNone);
@@ -454,7 +450,7 @@ void XrdFrmReqFile::FailDel(char *lfn, int unlk)
 /*                               F a i l I n i                                */
 /******************************************************************************/
 
-int XrdFrmReqFile::FailIni(const char *txt)
+int XrdFrcReqFile::FailIni(const char *txt)
 {
    Say.Emsg("Init", errno, txt, reqFN);
    FileLock(lkNone);
@@ -465,7 +461,7 @@ int XrdFrmReqFile::FailIni(const char *txt)
 /*                              F i l e L o c k                               */
 /******************************************************************************/
   
-int XrdFrmReqFile::FileLock(LockType lktype)
+int XrdFrcReqFile::FileLock(LockType lktype)
 {
    FLOCK_t lock_args;
    const char *What;
@@ -513,7 +509,7 @@ int XrdFrmReqFile::FileLock(LockType lktype)
 /*                               r e q R e a d                                */
 /******************************************************************************/
   
-int XrdFrmReqFile::reqRead(void *Buff, int Offs)
+int XrdFrcReqFile::reqRead(void *Buff, int Offs)
 {
    int rc;
 
@@ -526,7 +522,7 @@ int XrdFrmReqFile::reqRead(void *Buff, int Offs)
 /*                              r e q W r i t e                               */
 /******************************************************************************/
   
-int XrdFrmReqFile::reqWrite(void *Buff, int Offs, int updthdr)
+int XrdFrcReqFile::reqWrite(void *Buff, int Offs, int updthdr)
 {
    int rc = 0;
 
@@ -544,7 +540,7 @@ int XrdFrmReqFile::reqWrite(void *Buff, int Offs, int updthdr)
 /*                               R e W r i t e                                */
 /******************************************************************************/
   
-int XrdFrmReqFile::ReWrite(XrdFrmReqFile::recEnt *rP)
+int XrdFrcReqFile::ReWrite(XrdFrcReqFile::recEnt *rP)
 {
    static const int Mode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    char newFN[MAXPATHLEN], *oldFN;

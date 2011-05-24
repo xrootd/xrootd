@@ -1,5 +1,3 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -8,12 +6,11 @@ include ../GNUmake.env
 
 MORELIBS = -L$(LIBDIR) -lXrdSec        $(LIBDIR)/libsslGridSite.a \
              $(LIBDIR)/libXrdNet.a     $(LIBDIR)/libXrdOuc.a \
-             $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdSys.a \
+             $(LIBDIR)/libXrdSys.a \
              $(LIBSSL) $(LIBXML)
 
 LIBDEPS = $(LIBDIR)/libsslGridSite.a  $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdNetUtil.a   $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdSys.a
+          $(LIBDIR)/libXrdOuc.a       $(LIBDIR)/libXrdSys.a
 
 NCXXFLAGS = $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
 NCFLAGS = $(INCXML) $(INCSSL) $(SSLEXTRACFLAGS) -DOPENSSL_NO_KRB5 -U_FORTIFY_SOURCE $(subst deprecated,deprecated-declarations,$(CFLAGS)) 
@@ -105,7 +102,7 @@ $(OBJDIR)/XrdSecProtocolsslProc.o:  XrdSecProtocolsslProc.cc 	XrdSecProtocolsslP
 
 $(OBJDIR)/XrdSecProtocolssl.o:  XrdSecProtocolssl.cc 	XrdSecProtocolssl.hh 	XrdSecInterface.hh \
                                 XrdSecProtocolsslProc.cc XrdSecProtocolsslProc.hh \
-                                XrdSysHeaders.hh 	XrdNetDNS.hh 		XrdOucErrInfo.hh XrdOucHash.hh \
+                                XrdSysHeaders.hh 	XrdSysDNS.hh 		XrdOucErrInfo.hh XrdOucHash.hh \
 				XrdOucString.hh 	XrdOucTrace.hh 		XrdOucTokenizer.hh XrdSysPthread.hh \
 				XrdSysLogger.hh 	XrdSecInterface.hh 	XrdSecTLayer.hh \
                                 XrdSecEntity.hh       	XrdOucErrInfo.hh	XrdSecTLayer.hh \
@@ -117,7 +114,7 @@ $(OBJDIR)/XrdSecProtocolssl.o:  XrdSecProtocolssl.cc 	XrdSecProtocolssl.hh 	XrdS
 	$(ECHO)$(CC) -c $(NCXXFLAGS)  $(INCLUDE) -o $(OBJDIR)/XrdSecProtocolssl.o XrdSecProtocolssl.cc
 
 $(OBJDIR)/XrdSecProtocolsslTest.o:  XrdSecProtocolsslTest.cc 	XrdSecProtocolssl.hh 	XrdSecInterface.hh \
-                                XrdSysHeaders.hh 	XrdNetDNS.hh 		XrdOucErrInfo.hh XrdOucHash.hh \
+                                XrdSysHeaders.hh 	XrdSysDNS.hh 		XrdOucErrInfo.hh XrdOucHash.hh \
 				XrdOucString.hh 	XrdOucTrace.hh 		XrdOucTokenizer.hh XrdSysPthread.hh \
 				XrdSysLogger.hh 	XrdSecInterface.hh 	XrdSecTLayer.hh \
                                 XrdSecEntity.hh       	XrdOucErrInfo.hh	XrdSecTLayer.hh \

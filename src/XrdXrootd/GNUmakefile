@@ -1,12 +1,10 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdCms -lXrd -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
+BINLIBS = -L$(LIBDIR) -lXrdCms -lXrd -lXrdNet -lXrdOuc -lXrdSys \
             $(TYPELIBSF)
 
 #------------------------------------------------------------------------------#
@@ -53,17 +51,16 @@ OBJFS   = \
           $(OBJDIR)/XrdOfsFS.o  \
           $(LIBDIR)/libXrdOfs.a \
           $(LIBDIR)/libXrdOss.a \
-          $(LIBDIR)/libXrdFrm.a \
+          $(LIBDIR)/libXrdFrc.a \
           $(LIBDIR)/libXrdAcc.a
 
 OBJDEPS = \
-          $(LIBDIR)/libXrd.a \
-          $(LIBDIR)/libXrdSys.a \
-          $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdNetUtil.a \
-          $(LIBDIR)/libXrdOuc.a \
+          $(OBJFS) \
           $(LIBDIR)/libXrdCms.a \
-          $(OBJFS)
+          $(LIBDIR)/libXrd.a \
+          $(LIBDIR)/libXrdNet.a \
+          $(LIBDIR)/libXrdOuc.a \
+          $(LIBDIR)/libXrdSys.a
 
 TARGETS  = $(BINDIR)/xrootd
 
@@ -139,7 +136,7 @@ $(OBJDIR)/XrdXrootdConfig.o: XrdXrootdProtocol.hh XrdXrootdFile.hh \
                              XrdXrootdMonitor.hh  XrdXrootdAio.hh \
                              XrdXrootdAdmin.hh    XrdProtocol.hh \
                              XrdXrootdJob.hh      XrdXrootdCallBack.hh \
-                             XrdNetDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
+                             XrdSysDNS.hh         XrdNetSocket.hh  XrdNetOpts.hh \
                              XrdBuffer.hh         XProtocol.hh \
                              XrdOuca2x.hh         XrdSysError.hh  \
                              XrdSysLogger.hh      XrdSysHeaders.hh \
@@ -181,7 +178,7 @@ $(OBJDIR)/XrdXrootdLoadLib.o: XrdSfsInterface.hh XrdSecInterface.hh XrdSysError.
 
 $(OBJDIR)/XrdXrootdMonitor.o: XrdSysError.hh      \
                               XrdSysPthread.hh    XrdSysPlatform.hh \
-                              XrdNet.hh           XrdNetPeer.hh     XrdNetDNS.hh \
+                              XrdNet.hh           XrdNetPeer.hh     XrdSysDNS.hh \
                               XrdScheduler.hh     XrdJob.hh        \
                               XPtypes.hh          XrdXrootdMonitor.hh \
                               XrdXrootdMonData.hh XrdXrootdMonitor.cc  \

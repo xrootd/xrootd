@@ -35,8 +35,6 @@
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
-
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -107,10 +105,6 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
    Options            = 0;
    if (getenv("XRDDEBUG")) OfsTrace.What = TRACE_MOST | TRACE_debug;
 
-// Obtain port number we will be using
-//
-   myPort = (var = getenv("XRDPORT")) ? strtol(var, (char **)NULL, 10) : 0;
-
 // If there is no config file, return with the defaults sets.
 //
    if( !ConfigFN || !*ConfigFN)
@@ -176,7 +170,7 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
                    else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
                          while(bp != buff && *(bp-1) != '/') bp--;
                         }
-                strcpy(bp, "libXrdProxy.so");
+                strcpy(bp, "libXrdPss.so");
                 OssLib = strdup(buff);
                }
       }
@@ -353,10 +347,10 @@ int XrdOfs::ConfigDispFwd(char *buff, struct fwdOpt &Fwd)
   
 int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 {
-   extern XrdOfs XrdOfsFS;
+   extern XrdOfs* XrdOfsFS;
    const int AMode = S_IRWXU|S_IRWXG|S_IROTH|S_IXOTH; // 775
    class  CloseFH : public XrdOfsHanCB
-         {public: void Retired(XrdOfsHandle *hP) {XrdOfsFS.Unpersist(hP);}};
+         {public: void Retired(XrdOfsHandle *hP) {XrdOfsFS->Unpersist(hP);}};
    static XrdOfsHanCB *hCB = static_cast<XrdOfsHanCB *>(new CloseFH);
 
    XrdOfsPoscq::recEnt  *rP, *rPP;

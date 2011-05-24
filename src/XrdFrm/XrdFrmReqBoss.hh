@@ -10,19 +10,17 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-#include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrc/XrdFrcReqFile.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdFrmReqBoss
 {
 public:
 
-void Add(XrdFrmRequest &Request);
+void Add(XrdFrcRequest &Request);
 
-void Del(XrdFrmRequest &Request);
+void Del(XrdFrcRequest &Request);
 
 void Process();
 
@@ -37,10 +35,10 @@ void Wakeup(int PushIt=1);
     ~XrdFrmReqBoss() {}
 
 private:
-void Register(XrdFrmRequest &Req, int qNum);
+void Register(XrdFrcRequest &Req, int qNum);
 
 XrdSysSemaphore  rqReady;
-XrdFrmReqFile   *rQueue[XrdFrmRequest::maxPQE];
+XrdFrcReqFile   *rQueue[XrdFrcRequest::maxPQE];
 const char      *Persona;
 int              theQ;
 int              isPosted;

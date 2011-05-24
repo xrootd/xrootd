@@ -49,8 +49,7 @@ testclient_LDADD =   libXrdSec.la \
                      -ldl \
                      ../XrdOuc/libXrdOuc.la \
                      ../XrdNet/libXrdNet.la \
-                     ../XrdSys/libXrdSys.la \
-                     ../XrdNet/libXrdNetUtil.la
+                     ../XrdSys/libXrdSys.la
 
 testserver_SOURCES = XrdSectestServer.cc
 testserver_LDFLAGS = -static
@@ -58,5 +57,4 @@ testserver_LDADD = libXrdSec.la \
                    -ldl \
                    ../XrdOuc/libXrdOuc.la \
                    ../XrdNet/libXrdNet.la \
-                   ../XrdSys/libXrdSys.la \
-                   ../XrdNet/libXrdNetUtil.la
+                   ../XrdSys/libXrdSys.la

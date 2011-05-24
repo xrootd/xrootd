@@ -200,7 +200,7 @@ $(OBJDIR)/XrdOucTrace.o: XrdSysError.hh XrdOucTrace.hh XrdOucTrace.cc \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucTrace.cc -o $(OBJDIR)/XrdOucTrace.o
 
 $(OBJDIR)/XrdOucUtils.o: XrdOucUtils.cc XrdOucUtils.hh \
-                      XrdSysError.hh XrdOucStream.hh XrdNetDNS.hh
+                      XrdSysError.hh XrdOucStream.hh XrdSysDNS.hh
 	@echo Compiling XrdOucUtils.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdOucUtils.cc -o $(OBJDIR)/XrdOucUtils.o
 

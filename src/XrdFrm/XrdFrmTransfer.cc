@@ -19,16 +19,15 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
-#include "XrdFrm/XrdFrmCID.hh"
+#include "XrdFrc/XrdFrcCID.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcXAttr.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
-#include "XrdFrm/XrdFrmReqFile.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmTransfer.hh"
 #include "XrdFrm/XrdFrmXfrJob.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
-#include "XrdFrm/XrdFrmXAttr.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -39,6 +38,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -261,7 +261,7 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, int &rc, time_t lktime)
 //
    rc = 0;
    if (Config.runNew)
-      {XrdOucXAttr<XrdFrmXAttrCpy> cpyInfo;
+      {XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
        cpyInfo.Attr.cpyTime = static_cast<long long>(lktime);
        if ((rc = cpyInfo.Set(xfrP->PFN)))
           Say.Emsg("Fetch", rc, "set copy time xattr on", xfrP->PFN);
@@ -382,7 +382,7 @@ int XrdFrmTransfer::SetupCmd(XrdFrmTranArg *argP)
               Info(xfrP->reqData.User, argP->theEnv, Config.the_N2N,
                    xfrP->reqData.LFN+xfrP->reqData.LFO,
                    argP->theSrc, xfrP->reqData.Prty,
-                   xfrP->reqData.Options & XrdFrmRequest::makeRW?O_RDWR:O_RDONLY,
+                   xfrP->reqData.Options & XrdFrcRequest::makeRW?O_RDWR:O_RDONLY,
                    argP->theMDP, xfrP->reqData.ID, xfrP->PFN, argP->theDst);
 
 // We must establish the cluster and instance name if we have one
@@ -432,7 +432,7 @@ void XrdFrmTransfer::Start()
          DEBUG(xfrP->Type <<" starting " <<xfrP->reqData.LFN
                <<" for " <<xfrP->reqData.User);
 
-         Msg = (xfrP->qNum & XrdFrmRequest::outQ ? Throw() : Fetch());
+         Msg = (xfrP->qNum & XrdFrcRequest::outQ ? Throw() : Fetch());
          if (Msg && !(xfrP->RetCode)) xfrP->RetCode = 1;
          xfrP->PFN[xfrP->pfnEnd] = 0;
 
@@ -530,7 +530,7 @@ const char *XrdFrmTransfer::Throw()
    time_t xfrET;
    const char *eTxt;
    char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest;
-   int isMigr = xfrP->reqData.Options & XrdFrmRequest::Migrate;
+   int isMigr = xfrP->reqData.Options & XrdFrcRequest::Migrate;
    int iXfr, isURL, rc, mDP = -1;
 
 // The remote source is either the url-lfn or a translated lfn
@@ -567,7 +567,7 @@ const char *XrdFrmTransfer::Throw()
 //
    if (isMigr && (eTxt = ThrowOK(&Chk)))
       {if (*eTxt) return eTxt;
-       if (!(xfrP->reqData.Options & XrdFrmRequest::Purge)) return "logic error";
+       if (!(xfrP->reqData.Options & XrdFrcRequest::Purge)) return "logic error";
        Throwaway();
        return 0;
       }
@@ -616,7 +616,7 @@ const char *XrdFrmTransfer::Throw()
 // make sure that if a lock file exists its date/time is equal to the file
 // we just copied to prevent the file from being copied again (we have a lock).
 //
-   if (xfrP->reqData.Options & XrdFrmRequest::Purge) Throwaway();
+   if (xfrP->reqData.Options & XrdFrcRequest::Purge) Throwaway();
       else if (isMigr) ThrowDone(&Chk, endStat.st_mtime);
 
 // Do statistics if so wanted
@@ -665,7 +665,7 @@ void XrdFrmTransfer::ThrowDone(XrdFrmTranChk *cP, time_t endTime)
 // Update file attributes if we are running in new mode, otherwise do
 //
    if (Config.runNew)
-      {XrdOucXAttr<XrdFrmXAttrCpy> cpyInfo;
+      {XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
        cpyInfo.Attr.cpyTime = static_cast<long long>(endTime);
        if (cpyInfo.Set(xfrP->PFN, cP->lkfd))
           Say.Emsg("Throw", "Unable to set copy time xattr for", xfrP->PFN);
@@ -700,7 +700,7 @@ const char *XrdFrmTransfer::ThrowOK(XrdFrmTranChk *cP)
             ~fdClose() {if (Num >= 0) close(Num);}
         } fnFD;
 
-   XrdOucXAttr<XrdFrmXAttrCpy> cpyInfo;
+   XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
    struct stat lokStat;
    int statRC;
 
@@ -732,7 +732,7 @@ const char *XrdFrmTransfer::ThrowOK(XrdFrmTranChk *cP)
 // Verify the information
 //
    if (cpyInfo.Attr.cpyTime >= static_cast<long long>(cP->Stat->st_mtime))
-      {if (xfrP->reqData.Options & XrdFrmRequest::Purge) return "";
+      {if (xfrP->reqData.Options & XrdFrcRequest::Purge) return "";
        return "already migrated";
       }
 

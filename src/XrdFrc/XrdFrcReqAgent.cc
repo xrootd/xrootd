@@ -1,16 +1,12 @@
 /******************************************************************************/
 /*                                                                            */
-/*                     X r d F r m R e q A g e n t . c c                      */
+/*                     X r d F r c R e q A g e n t . c c                      */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdFrmReqAgentCVSID = "$Id$";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,36 +17,36 @@ const char *XrdFrmReqAgentCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "XrdFrm/XrdFrmReqAgent.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
+#include "XrdFrc/XrdFrcReqAgent.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
-using namespace XrdFrm;
+using namespace XrdFrc;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-char *XrdFrmReqAgent::c2sFN = 0;
+char *XrdFrcReqAgent::c2sFN = 0;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdFrmReqAgent::XrdFrmReqAgent(const char *Me, int qVal)
+XrdFrcReqAgent::XrdFrcReqAgent(const char *Me, int qVal)
               : Persona(Me),theQ(qVal)
 {
 // Set default ping message
 //
    switch(qVal)
-         {case XrdFrmRequest::getQ: pingMsg = "!<\n"; break;
-          case XrdFrmRequest::migQ: pingMsg = "!&\n"; break;
-          case XrdFrmRequest::stgQ: pingMsg = "!+\n"; break;
-          case XrdFrmRequest::putQ: pingMsg = "!>\n"; break;
+         {case XrdFrcRequest::getQ: pingMsg = "!<\n"; break;
+          case XrdFrcRequest::migQ: pingMsg = "!&\n"; break;
+          case XrdFrcRequest::stgQ: pingMsg = "!+\n"; break;
+          case XrdFrcRequest::putQ: pingMsg = "!>\n"; break;
           default:                  pingMsg = "!\n" ; break;
          }
 }
@@ -59,13 +55,13 @@ XrdFrmReqAgent::XrdFrmReqAgent(const char *Me, int qVal)
 /* Public:                           A d d                                    */
 /******************************************************************************/
   
-void XrdFrmReqAgent::Add(XrdFrmRequest &Request)
+void XrdFrcReqAgent::Add(XrdFrcRequest &Request)
 {
 
 // Complete the request including verifying the priority
 //
-   if (Request.Prty > XrdFrmRequest::maxPrty)
-      Request.Prty = XrdFrmRequest::maxPrty;
+   if (Request.Prty > XrdFrcRequest::maxPrty)
+      Request.Prty = XrdFrcRequest::maxPrty;
       else if (Request.Prty < 0)Request.Prty = 0;
 
 // Add time and instance name
@@ -86,27 +82,27 @@ void XrdFrmReqAgent::Add(XrdFrmRequest &Request)
 /* Public:                           D e l                                    */
 /******************************************************************************/
   
-void XrdFrmReqAgent::Del(XrdFrmRequest &Request)
+void XrdFrcReqAgent::Del(XrdFrcRequest &Request)
 {
    int i;
   
 // Remove all pending requests for this id
 //
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++) rQueue[i]->Can(&Request);
+   for (i = 0; i <= XrdFrcRequest::maxPrty; i++) rQueue[i]->Can(&Request);
 }
 
 /******************************************************************************/
 /* Public:                          L i s t                                   */
 /******************************************************************************/
   
-int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num)
+int XrdFrcReqAgent::List(XrdFrcRequest::Item *Items, int Num)
 {
    char myLfn[8192];
    int i, Offs, n = 0;
 
 // List entries in each priority queue
 //
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
+   for (i = 0; i <= XrdFrcRequest::maxPrty; i++)
        {Offs = 0;
         while(rQueue[i]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
              {cout <<myLfn <<endl; n++;}
@@ -118,14 +114,14 @@ int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num)
 
 /******************************************************************************/
   
-int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num, int Prty)
+int XrdFrcReqAgent::List(XrdFrcRequest::Item *Items, int Num, int Prty)
 {
    char myLfn[8192];
    int Offs, n = 0;
 
 // List entries in each priority queue
 //
-   if (Prty <= XrdFrmRequest::maxPrty)
+   if (Prty <= XrdFrcRequest::maxPrty)
        {Offs = 0;
         while(rQueue[Prty]->List(myLfn, sizeof(myLfn), Offs, Items, Num))
              {cout <<myLfn <<endl; n++;}
@@ -140,9 +136,9 @@ int XrdFrmReqAgent::List(XrdFrmRequest::Item *Items, int Num, int Prty)
 /* Public:                       N e x t L F N                                */
 /******************************************************************************/
   
-int XrdFrmReqAgent::NextLFN(char *Buff, int Bsz, int Prty, int &Offs)
+int XrdFrcReqAgent::NextLFN(char *Buff, int Bsz, int Prty, int &Offs)
 {
-   static XrdFrmRequest::Item Items[1] = {XrdFrmRequest::getLFN};
+   static XrdFrcRequest::Item Items[1] = {XrdFrcRequest::getLFN};
 
 // Return entry, if it exists
 //
@@ -153,7 +149,7 @@ int XrdFrmReqAgent::NextLFN(char *Buff, int Bsz, int Prty, int &Offs)
 /*                                  P i n g                                   */
 /******************************************************************************/
 
-void XrdFrmReqAgent::Ping(const char *Msg)
+void XrdFrcReqAgent::Ping(const char *Msg)
 {
    static XrdNetMsg udpMsg(&Say, c2sFN);
    static int udpOK = 0;
@@ -169,9 +165,9 @@ void XrdFrmReqAgent::Ping(const char *Msg)
 /*                                 S t a r t                                  */
 /******************************************************************************/
   
-int XrdFrmReqAgent::Start(char *aPath, int aMode)
+int XrdFrcReqAgent::Start(char *aPath, int aMode)
 {
-   XrdFrmRequest Request;
+   XrdFrcRequest Request;
    const char *myClid;
    char buff[2048], *qPath;
    int i;
@@ -189,7 +185,7 @@ int XrdFrmReqAgent::Start(char *aPath, int aMode)
 
 // Generate the queue directory path
 //
-   if (!(qPath = XrdFrmUtils::makeQDir(aPath, aMode))) return 0;
+   if (!(qPath = XrdFrcUtils::makeQDir(aPath, aMode))) return 0;
 
 // Initialize the registration entry and register ourselves
 //
@@ -202,15 +198,15 @@ int XrdFrmReqAgent::Start(char *aPath, int aMode)
        sprintf(Request.ID, "%d", static_cast<int>(getpid()));
        strlcpy(Request.iName, myName, sizeof(Request.iName));
        Request.addTOD = time(0);
-       Request.Options = XrdFrmRequest::Register;
+       Request.Options = XrdFrcRequest::Register;
        Request.OPc = '@';
       }
 
 // Initialize the request queues if all went well
 //
-   for (i = 0; i <= XrdFrmRequest::maxPrty; i++)
+   for (i = 0; i <= XrdFrcRequest::maxPrty; i++)
        {sprintf(buff, "%s%sQ.%d", qPath, Persona, i);
-        rQueue[i] = new XrdFrmReqFile(buff, 1);
+        rQueue[i] = new XrdFrcReqFile(buff, 1);
         if (!rQueue[i]->Init()) return 0;
         if (myClid) rQueue[i]->Add(&Request);
        }

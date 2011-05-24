@@ -11,9 +11,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-#include "XrdFrm/XrdFrmReqAgent.hh"
+#include "XrdFrc/XrdFrcReqAgent.hh"
 
 class XrdOucStream;
 
@@ -30,14 +28,14 @@ static int  Start();
 
 private:
 
-static void Add (XrdOucStream &Request, char *Tok, XrdFrmReqAgent &Server);
-static XrdFrmReqAgent *Agent(char bType);
-static void Del (XrdOucStream &Request, char *Tok, XrdFrmReqAgent &Server);
+static void Add (XrdOucStream &Request, char *Tok, XrdFrcReqAgent &Server);
+static XrdFrcReqAgent *Agent(char bType);
+static void Del (XrdOucStream &Request, char *Tok, XrdFrcReqAgent &Server);
 static void List(XrdOucStream &Request, char *Tok);
 
-static XrdFrmReqAgent GetAgent;
-static XrdFrmReqAgent PutAgent;
-static XrdFrmReqAgent MigAgent;
-static XrdFrmReqAgent StgAgent;
+static XrdFrcReqAgent GetAgent;
+static XrdFrcReqAgent PutAgent;
+static XrdFrcReqAgent MigAgent;
+static XrdFrcReqAgent StgAgent;
 };
 #endif

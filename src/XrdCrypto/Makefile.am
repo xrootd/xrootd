@@ -68,8 +68,7 @@ libXrdCrypto_la_SOURCES = \
 libXrdCrypto_la_LIBADD = libXrdSSLutil.la \
                          ../XrdOuc/libXrdOuc.la \
                          ../XrdSys/libXrdSys.la \
-                         ../XrdNet/libXrdNet.la \
-                         ../XrdNet/libXrdNetUtil.la
+                         ../XrdNet/libXrdNet.la
 libXrdCrypto_la_LDFLAGS = -module
 
 libXrdCryptoLite_la_SOURCES = \

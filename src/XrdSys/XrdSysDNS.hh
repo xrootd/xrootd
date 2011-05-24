@@ -1,8 +1,8 @@
-#ifndef __XRDNETDNS__
-#define __XRDNETDNS__
+#ifndef __XRDSYSDNS__
+#define __XRDSYSDNS__
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d N e t D N S . h h                           */
+/*                          X r d S y s D N S . h h                           */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -16,10 +16,8 @@
 #else
 #include <Winsock2.h>
 #endif
-  
-//         $Id$
 
-class XrdNetDNS
+class XrdSysDNS
 {
 public:
 
@@ -188,8 +186,8 @@ static char *Peername(       int       snum,
 //
 static void setPort(struct sockaddr &InetAddr, int port, int anyaddr=0);
 
-              XrdNetDNS() {}
-             ~XrdNetDNS() {}
+              XrdSysDNS() {}
+             ~XrdSysDNS() {}
  
 private:
  

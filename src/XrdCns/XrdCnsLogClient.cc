@@ -2,15 +2,11 @@
 /*                                                                            */
 /*                    X r d C n s L o g C l i e n t . c c                     */
 /*                                                                            */
-/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//         $Id$
-
-const char *XrdCnsLogClientCVSID = "$Id$";
   
 #include <errno.h>
 #include <unistd.h>
@@ -34,10 +30,10 @@ const char *XrdCnsLogClientCVSID = "$Id$";
 #include "XrdCns/XrdCnsLogRec.hh"
 #include "XrdCns/XrdCnsXref.hh"
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -65,7 +61,7 @@ XrdCnsLogClient::XrdCnsLogClient(XrdOucTList     *rP,
 {
    static int cNum = 0;
    static int bSfx = static_cast<int>(time(0)) - 1248126834;
-   static char *myName = XrdNetDNS::getHostName();
+   static char *myName = XrdSysDNS::getHostName();
    char destBuff[512];
 
 // Save our index into the commit array

@@ -50,7 +50,7 @@ TARGETS = $(LIBRARY)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
-vpath XrdFrm% ../XrdFrm
+vpath XrdFrc% ../XrdFrc
 vpath XrdNet% ../XrdNet
 vpath XrdOfs% ../XrdOfs
 vpath XrdOuc% ../XrdOuc
@@ -88,7 +88,7 @@ $(OBJDIR)/XrdOssApi.o: XrdOss.hh         XrdOssApi.hh       XrdOssApi.cc \
                        XrdOucExport.hh   XrdOucName2Name.hh XrdOucPList.hh \
                        XrdOucStream.hh   XrdOucXAttr.hh \
                        XrdSysError.hh    XrdSysHeaders.hh   XrdSysPlatform.hh \
-                       XrdSysPlugin.hh   XrdSysPthread.hh   XrdFrmXAttr.hh \
+                       XrdSysPlugin.hh   XrdSysPthread.hh   XrdFrcXAttr.hh \
                        ../XrdVersion.hh
 	@echo Compiling XrdOssApi.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssApi.o XrdOssApi.cc
@@ -104,7 +104,7 @@ $(OBJDIR)/XrdOssCache.o: XrdOssCache.hh  XrdOssOpaque.hh\
 $(OBJDIR)/XrdOssConfig.o: XrdOssApi.hh  XrdOssConfig.hh XrdOssError.hh \
                           XrdOssTrace.hh XrdSysError.hh \
                           XrdOssMio.hh  XrdOssOpaque.hh XrdOssSpace.hh \
-                          XrdOucEnv.hh  XrdOucUtils.hh  XrdFrmProxy.hh \
+                          XrdOucEnv.hh  XrdOucUtils.hh  XrdFrcProxy.hh \
                           XrdOucProg.hh XrdOssConfig.cc XrdOuca2x.hh  \
                           XrdOucMsubs.hh XrdOucName2Name.hh XrdSysPlugin.hh \
                           XrdSysHeaders.hh XrdSysFAttr.hh \
@@ -122,7 +122,7 @@ $(OBJDIR)/XrdOssCreate.o: XrdOssApi.hh    XrdOssConfig.hh  XrdOssCache.hh \
                           XrdOssOpaque.hh XrdOssPath.hh    XrdOssSpace.hh \
                           XrdOssTrace.hh  \
                           XrdOuca2x.hh    XrdOucEnv.hh     XrdOucExport.hh \
-                          XrdOucUtils.hh  XrdOucXAttr.hh   XrdFrmXAttr.hh \
+                          XrdOucUtils.hh  XrdOucXAttr.hh   XrdFrcXAttr.hh \
                           XrdSysError.hh  XrdSysHeaders.hh XrdSysPlatform.hh \
                           XrdOssCreate.cc
 	@echo Compiling XrdOssCreate.cc 
@@ -158,7 +158,7 @@ $(OBJDIR)/XrdOssReloc.o: XrdOssReloc.cc \
 
 $(OBJDIR)/XrdOssRename.o: XrdOssApi.hh  XrdOssError.hh \
                           XrdOssPath.hh XrdOssCache.hh XrdOssTrace.hh \
-                          XrdOucExport.hh XrdFrmXAttr.hh \
+                          XrdOucExport.hh XrdFrcXAttr.hh \
                           XrdOucUtils.hh XrdSysFAttr.hh XrdSysHeaders.hh \
                           XrdOssRename.cc
 	@echo Compiling XrdOssRename.cc 
@@ -177,7 +177,7 @@ $(OBJDIR)/XrdOssStage.o: XrdOssApi.hh   XrdOssStage.hh  XrdOssError.hh \
                          XrdOuca2x.hh   XrdOucHash.hh   XrdOucHash.icc \
                          XrdSysPthread.hh XrdOucMsubs.hh XrdOucName2Name.hh \
                          XrdOucDLlist.hh  XrdOucProg.hh  XrdOucReqID.hh \
-                         XrdSysPlatform.hh XrdFrmProxy.hh XrdOssStage.cc
+                         XrdSysPlatform.hh XrdFrcProxy.hh XrdOssStage.cc
 	@echo Compiling XrdOssStage.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOssStage.o XrdOssStage.cc
 

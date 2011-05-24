@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
-
-const char *XrdXrootdMonitorCVSID = "$Id$";
 
 #include <errno.h>
 #include <stdlib.h>
@@ -23,8 +19,8 @@ const char *XrdXrootdMonitorCVSID = "$Id$";
 #endif
 
 #include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -377,14 +373,14 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdSysError *errp)
 
 // Get the address of the primary destination
 //
-   if (!XrdNetDNS::Host2Dest(Dest1, InetAddr1, &etext))
+   if (!XrdSysDNS::Host2Dest(Dest1, InetAddr1, &etext))
       {eDest->Emsg("Monitor", "setup monitor collector;", etext);
        return 0;
       }
 
 // Get the address of the alternate destination, if we happen to have one
 //
-   if (Dest2 && !XrdNetDNS::Host2Dest(Dest2, InetAddr2, &etext))
+   if (Dest2 && !XrdSysDNS::Host2Dest(Dest2, InetAddr2, &etext))
       {eDest->Emsg("Monitor", "setup monitor collector;", etext);
        return 0;
       }

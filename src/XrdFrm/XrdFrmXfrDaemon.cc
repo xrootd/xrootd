@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdFrmXfrDaemonCVSID = "$Id$";
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,12 +17,12 @@ const char *XrdFrmXfrDaemonCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdFrc/XrdFrcRequest.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
+#include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMigrate.hh"
-#include "XrdFrm/XrdFrmRequest.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdFrm/XrdFrmTransfer.hh"
-#include "XrdFrm/XrdFrmUtils.hh"
 #include "XrdFrm/XrdFrmXfrAgent.hh"
 #include "XrdFrm/XrdFrmXfrDaemon.hh"
 #include "XrdNet/XrdNetOpts.hh"
@@ -35,19 +31,20 @@ const char *XrdFrmXfrDaemonCVSID = "$Id$";
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
 
-XrdFrmReqBoss XrdFrmXfrDaemon::GetBoss("getf", XrdFrmRequest::getQ);
+XrdFrmReqBoss XrdFrmXfrDaemon::GetBoss("getf", XrdFrcRequest::getQ);
 
-XrdFrmReqBoss XrdFrmXfrDaemon::MigBoss("migr", XrdFrmRequest::migQ);
+XrdFrmReqBoss XrdFrmXfrDaemon::MigBoss("migr", XrdFrcRequest::migQ);
 
-XrdFrmReqBoss XrdFrmXfrDaemon::StgBoss("pstg", XrdFrmRequest::stgQ);
+XrdFrmReqBoss XrdFrmXfrDaemon::StgBoss("pstg", XrdFrcRequest::stgQ);
 
-XrdFrmReqBoss XrdFrmXfrDaemon::PutBoss("putf", XrdFrmRequest::putQ);
+XrdFrmReqBoss XrdFrmXfrDaemon::PutBoss("putf", XrdFrcRequest::putQ);
 
 /******************************************************************************/
 /* Private:                         B o s s                                   */
@@ -82,7 +79,7 @@ int XrdFrmXfrDaemon::Init()
 // Make sure we are the only daemon running
 //
    sprintf(buff, "%s/frm_xfrd.lock", Config.QPath);
-   if (!XrdFrmUtils::Unique(buff, Config.myProg)) return 0;
+   if (!XrdFrcUtils::Unique(buff, Config.myProg)) return 0;
 
 // Initiliaze the transfer processor (it need to be active now)
 //

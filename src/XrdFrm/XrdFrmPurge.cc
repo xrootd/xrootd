@@ -23,12 +23,13 @@
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
 
 /******************************************************************************/
@@ -347,18 +348,18 @@ const char *XrdFrmPurge::Eligible(XrdFrmFileset *sP, time_t &xTime, int hTime)
 
 // See if pin is permanent
 //
-   if (sP->pinInfo.Attr.Flags & XrdFrmXAttrPin::pinPerm)
+   if (sP->pinInfo.Attr.Flags & XrdFrcXAttrPin::pinPerm)
        return "is perm pinned";
 
 // See if the file is pinned until a certain time
 //
-   if (sP->pinInfo.Attr.Flags & XrdFrmXAttrPin::pinKeep
+   if (sP->pinInfo.Attr.Flags & XrdFrcXAttrPin::pinKeep
    &&  sP->pinInfo.Attr.pinTime > static_cast<long long>(nowTime))
       return "is time pinned";
 
 // Check if the file can only be unpinned after going idle
 //
-   if (sP->pinInfo.Attr.Flags & XrdFrmXAttrPin::pinIdle
+   if (sP->pinInfo.Attr.Flags & XrdFrcXAttrPin::pinIdle
    &&  sP->pinInfo.Attr.pinTime > static_cast<long long>(xTime))
       return "is pin defered";
    return 0;

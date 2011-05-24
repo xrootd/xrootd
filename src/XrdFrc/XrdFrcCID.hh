@@ -1,16 +1,14 @@
-#ifndef __FRMCID_H__
-#define __FRMCID_H__
+#ifndef __FRCCID_H__
+#define __FRCCID_H__
 /******************************************************************************/
 /*                                                                            */
-/*                          X r d F r m C I D . h h                           */
+/*                          X r d F r c C I D . h h                           */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
 
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +18,7 @@
 class XrdOucEnv;
 class XrdOucStream;
 
-class XrdFrmCID
+class XrdFrcCID
 {
 public:
        int    Add(const char *iName, const char *cName, time_t addT, pid_t Pid);
@@ -33,8 +31,8 @@ public:
 
        void   Ref(const char *iName);
 
-              XrdFrmCID() : Dflt(0), First(0), cidFN(0), cidFN2(0) {}
-             ~XrdFrmCID() {}
+              XrdFrcCID() : Dflt(0), First(0), cidFN(0), cidFN2(0) {}
+             ~XrdFrcCID() {}
 
 private:
 
@@ -74,8 +72,8 @@ char   *cidFN;
 char   *cidFN2;
 };
 
-namespace XrdFrm
+namespace XrdFrc
 {
-extern XrdFrmCID CID;
+extern XrdFrcCID CID;
 }
 #endif

@@ -2,15 +2,11 @@
 /*                                                                            */
 /*                          X r d C n s L o g . c c                           */
 /*                                                                            */
-/* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2011 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
-
-const char *XrdCnsLogCVSID = "$Id$";
   
 #include <errno.h>
 #include <unistd.h>
@@ -21,7 +17,7 @@ const char *XrdCnsLogCVSID = "$Id$";
 
 #include "XrdCns/XrdCnsLog.hh"
 #include "XrdCns/XrdCnsLogRec.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucTList.hh"
 
 /******************************************************************************/
@@ -140,5 +136,5 @@ int XrdCnsLog::isEP(const char *File)
 // An endpoint must be a valid host name
 //
    if (!(dotP = index(File,'.')) || dotP == rindex(File,'.')) return 0;
-   return XrdNetDNS::getHostAddr(File, InetAddr);
+   return XrdSysDNS::getHostAddr(File, InetAddr);
 }

@@ -81,7 +81,7 @@ $(OBJDIR)/XrdConfig.o: XrdBuffer.hh      XrdConfig.hh      XrdJob.hh     \
                        XrdOuca2x.hh      XrdSysError.hh    XrdSysLogger.hh   \
                        XrdOucStream.hh   XrdOucTrace.hh    XrdSysTimer.hh \
                        XrdOucEnv.hh      XrdSysHeaders.hh \
-                       XrdNetSecurity.hh XrdNetDNS.hh      XrdConfig.cc \
+                       XrdNetSecurity.hh XrdSysDNS.hh      XrdConfig.cc \
                        ../XrdVersion.hh
 	@echo Compiling XrdConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdConfig.o XrdConfig.cc
@@ -102,7 +102,7 @@ $(OBJDIR)/XrdLink.o:   XrdBuffer.hh     XrdJob.hh          XrdLink.hh      \
                        XrdSysAtomics.hh \
                        XrdSysError.hh   XrdSysPlatform.hh  XrdSysPthread.hh \
                        XrdOucTrace.hh   XrdLinkMatch.hh    XrdLink.cc \
-                       XrdNetDNS.hh     XrdNetPeer.hh
+                       XrdSysDNS.hh     XrdNetPeer.hh
 	@echo Compiling XrdLink.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFSENDFILE) $(INCLUDE) -o $(OBJDIR)/XrdLink.o XrdLink.cc
 

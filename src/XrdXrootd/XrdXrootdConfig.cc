@@ -21,7 +21,6 @@
 #include "XrdVersion.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOuca2x.hh"
@@ -31,6 +30,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -259,7 +259,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Initialize the request ID generation object
 //
    XrdXrootdReqID = new XrdOucReqID((int)Port, pi->myName,
-                                    XrdNetDNS::IPAddr(pi->myAddr));
+                                    XrdSysDNS::IPAddr(pi->myAddr));
 
 // Initialize for prepare processing
 //

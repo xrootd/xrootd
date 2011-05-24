@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//           $Id$
-
-const char *XrdFrmAdminMainCVSID = "$Id$";
-
 /* This is the "main" part of the frm_PreStage command. Syntax is:
 */
 static const char *XrdFrmOpts  = "c:dhn:v";
@@ -53,9 +49,9 @@ Where:
 #include <readline/history.h>
 #endif
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -63,6 +59,7 @@ Where:
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/

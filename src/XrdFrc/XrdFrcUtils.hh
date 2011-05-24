@@ -1,8 +1,8 @@
-#ifndef __FRMUTILS__HH
-#define __FRMUTILS__HH
+#ifndef __FRCUTILS__HH
+#define __FRCUTILS__HH
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m U t i l s . h h                         */
+/*                        X r d F r c U t i l s . h h                         */
 /*                                                                            */
 /* (c) 2009 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -13,11 +13,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
 
-class  XrdFrmXAttrPin;
+class  XrdFrcXAttrPin;
 
-class XrdFrmUtils
+class XrdFrcUtils
 {
 public:
 
@@ -34,7 +34,7 @@ static       int   MapM2O(const char *Nop, const char *Pop);
 
 static       int   MapR2Q(char Opc, int *Flags=0);
 
-static       int   MapV2I(const char *Opc, XrdFrmRequest::Item &ICode);
+static       int   MapV2I(const char *Opc, XrdFrcRequest::Item &ICode);
 
 static       int   Unique(const char *lkfn, const char *myProg);
 
@@ -42,8 +42,8 @@ static       int   updtCpy(const char *Pfn, int Adj);
 
 static       int   Utime(const char *Path, time_t tVal);
 
-                   XrdFrmUtils() {}
-                  ~XrdFrmUtils() {}
+                   XrdFrcUtils() {}
+                  ~XrdFrcUtils() {}
 private:
 };
 #endif

@@ -1,8 +1,8 @@
-#ifndef __FRMXLOCK_HH__
-#define __FRMXLOCK_HH__
+#ifndef __FRCXLOCK_HH__
+#define __FRCXLOCK_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d F r m X L o c k . h h                         */
+/*                        X r d F r c X L o c k . h h                         */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -12,7 +12,7 @@
 
 #include "XrdOuc/XrdOucSxeq.hh"
   
-class XrdFrmXLock
+class XrdFrcXLock
 {
 public:
 
@@ -21,17 +21,17 @@ static int Init(const char *aPath)
                 return ((lkFD = mySxeq.Detach()) >= 0);
                }
 
-           XrdFrmXLock() {XrdOucSxeq::Serialize(lkFD, 0);}
-          ~XrdFrmXLock() {XrdOucSxeq::Release(lkFD);}
+           XrdFrcXLock() {XrdOucSxeq::Serialize(lkFD, 0);}
+          ~XrdFrcXLock() {XrdOucSxeq::Release(lkFD);}
 
 private:
 
 static int lkFD;
 };
 
-#ifndef __FRMXLOCK_CC__
-#define __FRMXLOCK_CC__
-int XrdFrmXLock::lkFD = -1;
+#ifndef __FRCXLOCK_CC__
+#define __FRCXLOCK_CC__
+int XrdFrcXLock::lkFD = -1;
 #endif
 
 #endif

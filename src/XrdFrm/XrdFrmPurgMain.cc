@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//           $Id$
-
-const char *XrdFrmPurgMainCVSID = "$Id$";
-
 /* This is the "main" part of the frm_purge command. Syntax is:
 */
 static const char *XrdFrmOpts  = ":bc:dfhk:l:n:O:s:Tv";
@@ -65,9 +61,9 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
-#include "XrdFrm/XrdFrmTrace.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -77,6 +73,7 @@ Where:
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+using namespace XrdFrc;
 using namespace XrdFrm;
   
 /******************************************************************************/

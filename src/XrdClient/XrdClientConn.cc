@@ -11,10 +11,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//         $Id$
-
-const char *XrdClientConnCVSID = "$Id$";
-
 #include "XrdClient/XrdClientDebug.hh"
 
 #include "XrdClient/XrdClientConnMgr.hh"
@@ -25,7 +21,7 @@ const char *XrdClientConnCVSID = "$Id$";
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientAbs.hh"
@@ -662,6 +658,9 @@ bool XrdClientConn::CheckHostDomain(XrdOucString hostToCheck)
     static XrdOucHash<int> knownHosts;
     static XrdOucString alloweddomains = EnvGetString(NAME_REDIRDOMAINALLOW_RE);
     static XrdOucString denieddomains = EnvGetString(NAME_REDIRDOMAINDENY_RE);
+    static XrdSysMutex knownHostsMutex;
+
+    XrdSysMutexHelper scopedLock(knownHostsMutex);
 
     // Check cached info
     int *he = knownHosts.Find(hostToCheck.c_str());
@@ -1651,7 +1650,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // for the authentication.
    struct sockaddr_in netaddr;
    char **hosterrmsg = 0;
-   if (XrdNetDNS::getHostAddr((char *)fUrl.HostAddr.c_str(),
+   if (XrdSysDNS::getHostAddr((char *)fUrl.HostAddr.c_str(),
                               (struct sockaddr &)netaddr, hosterrmsg) <= 0) {
       Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
                                        "getHostAddr said '" << *hosterrmsg << "'");
@@ -2133,7 +2132,7 @@ XrdOucString XrdClientConn::GetDomainToMatch(XrdOucString hostname) {
     // Let's look up the hostname
     // It may also be a w.x.y.z type address.
     err = 
-	fullname = XrdNetDNS::getHostName((char *)hostname.c_str(), &err);
+	fullname = XrdSysDNS::getHostName((char *)hostname.c_str(), &err);
    
     if ( strcmp(fullname, (char *)"0.0.0.0") ) {
 	// The looked up name seems valid

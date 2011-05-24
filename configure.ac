@@ -1169,6 +1169,7 @@ AC_OUTPUT(Makefile
           src/XrdCms/Makefile
           src/XrdRootd/Makefile
           src/XrdXrootd/Makefile
+          src/XrdFrc/Makefile
           src/XrdFrm/Makefile
           src/XrdClient/Makefile
           src/XrdPosix/Makefile

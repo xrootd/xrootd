@@ -32,7 +32,7 @@ extern "C" {
 #endif
 }
 
-#include "XrdNet/XrdNetDNS.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -913,7 +913,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
     int lkey = strlen("<host>");
     char *phost = (char *) strstr(&KPrincipal[0], "<host>");
     if (phost)
-       {char *hn = XrdNetDNS::getHostName();
+       {char *hn = XrdSysDNS::getHostName();
         if (hn)
            {int lhn = strlen(hn);
             if (lhn != lkey) {

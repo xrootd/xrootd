@@ -1,8 +1,8 @@
-#ifndef __FRMREQFILE_H__
-#define __FRMREQFILE_H__
+#ifndef __FRCREQFILE_H__
+#define __FRCREQFILE_H__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d F r m R e q F i l e . h h                       */
+/*                      X r d F r c R e q F i l e . h h                       */
 /*                                                                            */
 /* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
@@ -10,38 +10,36 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-#include "XrdFrm/XrdFrmRequest.hh"
+#include "XrdFrc/XrdFrcRequest.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdFrmReqFile
+class XrdFrcReqFile
 {
 public:
 
-       void   Add(XrdFrmRequest *rP);
+       void   Add(XrdFrcRequest *rP);
 
-       void   Can(XrdFrmRequest *rP);
+       void   Can(XrdFrcRequest *rP);
 
-       void   Del(XrdFrmRequest *rP);
+       void   Del(XrdFrcRequest *rP);
 
-       int    Get(XrdFrmRequest *rP);
+       int    Get(XrdFrcRequest *rP);
 
        int    Init();
 
        char  *List(char *Buff, int bsz, int &Offs,
-                    XrdFrmRequest::Item *ITList=0, int ITNum=0);
+                    XrdFrcRequest::Item *ITList=0, int ITNum=0);
 
-       void   ListL(XrdFrmRequest &tmpReq, char *Buff, int bsz,
-                    XrdFrmRequest::Item *ITList, int ITNum);
+       void   ListL(XrdFrcRequest &tmpReq, char *Buff, int bsz,
+                    XrdFrcRequest::Item *ITList, int ITNum);
 
-              XrdFrmReqFile(const char *fn, int aVal);
-             ~XrdFrmReqFile() {}
+              XrdFrcReqFile(const char *fn, int aVal);
+             ~XrdFrcReqFile() {}
 
 private:
 enum LockType {lkNone, lkShare, lkExcl, lkInit};
 
-static const int ReqSize  = sizeof(XrdFrmRequest);
+static const int ReqSize  = sizeof(XrdFrcRequest);
 
 void   FailAdd(char *lfn, int unlk=1);
 void   FailCan(char *rid, int unlk=1);
@@ -66,8 +64,8 @@ char  *reqFN;
 int    isAgent;
 
 struct recEnt {recEnt       *Next;
-               XrdFrmRequest reqData;
-               recEnt(XrdFrmRequest &reqref) {Next = 0; reqData = reqref;}
+               XrdFrcRequest reqData;
+               recEnt(XrdFrcRequest &reqref) {Next = 0; reqData = reqref;}
               };
 int    ReWrite(recEnt *rP);
 

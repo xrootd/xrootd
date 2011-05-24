@@ -45,7 +45,7 @@ libXrdSecssl_la_LDFLAGS = \
 libXrdSecssl_la_CXXFLAGS = ${CXXFLAGS}
 
 xrdsecssltest_SOURCES = XrdSecProtocolsslTest.cc
-xrdsecssltest_LDADD   = ${OPENSSL_LIBDIR} libXrdSecssl.la ../XrdNet/libXrdNetUtil.la ../XrdOuc/libXrdOuc.la -lssl -lcrypto
+xrdsecssltest_LDADD   = ${OPENSSL_LIBDIR} libXrdSecssl.la ../XrdOuc/libXrdOuc.la -lssl -lcrypto
 xrdsecssltest_LDFLAGS = -static
 
 

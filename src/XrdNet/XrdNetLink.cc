@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//          $Id$
-
-const char *XrdNetLinkCVSID = "$Id$";
   
 #include <fcntl.h>
 #ifndef WIN32
@@ -24,9 +20,9 @@ const char *XrdNetLinkCVSID = "$Id$";
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetBuffer.hh"
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdNet/XrdNetLink.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -90,7 +86,7 @@ XrdNetLink *XrdNetLink::Alloc(XrdSysError *erp, XrdNet *Net, XrdNetPeer &Peer,
       {memcpy((void *)&(lp->InetAddr), (const void *)&Peer.InetAddr,
                                        sizeof(Peer.InetAddr));
        if (Peer.InetName) lp->Lname = strdup(Peer.InetName);
-          else lp->Lname = XrdNetDNS::getHostName(Peer.InetAddr);
+          else lp->Lname = XrdSysDNS::getHostName(Peer.InetAddr);
        lp->Sname = strdup(lp->Lname);
        Net->Trim(lp->Sname);
        lp->FD = Peer.fd;
@@ -304,7 +300,7 @@ int XrdNetLink::Send(const char *dest, const char *Buff, int Blen, int tmo)
        return Send(dest, iodata, 2, tmo);
       }
 
-   if (!XrdNetDNS::Host2Dest(dest, destip))
+   if (!XrdSysDNS::Host2Dest(dest, destip))
       {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }
@@ -366,7 +362,7 @@ int XrdNetLink::Send(const char *dest,const struct iovec iov[],int iovcnt,int tm
    char *bp;
    struct sockaddr destip;
 
-   if (!XrdNetDNS::Host2Dest(dest, destip))
+   if (!XrdSysDNS::Host2Dest(dest, destip))
       {eDest->Emsg("Link", dest, "is unreachable");
        return -1;
       }

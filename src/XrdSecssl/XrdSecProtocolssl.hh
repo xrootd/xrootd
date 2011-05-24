@@ -39,12 +39,12 @@
 #include <pwd.h>
 #include <grp.h>
 
-#include "XrdNet/XrdNetDNS.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -134,7 +134,7 @@ public:
     strncpy(Entity.prot,"ssl", sizeof(Entity.prot));
     host        = hostname;
     if (ipaddr)
-      Entity.host = (XrdNetDNS::getHostName((sockaddr&)*ipaddr));
+      Entity.host = (XrdSysDNS::getHostName((sockaddr&)*ipaddr));
     else 
       Entity.host = strdup("");
     proxyBuff[0]=0;

@@ -1,17 +1,14 @@
-#              $Id$
-
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
   
 include ../GNUmake.env
 
-MORELIBS = -L$(LIBDIR) -lXrdSut -lXrdNet -lXrdOuc -lXrdNetUtil -lXrdSys \
+MORELIBS = -L$(LIBDIR) -lXrdSut -lXrdNet -lXrdOuc -lXrdSys \
              $(LIBKRB5)
 
 LIBDEPS = $(LIBDIR)/libXrdSut.a     $(LIBDIR)/libXrdNet.a \
-          $(LIBDIR)/libXrdNetUtil.a $(LIBDIR)/libXrdOuc.a \
-          $(LIBDIR)/libXrdSys.a 
+          $(LIBDIR)/libXrdOuc.a     $(LIBDIR)/libXrdSys.a
 
 #------------------------------------------------------------------------------#
 #                             C o m p o n e n t s                              #
@@ -53,6 +50,7 @@ $(TARGETS): $(OBJECTS) $(LIBDEPS)
 
 $(OBJDIR)/XrdSecProtocolkrb5.o: XrdSecProtocolkrb5.cc XrdSecInterface.hh \
                                 XrdSysPthread.hh      XrdOucTokenizer.hh \
-                                XrdOucErrInfo.hh      XrdSysHeaders.hh
+                                XrdOucErrInfo.hh      \
+                                XrdSysDNS.hh          XrdSysHeaders.hh
 	@echo Compiling XrdSecProtocolkrb5.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCKRB5) -o $(OBJDIR)/XrdSecProtocolkrb5.o XrdSecProtocolkrb5.cc
