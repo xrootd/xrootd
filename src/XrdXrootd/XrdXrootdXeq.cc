@@ -130,6 +130,7 @@ int XrdXrootdProtocol::do_Auth()
                                                  : "login as");
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
+       if (Monitor && XrdXrootdMonitor::monUSER) MonAuth();
        if (Client->name) 
           eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
@@ -654,8 +655,10 @@ int XrdXrootdProtocol::do_Login()
    if ((Monitor = XrdXrootdMonitor::Alloc()))
       {monFILE = XrdXrootdMonitor::monFILE;
        monIO   = XrdXrootdMonitor::monIO;
-       if (XrdXrootdMonitor::monUSER)
-          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, 0);
+       if ( XrdXrootdMonitor::monUSER
+       && (!XrdXrootdMonitor::monAUTH || !(Status & XRD_NEED_AUTH)))
+          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID,
+                                         XrdXrootdMonitor::monAUTH ? "" : 0);
       }
 
 // Complete the rquestID object
@@ -1886,8 +1889,7 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
               }
            monIO   =  XrdXrootdMonitor::monIO;
            monFILE =  XrdXrootdMonitor::monFILE;
-           if (XrdXrootdMonitor::monUSER && !monUID)
-              monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, 0);
+           if (XrdXrootdMonitor::monUSER && !monUID && Monitor) MonAuth();
           }
        return Response.Send();
       }
@@ -2343,6 +2345,27 @@ int XrdXrootdProtocol::mapMode(int Mode)
 // All done
 //
    return newmode;
+}
+
+/******************************************************************************/
+/*                               M o n A u t h                                */
+/******************************************************************************/
+
+void XrdXrootdProtocol::MonAuth()
+{
+         char Buff[2048];
+   const char *bP = Buff;
+
+   if (Client == &Entity) bP = (XrdXrootdMonitor::monAUTH ? "" : 0);
+      else snprintf(Buff,sizeof(Buff), "\n&p=%s&n=%s&h=%s&o=%s&r=%s",
+                     Client->prot,
+                    (Client->name ? Client->name : ""),
+                    (Client->host ? Client->host : ""),
+                    (Client->vorg ? Client->vorg : ""),
+                    (Client->role ? Client->role : "")
+                   );
+
+   monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, bP);
 }
   
 /******************************************************************************/

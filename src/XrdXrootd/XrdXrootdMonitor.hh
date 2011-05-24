@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
 #include <inttypes.h>
 #include <time.h>
 #include <netinet/in.h>
@@ -32,6 +30,7 @@
 #define XROOTD_MON_INFO     8
 #define XROOTD_MON_STAGE   16
 #define XROOTD_MON_USER    32
+#define XROOTD_MON_AUTH    64
 #define XROOTD_MON_PATH    (XROOTD_MON_IO   | XROOTD_MON_FILE)
 
 class XrdScheduler;
@@ -85,6 +84,7 @@ static char              monINFO;
 static char              monFILE;
 static char              monSTAGE;
 static char              monUSER;
+static char              monAUTH;
 
                          XrdXrootdMonitor();
 

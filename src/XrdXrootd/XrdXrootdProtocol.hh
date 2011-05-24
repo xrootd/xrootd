@@ -8,8 +8,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//       $Id$
  
 #include <stdlib.h>
 #include <unistd.h>
@@ -155,6 +153,7 @@ static int   Config(const char *fn);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
+       void  MonAuth();
 static void  PidFile();
        int   Process2();
        void  Reset();

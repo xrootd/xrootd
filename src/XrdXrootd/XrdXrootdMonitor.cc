@@ -57,6 +57,7 @@ char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
 char               XrdXrootdMonitor::monSTAGE   = 0;
 char               XrdXrootdMonitor::monUSER    = 0;
+char               XrdXrootdMonitor::monAUTH    = 0;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -296,6 +297,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
    monSTAGE  = (mmode & XROOTD_MON_STAGE? 1 : 0);
    monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
+   monAUTH   = (mmode & XROOTD_MON_AUTH ? 1 : 0);
 
 // Check where user information should go
 //

@@ -10,6 +10,10 @@ Version 3.1.0
      primarily used by the proxy object to reduce trips to a data server when
      small blocks are accessed via the proxy server. This requires
      configuration using the new 'pss.memcache' directive.
+   * Finally implement adding authentication information to the user monitoring
+     record (requested by Matevz Tadel, CMS). This adds a new generic option,
+     auth, to the xrootd.monitor directive. It needs to be specified for the
+     authentication information to be added. This keeps backward compatability.
 
 + **Major bug fixes**
    * Fix incorrect lock handling for multiple waiters.

@@ -705,13 +705,14 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [mbuff <sz>] 
+   Purpose:  Parse directive: monitor [all] [auth] [mbuff <sz>]
                                       [flush <sec>] [window <sec>]
                                       dest [Events] <host:port>
 
    Events: [files] [info] [io] [stage] [user] <host:port>
 
          all                enables monitoring for all connections.
+         auth               add authentication information to "user".
          mbuff  <sz>        size of message buffer.
          flush  <sec>       time (seconds, M, H) between auto flushes.
          window <sec>       time (seconds, M, H) between timing marks.
@@ -734,6 +735,8 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
     while((val = Config.GetWord()))
 
          {     if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
+          else if (!strcmp("auth",  val))
+                  monMode[0] = monMode[1] = XROOTD_MON_AUTH;
           else if (!strcmp("flush", val))
                 {if (!(val = Config.GetWord()))
                     {eDest.Emsg("Config", "monitor flush value not specified");
