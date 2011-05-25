@@ -2357,7 +2357,7 @@ void XrdXrootdProtocol::MonAuth()
    const char *bP = Buff;
 
    if (Client == &Entity) bP = (XrdXrootdMonitor::monAUTH ? "" : 0);
-      else snprintf(Buff,sizeof(Buff), "\n&p=%s&n=%s&h=%s&o=%s&r=%s",
+      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s",
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
