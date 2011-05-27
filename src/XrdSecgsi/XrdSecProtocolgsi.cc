@@ -118,7 +118,8 @@ String XrdSecProtocolgsi::DefCipher= "aes-128-cbc:bf-cbc:des-ede3-cbc";
 String XrdSecProtocolgsi::DefMD    = "sha1:md5";
 String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
-int    XrdSecProtocolgsi::AuthzPxy = 0;
+int    XrdSecProtocolgsi::AuthzPxyWhat = -1;
+int    XrdSecProtocolgsi::AuthzPxyWhere = -1;
 XrdSysPlugin   *XrdSecProtocolgsi::GMAPPlugin = 0;
 XrdSecgsiGMAP_t XrdSecProtocolgsi::GMAPFun = 0;
 XrdSysPlugin   *XrdSecProtocolgsi::AuthzPlugin = 0;
@@ -782,10 +783,19 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
 
       //
       // Request for proxy export for authorization
-      if (opt.authzpxy == 1)
-         AuthzPxy = 1;
-      // Some notification
-      DEBUG("Export proxy for authorization (in XrdSecEntity.endorsement): "<<AuthzPxy);
+      // authzpxy = opt_what*10 + opt_where
+      //        opt_what   = 0  full chain
+      //                     1  last proxy only
+      //        opt_where  = 1  Entity.creds
+      //                     2  Entity.endorsements
+      if (opt.authzpxy > 0) {
+         AuthzPxyWhat = opt.authzpxy / 10;
+         AuthzPxyWhere = opt.authzpxy % 10;
+         // Some notification
+         const char *capxy_what = (AuthzPxyWhat == 1) ? "'last proxy only'" : "'full proxy chain'";
+         const char *capxy_where = (AuthzPxyWhere == 1) ? "XrdSecEntity.creds" : "XrdSecEntity.endorsements";
+         DEBUG("Export proxy for authorization in '"<<capxy_where<<"': "<<capxy_what);
+      }
 
       //
       // Template for the created proxy files
@@ -932,6 +942,8 @@ void XrdSecProtocolgsi::Delete()
    SafeFree(Entity.role);
    SafeFree(Entity.grps);
    SafeFree(Entity.endorsements);
+   SafeFree(Entity.creds);
+   Entity.credslen = 0;
    // Cleanup the handshake variables, if still there
    SafeDelete(hs);
    // Cleanup any other instance specific to this protocol
@@ -1694,18 +1706,28 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          } else if (GMAPuseDNname && hs->Chain->EECname()) {
             Entity.name = strdup(hs->Chain->EECname());
          } else {
-            DEBUG("WARNING: DN missing: corruption? ");
+            PRINT("WARNING: DN missing: corruption? ");
          }
       }
 
       // Export proxy for authorization, if required
-      if (AuthzPxy == 1) {
-         // In string form
-         XrdSutBucket *b = XrdCryptosslX509ExportChain(hs->Chain, true);
+      if (AuthzPxyWhat >= 0) {
+         XrdSutBucket *b = (AuthzPxyWhat == 1 && hs->Chain->End()) ? hs->Chain->End()->Export()
+                                                                   : XrdCryptosslX509ExportChain(hs->Chain, true);
          XrdOucString s;
          b->ToString(s);
-         Entity.endorsements = strdup(s.c_str());
+         if (AuthzPxyWhere == 1) {
+            Entity.creds = strdup(s.c_str());
+            Entity.credslen = s.length();
+         } else {
+            // This should be deprecated
+            Entity.endorsements = strdup(s.c_str());
+         }
          delete b;
+         
+         DEBUG("Entity.endorsements: "<<(void *)Entity.endorsements);
+         DEBUG("Entity.creds:        "<<(void *)Entity.creds);
+         DEBUG("Entity.credslen:     "<<Entity.credslen);
       }
 
       if (hs->RemVers >= 10100) {
@@ -2056,8 +2078,10 @@ char *XrdSecProtocolgsiInit(const char mode,
                dlgpxy = atoi(op+8);
             } else if (!strncmp(op, "-exppxy:",8)) {
                exppxy = (const char *)(op+8);
+            } else if (!strncmp(op, "-authzpxy:",10)) {
+               authzpxy = atoi(op+10);
             } else if (!strncmp(op, "-authzpxy",9)) {
-               authzpxy = 1;
+               authzpxy = 11;
             }
          }
       }
@@ -4528,7 +4552,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 
 //_____________________________________________________________________________
 XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
-                                             const char *parms)
+                                                 const char *parms)
 {  
    // Load the authorization function from the specified plug-in
    EPNAME("LoadAuthzFun");
@@ -4572,7 +4596,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    
    // Init it
    if ((*ep)(params.c_str(), 0) == (char *)-1) {
-      PRINT("could not initialize 'XrdSecgsiGMAPFun()'");
+      PRINT("could not initialize 'XrdSecgsiAuthzFun()'");
       return (XrdSecgsiAuthz_t)0;
    }
    
