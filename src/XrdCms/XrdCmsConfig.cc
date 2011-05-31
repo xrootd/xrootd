@@ -24,7 +24,7 @@
 #include <sys/un.h>
 #include <dirent.h>
 
-#include "../XrdVersion.hh"
+#include "XrdVersion.hh"
 #include "Xrd/XrdScheduler.hh"
 
 #include "XrdCms/XrdCmsAdmin.hh"
