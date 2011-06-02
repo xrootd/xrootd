@@ -667,6 +667,44 @@ int XrdOucStream::Put(const char *datavec[], const int dlenvec[]) {
 }
  
 /******************************************************************************/
+/*                               P u t L i n e                                */
+/******************************************************************************/
+  
+int XrdOucStream::PutLine(const char *data, int dlen)
+{
+   static const int plSize = 2048;
+
+// Allocate a buffer if one is not allocated
+//
+   if (!buff)
+      {if (!(buff = (char *)malloc(plSize)))
+          return Erq(Attach, errno, "allocate stream buffer");
+       bsize = plSize;
+      }
+
+// Adjust dlen
+//
+   if (dlen <= 0) dlen = strlen(data);
+   if (dlen >= bsize) dlen = bsize-1;
+
+// Simply insert the line into the buffer, truncating if need be
+//
+   bnext = recp = token = buff; // This will always be true at this point
+   if (dlen <= 0)
+      {*buff = '\0';
+       flags |= XrdOucStream_EOM;
+       bleft = 0;
+      } else {
+       strncpy(buff, data, dlen);
+       *(buff+dlen) = 0;
+       bleft = dlen+1;
+      }
+// All done
+//
+   return 0;
+}
+
+/******************************************************************************/
 /*                             W a i t 4 D a t a                              */
 /******************************************************************************/
 

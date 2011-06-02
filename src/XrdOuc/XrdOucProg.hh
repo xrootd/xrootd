@@ -70,11 +70,15 @@ int          Run(const char *arg1=0, const char *arg2=0,
 //
 int          Start(void);
 
-// Setup takes a command string, checks that the program is executable and
-// sets up a parameter list structure.
+// Setup takes a command string and sets up a parameter list. If a Proc pointer
+// is passed, then the command executes via that function. Otherwise, it checks
+// that the program (first token) is executable.
 // Zero is returned upon success, otherwise a -errno is returned,
 //
-int          Setup(const char *prog, XrdSysError *errP=0);
+int          Setup(const char *prog, 
+                   XrdSysError *errP=0,
+                   int (*Proc)(XrdOucStream *, char **, int)=0
+                  );
 
 /******************************************************************************/
   
@@ -82,6 +86,7 @@ private:
   int           Restart();
   XrdSysError  *eDest;
   XrdOucStream *myStream;
+  int           (*myProc)(XrdOucStream *, char **, int);
   char         *ArgBuff;
   char         *Arg[64];
   int           numArgs;

@@ -10,8 +10,6 @@
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
 
-//          $Id$
-
 #include <sys/types.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -155,6 +153,10 @@ inline int   Put(const char *data) {return Put(data, strlen(data));}
 // when a null pointer is encountered.
 //
 int          Put(const char *data[], const int dlen[]);
+
+// Insert a line into the stream buffer. This replaces anything that was there.
+//
+int          PutLine(const char *data, int dlen=0);
 
 // Set the Env (returning the old Env). This is useful for suppressing
 // substitutions for a while.

@@ -8,10 +8,6 @@
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdOucProgCVSID = "$Id$";
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -113,6 +109,10 @@ int XrdOucProg::Run(XrdOucStream *Sp, const char *arg1, const char *arg2,
       }
    myArgs[j] = (char *)0;
 
+// If this is a local process then just execute it inline on this thread
+//
+   if (myProc) return (*myProc)(Sp, myArgs, j);
+
 // Execute the command
 //
    if (Sp->Exec(myArgs, 1, theEFD))
@@ -174,7 +174,8 @@ int XrdOucProg::Run(const char *arg1, const char *arg2,
 /*                                 S e t u p                                  */
 /******************************************************************************/
   
-int XrdOucProg::Setup(const char *prog, XrdSysError *errP)
+int XrdOucProg::Setup(const char *prog, XrdSysError *errP,
+                      int (*Proc)(XrdOucStream *, char **, int))
 {
    const int maxArgs = sizeof(Arg)/sizeof(Arg[0]);
    char *pp;
@@ -206,6 +207,10 @@ for (j = 0; j < maxArgs-1 && *pp; j++)
    Arg[j] = (char *)0;
    numArgs= j;
    lenArgs = sizeof(Arg[0]) * numArgs;
+
+// If this is a local process then just record its address
+//
+   if ((myProc = Proc)) return 0;
 
 // Make sure the program is really executable
 //
