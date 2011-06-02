@@ -15,7 +15,7 @@ XRDCOMMON  = XrdSys XrdOuc XrdNet XrdSec
 
 XRDSEC  = @xrdsec@
 
-SERVER  = XrdSfs XrdAcc Xrd \
+SERVER  = XrdSfs XrdAcc Xrd XrdCks \
           XrdOss XrdBwm XrdFrc XrdFrm XrdCms XrdOfs XrdRootd XrdXrootd
 
 XRDCLIENT = XrdClient
@@ -120,6 +120,11 @@ XrdApps: FORCE
 XrdBwm: FORCE
 	@echo $(XMSG) bwm $(XDBG) component...
 	$(ECHO)cd src/XrdBwm;\
+	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
+
+XrdCks: FORCE
+	@echo $(XMSG) cks $(XDBG) component...
+	$(ECHO)cd src/XrdCks;\
 	$(MAKE) $(MAKEXEQ) ARCH=$(ARCH) --no-print-directory
 
 XrdClient: FORCE
