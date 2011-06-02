@@ -16,9 +16,11 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdCks/XrdCksManager.hh"
 #include "XrdFrc/XrdFrcProxy.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcUtils.hh"
@@ -76,12 +78,173 @@ int XrdFrmAdmin::Audit()
 }
 
 /******************************************************************************/
+/*                                C h k s u m                                 */
+/******************************************************************************/
+
+const char *XrdFrmAdmin::ChksumHelp =
+
+"chksum [opts] {calc | ls | set <csval> | unset | ver[ify] <csval>} fn\n\n"
+
+"opts: -f[orce] -pfn -t[ype] <cstype> -v[erbose]";
+
+int XrdFrmAdmin::Chksum()
+{
+   static XrdOucArgs Spec(&Say, "frm_admin: ",    "",
+                                "force",       1, "f",
+                                "pfn",         3, "p",
+                                "type",        1, "t:",
+                                "verbose",     1, "v", (const char *)0);
+
+   static const char *Reqs[] = {"function", "target", 0};
+   const char *csName;
+   char pfnbuf[MAXPATHLEN], *Pfn, *Lfn, *csFunc;
+   int rc;
+
+// Check if this is even supported
+//
+   memset(&CksData, 0, sizeof(CksData));
+   if (!Config.CksMan || !(CksData.Length = Config.CksMan->Size()))
+      {Emsg("Checksum support has not been configured!"); return 8;}
+
+// Parse the request
+//
+   if (!Parse("chksum ", Spec, Reqs)) return 1;
+   csFunc = Opt.Args[0];
+   csName = CksData.Name;
+   if (!*CksData.Name) {Opt.All = 1; CksData.Set(Config.CksMan->Name());}
+
+// Check first for set or verify
+//
+   if (!strcmp (csFunc, "set") || Abbrev(csFunc, "verify", 3))
+      {int n = strlen(Opt.Args[1]);
+       if (n != CksData.Length*2 || !CksData.Set(Opt.Args[1], n))
+          {Emsg("Invalid ", csName, " checksum value - ", Opt.Args[1]);
+           return 4;
+          }
+       if (!(Opt.Args[1] = Spec.getarg()))
+          {Emsg("chksum target not specified."); return 4;}
+      }
+
+// Convert the lfn to a pfn if it has not been converted already
+//
+   Pfn = Lfn = Opt.Args[1];
+   if (Opt.MPType != 'p')
+      {if (!Config.LocalPath(Opt.Args[1], pfnbuf, sizeof(pfnbuf))) return 4;
+       Pfn = pfnbuf;
+      }
+
+// Process the request
+//
+        if (!strcmp(csFunc, "calc"))
+           {if (Opt.Force || Config.CksMan->Get(Pfn, CksData) <= 0)
+               rc = Config.CksMan->Calc(Pfn, CksData, 1);
+            if (rc >= 0) {ChksumPrint(Lfn, rc); return 0;}
+           }
+
+   else if (!strcmp("ls", csFunc))
+           {if (!(rc = ChksumList(Lfn, Pfn))) return 0;}
+
+   else if (!strcmp(csFunc, "set"))
+           {if (!(rc = Config.CksMan->Set(Pfn, CksData))) return 0;}
+
+   else if (!strcmp(csFunc, "unset"))
+           {if (!(rc = Config.CksMan->Del(Pfn, CksData))) return 0;}
+
+   else if (Abbrev(csFunc, "verify", 3))
+           {if ((rc = Config.CksMan->Ver(Pfn, CksData)) > 0)
+               {Say.Say(CksData.Name, " checksums match for ", Lfn); return 0;}
+            if (!rc)
+               {Say.Say(CksData.Name, " checksums differ for ",Lfn); return 1;}
+           }
+
+   else {Emsg("Unknown chksum function - ", csFunc); return 4;}
+
+// Determine name of the problem
+//
+        if (rc == -EDOM)    Emsg("Invalid ", csName, " checksum length.");
+   else if (rc == -ENOTSUP) Emsg(csName, " checksums are not supported.");
+   else if (rc == -ESRCH)   Emsg(csName, " checksum not set for ", Lfn);
+   else if (rc == -ESTALE)  Emsg(csName, " checksum no longer valid for ", Lfn);
+   else                     Emsg(-rc, csFunc, " ", csName, " checksum");
+
+// Return failure
+//
+   return 4;
+}
+
+/******************************************************************************/
+/*                            C h k s u m L i s t                             */
+/******************************************************************************/
+  
+int XrdFrmAdmin::ChksumList(const char *Lfn, const char *Pfn)
+{
+   char Buff[256], *csBP;
+   XrdOucTokenizer csList(Buff);
+   int rc = 0;
+
+// If all checksums wanted, then check if we have any
+//
+   if (Opt.All)
+      {if (!(csBP = Config.CksMan->List(Pfn, Buff, sizeof(Buff))))
+          {Say.Say("No checksums exist for ", Lfn); return 0;}
+       csList.GetLine();
+      }
+
+// Print one or all checksums, as needed
+//
+   do {if (Opt.All)
+          {if ((csBP = csList.GetToken())) CksData.Set(csBP);
+              else break;
+          }
+       if ((rc = Config.CksMan->Get(Pfn, CksData)) <= 0
+       && rc != -ESTALE && rc != -ENOTSUP) return rc;
+       ChksumPrint(Lfn, rc);
+      } while(Opt.All);
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
+/*                           C h k s u m P r i n t                            */
+/******************************************************************************/
+  
+void XrdFrmAdmin::ChksumPrint(const char *Lfn, int rc)
+{
+   char csBuff[XrdCksData::ValuSize*2+8], Buff[64];
+   static const int bSize = sizeof(Buff)-XrdCksData::NameSize;
+
+// Insert the checksum and name in the buffer
+//
+   *Buff = ' ';
+   strcpy(Buff+1, CksData.Name);
+
+// Format long display, if so wanted
+//
+   if (Opt.Verbose)
+      {time_t csTime = CksData.fmTime + CksData.csTime;
+       strftime(Buff+strlen(Buff), bSize, " %D %T ", localtime(&csTime));
+      }
+
+// Grab the checksum value
+//
+        if (rc == -ENOTSUP) strcpy(csBuff, "Unsupported!");
+   else if (rc < 0 )        strcpy(csBuff, "Invalid!");
+   else CksData.Get(csBuff, sizeof(csBuff));
+
+// Print result
+//
+   Say.Say(csBuff, Buff, (Opt.Verbose ? Lfn : 0));
+}
+
+/******************************************************************************/
 /*                                  F i n d                                   */
 /******************************************************************************/
 
 const char *XrdFrmAdmin::FindHelp = "find [-r[ecursive]] what ldir [ldir [...]]\n\n"
 
-"what: fail[files] | mmap[ped] | nolk[files] | pin[ned] | unmig[rated]";
+"what: fail[files] | mmap[ped] | nochksum <type> | nolk[files] | pin[ned] | unmig[rated]";
 
 int XrdFrmAdmin::Find()
 {
@@ -96,11 +259,13 @@ int XrdFrmAdmin::Find()
 
 // Process the correct find
 //
-        if (!strncmp(Opt.Args[0], "failfiles", 4)) return FindFail(Spec);
-   else if (!strncmp(Opt.Args[0], "mmapped",   4)) return FindMmap(Spec);
-   else if (!strncmp(Opt.Args[0], "nolkfiles", 4)) return FindNolk(Spec);
-   else if (!strncmp(Opt.Args[0], "pinned",    3)) return FindPins(Spec);
-   else if (!strncmp(Opt.Args[0], "unmigrated",4)) return FindUnmi(Spec);
+        if (Abbrev(Opt.Args[0], "failfiles", 4)) return FindFail(Spec);
+   else if (Abbrev(Opt.Args[0], "mmapped",   4)) return FindMmap(Spec);
+   else if (Abbrev(Opt.Args[0], "nocs",      4)) return FindNocs(Spec);
+   else if (Abbrev(Opt.Args[0], "nochksum",  8)) return FindNocs(Spec);
+   else if (Abbrev(Opt.Args[0], "nolkfiles", 4)) return FindNolk(Spec);
+   else if (Abbrev(Opt.Args[0], "pinned",    3)) return FindPins(Spec);
+   else if (Abbrev(Opt.Args[0], "unmigrated",4)) return FindUnmi(Spec);
 
 // Nothing we understand
 //
@@ -113,8 +278,8 @@ int XrdFrmAdmin::Find()
 /******************************************************************************/
 
 const char *XrdFrmAdmin::HelpHelp =
-"[help] {audit | exit | f[ind] | makelf | mark | mmap | pin | q[uery] | "
-         "quit | reloc | rm} ...";
+"[help] {audit | chksum | exit | f[ind] | makelf | mark | mmap | pin | q[uery] "
+         "| quit | reloc | rm} ...";
   
 int XrdFrmAdmin::Help()
 {
@@ -124,6 +289,7 @@ int XrdFrmAdmin::Help()
                           const char *Help;
                          }
                  CmdTab[] = {{"audit",  5, 5, AuditHelp },
+                             {"chksum", 6, 6, ChksumHelp },
                              {"find",   1, 4, FindHelp  },
                              {"makelf", 6, 6, MakeLFHelp},
                              {"mark",   4, 4, MarkHelp  },
@@ -497,6 +663,7 @@ int XrdFrmAdmin::xeqArgs(char *Cmd)
                           int        (XrdFrmAdmin::*Method)();
                          }
                  CmdTab[] = {{"audit",  5, 5, &XrdFrmAdmin::Audit},
+                             {"chksum", 6, 6, &XrdFrmAdmin::Chksum},
                              {"convert",7, 7, &XrdFrmAdmin::Convert},
                              {"exit",   4, 4, &XrdFrmAdmin::Quit},
                              {"find",   1, 4, &XrdFrmAdmin::Find},
@@ -535,6 +702,17 @@ int XrdFrmAdmin::xeqArgs(char *Cmd)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                A b b r e v                                 */
+/******************************************************************************/
+
+int XrdFrmAdmin::Abbrev(const char *Spec, const char *Word, int minLen)
+{
+   int n = strlen(Spec);
+   if (n > int(strlen(Word)) || n < minLen) return 0;
+   return !strncmp(Spec, Word, n);
+}
+  
 /******************************************************************************/
 /*                           C o n f i g P r o x y                            */
 /******************************************************************************/
@@ -640,7 +818,8 @@ int XrdFrmAdmin::Parse(const char *What, XrdOucArgs &Spec, const char **Reqs)
 //
    while((theOpt = Spec.getopt()) != -1)
         {switch(theOpt)
-               {case 'e': Opt.Erase   = 1; break;
+               {case 'A': Opt.All     = 1; break;
+                case 'e': Opt.Erase   = 1; break;
                 case 'E': Opt.Echo    = 1; break;
                 case 'f': Opt.Fix     = 1; break;
                 case 'F': Opt.Force   = 1; break;
@@ -654,6 +833,9 @@ int XrdFrmAdmin::Parse(const char *What, XrdOucArgs &Spec, const char **Reqs)
                           break;
                 case 'p': Opt.MPType  ='p';break;
                 case 'r': Opt.Recurse = 1; break;
+                case 't': if (!ParseType(What, Spec.argval)) return 0;
+                          break;
+                case 'v': Opt.Verbose = 1; break;
                 case '?': return 0;
                 default:  Emsg("Internal error mapping options!");
                           return 0;
@@ -780,6 +962,19 @@ XrdOucTList *XrdFrmAdmin::ParseSpace(char *Space, char **Path)
       else if (!(pP->text))
               {Emsg(Space, " space does not contain ", *Path); pP = 0;}
    return pP;
+}
+
+/******************************************************************************/
+/*                             P a r s e T y p e                              */
+/******************************************************************************/
+  
+int XrdFrmAdmin::ParseType(const char *What, char *Type)
+{
+
+// Set checksum type and check for all
+//
+   if (!CksData.Set(Type)) {Emsg("Invalid type - ", Type); return 0;}
+   return 1;
 }
 
 /******************************************************************************/

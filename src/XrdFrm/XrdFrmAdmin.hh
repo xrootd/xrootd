@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+#include "XrdCks/XrdCksData.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
 
 class  XrdFrcProxy;
@@ -25,6 +26,8 @@ class XrdFrmAdmin
 public:
 
 int  Audit();
+
+int  Chksum();
 
 int  Copy();
 
@@ -85,12 +88,18 @@ int  AuditUsageAX(const char *Path);
 int  AuditUsageXA(const char *Path, const char *Space);
 int  isXA(XrdOucNSWalk::NSEnt *nP);
 
+int  ChksumList( const char *Lfn, const char *Pfn);
+void ChksumPrint(const char *Lfn, int rc);
+
 int  FindFail(XrdOucArgs &Spec);
 int  FindMmap(XrdOucArgs &Spec);
+int  FindNocs(XrdOucArgs &Spec);
 int  FindNolk(XrdOucArgs &Spec);
 int  FindPins(XrdOucArgs &Spec);
 int  FindPins(XrdFrmFileset *sP);
 int  FindUnmi(XrdOucArgs &Spec);
+
+int  Abbrev(const char *Spec, const char *Word, int minLen);
 
 void ConfigProxy();
 
@@ -105,6 +114,7 @@ int          Parse(const char *What, XrdOucArgs &Spec, const char **Reqs);
 int          ParseKeep(const char *What, const char *kTime);
 int          ParseOwner(const char *What, char *Uname);
 XrdOucTList *ParseSpace(char *Space, char **Path);
+int          ParseType(const char *What, char *Type);
 
 char ckAttr(int What, const char *Lfn, char *Pfn, int Pfnsz);
 int  mkLock(const char *Lfn);
@@ -153,6 +163,7 @@ int          x2xRemove(const char *Type, const char *Path, int cvt=0);
 XrdOucTList *x2xSpaces();
 
 static const char *AuditHelp;
+static const char *ChksumHelp;
 static const char *FindHelp;
 static const char *HelpHelp;
 static const char *MakeLFHelp;
@@ -184,6 +195,10 @@ int       numProb;
 int       numFix;
 int       finalRC;
 
+// Checksum control area
+//
+XrdCksData     CksData;
+
 // Options from the command
 //
 struct {char   All;
@@ -197,6 +212,7 @@ struct {char   All;
         char   Local;
         char   MPType;
         char   Recurse;
+        char   Verbose;
         char  *Args[2];
         uid_t  Uid;
         gid_t  Gid;

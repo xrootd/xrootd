@@ -239,6 +239,17 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                                "differs from file system version ", fsver);
       }
 
+// Check if we are going to be processing checksums locally
+//
+   if (JobCKT)
+      {XrdOucErrInfo myError("Config");
+       JobQCS = (osFS->chksum(XrdSfsFileSystem::csSize,JobCKT,0,myError) ? 0:1);
+       if (!JobQCS && (JobLCL || !JobCKS))
+          {eDest.Emsg("Config", JobCKT, " checksum is not natively supported.");
+           return 0;
+          }
+      }
+
 // Initialiaze for AIO
 //
         if (getenv("XRDXROOTD_NOAIO")) as_noaio = 1;
@@ -517,11 +528,12 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 /* Function: xcksum
 
-   Purpose:  To parse the directive: chksum [max <n>] <type> <path>
+   Purpose:  To parse the directive: chksum [max <n>] <type> [<path>]
 
              max       maximum number of simultaneous jobs
              <type>    algorithm of checksum (e.g., md5)
              <path>    the path of the program performing the checksum
+                       If no path is given, the checksum is local.
 
   Output: 0 upon success or !0 upon failure.
 */
@@ -529,6 +541,7 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
    static XrdOucProg *theProg = 0;
+   int (*Proc)(XrdOucStream *, char **, int) = 0;
    char *palg, prog[2048];
    int jmax = 4;
 
@@ -538,7 +551,7 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
          {if (strcmp(palg, "max")) break;
           if (!(palg = Config.GetWord()))
              {eDest.Emsg("Config", "chksum max not specified"); return 1;}
-          if (XrdOuca2x::a2i(eDest, "chksum max", palg, &jmax, 1)) return 1;
+          if (XrdOuca2x::a2i(eDest, "chksum max", palg, &jmax, 0)) return 1;
          }
 
 // Verify we have an algoritm
@@ -548,19 +561,21 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
    if (JobCKT) free(JobCKT);
    JobCKT = strdup(palg);
 
-// Verify that we have a program
+// Check if we have a program. If not, then this will be a local checksum and
+// the algorithm will be verified after we load the filesystem.
 //
    if (!Config.GetRest(prog, sizeof(prog)))
       {eDest.Emsg("Config", "cksum parameters too long"); return 1;}
-   if (*prog == '\0')
-      {eDest.Emsg("Config", "chksum program not specified"); return 1;}
+   if (*prog) JobLCL = 0;
+      else {  JobLCL = 1; Proc = &CheckSum; strcpy(prog, "chksum");}
 
 // Set up the program and job
 //
    if (!theProg) theProg = new XrdOucProg(0);
-   if (theProg->Setup(prog, &eDest)) return 1;
+   if (theProg->Setup(prog, &eDest, Proc)) return 1;
    if (JobCKS) delete JobCKS;
-   JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);
+   if (jmax) JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);
+      else   JobCKS = 0;
    return 0;
 }
   

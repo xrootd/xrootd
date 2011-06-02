@@ -14,6 +14,7 @@
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
@@ -56,6 +57,8 @@ int                   XrdXrootdProtocol::WANPort;
 int                   XrdXrootdProtocol::WANWindow;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
+char                  XrdXrootdProtocol::JobLCL  = 0;
+char                  XrdXrootdProtocol::JobQCS  = 0;
 XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
@@ -519,6 +522,33 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                              C h e c k S u m                               */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
+{
+   XrdOucErrInfo myInfo("CheckSum");
+   int rc;
+
+// The arguments must have <name> <path> (i.e. argc >= 2)
+//
+   if (argc < 2)
+      {Stream->PutLine("Internal error; not enough checksum args!");
+       return 8;
+      }
+
+// Issue the checksum calculation (that's all we do here).
+//
+   rc = osFS->chksum(XrdSfsFileSystem::csCalc, JobCKT, argv[1], myInfo);
+
+// Return result regardless of what it is
+//
+   Stream->PutLine(myInfo.getErrText());
+   if (rc) SI->errorCnt++;
+   return rc;
+}
+
 /******************************************************************************/
 /*                               C l e a n u p                                */
 /******************************************************************************/

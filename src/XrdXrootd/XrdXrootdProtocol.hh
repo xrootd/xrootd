@@ -102,6 +102,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Bind();
        int   do_Chmod();
        int   do_CKsum(int canit);
+       int   do_CKsum(const char *Path, const char *Opaque);
        int   do_Close();
        int   do_Dirlist();
        int   do_Endsess();
@@ -147,6 +148,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   aio_WriteCont();
 
        void  Assign(const XrdXrootdProtocol &rhs);
+static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
        int   fsError(int rc, XrdOucErrInfo &myError);
@@ -211,6 +213,8 @@ static char               *FSLib;
 static char               *Notify;
 static char                isRedir;
 static char                chkfsV;
+static char                JobLCL;
+static char                JobQCS;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
 

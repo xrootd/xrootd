@@ -37,6 +37,7 @@ TARGETS  = $(LIBARCH)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
+vpath XrdCks% ../XrdCks
 vpath XrdNet% ../XrdNet
 vpath XrdOfs% ../XrdOfs
 vpath XrdOss% ../XrdOss
@@ -76,7 +77,8 @@ $(OBJDIR)/XrdOfs.o:  XrdOfs.cc             XrdOfs.hh \
                      XrdSysDNS.hh     XrdSecEntity.hh       XrdSecInterface.hh \
                      XrdSfsNative.hh  XrdSfsAio.hh          XrdSfsInterface.hh \
                      XrdOss.hh        XrdSysHeaders.hh      XrdSysPlatform.hh \
-                     XrdOucTList.hh   XrdCmsClient.hh       XrdAccAuthorize.hh
+                     XrdOucTList.hh   XrdCmsClient.hh       XrdAccAuthorize.hh\
+                     XrdCks.hh        XrdCksConfig.hh       XrdCksData.hh
 	@echo Compiling XrdOfs.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfs.o XrdOfs.cc
 
@@ -93,7 +95,8 @@ $(OBJDIR)/XrdOfsConfig.o:  XrdOfsConfig.cc \
                            XrdOucTrace.hh    XrdOucUtils.hh \
                            XrdSysHeaders.hh \
                            XrdOucEnv.hh      XrdAccAuthorize.hh \
-                           XrdCmsClient.hh   XrdCmsFinder.hh
+                           XrdCmsClient.hh   XrdCmsFinder.hh \
+                           XrdCks.hh         XrdCksConfig.hh
 	@echo Compiling XrdOfsConfig.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdOfsConfig.o XrdOfsConfig.cc
 

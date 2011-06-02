@@ -4,7 +4,7 @@
   
 include ../GNUmake.env
 
-BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdNet -lXrdOuc -lXrdSys -ldl \
+BINLIBS = -L$(LIBDIR) -lXrdFrm -lXrdCks -lXrdNet -lXrdOuc -lXrdSys -ldl \
             $(TYPELIBSF)
 
 #------------------------------------------------------------------------------#
@@ -71,6 +71,7 @@ OBJADDS = \
         $(LIBDIR)/libXrdOss.a $(LIBDIR)/libXrdFrc.a
 
 OBJDEPS = \
+          $(LIBDIR)/libXrdCks.a \
           $(LIBDIR)/libXrdFrc.a \
           $(LIBDIR)/libXrdFrm.a \
           $(LIBDIR)/libXrdNet.a \
@@ -91,6 +92,7 @@ TARGETS = $(LIBRARY) $(BINADMIN) $(BINPURGD) $(BINXFRD) $(BINAGNT)
 #                           S e a r c h   P a t h s                            #
 #------------------------------------------------------------------------------#
 
+vpath XrdCks% ../XrdCks
 vpath XrdFrc% ../XrdFrc
 vpath XrdFrm% ../XrdFrm
 vpath XrdNet% ../XrdNet
@@ -137,8 +139,10 @@ $(BINAGNT): $(BINXFRD)
 	$(ECHO)rm -f $(BINAGNT)
 	$(ECHO)ln $(BINXFRD) $(BINAGNT)
 
-$(OBJDIR)/XrdFrmAdmin.o:  XrdFrmAdmin.hh    XrdFrmAdmin.cc  XrdFrcTrace.hh \
-                          XrdFrmConfig.hh   XrdFrcProxy.hh  XrdFrcUtils.hh  \
+$(OBJDIR)/XrdFrmAdmin.o:  XrdFrmAdmin.hh    XrdFrmAdmin.cc    XrdFrmConfig.hh \
+                          XrdCksData.hh     XrdCksManager.hh\
+                          XrdFrcProxy.hh    XrdFrcUtils.hh  \
+                          XrdFrcTrace.hh \
                           XrdOss.hh         XrdOucExport.hh \
                           XrdOuca2x.hh      XrdOucArgs.hh   \
                           XrdOucTList.hh    XrdOucTokenizer.hh \
@@ -176,6 +180,7 @@ $(OBJDIR)/XrdFrmAdminFiles.o: XrdFrmAdmin.hh    XrdFrmAdminFiles.cc \
 
 $(OBJDIR)/XrdFrmAdminFind.o:  XrdFrmAdmin.hh    XrdFrmAdminFind.cc \
                               XrdFrmConfig.hh   XrdFrmFiles.hh  \
+                              XrdCksManager.hh \
                               XrdFrcTrace.hh    XrdSysError.hh \
                               XrdOucArgs.hh     XrdOucNSWalk.hh
 	@echo Compiling XrdFrmAdminFind.cc
@@ -211,6 +216,7 @@ $(OBJDIR)/XrdFrmAdminUnlink.o: XrdFrmAdmin.hh    XrdFrmAdminUnlink.cc \
 
 $(OBJDIR)/XrdFrmConfig.o: XrdFrmConfig.hh  XrdFrmConfig.cc    XrdFrcTrace.hh \
                           XrdFrmMonitor.hh XrdNetCmsNotify.hh \
+                          XrdCksConfig.hh  XrdCksManager.hh \
                           XrdInfo.hh       XrdSysDNS.hh       XrdOss.hh \
                           XrdOuca2x.hh     XrdOucEnv.hh       XrdOucExport.hh \
                           XrdOucUtils.hh   XrdOucName2Name.hh XrdOucMsubs.hh \

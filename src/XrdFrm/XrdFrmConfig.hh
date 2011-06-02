@@ -15,6 +15,8 @@
 
 #include "XrdOss/XrdOssSpace.hh"
 
+class XrdCks;
+class XrdCksConfig;
 class XrdNetCmsNotify;
 class XrdOss;
 class XrdOucMsubs;
@@ -58,6 +60,9 @@ static const int    cmdStats = 0x0004;
 int                 xfrIN;
 int                 xfrOUT;
 
+char               *CksAlg;
+XrdCksConfig       *CksCfg;    // -> Checksum Configurator
+XrdCks             *CksMan;    // -> Checksum Manager
 XrdOucName2Name    *the_N2N;   // -> File mapper object
 XrdOss             *ossFS;
 XrdNetCmsNotify    *cmsPath;
@@ -142,6 +147,7 @@ enum  SubSys {ssAdmin, ssMigr, ssPstg, ssPurg, ssXfr};
      ~XrdFrmConfig() {}
 
 private:
+int          ConfigCks();
 XrdOucMsubs *ConfigCmd(const char *cname, char *cdata);
 int          ConfigMum(XrdFrmConfigSE &theSE);
 int          ConfigN2N();
@@ -159,6 +165,7 @@ XrdOucTList *InsertPL(XrdOucTList *pP, const char *Path, int Plen, int isRW);
 void         InsertXD(const char *Path);
 void         Usage(int rc);
 int          xapath();
+int          xcks(int isOfs=0);
 int          xcopy();
 int          xcopy(int &TLim);
 int          xcmax();

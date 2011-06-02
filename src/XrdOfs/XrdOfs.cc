@@ -25,6 +25,10 @@
 
 #include "XrdVersion.hh"
 
+#include "XrdCks/XrdCks.hh"
+#include "XrdCks/XrdCksConfig.hh"
+#include "XrdCks/XrdCksData.hh"
+
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
@@ -140,6 +144,12 @@ XrdOfs::XrdOfs()
 //
    ConfigFN = 0;
    XrdOfsHandle::Alloc(&dummyHandle);
+
+// Set checksum pointers
+//
+   Cks       = 0;
+   CksConfig = 0;
+   CksRdsz   = 0;
 }
   
 /******************************************************************************/
@@ -1129,6 +1139,98 @@ void XrdOfsFile::GenFWEvent()
 /*                                                                            */
 /******************************************************************************/
 /******************************************************************************/
+/*                                c h k s u m                                 */
+/******************************************************************************/
+
+int XrdOfs::chksum(      csFunc            Func,   // In
+                         const char       *csName, // In
+                         const char       *Path,   // In
+                         XrdOucErrInfo    &einfo,  // Out
+                   const XrdSecEntity     *client, // In
+                   const char             *opaque) // In
+/*
+  Function: Compute and return file checksum.
+
+  Input:    Func      - Function to be performed:
+                        csCalc   - Return precomputed or computed checksum.
+                        csGet    - Return precomputed checksum.
+                        csSize   - Verify csName and get its size.
+            Path      - Pathname of file for csCalc and csSize.
+            einfo     - Error information object to hold error details.
+            client    - Authentication credentials, if any.
+            opaque    - Opaque information to be used as seen fit.
+
+  Output:   Returns SFS_OK upon success and SFS_ERROR upon failure.
+*/
+{
+   EPNAME("chksum");
+   XrdOucEnv  cksEnv(opaque,0,client);
+   XrdCksData cksData;
+   const char *tident = einfo.getErrUser();
+   char buff[MAXPATHLEN+8];
+   int rc;
+
+// Check if we support checksumming
+//
+   if (!Cks)
+      {einfo.setErrInfo(ENOTSUP, "Checksums are not supported.");
+       return SFS_ERROR;
+      }
+
+// A csSize request is issued usually once to verify everything is working. We
+// take this opportunity to also verify the checksum name.
+//
+   rc = cksData.Set(csName);
+   if (!rc || Func == XrdSfsFileSystem::csSize)
+      {if (rc && (rc = Cks->Size(csName)))
+          {einfo.setErrCode(rc); return SFS_OK;}
+       strcpy(buff, csName); strcat(buff, " checksum not supported.");
+       einfo.setErrInfo(ENOTSUP, buff);
+       return SFS_ERROR;
+      }
+
+// Everything else requires a path
+//
+   if (!Path)
+      {strcpy(buff, csName);
+       strcat(buff, " checksum path not specified.");
+       einfo.setErrInfo(EINVAL, buff);
+       return SFS_ERROR;
+      }
+
+// Apply security, as needed
+//
+   XTRACE(stat, Path, csName);
+   AUTHORIZE(client,&cksEnv,AOP_Stat,"checksum",Path,einfo);
+
+// At this point we need to convert the lfn to a pfn
+//
+   if (!(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))
+      return Emsg(epname, einfo, rc, "checksum", Path);
+
+// Now determine what to do
+//
+        if (Func == XrdSfsFileSystem::csCalc) rc = Cks->Calc(Path, cksData);
+   else if (Func == XrdSfsFileSystem::csGet)  rc = Cks->Get( Path, cksData);
+   else {einfo.setErrInfo(EINVAL, "Invalid checksum function.");
+         return SFS_ERROR;
+        }
+
+// See if all went well
+//
+   if (rc >= 0 || rc == -ESTALE || rc == -ESRCH)
+      {if (rc >= 0) {cksData.Get(buff, MAXPATHLEN); rc = 0;}
+          else {*buff = 0; rc = ENOENT;}
+       einfo.setErrInfo(rc, buff);
+       return SFS_OK;
+      }
+
+// We failed
+//
+   return Emsg(epname, einfo, rc, "checksum", Path);
+}
+  
+/******************************************************************************/
 /*                                 c h m o d                                  */
 /******************************************************************************/
 
@@ -1473,7 +1575,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 
     return SFS_OK;
 }
-
+  
 /******************************************************************************/
 /*                               p r e p a r e                                */
 /******************************************************************************/

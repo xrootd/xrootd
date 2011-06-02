@@ -20,6 +20,8 @@
 #include <sys/stat.h>
 
 #include "Xrd/XrdInfo.hh"
+#include "XrdCks/XrdCksConfig.hh"
+#include "XrdCks/XrdCksManager.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
@@ -174,6 +176,9 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    LocalRoot= RemoteRoot = 0;
    lcl_N2N  = rmt_N2N = the_N2N = 0;
    N2N_Lib  = N2N_Parms         = 0;
+   CksAlg   = 0;
+   CksCfg   = 0;
+   CksMan   = 0;
 
 // Establish our instance name
 //
@@ -376,7 +381,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // Configure each specific component
 //
    if (!NoGo) switch(ssID)
-      {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss());
+      {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss() || ConfigCks());
                      break;
        case ssPurg:  if (!(NoGo = (ConfigN2N() || ConfigMP("purgeable"))))
                         ConfigPF("frm_purged");
@@ -534,6 +539,22 @@ XrdOucTList *XrdFrmConfig::Space(const char *Name, const char *Path)
 /******************************************************************************/
 /*                     P r i v a t e   F u n c t i o n s                      */
 /******************************************************************************/
+/******************************************************************************/
+/*                             C o n f i g C k s                              */
+/******************************************************************************/
+
+int XrdFrmConfig::ConfigCks()
+{
+
+// If we have no algorithm, we are done
+//
+   if (!CksAlg) return 0;
+
+// Configure the algorithm
+//
+   return !(CksMan = CksCfg->Configure(CksAlg));
+}
+  
 /******************************************************************************/
 /* Private:                    C o n f i g C m d                              */
 /******************************************************************************/
@@ -871,6 +892,10 @@ int XrdFrmConfig::ConfigProc()
   XrdOucEnv myEnv;
   XrdOucStream cfgFile(&Say, myInstance, &myEnv, "=====> ");
 
+// Allocate a chksum configurator if needed
+//
+   if (ssID == ssAdmin) CksCfg = new XrdCksConfig(ConfigFN, &Say);
+
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
@@ -916,6 +941,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
    if (ssID == ssAdmin)
       {
        if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
+       if (!strcmp(var, "ofs.ckslib"    )) return xcks(1);
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
                                            return xspace(0,0);
@@ -924,6 +950,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
        if (!strcmp(var, "oss.space"     )) return xspace();
+       if (!strcmp(var, "xrootd.chksum" )) return xcks();
 //     if (!strcmp(var, "oss.mssgwcmd"  )) return Grab(var, &MSSCmd,    0);
 //     if (!strcmp(var, "oss.msscmd"    )) return Grab(var, &MSSCmd,    0);
       }
@@ -1197,6 +1224,46 @@ int XrdFrmConfig::xapath()
    return 0;
 }
 
+/******************************************************************************/
+/* Private:                         x c k s                                   */
+/******************************************************************************/
+
+/* Function: xcks
+
+   Purpose:  To parse the directive: chksum [max <n>] <type> <path>
+
+             max       maximum number of simultaneous jobs
+             <type>    algorithm of checksum (e.g., md5)
+             <path>    the path of the program performing the checksum
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdFrmConfig::xcks(int isOfs)
+{
+   char *palg;
+
+// If this is the ofs cks directive, then process as such
+//
+   if (isOfs) return CksCfg->ParseLib(*cFile);
+
+// Get the algorithm name and the program implementing it
+//
+   while ((palg = cFile->GetWord()) && *palg != '/')
+         {if (strcmp(palg, "max")) break;
+          if (!(palg = cFile->GetWord()))
+             {Say.Emsg("Config", "chksum max not specified"); return 1;}
+         }
+
+// Verify we have an algoritm
+//
+   if (!palg || *palg == '/')
+      {Say.Emsg("Config", "chksum algorithm not specified"); return 1;}
+   if (CksAlg) free(CksAlg);
+   CksAlg = strdup(palg);
+   return 0;
+}
+  
 /******************************************************************************/
 /* Private:                        x c o p y                                  */
 /******************************************************************************/

@@ -52,6 +52,7 @@ OBJFS   = \
           $(LIBDIR)/libXrdOfs.a \
           $(LIBDIR)/libXrdOss.a \
           $(LIBDIR)/libXrdFrc.a \
+          $(LIBDIR)/libXrdCks.a \
           $(LIBDIR)/libXrdAcc.a
 
 OBJDEPS = \
@@ -204,10 +205,9 @@ $(OBJDIR)/XrdXrootdProtocol.o: XrdXrootdFile.hh       XrdXrootdFileLock.hh \
                                XrdXrootdStats.hh      XrdXrootdTrace.hh    \
                                XrdXrootdAio.hh        XProtocol.hh         \
                                XrdBuffer.hh           XrdLink.hh           \
-                               XrdObject.hh           XrdObject.icc        \
                                XrdXrootdReqID.hh      XProtocol.hh \
                                XrdSfsInterface.hh     XrdSecInterface.hh \
-                               XrdSecEntity.hh \
+                               XrdSecEntity.hh        XrdOucStream.hh \
                                XrdSysError.hh         XrdSysPthread.hh   \
                                XrdSysTimer.hh         XrdOucTrace.hh \
                                XrdXrootdPio.hh        \

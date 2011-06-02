@@ -40,6 +40,7 @@ xrootd_SOURCES = \
 xrootd_LDADD = -ldl \
                   ../Xrd/libXrd.la \
                   ../XrdOfs/libXrdOfs.la \
+                  ../XrdCks/libXrdCks.la \
                   ../XrdAcc/libXrdAcc.la \
                   ../XrdOss/libXrdOss.la \
                   ../XrdFrc/libXrdFrc.la \

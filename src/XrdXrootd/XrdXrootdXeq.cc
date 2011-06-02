@@ -305,10 +305,11 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 {
    const char *opaque;
    char *args[3];
+   int rc;
 
 // Check if we support this operation
 //
-   if (!JobCKS)
+   if (!JobQCS && !JobCKS)
       return Response.Send(kXR_Unsupported, "query chksum is not supported");
 
 // Prescreen the path
@@ -319,9 +320,18 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 // If this is a cancel request, do it now
 //
    if (canit)
-      {JobCKS->Cancel(argp->buff, &Response);
+      {if (JobCKS) JobCKS->Cancel(argp->buff, &Response);
        return Response.Send();
       }
+
+// If we are allowed to locally query the checksum to avoid computation, do it
+//
+   if (JobQCS && (rc = do_CKsum(argp->buff, opaque)) <= 0) return rc;
+
+// Just make absolutely sure we can continue with a calculation
+//
+   if (!JobCKS)
+      return Response.Send(kXR_ServerError, "Logic error computing checksum.");
 
 // Construct the argument list
 //
@@ -333,6 +343,46 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 //
    return JobCKS->Schedule(argp->buff, (const char **)args, &Response,
                   ((CapVer & kXR_vermask) >= kXR_ver002 ? 0 : JOB_Sync));
+}
+
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
+{
+   static char Space = ' ';
+   static int  CKTLen = strlen(JobCKT);
+   XrdOucErrInfo myError(Link->ID);
+   int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, JobCKT, Path,
+                             myError, CRED, Opaque);
+   const char *csData = myError.getErrText(ec);
+
+// Diagnose any hard errors
+//
+   if (rc)
+      {if (!JobLCL && JobCKS) return 1;
+       SI->errorCnt++;
+       return Response.Send((XErrorCode) XProtocol::mapError(ec), csData);
+      }
+
+// Return result if it is actually available
+//
+   if (*csData)
+      {struct iovec iov[4] = {{0,0}, {JobCKT, CKTLen}, {&Space, 1},
+                              {(char *)csData, strlen(csData)+1}};
+       return Response.Send(iov, 4);
+      }
+
+// Diagnose soft errors
+//
+   if (!JobCKS)
+      {const char *eTxt[2] = {JobCKT, " checksum not available."};
+       myError.setErrInfo(0, eTxt, 2);
+       return Response.Send(kXR_ChkSumErr, myError.getErrText());
+      }
+
+// Return indicating that we should try calculating the checksum
+//
+   return 1;
 }
 
 /******************************************************************************/

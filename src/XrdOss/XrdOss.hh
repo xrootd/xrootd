@@ -143,6 +143,9 @@ virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
                        {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
                         strcpy(buff, Path); return 0;
                        }
+virtual
+const char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
+                       {rc = 0; return Path;}
 
                 XrdOss() {}
 virtual        ~XrdOss() {}

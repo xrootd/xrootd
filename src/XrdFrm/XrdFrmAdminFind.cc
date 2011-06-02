@@ -14,6 +14,7 @@
 #include <time.h>
 #include <sys/param.h>
 
+#include "XrdCks/XrdCksManager.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
@@ -91,6 +92,58 @@ int XrdFrmAdmin::FindMmap(XrdOucArgs &Spec)
 // All done
 //
    sprintf(buff,"%d mmapped file%s found.",num,(num == 1 ? "" : "s"));
+   Msg(buff);
+   return rc;
+}
+
+/******************************************************************************/
+/*                              F i n d N o c s                               */
+/******************************************************************************/
+  
+int XrdFrmAdmin::FindNocs(XrdOucArgs &Spec)
+{
+   XrdFrmFileset *sP;
+   XrdFrmFiles   *fP;
+   char buff[128], pDir[MAXPATHLEN], *lDir = Opt.Args[1];
+   int opts = (Opt.Recurse ? XrdFrmFiles::Recursive : 0);
+   int ec = 0, rc = 0, num = 0;
+
+// Check if this is even supported
+//
+   if (!Config.CksMan)
+      {Emsg("Checksum support has not been configured!"); return 8;}
+
+
+// First get the checksum type
+//
+   if (!(CksData.Length = Config.CksMan->Size(Opt.Args[1]))
+   ||  !CksData.Set(Opt.Args[1]))
+      {Emsg(Opt.Args[1], " checksum is not supported."); return 4;}
+
+// Now get the actual target
+//
+   if (!(lDir = Spec.getarg()))
+      {Emsg("Find target not specified."); return 4;}
+
+// Process each directory
+//
+   do {if (!Config.LocalPath(lDir, pDir, sizeof(pDir))) continue;
+       fP = new XrdFrmFiles(pDir, opts | XrdFrmFiles::NoAutoDel);
+       while((sP = fP->Get(ec)))
+            {if ((rc = Config.CksMan->Get(sP->basePath(), CksData)) <= 0)
+                {num++;
+                 Msg((rc == -ESTALE ? "Invalid " : "Missing "), CksData.Name,
+                      " ",sP->basePath());
+                }
+             delete sP;
+            }
+       if (ec) rc = 4;
+       delete fP;
+      } while((lDir = Spec.getarg()));
+
+// All done
+//
+   sprintf(buff,"%d file%s found with no chksum.",num,(num == 1 ? "" : "s"));
    Msg(buff);
    return rc;
 }

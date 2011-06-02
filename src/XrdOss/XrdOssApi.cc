@@ -156,6 +156,13 @@ int XrdOssSys::Lfn2Pfn(const char *oldp, char *newp, int blen)
     return 0;
 }
 
+const char *XrdOssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
+{
+    if (!lcl_N2N) {rc = 0; return oldp;}
+    if ((rc = -(lcl_N2N->lfn2pfn(oldp, newp, blen)))) return 0;
+    return newp;
+}
+
 /******************************************************************************/
 /*                          G e n L o c a l P a t h                           */
 /******************************************************************************/
