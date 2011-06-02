@@ -14,6 +14,18 @@ Version 3.1.0
      record (requested by Matevz Tadel, CMS). This adds a new generic option,
      auth, to the xrootd.monitor directive. It needs to be specified for the
      authentication information to be added. This keeps backward compatability.
+   * Add a new method, chksum, to the standard filesystem interface.
+   * Integrate checksums into the logical filesystem layer implementation.
+     See the ofs.ckslib directive on how to do non-default configuration.
+     This also added a more effecient lfn2pfn() method to the storage system.
+   * Allow native checksums to be enabled in the xrootd layer.
+     See the xrootd.chksum directive on how to do this.
+   * Add checksum management to the frm_admin command.
+   * Allow XrdOucProg to dispatch a local program as well as a process.
+   * Allow a line to be insrerted into an XrdOucStream managed stream.
+   * Implement native checksums usable stand-alone or as plugins. Three digests
+     are supported: adler32, crc32, and md5. An additional digest can be added
+     via a plugin. Also, the native digests can be over-ridden via a plugin.
 
 + **Major bug fixes**
    * Fix incorrect lock handling for multiple waiters.
