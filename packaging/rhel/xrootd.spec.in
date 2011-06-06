@@ -192,6 +192,7 @@ exit 0
 %{_libdir}/libXrdNet*.so*
 %{_libdir}/libXrdOuc.so*
 %{_libdir}/libXrdSys.so*
+%{_libdir}/libXrdCks.so*
 
 %files libs-devel
 %defattr(-,root,root,-)
@@ -203,6 +204,7 @@ exit 0
 %{_includedir}/%{name}/XrdNet
 %{_includedir}/%{name}/XrdOuc
 %{_includedir}/%{name}/XrdSys
+%{_includedir}/%{name}/XrdCks
 
 %files client
 %defattr(-,root,root,-)
