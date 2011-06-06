@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Accept XrdSecSSSKT envar as documented but also continue to support
+     XrdSecsssKT for backward compatability.
    * Allow a plugin (notably the proxy plugin) to disable async I/O.
    * Implement a general memory caching object. Currently, this will be used
      by the Posix object.
