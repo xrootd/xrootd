@@ -214,6 +214,11 @@ void print_chksum(const char* src, unsigned long long bytesread, unsigned adler)
 //------------------------------------------------------------------------------
 XrdOucString AddSizeHint( const char *dst, off_t size )
 {
+  // to be removed when we have no more <3.0.4 servers
+  // needed because of a bug fixed by 787446f38296698d2881ed45d3009336bde0834d
+  if( !EnvGetLong( NAME_XRDCP_SIZE_HINT ) )
+    return dst;
+
   XrdOucString dest = dst;
   std::stringstream s;
   if( dest.find( "?oss.asize=" ) == STR_NPOS &&
@@ -1193,7 +1198,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       print_summary(src, dst, bytesread, adler);
    }     
 #endif
-   
+
    pthread_cancel(myTID);
    pthread_join(myTID, &thret);
 
