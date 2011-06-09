@@ -262,17 +262,17 @@ exit 0
 %{_libdir}/libXrd.so*
 %doc %{_mandir}/man8
 
+%config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+
 %if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
-%attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/log/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/run/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/%{name}
 %else
-%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
-%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
-%attr(-,daemon,daemon) %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+%config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
+%config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
 %attr(-,daemon,daemon) %dir %{_var}/log/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/run/%{name}
 %attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
