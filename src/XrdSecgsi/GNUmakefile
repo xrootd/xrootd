@@ -53,6 +53,7 @@ SOURCES = \
         XrdSecProtocolgsi.cc \
         XrdSecgsiProxy.cc \
         XrdSecgsitest.cc \
+        XrdSecgsiAuthzFunDN.cc \
         XrdSecgsiGMAPFunDN.cc \
         XrdSecgsiGMAPFunLDAP.cc
 
@@ -74,6 +75,9 @@ OBJECTC = \
 OBJECTD = \
         $(OBJDIR)/XrdSecgsiGMAPFunDN.o
 
+OBJECTE = \
+        $(OBJDIR)/XrdSecgsiAuthzFunDN.o
+
 GSIEXTRACFLAGS = $(INCSSL) -DPERL5 $(CRYPTOSSLEXTRACFLAGS)
 
 LIBRARY = $(LIBDIR)/libXrdSecgsi.$(TYPESHLIB)
@@ -82,11 +86,13 @@ LIBGMLDAP = $(LIBDIR)/libXrdSecgsiGMAPLDAP.$(TYPESHLIB)
 
 LIBGMDN = $(LIBDIR)/libXrdSecgsiGMAPDN.$(TYPESHLIB)
 
+LIBAZDN = $(LIBDIR)/libXrdSecgsiAuthzDN.$(TYPESHLIB)
+
 SECGSITEST = $(BINDIR)/xrdsecgsitest
 
 SECGSIPROXY = $(BINDIR)/xrdgsiproxy
 
-TARGETS = $(LIBRARY) $(LIBGMLDAP) $(LIBGMDN) $(SECGSIPROXY) $(SECGSITEST)
+TARGETS = $(LIBRARY) $(LIBGMLDAP) $(LIBGMDN) $(LIBAZDN) $(SECGSIPROXY) $(SECGSITEST)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -123,7 +129,11 @@ $(LIBGMLDAP): $(OBJECTC)
 
 $(LIBGMDN): $(OBJECTD)
 	@echo Creating shared library $(LIBGMDN) 
-	$(ECHO)$(LD) $(OBJECTD) $(LDSO) $(LIBDIR)/libXrdOuc.a $(LIBS) -o $(LIBGMDN)
+	$(ECHO)$(LD) $(OBJECTD) $(LDSO) -L$(LIBDIR) -lXrdSecgsi $(LIBDIR)/libXrdOuc.a $(LIBS) -o $(LIBGMDN)
+
+$(LIBAZDN): $(OBJECTE)
+	@echo Creating shared library $(LIBAZDN) 
+	$(ECHO)$(LD) $(OBJECTE) $(LDSO) -L$(LIBDIR) -lXrdSecgsi $(LIBLIBS) $(LIBS) -o $(LIBAZDN)
 
 $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECGSITEST) 
@@ -172,4 +182,8 @@ $(OBJDIR)/XrdSecgsiGMAPFunLDAP.o: XrdSecgsiGMAPFunLDAP.cc
 $(OBJDIR)/XrdSecgsiGMAPFunDN.o: XrdSecgsiGMAPFunDN.cc XrdOucHash.hh XrdOucString.hh
 	@echo Compiling XrdSecgsiGMAPFunDN.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiGMAPFunDN.o XrdSecgsiGMAPFunDN.cc
+
+$(OBJDIR)/XrdSecgsiAuthzFunDN.o: XrdSecgsiAuthzFunDN.cc XrdOucHash.hh XrdOucString.hh
+	@echo Compiling XrdSecgsiAuthzFunDN.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiAuthzFunDN.o XrdSecgsiAuthzFunDN.cc
 

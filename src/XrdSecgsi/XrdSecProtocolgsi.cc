@@ -124,7 +124,10 @@ XrdSysPlugin   *XrdSecProtocolgsi::GMAPPlugin = 0;
 XrdSecgsiGMAP_t XrdSecProtocolgsi::GMAPFun = 0;
 XrdSysPlugin   *XrdSecProtocolgsi::AuthzPlugin = 0;
 XrdSecgsiAuthz_t XrdSecProtocolgsi::AuthzFun = 0;
+XrdSecgsiAuthzKey_t XrdSecProtocolgsi::AuthzKey = 0;
+int    XrdSecProtocolgsi::AuthzCertFmt = -1;
 int    XrdSecProtocolgsi::GMAPCacheTimeOut = -1;
+int    XrdSecProtocolgsi::AuthzCacheTimeOut = 43200;  // 12h, default
 String XrdSecProtocolgsi::SrvAllowedNames;
 //
 // Crypto related info
@@ -140,6 +143,7 @@ XrdSutCache XrdSecProtocolgsi::cacheCert; // Server certificates info
 XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
 XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
+XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
 //
 // Running options / settings
 int  XrdSecProtocolgsi::Debug       = 0; // [CS] Debug level
@@ -716,47 +720,30 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
       //
       // Load function be used to map DN to usernames, if specified
-      bool hasauthzfun = 0;
-      if (opt.authzfun && GMAPOpt > 0) {
-         if (!(AuthzFun = LoadAuthzFun((const char *) opt.authzfun,
-                                       (const char *) opt.authzfunparms))) {
-            PRINT("Could not load plug-in: "<<opt.authzfun<<": ignore");
-         } else {
-            hasauthzfun = 1;
-         }
-      }
       bool hasgmapfun = 0;
       if (opt.gmapfun && GMAPOpt > 0) {
-         if (!hasauthzfun) {
-            if (!(GMAPFun = LoadGMAPFun((const char *) opt.gmapfun,
-                                       (const char *) opt.gmapfunparms))) {
-               PRINT("Could not load plug-in: "<<opt.gmapfun<<": ignore");
+         if (!(GMAPFun = LoadGMAPFun((const char *) opt.gmapfun,
+                                     (const char *) opt.gmapfunparms))) {
+            PRINT("Could not load plug-in: "<<opt.gmapfun<<": ignore");
+         } else {
+            hasgmapfun = 1;
+            // Init or reset the cache
+            if (cacheGMAPFun.Empty()) {
+               if (cacheGMAPFun.Init(100) != 0) {
+                  PRINT("Error initializing GMAPFun cache");
+                  return Parms;
+               }
             } else {
-               hasgmapfun = 1;
-            }
-         } else {
-            PRINT("WARNING: ignoring 'gmapfun' directive since an authz plugin (specified"
-                  " via 'authzfun') has already been successfully loaded");
-         }
-      }
-
-      if (hasgmapfun || hasauthzfun) {
-         // Init or reset the cache
-         if (cacheGMAPFun.Empty()) {
-            if (cacheGMAPFun.Init(100) != 0) {
-               PRINT("Error initializing GMAPFun cache");
-               return Parms;
-            }
-         } else {
-            if (cacheGMAPFun.Reset() != 0) {
-               PRINT("Error resetting GMAPFun cache");
-               return Parms;
+               if (cacheGMAPFun.Reset() != 0) {
+                  PRINT("Error resetting GMAPFun cache");
+                  return Parms;
+               }
             }
          }
       }
       //
       // Disable GMAP if neither a grid mapfile nor a GMAP function are available
-      if (!hasgmap && !hasgmapfun && !hasauthzfun) {
+      if (!hasgmap && !hasgmapfun) {
          if (GMAPOpt > 1) {
             ErrF(erp,kGSErrError,"User mapping required, but neither a grid mapfile"
                                  " nor a mapping function are available");
@@ -764,6 +751,41 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             return Parms;
          }
          GMAPOpt = 0;
+      }
+      //
+      // Authorization function
+      bool hasauthzfun = 0;
+      if (opt.authzfun) {
+         if (!(AuthzFun = LoadAuthzFun((const char *) opt.authzfun,
+                                       (const char *) opt.authzfunparms, AuthzCertFmt))) {
+            PRINT("Could not load plug-in: "<<opt.authzfun<<": ignore");
+         } else {
+            hasauthzfun = 1;
+            // Notify certificate format
+            if (AuthzCertFmt >= 0 && AuthzCertFmt <= 1) {
+               const char *ccfmt[] = { "raw", "PEM base64" };
+               DEBUG("authzfun: proxy certificate format: "<<ccfmt[AuthzCertFmt]);
+            } else {
+               DEBUG("authzfun: proxy certificate format: unknown (code: "<<AuthzCertFmt<<")");
+            }
+            // Init or reset the cache
+            if (cacheAuthzFun.Empty()) {
+               if (cacheAuthzFun.Init(100) != 0) {
+                  PRINT("Error initializing AuthzFun cache");
+                  return Parms;
+               }
+            } else {
+               if (cacheAuthzFun.Reset() != 0) {
+                  PRINT("Error resetting AuthzFun cache");
+                  return Parms;
+               }
+            }
+            // Expiration of Authz related cache entries
+            if (opt.authzto > 0) {
+               AuthzCacheTimeOut = opt.authzto;
+               DEBUG("grid-map cache entries expire after "<<AuthzCacheTimeOut<<" secs");
+            }
+         }
       }
       //
       // Expiration of GRIDMAP related cache entries
@@ -1566,6 +1588,9 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Buffer related
    XrdSutBuffer    *bpar = 0;  // Global buffer
    XrdSutBuffer    *bmai = 0;  // Main buffer
+   // Proxy export related
+   XrdOucString spxy;
+   XrdSutBucket *bpxy = 0;
 
    //
    // Decode received buffer
@@ -1710,24 +1735,127 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          }
       }
 
+      // Here prepare/extract the information for authorization
+      spxy = "";
+      bpxy = 0;
+      if (AuthzFun && AuthzKey) {
+         // Fill the information needed by the external function
+         if (AuthzCertFmt == 1) {
+            // PEM base64
+            bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+            bpxy->ToString(spxy);
+            Entity.creds = strdup(spxy.c_str());
+            Entity.credslen = spxy.length();
+         } else {
+            // Raw (opaque) format, to be used with XrdCrypto
+            Entity.creds = (char *) hs->Chain;
+            Entity.credslen = 0;
+         }
+         // Get the key
+         char *key = 0;
+         int lkey = 0;
+         if ((lkey = (*AuthzKey)(Entity, &key)) < 0) {
+            // Fatal error
+            kS_rc = kgST_error;
+            PRINT("ERROR: unable to get the key associated to this user");
+            break;
+         }
+         const char *dn = (const char *)key;
+         int now = hs->TimeStamp;
+         // We may have it in the cache
+         XrdSutPFEntry *cent = cacheAuthzFun.Get(dn);
+         // Check expiration, if required
+         if (cent) {
+            bool expired = 0;
+            if (AuthzCacheTimeOut > 0 && (now - cent->mtime) > AuthzCacheTimeOut) expired = 1;
+            int notafter = *((int *) cent->buf2.buf);
+            if (now > notafter) expired = 1;
+            // Invalidate the entry, if the case
+            if (expired) {
+               FreeEntity((XrdSecEntity *) cent->buf1.buf);
+               SafeDelete(cent->buf1.buf);
+               SafeDelete(cent->buf2.buf);
+               cacheAuthzFun.Remove(dn);
+               cent = 0;
+            }
+         }
+         if (!cent || (cent && (cent->status != kPFE_ok))) {
+            int authzrc = 0;
+            if ((authzrc = (*AuthzFun)(Entity)) != 0) {
+               if (authzrc < 0) {
+                  // Fatal error
+                  kS_rc = kgST_error;
+                  PRINT("ERROR: the authorization plug-in reported a fatal failure!");
+                  SafeDelete(key);
+                  break;
+               } else {
+                  PRINT("WARNING: the authorization plug-in reported a non-fatal failure!");
+               }
+            } else {
+               if ((cent = cacheAuthzFun.Add(dn))) {
+                  cent->status = kPFE_ok;
+                  // Save a copy of the relevant Entity fields
+                  XrdSecEntity *se = new XrdSecEntity();
+                  int slen = 0;
+                  CopyEntity(&Entity, se, &slen);
+                  FreeEntity((XrdSecEntity *) cent->buf1.buf);
+                  SafeDelete(cent->buf1.buf);
+                  cent->buf1.buf = (char *) se;
+                  cent->buf1.len = slen;
+                  // Proxy expiration time
+                  int notafter = hs->Chain->End() ? hs->Chain->End()->NotAfter() : -1;
+                  cent->buf2.buf = (char *) new int(notafter);
+                  cent->buf2.len = sizeof(int);
+                  // Fill up the rest
+                  cent->cnt = 0;
+                  cent->mtime = now; // creation time
+                  // Rehash cache
+                  cacheAuthzFun.Rehash(1);
+                  // Notify
+                  DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
+               }
+            }
+         } else {
+            // Fetch a copy of the saved entity
+            int slen = 0;
+            CopyEntity((XrdSecEntity *) cent->buf1.buf, &Entity, &slen);
+            // Notify
+            DEBUG("Got Entity from cacheAuthzFun ("<<slen<<" bytes)");
+         }
+         // Cleanup
+         SafeDelArray(key);
+      }
+
       // Export proxy for authorization, if required
       if (AuthzPxyWhat >= 0) {
-         XrdSutBucket *b = (AuthzPxyWhat == 1 && hs->Chain->End()) ? hs->Chain->End()->Export()
-                                                                   : XrdCryptosslX509ExportChain(hs->Chain, true);
-         XrdOucString s;
-         b->ToString(s);
+         if (bpxy && AuthzPxyWhat == 1) {
+            SafeDelete(bpxy); spxy = "";
+            SafeFree(Entity.creds);
+            Entity.credslen = 0;
+         }
+         if (!bpxy) {
+            if (AuthzPxyWhat == 1 && hs->Chain->End()) {
+               bpxy = hs->Chain->End()->Export();
+            } else {
+               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+            }
+            bpxy->ToString(spxy);
+         }
          if (AuthzPxyWhere == 1) {
-            Entity.creds = strdup(s.c_str());
-            Entity.credslen = s.length();
+            Entity.creds = strdup(spxy.c_str());
+            Entity.credslen = spxy.length();
          } else {
             // This should be deprecated
-            Entity.endorsements = strdup(s.c_str());
+            Entity.endorsements = strdup(spxy.c_str());
          }
-         delete b;
-         
+         delete bpxy;
          DEBUG("Entity.endorsements: "<<(void *)Entity.endorsements);
          DEBUG("Entity.creds:        "<<(void *)Entity.creds);
          DEBUG("Entity.credslen:     "<<Entity.credslen);
+
+      } else if (bpxy) {
+         // Cleanup
+         SafeDelete(bpxy); spxy = "";
       }
 
       if (hs->RemVers >= 10100) {
@@ -1806,6 +1934,53 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    //
    // All done
    return kS_rc;
+}
+
+/******************************************************************************/
+/*                          C o p y E n t i ty                                */
+/******************************************************************************/
+
+void XrdSecProtocolgsi::CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lout)
+{
+   // Copy relevant fields of 'in' into 'out'; return length of 'out'
+
+   if (!in || !out) return;
+
+   int slen = sizeof(XrdSecEntity);
+   if (in->name) { out->name = strdup(in->name); slen += strlen(in->name); }
+   if (in->host) { out->host = strdup(in->host); slen += strlen(in->host); }
+   if (in->vorg) { out->vorg = strdup(in->vorg); slen += strlen(in->vorg); }
+   if (in->role) { out->role = strdup(in->role); slen += strlen(in->role); }
+   if (in->grps) { out->grps = strdup(in->grps); slen += strlen(in->grps); }
+   if (in->endorsements) { out->endorsements = strdup(in->endorsements);
+                           slen += strlen(in->endorsements); }
+
+   // Save length, if required
+   if (lout) *lout = slen;
+   
+   // Done
+   return;
+}
+
+/******************************************************************************/
+/*                          F r e e E n t i ty                                */
+/******************************************************************************/
+
+void XrdSecProtocolgsi::FreeEntity(XrdSecEntity *in)
+{
+   // Free relevant fields of 'in';
+
+   if (!in) return;
+
+   if (in->name) SafeFree(in->name);
+   if (in->host) SafeFree(in->host);
+   if (in->vorg) SafeFree(in->vorg);
+   if (in->role) SafeFree(in->role);
+   if (in->grps) SafeFree(in->grps);
+   if (in->endorsements) SafeFree(in->endorsements);
+   
+   // Done
+   return;
 }
 
 /******************************************************************************/
@@ -2008,6 +2183,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-gmapfunparms:<grid_map_function_init_parameters>]
       //              [-authzfun:<authz_function>]
       //              [-authzfunparms:<authz_function_init_parameters>]
+      //              [-authzto:<authz_cache_entry_validity_in_secs>]
       //              [-gmapto:<grid_map_cache_entry_validity_in_secs>]
       //              [-gmapopt:<grid_map_check_option>]
       //              [-dlgpxy:<proxy_req_option>]
@@ -2033,6 +2209,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int crl = 1;
       int ogmap = 1;
       int gmapto = -1;
+      int authzto = -1;
       int dlgpxy = 0;
       int authzpxy = 0;
       char *op = 0;
@@ -2072,6 +2249,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                authzfun = (const char *)(op+10);
             } else if (!strncmp(op, "-authzfunparms:",15)) {
                authzfunparms = (const char *)(op+15);
+            } else if (!strncmp(op, "-authzto:",9)) {
+               authzto = atoi(op+9);
             } else if (!strncmp(op, "-gmapto:",8)) {
                gmapto = atoi(op+8);
             } else if (!strncmp(op, "-dlgpxy:",8)) {
@@ -2094,6 +2273,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.crl = crl;
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
+      opts.authzto = authzto;
       opts.dlgpxy = dlgpxy;
       opts.authzpxy = authzpxy;
       if (clist.length() > 0)
@@ -4418,35 +4598,20 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    XrdSutPFEntry *cent = 0;
    const char *dn = chain->EECname();
    XrdOucString s;
-   const char *key = dn;
-   if (GMAPFun || AuthzFun) {
-      if (AuthzFun) {
-         // We export the full proxy and give it to the external plugin, so
-         // that it can take the decision using whatever it needs (including, e.g.,
-         // VOMS information).
-         XrdSutBucket *bucket = XrdCryptosslX509ExportChain(chain, true);
-         bucket->ToString(s);
-         delete bucket;
-         key = s.c_str();
-      }
+   if (GMAPFun) {
       // We may have it in the cache
-      cent = cacheGMAPFun.Get(key);
+      cent = cacheGMAPFun.Get(dn);
       // Check expiration, if required
       if (GMAPCacheTimeOut > 0 &&
          (cent && (now - cent->mtime) > GMAPCacheTimeOut)) {
          // Invalidate the entry
-         cacheGMAPFun.Remove(key);
+         cacheGMAPFun.Remove(dn);
          cent = 0;
       }
       // Run the search via the external function
       if (!cent) {
-         char *name;
-         if (GMAPFun) {
-            name = (*GMAPFun)(key, now);
-         } else {
-            name = (*AuthzFun)(key, now);
-         }
-         if ((cent = cacheGMAPFun.Add(key))) {
+         char *name = (*GMAPFun)(dn, now);
+         if ((cent = cacheGMAPFun.Add(dn))) {
             if (name) {
                cent->status = kPFE_ok;
                // Add username
@@ -4480,7 +4645,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    }
 
    // Lookup for 'dn' in the cache
-   cent = cacheGMAP.Get(key);
+   cent = cacheGMAP.Get(dn);
 
    // Add / Save the result, if any
    if (cent) {
@@ -4552,11 +4717,50 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 
 //_____________________________________________________________________________
 XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
-                                                 const char *parms)
+                                                 const char *parms, int &certfmt)
 {  
-   // Load the authorization function from the specified plug-in
+   // Load the authorization function from the specified plug-in.
+   // The plug-in must conatin three functions, to be all declared as 'extern C'.
+   //
+   // 1. The main function:
+   //
+   //              int XrdSecgsiAuthzFun(XrdSecEntity &entity)
+   //
+   //    here entity is the XrdSecEntity object associated with the handshake on the
+   //    server side. On input entity contains:
+   //      - in 'name' the username, DN, DN hash according to the GMAP option
+   //      - in 'host' the client hostname
+   //      - in 'creds'the proxy chain
+   //    The proxy chain can be either in 'raw' or 'PEM base64' format (see below).
+   //    This function returns 
+   //                          0      on success
+   //                         <0      on FATAL error
+   //                         >0      on error
+   //
+   // 2. The initialization function:
+   //
+   //              int XrdSecgsiAuthzInit(const char *)
+   //
+   //    here 'parameters' is the string of parameters, separated by ' '.
+   //    This function return <0 in case of failure or the format type of the proxy chain
+   //    expected by the main function:
+   //                          0       raw, to be used with XrdCrypto tools
+   //                          1       PEM (base64 standard string)
+   //
+   // 3. The key function:
+   //
+   //              int XrdSecgsiAuthzKey(XrdSecEntity &entity, char **key)
+   //
+   //    here entity is the XrdSecEntity object associated with the handshake on the
+   //    server side. On input entity contains in 'creds' the proxy chain, with the same
+   //    convention for the format as above. The function is expecetd to fill in '*key'
+   //    the key to be used to cache the result of the main function and to return the
+   //    length of the key. The key will be destroyed with 'delete []', so it must be
+   //    allocated internally with 'new char[]'.
+   //
    EPNAME("LoadAuthzFun");
-   
+
+   certfmt = -1;
    // Make sure the input config file is defined
    if (!plugin || strlen(plugin) <= 0) {
       PRINT("plug-in file undefined");
@@ -4593,13 +4797,34 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
       PRINT("could not find 'XrdSecgsiAuthzFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
-   
-   // Init it
-   if ((*ep)(params.c_str(), 0) == (char *)-1) {
-      PRINT("could not initialize 'XrdSecgsiAuthzFun()'");
+    
+   // Get the key function
+   if (useglobals)
+      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey", 0, true);
+   else
+      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey");
+   if (!AuthzKey) {
+      PRINT("could not find 'XrdSecgsiAuthzKey()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
    
+   // Get the init function
+   XrdSecgsiAuthzInit_t epinit = 0;
+   if (useglobals)
+      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit", 0, true);
+   else
+      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit");
+   if (!epinit) {
+      PRINT("could not find 'XrdSecgsiAuthzInit()' in "<<plugin);
+      return (XrdSecgsiAuthz_t)0;
+   }
+   
+   // Init it
+   if ((certfmt = (*epinit)(params.c_str())) == -1) {
+      PRINT("problems executing 'XrdSecgsiAuthzInit()' (rc: "<<certfmt<<")");
+      return (XrdSecgsiAuthz_t)0;
+   }
+  
    // Notify
    PRINT("using 'XrdSecgsiAuthzFun()' from "<<plugin);
    

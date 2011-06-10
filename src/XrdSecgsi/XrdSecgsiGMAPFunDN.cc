@@ -21,6 +21,9 @@
 
 #include <XrdOuc/XrdOucHash.hh>
 #include <XrdOuc/XrdOucString.hh>
+#include <XrdSecgsi/XrdSecgsiTrace.hh>
+
+extern XrdOucTrace *gsiTrace;
 
 enum XrdSecgsi_Match {kFull     = 0,
                       kBegins   = 1,
@@ -77,6 +80,7 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
 {
    // Implementation of XrdSecgsiGMAPFun extracting the information from the 
    // distinguished name 'dn'
+   EPNAME("GMAPFunDN");
 
    // Init the relevant fields (only once)
    if (now <= 0) {
@@ -99,7 +103,7 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
       gMappings.Apply(FindMatchingCondition, (void *)mc);
       if (mc->user.length() > 0) name = strdup(mc->user.c_str());
    }
-             fprintf(stderr, " +++ XrdSecgsiGMAPFun (DN): mapping DN '%s' to '%s' \n", dn, name);
+   DEBUG("mapping DN '"<<dn<<"' to '"<<name<<"'");
   
    // Done
    return name;
@@ -113,10 +117,11 @@ int XrdSecgsiGMAPInit(const char *cfg)
    // Initialize the relevant parameters from the file 'cfg' or
    // from the one defined by XRDGSIGMAPDNCF.
    // Return 0 on success, -1 otherwise
+   EPNAME("GMAPInitDN");
 
    if (!cfg) cfg = getenv("XRDGSIGMAPDNCF");
    if (!cfg || strlen(cfg) <= 0) {
-      fprintf(stderr, " +++ XrdSecgsiGMAPInit (DN): error: undefined config file path +++\n");
+      PRINT("ERROR: undefined config file path");
       return -1;
    }
 
@@ -154,13 +159,12 @@ int XrdSecgsiGMAPInit(const char *cfg)
             // Register
             gMappings.Add(p, new XrdSecgsiMapEntry_t(p, usr, type));
             //
-            fprintf(stderr, " +++ XrdSecgsiGMAPInit (DN): mapping DNs %s '%s' to '%s' \n", stype.c_str(), p, usr);
+            DEBUG("mapping DNs "<<stype<<" '"<<p<<"' to '"<<usr<<"'");
          }
       }
       fclose(fcf);
    } else {
-      fprintf(stderr, " +++ XrdSecgsiGMAPInit (DN): error: config file '%s'"
-                      " could not be open (errno: %d) +++\n", cfg, errno);
+      PRINT("ERROR: config file '"<<cfg<<"' could not be open (errno: "<<errno<<")");
       return -1;
    }
    // Done

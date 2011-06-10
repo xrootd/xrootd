@@ -35,7 +35,7 @@ typedef XrdCryptosslgsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
-#define XrdSecgsiVERSION    10200
+#define XrdSecgsiVERSION    10300
 #define XrdSecNOIPCHK       0x0001
 #define XrdSecDEBUG         0x1000
 #define XrdCryptoMax        10
@@ -119,7 +119,9 @@ enum kgsiErrors {
 
 // External functions for generic mapping
 typedef char *(*XrdSecgsiGMAP_t)(const char *, int);
-typedef char *(*XrdSecgsiAuthz_t)(const char *, int);
+typedef int (*XrdSecgsiAuthz_t)(XrdSecEntity &);
+typedef int (*XrdSecgsiAuthzInit_t)(const char *);
+typedef int (*XrdSecgsiAuthzKey_t)(XrdSecEntity &, char **);
 
 //
 // This a small class to set the relevant options in one go
@@ -148,8 +150,9 @@ public:
    int    gmapto; // [s] validity in secs of grid-map cache entries [-1 => unlimited]
    char  *gmapfun;// [s] file with the function to map DN to usernames [0]
    char  *gmapfunparms;// [s] parameters for the function to map DN to usernames [0]
-   char  *authzfun;// [s] file with the function to map DN to usernames [0]
-   char  *authzfunparms;// [s] parameters for the function to map DN to usernames [0]
+   char  *authzfun;// [s] file with the function to fill entities [0]
+   char  *authzfunparms;// [s] parameters for the function to fill entities [0]
+   int    authzto; // [s] validity in secs of authz cache entries [-1 => unlimited]
    int    ogmap;  // [s] gridmap file checking option 
    int    dlgpxy; // [c] explicitely ask the creation of a delegated proxy 
                   // [s] ask client for proxies
@@ -164,7 +167,7 @@ public:
                   cipher = 0; md = 0; ca = 1 ; crl = 1;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = -1;
-                  gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0;
+                  gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0; exppxy = 0; authzpxy = 0;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
 };
@@ -295,6 +298,9 @@ private:
    static XrdSecgsiGMAP_t  GMAPFun;
    static XrdSysPlugin    *AuthzPlugin;
    static XrdSecgsiAuthz_t AuthzFun; 
+   static XrdSecgsiAuthzKey_t AuthzKey; 
+   static int              AuthzCertFmt; 
+   static int              AuthzCacheTimeOut;
    static int              PxyReqOpts;
    static int              AuthzPxyWhat;
    static int              AuthzPxyWhere;
@@ -313,6 +319,7 @@ private:
    static XrdSutCache      cachePxy;  // Cache for client proxies
    static XrdSutCache      cacheGMAP; // Cache for gridmap entries
    static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
+   static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // Running options / settings
    static int              Debug;          // [CS] Debug level
@@ -408,7 +415,11 @@ private:
    static int     LoadGMAP(int now); // Init or refresh the cache
    static XrdSecgsiGMAP_t            // Load alternative function for mapping
                   LoadGMAPFun(const char *plugin, const char *parms);
-   static XrdSecgsiAuthz_t           // Load alternative function for mapping based on the PEM string
-                  LoadAuthzFun(const char *plugin, const char *parms);
+   static XrdSecgsiAuthz_t           // Load alternative function to fill XrdSecEntity
+                  LoadAuthzFun(const char *plugin, const char *parms, int &fmt);
    static void    QueryGMAP(XrdCryptoX509Chain* chain, int now, String &name); //Lookup info for DN
+   
+   // Entity handling
+   void CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lout = 0);
+   void FreeEntity(XrdSecEntity *in);
 };
