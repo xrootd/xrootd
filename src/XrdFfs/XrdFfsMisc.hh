@@ -19,7 +19,7 @@ int XrdFfsMisc_get_list_of_data_servers(char* list);
 void XrdFfsMisc_refresh_url_cache(const char* url);
 void XrdFfsMisc_logging_url_cache(const char* url);
 
-void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue);
+void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int startQueue);
 
 void XrdFfsMisc_xrd_secsss_init();
 void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid);

@@ -168,6 +168,42 @@ char *XrdFfsMiscUrlcache[XrdFfs_MAX_NUM_NODES];
 int XrdFfsMiscNcachedurls = 0;
 time_t XrdFfsMiscUrlcachetime = 0;
 pthread_mutex_t XrdFfsMiscUrlcache_mutex = PTHREAD_MUTEX_INITIALIZER;
+time_t XrdFfsMiscUrlcachelife = 60;
+
+void XrdFfsMisc_set_Urlcachelife(const char *urlcachelife)
+{
+    int t, len;
+    char *life = strdup(urlcachelife);
+    char last = 's';
+
+    if (life == NULL) return;
+
+    len = strlen(life);
+    if (! isdigit(life[len-1])) 
+    {
+        last = life[len-1];
+        life[len-1] = '\0';
+    }
+    sscanf(life, "%d", &t);
+    XrdFfsMiscUrlcachelife = (time_t) t;
+    life[len-1] = last;
+    switch (last) 
+    {
+        case 'm':  /* minute */
+            XrdFfsMiscUrlcachelife *= 60;
+            break;
+        case 'h':  /* hour */
+            XrdFfsMiscUrlcachelife *= 3600;
+            break;
+        case 'd':  /* day */
+            XrdFfsMiscUrlcachelife *= 3600*24;
+            break; 
+        default:   /* second */
+            ;
+    }
+    free(life);
+    return;
+}
 
 int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes)
 {
@@ -177,8 +213,10 @@ int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes
     pthread_mutex_lock(&XrdFfsMiscUrlcache_mutex); 
 
     currtime = time(NULL);
-/* set the cache to not expired in 10 years so that we know if a host is down */
-    if (XrdFfsMiscCururl[0] == '\0' || (currtime - XrdFfsMiscUrlcachetime) > 315360000 || strcmp(XrdFfsMiscCururl, oldurl) != 0)
+/* setting the cache to effectively not expire will let us know if a host is down */
+    if (XrdFfsMiscCururl[0] == '\0' || 
+        (currtime - XrdFfsMiscUrlcachetime) > XrdFfsMiscUrlcachelife || 
+        strcmp(XrdFfsMiscCururl, oldurl) != 0)
     {
         for (i = 0; i < XrdFfsMiscNcachedurls; i++)
             if (XrdFfsMiscUrlcache[i] != NULL) free(XrdFfsMiscUrlcache[i]);
@@ -289,7 +327,7 @@ void XrdFfsMisc_logging_url_cache(const char* url)
     free(hostlist);
 }
 
-void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
+void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int startQueue)
 {
     static int OneTimeInitDone = 0;
 
@@ -314,6 +352,8 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, int startQueue)
         XrdFfsMisc_xrd_secsss_init();
 
     openlog("XrootdFS", LOG_ODELAY | LOG_PID, LOG_DAEMON);
+
+    XrdFfsMisc_set_Urlcachelife(urlcachelife);
     XrdFfsMisc_refresh_url_cache(rdrurl);
     XrdFfsMisc_logging_url_cache(NULL);
 

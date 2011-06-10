@@ -53,11 +53,13 @@ struct XROOTDFS {
     char *fastls;
     char *daemon_user;
     char *ssskeytab;
+    char *urlcachelife;
     bool ofsfwd;
+    int  nworkers;
 };
 
 struct XROOTDFS xrootdfs;
-static struct fuse_opt xrootdfs_opts[11];
+static struct fuse_opt xrootdfs_opts[13];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
@@ -96,10 +98,7 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
 */
 
 #ifndef NOUSE_QUEUE
-    if (getenv("XROOTDFS_NWORKERS") != NULL)
-        XrdFfsQueue_create_workers(atoi(getenv("XROOTDFS_NWORKERS")));
-    else
-        XrdFfsQueue_create_workers(4);
+    XrdFfsQueue_create_workers(xrootdfs.nworkers);
 
     syslog(LOG_INFO, "INFO: Starting %d workers", XrdFfsQueue_count_workers());
 #else
@@ -1118,8 +1117,11 @@ static void xrootdfs_usage(const char *progname)
 "[Optional]\n"
 "    -o cns=cns_server_url    root URL of the CNS server\n"
 "    -o uid=username          cause XrootdFS to switch effective uid to that of username if possible\n"
-"    -o fastls=RDR            set to RDR when CNS is presented will cause stat() to go to redirector\n"
 "    -o sss[=keytab]          use Xrootd seciruty module \"sss\", specifying a keytab file is optional\n"
+"    -o refreshdslist=NNNs/m/h/d  refresh internal list of data servers in NNN sec/min/hour/day, default unit is second\n"
+"                                 Absents of this option will disable automatically refreshing\n"
+"    -o nworkers=N            number of workers to handle parallel requests to data servers, default 4\n"
+"    -o fastls=RDR            set to RDR when CNS is presented will cause stat() to go to redirector\n"
 "\n", progname);
 }
 
@@ -1192,52 +1194,62 @@ int main(int argc, char *argv[])
 
     struct fuse_args args = FUSE_ARGS_INIT(argc + 2, cmdline_opts);
 
-    xrootdfs_opts[0].templ = "rdr=%s";
-    xrootdfs_opts[0].offset = offsetof(struct XROOTDFS, rdr);
-    xrootdfs_opts[0].value = 0;
+    xrootdfs_opts[0].templ = "-h";
+    xrootdfs_opts[0].offset = -1U;
+    xrootdfs_opts[0].value = OPT_KEY_HELP;
 
-    xrootdfs_opts[1].templ = "cns=%s";
-    xrootdfs_opts[1].offset = offsetof(struct XROOTDFS, cns);
-    xrootdfs_opts[1].value = 0;
+    xrootdfs_opts[1].templ = "-help";
+    xrootdfs_opts[1].offset = -1U;
+    xrootdfs_opts[1].value = OPT_KEY_HELP;
 
-    xrootdfs_opts[2].templ = "fastls=%s";
-    xrootdfs_opts[2].offset = offsetof(struct XROOTDFS, fastls);
-    xrootdfs_opts[2].value = 0;
+    xrootdfs_opts[2].templ = "--help";
+    xrootdfs_opts[2].offset = -1U;
+    xrootdfs_opts[2].value = OPT_KEY_HELP;
 
-    xrootdfs_opts[3].templ = "uid=%s";
-    xrootdfs_opts[3].offset = offsetof(struct XROOTDFS, daemon_user);
+    xrootdfs_opts[3].templ = "rdr=%s";
+    xrootdfs_opts[3].offset = offsetof(struct XROOTDFS, rdr);
     xrootdfs_opts[3].value = 0;
 
-    xrootdfs_opts[4].templ = "ofsfwd=%s";
-    xrootdfs_opts[4].offset = offsetof(struct XROOTDFS, ofsfwd);
+    xrootdfs_opts[4].templ = "cns=%s";
+    xrootdfs_opts[4].offset = offsetof(struct XROOTDFS, cns);
     xrootdfs_opts[4].value = 0;
+
+    xrootdfs_opts[5].templ = "fastls=%s";
+    xrootdfs_opts[5].offset = offsetof(struct XROOTDFS, fastls);
+    xrootdfs_opts[5].value = 0;
+
+    xrootdfs_opts[6].templ = "uid=%s";
+    xrootdfs_opts[6].offset = offsetof(struct XROOTDFS, daemon_user);
+    xrootdfs_opts[6].value = 0;
+
+    xrootdfs_opts[7].templ = "ofsfwd=%s";
+    xrootdfs_opts[7].offset = offsetof(struct XROOTDFS, ofsfwd);
+    xrootdfs_opts[7].value = 0;
 
 /* using "sss" security module. the actually location of the key is determined 
    by shell enviornment variable XrdSecsssKT (or default locations). */
 
 /* The location of the key is not specified in command line. */
-    xrootdfs_opts[5].templ = "sss";
-    xrootdfs_opts[5].offset = -1U;
-    xrootdfs_opts[5].value = OPT_KEY_SECSSS;
+    xrootdfs_opts[8].templ = "sss";
+    xrootdfs_opts[8].offset = -1U;
+    xrootdfs_opts[8].value = OPT_KEY_SECSSS;
 
 /* The location of the key is specified in command line. */
-    xrootdfs_opts[6].templ = "sss=%s";
-    xrootdfs_opts[6].offset = offsetof(struct XROOTDFS, ssskeytab);
-    xrootdfs_opts[6].value = 0;
+    xrootdfs_opts[9].templ = "sss=%s";
+    xrootdfs_opts[9].offset = offsetof(struct XROOTDFS, ssskeytab);
+    xrootdfs_opts[9].value = 0;
 
-    xrootdfs_opts[7].templ = "-h";
-    xrootdfs_opts[7].offset = -1U;
-    xrootdfs_opts[7].value = OPT_KEY_HELP;
+/* life time of the data server list */
+    xrootdfs_opts[10].templ = "refreshdslist=%s";
+    xrootdfs_opts[10].offset = offsetof(struct XROOTDFS, urlcachelife);
+    xrootdfs_opts[10].value = 0;
 
-    xrootdfs_opts[8].templ = "-help";
-    xrootdfs_opts[8].offset = -1U;
-    xrootdfs_opts[8].value = OPT_KEY_HELP;
+/* number of workers to handle parallel requests to data servers */
+    xrootdfs_opts[11].templ = "nworkers=%d";
+    xrootdfs_opts[11].offset = offsetof(struct XROOTDFS, nworkers);
+    xrootdfs_opts[11].value = 0;
 
-    xrootdfs_opts[9].templ = "--help";
-    xrootdfs_opts[9].offset = -1U;
-    xrootdfs_opts[9].value = OPT_KEY_HELP;
-
-    xrootdfs_opts[10].templ = NULL;
+    xrootdfs_opts[12].templ = NULL;
 
 /* initialize struct xrootdfs */
 //    memset(&xrootdfs, 0, sizeof(xrootdfs));
@@ -1247,6 +1259,8 @@ int main(int argc, char *argv[])
     xrootdfs.daemon_user = NULL;
     xrootdfs.ofsfwd = false;
     xrootdfs.ssskeytab = NULL;
+    xrootdfs.urlcachelife = "3650d"; /* 10 years */
+    xrootdfs.nworkers = 4;
 
 /* Get options from environment variables first */
     xrootdfs.rdr = getenv("XROOTDFS_RDRURL");
@@ -1255,6 +1269,7 @@ int main(int argc, char *argv[])
 // If this is defined, XrootdFS will setuid/setgid to this user at xrootdfs_init().
     xrootdfs.daemon_user = getenv("XROOTDFS_USER");
     if (getenv("XROOTDFS_OFSFWD") != NULL && ! strcmp(getenv("XROOTDFS_OFSFWD"),"1")) xrootdfs.ofsfwd = true;
+    if (getenv("XROOTDFS_NWORKERS") != NULL) sscanf(getenv("XROOTDFS_NWORKERS"), "%d", &xrootdfs.nworkers);
 
 /* Parse XrootdFS options, will overwrite those defined in environment variables */
     fuse_opt_parse(&args, &xrootdfs, xrootdfs_opts, xrootdfs_opt_proc);
@@ -1287,7 +1302,7 @@ int main(int argc, char *argv[])
         setenv("XrdSecsssKT", xrootdfs.ssskeytab, 1);
     }
 
-    XrdFfsMisc_xrd_init(xrootdfs.rdr,0);
+    XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init();
     signal(SIGUSR1,xrootdfs_sigusr1_handler);
 
