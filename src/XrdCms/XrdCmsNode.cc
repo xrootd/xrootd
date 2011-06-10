@@ -96,10 +96,13 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     DiskNums =  0;
     DiskUtil =  0;
     Next     =  0;
-    RefA     =  0;
-    RefTotA  =  0;
+    RefW     =  0;
+    RefTotW  =  0;
     RefR     =  0;
     RefTotR  =  0;
+    Share    =  0;
+    Shrem    =  0;
+    Shrin    =  0;
     logload  =  Config.LogPerf;
     DropTime =  0;
     DropJob  =  0;
@@ -439,9 +442,17 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 //
    if (Config.LogPerf && !logload)
       {char buff[1024];
+       long long tRefs = Cluster.Refs();
+       long long nRefs = static_cast<long long>(RefTotW + RefTotR)*100;
+       long long sRefs = static_cast<long long>(Share) * Shrin * 100;
+       int myShr = (Share ? Share : 100);
+       if (tRefs) {nRefs /= tRefs; sRefs /= tRefs;}
+          else nRefs = sRefs = 0;
        snprintf(buff, sizeof(buff)-1,
-               "load=%d; cpu=%d net=%d inq=%d mem=%d pag=%d dsk=%d utl=%d",
-               myLoad, pcpu, pnet, pxeq, pmem, ppag, Arg.dskFree, pdsk);
+               "load=%d; cpu=%d net=%d inq=%d mem=%d pag=%d dsk=%d utl=%d "
+               "shr=[%d %lld %lld]",
+               myLoad, pcpu, pnet, pxeq, pmem, ppag, Arg.dskFree, pdsk,
+               myShr, nRefs, sRefs);
        Say.Emsg("Node", Name(), buff);
        logload = Config.LogPerf;
       } else logload--;

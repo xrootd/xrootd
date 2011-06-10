@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
 #include "XrdCms/XrdCmsKey.hh"
 
 /******************************************************************************/
@@ -77,15 +75,19 @@ XrdCmsSelected *next;
 char           *Name;
 SMask_t         Mask;
 int             Id;
-unsigned int    IPAddr;
+unsigned int    IPAddr;   // IPV4
+
 int             Port;
 int             IPV6Len;  // 12345678901234567890123456
 char            IPV6[28]; // [::123.123.123.123]:123456
 int             Load;
 int             Util;
 int             Free;
-int             RefTotA;
+int             RefTotW;
 int             RefTotR;
+int             Shrin;       // Share intervals used
+char            Share;       // Share
+char            Rsvd[3];
 int             Status;      // One of the following
 
 enum           {Disable = 0x0001,

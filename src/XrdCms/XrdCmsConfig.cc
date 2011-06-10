@@ -305,6 +305,13 @@ int XrdCmsConfig::Configure2()
    sprintf(buff, " phase 2 %s initialization started.", myRole);
    Say.Say("++++++ ", myInstance, buff);
 
+// Fix up the QryMinum (we hard code 64 as the max) and P_gshr values
+//
+   if (QryMinum < 1) QryMinum = 1;
+      else if (QryMinum > 64) QryMinum = 64;
+   if (P_gshr < 0) P_gshr = 0;
+      else if (P_gshr > 100) P_gshr = 100;
+
 // Determine who we are. If we are a manager or supervisor start the file
 // location cache scrubber.
 //
@@ -576,6 +583,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    myDomain = 0;
    LUPDelay = 5;
    QryDelay =-1;
+   QryMinum = 1;
    LUPHold  = 178;
    DRPDelay = 10*60;
    PSDelay  = 0;
@@ -590,6 +598,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    PortTCP  = 0;
    P_cpu    = 0;
    P_fuzz   = 20;
+   P_gsdf   = 0;
+   P_gshr   = 0;
    P_io     = 0;
    P_load   = 0;
    P_mem    = 0;
@@ -1252,6 +1262,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
                                            [suspend <sec>] [drop <sec>]
                                            [service <sec>] [hold <msec>]
                                            [peer <sec>] [rw <lvl>] [qdl <sec>]
+                                           [qdn <cnt>]
 
    discard   <cnt>     maximum number a message may be forwarded.
    drop      <sec>     seconds to delay a drop of an offline server.
@@ -1262,6 +1273,7 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
    peer      <sec>     maximum seconds client may be delayed before peer
                        selection is triggered.
    qdl       <sec>     the query response deadline.
+   qdn       <cnt>     Min number of servers that must respond to satisfy qdl.
    rw        <lvl>     how to delay r/w lookups (one of three levels):
                        0 - always use fast redirect when possible
                        1 - delay update requests only
@@ -1290,6 +1302,7 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
         {"overload", &MaxDelay,-1},
         {"peer",     &PSDelay,  1},
         {"qdl",      &QryDelay, 1},
+        {"qdn",      &QryMinum, 0},
         {"rw",       &RWDelay,  0},
         {"servers",  &SUPCount, 0},
         {"service",  &SUPDelay, 1},
@@ -2337,7 +2350,8 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 
 /* Function: xsched
 
-   Purpose:  To parse directive: sched [cpu <p>] [io <p>] [runq <p>]
+   Purpose:  To parse directive: sched [cpu <p>] [gsdflt <p>] [gshr <p>]
+                                       [io <p>] [runq <p>]
                                        [mem <p>] [pag <p>] [space <p>]
                                        [fuzz <p>] [maxload <p>] [refreset <sec>]
 
@@ -2346,7 +2360,10 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
                       difference two load values may have to be treated equal.
                       maxload is the largest load allowed before server is
                       not selected. refreset is the minimum number of seconds
-                      between reference counter resets.
+                      between reference counter resets. gshr is the percentage
+                      share of requests that should be redirected here via the 
+                      metamanager (i.e. global share). The gsdflt is the
+                      default to be used by the metamanager.
 
    Type: Any, dynamic.
 
@@ -2362,6 +2379,8 @@ int XrdCmsConfig::xsched(XrdSysError *eDest, XrdOucStream &CFile)
        {
         {"cpu",      100, &P_cpu},
         {"fuzz",     100, &P_fuzz},
+        {"gsdflt",   100, &P_gsdf},
+        {"gshr",     100, &P_gshr},
         {"io",       100, &P_io},
         {"runq",     100, &P_load}, // Actually load, runq to avoid confusion
         {"mem",      100, &P_mem},

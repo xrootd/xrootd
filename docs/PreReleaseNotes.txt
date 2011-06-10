@@ -5,6 +5,13 @@ Version 3.1.0
 + **New Features**
    * Accept XrdSecSSSKT envar as documented but also continue to support
      XrdSecsssKT for backward compatability.
+   * Allow servers to specify to the meta-manager what share of requests they
+     are willing to handle. Add the 'cms.sched gsdflt' and 'cms.sched gshr'
+     configuration directives to specify this.
+   * Include additional information in the protocol statistics.
+   * Resize some counters to prevent overflows.
+   * Add the 'cms.delay qdn' directive to allow better redirection control in
+     the future.
    * Allow a plugin (notably the proxy plugin) to disable async I/O.
    * Implement a general memory caching object. Currently, this will be used
      by the Posix object.

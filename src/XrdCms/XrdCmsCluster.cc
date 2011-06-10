@@ -85,8 +85,9 @@ XrdCmsCluster::XrdCmsCluster()
      AltMent = -1;
      NodeCnt =  0;
      STHi    = -1;
-     SelAcnt = 0;
+     SelWcnt = 0;
      SelRcnt = 0;
+     SelTcnt = 0;
      doReset = 0;
      resetMask = 0;
      peerHost  = 0;
@@ -437,8 +438,10 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
             sip->Port    = nP->Port;
             sip->Load    = nP->myLoad;
             sip->Util    = nP->DiskUtil;
-            sip->RefTotA = nP->RefTotA + nP->RefA;
-            sip->RefTotR = nP->RefTotR + nP->RefR;
+            sip->RefTotW = nP->RefTotW;
+            sip->RefTotR = nP->RefTotR;
+            sip->Shrin   = nP->Shrin;
+            sip->Share   = nP->Share;
             if (nP->isOffline) sip->Status  = XrdCmsSelected::Offline;
                else sip->Status  = 0;
             if (nP->isDisable) sip->Status |= XrdCmsSelected::Disable;
@@ -563,7 +566,7 @@ void *XrdCmsCluster::MonRefs()
 {
    XrdCmsNode *nP;
    int  i, snooze_interval = 10*60, loopmax, loopcnt = 0;
-   int resetA, resetR, resetAR;
+   int resetW, resetR, resetWR;
 
 // Compute snooze interval
 //
@@ -579,20 +582,21 @@ void *XrdCmsCluster::MonRefs()
    do {XrdSysTimer::Snooze(snooze_interval);
        loopcnt++;
        STMutex.Lock();
-       resetA  = (SelAcnt >= Config.RefTurn);
+       resetW  = (SelWcnt >= Config.RefTurn);
        resetR  = (SelRcnt >= Config.RefTurn);
-       resetAR = (loopmax && loopcnt >= loopmax && (resetA || resetR));
-       if (doReset || resetAR)
+       resetWR = (loopmax && loopcnt >= loopmax && (resetW || resetR));
+       if (doReset || resetWR)
            {for (i = 0; i <= STHi; i++)
                 if ((nP = NodeTab[i])
-                &&  (resetAR || (doReset && nP->isNode(resetMask))) )
+                &&  (resetWR || (doReset && nP->isNode(resetMask))) )
                     {nP->Lock();
-                     if (resetA || doReset) {nP->RefTotA += nP->RefA;nP->RefA=0;}
-                     if (resetR || doReset) {nP->RefTotR += nP->RefR;nP->RefR=0;}
+                     if (resetW || doReset) nP->RefW=0;
+                     if (resetR || doReset) nP->RefR=0;
+                     nP->Shrem = nP->Share;
                      nP->UnLock();
                     }
-            if (resetAR)
-               {if (resetA) SelAcnt = 0;
+            if (resetWR)
+               {if (resetW) SelWcnt = 0;
                 if (resetR) SelRcnt = 0;
                 loopcnt = 0;
                }
@@ -911,7 +915,7 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
        if (nP)
           {if (isrw)
               if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)  nP = 0;
-                 else {SelAcnt++; nP->Lock();}
+                 else {SelWcnt++; nP->Lock();}
               else     {SelRcnt++; nP->Lock();}
           }
       }
@@ -995,10 +999,11 @@ void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
   
 int XrdCmsCluster::Stats(char *bfr, int bln)
 {
-   static const char statfmt1[] = "<stats id=\"cms\"><name>%s</name>";
-   static const char statfmt2[] = "<subscriber><name>%s</name>"
+   static const char statfmt1[] = "<stats id=\"cms\" role=\"%s\">"
+          "<selt>%lld</selt><selr>%d</selr><selw>%d</selw>";
+   static const char statfmt2[] = "<node><name>%s</name>"
           "<status>%s</status><load>%d</load><diskfree>%d</diskfree>"
-          "<refa>%d</refa><refr>%d</refr></subscriber>";
+          "<refr>%d</refr><refw>%d</refw><shr>%d<int>%d</int></shr></node>";
    static const char statfmt3[] = "</stats>\n";
    XrdCmsSelected *sp;
    int mlen, tlen = sizeof(statfmt3);
@@ -1025,7 +1030,9 @@ int XrdCmsCluster::Stats(char *bfr, int bln)
 
 // Format the statistics
 //
-   mlen = snprintf(bfr, bln, statfmt1, Config.myName);
+   mlen = snprintf(bfr, bln, statfmt1, Config.myName, Config.myRole,
+                                       SelTcnt, SelRcnt, SelWcnt);
+
    if ((bln -= mlen) <= 0) return 0;
    tlen += mlen;
 
@@ -1039,7 +1046,8 @@ int XrdCmsCluster::Stats(char *bfr, int bln)
             } else *stp++ = 'a';
          bfr += mlen;
          mlen = snprintf(bfr, bln, statfmt2, sp->Name, stat,
-                sp->Load, sp->Free, sp->RefTotA, sp->RefTotR);
+                sp->Load, sp->Free, sp->RefTotR, sp->RefTotW,
+                sp->Share,sp->Shrin);
          bln  -= mlen;
          tlen += mlen;
          sp = sp->next;
@@ -1274,7 +1282,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // point we omit all peer nodes as they are our last resort.
 //
    STMutex.Lock();
-   mask = pmask & peerMask;
+   mask = pmask & peerMask; SelTcnt++;
    while(pass--)
         {if (mask)
             {nP = (Config.sched_RR
@@ -1345,6 +1353,21 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 }
 
 /******************************************************************************/
+/*                              R e f C o u n t                               */
+/******************************************************************************/
+
+// This snippet of code occurrs often enough so that we make it a macro as we
+// want to execute this inline.
+//
+#define RefCount(sP, sPMulti, NeedSpace)                       \
+        if (NeedSpace) {SelWcnt++; sP->RefTotW++; sP->RefW++;} \
+           else        {SelRcnt++; sP->RefTotR++; sP->RefR++;} \
+        if (sPMulti && sP->Share && !sP->Shrem--)              \
+           {sP->RefW += sP->Shrip; sP->RefR += sP->Shrip;      \
+            sP->Shrem = sP->Share; sP->Shrin++;                \
+           }
+  
+/******************************************************************************/
 /*                             S e l b y C o s t                              */
 /******************************************************************************/
 
@@ -1354,7 +1377,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, int &nump, int &delay,
                                      const char **reason, int needspace)
 {
-    int i, numd, numf, nums;
+    int i, numd, numf, nums, Multi = 0;
     XrdCmsNode *np, *sp = 0;
 
 // Scan for a node (sp points to the selected one)
@@ -1367,23 +1390,23 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, int &nump, int &delay,
            if (np->isSuspend || np->isDisable)  {nums++; continue;}
            if (needspace &&     np->isNoStage)  {numf++; continue;}
            if (!sp) sp = np;
-              else if (abs(sp->myCost - np->myCost)
-                          <= Config.P_fuzz)
+              else{if (abs(sp->myCost - np->myCost) <= Config.P_fuzz)
                       {if (needspace)
-                          {if (sp->RefA > (np->RefA+Config.DiskLinger))
+                          {if (sp->RefW > (np->RefW+Config.DiskLinger))
                                sp=np;
                            } 
                            else if (sp->RefR > np->RefR) sp=np;
                        }
                        else if (sp->myCost > np->myCost) sp=np;
+                   Multi = 1;
+                  }
           }
 
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, 0, nums, delay, reason);
    sp->Lock();
-   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
-      else        {SelRcnt++; sp->RefR++;}
+   RefCount(sp, Multi, needspace);
    delay = 0;
    return sp;
 }
@@ -1395,7 +1418,7 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, int &nump, int &delay,
 XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
                                      const char **reason, int needspace)
 {
-    int i, numd, numf, numo, nums;
+    int i, numd, numf, numo, nums, Multi = 0;
     int reqSS = needspace & XrdCmsNode::allowsSS;
     XrdCmsNode *np, *sp = 0;
 
@@ -1412,23 +1435,24 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
                              || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
-              else if (needspace)
+              else{if (needspace)
                       {if (abs(sp->myMass - np->myMass) <= Config.P_fuzz)
-                          {if (sp->RefA > (np->RefA+Config.DiskLinger)) sp=np;}
+                          {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
                           else if (sp->myMass > np->myMass)             sp=np;
                       } else {
                        if (abs(sp->myLoad - np->myLoad) <= Config.P_fuzz)
                           {if (sp->RefR > np->RefR)                     sp=np;}
                           else if (sp->myLoad > np->myLoad)             sp=np;
                       }
+                   Multi = 1;
+                  }
           }
 
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, numo, nums, delay, reason);
    sp->Lock();
-   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
-      else        {SelRcnt++; sp->RefR++;}
+   RefCount(sp, Multi, needspace);
    delay = 0;
    return sp;
 }
@@ -1440,7 +1464,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
 XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
                                     const char **reason, int needspace)
 {
-    int i, numd, numf, nums;
+    int i, numd, numf, nums, Multi = 0;
     int reqSS = needspace & XrdCmsNode::allowsSS;
     XrdCmsNode *np, *sp = 0;
 
@@ -1456,17 +1480,18 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
                              || (reqSS && np->isNoStage)))
               {numf++; continue;}
            if (!sp) sp = np;
-              else if (needspace)
-                      {if (sp->RefA > (np->RefA+Config.DiskLinger)) sp=np;}
-                      else if (sp->RefR > np->RefR) sp=np;
+              else {if (needspace)
+                      {if (sp->RefW > (np->RefW+Config.DiskLinger)) sp=np;}
+                       else if (sp->RefR > np->RefR) sp=np;
+                    Multi = 1;
+                   }
           }
 
 // Check for overloaded node and return result
 //
    if (!sp) return calcDelay(nump, numd, numf, 0, nums, delay, reason);
    sp->Lock();
-   if (needspace) {SelAcnt++; sp->RefA++;}  // Protected by STMutex
-      else        {SelRcnt++; sp->RefR++;}
+   RefCount(sp, Multi, needspace);
    delay = 0;
    return sp;
 }
