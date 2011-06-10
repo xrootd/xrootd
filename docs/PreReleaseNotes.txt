@@ -3,6 +3,9 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Implement the 'cms.delay qdn' directive which allows one to tell the
+     meta-manager the minimum number of responses needed to satisfy a hold
+     delay (i.e. fast redirect).
    * Accept XrdSecSSSKT envar as documented but also continue to support
      XrdSecsssKT for backward compatability.
    * Allow servers to specify to the meta-manager what share of requests they
