@@ -146,7 +146,7 @@ void            ResetRef(SMask_t smask);
 //
 int             Select(XrdCmsSelect &Sel);
 
-int             Select(int isrw, SMask_t pmask, int &port, 
+int             Select(int isrw, int isMulti, SMask_t pmask, int &port,
                        char *hbuff, int &hlen);
 
 // Called to get cluster space (for managers and supervisors only)

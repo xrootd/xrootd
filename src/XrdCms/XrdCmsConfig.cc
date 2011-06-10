@@ -305,10 +305,12 @@ int XrdCmsConfig::Configure2()
    sprintf(buff, " phase 2 %s initialization started.", myRole);
    Say.Say("++++++ ", myInstance, buff);
 
-// Fix up the QryMinum (we hard code 64 as the max) and P_gshr values
+// Fix up the QryMinum (we hard code 64 as the max) and P_gshr values.
+// The QryMinum only applies to a metamanager and is set as 1 minus the min.
 //
-   if (QryMinum < 1) QryMinum = 1;
-      else if (QryMinum > 64) QryMinum = 64;
+        if (!isMeta)       QryMinum =  0;
+   else if (QryMinum <  2) QryMinum =  0;
+   else if (QryMinum > 64) QryMinum = 64;
    if (P_gshr < 0) P_gshr = 0;
       else if (P_gshr > 100) P_gshr = 100;
 
@@ -583,7 +585,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    myDomain = 0;
    LUPDelay = 5;
    QryDelay =-1;
-   QryMinum = 1;
+   QryMinum = 0;
    LUPHold  = 178;
    DRPDelay = 10*60;
    PSDelay  = 0;

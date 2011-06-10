@@ -470,7 +470,7 @@ const char *XrdCmsNode::do_Load(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 {
    EPNAME("do_Locate";)
-   XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
+   XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect    Sel(0, Arg.Path, Arg.PathLen-1);
    XrdCmsSelected *sP = 0;
    struct {kXR_unt32 Val; 
@@ -901,7 +901,7 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 {
    EPNAME("do_Select")
-   XrdCmsRRQInfo reqInfo(Instance, RSlot, Arg.Request.streamid);
+   XrdCmsRRQInfo reqInfo(Instance,RSlot,Arg.Request.streamid,Config.QryMinum);
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.Path, Arg.PathLen-1);
    struct iovec ioV[2];
    char theopts[16], *Avoid, *toP = theopts;

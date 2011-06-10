@@ -869,7 +869,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 
 /******************************************************************************/
   
-int XrdCmsCluster::Select(int isrw, SMask_t pmask,
+int XrdCmsCluster::Select(int isrw, int isMulti, SMask_t pmask,
                           int &port, char *hbuff, int &hlen)
 {
    static const SMask_t smLow(255);
@@ -884,8 +884,9 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
 
 // If we are exporting a shared-everything system then the incomming mask
 // may have more than one server indicated. So, we need to do a full select.
+// This is forced when isMulti is true, indicating a choice may exist.
 //
-   if (baseFS.isDFS())
+   if (isMulti || baseFS.isDFS())
       {STMutex.Lock();
        nP = (Config.sched_RR
           ? SelbyRef( pmask, nump, delay, &reason, isrw)
@@ -893,7 +894,6 @@ int XrdCmsCluster::Select(int isrw, SMask_t pmask,
        STMutex.UnLock();
        if (!nP) return 0;
        strcpy(hbuff, nP->Name(hlen, port));
-       nP->RefR++;
        nP->UnLock();
        return 1;
       }

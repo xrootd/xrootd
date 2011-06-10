@@ -437,27 +437,25 @@ void XrdCmsCache::Dispatch(XrdCmsSelect &Sel, XrdCmsKeyItem *iP,
 // Dispatching shared-everything nodes is very different from shared-nothing
 // since one ready node means all are ready and we can use any one of them.
 // The current list of nodes must is provided by the caller adding the entry.
+// Note that the minimum number of nodes will always be set to 0 via config.
 //
    if (isDFS)
-      {if (roQ) {RRQ.Ready(roQ, iP, Sel.Vec.hf, Sel.Vec.pf & Sel.Vec.hf);
-                 iP->Loc.roPend = 0;
-                }
-       if (rwQ && Sel.Vec.wf)
-                {RRQ.Ready(rwQ, iP, Sel.Vec.wf, Sel.Vec.pf & Sel.Vec.wf);
-                 iP->Loc.rwPend = 0;
-                }
+      {if (roQ && RRQ.Ready(roQ, iP, Sel.Vec.hf, Sel.Vec.pf & Sel.Vec.hf))
+          iP->Loc.roPend = 0;
+       if((rwQ && Sel.Vec.wf)
+       &&         RRQ.Ready(rwQ, iP, Sel.Vec.wf, Sel.Vec.pf & Sel.Vec.wf))
+          iP->Loc.rwPend = 0;
        return;
       }
 
 // Disptaching shared-nothing nodes is a one-shot affair. Only one node becomes
-// ready at a time and we can only disptach that node.
+// ready at a time and we can immediately disptach that node unless we need to
+// wait for more nodes to respond.
 //
-   if (roQ) {RRQ.Ready(roQ, iP, iP->Loc.hfvec, iP->Loc.pfvec);
-             iP->Loc.roPend = 0;
-            }
-   if (rwQ) {RRQ.Ready(rwQ, iP, iP->Loc.hfvec, iP->Loc.pfvec);
-             iP->Loc.rwPend = 0;
-            }
+   if (roQ && RRQ.Ready(roQ, iP, iP->Loc.hfvec, iP->Loc.pfvec))
+      iP->Loc.roPend = 0;
+   if (rwQ && RRQ.Ready(rwQ, iP, iP->Loc.hfvec, iP->Loc.pfvec))
+      iP->Loc.rwPend = 0;
 }
 
 /******************************************************************************/

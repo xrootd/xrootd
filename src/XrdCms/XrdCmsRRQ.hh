@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <sys/uio.h>
 
 #include "XProtocol/XPtypes.hh"
@@ -34,13 +32,15 @@ int       Rinst;   // Redirector instance
 short     Rnum;    // Redirector number (RTable slot number)
 char      isRW;    // True if r/w access wanted
 char      isLU;    // True if locate response wanted
+char      minR;    // Minimum number of responses for fast redispatch
+char      actR;    // Actual  number of responses
+short     Rsvd;
 SMask_t   rwVec;   // R/W servers for corresponding path (if isLU is true)
 
-        XrdCmsRRQInfo() {isLU = 0;}
-        XrdCmsRRQInfo(int rinst, short rnum, kXR_unt32 id)
-                        {Key = 0; ID = id; 
-                         Rinst = rinst; Rnum = rnum; isRW = isLU = 0;
-                        }
+        XrdCmsRRQInfo() : isLU(0) {}
+        XrdCmsRRQInfo(int rinst, short rnum, kXR_unt32 id, int minQ=0)
+                        : Key(0), ID(id), Rinst(rinst), Rnum(rnum),
+                          isRW(0), isLU(0), minR(minQ), actR(0) {}
        ~XrdCmsRRQInfo() {}
 };
 
@@ -89,7 +89,7 @@ void  Del(short Snum, const void *Key);
 
 int   Init(int Tint=0, int Tdly=0);
 
-void  Ready(int Snum, const void *Key, SMask_t mask1, SMask_t mask2);
+int   Ready(int Snum, const void *Key, SMask_t mask1, SMask_t mask2);
 
 void *Respond();
 
