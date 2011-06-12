@@ -38,6 +38,13 @@ Version 3.1.0
    * Implement native checksums usable stand-alone or as plugins. Three digests
      are supported: adler32, crc32, and md5. An additional digest can be added
      via a plugin. Also, the native digests can be over-ridden via a plugin.
+   * In XrdSecgsi, new interface for the authorization plug-in which has now full
+     access to the XrdSecEntity object, with the possibility to fill/modify all the
+     fields according to the proxy chain. The plug-in is now called at the end of
+     the all process, after a successful handshake and DN-username mapping.
+     Implementations must contain three extern C functions; see the dummy example
+     provided in src/XrdSecgsi/XrdSecgsiAuthzFunDN.cc. 
+     See also the header of XrdSecProtocolgsi::LoadAuthzFun.
 
 + **Major bug fixes**
    * Fix incorrect lock handling for multiple waiters.
