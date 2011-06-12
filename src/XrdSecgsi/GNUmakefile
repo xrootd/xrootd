@@ -185,5 +185,5 @@ $(OBJDIR)/XrdSecgsiGMAPFunDN.o: XrdSecgsiGMAPFunDN.cc XrdOucHash.hh XrdOucString
 
 $(OBJDIR)/XrdSecgsiAuthzFunDN.o: XrdSecgsiAuthzFunDN.cc XrdOucHash.hh XrdOucString.hh
 	@echo Compiling XrdSecgsiAuthzFunDN.cc
-	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdSecgsiAuthzFunDN.o XrdSecgsiAuthzFunDN.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdSecgsiAuthzFunDN.o XrdSecgsiAuthzFunDN.cc
 
