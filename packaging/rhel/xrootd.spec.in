@@ -53,6 +53,7 @@ Fuse driver for xrootd
 Summary: XRootD server
 Group:   System Environment/Daemons
 Requires: %{name}-libs = %{epoch}:%{version}-%{release}, %{name}-client = %{epoch}:%{version}-%{release}
+Obsoletes: xrootd
 %description server
 XRootD server
 
@@ -64,6 +65,7 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 Requires: %{name}-client = %{epoch}:%{version}-%{release}
 Requires: %{name}-libs-devel = %{epoch}:%{version}-%{release}
 Requires: %{name}-client-devel = %{epoch}:%{version}-%{release}
+Obsoletes: xrootd-devel
 %description server-devel
 Headers for compiling against xrootd-server
 
