@@ -4,7 +4,11 @@ Version 3.0.4
 
 + **New features**
    * xrdcp now has -version parameter
-   * xrdcp automatically ads the oss.asize hint to the url opaque data
+   * xrdcp automatically ads the oss.asize hint to the url opaque data.
+     This functionality may be disabled by setting the XrdCpSizeHint
+     variable to 0 (XRD_XRDCPSIZEHIN in the shell).
+   * The client will try to resolve the server hostname on every retry to
+     enable DNS failovers.
    * RPM: devel package split into libs-devel, client-devel and server-devel
    * XrootdFS: all paramenters can be passed via command line, add -h.
    * Allow a plugin (notably the proxy plugin) to disable async I/O.
