@@ -1026,7 +1026,8 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
           "<lf>%lld</lf><ls>%lld</ls><rf>%lld</rf><rs>%lld</rs></frq>";
 
    static int AddFrq = (Config.RepStats & XrdCmsConfig::RepStat_frq);
-   static int AddShr = (Config.RepStats & XrdCmsConfig::RepStat_shr);
+   static int AddShr = (Config.RepStats & XrdCmsConfig::RepStat_shr)
+                       && Config.asMetaMan();
 
    XrdCmsRRQ::Info Frq;
    XrdCmsSelected *sp;

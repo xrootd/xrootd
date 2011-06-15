@@ -3,6 +3,9 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Enable cmsd monitoring. For now, only [meta]manager information is reported.
+   * Add new repstats config directive to increase reporting detail.
+   * New class, XrdCmsRole, to make role naming/handling consistent.
    * Implement the 'cms.delay qdn' directive which allows one to tell the
      meta-manager the minimum number of responses needed to satisfy a hold
      delay (i.e. fast redirect).
