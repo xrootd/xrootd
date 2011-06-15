@@ -93,6 +93,19 @@ int   Ready(int Snum, const void *Key, SMask_t mask1, SMask_t mask2);
 
 void *Respond();
 
+struct Info
+      {long long Add2Q;    // Number added to queue
+       long long PBack;    // Number that we could piggy-back
+       long long Resp;     // Number of reponses for a waiting request
+       long long Multi;    // Number of multiple response fielded
+       long long luFast;   // Fast lookups
+       long long luSlow;   // Slow lookups
+       long long rdFast;   // Fast redirects
+       long long rdSlow;   // Slow redirects
+      };
+
+void  Statistics(Info &Data) {myMutex.Lock(); Data = Stats; myMutex.UnLock();}
+
 void *TimeOut();
 
       XrdCmsRRQ() : isWaiting(0), isReady(0), Tslice(178),
@@ -101,7 +114,7 @@ void *TimeOut();
 
 private:
 
-void sendLocResp(XrdCmsRRQSlot *lP);
+int  sendLocResp(XrdCmsRRQSlot *lP);
 void sendResponse(XrdCmsRRQInfo *Info, int doredir, int totlen = 0);
 static const int numSlots = 1024;
 
@@ -121,6 +134,7 @@ union   {char                          hostbuff[288];
          char                          databuff[XrdCms::CmsLocateRequest::RILen
                                                *STMax];
         };
+         Info                          Stats;
          int                           Tslice;
          int                           Tdelay;
 unsigned int                           myClock;

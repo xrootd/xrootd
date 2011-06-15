@@ -39,6 +39,7 @@
 #include "XrdCms/XrdCmsPrepare.hh"
 #include "XrdCms/XrdCmsPrepArgs.hh"
 #include "XrdCms/XrdCmsProtocol.hh"
+#include "XrdCms/XrdCmsRole.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
 #include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsState.hh"
@@ -251,11 +252,22 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 // Create a text description of our role for use in messages
 //
    if (!myRole)
-      {      if (isPeer)                myRole = strdup("peer");
-        else if (isProxy)               myRole = strdup("proxy");
-        else if (isManager && isServer) myRole = strdup("Supervisor");
-        else if (isManager)             myRole = strdup("manager");
-        else                            myRole = strdup("server");
+      {XrdCmsRole::RoleID rid;
+             if (isMeta)        rid = XrdCmsRole::MetaManager;
+        else if (isPeer)        rid = XrdCmsRole::Peer;
+        else if (isProxy)
+                {if (isManager) rid = (isServer ? XrdCmsRole::ProxySuper
+                                                : XrdCmsRole::ProxyManager);
+                    else        rid = XrdCmsRole::ProxyServer;
+                }
+        else if (isManager)
+                {if (isManager) rid = (isServer ? XrdCmsRole::Supervisor
+                                                : XrdCmsRole::Manager);
+                }
+        else                    rid = XrdCmsRole::Server;
+        strcpy(myRType, XrdCmsRole::Type(rid));
+        myRole   = strdup(XrdCmsRole::Name(rid));
+        myRoleID = static_cast<int>(rid);
       }
 
 // For managers, make sure that we have a well designated port.
@@ -438,6 +450,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("prep",          xprep);   // Any,     non-dynamic
    TS_Xeq("prepmsg",       xprepm);  // Any,     non-dynamic
    TS_Xeq("remoteroot",    xrmtrt);  // Any,     non-dynamic
+   TS_Xeq("repstats",      xreps);   // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
@@ -634,7 +647,10 @@ void XrdCmsConfig::ConfigDefaults(void)
    LocalRoot= 0;
    RemotRoot= 0;
    myInsName= 0;
+   RepStats = 0;
    myRole    =0;
+   myRType[0]=0;
+   myRoleID  = XrdCmsRole::noRole;
    ManList   =0;
    NanList   =0;
    mySID    = 0;
@@ -2176,6 +2192,52 @@ int XrdCmsConfig::xprepm(XrdSysError *eDest, XrdOucStream &CFile)
 }
   
 /******************************************************************************/
+/*                                 x r e p s                                  */
+/******************************************************************************/
+
+/* Function: xreps
+
+   Purpose:  To parse the directive: repstats <options>
+
+   Type: Manager or Server, dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xreps(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char  *val;
+    static struct repsopts {const char *opname; int opval;} rsopts[] =
+       {
+        {"all",      RepStat_All},
+        {"frq",      RepStat_frq},
+        {"shr",      RepStat_shr}
+       };
+    int i, neg, rsval = 0, numopts = sizeof(rsopts)/sizeof(struct repsopts);
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("config", "repstats option not specified"); return 1;}
+    while (val)
+         {if (!strcmp(val, "off")) rsval = 0;
+             else {if ((neg = (val[0] == '-' && val[1]))) val++;
+                   for (i = 0; i < numopts; i++)
+                       {if (!strcmp(val, rsopts[i].opname))
+                           {if (neg) rsval &= ~rsopts[i].opval;
+                               else  rsval |=  rsopts[i].opval;
+                            break;
+                           }
+                       }
+                   if (i >= numopts)
+                      eDest->Say("Config warning: ignoring invalid repstats option '",val,"'.");
+                  }
+          val = CFile.GetWord();
+         }
+
+    RepStats = rsval;
+    return 0;
+}
+
+/******************************************************************************/
 /*                                x r m t r t                                 */
 /******************************************************************************/
 
@@ -2278,72 +2340,72 @@ int XrdCmsConfig::xrmtrt(XrdSysError *eDest, XrdOucStream &CFile)
 
 int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 {
-    char *val, role[64];
+    XrdCmsRole::RoleID roleID;
+    char *val, *Tok1, *Tok2;
     int rc, xMeta=0, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
 
-    *role = '\0';
-    if (!(val = CFile.GetWord()))
-       {eDest->Emsg("Config", "role not specified"); return 1;}
-
-// Scan for "meta" o/w "peer" or "proxy"
+// Get the first token
 //
-   if (!strcmp("meta", val))
-      {xMeta = -1; strcpy(role, val); val = CFile.GetWord();}
-      else {if (!strcmp("peer", val))
-               {xPeer = -1; strcpy(role, val); 
-                val = CFile.GetWord();
-               }
-            if (val && !strcmp("proxy", val))
-               {xProxy = -1; if (xPeer) strcat(role, " "); strcat(role, val);
-                val = CFile.GetWord();
-               }
-           }
+   if (!(val = CFile.GetWord()) || !strcmp(val, "if"))
+      {eDest->Emsg("Config", "role not specified"); return 1;}
+   Tok1 = strdup(val);
 
-// Scan for other possible alternatives
+// Get second token which might be an "if"
 //
-   if (val && strcmp("if", val))
-      {     if (!strcmp("manager",    val)) {xMan = -1;}
-       else if (!strcmp("server",     val)) {           xServ = -1;}
-       else if (!strcmp("supervisor", val)) {xMan = -1; xServ = -1; xSup = -1;}
-       else    {eDest->Emsg("Config", "invalid role -", val); return 1;}
-
-       if (xMeta || xPeer || xProxy) strcat(role, " ");
-       strcat(role, val);
+   if ((val = CFile.GetWord()) && strcmp(val, "if"))
+      {Tok2 = strdup(val);
        val = CFile.GetWord();
+      } else Tok2 = 0;
+
+// Process the if at this point
+//
+   if (val && !strcmp("if", val))
+      if ((rc = XrdOucUtils::doIf(eDest,CFile,"role directive",
+                             myName,myInsName,myProg)) <= 0)
+         {free(Tok1); if (Tok2) free(Tok2); return (rc < 0);}
+
+// Convert the role names to a role ID, if possible
+//
+   roleID = XrdCmsRole::Convert(Tok1, Tok2);
+
+// Set markers based on the role we have
+//
+   rc = 0;
+   switch(roleID)
+         {case XrdCmsRole::MetaManager:  xMeta  = xMan  =         -1; break;
+          case XrdCmsRole::Manager:               xMan  =         -1; break;
+          case XrdCmsRole::Supervisor:   xSup   = xMan  = xServ = -1; break;
+          case XrdCmsRole::Server:                        xServ = -1; break;
+          case XrdCmsRole::ProxyManager: xProxy = xMan  =         -1; break;
+          case XrdCmsRole::ProxySuper:   xProxy = xMan  = xServ = -1; break;
+          case XrdCmsRole::ProxyServer:  xProxy =         xServ = -1; break;
+          case XrdCmsRole::PeerManager:  xPeer  = xMan  =         -1; break;
+          case XrdCmsRole::Peer:         xPeer  = xSolo = xServ   -1; break;
+          default: eDest->Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;
+         }
+
+// Release storage and return if an error occured
+//
+   free(Tok1);
+   if (Tok2) free(Tok2);
+   if (rc) return rc;
+
+// If the role was specified on the command line, issue warning and ignore this
+//
+   if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
+      {eDest->Say("Config warning: role directive over-ridden by command line options.");
+       return 0;
       }
 
-// Scan for invalid roles
+// Fill out information
 //
-   if (((xPeer && xProxy) && !(xMan || xServ)) // peer proxy
-   ||  (xPeer && xServ)                        // peer server
-   ||  (xPeer && xSup)                         // peer supervisor
-   ||  (xMeta &&!xMan))                        // meta, meta server, meta super
-      {eDest->Emsg("Config", "invalid role -", role); return 1;}
-   if (!(xMan || xServ) && xProxy)
-      {eDest->Emsg("Config", "pure proxy role is not supported"); return 1;}
-
-// Make sure a role was specified
-//
-    if (!(xPeer || xProxy || xServ || xMan))
-       {eDest->Emsg("Config", "role not specified"); return 1;}
-
-// Check if this is a solo peer
-//
-    if (xPeer) if (!xMan) {xSolo = 1; xServ = -1;}
-
-// Handle optional "if"
-//
-    if (val && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(eDest,CFile,"role directive",
-                              myName,myInsName,myProg)) <= 0) return (rc < 0);
-
-    if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
-       eDest->Say("Config warning: role directive over-ridden by command line options.");
-       else {isServer = xServ; isManager = xMan;  isProxy = xProxy;
-             isPeer   = xPeer; isSolo    = xSolo; isMeta  = xMeta;
-             if (myRole) free(myRole); myRole = strdup(role);
-            }
-    return 0;
+   isServer = xServ; isManager = xMan;  isProxy = xProxy;
+   isPeer   = xPeer; isSolo    = xSolo; isMeta  = xMeta;
+   if (myRole) free(myRole);
+   myRole   = strdup(XrdCmsRole::Name(roleID));
+   myRoleID = static_cast<int>(roleID);
+   strcpy(myRType, XrdCmsRole::Type(roleID));
+   return 0;
 }
 
 /******************************************************************************/

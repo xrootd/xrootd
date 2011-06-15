@@ -519,7 +519,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPV6)))
+      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPO)))
           {Arg.Request.rrCode = kYR_error;
            rc = kYR_ENOENT; Why = "none ";
            bytes = strlcpy(Resp.outbuff, "No servers have the file",

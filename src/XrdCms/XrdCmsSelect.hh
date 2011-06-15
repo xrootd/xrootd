@@ -80,27 +80,20 @@ unsigned int    IPAddr;   // IPV4
 int             Port;
 int             IPV6Len;  // 12345678901234567890123456
 char            IPV6[28]; // [::123.123.123.123]:123456
-int             Load;
-int             Util;
-int             Free;
 int             RefTotW;
 int             RefTotR;
 int             Shrin;       // Share intervals used
 char            Share;       // Share
-char            Rsvd[3];
+char            RoleID;      // Role Identifier
+char            Rsvd[2];
 int             Status;      // One of the following
 
 enum           {Disable = 0x0001,
                 NoStage = 0x0002,
                 Offline = 0x0004,
                 Suspend = 0x0008,
-                NoSpace = 0x0020,
-                isRW    = 0x0040,
-                Reservd = 0x0080,
-                isMangr = 0x0100,
-                isPeer  = 0x0200,
-                isProxy = 0x0400,
-                noServr = 0x0700
+                isRW    = 0x0010,
+                isMangr = 0x0100
                };
 
                XrdCmsSelected(const char *sname, XrdCmsSelected *np=0)

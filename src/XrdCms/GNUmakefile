@@ -209,7 +209,8 @@ $(OBJDIR)/XrdCmsClientMan.o: XrdCmsClientMan.cc   XrdCmsClientMan.hh \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdCmsClientMan.o XrdCmsClientMan.cc
 
 $(OBJDIR)/XrdCmsCluster.o:   XrdCmsCluster.cc    XrdCmsCluster.hh \
-                             XrdCmsBaseFS.hh \
+                             XrdCmsBaseFS.hh     XrdCmsRole.hh \
+                             XrdCmsRRQ.hh \
                              XrdCmsCache.hh      XrdCmsConfig.hh \
                              XrdCmsKey.hh        XrdCmsNode.hh \
                              XrdCmsSelect.hh     XrdCmsState.hh \
@@ -230,7 +231,7 @@ $(OBJDIR)/XrdCmsConfig.o:    XrdCmsConfig.cc     XrdCmsConfig.hh \
                              XrdCmsNode.hh       XrdCmsPList.hh \
                              XrdCmsPrepare.hh    XrdCmsPrepArgs.hh \
                              XrdCmsProtocol.hh   XrdCmsRRQ.hh \
-                             XrdCmsSecurity.hh \
+                             XrdCmsSecurity.hh   XrdCmsRole.hh \
                              XrdCmsState.hh      XrdCmsSupervisor.hh \
                              XrdCmsTrace.hh      XrdCmsTypes.hh \
                              XrdCmsXmi.hh        XrdCmsXmiReq.hh \
@@ -398,6 +399,7 @@ $(OBJDIR)/XrdCmsProtocol.o:  XrdCmsProtocol.cc   XrdCmsProtocol.hh \
                              XrdCmsParser.hh     XrdCmsRouting.hh \
                              XrdCmsRTable.hh     XrdCmsState.hh \
                              XrdCmsTypes.hh      XrdCmsTrace.hh \
+                             XrdCmsRole.hh \
                              XrdOucCRC.hh \
                              XrdOucPup.hh        XrdOucTokenizer.hh \
                              XrdSysDNS.hh \

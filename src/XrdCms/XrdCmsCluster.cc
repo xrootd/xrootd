@@ -27,6 +27,8 @@
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsNode.hh"
+#include "XrdCms/XrdCmsRole.hh"
+#include "XrdCms/XrdCmsRRQ.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsSelect.hh"
 #include "XrdCms/XrdCmsTrace.hh"
@@ -411,24 +413,17 @@ SMask_t XrdCmsCluster::getMask(const char *Cid)
   
 XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
 {
-    const char *reason;
-    int i, iend, nump, delay, lsall = opts & LS_All;
+    int i, lsall = opts & LS_All;
     XrdCmsNode     *nP;
     XrdCmsSelected *sipp = 0, *sip;
 
 // If only one wanted, the select appropriately
 //
    STMutex.Lock();
-   iend = (opts & LS_Best ? 0 : STHi);
-   for (i = 0; i <= iend; i++)
-       {if (opts & LS_Best)
-            nP = (Config.sched_RR
-                 ? SelbyRef( mask, nump, delay, &reason, 0)
-                 : SelbyLoad(mask, nump, delay, &reason, 0));
-           else if ((nP=NodeTab[i]) && !lsall && !(nP->NodeMask & mask)) nP=0;
-        if (nP)
+   for (i = 0; i <= STHi; i++)
+        if ((nP=NodeTab[i]) && (lsall ||  (nP->NodeMask & mask)))
            {sip = new XrdCmsSelected((opts & LS_IPO) ? 0 : nP->Name(), sipp);
-            if (opts & LS_IPV6)
+            if (opts & LS_IPO)
                {sip->IPV6Len = nP->IPV6Len;
                 strcpy(sip->IPV6, nP->IPV6);
                }
@@ -436,12 +431,11 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
             sip->Id      = nP->NodeID;
             sip->IPAddr  = nP->IPAddr;
             sip->Port    = nP->Port;
-            sip->Load    = nP->myLoad;
-            sip->Util    = nP->DiskUtil;
             sip->RefTotW = nP->RefTotW;
             sip->RefTotR = nP->RefTotR;
             sip->Shrin   = nP->Shrin;
             sip->Share   = nP->Share;
+            sip->RoleID  = nP->RoleID;
             if (nP->isOffline) sip->Status  = XrdCmsSelected::Offline;
                else sip->Status  = 0;
             if (nP->isDisable) sip->Status |= XrdCmsSelected::Disable;
@@ -449,12 +443,9 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
             if (nP->isSuspend) sip->Status |= XrdCmsSelected::Suspend;
             if (nP->isRW     ) sip->Status |= XrdCmsSelected::isRW;
             if (nP->isMan    ) sip->Status |= XrdCmsSelected::isMangr;
-            if (nP->isPeer   ) sip->Status |= XrdCmsSelected::isPeer;
-            if (nP->isProxy  ) sip->Status |= XrdCmsSelected::isProxy;
             nP->UnLock();
             sipp = sip;
            }
-       }
    STMutex.UnLock();
 
 // Return result
@@ -999,15 +990,48 @@ void XrdCmsCluster::Space(SpaceData &sData, SMask_t smask)
   
 int XrdCmsCluster::Stats(char *bfr, int bln)
 {
-   static const char statfmt1[] = "<stats id=\"cms\" role=\"%s\">"
-          "<selt>%lld</selt><selr>%d</selr><selw>%d</selw>";
-   static const char statfmt2[] = "<node><name>%s</name>"
-          "<status>%s</status><load>%d</load><diskfree>%d</diskfree>"
-          "<refr>%d</refr><refw>%d</refw><shr>%d<int>%d</int></shr></node>";
-   static const char statfmt3[] = "</stats>\n";
+   static const char statfmt1[] = "<stats id=\"cms\">"
+                     "<role>%s</role></stats>";
+   int mlen;
+
+// Check if actual length wanted
+//
+   if (!bfr) return  sizeof(statfmt1) + 8;
+
+// Format the statistics (not much here for now)
+//
+   mlen = snprintf(bfr, bln, statfmt1, Config.myRType);
+
+   if ((bln -= mlen) <= 0) return 0;
+   return mlen;
+}
+
+/******************************************************************************/
+/*                                 S t a t t                                  */
+/******************************************************************************/
+  
+int XrdCmsCluster::Statt(char *bfr, int bln)
+{
+   static const char statfmt0[] = "</stats>";
+   static const char statfmt1[] = "<stats id=\"cmsm\">"
+          "<role>%s</role><sel><t>%lld</t><r>%lld</r><w>%lld</w></sel>"
+          "<node>%d";
+   static const char statfmt2[] = "<stats id=\"%d\">"
+          "<host>%s</host><role>%s</role>"
+          "<run>%s</run><ref><r>%d</r><w>%d</w></ref>%s</stats>";
+   static const char statfmt3[] = "<shr>%d<use>%d</use></shr>";
+   static const char statfmt4[] = "</node>";
+   static const char statfmt5[] =
+          "<frq><add>%lld<d>%lld</d></add><rsp>%lld<m>%lld</m></rsp>"
+          "<lf>%lld</lf><ls>%lld</ls><rf>%lld</rf><rs>%lld</rs></frq>";
+
+   static int AddFrq = (Config.RepStats & XrdCmsConfig::RepStat_frq);
+   static int AddShr = (Config.RepStats & XrdCmsConfig::RepStat_shr);
+
+   XrdCmsRRQ::Info Frq;
    XrdCmsSelected *sp;
-   int mlen, tlen = sizeof(statfmt3);
-   char stat[6], *stp;
+   int mlen, tlen, n = 0;
+   char shrBuff[80], stat[6], *stp;
 
    class spmngr {
          public: XrdCmsSelected *sp;
@@ -1020,45 +1044,66 @@ int XrdCmsCluster::Stats(char *bfr, int bln)
 
 // Check if actual length wanted
 //
-   if (!bfr) return  sizeof(statfmt1) + 256  +
-                    (sizeof(statfmt2) + 20*4 + 256) * STMax +
-                     sizeof(statfmt3) + 1;
+   if (!bfr)
+      {n = sizeof(statfmt0) +
+           sizeof(statfmt1) + 12*3 + 3 + 3 +
+          (sizeof(statfmt2) + 10*2 + 256 + 16) * STMax + sizeof(statfmt4);
+       if (AddShr) n += sizeof(statfmt3) + 12;
+       if (AddFrq) n += sizeof(statfmt4) + (10*8);
+       return n;
+      }
 
 // Get the statistics
 //
+   if (AddFrq) RRQ.Statistics(Frq);
    mngrsp.sp = sp = List(FULLMASK, LS_All);
+
+// Count number of nodes we have
+//
+   while(sp) {n++; sp = sp->next;}
+   sp = mngrsp.sp;
 
 // Format the statistics
 //
-   mlen = snprintf(bfr, bln, statfmt1, Config.myName, Config.myRole,
-                                       SelTcnt, SelRcnt, SelWcnt);
+   mlen = snprintf(bfr, bln, statfmt1,
+          Config.myRType, SelTcnt, SelRcnt, SelWcnt, n);
 
    if ((bln -= mlen) <= 0) return 0;
-   tlen += mlen;
+   tlen = mlen; bfr += mlen; n = 0; *shrBuff = 0;
 
-   while(sp && bln)
+   while(sp && bln > 0)
         {stp = stat;
-         if (sp->Status)
-            {if (sp->Status & XrdCmsSelected::Offline) *stp++ = 'o';
-             if (sp->Status & XrdCmsSelected::Suspend) *stp++ = 's';
-             if (sp->Status & XrdCmsSelected::NoStage) *stp++ = 'n';
-             if (sp->Status & XrdCmsSelected::Disable) *stp++ = 'd';
-            } else *stp++ = 'a';
-         bfr += mlen;
-         mlen = snprintf(bfr, bln, statfmt2, sp->Name, stat,
-                sp->Load, sp->Free, sp->RefTotR, sp->RefTotW,
-                sp->Share,sp->Shrin);
-         bln  -= mlen;
-         tlen += mlen;
-         sp = sp->next;
+              if (sp->Status & XrdCmsSelected::Offline) *stp++ = 'o';
+         else if (sp->Status & XrdCmsSelected::Suspend) *stp++ = 's';
+         else if (sp->Status & XrdCmsSelected::Disable) *stp++ = 'd';
+         else *stp++ = 'a';
+         if (sp->Status & XrdCmsSelected::isRW)    *stp++ = 'w';
+         if (sp->Status & XrdCmsSelected::NoStage) *stp++ = 'n';
+         *stp = 0;
+         if (AddShr) snprintf(shrBuff, sizeof(shrBuff), statfmt3,
+                             (sp->Share ? sp->Share : 100), sp->Shrin);
+         mlen = snprintf(bfr, bln, statfmt2, n, sp->Name,
+                XrdCmsRole::Type(static_cast<XrdCmsRole::RoleID>(sp->RoleID)),
+                stat, sp->RefTotR, sp->RefTotW, shrBuff);
+         bfr += mlen; bln -= mlen; tlen += mlen;
+         sp = sp->next; n++;
         }
+
+   if (bln <= (int)sizeof(statfmt4)) return 0;
+   strcpy(bfr, statfmt4); mlen = sizeof(statfmt4) - 1;
+   bfr += mlen; bln -= mlen; tlen += mlen;
+
+   if (AddFrq && bln > 0)
+      {mlen = snprintf(bfr, bln, statfmt5, Frq.Add2Q, Frq.PBack, Frq.Resp,
+              Frq.Multi, Frq.luFast, Frq.luSlow, Frq.rdFast, Frq.rdSlow);
+       bfr += mlen; bln -= mlen; tlen += mlen;
+      }
 
 // See if we overflowed. otherwise finish up
 //
-   if (sp || bln < (int)sizeof(statfmt1)) return 0;
-   bfr += mlen;
-   strcpy(bfr, statfmt3);
-   return tlen;
+   if (sp || bln < (int)sizeof(statfmt0)) return 0;
+   strcpy(bfr, statfmt0);
+   return tlen + sizeof(statfmt0) - 1;
 }
   
 /******************************************************************************/

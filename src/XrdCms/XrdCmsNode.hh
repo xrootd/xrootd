@@ -45,7 +45,8 @@ public:
        char   isConn;       //2 Set when node is network connected
        char   isGone;       //3 Set when node must be deleted
        char   isPerm;       //4 Set when node is permanently bound
-       char   isReserved[3];
+       char   isReserved[2];
+       char   RoleID;       // The converted XrdCmsRole::RoleID
 
 static const char allowsRW = 0x01; // in isRW -> Server allows r/w access
 static const char allowsSS = 0x02; // in isRW -> Server can stage data

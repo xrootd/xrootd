@@ -104,6 +104,10 @@ char        *N2N_Parms;   // Server Only
 char        *LocalRoot;   // Server Only
 char        *RemotRoot;   // Manager
 char        *myPaths;     // Exported paths
+short        RepStats;    // Statistics to report (see RepStat_xxx below)
+char         Rsvc;
+char         myRoleID;
+char         myRType[4];
 char        *myRole;
 const char  *myProg;
 const char  *myName;
@@ -134,6 +138,12 @@ struct sockaddr    myAddr;
 
       XrdCmsConfig() : XrdJob("cmsd startup") {ConfigDefaults();}
      ~XrdCmsConfig() {}
+
+// RepStats value via 'cms.repstats" directive
+//
+static const int RepStat_frq    = 0x0001; // Fast Response Queue
+static const int RepStat_shr    = 0x0002; // Share
+static const int RepStat_All    = 0xffff; // All
 
 private:
 
@@ -167,6 +177,7 @@ int  xpidf(XrdSysError *edest, XrdOucStream &CFile);
 int  xping(XrdSysError *edest, XrdOucStream &CFile);
 int  xprep(XrdSysError *edest, XrdOucStream &CFile);
 int  xprepm(XrdSysError *edest, XrdOucStream &CFile);
+int  xreps(XrdSysError *edest, XrdOucStream &CFile);
 int  xrmtrt(XrdSysError *edest, XrdOucStream &CFile);
 int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);

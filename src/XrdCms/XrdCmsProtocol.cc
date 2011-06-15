@@ -33,6 +33,7 @@
 #include "XrdCms/XrdCmsManTree.hh"
 #include "XrdCms/XrdCmsMeter.hh"
 #include "XrdCms/XrdCmsProtocol.hh"
+#include "XrdCms/XrdCmsRole.hh"
 #include "XrdCms/XrdCmsRouting.hh"
 #include "XrdCms/XrdCmsRTable.hh"
 #include "XrdCms/XrdCmsState.hh"
@@ -451,6 +452,22 @@ void XrdCmsProtocol::Recycle(XrdLink *lp, int consec, const char *reason)
 }
   
 /******************************************************************************/
+/*                                 S t a t s                                  */
+/******************************************************************************/
+  
+int XrdCmsProtocol::Stats(char *buff, int blen, int do_sync)
+{
+
+// All the statistics are handled by the cluster
+//
+
+// If we are a manager then we have different information
+//
+   return (Config.asManager() ? Cluster.Statt(buff, blen)
+                              : Cluster.Stats(buff, blen));
+}
+
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
@@ -463,6 +480,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    char         myBuff[1024];
    XrdCmsLogin  Source(myBuff, sizeof(myBuff));
    CmsLoginData Data;
+   XrdCmsRole::RoleID roleID = XrdCmsRole::noRole;
    const char  *Reason;
    SMask_t      newmask, servset(0);
    int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
@@ -497,22 +515,25 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
         if ((isMan = Data.Mode & CmsLoginData::kYR_manager))
            {Status = CMS_isMan;
-            if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
-               {Status |= CMS_isPeer;  myRole = "manager";}
-               else                    myRole = "supervisor";
+                 if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
+                    {Status |= CMS_isPeer;  roleID = XrdCmsRole::PeerManager;}
+            else if (Data.Mode & CmsLoginData::kYR_proxy)
+                                            roleID = XrdCmsRole::ProxyManager;
+            else if (Config.asMetaMan())    roleID = XrdCmsRole::Manager;
+            else                            roleID = XrdCmsRole::Supervisor;
            }
    else if ((isServ =  Data.Mode & CmsLoginData::kYR_server))
-            if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
-               {Status = CMS_isProxy; myRole = "proxy_srvr";}
-               else                   myRole = "server";
-   else if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
-           {Status |= CMS_isPeer;
-            myRole = (CmsLoginData::kYR_proxy ? "peer" : "peer_proxy");
+           {if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
+               {Status = CMS_isProxy;       roleID = XrdCmsRole::ProxyServer;}
+               else                         roleID = XrdCmsRole::Server;
            }
+   else if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
+           {Status |= CMS_isPeer;           roleID = XrdCmsRole::Peer;}
    else    return Login_Failed("invalid login role");
 
 // Set the link identification
 //
+   myRole = XrdCmsRole::Name(roleID);
    Link->setID(myRole, Data.HoldTime);
 
 // Make sure that our role is compatible with the incomming role
@@ -542,6 +563,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    if (!(myNode = Cluster.Add(Link, Data.dPort, Status, Data.sPort,
                               (const char *)Data.SID)))
       return (XrdCmsRouting *)0;
+   myNode->RoleID = static_cast<char>(roleID);
 
 // Calculate the share as the reference mininum if we are a meta-manager
 //

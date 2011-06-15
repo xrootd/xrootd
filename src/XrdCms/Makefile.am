@@ -32,7 +32,8 @@ XrdCmsClientMan.hh     XrdCmsPList.hh     XrdCmsSelect.hh \
 XrdCmsClientMsg.hh     XrdCmsParser.hh    XrdCmsState.hh \
 XrdCmsCluster.hh       XrdCmsPrepArgs.hh  XrdCmsSupervisor.hh \
 XrdCmsConfig.hh        XrdCmsPrepare.hh   XrdCmsTalk.hh \
-XrdCmsFinder.hh        XrdCmsProtocol.hh  XrdCmsTrace.hh \
+XrdCmsFinder.hh        XrdCmsProtocol.hh  XrdCmsRole.hh \
+XrdCmsTrace.hh \
 XrdCmsJob.hh           XrdCmsRRData.hh    XrdCmsTypes.hh \
 XrdCmsLogin.hh         XrdCmsRRQ.hh       XrdCmsXmi.hh \
 XrdCmsManList.hh       XrdCmsRTable.hh    XrdCmsXmiReq.hh

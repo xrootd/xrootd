@@ -8,6 +8,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+#include <string.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <inttypes.h>
@@ -65,7 +66,7 @@ short XrdCmsRRQ::Add(short Snum, XrdCmsRRQInfo *Info)
 // If a slot number given, check if it's the right slot and it is still queued.
 // If so, piggy-back this request to existing one and make a fast exit
 //
-   myMutex.Lock();
+   myMutex.Lock(); Stats.Add2Q++;
    if (Snum && Slot[Snum].Info.Key == Info->Key && Slot[Snum].Expire)
       {if (Info->isLU)
           {sp->LkUp = Slot[Snum].LkUp;
@@ -74,6 +75,7 @@ short XrdCmsRRQ::Add(short Snum, XrdCmsRRQInfo *Info)
            sp->Cont = Slot[Snum].Cont;
            Slot[Snum].Cont = sp;
           }
+       Stats.PBack++;
        myMutex.UnLock();
        return Snum;
       }
@@ -109,6 +111,7 @@ int XrdCmsRRQ::Init(int Tint, int Tdly)
 //
    if (Tint) Tslice = Tint;
    if (Tdly) Tdelay = Tdly;
+   memset(&Stats, 0, sizeof(Stats));
 
 // Fill out the response structure
 //
@@ -190,12 +193,13 @@ int XrdCmsRRQ::Ready(int Snum, const void *Key, SMask_t mask1, SMask_t mask2)
 // a fixed differentiation mask. Accumulate the 1st but replace the 2nd.
 //
    sp->Arg1 |= mask1; sp->Arg2 = mask2;
+   Stats.Resp++;
 
 // Check if we should still hold on to this slot because the number of actual
 // responders is less than the number needed.
 //
    if (sp->Info.actR < sp->Info.minR)
-      {sp->Info.actR++; 
+      {sp->Info.actR++; Stats.Multi++;
        myMutex.UnLock();
        return 0;
       }
@@ -219,13 +223,17 @@ void *XrdCmsRRQ::Respond()
 // EPNAME("RRQ Respond");
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsRRQSlot *lupQ, *sp, *cp;
-   int doredir, port, hlen;
+   int rdFast = 0, rdSlow = 0, luFast = 0, luSlow = 0;
+   int n, doredir, port, hlen;
 
 // In an endless loop, process all ready elements
 //
    do {isReady.Wait();     // DEBUG("responder awoken");
    do {myMutex.Lock();
        lupQ = 0;
+       Stats.rdFast += rdFast; Stats.rdSlow += rdSlow;
+       Stats.luFast += luFast; Stats.luSlow += luSlow;
+       rdFast = rdSlow = luFast = luSlow = 0;
        if (readyQ.Singleton()) {myMutex.UnLock(); break;}
        sp = readyQ.Next()->Item(); sp->Link.Remove(); sp->Expire = 0;
        myMutex.UnLock();
@@ -241,14 +249,18 @@ void *XrdCmsRRQ::Respond()
            redr_iov[1].iov_len  = hlen;
            hlen += ovhd + sizeof(redrResp.Hdr);
           }
-       sendResponse(&sp->Info, doredir, hlen);
+       sendResponse(&sp->Info, doredir, hlen); n = 1;
        cp = sp->Cont;
-       while(cp) {sendResponse(&cp->Info, doredir, hlen); cp = cp->Cont;}
+       while(cp) {sendResponse(&cp->Info, doredir, hlen); n++; cp = cp->Cont;}
        sp->Recycle();
+       if (doredir) rdFast = n;
+          else      rdSlow = n;
       } while(1);
        if (lupQ) {lupQ->Cont = lupQ->LkUp;
-                  sendLocResp(lupQ);
+                  n = sendLocResp(lupQ);
                   lupQ->Recycle();
+                  if (n > 0) luFast =  n;
+                     else    luSlow = -n;
                  }
       } while(1);
 
@@ -261,27 +273,27 @@ void *XrdCmsRRQ::Respond()
 /*                           s e n d L o c R e s p                            */
 /******************************************************************************/
   
-void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
+int XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 {
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
    XrdCmsNode *nP;
-   int bytes;
+   int bytes, n = 0;
 
 // Send a delay if we timed out
 //
    if (!(lP->Arg1))
-      {do {sendResponse(&lP->Info, 0); lP = lP->Cont;} while(lP);
-       return;
+      {do {sendResponse(&lP->Info, 0); n++; lP = lP->Cont;} while(lP);
+       return -n;
       }
 
 // Get the list of servers that have this file. If none found, then force the
 // client to wait as this should never happen and the long path is called for.
 //
-   if (!(sP = Cluster.List(lP->Arg1, XrdCmsCluster::LS_IPV6))
+   if (!(sP = Cluster.List(lP->Arg1, XrdCmsCluster::LS_IPO))
    || (!(bytes = XrdCmsNode::do_LocFmt(databuff,sP,lP->Arg2,lP->Info.rwVec))))
-      {while(lP) {sendResponse(&lP->Info, 0); lP = lP->Cont;}
-       return;
+      {while(lP) {sendResponse(&lP->Info, 0); n++; lP = lP->Cont;}
+       return -n;
       }
 
 // Complete the I/O vector
@@ -301,8 +313,9 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
              nP->Send(data_iov, iov_cnt, bytes);
             }
          RTable.UnLock();
-         lP = lP->Cont;
+         lP = lP->Cont; n++;
         }
+   return n;
 }
 
 /******************************************************************************/

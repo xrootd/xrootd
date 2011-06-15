@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
 #include "Xrd/XrdProtocol.hh"
 #include "XrdCms/XrdCmsParser.hh"
 #include "XrdCms/XrdCmsTypes.hh"
@@ -40,7 +38,7 @@ static XrdCmsProtocol *Alloc(const char *theRole = "",
 
        void            Recycle(XrdLink *lp, int consec, const char *reason);
 
-       int             Stats(char *buff, int blen, int do_sync=0) {return 0;}
+       int             Stats(char *buff, int blen, int do_sync=0);
 
               XrdCmsProtocol() : XrdProtocol("cms protocol handler"),
                                  ProtLink(0), myRole("?"), myNode(0), RSlot(0)
