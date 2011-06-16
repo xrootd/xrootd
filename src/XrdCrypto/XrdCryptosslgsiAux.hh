@@ -17,6 +17,7 @@
 #include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
 #include <XrdCrypto/XrdCryptoX509Req.hh>
 #include <XrdCrypto/XrdCryptoRSA.hh>
+#include <XrdOuc/XrdOucString.hh>
 
 // The OID of the extension
 #define gsiProxyCertInfo_OID "1.3.6.1.4.1.3536.1.222"
@@ -50,6 +51,13 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *,
 // Sign a proxy certificate request
 int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *, XrdCryptoRSA *,
                               XrdCryptoX509Req *, XrdCryptoX509 **);
+//
+// Dump extensions
+int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *);
+//
+// Get VOMS attributes, if any
+int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *, XrdOucString &);
+
 /******************************************************************************/
 /*          E r r o r s   i n   P r o x y   M a n i p u l a t i o n s         */
 /******************************************************************************/

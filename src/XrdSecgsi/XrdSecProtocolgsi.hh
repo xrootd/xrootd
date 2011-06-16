@@ -161,6 +161,7 @@ public:
    char  *exppxy; // [s] template for the exported file with proxies (dlgpxy == 3)
    int    authzpxy; // [s] if 1 make proxy available in exported form in the 'endorsement'
                     //     field of the XrdSecEntity object for use in XrdAcc
+   int    vomsat; // [s] 0 do not look for; 1 extract if any
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
@@ -168,7 +169,7 @@ public:
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = -1;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
-                  ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0; exppxy = 0; authzpxy = 0;}
+                  ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0; exppxy = 0; authzpxy = 0; vomsat = 1;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
 };
 
@@ -305,6 +306,7 @@ private:
    static int              AuthzPxyWhat;
    static int              AuthzPxyWhere;
    static String           SrvAllowedNames;
+   static int              VOMSAttrOpt; 
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -422,4 +424,7 @@ private:
    // Entity handling
    void CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lout = 0);
    void FreeEntity(XrdSecEntity *in);
+
+   // VOMS parsing
+   void ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent);
 };

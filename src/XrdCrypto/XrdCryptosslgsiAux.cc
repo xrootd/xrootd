@@ -36,10 +36,51 @@ const char *XrdCryptosslgsiAuxCVSID = "$Id$";
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 //                                                                           //
-// Handlers of the ProxyCertInfo extension following RFC3820                 //
+// VOMS relevant stuff                                                       //
 //                                                                           //
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
+#define XRDGSI_VOMS_ATCAP_OID  "1.3.6.1.4.1.8005.100.100.4"
+#define XRDGSI_VOMS_ACSEQ_OID  "1.3.6.1.4.1.8005.100.100.5"
+
+#define BIO_PRINT(b,c) \
+   BUF_MEM *bptr; \
+   BIO_get_mem_ptr(b, &bptr); \
+   if (bptr) { \
+      char *s = new char[bptr->length+1]; \
+      memcpy(s, bptr->data, bptr->length); \
+      s[bptr->length] = '\0'; \
+      PRINT(c << s); \
+      delete [] s; \
+   } else { \
+      PRINT("ERROR: "<<c<<" BIO internal buffer undefined!"); \
+   } \
+   if (b) BIO_free(b);
+
+#define BIO_GET_STRING(b,str) \
+   BUF_MEM *bptr; \
+   BIO_get_mem_ptr(b, &bptr); \
+   if (bptr) { \
+      char *s = new char[bptr->length+1]; \
+      memcpy(s, bptr->data, bptr->length); \
+      s[bptr->length] = '\0'; \
+      str = s; \
+      delete [] s; \
+   } else { \
+      PRINT("ERROR: GET_STRING: BIO internal buffer undefined!"); \
+   } \
+   if (b) BIO_free(b);
+
+int XrdSslgsiX509FillUnknownExt(const unsigned char **pp, long length);
+int XrdSslgsiX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
+int XrdSslgsiX509FillVOMS(const unsigned char **pp, long length, bool &getvat, XrdOucString &vat);
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+//                                                                           //
+// Handlers of the ProxyCertInfo extension following RFC3820                 //
+//                                                                           //
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
+ 
 //
 // Types describing the ProxyCertInfo extension
 typedef struct {
@@ -65,46 +106,46 @@ typedef struct {
 // Version of OBJ_txt2obj with a bug fix introduced starting
 // with some 0.9.6 versions
 static ASN1_OBJECT *OBJ_txt2obj_fix(const char *s, int no_name)
-	{
-	int nid = NID_undef;
-	ASN1_OBJECT *op=NULL;
-	unsigned char *buf,*p;
-	int i, j;
+{
+   int nid = NID_undef;
+   ASN1_OBJECT *op=NULL;
+   unsigned char *buf,*p;
+   int i, j;
 
-	if(!no_name) {
-		if( ((nid = OBJ_sn2nid(s)) != NID_undef) ||
-			((nid = OBJ_ln2nid(s)) != NID_undef) ) 
-					return OBJ_nid2obj(nid);
-	}
+   if (!no_name) {
+      if( ((nid = OBJ_sn2nid(s)) != NID_undef) ||
+          ((nid = OBJ_ln2nid(s)) != NID_undef) ) 
+         return OBJ_nid2obj(nid);
+   }
 
-	/* Work out size of content octets */
-	i=a2d_ASN1_OBJECT(NULL,0,s,-1);
-	if (i <= 0) {
-		/* Clear the error */
-		ERR_get_error();
-		return NULL;
-	}
-	/* Work out total size */
-	j = ASN1_object_size(0,i,V_ASN1_OBJECT);
+   // Work out size of content octets
+   i = a2d_ASN1_OBJECT(NULL,0,s,-1);
+   if (i <= 0) {
+      // Clear the error
+      ERR_get_error();
+      return NULL;
+   }
+   // Work out total size
+   j = ASN1_object_size(0,i,V_ASN1_OBJECT);
 
-	if((buf=(unsigned char *)OPENSSL_malloc(j)) == NULL) return NULL;
+   if ((buf=(unsigned char *)OPENSSL_malloc(j)) == NULL) return NULL;
 
-	p = buf;
-	/* Write out tag+length */
-	ASN1_put_object(&p,0,i,V_ASN1_OBJECT,V_ASN1_UNIVERSAL);
-	/* Write out contents */
-	a2d_ASN1_OBJECT(p,i,s,-1);
-	
-	p=buf;
+   p = buf;
+   // Write out tag+length
+   ASN1_put_object(&p,0,i,V_ASN1_OBJECT,V_ASN1_UNIVERSAL);
+   // Write out contents
+   a2d_ASN1_OBJECT(p,i,s,-1);
+
+   p = buf;
 #ifdef R__SSL_GE_098
-	// not op=d2i_ASN1_OBJECT(0, &p, i) (C.H. Christensen, Oct 12, 2005)
-	op = d2i_ASN1_OBJECT(0, const_cast<const unsigned char**>(&p), j);
+   // not op=d2i_ASN1_OBJECT(0, &p, i) (C.H. Christensen, Oct 12, 2005)
+   op = d2i_ASN1_OBJECT(0, const_cast<const unsigned char**>(&p), j);
 #else
-	op=d2i_ASN1_OBJECT(0, &p, i);
+   op = d2i_ASN1_OBJECT(0, &p, i);
 #endif
-	OPENSSL_free(buf);
-	return op;
-	}
+   OPENSSL_free(buf);
+   return op;
+}
 // -------------------------------------------------------------------------
 
 //
@@ -1272,4 +1313,479 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
 
    // We are done
    return 0;
+}
+
+//____________________________________________________________________________
+int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
+{
+   // Dump extensions of the certificate, if any
+   // Returns -1 on failure, 0 on success 
+   EPNAME("X509DumpExtensions");
+
+   int rc = -1;
+   // Make sure we got the right inputs
+   if (!xcpi) {
+      PRINT("invalid inputs");
+      return rc;
+   }
+   
+   // Point to the cerificate
+   X509 *xpi = (X509 *)(xcpi->Opaque());
+
+   rc = 1;
+   // Go through the extensions
+   X509_EXTENSION *xpiext = 0;
+   int npiext = X509_get_ext_count(xpi);
+   int i = 0;
+   for (i = 0; i< npiext; i++) {
+      xpiext = X509_get_ext(xpi, i);
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
+      // Notify what we found
+      PRINT("found extension '"<<s<<"'");
+      // Dump its content
+      rc = 0;
+      const unsigned char *pp = (const unsigned char *) xpiext->value->data; 
+      long length = xpiext->value->length;
+      int ret = XrdSslgsiX509FillUnknownExt(&pp, length);
+      PRINT("ret: " << ret);
+   }
+
+   // Done
+   return rc;
+}
+
+//____________________________________________________________________________
+int XrdSslgsiX509FillUnknownExt(const unsigned char **pp, long length)
+{
+   // Do the actual filling of the bio; can be called recursevely
+   EPNAME("X509FillUnknownExt");
+
+   const unsigned char *p,*ep,*tot,*op,*opp;
+   long len;
+   int tag, xclass, ret = 0;
+   int nl,hl,j,r;
+   ASN1_OBJECT *o = 0;
+   ASN1_OCTET_STRING *os = 0;
+   /* ASN1_BMPSTRING *bmp=NULL;*/
+   int dump_indent = 6;
+   int depth = 0;
+   int indent = 0;
+
+   p = *pp;
+   tot = p + length;
+   op = p - 1;
+   while ((p < tot) && (op < p)) {
+      op = p;
+      j = ASN1_get_object(&p, &len, &tag, &xclass, length);
+#ifdef LINT
+      j = j;
+#endif
+      if (j & 0x80) {
+         PRINT("ERROR: error in encoding");
+         ret = 0;
+         goto end;
+      }
+      hl = (p-op);
+      length -= hl;
+      /* if j == 0x21 it is a constructed indefinite length object */
+
+      if (j != (V_ASN1_CONSTRUCTED | 1)) {
+         PRINT("PRIM:  d="<<depth<<" hl="<<hl<<" l="<<len);
+      } else {
+         PRINT("CONST: d="<<depth<<" hl="<<hl<<" l=inf  ");
+      }
+      if (!XrdSslgsiX509Asn1PrintInfo(tag, xclass, j, (indent) ? depth : 0))
+         goto end;
+      if (j & V_ASN1_CONSTRUCTED) {
+         ep = p + len;
+         PRINT(" ");
+         if (len > length) {
+            PRINT("ERROR:CONST: length is greater than " <<length);
+            ret=0;
+            goto end;
+         }
+         if ((j == 0x21) && (len == 0)) {
+            for (;;) {
+               r = XrdSslgsiX509FillUnknownExt(&p, (long)(tot-p));
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+               if ((r == 2) || (p >= tot))
+                  break;
+            }
+         } else {
+            while (p < ep) {
+               r = XrdSslgsiX509FillUnknownExt(&p, (long)len);
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+            }
+         }
+      } else if (xclass != 0) {
+         p += len;
+         PRINT(" ");
+      } else {
+         nl = 0;
+         if ((tag == V_ASN1_PRINTABLESTRING) ||
+             (tag == V_ASN1_T61STRING) ||
+             (tag == V_ASN1_IA5STRING) ||
+             (tag == V_ASN1_VISIBLESTRING) ||
+             (tag == V_ASN1_NUMERICSTRING) ||
+             (tag == V_ASN1_UTF8STRING) ||
+             (tag == V_ASN1_UTCTIME) ||
+             (tag == V_ASN1_GENERALIZEDTIME)) {
+            if (len > 0) {
+               char *s = new char[len + 1];
+               memcpy(s, p, len);
+               s[len] = 0;
+               PRINT("GENERIC:" << s <<" (len: "<<(int)len<<")");
+               delete [] s;
+            } else {
+               PRINT("GENERIC: (len: "<<(int)len<<")");
+            }
+         } else if (tag == V_ASN1_OBJECT) {
+            opp = op;
+            if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {
+               BIO *mem = BIO_new(BIO_s_mem());
+               i2a_ASN1_OBJECT(mem, o);
+               XrdOucString objstr;
+               BIO_PRINT(mem, "AOBJ:");
+            } else {
+               PRINT("ERROR:AOBJ: BAD OBJECT");
+            }
+         } else if (tag == V_ASN1_BOOLEAN) {
+            opp = op;
+            int ii = d2i_ASN1_BOOLEAN(NULL,&opp,len+hl);
+            if (ii < 0) {
+               PRINT("ERROR:BOOL: Bad boolean");
+               goto end;
+            }
+            PRINT("BOOL:"<< ii);
+         } else if (tag == V_ASN1_BMPSTRING) {
+            /* do the BMP thang */
+         } else if (tag == V_ASN1_OCTET_STRING) {
+            int i, printable = 1;
+            opp = op;
+            os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
+            if (os && os->length > 0) {
+               opp = os->data;
+               /* testing whether the octet string is * printable */
+               for (i=0; i<os->length; i++) {
+                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
+                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
+                     printable = 0;
+                     break;
+                  }
+               }
+               if (printable) {
+                  /* printable string */
+                  char *s = new char[os->length + 1];
+                  memcpy(s, opp, os->length);
+                  s[os->length] = 0;
+                  PRINT("OBJS:" << s << " (len: "<<os->length<<")");
+                  delete [] s;
+               } else {
+                  /* print the normal dump */
+                  if (!nl) PRINT("OBJS:");
+                  BIO *mem = BIO_new(BIO_s_mem());
+                  if (BIO_dump_indent(mem, (const char *)opp, os->length, dump_indent) <= 0) {
+                     PRINT("ERROR:OBJS: problems dumping to BIO");
+                     BIO_free(mem);                  
+                     goto end;
+                  }
+                  BIO_PRINT(mem, "OBJS:");
+                  nl = 1;
+               }
+            }
+            if (os) {
+               M_ASN1_OCTET_STRING_free(os);
+               os = 0;
+            }
+         } else if (tag == V_ASN1_INTEGER) {
+            ASN1_INTEGER *bs;
+            int i;
+
+            opp = op;
+            bs = d2i_ASN1_INTEGER(0, &opp, len+hl);
+            if (bs) {
+               PRINT("AINT:");
+               if (bs->type == V_ASN1_NEG_INTEGER)
+                  PRINT("-");
+               BIO *mem = BIO_new(BIO_s_mem());
+               for (i = 0; i < bs->length; i++) {
+                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+                     PRINT("ERROR:AINT: problems printf-ing to BIO");
+                     BIO_free(mem); 
+                     goto end;
+                  }
+               }
+               BIO_PRINT(mem, "AINT:");
+               if (bs->length == 0) PRINT("00");
+            } else {
+               PRINT("ERROR:AINT: BAD INTEGER");
+            }
+            M_ASN1_INTEGER_free(bs);
+         } else if (tag == V_ASN1_ENUMERATED) {
+            ASN1_ENUMERATED *bs;
+            int i;
+
+            opp = op;
+            bs = d2i_ASN1_ENUMERATED(0, &opp, len+hl);
+            if (bs) {
+               PRINT("AENU:");
+               if (bs->type == V_ASN1_NEG_ENUMERATED)
+                  PRINT("-");
+               BIO *mem = BIO_new(BIO_s_mem());
+               for (i = 0; i < bs->length; i++) {
+                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+                     PRINT("ERROR:AENU: problems printf-ing to BIO");
+                     BIO_free(mem); 
+                     goto end;
+                  }
+               }
+               BIO_PRINT(mem, "AENU:");
+               if (bs->length == 0) PRINT("00");
+            } else {
+               PRINT("ERROR:AENU: BAD ENUMERATED");
+            }
+            M_ASN1_ENUMERATED_free(bs);
+         }
+
+         if (!nl) PRINT(" ");
+
+         p += len;
+         if ((tag == V_ASN1_EOC) && (xclass == 0)) {
+            ret = 2; /* End of sequence */
+            goto end;
+         }
+      }
+      length -= len;
+   }
+   ret = 1;
+end:
+   if (o) ASN1_OBJECT_free(o);
+   if (os) M_ASN1_OCTET_STRING_free(os);
+   *pp = p;
+   PRINT("ret: "<<ret);
+
+   return ret;
+}
+
+//____________________________________________________________________________
+int XrdSslgsiX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent)
+{
+   // Print the BIO content
+   EPNAME("X509Asn1PrintInfo");
+
+   static const char fmt[]="%-18s";
+   static const char fmt2[]="%2d %-15s";
+   char str[128];
+   const char *p, *p2 = 0;
+
+   BIO *bp = BIO_new(BIO_s_mem());
+   if (constructed & V_ASN1_CONSTRUCTED)
+      p = "cons: ";
+   else
+      p = "prim: ";
+   if (BIO_write(bp, p, 6) < 6)
+      goto err;
+   BIO_indent(bp, indent, 128);
+
+   p = str;
+   if ((xclass & V_ASN1_PRIVATE) == V_ASN1_PRIVATE)
+      BIO_snprintf(str,sizeof str,"priv [ %d ] ",tag);
+   else if ((xclass & V_ASN1_CONTEXT_SPECIFIC) == V_ASN1_CONTEXT_SPECIFIC)
+      BIO_snprintf(str,sizeof str,"cont [ %d ]",tag);
+   else if ((xclass & V_ASN1_APPLICATION) == V_ASN1_APPLICATION)
+      BIO_snprintf(str,sizeof str,"appl [ %d ]",tag);
+   else if (tag > 30)
+      BIO_snprintf(str,sizeof str,"<ASN1 %d>",tag);
+   else
+      p = ASN1_tag2str(tag);
+
+   if (p2) {
+      if (BIO_printf(bp,fmt2,tag,p2) <= 0)
+         goto err;
+   } else {
+      if (BIO_printf(bp, fmt, p) <= 0)
+         goto err;
+   }
+   BIO_PRINT(bp, "A1PI:");
+   return(1);
+err:
+   BIO_free(bp);
+   return(0);
+}
+
+//____________________________________________________________________________
+int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
+{
+   // Get VOMS attributes from the certificate, if present
+   // Return 0 in case of success, 1 if VOMS info is not available, < 0 if any
+   // error occured
+   EPNAME("X509GetVOMSAttr");
+
+   int rc = -1;
+   // Make sure we got the right inputs
+   if (!xcpi) {
+      PRINT("invalid inputs");
+      return rc;
+   }
+   
+   // Point to the cerificate
+   X509 *xpi = (X509 *)(xcpi->Opaque());
+
+   rc = 1;
+   bool getvat = 0;
+   // Go through the extensions
+   X509_EXTENSION *xpiext = 0;
+   int npiext = X509_get_ext_count(xpi);
+   int i = 0;
+   for (i = 0; i< npiext; i++) {
+      xpiext = X509_get_ext(xpi, i);
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
+      // Notify what we found
+      DEBUG("found extension '"<<s<<"'");
+      if (strcmp(s, XRDGSI_VOMS_ACSEQ_OID)) continue;
+      // This is the VOMS extension we are interested for
+      rc = 0;
+      const unsigned char *pp = (const unsigned char *) xpiext->value->data; 
+      long length = xpiext->value->length;
+      int ret = XrdSslgsiX509FillVOMS(&pp, length, getvat, vat);
+      DEBUG("ret: " << ret << " - vat: " << vat);
+   }
+
+   // Done
+   return rc;
+}
+
+//____________________________________________________________________________
+int XrdSslgsiX509FillVOMS(const unsigned char **pp, long length, bool &getvat, XrdOucString &vat)
+{
+   // Look recursively for the VOMS attributes
+   // Return 2 if found, 1 if to continue searching, 0 to stop    
+   EPNAME("X509FillVOMS");
+
+   const unsigned char *p,*ep,*tot,*op,*opp;
+   long len;
+   int tag, xclass, ret = 0;
+   int nl,hl,j,r;
+   ASN1_OBJECT *o = 0;
+   ASN1_OCTET_STRING *os = 0;
+
+   bool gotvat = 0;
+   p = *pp;
+   tot = p + length;
+   op = p - 1;
+   while ((p < tot) && (op < p)) {
+      op = p;
+      j = ASN1_get_object(&p, &len, &tag, &xclass, length);
+#ifdef LINT
+      j = j;
+#endif
+      if (j & 0x80) {
+         PRINT("ERROR: error in encoding");
+         ret = 0;
+         goto end;
+      }
+      hl = (p-op);
+      length -= hl;
+      /* if j == 0x21 it is a constructed indefinite length object */
+
+      if (j & V_ASN1_CONSTRUCTED) {
+         ep = p + len;
+         PRINT(" ");
+         if (len > length) {
+            PRINT("ERROR:CONST: length is greater than " <<length);
+            ret=0;
+            goto end;
+         }
+         if ((j == 0x21) && (len == 0)) {
+            for (;;) {
+               r = XrdSslgsiX509FillVOMS(&p, (long)(tot-p), getvat, vat);
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+               if ((r == 2) || (p >= tot))
+                  break;
+            }
+         } else {
+            while (p < ep) {
+               r = XrdSslgsiX509FillVOMS(&p, (long)len, getvat, vat);
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+            }
+         }
+      } else {
+         nl = 0;
+         if (tag == V_ASN1_OBJECT) {
+            opp = op;
+            if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {
+               BIO *mem = BIO_new(BIO_s_mem());
+               i2a_ASN1_OBJECT(mem, o);
+               XrdOucString objstr;
+               BIO_GET_STRING(mem, objstr);
+               // Looking for the right extension ...
+               if (objstr == XRDGSI_VOMS_ATCAP_OID) getvat = 1; 
+               DEBUG("AOBJ:"<<objstr<< " (getvat: "<<getvat<<")");
+            } else {
+               PRINT("ERROR:AOBJ: BAD OBJECT");
+            }
+         } else if (tag == V_ASN1_OCTET_STRING) {
+            int i, printable = 1;
+            opp = op;
+            os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
+            if (os && os->length > 0) {
+               opp = os->data;
+               // Testing whether the octet string is printable
+               for (i=0; i<os->length; i++) {
+                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
+                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
+                     printable = 0;
+                     break;
+                  }
+               }
+               if (printable) {
+                  // Printable string: it may be what we need
+                  if (getvat) {
+                     if (vat.length() > 0) vat += ",";
+                     vat += (const char *)opp;
+                     gotvat = 1;
+                  }
+                  DEBUG("OBJS:" << (const char *)opp << " (len: "<<os->length<<")");
+               }
+            }
+            if (os) {
+               M_ASN1_OCTET_STRING_free(os);
+               os = 0;
+            }
+         }
+
+         p += len;
+         if ((tag == V_ASN1_EOC) && (xclass == 0)) {
+            ret = 2; /* End of sequence */
+            goto end;
+         }
+      }
+      length -= len;
+   }
+   ret = 1;
+   if (gotvat) {
+      getvat = 0;
+      ret = 2;
+   }
+end:
+   if (o) ASN1_OBJECT_free(o);
+   if (os) M_ASN1_OCTET_STRING_free(os);
+   *pp = p;
+   DEBUG("ret: "<<ret<<" - getvat: "<<getvat);
+
+   return ret;
 }

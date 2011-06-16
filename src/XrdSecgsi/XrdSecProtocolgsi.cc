@@ -129,6 +129,7 @@ int    XrdSecProtocolgsi::AuthzCertFmt = -1;
 int    XrdSecProtocolgsi::GMAPCacheTimeOut = -1;
 int    XrdSecProtocolgsi::AuthzCacheTimeOut = 43200;  // 12h, default
 String XrdSecProtocolgsi::SrvAllowedNames;
+int    XrdSecProtocolgsi::VOMSAttrOpt = 1;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -832,6 +833,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          }
          DEBUG("Template for exported proxy files: "<<UsrProxy);
       }
+      
+      //
+      // VOMS attributes switch
+      // vomsat = 0  do not look for
+      //          1  extract if any (fill 'vorg', 'role'; the full string in 'endorsements');
+      VOMSAttrOpt = opt.vomsat;
+      const char *cvomsat = (VOMSAttrOpt == 1) ? "'extract'" : "'ignore'";
+      DEBUG("VOMS attributes options: "<<cvomsat);
 
       //
       // Parms in the form:
@@ -1735,6 +1744,14 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          }
       }
 
+      // Extract the VOMS attrbutes, if required
+      if (VOMSAttrOpt > 0) {
+         ExtractVOMS(hs->Chain->End(), Entity);
+         DEBUG("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
+         DEBUG("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));
+         DEBUG("VOMS: Entity.endorsements: "<< (Entity.endorsements ? Entity.endorsements : "<none>"));
+      }
+
       // Here prepare/extract the information for authorization
       spxy = "";
       bpxy = 0;
@@ -1984,6 +2001,66 @@ void XrdSecProtocolgsi::FreeEntity(XrdSecEntity *in)
 }
 
 /******************************************************************************/
+/*                         E x t r a c t V O M S                              */
+/******************************************************************************/
+
+void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
+{
+   // Get the VOMS atrributes in 'xp' and fill the relevant fields in 'ent'
+   EPNAME("ExtractVOMS");
+
+   if (!xp) return;
+
+   // Extract the information
+   XrdOucString vatts;
+   int rc = 0;
+   if ((rc = XrdSslgsiX509GetVOMSAttr(xp, vatts)) != 0) {
+      if (rc > 0) {
+         DEBUG("No VOMS attributes in proxy certificate");
+      } else {
+         PRINT("ERROR: problem extracting VOMS attributes");
+      }
+      return;
+   }
+   
+   int from = 0;
+   XrdOucString vat, vo, role;
+   while ((from = vatts.tokenize(vat, from, ',')) != -1) {
+      if (vat.length() > 0) {
+         // The attribute is in the form
+         //        /VO[/group[/subgroup(s)]][/Role=role][/Capability=cap]
+         int isl = vat.find('/', 1);
+         if (isl != STR_NPOS) vo.assign(vat, 1, isl - 1);
+         int irl = vat.find("Role=");
+         if (irl != STR_NPOS) {
+            role.assign(vat, irl + 5);
+            isl = role.find('/');
+            role.erase(isl);
+         }
+         if (ent.vorg) {
+            if (vo != (const char *) ent.vorg) {
+               DEBUG("WARNING: found a second VO ('"<<vo<<"'): keeping the first one ('"<<ent.vorg<<"')");
+               // We do not mix-up role settings ...
+               continue;
+            }
+         } else {
+            ent.vorg = strdup(vo.c_str());
+         }
+         if (role.length() > 0 && role != "NULL" && !ent.role) {
+            ent.role = strdup(role.c_str());
+         }
+      }
+   }
+
+   // Save the whole string in endorsements
+   SafeFree(ent.endorsements);
+   ent.endorsements = strdup(vatts.c_str());
+
+   // Done
+   return;
+}
+
+/******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d I n i t                     */
 /******************************************************************************/
 
@@ -2212,6 +2289,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int authzto = -1;
       int dlgpxy = 0;
       int authzpxy = 0;
+      int vomsat = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2261,6 +2339,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                authzpxy = atoi(op+10);
             } else if (!strncmp(op, "-authzpxy",9)) {
                authzpxy = 11;
+            } else if (!strncmp(op, "-vomsat:",8)) {
+               vomsat = atoi(op+8);
             }
          }
       }
@@ -2276,6 +2356,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.authzto = authzto;
       opts.dlgpxy = dlgpxy;
       opts.authzpxy = authzpxy;
+      opts.vomsat = vomsat;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)

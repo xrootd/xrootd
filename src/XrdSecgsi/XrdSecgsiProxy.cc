@@ -687,4 +687,13 @@ void Display(XrdCryptoX509 *xp)
    int ss = (tl >= 0)    ?  tl       : 0; 
    PRT("time left   : "<<hh<<"h:"<<mm<<"m:"<<ss<<"s");
    PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+   // Show VOMS attributes, if any
+   XrdOucString vatts, vat;
+   if (XrdSslgsiX509GetVOMSAttr(xp, vatts) == 0) {
+      int from = 0;
+      while ((from = vatts.tokenize(vat, from, ',')) != -1) {
+         if (vat.length() > 0) PRT("VOMS attributes: "<<vat);
+      }
+      PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+   }
 }
