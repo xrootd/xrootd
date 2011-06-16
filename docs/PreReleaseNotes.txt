@@ -48,6 +48,11 @@ Version 3.1.0
      Implementations must contain three extern C functions; see the dummy example
      provided in src/XrdSecgsi/XrdSecgsiAuthzFunDN.cc. 
      See also the header of XrdSecProtocolgsi::LoadAuthzFun.
+   * In XrdCryptosslgsiAux, add function to extract the VOMS attributes; can be
+     used in authz plug-ins.
+   * In XrdSecgsi, add possibility to extract the VOMS attributes and save them
+     in the XrdSecEntity. New switch '-vomsat:0/1 [1]'.
+   * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
 
 + **Major bug fixes**
    * Fix incorrect lock handling for multiple waiters.
