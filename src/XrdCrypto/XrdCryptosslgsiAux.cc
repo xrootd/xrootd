@@ -71,9 +71,16 @@ const char *XrdCryptosslgsiAuxCVSID = "$Id$";
    } \
    if (b) BIO_free(b);
 
-int XrdSslgsiX509FillUnknownExt(const unsigned char **pp, long length);
+#ifdef R__SSL_GE_098
+#  define XRDGSI_CONST const
+#else
+#  define XRDGSI_CONST
+#endif
+
 int XrdSslgsiX509Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
-int XrdSslgsiX509FillVOMS(const unsigned char **pp, long length, bool &getvat, XrdOucString &vat);
+int XrdSslgsiX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
+int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
+                          long length, bool &getvat, XrdOucString &vat);
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 //                                                                           //
@@ -139,7 +146,7 @@ static ASN1_OBJECT *OBJ_txt2obj_fix(const char *s, int no_name)
    p = buf;
 #ifdef R__SSL_GE_098
    // not op=d2i_ASN1_OBJECT(0, &p, i) (C.H. Christensen, Oct 12, 2005)
-   op = d2i_ASN1_OBJECT(0, const_cast<const unsigned char**>(&p), j);
+   op = d2i_ASN1_OBJECT(0, (XRDGSI_CONST unsigned char**)(&p), j);
 #else
    op = d2i_ASN1_OBJECT(0, &p, i);
 #endif
@@ -198,13 +205,8 @@ void gsiProxyPolicy_free(gsiProxyPolicy_t *pol)
 // ProxyCertInfo object, even if we are not presently interested
 // in the policy.
 //___________________________________________________________________________
-#ifdef R__SSL_GE_098
 gsiProxyPolicy_t *d2i_gsiProxyPolicy(gsiProxyPolicy_t **pol,
-                                     const unsigned char **pp, long length)
-#else
-gsiProxyPolicy_t *d2i_gsiProxyPolicy(gsiProxyPolicy_t **pol,
-                                     unsigned char **pp, long length)
-#endif
+                                     XRDGSI_CONST unsigned char **pp, long length)
 {
    // Get the policy object from buffer at pp, of length bytes.
 
@@ -307,13 +309,8 @@ void gsiProxyCertInfo_free(gsiProxyCertInfo_t *pci)
 // This function allow to convert the internal representation to a 
 // gsiProxyCertInfo_t object.
 //___________________________________________________________________________
-#ifdef R__SSL_GE_098
 gsiProxyCertInfo_t *d2i_gsiProxyCertInfo(gsiProxyCertInfo_t **pci,
-                                         const unsigned char **pp, long length)
-#else
-gsiProxyCertInfo_t *d2i_gsiProxyCertInfo(gsiProxyCertInfo_t **pci,
-                                         unsigned char **pp, long length)
-#endif
+                                         XRDGSI_CONST unsigned char **pp, long length)
 {
    // Get the proxy certificate info object from length bytes at pp.
 
@@ -401,12 +398,8 @@ bool XrdSslgsiProxyCertInfo(const void *extdata, int &pathlen, bool *haspolicy)
 
    // Now extract the path length constraint, if any
    unsigned char *p = ext->value->data;
-#ifdef R__SSL_GE_098
    gsiProxyCertInfo_t *pci =
-      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), ext->value->length);
-#else
-   gsiProxyCertInfo_t *pci = d2i_gsiProxyCertInfo(0, &p, ext->value->length);
-#endif
+      d2i_gsiProxyCertInfo(0, (XRDGSI_CONST unsigned char **)(&p), ext->value->length);
    if (!pci) {
       return 0;
    }
@@ -447,12 +440,8 @@ void XrdSslgsiSetPathLenConstraint(void *extdata, int pathlen)
 
    // Now extract the path length constraint, if any
    unsigned char *p = ext->value->data;
-#ifdef R__SSL_GE_098
    gsiProxyCertInfo_t *pci =
-      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), ext->value->length);
-#else
-   gsiProxyCertInfo_t *pci = d2i_gsiProxyCertInfo(0, &p, ext->value->length);
-#endif
+      d2i_gsiProxyCertInfo(0, (XRDGSI_CONST unsigned char **)(&p), ext->value->length);
    if (!pci)
       return;
 
@@ -927,12 +916,8 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
       if (!strcmp(s, gsiProxyCertInfo_OID)) {
          unsigned char *p = xpiext->value->data;
-#ifdef R__SSL_GE_098
          gsiProxyCertInfo_t *inpci =
-            d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xpiext->value->length);
-#else
-         gsiProxyCertInfo_t *inpci = d2i_gsiProxyCertInfo(0, &p, xpiext->value->length);
-#endif
+            d2i_gsiProxyCertInfo(0, (XRDGSI_CONST unsigned char **)(&p), xpiext->value->length);
          if (inpci && 
              inpci->proxyCertPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
@@ -1169,12 +1154,8 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
          OBJ_obj2txt(s, sizeof(s), obj, 1);
       if (!strcmp(s, gsiProxyCertInfo_OID)) {
          unsigned char *p = xpiext->value->data;
-#ifdef R__SSL_GE_098
          gsiProxyCertInfo_t *inpci =
-            d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xpiext->value->length);
-#else
-         gsiProxyCertInfo_t *inpci = d2i_gsiProxyCertInfo(0, &p, xpiext->value->length);
-#endif
+            d2i_gsiProxyCertInfo(0, (XRDGSI_CONST unsigned char **)(&p), xpiext->value->length);
          if (inpci && 
              inpci->proxyCertPathLengthConstraint)
             indepthlen = ASN1_INTEGER_get(inpci->proxyCertPathLengthConstraint);
@@ -1218,12 +1199,8 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    // Get the content
    int reqdepthlen = -1;
    unsigned char *p = xriext->value->data;
-#ifdef R__SSL_GE_098
    gsiProxyCertInfo_t *reqpci =
-      d2i_gsiProxyCertInfo(0, (const unsigned char **)(&p), xriext->value->length);
-#else
-   gsiProxyCertInfo_t *reqpci = d2i_gsiProxyCertInfo(0, &p, xriext->value->length);
-#endif
+      d2i_gsiProxyCertInfo(0, (XRDGSI_CONST unsigned char **)(&p), xriext->value->length);
    if (reqpci &&
        reqpci->proxyCertPathLengthConstraint)
       reqdepthlen = ASN1_INTEGER_get(reqpci->proxyCertPathLengthConstraint);
@@ -1345,7 +1322,7 @@ int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
       PRINT("found extension '"<<s<<"'");
       // Dump its content
       rc = 0;
-      const unsigned char *pp = (const unsigned char *) xpiext->value->data; 
+      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
       long length = xpiext->value->length;
       int ret = XrdSslgsiX509FillUnknownExt(&pp, length);
       PRINT("ret: " << ret);
@@ -1356,12 +1333,12 @@ int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509FillUnknownExt(const unsigned char **pp, long length)
+int XrdSslgsiX509FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length)
 {
    // Do the actual filling of the bio; can be called recursevely
    EPNAME("X509FillUnknownExt");
 
-   const unsigned char *p,*ep,*tot,*op,*opp;
+   XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
    long len;
    int tag, xclass, ret = 0;
    int nl,hl,j,r;
@@ -1653,7 +1630,7 @@ int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
       if (strcmp(s, XRDGSI_VOMS_ACSEQ_OID)) continue;
       // This is the VOMS extension we are interested for
       rc = 0;
-      const unsigned char *pp = (const unsigned char *) xpiext->value->data; 
+      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
       long length = xpiext->value->length;
       int ret = XrdSslgsiX509FillVOMS(&pp, length, getvat, vat);
       DEBUG("ret: " << ret << " - vat: " << vat);
@@ -1664,13 +1641,14 @@ int XrdSslgsiX509GetVOMSAttr(XrdCryptoX509 *xcpi, XrdOucString &vat)
 }
 
 //____________________________________________________________________________
-int XrdSslgsiX509FillVOMS(const unsigned char **pp, long length, bool &getvat, XrdOucString &vat)
+int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
+                          long length, bool &getvat, XrdOucString &vat)
 {
    // Look recursively for the VOMS attributes
    // Return 2 if found, 1 if to continue searching, 0 to stop    
    EPNAME("X509FillVOMS");
 
-   const unsigned char *p,*ep,*tot,*op,*opp;
+   XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
    long len;
    int tag, xclass, ret = 0;
    int nl,hl,j,r;
