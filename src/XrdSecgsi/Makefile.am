@@ -36,7 +36,7 @@ libXrdSecgsiGMAPLADP_la_SOURCES = XrdSecgsiGMAPFunLDAP.cc
 libXrdSecgsiGMAPLADP_la_LDFLAGS = -module
 
 xrdgsiproxy_SOURCES = XrdSecgsiProxy.cc
-xrdgsiproxy_LDFLAGS =  -static
+xrdgsiproxy_LDFLAGS =  -static -ldl
 xrdgsiproxy_LDADD = libXrdSecgsi.la \
                     ../XrdSec/libXrdSec.la \
                     ../XrdOuc/libXrdOuc.la \

@@ -55,7 +55,7 @@ XrdCnsd_LDADD   = \
                   ../XrdSys/libXrdSys.la \
                   ../XrdClient/libXrdClient.la
 
-XrdCnsd_LDFLAGS = -static -export-dynamic
+XrdCnsd_LDFLAGS = -static -export-dynamic -ldl
 
 $(OBJECT_XRDCNSD) $(BINLIBS) $(LIBM) $(LIBS)
 
