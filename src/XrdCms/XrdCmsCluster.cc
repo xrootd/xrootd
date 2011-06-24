@@ -88,7 +88,9 @@ XrdCmsCluster::XrdCmsCluster()
      NodeCnt =  0;
      STHi    = -1;
      SelWcnt = 0;
+     SelWtot = 0;
      SelRcnt = 0;
+     SelRtot = 0;
      SelTcnt = 0;
      doReset = 0;
      resetMask = 0;
@@ -587,8 +589,8 @@ void *XrdCmsCluster::MonRefs()
                      nP->UnLock();
                     }
             if (resetWR)
-               {if (resetW) SelWcnt = 0;
-                if (resetR) SelRcnt = 0;
+               {if (resetW) {SelWtot += SelWcnt; SelWcnt = 0;}
+                if (resetR) {SelRtot += SelRcnt; SelRcnt = 0;}
                 loopcnt = 0;
                }
             if (doReset) {doReset = 0; resetMask = 0;}
@@ -1031,6 +1033,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
 
    XrdCmsRRQ::Info Frq;
    XrdCmsSelected *sp;
+   long long SelRnum, SelWnum;
    int mlen, tlen, n = 0;
    char shrBuff[80], stat[6], *stp;
 
@@ -1064,10 +1067,17 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
    while(sp) {n++; sp = sp->next;}
    sp = mngrsp.sp;
 
+// Gather totals from the running total and the current value
+//
+   STMutex.Lock();
+   SelRnum = SelRtot + SelRcnt;
+   SelWnum = SelWtot + SelWcnt;
+   STMutex.UnLock();
+
 // Format the statistics
 //
    mlen = snprintf(bfr, bln, statfmt1,
-          Config.myRType, SelTcnt, SelRcnt, SelWcnt, n);
+          Config.myRType, SelTcnt, SelRnum, SelWnum, n);
 
    if ((bln -= mlen) <= 0) return 0;
    tlen = mlen; bfr += mlen; n = 0; *shrBuff = 0;

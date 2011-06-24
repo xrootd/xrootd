@@ -129,9 +129,9 @@ void           *MonPerf();
 //
 void           *MonRefs();
 
-// Return total number of redirect references
+// Return total number of redirect references (sloppy as we don't lock it)
 //
-long long       Refs() {return SelWcnt+SelRcnt;}
+long long       Refs() {return SelWcnt+SelWtot+SelRcnt+SelRtot;}
 
 // Called to remove a node from the cluster
 //
@@ -189,8 +189,10 @@ XrdCmsNode   *NodeTab[STMax];   // Current  set of nodes
 
 int           STHi;             // NodeTab high watermark
 int           doReset;          // Must send reset event to Managers[resetMask]
-long long     SelWcnt;          // Total number of r/w selections (successful)
-long long     SelRcnt;          // Total number of r/o selections (successful)
+long long     SelWcnt;          // Curr  number of r/w selections (successful)
+long long     SelWtot;          // Total number of r/w selections (successful)
+long long     SelRcnt;          // Curr  number of r/o selections (successful)
+long long     SelRtot;          // Total number of r/o selections (successful)
 long long     SelTcnt;          // Total number of all selections
 
 // The following is a list of IP:Port tokens that identify supervisor nodes.
