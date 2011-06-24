@@ -62,7 +62,7 @@ XrdXrootdAio *XrdXrootdAio::Alloc(XrdXrootdAioReq *arp, int bsize)
    fqMutex.Lock();
    if ((aiop = fqFirst)) fqFirst = aiop->Next;
       else if (maxAio) aiop = addBlock();
-   if (aiop && (SI->AsyncNow > SI->AsyncMax)) SI->AsyncMax = SI->AsyncNow;
+   if (aiop && (++(SI->AsyncNow) > SI->AsyncMax)) SI->AsyncMax = SI->AsyncNow;
    fqMutex.UnLock();
 
 // Allocate a buffer for this object
@@ -176,7 +176,7 @@ void XrdXrootdAio::Recycle()
    fqMutex.Lock();
    Next = fqFirst;
    fqFirst = this;
-   if (--SI->AsyncNow < 0) SI->AsyncNow=0;
+   if (--(SI->AsyncNow) < 0) SI->AsyncNow=0;
    fqMutex.UnLock();
 }
   

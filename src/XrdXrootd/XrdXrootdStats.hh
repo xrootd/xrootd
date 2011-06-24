@@ -23,20 +23,20 @@ class XrdXrootdStats
 public:
 int              Count;        // Stats: Number of matches
 int              errorCnt;     // Stats: Number of errors returned
-int              redirCnt;     // Stats: Number of redirects
+long long        redirCnt;     // Stats: Number of redirects
 int              stallCnt;     // Stats: Number of stalls
 int              getfCnt;      // Stats: Number of getfiles
 int              putfCnt;      // Stats: Number of putfiles
 int              openCnt;      // Stats: Number of opens
-int              readCnt;      // Stats: Number of reads
-int              prerCnt;      // Stats: Number of reads (pre)
-int              writeCnt;     // Stats: Number of writes
+long long        readCnt;      // Stats: Number of reads
+long long        prerCnt;      // Stats: Number of reads (pre)
+long long        writeCnt;     // Stats: Number of writes
 int              syncCnt;      // Stats: Number of sync
 int              miscCnt;      // Stats: Number of miscellaneous
-int              AsyncNum;     // Stats: Number of async ops
+long long        AsyncNum;     // Stats: Number of async ops
+long long        AsyncRej;     // Stats: Number of async rejected
+long long        AsyncNow;     // Stats: Number of async now (not locked)
 int              AsyncMax;     // Stats: Number of async max
-int              AsyncRej;     // Stats: Number of async rejected
-int              AsyncNow;     // Stats: Number of async now (not locked)
 int              Refresh;      // Stats: Number of refresh requests
 
 XrdSysMutex      statsMutex;   // Mutex to serialize updates
