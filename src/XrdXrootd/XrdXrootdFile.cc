@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdXrootdFileCVSID = "$Id$";
-
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -240,7 +236,7 @@ int XrdXrootdFile::bin2hex(char *outbuff, char *inbuff, int inlen)
 
 // Format the data
 //
-    for (i = i; i < inlen; i++)
+    for (     ; i < inlen; i++)
        {outbuff[j++] = hv[(inbuff[i] >> 4) & 0x0f];
         outbuff[j++] = hv[ inbuff[i]       & 0x0f];
        }
