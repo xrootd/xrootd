@@ -24,6 +24,7 @@
 #include "XrdCks/XrdCksManager.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcUtils.hh"
+#include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
@@ -830,6 +831,10 @@ int XrdFrmConfig::ConfigPaths()
         if ((xPath = AdminPath))              insName = myInst;
    else if ((xPath = getenv("XRDADMINPATH"))) insName = 0;
    else     {xPath = (char *)"/tmp/";         insName = myInst;}
+
+// Do post initialization for the cnsd
+//
+   if (XrdFrmCns::Init(myFrmid, xPath, insName)) return 1;
    
 // Establish the cmsd notification object. We need to do this using an
 // unqualified admin path that we determined above.
@@ -935,6 +940,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
    if (!strcmp(var, "all.adminpath" )) return xapath();
    if (!strcmp(var, "all.pidpath"   )) return Grab(var, &PidPath, 0);
    if (!strcmp(var, "all.manager"   )) {haveCMS = 1; return 0;}
+   if (!strcmp(var, "frm.all.cnsd"  )) return xcnsd();
 
 // Process directives specific to each subsystem
 //
@@ -1262,6 +1268,61 @@ int XrdFrmConfig::xcks(int isOfs)
    if (CksAlg) free(CksAlg);
    CksAlg = strdup(palg);
    return 0;
+}
+  
+/******************************************************************************/
+/* Private:                        x c n s d                                  */
+/******************************************************************************/
+
+/* Function: cnsd
+
+   Purpose:  To parse the directive: cnsd {auto | ignore | require} [Options]
+
+   Options:  [apath <path>]
+
+             auto      use the cnsd if present, ignore otherwise.
+             ignore    never use the cnsd, even if present.
+             require   always use the cnsd. If not present, wait for it.
+             apath     The path specified on the -a option of the cnsd.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdFrmConfig::xcnsd()
+{
+   int cnsMode;
+   char *val, *cnsPath = 0;
+   struct cnsdopts {const char *opname; int opval;} cnsopt[] =
+         {
+          {"auto",    XrdFrmCns::cnsAuto},
+          {"ignore",  XrdFrmCns::cnsIgnore},
+          {"require", XrdFrmCns::cnsRequire}
+         };
+   int i, numopts = sizeof(cnsopt)/sizeof(struct cnsdopts);
+
+// Pick up required parameter
+//
+   if (!(val = cFile->GetWord()))
+      {Say.Emsg("Config", "cnsd mode not specified"); return 1;}
+
+// Now match that option
+//
+   for (i = 0; i < numopts; i++)
+       if (!strcmp(val,cnsopt[i].opname)) {cnsMode = cnsopt[i].opval; break;}
+   if (i >= numopts)
+      {Say.Emsg("Config", "invalid cnsd mode '",val,"'."); return 1;}
+
+// Check if we have an apath now
+//
+   if ((val = cFile->GetWord()))
+      {if (strcmp("apath", val))
+          {Say.Emsg("Config", "invalid cnsd option '",val,"'."); return 1;}
+       if (!(cnsPath = cFile->GetWord()));
+          {Say.Emsg("Config", "cnsd apath not specified"); return 1;}
+      }
+
+// Preset the cnsd options and return
+//
+   return XrdFrmCns::Init(cnsPath, cnsMode);
 }
   
 /******************************************************************************/
@@ -1971,14 +2032,9 @@ int XrdFrmConfig::xxfr()
          };
 
     if (!val)
-      {if (haveparm)
-	  { return 0;
-	  }
-        else
-	  {Say.Emsg("Config", "xfr parameter not specified");
-            return 1;
-	  }
-      }
+       {if (haveparm) return 0;
+        else {Say.Emsg("Config", "xfr parameter not specified"); return 1;}
+       }
 
     return 0;
 }

@@ -25,6 +25,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrm/XrdFrmFiles.hh"
+#include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -98,6 +99,7 @@ void XrdFrmPurgeDir::isEmpty(struct stat *dStat, const char *dPath,
               {times.actime  = pStat.st_atime;
                times.modtime = pStat.st_mtime;
                utime(Parent, &times);
+               XrdFrmCns::Rmd(dPath);
               }
 
 // Report if successful
@@ -616,8 +618,8 @@ do{if (!(fP = FSTab.Oldest()) && !(fP = Advance()))
    && (!Ext || !(Why = XPolOK(fP))))
       {fn = fP->basePath();
        if (Config.Test) rc = 0;
-          else if (!(rc = Config.ossFS->Unlink(fn, unOpts))
-               && Config.cmsPath) Config.cmsPath->Gone(fn);
+          else if (!(rc = Config.ossFS->Unlink(fn, unOpts)) && Config.cmsPath)
+                  {Config.cmsPath->Gone(fn); XrdFrmCns::Rm(fn);}
        if (!rc) {prgFiles++; FilePurged = 1;
                  freeSpace += fP->baseFile()->Stat.st_size;
                  purgBytes += fP->baseFile()->Stat.st_size;

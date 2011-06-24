@@ -34,7 +34,7 @@ static int   Init();
 
 private:
 const char *Fetch();
-const char *FetchDone(char *lfnpath, int &rc, time_t lktime);
+const char *FetchDone(char *lfnpath, struct stat &Stat, int &rc);
 const char *ffCheck();
       void  ffMake(int nofile=0);
       int   SetupCmd(XrdFrmTranArg *aP);

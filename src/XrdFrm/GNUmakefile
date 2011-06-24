@@ -20,6 +20,7 @@ SOURCES = \
         XrdFrmAdminMain.cc \
         XrdFrmAdminQuery.cc \
         XrdFrmAdminUnlink.cc\
+        XrdFrmCns.cc       \
         XrdFrmConfig.cc    \
         XrdFrmFiles.cc     \
         XrdFrmMonitor.cc   \
@@ -40,6 +41,7 @@ OBJLIB  = \
         $(OBJDIR)/XrdFrmTSort.o
 
 OBJADMIN= \
+        $(OBJDIR)/XrdFrmCns.o       \
         $(OBJDIR)/XrdFrmConfig.o    \
         $(OBJDIR)/XrdFrmAdminMain.o \
         $(OBJDIR)/XrdFrmAdmin.o     \
@@ -51,11 +53,13 @@ OBJADMIN= \
         $(OBJDIR)/XrdFrmAdminUnlink.o
 
 OBJPURG = \
+        $(OBJDIR)/XrdFrmCns.o       \
         $(OBJDIR)/XrdFrmConfig.o    \
         $(OBJDIR)/XrdFrmPurgMain.o  \
         $(OBJDIR)/XrdFrmPurge.o
 
 OBJXFR  = \
+        $(OBJDIR)/XrdFrmCns.o       \
         $(OBJDIR)/XrdFrmConfig.o    \
         $(OBJDIR)/XrdFrmMigrate.o  \
         $(OBJDIR)/XrdFrmReqBoss.o   \
@@ -207,15 +211,22 @@ $(OBJDIR)/XrdFrmAdminQuery.o:  XrdFrmAdmin.hh    XrdFrmAdminQuery.cc \
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmAdminQuery.o XrdFrmAdminQuery.cc
 
 $(OBJDIR)/XrdFrmAdminUnlink.o: XrdFrmAdmin.hh    XrdFrmAdminUnlink.cc \
-                               XrdFrmConfig.hh   XrdFrcTrace.hh \
+                               XrdFrmCns.hh      XrdFrmConfig.hh \
+                               XrdFrcTrace.hh \
                                XrdFrcUtils.hh    XrdSysError.hh \
                                XrdOss.hh         XrdOssPath.hh \
                                XrdOucNSWalk.hh   XrdNetCmsNotify.hh
 	@echo Compiling XrdFrmAdminUnlink.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmAdminUnlink.o XrdFrmAdminUnlink.cc
 
+$(OBJDIR)/XrdFrmCns.o: XrdFrmCns.cc     XrdFrmCns.hh   XrdFrmConfig.hh \
+                       XrdFrcTrace.hh   XrdOucSxeq.hh  XrdOucUtils.hh  \
+                       XrdSysPthread.hh XrdSysTimer.hh
+	@echo Compiling XrdFrmCns.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdFrmCns.o XrdFrmCns.cc
+
 $(OBJDIR)/XrdFrmConfig.o: XrdFrmConfig.hh  XrdFrmConfig.cc    XrdFrcTrace.hh \
-                          XrdFrmMonitor.hh XrdNetCmsNotify.hh \
+                          XrdFrmMonitor.hh XrdNetCmsNotify.hh XrdFrmCns.hh \
                           XrdCksConfig.hh  XrdCksManager.hh \
                           XrdInfo.hh       XrdSysDNS.hh       XrdOss.hh \
                           XrdOuca2x.hh     XrdOucEnv.hh       XrdOucExport.hh \
@@ -261,7 +272,7 @@ $(OBJDIR)/XrdFrmMonitor.o: XrdFrmMonitor.hh     XrdFrmMonitor.cc \
 
 $(OBJDIR)/XrdFrmPurge.o:  XrdFrmPurge.hh   XrdFrmPurge.cc    XrdFrcTrace.hh \
                           XrdFrmConfig.hh  XrdFrmFiles.hh    XrdFrmTSort.hh \
-                          XrdFrcXAttr.hh \
+                          XrdFrmCns.hh     XrdFrcXAttr.hh \
                           XrdNetCmsNotify.hh \
                           XrdOss.hh        XrdOssPath.hh     XrdOssSpace.hh \
                           XrdOucNSWalk.hh  XrdOucUtils.hh \
@@ -295,8 +306,8 @@ $(OBJDIR)/XrdFrmTransfer.o: XrdFrmTransfer.cc     XrdFrmTransfer.hh \
                             XrdFrmConfig.hh       XrdFrcReqFile.hh \
                             XrdFrcRequest.hh      XrdFrcTrace.hh \
                             XrdFrmXfrJob.hh       XrdFrmXfrQueue.hh \
-                            XrdFrmMonitor.hh      XrdFrcCID.hh \
-                            XrdFrcXAttr.hh \
+                            XrdFrmMonitor.hh      XrdFrmCns.hh \
+                            XrdFrcCID.hh          XrdFrcXAttr.hh \
                             XrdOss.hh \
                             XrdOucEnv.hh          XrdOucHash.hh \
                             XrdOucMsubs.hh        XrdOucProg.hh \

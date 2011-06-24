@@ -17,6 +17,7 @@
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcUtils.hh"
 #include "XrdFrm/XrdFrmAdmin.hh"
+#include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdNet/XrdNetCmsNotify.hh"
 #include "XrdOss/XrdOss.hh"
@@ -105,7 +106,7 @@ int XrdFrmAdmin::Unlink(const char *Path)
             {if ((rc = Config.ossFS->Remdir(fP->Path, ulOpts)))
                 {Emsg(-rc, "remove directory ", fP->Path); aOK = 0; numProb++;}
                 else {if (Opt.Echo) Msg("Local directory ",fP->Path," removed.");
-                      numDirs++;
+                      numDirs++; XrdFrmCns::Rmd(fP->Path);
                      }
             }
          NSE.dP = NSE.dP->Next; delete fP;
@@ -116,7 +117,7 @@ int XrdFrmAdmin::Unlink(const char *Path)
    if (aOK)
       {if ((rc = Config.ossFS->Remdir(lclPath, ulOpts)))
           {Emsg(-rc, "remove directory ", lclPath); aOK = 0;}
-          else {numDirs++;
+          else {numDirs++; XrdFrmCns::Rmd(Path, 1);
                 if (Opt.Echo) Msg("Local directory ", lclPath, " removed.");
                }
       }
@@ -157,7 +158,7 @@ int XrdFrmAdmin::UnlinkDir(const char *Path, const char *lclPath)
        if ((rc = Config.ossFS->Remdir(lclPath, ulOpts)))
           {Emsg(-rc, "remove directory ", lclPath); numProb++; return -1;}
        if (Opt.Echo) Msg("Local directory ", Path, " removed.");
-       numDirs++;
+       numDirs++; XrdFrmCns::Rmd(lclPath);
        return 1;
       }
 
@@ -224,7 +225,7 @@ int XrdFrmAdmin::UnlinkFile(const char *lclPath)
        if (!(rc = Config.ossFS->Unlink(lclPath, ulOpts)))
           {if (Opt.Echo) Msg("Local file ", lclPath, " removed.");
            if (Config.cmsPath) Config.cmsPath->Gone(lclPath);
-           numFiles++;
+           numFiles++; XrdFrmCns::Rm(lclPath);
            return 1;
           }
       }

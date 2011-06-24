@@ -23,6 +23,7 @@
 #include "XrdFrc/XrdFrcRequest.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdFrc/XrdFrcXAttr.hh"
+#include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdFrm/XrdFrmTransfer.hh"
@@ -209,7 +210,7 @@ const char *XrdFrmTransfer::Fetch()
           Say.Emsg("Fetch", lfnpath, "fetched but not found!");
           else {fSize  = pfnStat.st_size;
                 if (Config.xfrCmd[iXfr].Opts & Config.cmdAlloc)
-                   FetchDone(lfnpath, rc, pfnStat.st_mtime);
+                   FetchDone(lfnpath, pfnStat, rc);
                }
       }
 
@@ -253,8 +254,10 @@ const char *XrdFrmTransfer::Fetch()
 }
 
 /******************************************************************************/
+/*                             F e t c h D o n e                              */
+/******************************************************************************/
   
-const char *XrdFrmTransfer::FetchDone(char *lfnpath, int &rc, time_t lktime)
+const char *XrdFrmTransfer::FetchDone(char *lfnpath, struct stat &Stat, int &rc)
 {
 
 // If we are running in new mode, update file attributes
@@ -262,7 +265,7 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, int &rc, time_t lktime)
    rc = 0;
    if (Config.runNew)
       {XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
-       cpyInfo.Attr.cpyTime = static_cast<long long>(lktime);
+       cpyInfo.Attr.cpyTime = static_cast<long long>(Stat.st_mtime);
        if ((rc = cpyInfo.Set(xfrP->PFN)))
           Say.Emsg("Fetch", rc, "set copy time xattr on", xfrP->PFN);
       }
@@ -275,7 +278,7 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, int &rc, time_t lktime)
        if (!stat(xfrP->PFN, &lkfStat))
           {if (Config.runNew && !rc) unlink(xfrP->PFN);
               else {struct utimbuf tbuff;
-                    tbuff.actime = tbuff.modtime = lktime;
+                    tbuff.actime = tbuff.modtime = Stat.st_mtime;
                     if ((rc = utime(xfrP->PFN, &tbuff)))
                        Say.Emsg("Fetch", rc, "set utime on", xfrP->PFN);
                    }
@@ -286,6 +289,8 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, int &rc, time_t lktime)
 //
    if (!rc && (rc=Config.ossFS->Rename(lfnpath,xfrP->reqData.LFN)))
       Say.Emsg("Fetch", rc, "rename", lfnpath);
+      else XrdFrmCns::Add(xfrP->reqData.User, xfrP->reqData.LFN,
+                          Stat.st_size,       Stat.st_mode);
 
 // Done
 //

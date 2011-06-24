@@ -30,6 +30,7 @@ man8_MANS = ../../docs/man/frm_admin.8  ../../docs/man/frm_purged.8 \
             ../../docs/man/frm_xfragent.8 ../../docs/man/frm_xfrd.8
 
 noinst_HEADERS = XrdFrmAdmin.hh   \
+                       XrdFrmCns.hh     \
                        XrdFrmConfig.hh  \
                        XrdFrmFiles.hh   \
                        XrdFrmMigrate.hh \
@@ -54,7 +55,9 @@ noinst_LTLIBRARIES = libXrdFrmConv.la libXrdFrmConvAgent.la
 ## Build rules
 
 
-libXrdFrmConv_la_SOURCES = XrdFrmConfig.cc
+libXrdFrmConv_la_SOURCES = \
+                 XrdFrmCns.cc    \
+                 XrdFrmConfig.cc
 
 libXrdFrmConvAgent_la_SOURCES = XrdFrmReqBoss.cc   \
               XrdFrmTransfer.cc \

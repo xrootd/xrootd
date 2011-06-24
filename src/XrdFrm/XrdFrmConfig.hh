@@ -166,6 +166,7 @@ void         InsertXD(const char *Path);
 void         Usage(int rc);
 int          xapath();
 int          xcks(int isOfs=0);
+int          xcnsd();
 int          xcopy();
 int          xcopy(int &TLim);
 int          xcmax();
