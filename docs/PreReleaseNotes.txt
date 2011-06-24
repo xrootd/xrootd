@@ -3,6 +3,9 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Allow file additions/deletion to be communicated to the XrdCnsd so that is
+     can maintain an accurate inventory. This update adds the frm.all.cnsd
+     directive which specifies how the information is to be commuincated.
    * Enable cmsd monitoring. For now, only [meta]manager information is reported.
    * Add new repstats config directive to increase reporting detail.
    * New class, XrdCmsRole, to make role naming/handling consistent.
