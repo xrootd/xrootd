@@ -908,8 +908,8 @@ int XrdCmsCluster::Select(int isrw, int isMulti, SMask_t pmask,
        if (nP)
           {if (isrw)
               if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)  nP = 0;
-                 else {SelWcnt++; nP->Lock();}
-              else     {SelRcnt++; nP->Lock();}
+                 else {SelWcnt++; nP->RefTotW++; nP->RefW++; nP->Lock();}
+              else    {SelRcnt++; nP->RefTotR++; nP->RefR++; nP->Lock();}
           }
       }
    STMutex.UnLock();
@@ -1338,7 +1338,7 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // point we omit all peer nodes as they are our last resort.
 //
    STMutex.Lock();
-   mask = pmask & peerMask; SelTcnt++;
+   mask = pmask & peerMask;
    while(pass--)
         {if (mask)
             {nP = (Config.sched_RR
@@ -1438,7 +1438,7 @@ XrdCmsNode *XrdCmsCluster::SelbyCost(SMask_t mask, int &nump, int &delay,
 
 // Scan for a node (sp points to the selected one)
 //
-   nump = nums = numf = numd = 0; // possible, suspended, full, and dead
+   nump=nums=numf=numd = 0; SelTcnt++; // possible, suspended, full, and dead
    for (i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {nump++;
@@ -1480,7 +1480,7 @@ XrdCmsNode *XrdCmsCluster::SelbyLoad(SMask_t mask, int &nump, int &delay,
 
 // Scan for a node (preset possible, suspended, overloaded, full, and dead)
 //
-   nump = nums = numo = numf = numd = 0; 
+   nump = nums = numo = numf = numd = 0; SelTcnt++;
    for (i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {nump++;
@@ -1526,7 +1526,7 @@ XrdCmsNode *XrdCmsCluster::SelbyRef(SMask_t mask, int &nump, int &delay,
 
 // Scan for a node (sp points to the selected one)
 //
-   nump = nums = numf = numd = 0; // possible, suspended, full, and dead
+   nump=nums=numf=numd = 0; SelTcnt++; // possible, suspended, full, and dead
    for (i = 0; i <= STHi; i++)
        if ((np = NodeTab[i]) && (np->NodeMask & mask))
           {nump++;
