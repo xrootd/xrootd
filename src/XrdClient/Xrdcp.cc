@@ -1571,7 +1571,10 @@ int main(int argc, char**argv) {
 	MD_5->Reset("md5");
       }
 #endif
-      adler = 0;
+
+#ifdef HAVE_LIBZ
+      adler = adler32( 0L, Z_NULL, 0 );
+#endif
 
 
       // Initialize monitoring client, if a plugin is present
