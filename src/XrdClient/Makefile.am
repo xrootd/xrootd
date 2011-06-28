@@ -44,7 +44,9 @@ xrootdclientinc_HEADERS = XrdClient.hh XrdClientAdmin.hh XrdClientCallback.hh \
                XrdClientPhyConnection.hh XrdClientLogConnection.hh \
                XrdClientDebug.hh XrdClientReadV.hh XrdClientPSock.hh \
                XrdCpMthrQueue.hh XrdCpWorkLst.hh XrdClientAbsMonIntf.hh \
-               XrdcpXtremeRead.hh
+               XrdcpXtremeRead.hh XrdClientAdmin_c.hh XrdClientMStream.hh \
+               XrdClientReadAhead.hh XrdClientSid.hh XrdClientUrlSet.hh
+
 
 #############################################################################
 # Build rules
