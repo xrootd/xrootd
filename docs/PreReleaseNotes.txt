@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Add error, redirect, and delay counts to the xrootd protocol summary
+     statistics.
    * Allow file additions/deletion to be communicated to the XrdCnsd so that is
      can maintain an accurate inventory. This update adds the frm.all.cnsd
      directive which specifies how the information is to be commuincated.
