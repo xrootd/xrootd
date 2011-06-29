@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//        $Id$
-
-const char *XrdXrootdStatsCVSID = "$Id$";
  
 #include <stdio.h>
   
@@ -56,7 +52,8 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
    "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr><wr>%lld</wr>"
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
-   "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio></stats>";
+   "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
+   "<err>%d</err><rdr>%lld</rdr><dly>%d</dly></stats>";
    int len;
 
 // If no buffer, caller wants the maximum size we will generate
@@ -68,7 +65,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    statsMutex.Lock();
    len = snprintf(buff, blen, statfmt, Count, openCnt, Refresh, readCnt,
                   prerCnt, writeCnt, syncCnt, getfCnt, putfCnt, miscCnt,
-                  AsyncNum, AsyncMax, AsyncRej);
+                  AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt);
    statsMutex.UnLock();
 
 // Now include filesystem statistics and return
