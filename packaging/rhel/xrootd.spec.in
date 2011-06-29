@@ -238,6 +238,13 @@ exit 0
 %{_bindir}/xrootdfs
 %doc %{_mandir}/man1/xrootdfs.1.gz
 
+%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
+%attr(-,xrootd,xrootd) %dir %{_sysconfdir}/%{name}/
+%else
+%attr(-,daemon,daemon) %dir %{_sysconfdir}/%{name}/
+%endif
+
+
 %files server
 %defattr(-,root,root,-)
 %{_bindir}/cconfig
