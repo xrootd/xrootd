@@ -32,6 +32,7 @@
 #define XROOTD_MON_USER    32
 #define XROOTD_MON_AUTH    64
 #define XROOTD_MON_PATH    (XROOTD_MON_IO   | XROOTD_MON_FILE)
+#define XROOTD_MON_REDR   128
 
 class XrdScheduler;
   
@@ -64,7 +65,7 @@ static XrdXrootdMonitor *Alloc(int force=0);
        void              Disc(kXR_unt32 dictid, int csec);
 
 static void              Defaults(char *dest1, int m1, char *dest2, int m2);
-static void              Defaults(int msz, int wsz, int flush);
+static void              Defaults(int msz, int rsz, int wsz, int flush);
 
        void              Dup(XrdXrootdMonTrace *mrec);
 
@@ -82,6 +83,7 @@ static XrdXrootdMonitor *altMon;
 static char              monIO;
 static char              monINFO;
 static char              monFILE;
+static char              monREDR;
 static char              monSTAGE;
 static char              monUSER;
 static char              monAUTH;
@@ -123,6 +125,7 @@ static kXR_int32          currWindow;
 static kXR_int32          sizeWindow;
 static int                isEnabled;
 static int                numMonitor;
+static int                monRlen;
 };
 
 /******************************************************************************/

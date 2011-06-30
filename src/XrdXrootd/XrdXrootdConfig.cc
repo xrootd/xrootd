@@ -720,15 +720,16 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [auth] [mbuff <sz>]
+   Purpose:  Parse directive: monitor [all] [auth] [mbuff <sz>] [rbuff <sz>]
                                       [flush <sec>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [files] [info] [io] [stage] [user] <host:port>
+   Events: [files] [info] [io] [redir] [stage] [user] <host:port>
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
-         mbuff  <sz>        size of message buffer.
+         mbuff  <sz>        size of message buffer for event trace monitoring.
+         rbuff  <sz>        size of message buffer for redirection monitoring.
          flush  <sec>       time (seconds, M, H) between auto flushes.
          window <sec>       time (seconds, M, H) between timing marks.
          dest               specified routing information. Up to two dests
@@ -736,6 +737,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
          files              only monitors file open/close events.
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
+         redir              monitors request redirections
          stage              monitors file stage operations
          user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
@@ -743,9 +745,14 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
 int XrdXrootdProtocol::xmon(XrdOucStream &Config)
-{   char  *val, *cp, *monDest[2] = {0, 0};
+{   static const char *mrMsg[] = {"monitor mbuff value not specified",
+                                  "monitor rbuff value not specified",
+                                  "monitor mbuff", "monitor rbuff"
+                                 };
+    char  *val, *cp, *monDest[2] = {0, 0};
     long long tempval;
-    int i, monFlush=0, monMBval=0, monWWval=0, xmode=0, monMode[2] = {0, 0};
+    int i, monFlush=0, monMBval=0, monRBval=0, monWWval=0, xmode=0;
+    int    monMode[2] = {0, 0}, mrType;
 
     while((val = Config.GetWord()))
 
@@ -760,14 +767,14 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                  if (XrdOuca2x::a2tm(eDest,"monitor flush",val,
                                            &monFlush,1)) return 1;
                 }
-          else if (!strcmp("mbuff",val))
-                  {if (!(val = Config.GetWord()))
-                      {eDest.Emsg("Config", "monitor mbuff value not specified");
-                       return 1;
-                      }
-                   if (XrdOuca2x::a2sz(eDest,"monitor mbuff", val,
+          else if (!strcmp("mbuff",val) || !strcmp("rbuff",val))
+                  {mrType = (*val == 'r');
+                   if (!(val = Config.GetWord()))
+                      {eDest.Emsg("Config",  mrMsg[mrType]); return 1;}
+                   if (XrdOuca2x::a2sz(eDest,mrMsg[mrType+2], val,
                                              &tempval, 1024, 65536)) return 1;
-                    monMBval = static_cast<int>(tempval);
+                   if (mrType) monRBval = static_cast<int>(tempval);
+                      else     monMBval = static_cast<int>(tempval);
                   }
           else if (!strcmp("window", val))
                 {if (!(val = Config.GetWord()))
@@ -788,6 +795,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                    if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
               else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
+              else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
               else if (!strcmp("stage",val)) monMode[i] |=  XROOTD_MON_STAGE;
               else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;
               else break;
@@ -830,7 +838,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 
 // Set the monitor defaults
 //
-   XrdXrootdMonitor::Defaults(monMBval, monWWval, monFlush);
+   XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval, monFlush);
    if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
    if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);

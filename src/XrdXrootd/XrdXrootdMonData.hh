@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
 
 #include "XProtocol/XPtypes.hh"
 
@@ -19,7 +17,7 @@
 /******************************************************************************/
   
 struct XrdXrootdMonHeader
-       {kXR_char   code;         // 'd' | 'i' | 't' | 'u'
+       {kXR_char   code;         // 'd' | 'i' | 'r' | 't' | 'u'
         kXR_char   pseq;         // packet sequence
         kXR_unt16  plen;         // packet length
         kXR_int32  stod;         // Unix time at Server Start
@@ -55,6 +53,7 @@ const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
 const kXR_char XROOTD_MON_MAPPATH       = 'd';
 const kXR_char XROOTD_MON_MAPINFO       = 'i';
+const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's';
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';

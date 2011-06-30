@@ -45,6 +45,7 @@ XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monBlen    = 0;
+int                XrdXrootdMonitor::monRlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
 int                XrdXrootdMonitor::isEnabled  = 0;
 int                XrdXrootdMonitor::numMonitor = 0;
@@ -55,6 +56,7 @@ kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
 char               XrdXrootdMonitor::monINFO    = 0;
 char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
+char               XrdXrootdMonitor::monREDR    = 0;
 char               XrdXrootdMonitor::monSTAGE   = 0;
 char               XrdXrootdMonitor::monUSER    = 0;
 char               XrdXrootdMonitor::monAUTH    = 0;
@@ -295,6 +297,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    monIO     = (mmode & XROOTD_MON_IO   ? 1 : 0);
    monINFO   = (mmode & XROOTD_MON_INFO ? 1 : 0);
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
+   monREDR   = (mmode & XROOTD_MON_REDR ? 1 : 0);
    monSTAGE  = (mmode & XROOTD_MON_STAGE? 1 : 0);
    monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
    monAUTH   = (mmode & XROOTD_MON_AUTH ? 1 : 0);
@@ -315,7 +318,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 
 /******************************************************************************/
 
-void XrdXrootdMonitor::Defaults(int msz, int wsz, int flush)
+void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush)
 {
 
 // Set default window size
@@ -327,9 +330,18 @@ void XrdXrootdMonitor::Defaults(int msz, int wsz, int flush)
 //
    if (msz <= 0) msz = 8192;
       else if (msz < 1024) msz = 1024;
+              else msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
    monBlen =  (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
+
+// Set default monitor redirect buffer size
+//
+   if (rsz <= 0) monRlen = 32768;
+      else if (rsz < 2048) monRlen = 2048;
+
+// Set the start time
+//
    startTime = htonl(time(0));
 }
   

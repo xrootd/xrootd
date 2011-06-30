@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Phase 1 to allow for redirection monitoring. Add rbuff and redir options
+     to the xrootd.monitor directive.
    * Add error, redirect, and delay counts to the xrootd protocol summary
      statistics.
    * Allow file additions/deletion to be communicated to the XrdCnsd so that is
