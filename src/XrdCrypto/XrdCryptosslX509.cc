@@ -565,7 +565,7 @@ bool XrdCryptosslX509::IsCA()
 
    // Analyse the structure
    unsigned char *p = ext->value->data;
-#ifdef R__SSL_GE_098
+#if OPENSSL_VERSION_NUMBER >= 0x0090800f
    BASIC_CONSTRAINTS *bc =
       d2i_BASIC_CONSTRAINTS(0, const_cast<const unsigned char**>(&p), ext->value->length);
 #else
