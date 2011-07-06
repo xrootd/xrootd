@@ -43,8 +43,7 @@ XrdCmsManList.hh       XrdCmsRTable.hh    XrdCmsXmiReq.hh
 ######################################################
 # BUILD DEFINITIONS (SOURCES AND FLAGS)
 
-AM_CPPFLAGS = -I$(top_srcdir)/src
-
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 # for convenience:
 libXrdCmsConv_la_SOURCES = \
         XrdCmsLogin.cc       \
