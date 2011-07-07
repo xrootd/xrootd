@@ -126,10 +126,18 @@ void XrdClientAbs::SetParm(const char *parm, double val)
 
 //_____________________________________________________________________________
 // Returns query information
-bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp, kXR_int32 MaxResplen) {
+
+bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp, kXR_int32 MaxResplen)
+{
+  return Query( ReqCode, Args, &Resp, MaxResplen );
+}
+
+bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char **Resp, kXR_int32 MaxResplen)
+{
    if (!fConnModule) return false;
    if (!fConnModule->IsConnected()) return false;
    if (!Resp) return false;
+   if (!*Resp && MaxResplen) return false;
 
    // Set the max transaction duration
    fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
@@ -175,13 +183,38 @@ bool XrdClientAbs::Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp
               "XrdClientAdmin::Query",
               "Query(" << ReqCode << ", NULL') returned '" << rsp << "'" );
       }
-      
-      if ( rsp && (LastServerResp()->status == kXR_ok) ) {
-         int l = xrdmin(MaxResplen, LastServerResp()->dlen);
-         strncpy((char *)Resp, (char *)rsp, l);
-         if (l >= 0) Resp[l-1] = '\0';
-         free(rsp);
-         rsp = 0;
+
+      //------------------------------------------------------------------------
+      // We have got an answer
+      //------------------------------------------------------------------------
+      if ( rsp && (LastServerResp()->status == kXR_ok) )
+      {
+        //----------------------------------------------------------------------
+        // We are dealing with a preallocated buffer
+        //----------------------------------------------------------------------
+        if( MaxResplen )
+        {
+          int l = xrdmin(MaxResplen, LastServerResp()->dlen);
+          strncpy((char *)*Resp, (char *)rsp, l);
+          if (l >= 0) (*Resp)[l-1] = '\0';
+        }
+        //----------------------------------------------------------------------
+        // We need to allocate the buffer
+        //----------------------------------------------------------------------
+        else
+        {
+          int l = LastServerResp()->dlen+1;
+          *Resp = (kXR_char*)realloc( *Resp, l );
+          if( !*Resp )
+          {
+            free( rsp );
+            return false;
+          }
+          strncpy((char *)*Resp, (char *)rsp, l-1);
+          (*Resp)[l-1] = 0;
+        }
+        free(rsp);
+        rsp = 0;
       }
    }
 
