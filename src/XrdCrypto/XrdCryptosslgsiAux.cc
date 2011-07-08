@@ -1676,7 +1676,6 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
 
       if (j & V_ASN1_CONSTRUCTED) {
          ep = p + len;
-         PRINT(" ");
          if (len > length) {
             PRINT("ERROR:CONST: length is greater than " <<length);
             ret=0;
