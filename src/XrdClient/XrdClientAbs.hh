@@ -87,7 +87,19 @@ public:
    }
 
    // Asks for the value of some parameter
+   //---------------------------------------------------------------------------
+   //! @param Resp a prealocated buffer
+   //! @param MaxResplen size of the buffer
+   //---------------------------------------------------------------------------
    bool Query(kXR_int16 ReqCode, const kXR_char *Args, kXR_char *Resp, kXR_int32 MaxResplen);
+
+   //---------------------------------------------------------------------------
+   //! @param Resp pointer to a preallocated buffer or a pointer to 0 if a
+   //!             sufficiently large buffer should be allocated automagically,
+   //!             in which case the buffer needs to be freed with free()
+   //! @param MaxResplen size of the buffer or 0 for automatic allocation
+   //---------------------------------------------------------------------------
+   bool Query( kXR_int16 ReqCode, const kXR_char *Args, kXR_char **Resp, kXR_int32 MaxResplen );
 
 };
 

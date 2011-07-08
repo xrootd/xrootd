@@ -1601,15 +1601,16 @@ void executeQuery(XrdOucTokenizer &tkzer)
         {
 
             const kXR_char *args = (const kXR_char *)tkzer.GetToken(0, 0);
-            kXR_char Resp[1024];
+            kXR_char *Resp = 0;
 
-            genadmin->Query(atoi(reqcode), args, Resp, 1024);
+            genadmin->Query(atoi(reqcode), args, &Resp, 0);
 
             // Now check the answer
             if (!CheckAnswer(genadmin))
                 retval = 1;
 
             std::cout << Resp << std::endl << std::endl;
+            free( Resp );
         }
     }
 }

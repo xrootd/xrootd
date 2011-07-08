@@ -71,7 +71,7 @@ const char *XrdCryptosslgsiAuxCVSID = "$Id$";
    } \
    if (b) BIO_free(b);
 
-#ifdef R__SSL_GE_098
+#if OPENSSL_VERSION_NUMBER >= 0x0090800f
 #  define XRDGSI_CONST const
 #else
 #  define XRDGSI_CONST
@@ -144,7 +144,7 @@ static ASN1_OBJECT *OBJ_txt2obj_fix(const char *s, int no_name)
    a2d_ASN1_OBJECT(p,i,s,-1);
 
    p = buf;
-#ifdef R__SSL_GE_098
+#if OPENSSL_VERSION_NUMBER >= 0x0090800f
    // not op=d2i_ASN1_OBJECT(0, &p, i) (C.H. Christensen, Oct 12, 2005)
    op = d2i_ASN1_OBJECT(0, (XRDGSI_CONST unsigned char**)(&p), j);
 #else
@@ -611,7 +611,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
       return -kErrPX_NoResources;
    }
    // Set extension name.
-#ifndef R__SSL_096
+#if OPENSSL_VERSION_NUMBER >= 0x0090700f
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,
@@ -956,7 +956,7 @@ int XrdSslgsiX509CreateProxyReq(XrdCryptoX509 *xcpi,
       return -kErrPX_Error;
    }
    // Set extension name.
-#ifndef R__SSL_096
+#if OPENSSL_VERSION_NUMBER >= 0x0090700f
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,
@@ -1245,7 +1245,7 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
       return -kErrPX_Error;
    }
    // Set extension name.
-#ifndef R__SSL_096
+#if OPENSSL_VERSION_NUMBER >= 0x0090700f
    // We do not use directly OBJ_txt2obj because that is not working
    // with all OpenSSL 0.9.6 versions
    ASN1_OBJECT *obj = OBJ_nid2obj(OBJ_create(gsiProxyCertInfo_OID,

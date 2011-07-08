@@ -105,13 +105,14 @@ XrdClientPhyConnection::~XrdClientPhyConnection()
        "Destroying. [" << fServer.Host << ":" << fServer.Port << "]");
 
    Disconnect();
-  if (fReaderthreadrunning)
-    for (int i = 0; i < READERCOUNT; i++)
-      if(fReaderthreadhandler[i])
-      {
-        fReaderthreadhandler[i]->Join();
-        delete fReaderthreadhandler[i];
-      }
+   for (int i = 0; i < READERCOUNT; i++)
+   {
+     if(fReaderthreadhandler[i])
+     {
+       fReaderthreadhandler[i]->Join();
+       delete fReaderthreadhandler[i];
+     }
+   }
 
 
 
