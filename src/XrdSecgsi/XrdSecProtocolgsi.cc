@@ -598,8 +598,13 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          // Check normal certificates
          XrdCryptoX509 *xsrv = 0;
          {  XrdSysPrivGuard pGuard(gsi_uid, gsi_gid);
-            if (pGuard.Valid())
+            if (pGuard.Valid() || !getpriv) {
                xsrv = cryptF[i]->X509(SrvCert.c_str(), SrvKey.c_str());
+            } else {
+               PRINT("problems creating guard to load server certificate '"<<
+                     SrvCert<<"' (euid:"<<geteuid()<<", egid:"<<getegid()<<") <-> (st_uid:"<<st.st_uid<<", st_gid:"<<st.st_gid<<")" );
+               continue;
+            }
          }
          if (xsrv) {
             // Must be of EEC type
@@ -2022,7 +2027,7 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
       }
       return;
    }
-   
+
    int from = 0;
    XrdOucString vat, vo, role;
    while ((from = vatts.tokenize(vat, from, ',')) != -1) {
@@ -2044,7 +2049,7 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
                continue;
             }
          } else {
-            ent.vorg = strdup(vo.c_str());
+            if (vo.length() > 0) ent.vorg = strdup(vo.c_str());
          }
          if (role.length() > 0 && role != "NULL" && !ent.role) {
             ent.role = strdup(role.c_str());
@@ -2054,7 +2059,10 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
 
    // Save the whole string in endorsements
    SafeFree(ent.endorsements);
-   ent.endorsements = strdup(vatts.c_str());
+   if (vatts.length() > 0) ent.endorsements = strdup(vatts.c_str());
+   
+   // Notify if did not find the main info (the VO ...)
+   if (!ent.vorg) PRINT("WARNING: no VO found! (VOMS attributes: '"<<vatts<<"')");
 
    // Done
    return;
@@ -3683,8 +3691,12 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
       String enam(cadir.length()+100); 
       struct dirent *dent = 0;
       while ((dent = readdir(dd))) {
+         // Skip some obvious non-CA entries
+         if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) continue;
          // entry name
          enam = cadir + dent->d_name;
+         if (enam.endswith(".signing_policy") || enam.endswith(".namespaces") ||
+             enam.endswith(".info") || enam.endswith(".crl_url")) continue;
          DEBUG("analysing entry "<<enam);
          // Try to init a chain: for each crypto factory
          for (i = 0; i < ncrypt; i++) {
