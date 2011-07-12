@@ -285,7 +285,8 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 
 // If we are configured in proxy mode then we are running a shared filesystem
 //
-   if (isProxy) baseFS.Init(XrdCmsBaseFS::DFSys|XrdCmsBaseFS::Immed, 0, 0);
+   if (isProxy) baseFS.Init(XrdCmsBaseFS::DFSys | XrdCmsBaseFS::Immed |
+               (baseFS.Local() ? XrdCmsBaseFS::Cntrl : 0), 0, 0);
 
 // Determine how we ended and return status
 //
@@ -1425,7 +1426,7 @@ int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
                                  default for proxy configurations.
                        verify  - verify file existence prior to
                                  redirecting a client. This is the
-                                 default for non-proxy configurations.
+                                 default for non-proxy configurations.    top
 
    Type: Any, non-dynamic.
 

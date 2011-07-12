@@ -1135,7 +1135,7 @@ const char *XrdCmsNode::do_State(XrdCmsRRData &Arg)
 // ask the underlying filesystem whether it has the file.
 //
         if (isMan) Arg.Request.modifier = do_StateFWD(Arg);
-   else if (!Config.DiskOK) return 0;
+   else if (!Config.DiskOK && !Config.asProxy()) return 0;
    else if (baseFS.Limit() && Arg.Request.modifier&CmsStateRequest::kYR_metaman)
            {XrdCmsPInfo pinfo;
             pinfo.rovec = NodeMask;
