@@ -137,6 +137,7 @@ Version 3.0.3
      the correct domain to be posted.
 
 + **Minor bug fixes**
+   * Correct file discovery propogation for proxy manager relative to meta-managers.
    * Correct oss partition selection algorithm to further spread out file
      allocation.
    * Allow underscores in set/setenv variables.
