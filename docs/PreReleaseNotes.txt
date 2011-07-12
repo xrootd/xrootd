@@ -63,6 +63,7 @@ Version 3.1.0
    * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
 
 + **Major bug fixes**
+   * Avoid stage failures when target file exists in purgeable or writable space.
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
