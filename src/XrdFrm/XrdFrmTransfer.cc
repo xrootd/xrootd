@@ -390,11 +390,14 @@ int XrdFrmTransfer::SetupCmd(XrdFrmTranArg *argP)
                    xfrP->reqData.Options & XrdFrcRequest::makeRW?O_RDWR:O_RDONLY,
                    argP->theMDP, xfrP->reqData.ID, xfrP->PFN, argP->theDst);
 
-// We must establish the cluster and instance name if we have one
+// We must establish the host, cluster and instance name if we have one
 //
-   if (argP->theINS && argP->theEnv)
-      {CID.Get(argP->theINS, CMS_CID, argP->theEnv);
-       argP->theEnv->Put(XRD_INS, argP->theINS);
+   if (argP->theEnv)
+      {argP->theEnv->Put(SEC_HOST, Config.myName);
+       if (argP->theINS)
+          {CID.Get(argP->theINS, CMS_CID, argP->theEnv);
+           argP->theEnv->Put(XRD_INS, argP->theINS);
+          }
       }
 
 // Substitute in the parameters
