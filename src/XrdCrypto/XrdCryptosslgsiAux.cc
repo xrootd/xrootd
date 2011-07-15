@@ -1710,7 +1710,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
                XrdOucString objstr;
                BIO_GET_STRING(mem, objstr);
                // Looking for the right extension ...
-               if (objstr == XRDGSI_VOMS_ATCAP_OID) getvat = 1; 
+               if (objstr == XRDGSI_VOMS_ATCAP_OID || objstr == "idatcap") getvat = 1; 
                DEBUG("AOBJ:"<<objstr<< " (getvat: "<<getvat<<")");
             } else {
                PRINT("ERROR:AOBJ: BAD OBJECT");
