@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Extend the kXR_protocol request to allow the server to return detailed
+     information about node's role. This is backwardly compatible.
    * Set $HOST value for possible copycmd substitution.
    * Phase 1 to allow for redirection monitoring. Add rbuff and redir options
      to the xrootd.monitor directive.
