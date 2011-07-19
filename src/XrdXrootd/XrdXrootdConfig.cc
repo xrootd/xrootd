@@ -20,6 +20,8 @@
 
 #include "XrdVersion.hh"
 
+#include "XProtocol/XProtocol.hh"
+
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
@@ -292,8 +294,15 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Set the redirect flag if we are a pure redirector
 //
+   myRole = kXR_isServer; myRolf = kXR_DataServer;
    if ((rdf = getenv("XRDREDIRECT"))
-   && (!strcmp(rdf, "R") || !strcmp(rdf, "M"))) isRedir = *rdf;
+   && (!strcmp(rdf, "R") || !strcmp(rdf, "M")))
+      {isRedir = *rdf;
+       myRole = kXR_isManager; myRolf = kXR_LBalServer;
+       if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
+      } 
+   if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
+   myRole = htonl(myRole); myRolf = htonl(myRolf);
 
 // Check if monitoring should be enabled
 //

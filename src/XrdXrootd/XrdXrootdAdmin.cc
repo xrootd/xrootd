@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
-
-const char *XrdXrootdAdminCVSID = "$Id$";
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -278,7 +274,8 @@ int XrdXrootdAdmin::do_Disc()
   
 int XrdXrootdAdmin::do_Login()
 {
-   const char *fmt="<resp id=\"%s\"><rc>0</rc><v>" XROOTD_VERSION "</v></resp>\n";
+   const char *fmt="<resp id=\"%s\"><rc>0</rc><v>" kXR_PROTOCOLVSTRING
+                   "</v></resp>\n";
    char *tp, buff[1024];
    int blen;
 

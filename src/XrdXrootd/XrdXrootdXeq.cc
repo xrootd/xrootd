@@ -1248,20 +1248,34 @@ int XrdXrootdProtocol::do_Prepare()
 /*                           d o _ P r o t o c o l                            */
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_Protocol()
+int XrdXrootdProtocol::do_Protocol(int retRole)
 {
-    static ServerResponseBody_Protocol Resp
-                 = {static_cast<kXR_int32>(htonl(XROOTD_VERSBIN)),
-                    static_cast<kXR_int32>(htonl(kXR_DataServer))};
+   static ServerResponseBody_Protocol RespNew
+                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)), myRole};
+
+   static ServerResponseBody_Protocol RespOld
+                = {static_cast<kXR_int32>(htonl(kXR_PROTOCOLVERSION)),
+                   static_cast<kXR_int32>(isRedir ? htonl(kXR_LBalServer)
+                                                  : htonl(kXR_DataServer))
+                  };
+
+          ServerResponseBody_Protocol *Resp = &RespOld;
+          int RespLen = sizeof(RespOld);
 
 // Keep Statistics
 //
    UPSTATS(miscCnt);
 
+// Determine which response to provide
+//
+   if (Request.protocol.clientpv)
+      {Resp = &RespNew; RespLen = sizeof(RespNew);
+       if (!Status) clientPV = ntohl(Request.protocol.clientpv);
+      }
+
 // Return info
 //
-    if (isRedir) Resp.flags = static_cast<kXR_int32>(htonl(kXR_LBalServer));
-    return Response.Send((void *)&Resp, sizeof(Resp));
+    return (retRole ? Resp->flags : Response.Send((void *)Resp, RespLen));
 }
 
 /******************************************************************************/

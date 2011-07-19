@@ -12,7 +12,12 @@
 #define __attribute__(x)
 #endif
 
-//        $Id$
+// The following is the binary representation of the protocol version here.
+// Protocol version is repesented as three base10 digits x.y.z with x having no
+// upper limit (i.e. n.9.9 + 1 -> n+1.0.0).
+//
+#define kXR_PROTOCOLVERSION  0x00000297
+#define kXR_PROTOCOLVSTRING "2.9.7"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -21,6 +26,15 @@
 //
 #define kXR_DataServer 1
 #define kXR_LBalServer 0
+
+// The below are defined for protocol version 2.9.7 or higher
+//
+#define kXR_isManager 0x00000002
+#define kXR_isServer  0x00000001
+#define kXR_attrMeta  0x00000100
+#define kXR_attrProxy 0x00000200
+#define lXR_attrSuper 0x00000400
+
 #define kXR_maxReqRetry 10
 
 //
@@ -354,8 +368,9 @@ struct ClientPingRequest {
 struct ClientProtocolRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char reserved[16];
-   kXR_int32  dlen;
+   kXR_int32 clientpv;      // 2.9.7 or higher
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
 };
 struct ClientPrepareRequest {
    kXR_char  streamid[2];

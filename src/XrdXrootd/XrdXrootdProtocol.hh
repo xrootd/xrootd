@@ -26,10 +26,6 @@
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
-  
-#define XROOTD_VERSBIN 0x00000291
-
-#define XROOTD_VERSION "2.9.1"
 
 #define ROOTD_PQ 2012
 
@@ -116,7 +112,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
        int   do_Open();
        int   do_Ping();
        int   do_Prepare();
-       int   do_Protocol();
+       int   do_Protocol(int retRole=0);
        int   do_Putfile();
        int   do_Qconf();
        int   do_Qfh();
@@ -195,6 +191,8 @@ static const char           *myInst;
 static const char           *TraceID;
 static       char           *pidPath;
 static int                   myPID;
+static int                   myRole;     // Role for kXR_protocol (>= 2.9.7)
+static int                   myRolf;     // Role for kXR_protocol (<  2.9.7)
 
 // Admin control area
 //
@@ -263,6 +261,7 @@ char                       monFILE;
 char                       monIO;
 char                       Status;
 unsigned char              CapVer;
+int                        clientPV;
 
 // Authentication area
 //
