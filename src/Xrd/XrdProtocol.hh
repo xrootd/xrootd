@@ -130,52 +130,61 @@ virtual    ~XrdProtocol() {}
 /*                        X r d g e t P r o t o c o l                         */
 /******************************************************************************/
   
-// This extern "C" function is called to obtain an instance of a particular
-// protocol. This allows protocols to live outside of the protocol driver
-// (i.e., to be loaded at run-time). The call is made after the call to
-// XrdgetProtocolPort(). Note that the network object (NetTCP) is now defined.
-// If a null pointer is returned, failure is indicated and we bail.
-//
+/* This extern "C" function must be defined in the shared library plug-in
+   implementing your protocol. It is called to obtain an instance of your
+   protocol. This allows protocols to live outside of the protocol driver
+   (i.e., to be loaded at run-time). The call is made after the call to
+   XrdgetProtocolPort() to determine the port to be used (see below) which
+   allows e network object (NetTCP) to be proerly defined and it's pointer
+   is passed in the XrdProtocol_Config object for your use.
+
+   Required return values:
+   Success: Pointer to XrdProtocol object.
+   Failure: Null pointer (i.e. 0) which causes the program to exit.
 
 extern "C"
 {
-extern XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
-                                   XrdProtocol_Config *pi);
+       XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
+                                   XrdProtocol_Config *pi) {....}
 }
+*/
   
 /******************************************************************************/
 /*                    X r d g e t P r o t o c o l P o r t                     */
 /******************************************************************************/
   
-// This extern "C" function is called to obtain the actual port number to be
-// used by the protocol. The default port number is noted in XrdProtocol_Config
-// Port. It has one of the fllowing values:
-// <0 -> No port was specified.
-// =0 -> An erbitrary port will be assigned.
-// >0 -> This port number was specified.
+/* This extern "C" function must be defined for statically linked protocols
+   but is optional for protocols defined as a shared library plug-in if the
+   rules determining which port number to use is sufficient for your protocol.
+   The function is called to obtain the actual port number to be used by the
+   the protocol. The default port number is noted in XrdProtocol_Config Port.
+   Initially, it has one of the fllowing values:
+   <0 -> No port was specified.
+   =0 -> An erbitrary port will be assigned.
+   >0 -> This port number was specified.
 
-// XrdgetProtoclPort() must return:
-// <0 -> Failure is indicated and we terminate
-// =0 -> Use an arbitrary port (even if this equals Port)
-// >0 -> The returned port number must be used (even if it equals Port)
-//
-// When we finally call XrdgetProtocol(), the actual port number is indicated
-// in Port and the network object is defined in NetTCP and bound to the port.
+   XrdgetProtoclPort() must return:
+   <0 -> Failure is indicated and we terminate
+   =0 -> Use an arbitrary port (even if this equals Port)
+   >0 -> The returned port number must be used (even if it equals Port)
 
-// Final Caveats: 1.  The network object (NetTCP) is not defined until
-//                    XrdgetProtocol() is called.
+   When we finally call XrdgetProtocol(), the actual port number is indicated
+   in Port and the network object is defined in NetTCP and bound to the port.
 
-//                2.  The statistics object (Stats) is not defined until
-//                    XrdgetProtocol() is called.
+   Final Caveats: 1.  The network object (NetTCP) is not defined until
+                      XrdgetProtocol() is called.
 
-//                3.  When the protocol is loaded from a shared library, you need
-//                    need not define XrdgetProtocolPort() if the standard port
-//                    determination scheme is sufficient.
-//
+                  2.  The statistics object (Stats) is not defined until
+                      XrdgetProtocol() is called.
+
+                  3.  When the protocol is loaded from a shared library, you need
+                      need not define XrdgetProtocolPort() if the standard port
+                      determination scheme is sufficient.
 
 extern "C"
 {
-extern int XrdgetProtocolPort(const char *protocol_name, char *parms,
-                              XrdProtocol_Config *pi);
+       int XrdgetProtocolPort(const char *protocol_name, char *parms,
+                              XrdProtocol_Config *pi) {....}
 }
+*/
 #endif

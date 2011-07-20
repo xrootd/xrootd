@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$  
-
-const char *XrdProtLoadCVSID = "$Id$";
-
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -21,12 +17,25 @@ const char *XrdProtLoadCVSID = "$Id$";
 #include "Xrd/XrdTrace.hh"
  
 /******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
+/*                      E x t e r n a l   S y m b o l s                       */
 /******************************************************************************/
+
+extern "C"
+{
+extern XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
+                                   XrdProtocol_Config *pi);
+
+extern int XrdgetProtocolPort(const char *protocol_name, char *parms,
+                              XrdProtocol_Config *pi);
+}
 
 extern XrdSysError XrdLog;
 
 extern XrdOucTrace XrdTrace;
+  
+/******************************************************************************/
+/*                        G l o b a l   O b j e c t s                         */
+/******************************************************************************/
 
 XrdProtocol *XrdProtLoad::ProtoWAN[ProtoMax] = {0};
 XrdProtocol *XrdProtLoad::Protocol[ProtoMax] = {0};
