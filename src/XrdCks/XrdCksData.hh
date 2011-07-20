@@ -46,7 +46,7 @@ int       Set(const char *csName)
              }
 
 int       Set(const char *csVal, int csLen)
-             {int n, i = 0;
+             {int n, i = 0, Odd = 0;
               if (csLen > (int)sizeof(Value)*2 || (csLen & 1)) return 0;
               Length = csLen;
               while(csLen--)
@@ -54,9 +54,9 @@ int       Set(const char *csVal, int csLen)
                     else if (*csVal >= 'a' && *csVal <= 'f') n = *csVal-87;
                     else if (*csVal >= 'A' && *csVal <= 'F') n = *csVal-55;
                     else return 0;
-                    if (i & 1) Value[i++] |= n;
-                       else    Value[i  ]  = n << 4;
-                    csVal++;
+                    if (Odd) Value[i++] |= n;
+                       else  Value[i  ]  = n << 4;
+                    csVal++; Odd = ~Odd;
                    }
               return 1;
              }
