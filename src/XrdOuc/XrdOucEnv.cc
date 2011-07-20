@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
-
-const char *XrdOucEnvCVSID = "$Id$";
 
 #include "string.h"
 #include "stdio.h"
@@ -144,16 +140,14 @@ bool XrdOucEnv::Import( const char *var, long  &val )
 
 long XrdOucEnv::GetInt(const char *varname) 
 {
+   char *cP;
+
 // Retrieve a char* value from the Hash table and convert it into a long.
 // Return -999999999 if the varname does not exist
 //
-  if (env_Hash.Find(varname) == NULL) {
-    return -999999999;
-  } else {
-    return atol(env_Hash.Find(varname));
-  }
+  if ((cP = env_Hash.Find(varname)) == NULL) return -999999999;
+  return atol(cP);
 }
-
 
 /******************************************************************************/
 /*                                P u t I n t                                 */
@@ -166,4 +160,62 @@ void XrdOucEnv::PutInt(const char *varname, long value)
   char stringValue[24];
   sprintf(stringValue, "%ld", value);
   env_Hash.Rep(varname, strdup(stringValue), 0, Hash_dofree);
+}
+
+/******************************************************************************/
+/*                                G e t P t r                                 */
+/******************************************************************************/
+
+void *XrdOucEnv::GetPtr(const char *varname)
+{
+   void *Valp;
+   char *cP, *Value = (char *)&Valp;
+   int cLen, n, i = 0, Odd = 0;
+
+// Retrieve the variable from the hash
+//
+   if ((cP = env_Hash.Find(varname)) == NULL) return (void *)0;
+
+// Verify that the string is not too long or too short
+//
+   if ((cLen = strlen(cP)) != (int)sizeof(void *)*2) return (void *)0;
+
+// Now convert the hex string back to its pointer value
+//
+   while(cLen--)
+        {     if (*cP >= '0' && *cP <= '9') n = *cP-48;
+         else if (*cP >= 'a' && *cP <= 'f') n = *cP-87;
+         else if (*cP >= 'A' && *cP <= 'F') n = *cP-55;
+         else return (void *)0;
+         if (Odd) Value[i++] |= n;
+            else  Value[i  ]  = n << 4;
+         cP++; Odd = ~Odd;
+        }
+
+// All done, return the actual pointer value
+//
+   return Valp;
+}
+
+/******************************************************************************/
+/*                                P u t P t r                                 */
+/******************************************************************************/
+
+void XrdOucEnv::PutPtr(const char *varname, void *value)
+{
+   static char hv[] = "0123456789abcdef";
+   char Buff[sizeof(void *)*2+1], *Value = (char *)&value;
+   int i, j = 0;
+
+// Convert the pointer value to a hex string
+//
+   if (value) for (i = 0; i <(int)sizeof(void *); i++)
+                  {Buff[j++] = hv[(Value[i] >> 4) & 0x0f];
+                   Buff[j++] = hv[ Value[i]       & 0x0f];
+                  }
+   Buff[j] = '\0';
+
+// Replace the value in he hash
+//
+   env_Hash.Rep(varname, strdup(Buff), 0, Hash_dofree);
 }

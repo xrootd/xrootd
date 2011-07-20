@@ -3,6 +3,7 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Allow pointers to be placed in the OucEnv environment table.
    * Extend the kXR_protocol request to allow the server to return detailed
      information about node's role. This is backwardly compatible.
    * Set $HOST value for possible copycmd substitution.

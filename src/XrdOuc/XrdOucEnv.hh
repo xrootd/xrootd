@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
 
 #include <stdlib.h>
 #ifndef WIN32
@@ -50,6 +48,11 @@ static bool  Import( const char *var, long  &val );
 //
        long  GetInt(const char *varname);
 
+// GetPtr() returns a pointer as a (void *) value. If the varname is not found
+//          a nil pointer is returned (i.e. 0).
+//
+       void *GetPtr(const char *varname);
+
 // Put() associates a string value with the a variable name. If one already
 //       exists, it is replaced. The passed value and variable strings are
 //       duplicated (value here, variable by env_Hash).
@@ -61,6 +64,12 @@ static bool  Import( const char *var, long  &val );
 //          converted into a char*
 //
        void  PutInt(const char *varname, long value);
+
+// PutPtr() puts a pointer value into the hash. The pointer is accepted as a
+//          (void *) value. By convention, the variable name should end with
+//          an asterisk and typically corresponds to it's class name.
+//
+       void PutPtr(const char *varname, void *value);
 
 // Delimit() search for the first occurrence of comma (',') in value and
 //           replaces it with a null byte. It then returns the address of the
