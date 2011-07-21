@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
-const char *XrdSectestServerCVSID = "$Id$";
-
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -64,6 +60,11 @@ char hexbuff[256];
 #else
 char hexbuff[sizeof(C_Block)+8];
 #endif
+
+extern "C"
+{
+extern XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn);
+}
 
 /******************************************************************************/
 /*                  f u n c t i o n   d e f i n i t i o n s                   */

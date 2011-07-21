@@ -265,26 +265,30 @@ virtual      ~XrdSecProtocol() {}
 /*                  C l i e n t   S i d e   U S e   O n l y                   */
 /******************************************************************************/
   
-// The following external routine creates a security context and returns an
-// XrdSecProtocol object to be used for authentication purposes. The caller
-// provides the host name and IP address of the remote connection along with 
-// any parameters provided by the server. A null return means an error occured.
-// Error messages are sent to standard error unless and XrdOucErrInfo class is 
-// provided to capture the message. There should be one protocol object per
-// physical TCP/IP connection. 
+/* The following external routine creates a security context and returns an
+   XrdSecProtocol object to be used for authentication purposes. The caller
+   provides the host name and IP address of the remote connection along with
+   any parameters provided by the server. A null return means an error occured.
+   Error messages are sent to standard error unless and XrdOucErrInfo class is
+   provided to capture the message. There should be one protocol object per
+   physical TCP/IP connection.
 
-// When the connection is closed, the protocol's Delete() method should be 
-// called to properly delete the object.
-//
+   When the connection is closed, the protocol's Delete() method should be
+   called to properly delete the object.
+
+   The following extern "C" function must exist in your shared library.
+
 extern "C"
 {
-extern XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+       XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
                                          const struct sockaddr  &netaddr,
                                                XrdSecParameters &parms,
-                                               XrdOucErrInfo    *einfo=0);
+                                               XrdOucErrInfo    *einfo=0)
+                                        {....}
 }
 
-// MT Requirements: Must be MT_Safe.
+   MT Requirements: Must be MT_Safe.
+*/
  
 /******************************************************************************/
 /*                         X r d S e c S e r v i c e                          */
@@ -330,16 +334,16 @@ virtual                ~XrdSecService() {}
 /*                      X r d g e t S e c S e r v i c e                       */
 /******************************************************************************/
 
-// The XrdSecSgetService function is calle during server initialization to
-// obtain the XrdSecService object. This object is used to control server-side
-// authentication.
-//
-class XrdSysLogger;
+/* The XrdSecSgetService function is called during server initialization to
+   obtain the XrdSecService object. This function must be defined in your
+   shared library and is used by the server to obtain an XrdSecService object
+   used by the server to control server-side authentication.
 
 extern "C"
 {
-extern XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn);
+       XrdSecService *XrdSecgetService(XrdSysLogger *lp, const char *cfn) {....}
 }
 
-// MT Requirements: None. Function called once in single-thread mode.
+   MT Requirements: None. Function called once in single-thread mode.
+*/
 #endif

@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
-const char *XrdSectestClientCVSID = "$Id$";
-
 /* Syntax: testClient [-b] [-d] [-h host] [-l] [sectoken]
 
    See the help() function for an explanation of the above.
@@ -30,6 +26,18 @@ const char *XrdSectestClientCVSID = "$Id$";
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSec/XrdSecInterface.hh"
+  
+/******************************************************************************/
+/*                    G l o b a l   D e f i n i t i o n s                     */
+/******************************************************************************/
+
+extern "C"
+{
+extern XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+                                         const struct sockaddr  &netaddr,
+                                               XrdSecParameters &parms,
+                                               XrdOucErrInfo    *einfo=0);
+}
   
 /******************************************************************************/
 /*                    L O C A L   D E F I N I T I O N S                       */

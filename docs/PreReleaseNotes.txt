@@ -77,6 +77,9 @@ Version 3.1.0
      writing an ofs plugin easier.
 
 + **Miscellaneous**
+   * Remove externs to XrdSecGetProtocol and XrdSecGetService from
+     XrdSecInterface.hh to avoid having undefined references just because the
+     include file was included somewhere.
    * Rename XrdNetDNS to XrdSysDNS to avoid cross-dependencies. This means that all
      plug-in developers will need to do the same as XrdNetDNS no longer exists.
    * Split XrdFrm into XrdFrm and XrdFrc. This prevents cross-dependencies in
