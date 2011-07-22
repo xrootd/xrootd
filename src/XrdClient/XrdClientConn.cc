@@ -131,7 +131,10 @@ XrdClientConn::XrdClientConn(): fOpenError((XErrorCode)0), fUrl(""),
 				fMainReadCache(0),
 				fREQWaitRespData(0),
 				fREQWaitTimeLimit(0),
-				fREQConnectWaitTimeLimit(0) {
+                                fREQConnectWaitTimeLimit(0),
+                                fMetaUrl( 0 ),
+                                fLBSIsMeta( false )
+{
     // Constructor
     ClearLastServerError();
     memset(&LastServerResp, 0, sizeof(LastServerResp));
@@ -1237,6 +1240,17 @@ bool XrdClientConn::GetAccessToSrv()
 
 	break;
 
+    case kSTMetaXrootd:
+
+        Info(XrdClientDebug::kHIDEBUG,
+             "GetAccessToSrv",
+             "Ok: the server on [" <<
+             fUrl.Host << ":" << fUrl.Port << "] is an xrootd meta manager.");
+
+        logconn->GetPhyConnection()->SetTTL(EnvGetLong(NAME_LBSERVERCONN_TTL));
+
+        break;
+
     case kSTDataXrootd: 
 
 	Info( XrdClientDebug::kHIDEBUG,
@@ -1351,39 +1365,60 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 	return kSTDataXrootd;
       }
 
-
       type = phyconn->DoHandShake(xbody);
       if (type == kSTError) return type;
 
-
       // Check if the server is the eXtended rootd or not, checking the value 
       // of type
-      fServerProto = xbody.protover;
+      fServerProto = phyconn->fServerProto;
 
-      // This is useful for other streams trying to use the same phyconn
-      // they will be able to get the proto version
-      phyconn->fServerProto = fServerProto;
+      //------------------------------------------------------------------------
+      // Handle a redirector - we always remember the first manager (redirector)
+      // encountered
+      //------------------------------------------------------------------------
+      if( type == kSTBaseXrootd )
+      {
+        if( !fLBSUrl || fLBSIsMeta )
+        {
+          delete fLBSUrl;
+          fLBSIsMeta = false;
 
-      if (type == kSTBaseXrootd) {
-	// This is a load balancing server
-	if (!fLBSUrl || (fLBSUrl->Host == "")) {
+          Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+                "Setting Load Balancer Server Url = " << fUrl.GetUrl() );
 
-	  Info(XrdClientDebug::kHIDEBUG, "DoHandShake", "Setting Load Balancer Server Url = " <<
-	       fUrl.GetUrl() );
+          fLBSUrl = new XrdClientUrlInfo( fUrl.GetUrl() );
+        }
+      }
 
-	  // Save the url of load balancer server for future uses...
-	  fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-	  if (!fLBSUrl) {
-	    Error("DoHandShake","Object creation failed.");
-	    abort();
-	  }
-	}
-       
+      //------------------------------------------------------------------------
+      // Handle a meta manager - we always remember the last meta manager
+      // encountered
+      //------------------------------------------------------------------------
+      if( type == kSTMetaXrootd )
+      {
+        delete fMetaUrl;
+        Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+              "Setting Meta Manager Server Url = " << fUrl.GetUrl() );
+        fMetaUrl = new XrdClientUrlInfo( fUrl.GetUrl() );
+
+        //----------------------------------------------------------------------
+        // We always remember the first manager in the chain, unless there is
+        // none available in which case we use the last meta manager for this
+        // purpose
+        //----------------------------------------------------------------------
+        if( !fLBSUrl || fLBSIsMeta )
+        {
+          delete fLBSUrl;
+          fLBSIsMeta = true;
+
+          Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+                "Setting Meta Load Balancer Server Url = " << fUrl.GetUrl() );
+
+          fLBSUrl = new XrdClientUrlInfo( fUrl.GetUrl() );
+        }
       }
 
       return type;
-
-
     }
 }
 

@@ -82,7 +82,7 @@ void clientMarshall(ClientRequest* str)
       // no swap on ASCII fields
       break;
    case kXR_protocol:
-      // no swap on ASCII fields
+      str->protocol.clientpv = htons( str->protocol.clientpv );
       break;
    case kXR_putfile:
       str->putfile.options = htonl(str->putfile.options);
@@ -487,6 +487,10 @@ void smartPrintClientHeader(ClientRequest* hdr)
       break;
 
    case kXR_protocol:
+      fprintf(stderr, "%40s0x%.2x\n",
+             "ClientHeader.protocol.clientpv = ",
+             hdr->protocol.clientpv );
+
       fprintf(stderr, "%40s0 repeated %d times\n", 
              "ClientHeader.protocol.reserved = ",
              (kXR_int32)sizeof(hdr->protocol.reserved));

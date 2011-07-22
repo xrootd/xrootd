@@ -431,6 +431,10 @@ private:
 					     int substreamid = 0);
 
     bool                       WaitResp(int secsmax);
+
+    XrdClientUrlInfo           *fMetaUrl;           // Meta manager url
+    bool                        fLBSIsMeta;         // Is current redirector a meta manager?
+
 };
 
 

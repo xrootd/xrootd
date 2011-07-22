@@ -37,7 +37,8 @@ enum ERemoteServerType {
     kSTNone       = 0,   // Remote server type un-recognized
     kSTRootd      = 1,   // Remote server type: old rootd server
     kSTBaseXrootd = 2,   // Remote server type: xrootd dynamic load balancer
-    kSTDataXrootd = 3    // Remote server type: xrootd data server
+    kSTDataXrootd = 3,   // Remote server type: xrootd data server
+    kSTMetaXrootd = 4    // Remote server type: xrootd meta manager
 }; 
 
 class XrdClientSid;

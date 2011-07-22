@@ -55,7 +55,8 @@ int XrdClientMStream::EstablishParallelStreams(XrdClientConn *cliconn) {
     int wan_port = 0, wan_window = 0;
 
     if (mx <= 1) return 1;
-    if (cliconn->GetServerType() == kSTBaseXrootd) return 1;
+    if (cliconn->GetServerType() == kSTBaseXrootd ||
+        cliconn->GetServerType() == kSTMetaXrootd) return 1;
 
     // Get the XrdClientPhyconn to be used
     XrdClientPhyConnection *phyconn = XrdClientConn::GetPhyConn(cliconn->GetLogConnID());

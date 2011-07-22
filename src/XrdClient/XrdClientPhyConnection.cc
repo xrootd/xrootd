@@ -691,21 +691,34 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
    initHS.fourth = (kXR_int32)htonl(4);
    initHS.fifth  = (kXR_int32)htonl(2012);
 
+   //---------------------------------------------------------------------------
+   // Create  protocol request
+   //---------------------------------------------------------------------------
+   ClientRequest req;
+   memset( &req, 0, sizeof( req ) );
+   req.header.requestid  = kXR_protocol;
+   req.protocol.clientpv = kXR_PROTOCOLVERSION;
 
-   // Send to the server the initial hand-shaking message asking for the 
-   // kind of server
-   len = sizeof(initHS);
+   //---------------------------------------------------------------------------
+   // Send the handshake and the kXR_protocol request
+   //---------------------------------------------------------------------------
+   Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+         "HandShake step 1: Sending handshake with a piggy-backed protocol request" );
 
-   Info(XrdClientDebug::kHIDEBUG,
-	"DoHandShake",
-	"HandShake step 1: Sending " << len << " bytes.");
+   if( DebugLevel() >= XrdClientDebug::kDUMPDEBUG )
+     smartPrintClientHeader( &req );
 
-   writeres = WriteRaw(&initHS, len, substreamid);
+   clientMarshall( &req );
+   len = sizeof( req ) + sizeof( initHS );
+   char buffer[len];
+   memcpy( buffer, &initHS, sizeof( initHS ) );
+   memcpy( buffer+sizeof( initHS ), &req, sizeof( req ) );
+   writeres = WriteRaw( buffer, len, substreamid );
 
-   if (writeres < 0) {
-      Info(XrdClientDebug::kNODEBUG,"DoHandShake", "Failed to send " << len <<
-	    " bytes. Retrying ...");
-
+   if( writeres < 0 )
+   {
+      Info( XrdClientDebug::kNODEBUG,"DoHandShake", "Failed to send " << len <<
+            " bytes of protocol info request. Retrying ...");
       return kSTError;
    }
 
@@ -760,6 +773,55 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 	   "DoHandShake",
 	   "Server protocol: " << xbody.protover << " type: " << xbody.msgval);
 
+      //------------------------------------------------------------------------
+      // Get the response to the protocol message
+      //------------------------------------------------------------------------
+      XrdClientMessage *msg = new XrdClientMessage();
+      msg->ReadRaw( this );
+
+      if( DebugLevel() >= XrdClientDebug::kDUMPDEBUG )
+        smartPrintServerHeader( &msg->fHdr );
+
+      //------------------------------------------------------------------------
+      // Got correct response from the server
+      //------------------------------------------------------------------------
+      if( !msg->IsError() && msg->HeaderStatus() == kXR_ok )
+      {
+        ServerResponseBody_Protocol *resp = (ServerResponseBody_Protocol*)msg->GetData();
+        resp->pval  = ntohl( resp->pval );
+        resp->flags = ntohl( resp->flags );
+        Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+              "Server protocol (kXR_protocol): " << resp->pval << " flags: " << resp->flags );
+
+        //----------------------------------------------------------------------
+        // Get the server type
+        //----------------------------------------------------------------------
+        if( resp->pval >= 0x297 )
+        {
+          if( resp->flags & kXR_isManager )
+          {
+            if( resp->flags & kXR_attrMeta ) typeres = kSTMetaXrootd;
+            else typeres = kSTBaseXrootd;
+          }
+          else if( resp->flags & kXR_isServer )
+            typeres = kSTDataXrootd;
+
+          fServerType  = typeres;
+          fServerProto = resp->pval;
+          return typeres;
+        }
+      }
+      //------------------------------------------------------------------------
+      // Protocol not supported
+      //------------------------------------------------------------------------
+      else
+      {
+        Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+              "No valid response to the protocol request" );
+      }
+      delete msg;
+      msg = 0;
+
       // check if the eXtended rootd is a data server
       switch (xbody.msgval) {
 
@@ -784,7 +846,8 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
          typeres = kSTNone;
    }
 
-   fServerType = typeres;
+   fServerType  = typeres;
+   fServerProto = xbody.protover;
    return typeres;
 }
 
