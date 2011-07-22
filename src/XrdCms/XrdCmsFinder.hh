@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 #include "XrdCms/XrdCmsClient.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
@@ -35,7 +33,7 @@ class XrdCmsFinderRMT : public XrdCmsClient
 public:
         void   Added(const char *path, int Pend=0) {}
 
-        int    Configure(char *cfn);
+        int    Configure(char *cfn, XrdOucEnv *EnvInfo);
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,
                        const char *arg1=0,  const char *arg2=0,
@@ -94,7 +92,7 @@ class XrdCmsFinderTRG : public XrdCmsClient
 public:
         void   Added(const char *path, int Pend=0);
 
-        int    Configure(char *cfn);
+        int    Configure(char *cfn, XrdOucEnv *EnvInfo);
 
         int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,

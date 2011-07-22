@@ -253,7 +253,14 @@ protected:
 
    This entry is called to get an instance of the file system. Return 0 if upon
    failure to properly create such an object. For statically linked file systems
-   the non-extern C XrdSfsGetDefaultFileSystem() is used instead.
+   the non-extern C XrdSfsGetDefaultFileSystem() is used instead. It has a
+   slightly different calling convention which adds an environment parameter
+   as follows:
+
+   XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *nativeFS,
+                                                XrdSysLogger     *Logger,
+                                                const char       *configFn,
+                                                XrdOucEnv        *EnvInfo);
 */
 
 /******************************************************************************/

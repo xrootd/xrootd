@@ -9,10 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//          $Id$
-
-// Based on: XrdOdcManager.hh,v 1.6 2006/09/26 07:49:14 abh
 
 #include <stdio.h>
 #include <sys/uio.h>
@@ -24,6 +20,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdInet;
 class XrdLink;
 class XrdNetBuffer;
 
@@ -51,6 +48,8 @@ inline int           Suspended() {if (Suspend) chkStatus(); return Suspend;}
 
 void                 setNext(XrdCmsClientMan *np) {Next = np;}
 
+static void          setNetwork(XrdInet *nP) {Network = nP;}
+
 static void          setConfig(char *cfn) {ConfigFN = cfn;}
 
 int                  whatsUp(const char *user, const char *path);
@@ -69,6 +68,7 @@ void  setStatus();
 
 static XrdSysMutex   manMutex;
 static XrdNetBufferQ BuffQ;
+static XrdInet      *Network;
 static char         *ConfigFN;
 static const int     chkVal = 256;
 

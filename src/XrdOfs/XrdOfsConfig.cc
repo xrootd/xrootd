@@ -84,7 +84,9 @@ extern XrdOss     *XrdOfsOss;
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdOfs::Configure(XrdSysError &Eroute) {
+int XrdOfs::Configure(XrdSysError &Eroute) {return Configure(Eroute, 0);}
+
+int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 /*
   Function: Establish default values using a configuration file.
 
@@ -192,7 +194,7 @@ int XrdOfs::Configure(XrdSysError &Eroute) {
 //
    if (Options & haveRole)
       {Eroute.Say("++++++ Configuring ", myRole, " role. . .");
-       NoGo |= ConfigRedir(Eroute);
+       NoGo |= ConfigRedir(Eroute, EnvInfo);
       }
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
@@ -435,7 +437,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 /*                           C o n f i g R e d i r                            */
 /******************************************************************************/
   
-int XrdOfs::ConfigRedir(XrdSysError &Eroute) 
+int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)
@@ -447,7 +449,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
    if (isRedir) 
       {Finder = (XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),
                                                     RMTopts,myPort);
-       if (!Finder->Configure(ConfigFN))
+       if (!Finder->Configure(ConfigFN, EnvInfo))
           {delete Finder; Finder = 0; return 1;}
       }
 
@@ -466,7 +468,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute)
        Balancer = new XrdCmsFinderTRG(Eroute.logger(),
                          (Options & isProxy ? XrdCms::IsProxy : 0) |
                          (isRedir ? XrdCms::IsRedir : 0), myPort, 0);
-       if (!Balancer->Configure(ConfigFN))
+       if (!Balancer->Configure(ConfigFN, EnvInfo))
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & isProxy) Balancer = 0; // No chatting for proxies
       }

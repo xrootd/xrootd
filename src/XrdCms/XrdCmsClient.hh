@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 class  XrdOucEnv;
 class  XrdOucErrInfo;
 class  XrdOucLogger;
@@ -37,7 +35,7 @@ class XrdCmsClient
 public:
 virtual void   Added(const char *path, int Pend=0) = 0;
 
-virtual int    Configure(char *cfn) = 0;
+virtual int    Configure(char *cfn, XrdOucEnv *EnvInfo) = 0;
 
 virtual int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,

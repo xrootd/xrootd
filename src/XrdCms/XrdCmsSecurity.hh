@@ -10,9 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -33,6 +30,8 @@ static const char     *getToken(int &size, const char *hostname);
 
 static int             Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
                                 char *authBuff, int abLen);
+
+static void            setSecFunc(void *secfP);
 
 static char           *setSystemID(XrdOucTList *tp, const char *iName,
                                    const char  *iHost,    char  iType);

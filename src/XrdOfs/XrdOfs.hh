@@ -237,7 +237,9 @@ const   char          *getVersion();
                                 const char             *opaque = 0);
 // Management functions
 //
-virtual int            Configure(XrdSysError &);
+virtual int            Configure(XrdSysError &); // Backward Compatability
+
+virtual int            Configure(XrdSysError &, XrdOucEnv *);
 
         void           Config_Cluster(XrdOss *);
 
@@ -355,7 +357,7 @@ XrdSysMutex              ocMutex; // Global mutex for open/close
 //
 int           ConfigDispFwd(char *buff, struct fwdOpt &Fwd);
 int           ConfigPosc(XrdSysError &Eroute);
-int           ConfigRedir(XrdSysError &Eroute);
+int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
 const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,

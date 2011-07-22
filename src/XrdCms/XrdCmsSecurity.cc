@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdCmsSecurityCVSID = "$Id$";
-
 // Bypass Solaris ELF madness
 //
 #ifdef __solaris__
@@ -47,26 +43,22 @@ const char *XrdCmsSecurityCVSID = "$Id$";
 using namespace XrdCms;
 
 /******************************************************************************/
-/*                        G l o b a l   S y m b o l s                         */
-/******************************************************************************/
-  
-extern XrdSecProtocol *(*XrdXrootdSecGetProtocol)
-                                          (const char             *hostname,
-                                           const struct sockaddr  &netaddr,
-                                           const XrdSecParameters &parms,
-                                                 XrdOucErrInfo    *einfo);
-
-/******************************************************************************/
 /*                        S t a t i c   S y m b o l s                         */
 /******************************************************************************/
   
 namespace XrdCms
 {
-XrdSecProtocol        *(*secProtocol)
-                                          (const char             *hostname,
-                                           const struct sockaddr  &netaddr,
-                                           const XrdSecParameters &parms,
-                                                 XrdOucErrInfo    *einfo)=0;
+static struct SecFunc {
+union {
+void                  *ProtFunc;
+XrdSecProtocol        *(*getProtocol)(const char             *hostname,
+                                      const struct sockaddr  &netaddr,
+                                      const XrdSecParameters &parms,
+                                            XrdOucErrInfo    *einfo);
+
+      };
+       SecFunc() : ProtFunc(0) {}
+      } Sec;
 }
 
 XrdSecService *XrdCmsSecurity::DHS    = 0;
@@ -157,11 +149,7 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 
 // If we aleady have a security interface, return (may happen in client)
 //
-   if (!Cfn)
-      {if (secProtocol) return 1;
-          else if (XrdXrootdSecGetProtocol)
-                  {secProtocol = XrdXrootdSecGetProtocol; return 1;}
-      }
+   if (!Cfn && Sec.getProtocol) return 1;
 
 // Open the security library
 //
@@ -172,11 +160,11 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 
 // Get the client object creator (in case we are acting as a client)
 //
-   if (! secProtocol
-   &&  !(secProtocol = (XrdSecProtocol *(*)(const char             *,
-                                            const struct sockaddr  &,
-                                            const XrdSecParameters &,
-                                                  XrdOucErrInfo    *))
+   if (! Sec.getProtocol
+   &&  !(Sec.getProtocol = (XrdSecProtocol *(*)(const char             *,
+                                                const struct sockaddr  &,
+                                                const XrdSecParameters &,
+                                                      XrdOucErrInfo    *))
                        dlsym(libhandle, "XrdSecGetProtocol")))
       {Say.Emsg("Config",dlerror(),"finding XrdSecGetProtocol() in",Lib);
        return 0;
@@ -241,7 +229,7 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 
 // Verify that we are configured
 //
-   if (!secProtocol && !Configure("libXrdSec.so"))
+   if (!Sec.getProtocol && !Configure("libXrdSec.so"))
       {Say.Emsg("Auth",Link->Host(),"authentication configuration failed.");
        return 0;
       }
@@ -249,7 +237,7 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 // Obtain the protocol
 //
    AuthParm.buffer = (char *)authBuff; AuthParm.size = strlen(authBuff);
-   if (!(AuthProt = secProtocol((char *)hname, netaddr, AuthParm, &eMsg)))
+   if (!(AuthProt = Sec.getProtocol((char *)hname, netaddr, AuthParm, &eMsg)))
       {Say.Emsg("Auth",hname,"getProtocol() failed;",eMsg.getErrText(rc));
        return 0;
       }
@@ -285,6 +273,12 @@ do {
    if (AuthProt) AuthProt->Delete();
    return (eText == 0);
 }
+
+/******************************************************************************/
+/*                            s e t S e c F u n c                             */
+/******************************************************************************/
+  
+void XrdCmsSecurity::setSecFunc(void *secfP) {Sec.ProtFunc = secfP;}
 
 /******************************************************************************/
 /*                           s e t S y s t e m I D                            */

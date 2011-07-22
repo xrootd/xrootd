@@ -27,7 +27,8 @@ XrdOfs *XrdOfsFS = 0;
 
 XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
                                              XrdSysLogger     *lp,
-                                             const char       *configfn)
+                                             const char       *configfn,
+                                             XrdOucEnv        *EnvInfo)
 {
    extern XrdSysError OfsEroute;
    static XrdOfs XrdDefaultOfsFS;
@@ -41,7 +42,7 @@ XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
 //
    XrdOfsFS = &XrdDefaultOfsFS;
    XrdOfsFS->ConfigFN = (configfn && *configfn ? strdup(configfn) : 0);
-   if ( XrdOfsFS->Configure(OfsEroute) ) return 0;
+   if ( XrdOfsFS->Configure(OfsEroute, EnvInfo) ) return 0;
 
 // All done, we can return the callout vector to these routines.
 //

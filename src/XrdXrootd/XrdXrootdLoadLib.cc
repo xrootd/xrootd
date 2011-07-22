@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$ 
-
-const char *XrdXrootdLoadLibCVSID = "$Id$";
-
 // Bypass Solaris ELF madness
 //
 #ifdef __solaris__
@@ -32,15 +28,6 @@ const char *XrdXrootdLoadLibCVSID = "$Id$";
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
-  
-/******************************************************************************/
-/*                        G l o b a l   S y m b o l s                         */
-/******************************************************************************/
-  
-XrdSecProtocol *(*XrdXrootdSecGetProtocol)(const char             *hostname,
-                                           const struct sockaddr  &netaddr,
-                                           const XrdSecParameters &parms,
-                                                 XrdOucErrInfo    *einfo) = 0;
 
 /******************************************************************************/
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
@@ -89,7 +76,8 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 /*                   x r o o t d _ l o a d S e c u r i t y                    */
 /******************************************************************************/
 
-XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib, char *cfn)
+XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib, 
+                                     char *cfn, void **secGetProt)
 {
    void *libhandle;
    XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
@@ -118,16 +106,12 @@ XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib, char *cfn
        return 0;
       }
 
-// Get the client object creator (in case we are acting as a client)
+// Get the client object creator (in case we are acting as a client). We return
+// the function pointer as a (void *) to the caller so that it can be passed
+// onward via an environment object.
 //
-   if (!(XrdXrootdSecGetProtocol = 
-                 (XrdSecProtocol *(*)(const char             *,
-                                      const struct sockaddr  &,
-                                      const XrdSecParameters &,
-                                            XrdOucErrInfo    *))
-                 dlsym(libhandle, "XrdSecGetProtocol")))
-      {eDest->Emsg("Config", dlerror(),
-                   "finding XrdSecGetProtocol() in", seclib);
+   if (!(*secGetProt = (void *)dlsym(libhandle, "XrdSecGetProtocol")))
+      {eDest->Emsg("Config",dlerror(),"finding XrdSecGetProtocol() in", seclib);
        return 0;
       }
 

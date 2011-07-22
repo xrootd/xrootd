@@ -7,12 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//          $Id$
-
-// Based on: XrdOdcManager.cc,v 1.13 2006/09/26 07:49:14 abh
-
-const char *XrdCmsClientManCVSID = "$Id$";
 
 #include <time.h>
 
@@ -33,9 +27,9 @@ using namespace XrdCms;
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-extern        XrdInet *XrdXrootdNetwork;
-
 XrdNetBufferQ XrdCmsClientMan::BuffQ(2048,64);
+
+XrdInet      *XrdCmsClientMan::Network = 0;
 
 char          XrdCmsClientMan::doDebug   = 0;
 
@@ -303,7 +297,7 @@ int XrdCmsClientMan::Hookup()
 // Keep trying to connect to the manager. Note that we bind the link to this
 // thread to make sure we get notified should another thread close the socket.
 //
-   do {while(!(lp = XrdXrootdNetwork->Connect(Host, Port, opts)))
+   do {while(!(lp = Network->Connect(Host, Port, opts)))
             {XrdSysTimer::Snooze(dally);
              if (tries--) opts = XRDNET_NOEMSG;
                 else     {opts = 0; tries = 12;}

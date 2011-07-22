@@ -88,8 +88,6 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
                 const char        *XrdXrootdInstance;
 
-                XrdInet           *XrdXrootdNetwork;
-
                 int                XrdXrootdPort;
 
 /******************************************************************************/
@@ -108,13 +106,16 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem
                             (XrdSfsFileSystem *nativeFS,
                              XrdSysLogger     *Logger,
-                             const char       *configFn);
-   extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, char *);
+                             const char       *configFn,
+                             XrdOucEnv        *EnvInfo);
+   extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, 
+                                                  char *, void **);
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, char *, 
                                                     const char *);
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
+   void *secGetProt = 0;
    char *adminp, *fsver, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 
@@ -136,7 +137,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Record globally accessible values
 //
    XrdXrootdInstance = pi->myInst;
-   XrdXrootdNetwork  = pi->NetTCP;
    XrdXrootdPort     = pi->Port;
 
 // Set the callback object static areas now!
@@ -215,7 +215,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
                           " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN)))
+            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN,
+                                              &secGetProt)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
                }
@@ -226,7 +227,12 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (FSLib)
       {TRACE(DEBUG, "Loading filesystem library " <<FSLib);
        osFS = XrdXrootdloadFileSystem(&eDest, FSLib, pi->ConfigFN);
-      } else osFS = XrdSfsGetDefaultFileSystem(0, eDest.logger(), pi->ConfigFN);
+      } else {
+       XrdOucEnv myEnv;
+       myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
+       myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
+       osFS = XrdSfsGetDefaultFileSystem(0,eDest.logger(),pi->ConfigFN,&myEnv);
+      }
    if (!osFS)
       {eDest.Emsg("Config", "Unable to load file system.");
        return 0;

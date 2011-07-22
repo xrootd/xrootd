@@ -38,6 +38,7 @@
 #include "XrdCms/XrdCmsParser.hh"
 #include "XrdCms/XrdCmsResp.hh"
 #include "XrdCms/XrdCmsRRData.hh"
+#include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOss/XrdOss.hh"
@@ -56,6 +57,8 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdCms;
+
+class XrdInet;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -105,11 +108,12 @@ XrdCmsFinderRMT::~XrdCmsFinderRMT()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdCmsFinderRMT::Configure(char *cfn)
+int XrdCmsFinderRMT::Configure(char *cfn, XrdOucEnv *envP)
 {
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configHow  How;
    XrdCmsClientConfig::configWhat What;
+   XrdInet *netP;
    int Topts = IsRedir;
 
 // Establish what we will be configuring
@@ -125,6 +129,15 @@ int XrdCmsFinderRMT::Configure(char *cfn)
 //
    if (config.Configure(cfn, What, How)) return 0;
    XrdCmsClientMan::setConfig(cfn);
+   if (envP) XrdCmsSecurity::setSecFunc(envP->GetPtr("XrdSecGetProtocol*"));
+
+// Establish the network interface that the caller must provide
+//
+   if (!envP || !(netP = (XrdInet *)envP->GetPtr("XrdInet*")))
+      {Say.Emsg("Finder", "Network not defined; unable to connect to cmsd.");
+       return 0;
+      }
+   XrdCmsClientMan::setNetwork(netP);
 
 // Set configured values and start the managers
 //
@@ -754,7 +767,7 @@ void *XrdCmsStartRsp(void *carg)
        return mp->Start();
       }
   
-int XrdCmsFinderTRG::Configure(char *cfn)
+int XrdCmsFinderTRG::Configure(char *cfn, XrdOucEnv *envP)
 {
    XrdCmsClientConfig             config;
    XrdCmsClientConfig::configWhat What;
@@ -765,7 +778,9 @@ int XrdCmsFinderTRG::Configure(char *cfn)
                    : XrdCmsClientConfig::configServer);
 
 // Set the error dest and simply call the configration object and if
-// successful, run the Admin thread
+// successful, run the Admin thread. Note that unlike FinderRMT, we do not
+// extract the security function pointer or the network object pointer from
+// the environment as we don't need these at all.
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
    return RunAdmin(config.CMSPath);

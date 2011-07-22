@@ -255,7 +255,8 @@ $(OBJDIR)/XrdCmsFinder.o:    XrdCmsFinder.cc     XrdCmsFinder.hh \
                              XrdCmsClient.hh     XrdCmsClientConfig.hh \
                              XrdCmsClientMan.hh  XrdCmsClientMsg.hh \
                              XrdCmsParser.hh     XrdCmsResp.hh \
-                             XrdCmsRRData.hh     XrdCmsTrace.hh \
+                             XrdCmsRRData.hh     XrdCmsSecurity.hh \
+                             XrdCmsTrace.hh \
                              XrdSysDNS.hh        XrdNetOpts.hh \
                              XrdNetSocket.hh \
                              XrdOucEnv.hh        XrdOucErrInfo.hh \
