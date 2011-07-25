@@ -1320,52 +1320,14 @@ ERemoteServerType XrdClientConn::DoHandShake(short int log) {
 
     if (!phyconn || !phyconn->IsValid()) return kSTError;
 
-
     {
       XrdClientPhyConnLocker pl(phyconn);
 
-      if (phyconn->fServerType == kSTBaseXrootd) {
+      if( phyconn->fServerType != kSTNone )
+        type = phyconn->fServerType;
+      else
+        type = phyconn->DoHandShake( xbody );
 
-	Info(XrdClientDebug::kUSERDEBUG,
-	     "DoHandShake",
-	     "The physical channel is already bound to a load balancer"
-	     " server [" <<
-	     fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
-
-	fServerProto = phyconn->fServerProto;
-
-	if (!fLBSUrl || (fLBSUrl->Host == "")) {
-
-	  Info(XrdClientDebug::kHIDEBUG,
-	       "DoHandShake", "Setting Load Balancer Server Url = " <<
-	       fUrl.GetUrl() );
-
-	  // Save the url of load balancer server for future uses...
-	  fLBSUrl = new XrdClientUrlInfo(fUrl.GetUrl());
-	  if(!fLBSUrl) {
-	    Error("DoHandShake","Object creation "
-		  " failed. Probable system resources exhausted.");
-	    abort();
-	  }
-	}
-	return kSTBaseXrootd;
-      }
-
-
-      if (phyconn->fServerType == kSTDataXrootd) {
-
-	if (DebugLevel() >= XrdClientDebug::kHIDEBUG)
-	  Info(XrdClientDebug::kHIDEBUG,
-	       "DoHandShake",
-	       "The physical channel is already bound to the data server"
-	       " [" << fUrl.Host << ":" << fUrl.Port << "]. No handshake is needed.");
-
-	fServerProto = phyconn->fServerProto;
-
-	return kSTDataXrootd;
-      }
-
-      type = phyconn->DoHandShake(xbody);
       if (type == kSTError) return type;
 
       // Check if the server is the eXtended rootd or not, checking the value 
