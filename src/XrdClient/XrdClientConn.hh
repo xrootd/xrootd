@@ -195,6 +195,7 @@ public:
     kXR_unt16                  GetStreamID() const { return fPrimaryStreamid; }
 
     inline XrdClientUrlInfo    *GetLBSUrl() { return fLBSUrl; }
+    inline XrdClientUrlInfo    *GetMetaUrl() { return fMetaUrl; }
     inline XrdClientUrlInfo    GetCurrentUrl() { return fUrl; }
     inline XrdClientUrlInfo    GetRedirUrl() { return fREQUrl; }
 

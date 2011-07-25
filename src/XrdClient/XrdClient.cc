@@ -359,7 +359,6 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 	return FALSE;
     }
 
-  
     //
     // Variable initialization
     // If the server is a new xrootd ( load balancer or data server)
@@ -1006,6 +1005,71 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     }
 
+    //--------------------------------------------------------------------------
+    // We have failed during authentication, normally this is fatal, but
+    // we can check if we have seen a meta manager so that we could ask it to
+    // send us to another cluster
+    //--------------------------------------------------------------------------
+    if( fConnModule->GetMetaUrl() )
+    {
+      while( fConnModule->LastServerError.errnum == kXR_NotAuthorized )
+      {
+
+        if( fConnModule->GetRedirCnt() > fConnModule->GetMaxRedirCnt() )
+          break;
+
+        //----------------------------------------------------------------------
+        // We have seen a manager that is not the same as the meta manager,
+        // so we need to exclude it
+        //----------------------------------------------------------------------
+        if( fConnModule->GetLBSUrl() &&
+            ((fConnModule->GetLBSUrl()->Host != fConnModule->GetMetaUrl()->Host) ||
+             (fConnModule->GetLBSUrl()->Port != fConnModule->GetMetaUrl()->Port) ) )
+        {
+          fExcludedHosts.push_back( fConnModule->GetLBSUrl()->Host.c_str() );
+        }
+
+        //----------------------------------------------------------------------
+        // We also exclude the current host if different from the manager,
+        // just in case
+        //----------------------------------------------------------------------
+        if( fConnModule->GetLBSUrl() &&
+            ((fConnModule->GetCurrentUrl().Host != fConnModule->GetMetaUrl()->Host) ||
+             (fConnModule->GetCurrentUrl().Port != fConnModule->GetMetaUrl()->Port) ) )
+        {
+          fExcludedHosts.push_back( fConnModule->GetCurrentUrl().Host.c_str() );
+        }
+
+        //----------------------------------------------------------------------
+        // Ask the metamanager to redirect us to another host
+        //----------------------------------------------------------------------
+        std::string excludedHosts = "&tried=";
+        std::vector<std::string>::iterator it;
+        for( it = fExcludedHosts.begin(); it != fExcludedHosts.end(); ++it )
+        {
+          excludedHosts += *it;
+          excludedHosts += ",";
+        }
+
+        Info( XrdClientDebug::kUSERDEBUG,
+              "Open",
+              "Back to " << fConnModule->GetMetaUrl()->Host << " " <<
+              fConnModule->GetMetaUrl()->Port <<
+              ". Refreshing cache. Opaque info: " << excludedHosts );
+
+        fConnModule->Disconnect( true );
+
+        if( (fConnModule->GoToAnotherServer( *fConnModule->GetMetaUrl() ) == kOK) &&
+             LowOpen( fUrl.File.c_str(), mode, options | kXR_refresh,
+                      (char *)excludedHosts.c_str() ) )
+        {
+          XrdClientMStream::EstablishParallelStreams(fConnModule);
+          TerminateOpenAttempt();
+          return true;
+        }
+      }
+    }
+
     // If the open request failed for the error "file not found" proceed, 
     // otherwise return FALSE
     if ( (fConnModule->LastServerResp.status != kXR_error) ||
@@ -1016,7 +1080,6 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
 	return FALSE;
     }
-
 
     // If connected to a host saying "File not Found" or similar then...
 

@@ -1550,7 +1550,7 @@ bool XrdClientConn::DoLogin()
 	    resp = (secp != 0) ? 1 : 0;
 	}
 
-
+        if( resp ) {
 	if (prevsessid) {
 	    //
 	    // We have to kill the previous session, if any
@@ -1600,7 +1600,7 @@ bool XrdClientConn::DoLogin()
 	    fSessionIDRepo.Rep(sessname.c_str(), newsessid);
 	}
 
-    }
+    } } //resp
 
     // Flag success if everything went ok
     {
@@ -2068,7 +2068,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
 {
     // Re-directs to another server
-   
+
     fGettingAccessToSrv = false; 
 
     if (!newdest.Port) newdest.Port = 1094;

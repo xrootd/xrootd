@@ -45,6 +45,8 @@
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 #include "XrdVersion.hh"
+#include <vector>
+#include <string>
 
 
 class XrdClientReadAheadMgr;
@@ -291,7 +293,7 @@ public:
     // Write data to the file
     bool                        Write(const void *buf, long long offset, int len);
 
-
+    std::vector<std::string> fExcludedHosts;
 
 };
 
