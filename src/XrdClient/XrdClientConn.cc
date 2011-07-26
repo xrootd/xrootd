@@ -2103,6 +2103,23 @@ XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
 }
 
 //_____________________________________________________________________________
+XReqErrorType XrdClientConn::GoToMetaManager()
+{
+  if( !fMetaUrl )
+    return kGENERICERR;
+
+  //----------------------------------------------------------------------------
+  // We go back to the meta manager so we need to forget the manager that
+  // we have encountered
+  //----------------------------------------------------------------------------
+  delete fLBSUrl;
+  fLBSUrl    = new XrdClientUrlInfo( fMetaUrl->GetUrl() );
+  fLBSIsMeta = true;
+  return GoToAnotherServer( *fMetaUrl );
+}
+
+
+//_____________________________________________________________________________
 XReqErrorType XrdClientConn::GoBackToRedirector() {
   // This is a primitive used to force a client to consider again
   // the root node as the default connection, even after requests that involve

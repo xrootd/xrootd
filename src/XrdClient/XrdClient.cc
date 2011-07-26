@@ -1010,7 +1010,9 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     // we can check if we have seen a meta manager so that we could ask it to
     // send us to another cluster
     //--------------------------------------------------------------------------
-    if( fConnModule->GetMetaUrl() )
+    if( fConnModule->GetMetaUrl() &&
+        ((fConnModule->GetCurrentUrl().Host != fConnModule->GetMetaUrl()->Host) ||
+         (fConnModule->GetCurrentUrl().Port != fConnModule->GetMetaUrl()->Port)) )
     {
       while( fConnModule->LastServerError.errnum == kXR_NotAuthorized )
       {
@@ -1034,8 +1036,8 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
         // just in case
         //----------------------------------------------------------------------
         if( fConnModule->GetLBSUrl() &&
-            ((fConnModule->GetCurrentUrl().Host != fConnModule->GetMetaUrl()->Host) ||
-             (fConnModule->GetCurrentUrl().Port != fConnModule->GetMetaUrl()->Port) ) )
+            ((fConnModule->GetCurrentUrl().Host != fConnModule->GetLBSUrl()->Host) ||
+             (fConnModule->GetCurrentUrl().Port != fConnModule->GetLBSUrl()->Port) ) )
         {
           fExcludedHosts.push_back( fConnModule->GetCurrentUrl().Host.c_str() );
         }
@@ -1059,7 +1061,7 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
         fConnModule->Disconnect( true );
 
-        if( (fConnModule->GoToAnotherServer( *fConnModule->GetMetaUrl() ) == kOK) &&
+        if( (fConnModule->GoToMetaManager() == kOK) &&
              LowOpen( fUrl.File.c_str(), mode, options | kXR_refresh,
                       (char *)excludedHosts.c_str() ) )
         {

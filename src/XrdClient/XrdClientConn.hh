@@ -201,6 +201,7 @@ public:
 
     XErrorCode                 GetOpenError() const { return fOpenError; }
     virtual XReqErrorType      GoToAnotherServer(XrdClientUrlInfo &newdest);
+    virtual XReqErrorType      GoToMetaManager();
     bool                       IsConnected() const { return fConnected; }
     bool                       IsPhyConnConnected();
 
