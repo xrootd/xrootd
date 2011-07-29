@@ -77,6 +77,8 @@ Version 3.1.0
      writing an ofs plugin easier.
 
 + **Miscellaneous**
+   * Do not echo lines qualified by an in-line if when the if fails.
+   * Remove the old "redirect" directive. It has passed its prime.
    * Remove back references to symbols defined in XrdXrootd package used by
      the cms client to allow for clean shared library builds.
    * Remove externs to XrdSecGetProtocol and XrdSecGetService from

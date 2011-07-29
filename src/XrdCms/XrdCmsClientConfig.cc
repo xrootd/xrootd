@@ -400,6 +400,7 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
        if ((rc = XrdOucUtils::doIf(&Say,Config,"role directive",myHost, myName,
                                    getenv("XRDPROG"))) <= 0)
           {free(mval);
+           if (!rc) Config.noEcho();
            return (rc < 0);
           }
 

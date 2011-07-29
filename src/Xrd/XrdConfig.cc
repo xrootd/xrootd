@@ -1005,7 +1005,8 @@ int XrdConfig::xport(XrdSysError *eDest, XrdOucStream &Config)
 
     if ((val = Config.GetWord()) && !strcmp("if", val))
        if ((rc = XrdOucUtils::doIf(eDest,Config, "port directive", myName,
-                              ProtInfo.myInst, myProg)) <= 0) return (rc < 0);
+                              ProtInfo.myInst, myProg)) <= 0)
+          {if (!rc) Config.noEcho(); return (rc < 0);}
 
     if ((pnum = yport(eDest, "tcp", cport)) < 0) return 1;
     if (iswan) PortWAN = pnum;

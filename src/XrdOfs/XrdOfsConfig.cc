@@ -499,7 +499,6 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("notifymsg",     xnmsg);
     TS_Xeq("osslib",        xolib);
     TS_Xeq("persist",       xpers);
-    TS_Xeq("redirect",      xred);     // Deprecated
     TS_Xeq("role",          xrole);
     TS_Xeq("trace",         xtrace);
 
@@ -1034,55 +1033,6 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 }
 
 /******************************************************************************/
-/*                                  x r e d                                   */
-/******************************************************************************/
-
-/* Function: xred
-
-   Purpose:  Parse directive: redirect [proxy|remote|target] [if ...]
-
-   Args:     proxy    - enables this server for proxy   load balancing
-             remote   - enables this server for dynamic load balancing
-             target   - enables this server as a redirection target
-             if       - applies directive if "if" is true. 
-                        See XrdOucUtils::doIf() for syntax.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdOfs::xred(XrdOucStream &Config, XrdSysError &Eroute)
-{
-    const char *mode = "remote";
-    char *val;
-    int rc, ropt = 0;
-
-    Eroute.Say("Config warning: redirect directive is deprecated; use 'all.role'.");
-
-    if ((val = Config.GetWord()))
-       {     if (!strcmp("proxy",  val)) {ropt = isProxy;
-                                          mode = "proxy";
-                                         }
-        else if (!strcmp("remote", val))  ropt = isManager;
-        else if (!strcmp("target", val)) {ropt = isServer;
-                                          mode = "target";
-                                         }
-       }
-
-    if (!ropt) ropt = isManager;
-       else if (val) val = Config.GetWord();
-
-    if (val)
-       {if (strcmp("if", val)) Config.RetToken();
-        if ((rc = XrdOucUtils::doIf(&Eroute, Config, "redirect directive",
-                                   getenv("XRDHOST"), XrdOucUtils::InstName(1),
-                                   getenv("XRDPROG"))) <= 0)
-           return (rc < 0);
-       }
-    Options |= ropt;
-    return 0;
-}
-
-/******************************************************************************/
 /*                                 x r o l e                                  */
 /******************************************************************************/
 
@@ -1192,7 +1142,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
        if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
                                    getenv("XRDHOST"), XrdOucUtils::InstName(1),
                                    getenv("XRDPROG"))) <= 0)
-           return (rc < 0);
+          {if (!rc) Config.noEcho(); return (rc < 0);}
 
 // Set values
 //

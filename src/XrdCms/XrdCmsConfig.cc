@@ -1806,7 +1806,8 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
             return 1;
            }
         if ((i=XrdOucUtils::doIf(eDest,CFile,"manager directive",
-                            myName,myInsName,myProg))<=0) return i < 0;
+                            myName,myInsName,myProg))<=0)
+           {if (!i) CFile.noEcho(); return i < 0;}
        }
 
     i = strlen(mval);
@@ -2363,7 +2364,10 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
    if (val && !strcmp("if", val))
       if ((rc = XrdOucUtils::doIf(eDest,CFile,"role directive",
                              myName,myInsName,myProg)) <= 0)
-         {free(Tok1); if (Tok2) free(Tok2); return (rc < 0);}
+         {free(Tok1); if (Tok2) free(Tok2);
+          if (!rc) CFile.noEcho();
+          return (rc < 0);
+         }
 
 // Convert the role names to a role ID, if possible
 //

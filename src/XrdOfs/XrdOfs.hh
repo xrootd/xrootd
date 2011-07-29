@@ -373,7 +373,6 @@ int           xnmsg(XrdOucStream &, XrdSysError &);
 int           xnot(XrdOucStream &, XrdSysError &);
 int           xolib(XrdOucStream &, XrdSysError &);
 int           xpers(XrdOucStream &, XrdSysError &);
-int           xred(XrdOucStream &, XrdSysError &);
 int           xrole(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
 };
