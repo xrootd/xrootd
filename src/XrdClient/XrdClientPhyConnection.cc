@@ -710,7 +710,7 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 
    clientMarshall( &req );
    len = sizeof( req ) + sizeof( initHS );
-   char buffer[len];
+   char buffer[sizeof(req)+sizeof(initHS)];
    memcpy( buffer, &initHS, sizeof( initHS ) );
    memcpy( buffer+sizeof( initHS ), &req, sizeof( req ) );
    writeres = WriteRaw( buffer, len, substreamid );
