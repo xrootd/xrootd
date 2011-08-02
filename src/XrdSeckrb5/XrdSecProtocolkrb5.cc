@@ -207,14 +207,17 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return new XrdSecCredentials(0,0);
       }
 
-// Set KRB5CCNAME to its dfault value, if not done
+// Set KRB5CCNAME to its default value, if not done
 //
    if (!getenv("KRB5CCNAME")) {
       char ccname[128];
-      sprintf(ccname, "KRB5CCNAME=FILE:/tmp/krb5cc_%d", geteuid());
-      putenv(strdup(ccname));
+      sprintf(ccname, "/tmp/krb5cc_%d", geteuid());
+      if (access(ccname, R_OK) == 0) {
+         sprintf(ccname, "KRB5CCNAME=FILE:/tmp/krb5cc_%d", geteuid());
+         putenv(strdup(ccname));
+      }
    }
-   CLDBG(getenv("KRB5CCNAME"));
+   CLDBG((getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "KRB5CCNAME unset"));
 	 
 // Initialize the context and get the cache default.
 //
