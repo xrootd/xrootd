@@ -96,12 +96,16 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
    // Try the full match first
    if ((mc = gMappings.Find(dn))) {
       // Get the associated user
-      name = strdup(mc->val.c_str());
+      name = new char[mc->val.length() + 1];
+      strcpy(name, mc->val.c_str());
    } else {
       // Else scan the avaulable mappings
       mc = new XrdSecgsiMapEntry_t(dn, "", kFull);
       gMappings.Apply(FindMatchingCondition, (void *)mc);
-      if (mc->user.length() > 0) name = strdup(mc->user.c_str());
+      if (mc->user.length() > 0) {
+         name = new char[mc->user.length() + 1];
+         strcpy(name, mc->user.c_str());
+      }
    }
    DEBUG("mapping DN '"<<dn<<"' to '"<<name<<"'");
   

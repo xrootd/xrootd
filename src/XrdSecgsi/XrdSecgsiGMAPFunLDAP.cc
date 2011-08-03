@@ -60,7 +60,8 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
          // Look for a line starting with "uid: "
          if (!strncmp(line, att, strlen(att))) {
             sscanf(line, "%s %s", att, uname);
-            name = strdup(uname);
+            name = new char[strlen(uname)+1];
+            strcpy(name, uname);
             break;
          }
       }
