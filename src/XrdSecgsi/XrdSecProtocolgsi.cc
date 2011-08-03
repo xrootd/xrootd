@@ -4375,8 +4375,9 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
          cent->cnt = 0;
          cent->mtime = now; // creation time
          // Add username
-         SafeFree(cent->buf1.buf);
-         cent->buf1.buf = strdup(usr.c_str());
+         SafeDelArray(cent->buf1.buf);
+         cent->buf1.buf = new char[usr.length() + 1];
+         strcpy(cent->buf1.buf, usr.c_str());
          cent->buf1.len = usr.length();
       }
    }
@@ -4450,7 +4451,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
             if (name) {
                cent->status = kPFE_ok;
                // Add username
-               SafeFree(cent->buf1.buf);
+               SafeDelArray(cent->buf1.buf);
                cent->buf1.buf = name;
                cent->buf1.len = strlen(name);
             } else {
