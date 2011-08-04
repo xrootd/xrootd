@@ -84,7 +84,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( WarningMsg ), pMask( 0x1111111111111111 )
+      Log(): pLevel( WarningMsg ), pMask( 0xffffffffffffffff )
       {
         pOutput = new LogOutCerr();
       }
