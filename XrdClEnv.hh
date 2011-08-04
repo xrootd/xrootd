@@ -1,0 +1,85 @@
+//------------------------------------------------------------------------------
+// Author: Lukasz Janyst <ljanyst@cern.ch>
+//------------------------------------------------------------------------------
+
+#ifndef __XRD_CL_ENV_HH__
+#define __XRD_CL_ENV_HH__
+
+#include <map>
+#include <string>
+#include <utility>
+
+#include "XrdSys/XrdSysPthread.hh"
+
+namespace XrdClient
+{
+  //----------------------------------------------------------------------------
+  //! A simple key value store intended to hold global configuration.
+  //! It is able to import the settings from the shell environment, the
+  //! variables imported this way surceede these provided from the C++
+  //! code.
+  //----------------------------------------------------------------------------
+  class Env
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~Env() {}
+
+      //------------------------------------------------------------------------
+      //! Get a string associated to the given key
+      //!
+      //! @return true if the value was found, false otherwise
+      //------------------------------------------------------------------------
+      bool GetString( const std::string &key, std::string &value );
+
+      //------------------------------------------------------------------------
+      //! Associate a string with the given key
+      //!
+      //! @return false if there is already a shell-imported setting for this
+      //!         key, true otherwise
+      //------------------------------------------------------------------------
+      bool PutString( const std::string &key, const std::string &value );
+
+      //------------------------------------------------------------------------
+      //! Get an int associated to the given key
+      //!
+      //! @return true if the value was found, false otherwise
+      //------------------------------------------------------------------------
+      bool GetInt( const std::string &key, int &value );
+
+      //------------------------------------------------------------------------
+      //! Associate an int with the given key
+      //!
+      //! @return false if there is already a shell-imported setting for this
+      //!         key, true otherwise
+      //------------------------------------------------------------------------
+      bool PutInt( const std::string &key, int value );
+
+      //------------------------------------------------------------------------
+      //! Import an int from the shell environment
+      //!
+      //! @return true if the setting exists in the shell, false otherwise
+      //------------------------------------------------------------------------
+      bool ImportInt( const std::string &key, const std::string &shellKey );
+
+      //------------------------------------------------------------------------
+      //! Import a string from the shell environment
+      //!
+      //! @return true if the setting exists in the shell, false otherwise
+      //------------------------------------------------------------------------
+      bool ImportString( const std::string &key, const std::string &shellKey );
+
+    private:
+      std::string GetEnv( const std::string &key );
+      typedef std::map<std::string, std::pair<std::string, bool> > StringMap;
+      typedef std::map<std::string, std::pair<int, bool> >         IntMap;
+
+      XrdSysRWLock pLock;
+      StringMap    pStringMap;
+      IntMap       pIntMap;
+  };
+}
+
+#endif // __XRD_CL_ENV_HH__

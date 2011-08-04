@@ -13,9 +13,11 @@ set( XRD_CL_SOVERSION 0 )
 add_library(
   XrdCl
   SHARED
-  XrdClLog.cc     XrdClLog.hh
-                  XrdClOptimizers.hh
-                  XrdClConstants.hh
+  XrdClLog.cc          XrdClLog.hh
+                       XrdClOptimizers.hh
+                       XrdClConstants.hh
+  XrdClEnv.cc          XrdClEnv.hh
+  XrdClDefaultEnv.cc   XrdClDefaultEnv.hh
 )
 
 target_link_libraries(
