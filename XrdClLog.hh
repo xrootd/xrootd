@@ -201,6 +201,16 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
+      //! Set the level of the messages that should be sent to the destination
+      //------------------------------------------------------------------------
+      void SetLevel( const std::string &level )
+      {
+        LogLevel lvl;
+        if( StringToLogLevel( level, lvl ) )
+          pLevel = lvl;
+      }
+
+      //------------------------------------------------------------------------
       //! Set the output that should be used.
       //------------------------------------------------------------------------
       void SetOutput( LogOut *output )
@@ -226,6 +236,7 @@ namespace XrdClient
 
     private:
       std::string LogLevelToString( LogLevel level );
+      bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
 
       static Log *sDefaultLog;
       LogLevel    pLevel;

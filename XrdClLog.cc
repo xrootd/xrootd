@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <cstdio>
+#include <cstdlib>
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -154,7 +155,21 @@ namespace XrdClient
       default:
         return "Unknown Level";
     }
-    return "Unknown Levle";
+    return "Unknown Level";
+  }
+
+  //----------------------------------------------------------------------------
+  // Convert a string to LogLevel
+  //----------------------------------------------------------------------------
+  bool Log::StringToLogLevel( const std::string &strLevel, LogLevel &level )
+  {
+    if( strLevel == "Error" )        level = ErrorMsg;
+    else if( strLevel == "Warning" ) level = WarningMsg;
+    else if( strLevel == "Info" )    level = InfoMsg;
+    else if( strLevel == "Debug" )   level = DebugMsg;
+    else if( strLevel == "Dump" )    level = DumpMsg;
+    else return false;
+    return true;
   }
 }
 
@@ -165,10 +180,42 @@ namespace
 {
   struct LogInitializer
   {
+    //--------------------------------------------------------------------------
+    // Initializer
+    //--------------------------------------------------------------------------
     LogInitializer()
     {
       using namespace XrdClient;
-      Log::GetDefaultLog();
+      Log *log = Log::GetDefaultLog();
+
+      //------------------------------------------------------------------------
+      // Check if the log level has been defined in the environment
+      //------------------------------------------------------------------------
+      char *level = getenv( "XRD_LOGLEVEL" );
+      if( level )
+        log->SetLevel( level );
+
+      //------------------------------------------------------------------------
+      // Check if we need to log to a file
+      //------------------------------------------------------------------------
+      char *file = getenv( "XRD_LOGFILE" );
+      if( file )
+      {
+        LogOutFile *out = new LogOutFile();
+        if( out->Open( file ) )
+          log->SetOutput( out );
+        else
+          delete out;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Finalizer
+    //--------------------------------------------------------------------------
+    ~LogInitializer()
+    {
+      using namespace XrdClient;
+      delete Log::GetDefaultLog();
     }
   };
   static LogInitializer initialized;

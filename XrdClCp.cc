@@ -10,7 +10,6 @@ int main( int argc, char **argv )
 {
   using namespace XrdClient;
   Log *log = Log::GetDefaultLog();
-  log->SetLevel( Log::DumpMsg );
   log->Error( AppMsg, "%s %s %d", "krowa", "krokodyl", 12 );
   log->Warning( AppMsg, "%s %s %d\n%s\n%d\n%d", "krowa", "krokodyl", 12, "telewizor", 3, 14 );
 
