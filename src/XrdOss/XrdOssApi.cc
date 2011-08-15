@@ -961,7 +961,8 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 // then get a shared lock on the file to keep it from being migrated or purged
 // while it is open. This is advisory so we can ignore any errors.
 //
-   if (popts & XRDEXP_PURGE || (popts & XRDEXP_MIG && Oflag & isWritable))
+   if (myfd >= 0
+   && (popts & XRDEXP_PURGE || (popts & XRDEXP_MIG && Oflag & isWritable)))
       {FLOCK_t lock_args;
        bzero(&lock_args, sizeof(lock_args));
        lock_args.l_type = F_RDLCK;
