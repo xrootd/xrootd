@@ -3,7 +3,10 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
+
+#include <map>
 
 namespace XrdClient
 {
@@ -22,6 +25,33 @@ namespace XrdClient
       sDefaultLog = new Log();
     return sDefaultLog;
   }
+
+  //----------------------------------------------------------------------------
+  // Split string
+  //----------------------------------------------------------------------------
+  void Utils::splitString( std::vector<std::string> &result,
+                           const std::string  &input,
+                           const std::string  &delimiter )
+  {
+    size_t start  = 0;
+    size_t end    = 0;
+    size_t length = 0;
+
+    do
+    {
+      end = input.find( delimiter, start );
+
+      if( end != std::string::npos )
+        length = end - start;
+      else
+        length = std::string::npos;
+
+      result.push_back( input.substr( start, length ) );
+
+      start = end + delimiter.size();
+    }
+    while( end != std::string::npos );
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -29,6 +59,54 @@ namespace XrdClient
 //------------------------------------------------------------------------------
 namespace
 {
+  //----------------------------------------------------------------------------
+  // Translate a string into a topic mask
+  //----------------------------------------------------------------------------
+  struct MaskTranslator
+  {
+    //--------------------------------------------------------------------------
+    // Initialize the translation array
+    //--------------------------------------------------------------------------
+    MaskTranslator()
+    {
+      masks["AppMsg"]     = XrdClient::AppMsg;
+      masks["UtilityMsg"] = XrdClient::UtilityMsg;
+      masks["FileMsg"]    = XrdClient::FileMsg;
+    }
+
+    //--------------------------------------------------------------------------
+    // Translate the mask
+    //--------------------------------------------------------------------------
+    uint64_t translateMask( const std::string mask )
+    {
+      if( mask == "" || mask == "All" )
+        return 0xffffffffffffffff;
+
+      if( mask == "None" )
+        return 0;
+
+      std::vector<std::string>           topics;
+      std::vector<std::string>::iterator it;
+      XrdClient::Utils::splitString( topics, mask, "|" );
+
+      uint64_t resultMask = 0;
+      std::map<std::string, uint64_t>::iterator maskIt;
+      for( it = topics.begin(); it != topics.end(); ++it )
+      {
+        maskIt = masks.find( *it );
+        if( maskIt != masks.end() )
+          resultMask |= maskIt->second;
+      }
+
+      return resultMask;
+    }
+
+    std::map<std::string, uint64_t> masks;
+  };
+
+  //----------------------------------------------------------------------------
+  // Initialize the log
+  //----------------------------------------------------------------------------
   struct LogInitializer
   {
     //--------------------------------------------------------------------------
@@ -57,6 +135,16 @@ namespace
           log->SetOutput( out );
         else
           delete out;
+      }
+
+      //------------------------------------------------------------------------
+      // Initialize the topic mask
+      //------------------------------------------------------------------------
+      char *logMask = getenv( "XRD_LOGMASK" );
+      if( logMask )
+      {
+        MaskTranslator translator;
+        log->SetMask( translator.translateMask( logMask ) );
       }
     }
 

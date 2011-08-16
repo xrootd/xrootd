@@ -5,6 +5,9 @@
 #ifndef __XRD_CL_UTILS_HH__
 #define __XRD_CL_UTILS_HH__
 
+#include <string>
+#include <vector>
+
 namespace XrdClient
 {
   class Log;
@@ -19,6 +22,13 @@ namespace XrdClient
       //! Get a default log.
       //------------------------------------------------------------------------
       static Log *GetDefaultLog();
+
+      //------------------------------------------------------------------------
+      // Split a string
+      //------------------------------------------------------------------------
+      static void splitString( std::vector<std::string> &result,
+                               const std::string        &input,
+                               const std::string        &delimiter );
 
     private:
       static Log *sDefaultLog;
