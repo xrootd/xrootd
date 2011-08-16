@@ -6,6 +6,7 @@
 
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClConstants.hh"
 
 namespace XrdClient
@@ -20,7 +21,7 @@ namespace XrdClient
     it = pStringMap.find( key );
     if( it == pStringMap.end() )
     {
-      Log *log = Log::GetDefaultLog();
+      Log *log = Utils::GetDefaultLog();
       log->Debug( UtilityMsg,
                   "Env: trying to get a non-existent string entry: %s",
                   key.c_str() );
@@ -51,7 +52,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // The entry exists and it has been imported from the shell
     //--------------------------------------------------------------------------
-    Log *log = Log::GetDefaultLog();
+    Log *log = Utils::GetDefaultLog();
     if( it->second.second )
     {
       log->Debug( UtilityMsg,
@@ -76,7 +77,7 @@ namespace XrdClient
     it = pIntMap.find( key );
     if( it == pIntMap.end() )
     {
-      Log *log = Log::GetDefaultLog();
+      Log *log = Utils::GetDefaultLog();
       log->Debug( UtilityMsg,
                   "Env: trying to get a non-existent integer entry: %s",
                   key.c_str() );
@@ -107,7 +108,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // The entry exists and it has been imported from the shell
     //--------------------------------------------------------------------------
-    Log *log = Log::GetDefaultLog();
+    Log *log = Utils::GetDefaultLog();
     if( it->second.second )
     {
       log->Debug( UtilityMsg,
@@ -133,7 +134,7 @@ namespace XrdClient
     if( strValue == "" )
       return false;
 
-    Log *log = Log::GetDefaultLog();
+    Log *log = Utils::GetDefaultLog();
     char *endPtr;
     int value = (int)strtol( strValue.c_str(), &endPtr, 0 );
     if( *endPtr )
@@ -161,7 +162,7 @@ namespace XrdClient
     if( value == "" )
       return false;
 
-    Log *log = Log::GetDefaultLog();
+    Log *log = Utils::GetDefaultLog();
     log->Info( UtilityMsg, "Env: Importing from shell %s=%s as %s",
                shellKey.c_str(), value.c_str(), key.c_str() );
     pStringMap[key] = std::make_pair( value, true );
@@ -173,7 +174,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   std::string Env::GetEnv( const std::string &key )
   {
-    Log *log = Log::GetDefaultLog();
+    Log *log = Utils::GetDefaultLog();
     char *var = getenv( key.c_str() );
     if( !var )
       return "";

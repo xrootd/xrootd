@@ -227,18 +227,10 @@ namespace XrdClient
         pMask = mask;
       }
 
-      //------------------------------------------------------------------------
-      //! Get a default log.
-      //! Currently no other log is supported so it's more of a singleton
-      //! implementation than anything else.
-      //------------------------------------------------------------------------
-      static Log *GetDefaultLog();
-
     private:
       std::string LogLevelToString( LogLevel level );
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
 
-      static Log *sDefaultLog;
       LogLevel    pLevel;
       uint64_t    pMask;
       LogOut     *pOutput;

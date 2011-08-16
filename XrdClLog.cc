@@ -120,22 +120,6 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
-  // Get a default logger
-  //----------------------------------------------------------------------------
-  Log *Log::sDefaultLog = 0;
-
-  Log *Log::GetDefaultLog()
-  {
-    //--------------------------------------------------------------------------
-    // This is actually thread safe because it is first called from
-    // a static initializer in a thread safe context
-    //--------------------------------------------------------------------------
-    if( unlikely( !sDefaultLog ) )
-      sDefaultLog = new Log();
-    return sDefaultLog;
-  }
-
-  //----------------------------------------------------------------------------
   // Convert log level to string
   //----------------------------------------------------------------------------
   std::string Log::LogLevelToString( LogLevel level )
@@ -171,52 +155,4 @@ namespace XrdClient
     else return false;
     return true;
   }
-}
-
-//------------------------------------------------------------------------------
-// Default log initialization
-//------------------------------------------------------------------------------
-namespace
-{
-  struct LogInitializer
-  {
-    //--------------------------------------------------------------------------
-    // Initializer
-    //--------------------------------------------------------------------------
-    LogInitializer()
-    {
-      using namespace XrdClient;
-      Log *log = Log::GetDefaultLog();
-
-      //------------------------------------------------------------------------
-      // Check if the log level has been defined in the environment
-      //------------------------------------------------------------------------
-      char *level = getenv( "XRD_LOGLEVEL" );
-      if( level )
-        log->SetLevel( level );
-
-      //------------------------------------------------------------------------
-      // Check if we need to log to a file
-      //------------------------------------------------------------------------
-      char *file = getenv( "XRD_LOGFILE" );
-      if( file )
-      {
-        LogOutFile *out = new LogOutFile();
-        if( out->Open( file ) )
-          log->SetOutput( out );
-        else
-          delete out;
-      }
-    }
-
-    //--------------------------------------------------------------------------
-    // Finalizer
-    //--------------------------------------------------------------------------
-    ~LogInitializer()
-    {
-      using namespace XrdClient;
-      delete Log::GetDefaultLog();
-    }
-  };
-  static LogInitializer initialized;
 }
