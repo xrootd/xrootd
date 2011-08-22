@@ -54,7 +54,7 @@ XrdSutCache::~XrdSutCache()
 }
 
 //__________________________________________________________________
-int XrdSutCache::Init(int capacity)
+int XrdSutCache::Init(int capacity, bool lock)
 {
    // Initialize the cache to hold up to capacity entries.
    // Later on, capacity is double each time more space is needed. 
@@ -62,8 +62,8 @@ int XrdSutCache::Init(int capacity)
    EPNAME("Cache::Init");
 
    // Lock for writing
-   XrdSysRWLockHelper isg(rwlock, 0);
-
+   if (lock) rwlock.WriteLock();
+   
    // Make sure capacity makes sense; use a default, if not
    capacity = (capacity > 0) ? capacity : 100;
 
@@ -79,12 +79,15 @@ int XrdSutCache::Init(int capacity)
       // Init hash table
       if (Rehash(0, 0) != 0) {
          DEBUG("problems initialising hash table");
-         return 0 ;
       }
+      // UnLock
+      if (lock) rwlock.UnLock();
       return 0;
 
    } else
       DEBUG("could not allocate cache - out-of-resources ");
+   // UnLock
+   if (lock) rwlock.UnLock();
    return -1;
 }
 
@@ -341,14 +344,14 @@ int XrdSutCache::Trim(int lifet)
 }
 
 //__________________________________________________________________
-int XrdSutCache::Reset(int newsz)
+int XrdSutCache::Reset(int newsz, bool lock)
 {
    // Remove all existing entries.
    // If newsz > -1, set new capacity to newsz, reallocating if needed
    // Return 0 if ok, -1 if problems reallocating.
 
    // Lock for writing
-   XrdSysRWLockHelper isg(rwlock, 0);
+   if (lock) rwlock.WriteLock();
 
    // Loop over entries
    int i = cachemx;
@@ -359,17 +362,21 @@ int XrdSutCache::Reset(int newsz)
       }
    }
 
+   int rc = 0;
    // Reallocate, if requested
    if (newsz > -1 && newsz != cachesz) {
       delete[] cachent;
       cachent = 0;
       cachesz = 0;      
       cachemx = -1;
-      return Init(newsz);
+      rc = Init(newsz, 0);
    }
 
+   // Unlock
+   if (lock) rwlock.UnLock();
+
    // We are done
-   return 0;
+   return rc;
 }
 
 //________________________________________________________________
@@ -462,12 +469,12 @@ int XrdSutCache::Load(const char *pfn)
       DEBUG("PFEntry file is empty - default init and return");
       // Save file name
       pfile = pfn;
-      Init();
+      Init(-1, 0);
       return 0;
    }
 
    // Allocate cache, if not done already or if too small
-   if (Reset(header.entries) == -1) {
+   if (Reset(header.entries, 0) == -1) {
       DEBUG("problems allocating / resizing cache ");
       ff.Close();
       return -1;

@@ -46,8 +46,8 @@ public:
    bool           Empty() const { return (cachemx == -1); }
 
    // Initialization methods
-   int            Init(int capacity = 100);
-   int            Reset(int newsz = -1);
+   int            Init(int capacity = 100, bool lock = 1);
+   int            Reset(int newsz = -1, bool lock = 1);
    int            Load(const char *pfname);  // build cache of a pwd file
    int            Flush(const char *pfname = 0);   // flush content to pwd file
    int            Refresh();    // refresh content from source file
