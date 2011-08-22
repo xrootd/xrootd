@@ -70,6 +70,7 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Apply N2N mapping to source path when relocating the file.
    * Report correct port when locate is directly issued to a data server
      (before it was being reported as 0).
    * Make the default file system a pointer to a dynamic instance of XrdOfs

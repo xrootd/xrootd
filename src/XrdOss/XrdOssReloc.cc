@@ -124,7 +124,7 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
 // Copy the original file to the new location. Copy() always closes the fd.
 //
    PF.datfd = -1;
-   if ((rc = XrdOssCopy::Copy(path, pbuff, datfd)) < 0) return rc;
+   if ((rc = XrdOssCopy::Copy(local_path, pbuff, datfd)) < 0) return rc;
 
 // If the file is to be merely copied, substitute the desired destination
 //
