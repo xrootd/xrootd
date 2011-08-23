@@ -1974,6 +1974,9 @@ void XrdSecProtocolgsi::CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lou
    if (in->vorg) { out->vorg = strdup(in->vorg); slen += strlen(in->vorg); }
    if (in->role) { out->role = strdup(in->role); slen += strlen(in->role); }
    if (in->grps) { out->grps = strdup(in->grps); slen += strlen(in->grps); }
+   if (in->creds && in->credslen > 0) {
+                   out->creds = strdup(in->creds); slen += in->credslen;
+                   out->credslen = in->credslen; }
    if (in->endorsements) { out->endorsements = strdup(in->endorsements);
                            slen += strlen(in->endorsements); }
 
@@ -1999,6 +2002,7 @@ void XrdSecProtocolgsi::FreeEntity(XrdSecEntity *in)
    if (in->vorg) SafeFree(in->vorg);
    if (in->role) SafeFree(in->role);
    if (in->grps) SafeFree(in->grps);
+   if (in->creds && in->credslen > 0) { SafeFree(in->creds); in->credslen = 0; }
    if (in->endorsements) SafeFree(in->endorsements);
    
    // Done
