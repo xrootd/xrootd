@@ -87,8 +87,7 @@ int XrdProtLoad::Load(const char *lname, const char *pname,
 
 // Obtain an instance of this protocol
 //
-   if (lname)  xp =    getProtocol(lname, pname, parms, pi);
-      else     xp = XrdgetProtocol(pname, parms, pi);
+   xp = getProtocol(lname, pname, parms, pi);
    if (!xp) {XrdLog.Emsg("Protocol","Protocol", pname, "could not be loaded");
              return 0;
             }
@@ -134,8 +133,7 @@ int XrdProtLoad::Port(const char *lname, const char *pname,
 
 // Obtain the port number to be used by this protocol
 //
-   if (lname)  port =    getProtocolPort(lname, pname, parms, pi);
-      else     port = XrdgetProtocolPort(pname, parms, pi);
+   port = getProtocolPort(lname, pname, parms, pi);
    if (port < 0) XrdLog.Emsg("Protocol","Protocol", pname,
                              "port number could not be determined");
    return port;
@@ -226,12 +224,13 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
                               XrdProtocol_Config *pi)
 {
    XrdProtocol *(*ep)(const char *, char *, XrdProtocol_Config *);
+   const char *xname = (lname ? lname : "");
    void *epvoid;
    int i;
 
 // Find the matching library. It must be here because getPort was already called
 //
-   for (i = 0; i < libcnt; i++) if (!strcmp(lname, liblist[i])) break;
+   for (i = 0; i < libcnt; i++) if (!strcmp(xname, liblist[i])) break;
    if (i >= libcnt)
       {XrdLog.Emsg("Protocol", pname, "was lost during loading", lname);
        return 0;
@@ -253,20 +252,21 @@ int XrdProtLoad::getProtocolPort(const char *lname,
                                        char *parms,
                          XrdProtocol_Config *pi)
 {
+   const char *xname = (lname ? lname : "");
    int (*ep)(const char *, char *, XrdProtocol_Config *);
    void *epvoid;
    int i;
 
 // See if the library is already opened, if not open it
 //
-   for (i = 0; i < libcnt; i++) if (!strcmp(lname, liblist[i])) break;
+   for (i = 0; i < libcnt; i++) if (!strcmp(xname, liblist[i])) break;
    if (i >= libcnt)
       {if (libcnt >= ProtoMax)
           {XrdLog.Emsg("Protocol", "Too many protocols have been defined.");
            return -1;
           }
        if (!(libhndl[i] = new XrdSysPlugin(&XrdLog, lname))) return -1;
-       liblist[i] = strdup(lname);
+       liblist[i] = strdup(xname);
        libcnt++;
       }
 

@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
-
-const char *XrdSysPluginCVSID = "$Id$";
 
 // Bypass Solaris ELF madness
 //
@@ -47,6 +43,7 @@ const char *XrdSysPluginCVSID = "$Id$";
 XrdSysPlugin::~XrdSysPlugin()
 {
    if (libHandle) dlclose(libHandle);
+   if (libPath)   free(libPath);
 }
 
 /******************************************************************************/
@@ -61,6 +58,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int errok)
 
 void *XrdSysPlugin::getPlugin(const char *pname, int errok, bool global)
 {
+   const char *msgPath;
    void *ep;
 
 // Open the plugin library if not already opened
@@ -73,17 +71,35 @@ void *XrdSysPlugin::getPlugin(const char *pname, int errok, bool global)
       eDest->Emsg("getPlugin",
                   "request for global symbols unsupported under Windows - ignored");
 #endif
+
+// If no path is given then we want to just search the executable. This is easy
+// for some platforms and more difficult for others. So, we do the best we can.
+//
+   if (!(msgPath = libPath))
+      {msgPath = "executable image";
+#if    defined(__macos__)
+       flags = RTLD_FIRST;
+#elif  defined(__linux__)
+       flags = RTLD_NOW | RTLD_NODELETE;
+#else
+       flags = RTLD_NOW;
+#endif
+      }
+
+// Open whatever it is we need to open
+//
    if (!libHandle && !(libHandle = dlopen(libPath, flags)))
-      {eDest->Emsg("getPlugin", "Unable to open", libPath, dlerror());
+      {eDest->Emsg("getPlugin", "Unable to open", msgPath, dlerror());
        return 0;
       }
 
-// Get the plugin object creator
+// Get the symbol. In the environment we have defined, null values are not
+// allowed and we will issue an error.
 //
    if (!(ep = dlsym(libHandle, pname)) && !errok)
       {char buff[1024];
        sprintf(buff, "Unable to find %s in", pname);
-       eDest->Emsg("getPlugin", buff, libPath, dlerror());
+       eDest->Emsg("getPlugin", buff, msgPath, dlerror());
        return 0;
       }
 

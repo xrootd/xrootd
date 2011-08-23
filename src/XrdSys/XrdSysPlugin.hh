@@ -10,7 +10,7 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-//       $Id$
+#include <strings.h>
 
 class XrdSysError;
 
@@ -22,13 +22,16 @@ void *getPlugin(const char *pname, int errok=0);
 void *getPlugin(const char *pname, int errok, bool global);
 
       XrdSysPlugin(XrdSysError *erp, const char *path)
-                  {eDest = erp; libPath = path; libHandle = 0;}
+                  : eDest(erp), libHandle(0)
+                  {if (path) libPath = strdup(path);
+                      else   libPath = 0;
+                  }
      ~XrdSysPlugin();
 
 private:
 
 XrdSysError *eDest;
-const char  *libPath;
+char        *libPath;
 void        *libHandle;
 };
 #endif
