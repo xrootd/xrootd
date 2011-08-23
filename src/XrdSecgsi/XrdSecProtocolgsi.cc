@@ -823,6 +823,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          const char *capxy_what = (AuthzPxyWhat == 1) ? "'last proxy only'" : "'full proxy chain'";
          const char *capxy_where = (AuthzPxyWhere == 1) ? "XrdSecEntity.creds" : "XrdSecEntity.endorsements";
          DEBUG("Export proxy for authorization in '"<<capxy_where<<"': "<<capxy_what);
+         if (hasauthzfun) {
+            // Warn user about possible overwriting of Entity.creds or Entity.endorsements
+            PRINT("WARNING: proxy export for authz enabled: be aware that any setting of '"<<capxy_what<<
+                  "' done by '"<<opt.authzfun<<"' will get overwritten with "<<capxy_what);
+         }
       }
 
       //
