@@ -27,7 +27,7 @@
 #define AtomicFAZ(x)        __sync_fetch_and_and(&x, 0)
 #define AtomicGet(x)        __sync_fetch_and_or(&x, 0)
 #define AtomicInc(x)        __sync_fetch_and_add(&x, 1)
-#define AtomicISM(x, y)     AtomicCAS(y, x, AtomicInc(x))
+#define AtomicISM(x, y)     if (AtomicGet(y) <= AtomicInc(x)) AtomicCAS(y, y, x)
 #define AtomicSub(x, y)     __sync_fetch_and_sub(&x, y)
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
