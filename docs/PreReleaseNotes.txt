@@ -70,6 +70,8 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Remove old async shutdown workaround patch introduced in Linux 2.3. The
+     problem has been since fixed and the solution now causes problems.
    * Correct definition of AtomicISM that caused the maximum link count to
      never be updated in the statistics.
    * Apply N2N mapping to source path when relocating the file.
