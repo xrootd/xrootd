@@ -19,6 +19,7 @@ add_library(
                        XrdClConstants.hh
   XrdClEnv.cc          XrdClEnv.hh
   XrdClDefaultEnv.cc   XrdClDefaultEnv.hh
+  XrdClFile.cc         XrdClFile.hh
 )
 
 target_link_libraries(
