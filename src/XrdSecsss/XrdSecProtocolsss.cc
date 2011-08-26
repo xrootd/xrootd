@@ -12,12 +12,14 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
 
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSecsss/XrdSecProtocolsss.hh"
@@ -57,7 +59,7 @@ struct XrdSecProtocolsss::Crypto XrdSecProtocolsss::CryptoTab[] = {
        {"bf32", XrdSecsssRR_Hdr::etBFish32},
        {0, '0'}
        };
-
+  
 /******************************************************************************/
 /*                          A u t h e n t i c a t e                           */
 /******************************************************************************/
@@ -70,7 +72,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssRR_Data    rrData;
    XrdSecsssKT::ktEnt  decKey;
    XrdSecEntity        myID("sss");
-   char lidBuff[16],  eType, *idP, *dP, *eodP, *theHost = 0;
+   char lidBuff[16],  eType, *idP, *dP, *eodP, *theIP = 0, *theHost = 0;
    int idTLen = 0, idSz, dLen;
 
 // Decode the credentials
@@ -106,10 +108,11 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
                 case XrdSecsssRR_Data::theRole: myID.role         = idP; break;
                 case XrdSecsssRR_Data::theGrps: myID.grps         = idP; break;
                 case XrdSecsssRR_Data::theEndo: myID.endorsements = idP; break;
-                case XrdSecsssRR_Data::theHost: theHost           = idP; break;
+                case XrdSecsssRR_Data::theHost: if (*idP == '[') theIP   = idP;
+                                                   else          theHost = idP;
+                                                                         break;
                 case XrdSecsssRR_Data::theRand: idTLen -= idSz;          break;
-                default: Fatal(einfo,"Authenticate",EINVAL,"Invalid id type.");
-                         return -1;
+                default: break;
                }
         }
 
@@ -120,16 +123,25 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
        return -1;
       }
 
-// Verify the source of the information to largely prevent packet stealing
+// Verify the source of the information to largely prevent packet stealing. New
+// version of the protocol will send an IP address which we prefrentially use.
+// Older version used a hostname. This causes problems for multi-homed machines.
 //
-   if (!theHost)
-      {Fatal(einfo, "Authenticate", ENOENT, "No hostname specified.");
+   if (!theHost && !theIP)
+      {Fatal(einfo,"Authenticate",ENOENT,"No hostname or IP address specified.");
        return -1;
       }
-   if (strcmp(theHost, urName))
-      {Fatal(einfo, "Authenticate", EINVAL, "Hostname mismatch.");
-       return -1;
-      }
+   CLDBG(urName <<' ' <<urIP << " must match " <<(theHost ? theHost : "?")
+         <<' ' <<(theIP ? theIP : "[?]"));
+   if (theIP)
+      {if (strcmp(theIP, urIP))
+          {Fatal(einfo, "Authenticate", EINVAL, "IP address mismatch.");
+           return -1;
+          }
+      } else if (strcmp(theHost, urName))
+          {Fatal(einfo, "Authenticate", EINVAL, "Hostname mismatch.");
+           return -1;
+          }
 
 // Set correct username
 //
@@ -586,7 +598,8 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
                                              int                 dLen)
 {
    static const int hdrSZ = sizeof(XrdSecsssRR_Hdr);
-   char *credP, *eodP = ((char *)rrData) + dLen;
+   XrdOucEnv *errEnv;
+   char *myIP, *credP, *eodP = ((char *)rrData) + dLen;
    int knum, cLen;
 
 // Make sure we have enought space left in the buffer
@@ -594,6 +607,19 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
    if (dLen > (int)sizeof(rrData->Data) - (16+myNLen))
       {Fatal(einfo,"Encode",ENOBUFS,"Insufficient buffer space for credentials.");
        return (XrdSecCredentials *)0;
+      }
+
+// We first insert our IP address which will be followed by our host name.
+// New version of the protocol will use the IP address, older version will
+// use the last hostname we actually send.
+//
+   if (einfo && (errEnv = einfo->getEnv()) && (myIP = errEnv->Get("sockname")))
+      {*eodP++ = XrdSecsssRR_Data::theHost;
+       XrdOucPup::Pack(&eodP, myIP);
+       dLen = eodP - (char *)rrData;
+      } else {
+       CLDBG("No IP address to encode (" <<(einfo==0) <<(errEnv==0)
+             <<(myIP==0) <<")!");
       }
 
 // Add in our host name for source verification
@@ -783,6 +809,15 @@ char *XrdSecProtocolsss::setID(char *id, char **idP)
    return id;
 }
 
+/******************************************************************************/
+/*                                 s e t I P                                  */
+/******************************************************************************/
+  
+void XrdSecProtocolsss::setIP(const struct sockaddr *sockP)
+{
+   if (!XrdSysDNS::IPFormat(sockP, urIP, sizeof(urIP))) *urIP = 0;
+}
+  
 /******************************************************************************/
 /*                 X r d S e c P r o t o c o l s s s I n i t                  */
 /******************************************************************************/

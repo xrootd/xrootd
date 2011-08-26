@@ -81,7 +81,8 @@ $(TARGBIN): $(OBJSBIN)
 	$(ECHO)$(LD) $(LDOP) $(OBJSBIN) $(MORELIBS) $(LIBS) -o $(TARGBIN);
 
 $(OBJDIR)/XrdSecProtocolsss.o: XrdSecProtocolsss.cc    XrdSecProtocolsss.hh \
-                               XrdSysDNS.hh            XrdOucErrInfo.hh \
+                               XrdSysDNS.hh \
+                               XrdOucEnv.hh            XrdOucErrInfo.hh \
                                XrdOucPup.hh            XrdOucTokenizer.hh \
                                XrdCryptoLite.hh        XrdSecInterface.hh \
                                XrdSecsssID.hh          XrdSecsssKT.hh \

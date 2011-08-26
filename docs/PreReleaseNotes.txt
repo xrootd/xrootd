@@ -73,6 +73,7 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Allow the sss protocol to work for multi-homed hosts.
    * Remove old async shutdown workaround patch introduced in Linux 2.3. The
      problem has been since fixed and the solution now causes problems.
    * Correct definition of AtomicISM that caused the maximum link count to
