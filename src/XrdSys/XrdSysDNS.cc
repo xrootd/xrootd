@@ -534,6 +534,56 @@ unsigned int XrdSysDNS::IPAddr(struct sockaddr *InetAddr)
   {return (unsigned int)(((struct sockaddr_in *)InetAddr)->sin_addr.s_addr);}
 
 /******************************************************************************/
+/*                              I P F o r m a t                               */
+/******************************************************************************/
+
+int XrdSysDNS::IPFormat(const struct sockaddr *sAddr, char *bP, int bL, int fP)
+{
+   union {const struct sockaddr     *Vx;
+          const struct sockaddr_in  *V4;
+          const struct sockaddr_in6 *V6;
+         } ip;
+   int TotLen;
+
+// Make sure the buffer has some space
+//
+   if (bL < (INET_ADDRSTRLEN+4)) return 0;
+   ip.Vx = sAddr;
+
+// Format address; we always use the IPV6 RFC recommended representation.
+//
+        if (sAddr->sa_family == AF_INET)
+           {strcpy(bP, "[::");
+            if (!inet_ntop(AF_INET,  &(ip.V4->sin_addr), bP+3, bL-3)) return 0;
+           }
+   else if (sAddr->sa_family == AF_INET6)
+           {*bP = '[';
+            if (!inet_ntop(AF_INET6, &(ip.V6->sin6_addr),bP+1, bL-1)) return 0;
+           }
+   else return 0;
+
+// Recalculate buffer position and length
+//
+   TotLen = strlen(bP); bP += TotLen; bL -= TotLen;
+
+// Add the port number if so wanted (note that the port number is the same
+// position and same size regardless of address type).
+//
+   if (fP)
+      {int n, pNum = ntohs(ip.V4->sin_port);
+       if ((n = snprintf(bP, bL, "]:%d", pNum)) >= bL) return 0;
+       TotLen += n;
+      } else {
+       if (bL < 2) return 0;
+       *bP++ = ']'; *bP++ = 0; TotLen++;
+      }
+
+// All done
+//
+   return TotLen;
+}
+  
+/******************************************************************************/
 /*                             I P 2 S t r i n g                              */
 /******************************************************************************/
   

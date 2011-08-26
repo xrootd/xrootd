@@ -146,6 +146,25 @@ static int Host2Dest(const char      *InetName,
 static int Host2IP(const char   *InetName,
                    unsigned int *ipaddr=0);
 
+// IPFormat()  converts an IP address/port (V4 or V6) into the standard V6 RFC
+//             ASCII representation: "[address]:port".
+
+// Input:      sAddr - Address to convert. This is either sockaddr_in or
+//                     sockaddr_in6 cast to struct sockaddr.
+//             bP    - points to a buffer large enough to hold the result.
+//                     A buffer 64 characters long will always be big enough.
+//             bL    - the actual size of the buffer.
+//             fP    - When true  (the default) will format sAddr->sin_port
+//                     (or sin6_port) as ":port" at the end of the address.
+//                     When false the colon and port number is omitted.
+//
+// Output:     Upon success the length of the formatted address is returned.
+//             Upon failure zero is returned and the buffer state is undefined.
+//             Failure occurs when the buffer is too small or the address family
+//             (sAddr->sa_family) is neither AF_INET nor AF_INET6.
+//
+static int IPFormat(const struct sockaddr *sAddr, char *bP, int bL, int fP=1);
+
 // IP2String() converts an IPV4 version of the address to ascii dot notation
 //             If port > 0 then the results is <ipaddr>:<port>. The return
 //             value is the number of characters placed in the buffer.
