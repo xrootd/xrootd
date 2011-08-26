@@ -266,7 +266,7 @@ void XrdLink::Bind(pthread_t tid)
 void XrdLink::Bind()
 {
 #ifdef __linux__
-   pthread_t curTID = (tBound ? TID : XrdSysThread::ID());
+// pthread_t curTID = (tBound ? TID : XrdSysThread::ID());
 #endif
 
 // For unbind operations, we need to do some additional work. This is specific
@@ -275,10 +275,10 @@ void XrdLink::Bind()
    if (tBound)
       {tBound = 0;
 #ifdef __linux__
-       if (!XrdSysThread::Same(curTID, XrdSysThread::ID()))
-          {XrdSysThread::Signal(curTID, SIGSTOP);
-           XrdSysThread::Signal(curTID, SIGCONT);
-          }
+//     if (!XrdSysThread::Same(curTID, XrdSysThread::ID()))
+//        {XrdSysThread::Signal(curTID, SIGSTOP);
+//         XrdSysThread::Signal(curTID, SIGCONT);
+//        }  Remove old Linux 2.3 async shutdown workaround patch
 #endif
       }
 }
