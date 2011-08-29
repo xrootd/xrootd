@@ -54,7 +54,7 @@ static  void  setOpts(int opts) {options = opts;}
                           const struct sockaddr     *ipadd)
                          : XrdSecProtocol("sss"),
                            keyTab(0), Crypto(0), idBuff(0), Sequence(0)
-                         {urName = strdup(hname); setIP(ipadd);}
+                         {urName = strdup(hname);}
 
 struct Crypto {const char *cName; char cType;};
 
@@ -75,14 +75,12 @@ static
 XrdCryptoLite *Load_Crypto(XrdOucErrInfo *erp, const char  eT);
 int            myClock();
 char          *setID(char *id, char **idP);
-void           setIP(const struct sockaddr *sockP);
 
 static struct Crypto  CryptoTab[];
 
 static const char    *myName;
 static int            myNLen;
        char          *urName;
-       char           urIP[64];
 static int            options;
 static int            isMutual;
 static int            deltaTime;
