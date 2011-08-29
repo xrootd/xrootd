@@ -11,8 +11,6 @@
 /*                                                                            */
 /******************************************************************************/
 
-//        $Id$
-
 #include <string.h>      // For strlcpy()
 #include <sys/types.h>
 
@@ -47,6 +45,7 @@ const      char *user;
 /******************************************************************************/
 
 class XrdOucEICB;
+class XrdOucEnv;
 class XrdSysSemaphore;
   
 class XrdOucErrInfo
@@ -91,6 +90,15 @@ inline const char         *getErrText(int &ecode)
                                     return (const char *)ErrInfo.message;}
 inline const char         *getErrUser() {return ErrInfo.user;}
 
+inline XrdOucEnv          *getEnv() {return (ErrCB ? 0 : ErrEnv);}
+
+inline XrdOucEnv          *setEnv(XrdOucEnv *newEnv)
+                                 {XrdOucEnv *oldEnv = (ErrCB ? 0 : ErrEnv);
+                                  ErrEnv = newEnv;
+                                  ErrCB  = 0;
+                                  return oldEnv;
+                                 }
+
          XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
                         {ErrInfo = rhs.ErrInfo;
                          ErrCB   = rhs.ErrCB;
@@ -99,7 +107,10 @@ inline const char         *getErrUser() {return ErrInfo.user;}
                         }
 
          XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,unsigned long long ca=0)
-                    : ErrInfo(user) {ErrCB = cb; ErrCBarg = ca;}
+                    : ErrInfo(user), ErrCB(cb), ErrCBarg(ca){}
+
+         XrdOucErrInfo(const char *user,XrdOucEnv *envp)
+                    : ErrInfo(user), ErrCB(0), ErrEnv(envp) {}
 
 virtual ~XrdOucErrInfo() {}
 
@@ -107,7 +118,10 @@ protected:
 
 XrdOucEI            ErrInfo;
 XrdOucEICB         *ErrCB;
+union {
 unsigned long long  ErrCBarg;
+XrdOucEnv          *ErrEnv;
+      };
 };
 
 /******************************************************************************/
