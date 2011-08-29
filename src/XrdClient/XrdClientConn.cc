@@ -23,6 +23,7 @@ const char *XrdClientConnCVSID = "$Id$";
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdNet/XrdNetDNS.hh"
@@ -1462,7 +1463,7 @@ bool XrdClientConn::DoLogin()
        XrdClientLogConnection *l = ConnectionManager->GetConnection(fLogConnID);
        XrdClientPhyConnection *p = 0;
        if (l) p = l->GetPhyConnection();
-       if (p) p->SetLogged(kNo);
+       if (p) {p->SetLogged(kNo); fOpenSockFD = p->GetSocket();}
        else {
           Error("DoLogin",
                 "Logical connection disappeared before request?!? Srv: [" << fUrl.Host << ":" << fUrl.Port <<
@@ -1643,6 +1644,9 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // starting from the first.
    static XrdSecGetProt_t getp = 0;
    XrdSecProtocol *protocol = (XrdSecProtocol *)0;
+   XrdOucEnv authEnv;
+   struct sockaddr myAddr;
+   socklen_t       myALen = sizeof(myAddr);
 
    if (!plist || plsiz <= 0)
       return protocol;
@@ -1661,6 +1665,14 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
       return protocol;
    }
    netaddr.sin_port   = fUrl.Port;
+
+   // Establish our local connection details (used by sss protocol)
+   //
+   if (!getsockname(fOpenSockFD, &myAddr, &myALen))
+      {char ipBuff[64];
+       if (XrdSysDNS::IPFormat(&myAddr, ipBuff, sizeof(ipBuff)))
+          authEnv.Put("sockname", ipBuff);
+      }
 
    //
    // Variables for negotiation
@@ -1710,7 +1722,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
       XrdOucString protname = protocol->Entity.prot;
       //
       // Once we have the protocol, get the credentials
-      XrdOucErrInfo ei;
+      XrdOucErrInfo ei("", &authEnv);
       credentials = protocol->getCredentials(0, &ei);
       if (!credentials) {
          Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
