@@ -985,6 +985,7 @@ void XrdSecProtocolgsi::Delete()
    SafeFree(Entity.endorsements);
    SafeFree(Entity.creds);
    Entity.credslen = 0;
+   SafeFree(Entity.moninfo);
    // Cleanup the handshake variables, if still there
    SafeDelete(hs);
    // Cleanup any other instance specific to this protocol
@@ -1984,6 +1985,8 @@ void XrdSecProtocolgsi::CopyEntity(XrdSecEntity *in, XrdSecEntity *out, int *lou
                    out->credslen = in->credslen; }
    if (in->endorsements) { out->endorsements = strdup(in->endorsements);
                            slen += strlen(in->endorsements); }
+   if (in->moninfo) { out->moninfo = strdup(in->moninfo);
+                      slen += strlen(in->moninfo); }
 
    // Save length, if required
    if (lout) *lout = slen;
@@ -2009,6 +2012,7 @@ void XrdSecProtocolgsi::FreeEntity(XrdSecEntity *in)
    if (in->grps) SafeFree(in->grps);
    if (in->creds && in->credslen > 0) { SafeFree(in->creds); in->credslen = 0; }
    if (in->endorsements) SafeFree(in->endorsements);
+   if (in->moninfo) SafeFree(in->moninfo);
    
    // Done
    return;
