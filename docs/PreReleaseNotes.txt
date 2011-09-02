@@ -86,6 +86,8 @@ Version 3.1.0
      writing an ofs plugin easier.
 
 + **Miscellaneous**
+   * Remove all references via extern statements to object instances. This
+     only applies to the Xrd package.
    * Do not echo lines qualified by an in-line if when the if fails.
    * Remove the old "redirect" directive. It has passed its prime.
    * Remove back references to symbols defined in XrdXrootd package used by
