@@ -38,6 +38,8 @@ const char *XrdSecPManagerCVSID = "$Id$";
 #include "XrdSec/XrdSecProtocolhost.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 
+#include "XrdSys/XrdSysPlatform.hh"
+
 /******************************************************************************/
 /*                 M i s c e l l a n e o u s   D e f i n e s                  */
 /******************************************************************************/
@@ -234,7 +236,7 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 
 // Form library name
 //
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s.so", pid);
+   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s.%s", pid, LT_MODULE_EXT );
    libfn[sizeof(libfn)-1] = '\0';
 
 // Determine path

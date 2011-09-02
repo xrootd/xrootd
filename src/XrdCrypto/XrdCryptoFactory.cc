@@ -26,9 +26,7 @@ const char *XrdCryptoFactoryCVSID = "$Id$";
 #include <XrdCrypto/XrdCryptoFactory.hh>
 #include <XrdCrypto/XrdCryptolocalFactory.hh>
 
-#ifndef LT_MODULE_EXT
-#define LT_MODULE_EXT ".so"
-#endif
+#include <XrdSys/XrdSysPlatform.hh>
 
 // We have always an instance of the simple RSA implementation
 static XrdCryptolocalFactory localCryptoFactory;

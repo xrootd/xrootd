@@ -30,6 +30,7 @@
 #include "XrdClient/XrdClientSid.hh"
 
 #include "XrdSys/XrdSysPriv.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 // Dynamic libs
 // Bypass Solaris ELF madness
@@ -1681,9 +1682,13 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 
    // We need to load the protocol getter the first time we are here
    if (!getp) {
+      char libfn[80];
+      snprintf( libfn, sizeof(libfn)-1, "libXrdSec.%s", LT_MODULE_EXT );
+      libfn[sizeof(libfn)-1] = '\0';
+
       // Open the security library
       void *lh = 0;
-      if (!(lh = dlopen("libXrdSec.so", RTLD_NOW))) {
+      if (!(lh = dlopen( libfn, RTLD_NOW))) {
          Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                        "unable to load libXrdSec.so");
          // Set error, in case of need

@@ -247,4 +247,8 @@ extern "C"
 //
 #define XRDABS(x) (x < 0 ? -x : x)
 
+#ifndef LT_MODULE_EXT
+#define LT_MODULE_EXT ".so"
+#endif
+
 #endif  // __XRDSYS_PLATFORM_H__
