@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <unistd.h>
 
 #include "XrdNet/XrdNet.hh"
@@ -21,6 +19,7 @@
 // support framework. However, Accept and Connect have been augmented to
 // provide for more scalable communications handling.
 //
+class XrdOucTrace;
 class XrdSysError;
 class XrdNetSecurity;
 class XrdLink;
@@ -33,11 +32,12 @@ XrdLink    *Accept(int opts=0, int timeout=-1);
 
 XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
-            XrdInet(XrdSysError *erp, XrdNetSecurity *secp=0)
-                      : XrdNet(erp, secp) {}
+            XrdInet(XrdSysError *erp, XrdOucTrace *tP, XrdNetSecurity *secp=0)
+                      : XrdNet(erp, secp), XrdTrace(tP) {}
            ~XrdInet() {}
 private:
 
+XrdOucTrace       *XrdTrace;
 static const char *TraceID;
 };
 #endif

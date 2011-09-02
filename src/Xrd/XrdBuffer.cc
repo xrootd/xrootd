@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$ 
-
-const char *XrdBufferCVSID = "$Id$";
-
 #include <time.h>
 #include <unistd.h>
 #if !defined(__macos__) && !defined(__FreeBSD__)
@@ -25,6 +21,8 @@ const char *XrdBufferCVSID = "$Id$";
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "Xrd/XrdBuffer.hh"
+
+#define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
 
 /******************************************************************************/
@@ -41,12 +39,6 @@ void *XrdReshaper(void *pp)
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
-extern XrdSysError  XrdLog;
-
-#ifndef NODEBUG 
-extern XrdOucTrace  XrdTrace;
-#endif
 
 const char *XrdBuffManager::TraceID = "BuffManager";
  
@@ -54,7 +46,9 @@ const char *XrdBuffManager::TraceID = "BuffManager";
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
-XrdBuffManager::XrdBuffManager(int minrst) : 
+XrdBuffManager::XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst) :
+                   XrdTrace(tP),
+                   XrdLog(lP),
                    slots(XRD_BUCKETS),
                    shift(XRD_BUSHIFT),
                    pagsz(getpagesize()),
@@ -92,7 +86,7 @@ void XrdBuffManager::Init()
 //
    if ((rc = XrdSysThread::Run(&tid, XrdReshaper, static_cast<void *>(this), 0,
                           "Buffer Manager reshaper")))
-      XrdLog.Emsg("BuffManager", rc, "create reshaper thread");
+      XrdLog->Emsg("BuffManager", rc, "create reshaper thread");
 }
   
 /******************************************************************************/

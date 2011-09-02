@@ -42,7 +42,9 @@
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdScheduler.hh"
+
 #define  TRACELINK this
+#define  XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
  
 /******************************************************************************/
@@ -58,31 +60,33 @@ public:
 
 void          DoIt() {idleScan();}
 
-              XrdLinkScan(int im, int it, const char *lt="idle link scan") :
-                                           XrdJob(lt)
-                          {idleCheck = im; idleTicks = it;}
+              XrdLinkScan(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP,
+                          int im, int it, const char *lt="idle link scan")
+                         : XrdJob(lt), XrdLog(eP), XrdTrace(tP), XrdSched(sP),
+                           idleCheck(im), idleTicks(it) {}
              ~XrdLinkScan() {}
 
 private:
 
-             void   idleScan();
+void               idleScan();
 
-             int    idleCheck;
-             int    idleTicks;
+XrdSysError       *XrdLog;
+XrdOucTrace       *XrdTrace;
+XrdScheduler      *XrdSched;
+int                idleCheck;
+int                idleTicks;
 
 static const char *TraceID;
 };
   
 /******************************************************************************/
-/*                               G l o b a l s                                */
+/*                               S t a t i c s                                */
 /******************************************************************************/
-  
-extern XrdSysError     XrdLog;
 
-extern XrdScheduler    XrdSched;
-
-extern XrdInet        *XrdNetTCP;
-extern XrdOucTrace     XrdTrace;
+       XrdSysError    *XrdLink::XrdLog   = 0;
+       XrdOucTrace    *XrdLink::XrdTrace = 0;
+       XrdScheduler   *XrdLink::XrdSched = 0;
+       XrdInet        *XrdLink::XrdNetTCP= 0;
 
 #if defined(HAVE_SENDFILE)
        int             XrdLink::sfOK = 1;
@@ -182,7 +186,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    LTMutex.Lock();
    if (LinkBat[Peer.fd])
       {LTMutex.UnLock();
-       XrdLog.Emsg("Link", "attempt to reuse active link");
+       XrdLog->Emsg("Link", "attempt to reuse active link");
        return (XrdLink *)0;
       }
 
@@ -194,7 +198,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
        XrdLink **blp, *nlp = new XrdLink[LinkAlloc]();
        if (!nlp)
           {LTMutex.UnLock();
-           XrdLog.Emsg("Link", ENOMEM, "create link"); 
+           XrdLog->Emsg("Link", ENOMEM, "create link"); 
            return (XrdLink *)0;
           }
        blp = &LinkTab[Peer.fd/LinkAlloc*LinkAlloc];
@@ -330,7 +334,7 @@ int XrdLink::Close(int defer)
               {shutdown(fd, SHUT_RDWR);
                if (dup2(devNull, fd) < 0)
                   {FD = fd; Instance = csec;
-                   XrdLog.Emsg("Link",errno,"close FD for",ID);
+                   XrdLog->Emsg("Link",errno,"close FD for",ID);
                   } else Bind();
               }
           }
@@ -393,7 +397,7 @@ int XrdLink::Close(int defer)
    if (fd >= 2) {if (KeepFD) rc = 0;
                     else rc = (close(fd) < 0 ? errno : 0);
                 }
-   if (rc) XrdLog.Emsg("Link", rc, "close", ID);
+   if (rc) XrdLog->Emsg("Link", rc, "close", ID);
    return rc;
 }
 
@@ -413,8 +417,8 @@ void XrdLink::DoIt()
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
    if (Protocol)
-      do {rc = Protocol->Process(this);} while (!rc && XrdSched.canStick());
-      else {XrdLog.Emsg("Link", "Dispatch on closed link", ID);
+      do {rc = Protocol->Process(this);} while (!rc && XrdSched->canStick());
+      else {XrdLog->Emsg("Link", "Dispatch on closed link", ID);
             return;
            }
 
@@ -531,13 +535,13 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
    do {retc = poll(&polltab, 1, timeout);} while(retc < 0 && errno == EINTR);
    if (retc != 1)
       {if (retc == 0) return 0;
-       return XrdLog.Emsg("Link", -errno, "poll", ID);
+       return XrdLog->Emsg("Link", -errno, "poll", ID);
       }
 
 // Verify it is safe to read now
 //
    if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-      {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
+      {XrdLog->Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
                            "polling", ID);
        return -1;
       }
@@ -550,7 +554,7 @@ int XrdLink::Peek(char *Buff, int Blen, int timeout)
 // Return the result
 //
    if (mlen >= 0) return int(mlen);
-   XrdLog.Emsg("Link", errno, "peek on", ID);
+   XrdLog->Emsg("Link", errno, "peek on", ID);
    return -1;
 }
   
@@ -572,7 +576,7 @@ int XrdLink::Recv(char *Buff, int Blen)
    if (LockReads) rdMutex.UnLock();
 
    if (rlen >= 0) return int(rlen);
-   if (FD >= 0) XrdLog.Emsg("Link", errno, "receive from", ID);
+   if (FD >= 0) XrdLog->Emsg("Link", errno, "receive from", ID);
    return -1;
 }
 
@@ -603,13 +607,13 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
                     }
                  return int(totlen);
                 }
-             return (FD >= 0 ? XrdLog.Emsg("Link", -errno, "poll", ID) : -1);
+             return (FD >= 0 ? XrdLog->Emsg("Link", -errno, "poll", ID) : -1);
             }
 
          // Verify it is safe to read now
          //
          if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-            {XrdLog.Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
+            {XrdLog->Emsg("Link", XrdPoll::Poll2Text(polltab.revents),
                                  "polling", ID);
              return -1;
             }
@@ -620,7 +624,7 @@ int XrdLink::Recv(char *Buff, int Blen, int timeout)
          do {rlen = recv(FD, Buff, Blen, 0);} while(rlen < 0 && errno == EINTR);
          if (rlen <= 0)
             {if (!rlen) return -ENOMSG;
-             return (FD<0 ? -1 : XrdLog.Emsg("Link",-errno,"receive from",ID));
+             return (FD<0 ? -1 : XrdLog->Emsg("Link",-errno,"receive from",ID));
             }
          totlen += rlen; Blen -= rlen; Buff += rlen;
         }
@@ -647,11 +651,11 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
       {do {retc = poll(&polltab,1,timeout);} while(retc < 0 && errno == EINTR);
        if (retc != 1)
           {if (!retc) return -ETIMEDOUT;
-           XrdLog.Emsg("Link",errno,"poll",ID);
+           XrdLog->Emsg("Link",errno,"poll",ID);
            return -1;
           }
        if (!(polltab.revents & (POLLIN|POLLRDNORM)))
-          {XrdLog.Emsg("Link",XrdPoll::Poll2Text(polltab.revents),"polling",ID);
+          {XrdLog->Emsg("Link",XrdPoll::Poll2Text(polltab.revents),"polling",ID);
            return -1;
           }
       }
@@ -666,8 +670,8 @@ int XrdLink::RecvAll(char *Buff, int Blen, int timeout)
 
    if (int(rlen) == Blen) return Blen;
    if (!rlen) {TRACEI(DEBUG, "No RecvAll() data; errno=" <<errno);}
-      else if (rlen > 0) XrdLog.Emsg("RecvAll","Premature end from", ID);
-              else if (FD >= 0) XrdLog.Emsg("Link",errno,"recieve from",ID);
+      else if (rlen > 0) XrdLog->Emsg("RecvAll","Premature end from", ID);
+              else if (FD >= 0) XrdLog->Emsg("Link",errno,"recieve from",ID);
    return -1;
 }
 
@@ -699,7 +703,7 @@ int XrdLink::Send(const char *Buff, int Blen)
    AtomicAdd(BytesOut, myBytes);
    wrMutex.UnLock();
    if (retc >= 0) return Blen;
-   XrdLog.Emsg("Link", errno, "send to", ID);
+   XrdLog->Emsg("Link", errno, "send to", ID);
    return -1;
 }
 
@@ -749,7 +753,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 //
    wrMutex.UnLock();
    if (retc >= 0) return bytes;
-   XrdLog.Emsg("Link", errno, "send to", ID);
+   XrdLog->Emsg("Link", errno, "send to", ID);
    return -1;
 }
  
@@ -762,7 +766,7 @@ int XrdLink::Send(const struct sfVec *sfP, int sfN)
 // Make sure we have valid vector count
 //
    if (sfN < 1 || sfN > sfMax)
-      {XrdLog.Emsg("Link", EINVAL, "send file to", ID);
+      {XrdLog->Emsg("Link", EINVAL, "send file to", ID);
        return -1;
       }
 
@@ -824,7 +828,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 //
    retc = (retc < 0 ? errno : ECANCELED);
    wrMutex.UnLock();
-   XrdLog.Emsg("Link", retc, "send file to", ID);
+   XrdLog->Emsg("Link", retc, "send file to", ID);
    return -1;
 
 #elif defined(__linux__)
@@ -843,7 +847,7 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
 // the socket because it will be closed in short order.
 //
    if (setsockopt(FD, SOL_TCP, TCP_CORK, &setON, sizeof(setON)) < 0)
-      {XrdLog.Emsg("Link", errno, "cork socket for", ID); 
+      {XrdLog->Emsg("Link", errno, "cork socket for", ID); 
        uncork = 0; sfOK = 0;
       }
 
@@ -866,14 +870,14 @@ do{retc = sendfilev(FD, vecSFP, sfN, &xframt);
    if (retc <= 0)
       {if (retc == 0) errno = ECANCELED;
        wrMutex.UnLock();
-       XrdLog.Emsg("Link", errno, "send file to", ID);
+       XrdLog->Emsg("Link", errno, "send file to", ID);
        return -1;
       }
 
 // Now uncork the socket
 //
    if (uncork && setsockopt(FD, SOL_TCP, TCP_CORK, &setOFF, sizeof(setOFF)) < 0)
-      XrdLog.Emsg("Link", errno, "uncork socket for", ID);
+      XrdLog->Emsg("Link", errno, "uncork socket for", ID);
 
 // All done
 //
@@ -964,13 +968,13 @@ int XrdLink::Setup(int maxfds, int idlewait)
 // Create the link table
 //
    if (!(LinkTab = (XrdLink **)malloc(maxfds*sizeof(XrdLink *)+LinkAlloc)))
-      {XrdLog.Emsg("Link", ENOMEM, "create LinkTab"); return 0;}
+      {XrdLog->Emsg("Link", ENOMEM, "create LinkTab"); return 0;}
    memset((void *)LinkTab, 0, maxfds*sizeof(XrdLink *));
 
 // Create the slot status table
 //
    if (!(LinkBat = (char *)malloc(maxfds*sizeof(char)+LinkAlloc)))
-      {XrdLog.Emsg("Link", ENOMEM, "create LinkBat"); return 0;}
+      {XrdLog->Emsg("Link", ENOMEM, "create LinkBat"); return 0;}
    memset((void *)LinkBat, XRDLINK_FREE, maxfds*sizeof(char));
 
 // Create an idle connection scan job
@@ -978,8 +982,8 @@ int XrdLink::Setup(int maxfds, int idlewait)
    if (idlewait)
       {if (!(ichk = idlewait/3)) {iticks = 1; ichk = idlewait;}
           else iticks = 3;
-       XrdLinkScan *ls = new XrdLinkScan(ichk, iticks);
-       XrdSched.Schedule((XrdJob *)ls, ichk+time(0));
+       XrdLinkScan *ls = new XrdLinkScan(XrdLog,XrdTrace,XrdSched,ichk,iticks);
+       XrdSched->Schedule((XrdJob *)ls, ichk+time(0));
       }
 
    return 1;
@@ -1043,7 +1047,7 @@ void XrdLink::setRef(int use)
 
          if (!InUse)
             {InUse = 1; opMutex.UnLock();
-             XrdLog.Emsg("Link", "Zero use count for", ID);
+             XrdLog->Emsg("Link", "Zero use count for", ID);
             }
     else if (InUse == 1 && doPost)
             {doPost--;
@@ -1054,7 +1058,7 @@ void XrdLink::setRef(int use)
     else if (InUse < 0)
             {InUse = 1;
              opMutex.UnLock();
-             XrdLog.Emsg("Link", "Negative use count for", ID);
+             XrdLog->Emsg("Link", "Negative use count for", ID);
             }
     else opMutex.UnLock();
 }
@@ -1274,7 +1278,7 @@ void XrdLinkScan::idleScan()
         if ((int(lp->isIdle)) < idleTicks) {lp->opMutex.UnLock(); continue;}
         lp->isIdle = 0;
         if (!(lp->Poller) || !(lp->isEnabled))
-           XrdLog.Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
+           XrdLog->Emsg("LinkScan","Link",lp->ID,"is disabled and idle.");
            else if (lp->InUse == 1)
                    {lp->Poller->Disable(lp, "idle timeout");
                     tmod++;
@@ -1288,5 +1292,5 @@ void XrdLinkScan::idleScan()
 
 // Reschedule ourselves
 //
-   XrdSched.Schedule((XrdJob *)this, idleCheck+time(0));
+   XrdSched->Schedule((XrdJob *)this, idleCheck+time(0));
 }

@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 #include <stdlib.h>
 
 #include "XrdSys/XrdSysPthread.hh"
@@ -28,6 +26,9 @@
 #define XRD_STATS_SYNC   0x40000000
 #define XRD_STATS_SYNCA  0x20000000
 
+class XrdScheduler;
+class XrdBuffManager;
+
 class XrdStats
 {
 public:
@@ -40,7 +41,8 @@ const char *Stats(int opts);
 
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
-      XrdStats(const char *hn, int port, const char *in, const char *pn);
+      XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
+               const char *hn, int port, const char *in, const char *pn);
 
      ~XrdStats() {if (buff) free(buff);}
 
@@ -49,9 +51,12 @@ private:
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 
-static long tBoot;       // Time at boot time
+static long     tBoot;       // Time at boot time
 
-XrdSysMutex statsMutex;
+XrdScheduler   *XrdSched;
+XrdSysError    *XrdLog;
+XrdBuffManager *BuffPool;
+XrdSysMutex     statsMutex;
 
 char       *buff;        // Used by all callers
 int         blen;

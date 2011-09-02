@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -34,9 +32,13 @@
 /*                      C l a s s   D e f i n i t i o n                       */
 /******************************************************************************/
   
+class XrdInet;
 class XrdNetBuffer;
 class XrdNetPeer;
 class XrdPoll;
+class XrdOucTrace;
+class XrdScheduler;
+class XrdSysError;
 
 class XrdLink : XrdJob
 {
@@ -90,6 +92,11 @@ XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
 void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
 
 char         *ID;      // This is referenced a lot
+
+static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
+                  {XrdLog = eP; XrdTrace = tP; XrdSched = sP;}
+
+static   void Init(XrdInet *iP) {XrdNetTCP = iP;}
 
 unsigned int  Inst() {return Instance;}
 
@@ -161,6 +168,11 @@ private:
 
 void   Reset();
 int    sendData(const char *Buff, int Blen);
+
+static XrdSysError  *XrdLog;
+static XrdOucTrace  *XrdTrace;
+static XrdScheduler *XrdSched;
+static XrdInet      *XrdNetTCP;
 
 static XrdSysMutex   LTMutex;    // For the LinkTab only LTMutex->IOMutex allowed
 static XrdLink     **LinkTab;

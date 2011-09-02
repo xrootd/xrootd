@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$ 
-
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -50,6 +48,8 @@ static int  pagesz;
 
 // There should be only one instance of this class per buffer pool.
 //
+class XrdOucTrace;
+class XrdSysError;
   
 class XrdBuffManager
 {
@@ -71,11 +71,14 @@ void        Set(int maxmem=-1, int minw=-1);
 
 int         Stats(char *buff, int blen, int do_sync=0);
 
-            XrdBuffManager(int minrst=20*60);
+            XrdBuffManager(XrdSysError *lP, XrdOucTrace *tP, int minrst=20*60);
 
            ~XrdBuffManager() {} // The buffmanager is never deleted
 
 private:
+
+XrdOucTrace *XrdTrace;
+XrdSysError *XrdLog;
 
 const int  slots;
 const int  shift;

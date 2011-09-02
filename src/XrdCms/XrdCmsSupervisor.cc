@@ -47,7 +47,7 @@ int XrdCmsSupervisor::Init(const char *AdminPath, int AdminMode)
 
 // Create a new network suitable for use with XrdLink objects
 //
-   if (!(NetTCPr = new XrdInet(&Say)))
+   if (!(NetTCPr = new XrdInet(&Say, &Trace)))
       {Say.Emsg("Supervisor","Unable to create supervisor interface.");
        return 0;
       }

@@ -1,4 +1,4 @@
-/******************************************************************************/
+/**************************************************************************************/
 /*                                                                            */
 /*                            X r d M a i n . c c                             */
 /*                                                                            */
@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//           $Id$
-
-const char *XrdMainCVSID = "$Id$";
 
 /* This is the XRootd server. The syntax is:
 
@@ -53,54 +49,49 @@ Where:
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdScheduler.hh"
-#define  TRACELINK newlink
-#include "Xrd/XrdTrace.hh"
 
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+/******************************************************************************/
+/*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
   
-/******************************************************************************/
-/*                      G l o b a l   V a r i a b l e s                       */
-/******************************************************************************/
+class XrdMain
+{
+public:
 
-       XrdConfig          XrdConf;
+XrdInet             *theNet;
+int                  thePort;
+static XrdConfig     Config;
 
-extern int                XrdNetTCPlep;   // Defined by config
-extern XrdInet           *XrdNetTCP[];    // Defined by config
-       XrdInet           *XrdNetADM = 0;
+           XrdMain() {}
+           XrdMain(XrdInet *nP) : theNet(nP), thePort(nP->Port()) {}
+          ~XrdMain() {}
+};
 
-       XrdScheduler       XrdSched;
-
-       XrdSysLogger       XrdLogger;
-
-       XrdSysError        XrdLog(&XrdLogger, "Xrd");
-
-       XrdSysThread      *XrdThread;
-
-       XrdOucTrace        XrdTrace(&XrdLog);
+XrdConfig XrdMain::Config;
 
 /******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
   
 void *mainAccept(void *parg)
-{  XrdInet *myNet = (XrdInet *)parg;
-   int myPort = (myNet == XrdNetTCP[XrdProtLoad::ProtoMax]
-                       ?  -(myNet->Port()) : myNet->Port());
-   XrdProtLoad ProtSelect(myPort);
-   XrdLink *newlink;
+{  XrdMain      *Parms   = (XrdMain *)parg;
+   XrdInet      *myNet   =  Parms->theNet;
+   XrdScheduler *mySched =  Parms->Config.ProtInfo.Sched;
+   XrdProtLoad   ProtSelect(Parms->thePort);
+   XrdLink      *newlink;
 
    while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))
                {newlink->setProtocol((XrdProtocol *)&ProtSelect);
-                XrdSched.Schedule((XrdJob *)newlink);
+                mySched->Schedule((XrdJob *)newlink);
                }
 
    return (void *)0;
@@ -111,16 +102,18 @@ void *mainAccept(void *parg)
 /******************************************************************************/
   
 void *mainAdmin(void *parg)
-{
-   XrdLink *newlink;
+{  XrdMain      *Parms   = (XrdMain *)parg;
+   XrdInet      *NetADM  =  Parms->theNet;
+   XrdLink      *newlink;
 // static XrdProtocol_Admin  ProtAdmin;
-   int ProtAdmin;
+   int           ProtAdmin;
 
-// At this point we should be able to accept new connections
+// At this point we should be able to accept new connections. Noe that we don't
+// support admin connections as of yet so the following code is superflous.
 //
-   while(1) if ((newlink = XrdNetADM->Accept()))
+   while(1) if ((newlink = NetADM->Accept()))
                {newlink->setProtocol((XrdProtocol *)&ProtAdmin);
-                XrdSched.Schedule((XrdJob *)newlink);
+                Parms->Config.ProtInfo.Sched->Schedule((XrdJob *)newlink);
                }
    return (void *)0;
 }
@@ -131,10 +124,11 @@ void *mainAdmin(void *parg)
   
 int main(int argc, char *argv[])
 {
-   sigset_t myset;
+   XrdMain   Main;
+   sigset_t  myset;
    pthread_t tid;
-   char buff[128];
-   int i, retc;
+   char      buff[128];
+   int       i, retc;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
@@ -157,33 +151,39 @@ int main(int argc, char *argv[])
 
 // Process configuration file
 //
-   if (XrdConf.Configure(argc, argv)) _exit(1);
+   if (Main.Config.Configure(argc, argv)) _exit(1);
 
 // Start the admin thread if an admin network is defined
 //
-   if (XrdNetADM && (retc = XrdSysThread::Run(&tid, mainAdmin, (void *)0,
-                            XRDSYSTHREAD_BIND, "Admin handler")))
-      {XrdLog.Emsg("main", retc, "create admin thread"); _exit(3);}
+   if (Main.Config.NetADM && (retc = XrdSysThread::Run(&tid, mainAdmin,
+                             (void *)new XrdMain(Main.Config.NetADM),
+                             XRDSYSTHREAD_BIND, "Admin handler")))
+      {Main.Config.ProtInfo.eDest->Emsg("main", retc, "create admin thread");
+       _exit(3);
+      }
 
 // At this point we should be able to accept new connections. Spawn a
 // thread for each network except the first. The main thread will handle
 // that network as some implementations require a main active thread.
 //
    for (i = 1; i <= XrdProtLoad::ProtoMax; i++)
-       if (XrdNetTCP[i])
-          {sprintf(buff, "Port %d handler", XrdNetTCP[i]->Port());
-           if ((retc = XrdSysThread::Run(&tid, mainAccept,
-                                         (void *)XrdNetTCP[i],
+       if (Main.Config.NetTCP[i])
+          {XrdMain *Parms = new XrdMain(Main.Config.NetTCP[i]);
+           sprintf(buff, "Port %d handler", Parms->thePort);
+           if (Parms->theNet == Main.Config.NetTCP[XrdProtLoad::ProtoMax])
+               Parms->thePort = -(Parms->thePort);
+           if ((retc = XrdSysThread::Run(&tid, mainAccept, (void *)Parms,
                                          XRDSYSTHREAD_BIND, strdup(buff))))
-              {sprintf(buff, "create port %d handler", XrdNetTCP[i]->Port());
-               XrdLog.Emsg("main", retc, buff);
+              {Main.Config.ProtInfo.eDest->Emsg("main", retc, "create", buff);
                _exit(3);
               }
           }
 
 // Finally, start accepting connections on the main port
 //
-   mainAccept((void *)XrdNetTCP[0]);
+   Main.theNet  = Main.Config.NetTCP[0];
+   Main.thePort = Main.Config.NetTCP[0]->Port();
+   mainAccept((void *)&Main);
 
 // We should never get here
 //

@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$  
-
-const char *XrdProtocolCVSID = "$Id$";
-
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -30,7 +26,6 @@ NetTCP    = rhs.NetTCP;
 BPool     = rhs.BPool;
 Sched     = rhs.Sched;
 Stats     = rhs.Stats;
-Threads   = rhs.Threads;
 Trace     = rhs.Trace;
 
 ConfigFN  = rhs.ConfigFN ? strdup(rhs.ConfigFN) : 0;

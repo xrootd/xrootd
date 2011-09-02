@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include "Xrd/XrdProtocol.hh"
 
 class XrdSysPlugin;
@@ -23,6 +21,9 @@ class XrdProtLoad : public XrdProtocol
 public:
 
 void          DoIt() {}
+
+static void   Init(XrdSysError *eP, XrdOucTrace *tP)
+                  {XrdLog = eP; XrdTrace = tP;}
 
 static int    Load(const char *lname, const char *pname, char *parms,
                    XrdProtocol_Config *pi);
@@ -36,7 +37,9 @@ int           Process(XrdLink *lp);
 
 void          Recycle(XrdLink *lp, int ctime, const char *txt);
 
-int           Stats(char *buff, int blen, int do_sync=0);
+int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
+
+static int    Statistics(char *buff, int blen, int do_sync=0);
 
               XrdProtLoad(int port=-1);
              ~XrdProtLoad();
@@ -49,6 +52,9 @@ static XrdProtocol *getProtocol    (const char *lname, const char *pname,
                                     char *parms, XrdProtocol_Config *pi);
 static int          getProtocolPort(const char *lname, const char *pname,
                                     char *parms, XrdProtocol_Config *pi);
+
+static XrdSysError   *XrdLog;
+static XrdOucTrace   *XrdTrace;
 
 static char          *ProtName[ProtoMax];   // ->Supported protocol names
 static XrdProtocol   *Protocol[ProtoMax];   // ->Supported protocol objects

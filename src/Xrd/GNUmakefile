@@ -111,9 +111,8 @@ $(OBJDIR)/XrdLinkMatch.o: XrdLinkMatch.cc XrdLinkMatch.hh XrdSysPlatform.hh
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) XrdLinkMatch.cc -o $(OBJDIR)/XrdLinkMatch.o
 
 $(OBJDIR)/XrdMain.o:   XrdConfig.hh    XrdLink.hh        XrdInet.hh \
-                       XrdPoll.hh      XrdScheduler.hh   XrdTrace.hh    \
-                       XrdSysError.hh  XrdSysLogger.hh   XrdSysPthread.hh \
-                       XrdOucTrace.hh  XrdProtLoad.hh    XrdSysHeaders.hh \
+                       XrdProtLoad.hh  XrdScheduler.hh \
+                       XrdSysError.hh  XrdSysHeaders.hh  XrdSysPthread.hh \
                        XrdMain.cc
 	@echo Compiling XrdMain.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(CFNOSTRICTALIAS) $(INCLUDE) -o $(OBJDIR)/XrdMain.o XrdMain.cc

@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdPollECVSID = "cvsid: $Id$";
-
 #ifndef __macos__
 #include <malloc.h>
 #endif
@@ -26,16 +22,6 @@ const char *XrdPollECVSID = "cvsid: $Id$";
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollE.hh"
 #include "Xrd/XrdScheduler.hh"
-
-/******************************************************************************/
-/*                           G l o b a l   D a t a                            */
-/******************************************************************************/
-
-extern XrdSysError    XrdLog;
-
-extern XrdScheduler   XrdSched;
-
-extern XrdOucTrace    XrdTrace;
   
 /******************************************************************************/
 /*                             n e w P o l l e r                              */
@@ -49,7 +35,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 // Open the /dev/poll driver
 //
    if ((pfd = epoll_create(maxfd)) < 0)
-      {XrdLog.Emsg("Poll", errno, "create epoll device"); return 0;}
+      {XrdLog->Emsg("Poll", errno, "create epoll device"); return 0;}
    fcntl(pfd, F_SETFD, FD_CLOEXEC);
 
 // Calculate the size of the poll table and allocate it
@@ -57,7 +43,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
    bytes     = maxfd * sizeof(struct epoll_event);
    alignment = (bytes < pagsz ? 1024 : pagsz);
    if (!(pp = (struct epoll_event *)memalign(alignment, bytes)))
-      {XrdLog.Emsg("Poll", ENOMEM, "create poll table");
+      {XrdLog->Emsg("Poll", ENOMEM, "create poll table");
        close(pfd);
        return 0;
       }
@@ -100,7 +86,7 @@ void XrdPollE::Disable(XrdLink *lp, const char *etxt)
 // is being waited upon by another thread.
 //
    if (epoll_ctl(PollDfd, EPOLL_CTL_MOD, lp->FDnum(), &myEvents))
-      {XrdLog.Emsg("Poll", errno, "disable link", lp->ID); return;}
+      {XrdLog->Emsg("Poll", errno, "disable link", lp->ID); return;}
 #endif
 
 // Trace this event
@@ -111,7 +97,7 @@ void XrdPollE::Disable(XrdLink *lp, const char *etxt)
 // Check if this link needs to be rescheduled. If so, the caller better have
 // the link opMutex lock held for this to work!
 //
-   if (etxt && Finish(lp, etxt)) XrdSched.Schedule((XrdJob *)lp);
+   if (etxt && Finish(lp, etxt)) XrdSched->Schedule((XrdJob *)lp);
 }
 
 /******************************************************************************/
@@ -131,7 +117,7 @@ int XrdPollE::Enable(XrdLink *lp)
 //
    lp->isEnabled = 1;
    if (epoll_ctl(PollDfd, EPOLL_CTL_MOD, lp->FDnum(), &myEvents))
-      {XrdLog.Emsg("Poll", errno, "enable link", lp->ID); 
+      {XrdLog->Emsg("Poll", errno, "enable link", lp->ID); 
        lp->isEnabled = 0;
        return 0;
       }
@@ -153,7 +139,7 @@ void XrdPollE::Exclude(XrdLink *lp)
 // Make sure this link is not enabled
 //
    if (lp->isEnabled) 
-      {XrdLog.Emsg("Poll", "Detach of enabled link", lp->ID);
+      {XrdLog->Emsg("Poll", "Detach of enabled link", lp->ID);
        Disable(lp);
       }
 }
@@ -170,7 +156,7 @@ int XrdPollE::Include(XrdLink *lp)
 // Add this fd to the poll set
 //
    if ((rc = epoll_ctl(PollDfd, EPOLL_CTL_ADD, lp->FDnum(), &myEvent)) < 0)
-      XrdLog.Emsg("Poll", errno, "include link", lp->ID);
+      XrdLog->Emsg("Poll", errno, "include link", lp->ID);
 
 // All done
 //
@@ -194,10 +180,10 @@ void XrdPollE::remFD(XrdLink *lp, unsigned int events)
    if (events & EPOLLHUP) why = "Sever";
       else if (events & EPOLLERR) why = "Error";
               else why = "Disabled";
-   XrdLog.Emsg("Poll", why, "event occured for", lp->ID);
+   XrdLog->Emsg("Poll", why, "event occured for", lp->ID);
 
    if (epoll_ctl(PollDfd, EPOLL_CTL_DEL, lp->FDnum(), &myEvents))
-      XrdLog.Emsg("Poll", errno, "exclude link", lp->ID);
+      XrdLog->Emsg("Poll", errno, "exclude link", lp->ID);
 }
 
 /******************************************************************************/
@@ -222,7 +208,7 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
           while (numpolled < 0 && errno == EINTR);
        if (numpolled == 0) continue;
        if (numpolled <  0)
-          {XrdLog.Emsg("Poll", errno, "poll for events");
+          {XrdLog->Emsg("Poll", errno, "poll for events");
            abort();
           }
        numEvents += numpolled;
@@ -242,15 +228,15 @@ void XrdPollE::Start(XrdSysSemaphore *syncsem, int &retcode)
 #ifndef EPOLLONESHOT
                         PollTab[i].events  = 0;
                         if (epoll_ctl(PollDfd,EPOLL_CTL_MOD,lp->FDnum(),&PollTab[i]))
-                           XrdLog.Emsg("Poll", errno, "disable link", lp->ID);
+                           XrdLog->Emsg("Poll", errno, "disable link", lp->ID);
 #endif
-                       } else XrdLog.Emsg("Poll", "null link event!!!!");
+                       } else XrdLog->Emsg("Poll", "null link event!!!!");
            }
 
        // Schedule the polled links
        //
-       if (num2sched == 1) XrdSched.Schedule(jfirst);
-          else if (num2sched) XrdSched.Schedule(num2sched, jfirst, jlast);
+       if (num2sched == 1) XrdSched->Schedule(jfirst);
+          else if (num2sched) XrdSched->Schedule(num2sched, jfirst, jlast);
       } while(1);
 }
 

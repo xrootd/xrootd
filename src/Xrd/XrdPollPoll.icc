@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$
-
-const char *XrdPollPollCVSID = "cvsid: $Id$";
-
 #if !defined(__macos__) && !defined(__FreeBSD__)
 #include <malloc.h>
 #endif
@@ -23,16 +19,6 @@ const char *XrdPollPollCVSID = "cvsid: $Id$";
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
-
-/******************************************************************************/
-/*                           G l o b a l   D a t a                            */
-/******************************************************************************/
-
-extern XrdSysError    XrdLog;
-
-extern XrdScheduler   XrdSched;
-
-extern XrdOucTrace    XrdTrace;
 
 /******************************************************************************/
 /*                             n e w P o l l e r                              */
@@ -48,7 +34,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
    bytes     = maxfd * sizeof(struct pollfd);
    alignment = (bytes < pagsz ? 1024 : pagsz);
    if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
-      {XrdLog.Emsg("Poll", ENOMEM, "create poll table");
+      {XrdLog->Emsg("Poll", ENOMEM, "create poll table");
        return 0;
       }
 
@@ -103,7 +89,7 @@ int XrdPollPoll::Include(XrdLink *lp)
 // Make sure we have enough table entries to add this link
 //
    if (ptnum > maxent)
-      {XrdLog.Emsg("Attach","Attach",lp->ID,"failed; poll table overflow.");
+      {XrdLog->Emsg("Attach","Attach",lp->ID,"failed; poll table overflow.");
        PollMutex.UnLock();
        return 0;
       }
@@ -163,9 +149,9 @@ void XrdPollPoll::Disable(XrdLink *lp, const char *etxt)
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
+   if (myerrno) XrdLog->Emsg("Poll", myerrno, "disable link", lp->ID);
       else {mySem.Wait();
-            if (etxt && Finish(lp, etxt)) XrdSched.Schedule((XrdJob *)lp);
+            if (etxt && Finish(lp, etxt)) XrdSched->Schedule((XrdJob *)lp);
            }
 }
   
@@ -203,7 +189,7 @@ int XrdPollPoll::Enable(XrdLink *lp)
 // Verify that all went well. Note that the link stays in the pollQ.
 //
    if (myerrno)
-      {XrdLog.Emsg("Poll", myerrno, "enable link", lp->ID); return 0;}
+      {XrdLog->Emsg("Poll", myerrno, "enable link", lp->ID); return 0;}
 
 // All done
 //
@@ -223,7 +209,7 @@ void XrdPollPoll::Exclude(XrdLink *lp)
 // Make sure this link is not enabled
 //
    if (lp->isEnabled)
-      {XrdLog.Emsg("Poll", "Detach of enabled link", lp->ID);
+      {XrdLog->Emsg("Poll", "Detach of enabled link", lp->ID);
        Disable(lp);
       }
       else if (lp->inQ) dqLink(lp);
@@ -242,7 +228,7 @@ void XrdPollPoll::Exclude(XrdLink *lp)
 
 // Verify that all went well and if termination wanted, terminate the link
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "detach link", lp->ID);
+   if (myerrno) XrdLog->Emsg("Poll", myerrno, "detach link", lp->ID);
       else mySem.Wait();
 }
  
@@ -304,7 +290,7 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
                   if (!(pollevents & pollOK))
                      Finish(lp, Poll2Text(pollevents));
                   if (!(lp->isEnabled))
-                     XrdLog.Emsg("Poll", "Disabled event occured for", lp->ID);
+                     XrdLog->Emsg("Poll", "Disabled event occured for", lp->ID);
                      else {lp->isEnabled = 0;
                            lp->NextJob = jfirst; jfirst = (XrdJob *)lp;
                            if (!jlast) jlast=(XrdJob *)lp;
@@ -319,8 +305,8 @@ void XrdPollPoll::Start(XrdSysSemaphore *syncsem, int &retcode)
 
        // Schedule the polled links
        //
-       if (num2sched == 1) XrdSched.Schedule(jfirst);
-          else if (num2sched) XrdSched.Schedule(num2sched, jfirst, jlast);
+       if (num2sched == 1) XrdSched->Schedule(jfirst);
+          else if (num2sched) XrdSched->Schedule(num2sched, jfirst, jlast);
       } while(1);
 }
 
@@ -339,7 +325,7 @@ void XrdPollPoll::doDetach(int pti)
 //
    PollMutex.Lock();
    if ((lastent = PollTNum-1) < 0)
-      {XrdLog.Emsg("Poll","Underflow during detach"); abort();}
+      {XrdLog->Emsg("Poll","Underflow during detach"); abort();}
 
    if (pti == lastent)
       do {PollTNum--;} while(PollTNum && PollTab[PollTNum-1].fd == -1);
@@ -392,7 +378,7 @@ void XrdPollPoll::doRequests(int maxreq)
                   act = " detached fd ";
                   lp->isEnabled = 0;
                  }
-         else {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
+         else {XrdLog->Emsg("Poll", "Received an invalid poll pipe request");
                continue;
               }
          TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd
@@ -422,7 +408,7 @@ void XrdPollPoll::dqLink(XrdLink *lp)
              PollMutex.UnLock();
             }
        else {PollMutex.UnLock();
-             XrdLog.Emsg("dqLink", "Link not found in Q", lp->ID);
+             XrdLog->Emsg("dqLink", "Link not found in Q", lp->ID);
             }
 }
   
@@ -443,7 +429,7 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
 
    if (pollfd < 0)
       {sprintf(buff, "poll %d failed; FD %d", PID, cmdfd);
-       XrdLog.Emsg("Poll", opn, buff, "does not map to a link");
+       XrdLog->Emsg("Poll", opn, buff, "does not map to a link");
        return;
       }
 
@@ -455,7 +441,7 @@ void XrdPollPoll::LogEvent(int req, int pollfd, int cmdfd)
             "%d poll fd=%d (%s) not equal %s cmd fd=%d (%s).",
             PID, pollfd, id1, opn, cmdfd, id2);
 
-   XrdLog.Emsg("Poll", "cmd/poll mismatch:", buff);
+   XrdLog->Emsg("Poll", "cmd/poll mismatch:", buff);
 }
   
 /******************************************************************************/
@@ -473,7 +459,7 @@ void XrdPollPoll::Recover(int numleft)
        if (PollTab[i].revents)
           {if (!(lp = XrdLink::fd2link(PollTab[i].fd))) PollTab[i].fd = -1;
               else {lp->isEnabled = 0; PollTab[i].fd = -PollTab[i].fd;
-                    XrdLog.Emsg("Poll","Improper poll event for", lp->ID);
+                    XrdLog->Emsg("Poll","Improper poll event for", lp->ID);
                    }
           }
 }
@@ -489,7 +475,7 @@ void XrdPollPoll::Restart(int ecode)
 // Issue error message
 //
    TRACE(POLL, PID <<'-' <<TID <<" Poll error " <<ecode);
-   XrdLog.Emsg("Poll", errno, "poll");
+   XrdLog->Emsg("Poll", errno, "poll");
 
 // For any outstanding link here, close the link and detach it
 //
@@ -498,7 +484,7 @@ void XrdPollPoll::Restart(int ecode)
         {PollQ = lp->Next;
          lp->PollEnt->fd = -1;
          Finish(lp, "Unexpected polling error");
-         XrdSched.Schedule((XrdJob *)lp);
+         XrdSched->Schedule((XrdJob *)lp);
         }
    PollMutex.UnLock();
 }

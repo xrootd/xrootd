@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
- 
-//         $Id$ 
-
-const char *XrdInetCVSID = "$Id$";
 
 #include <ctype.h>
 #include <errno.h>
@@ -24,6 +20,8 @@ const char *XrdInetCVSID = "$Id$";
 
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
+
+#define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
 
 #include "XrdNet/XrdNetOpts.hh"
@@ -32,8 +30,6 @@ const char *XrdInetCVSID = "$Id$";
 /******************************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
-  
-extern XrdOucTrace  XrdTrace;
 
        const char *XrdInet::TraceID = "Inet";
 

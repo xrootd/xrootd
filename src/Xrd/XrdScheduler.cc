@@ -1,16 +1,12 @@
 /******************************************************************************/
 /*                                                                            */
-/*                       X r d S c h e d u l e r . h h                        */
+/*                       X r d S c h e d u l e r . c c                        */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*       All Rights Reserved. See XrdInfo.cc for complete License Terms       */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//        $Id$
-
-const char *XrdSchedulerCVSID = "$Id$";
 
 #include <errno.h>
 #include <signal.h>
@@ -23,18 +19,14 @@ const char *XrdSchedulerCVSID = "$Id$";
 
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdScheduler.hh"
-#include "Xrd/XrdTrace.hh"
 #include "XrdSys/XrdSysError.hh"
 
-/******************************************************************************/
-/*                        G l o b a l   O b j e c t s                         */
-/******************************************************************************/
+#define XRD_TRACE XrdTrace->
+#include "Xrd/XrdTrace.hh"
 
-extern XrdSysError   XrdLog;
-  
-#ifndef NODEBUG
-extern XrdOucTrace   XrdTrace;
-#endif
+/******************************************************************************/
+/*                        S t a t i c   O b j e c t s                         */
+/******************************************************************************/
 
        const char   *XrdScheduler::TraceID = "Sched";
 
@@ -78,10 +70,13 @@ void *XrdStartWorking(void *carg)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdScheduler::XrdScheduler(int minw, int maxw, int maxi)
+XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
+                           int minw, int maxw, int maxi)
               : XrdJob("underused thread monitor"),
                 WorkAvail(0, "sched work")
 {
+    XrdLog      =  eP;
+    XrdTrace    =  tP;
     min_Workers =  minw;
     max_Workers =  maxw;
     max_Workidl =  maxi;
@@ -179,7 +174,7 @@ pid_t XrdScheduler::Fork(const char *id)
 // Fork
 //
    if ((pid = fork()) < 0)
-      {XrdLog.Emsg("Scheduler",errno,"fork to handle",id);
+      {XrdLog->Emsg("Scheduler",errno,"fork to handle",id);
        return pid;
       }
    if (!pid) return pid;
@@ -197,7 +192,7 @@ pid_t XrdScheduler::Fork(const char *id)
    if (!retc)
       if ((retc = XrdSysThread::Run(&tid, XrdStartReaper, (void *)this,
                                     0, "Process reaper")))
-         {XrdLog.Emsg("Scheduler", retc, "create reaper thread");
+         {XrdLog->Emsg("Scheduler", retc, "create reaper thread");
           ReaperStarted = 0;
          }
 
@@ -268,7 +263,7 @@ void XrdScheduler::Run()
            if ((jp = WorkFirst))
               {if (!(WorkFirst = jp->NextJob)) WorkLast = 0;
                if (num_JobsinQ) num_JobsinQ--;
-                  else XrdLog.Emsg("Scheduler","Job queue count underflow!");
+                  else XrdLog->Emsg("Scheduler","Job queue count underflow!");
               } else {
                num_JobsinQ = 0;
                if (num_Layoffs > 0)
@@ -452,7 +447,7 @@ void XrdScheduler::Start() // Serialized one time call!
 //
    if ((retc = XrdSysThread::Run(&tid, XrdStartTSched, (void *)this,
                                  XRDSYSTHREAD_BIND, "Time scheduler")))
-      XrdLog.Emsg("Scheduler", retc, "create time scheduler thread");
+      XrdLog->Emsg("Scheduler", retc, "create time scheduler thread");
 
 // If we an idle interval, schedule the idle check
 //
@@ -555,7 +550,7 @@ void XrdScheduler::hireWorker(int dotrace)
    if (num_Workers >= max_Workers)
       {num_Limited++;
        if ((num_Limited & 4095) == 1)
-           XrdLog.Emsg("Scheduler","Thread limit has been reached!");
+           XrdLog->Emsg("Scheduler","Thread limit has been reached!");
        SchedMutex.UnLock();
        return;
       }
@@ -571,7 +566,7 @@ void XrdScheduler::hireWorker(int dotrace)
 // Now check the results and correct if we couldn't start the thread
 //
    if (retc)
-      {XrdLog.Emsg("Scheduler", retc, "create worker thread");
+      {XrdLog->Emsg("Scheduler", retc, "create worker thread");
        SchedMutex.Lock();
        num_Workers--;
        num_TCreate--;

@@ -9,14 +9,15 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
 #include <sys/poll.h>
 #include "XrdSys/XrdSysPthread.hh"
 
 #define XRD_NUMPOLLERS 3
 
+class XrdOucTrace;
+class XrdSysError;
 class XrdLink;
+class XrdScheduler;
 class XrdSysSemaphore;
   
 class XrdPoll
@@ -42,6 +43,11 @@ virtual int   Enable(XrdLink *lp)  = 0;
 // Finish() is called to allow a link to gracefully terminate when scheduled
 //
 static  int   Finish(XrdLink *lp, const char *etxt=0); //Implementation supplied
+
+// Init()   is called to set pointers to external interfaces at config time.
+//
+static  void  Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
+                  {XrdLog = eP; XrdTrace = tP; XrdSched = sP;}
 
 // Poll2Text() converts bits in an revents item to text
 //
@@ -73,7 +79,10 @@ virtual   ~XrdPoll() {}
 
 protected:
 
-static     const char *TraceID;                  // For tracing
+static     const char   *TraceID;                  // For tracing
+static     XrdOucTrace  *XrdTrace;
+static     XrdSysError  *XrdLog;
+static     XrdScheduler *XrdSched;
 
 // Gets the next request on the poll pipe. This is common to all implentations.
 //

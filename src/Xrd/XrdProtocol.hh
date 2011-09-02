@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include "Xrd/XrdJob.hh"
  
 /******************************************************************************/
@@ -24,7 +22,6 @@
 // whole object using the supplied copy constructor.
 
 class XrdSysError;
-class XrdSysThread;
 class XrdOucTrace;
 class XrdBuffManager;
 class XrdInet;
@@ -44,7 +41,7 @@ XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
 XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
-XrdSysThread   *Threads;     // Stable -> The thread manager
+void           *Reserved;    // Stable -> Previously, the thread manager
 XrdOucTrace    *Trace;       // Stable -> Trace Information
 
 // The following information must be duplicated; it is unstable.
@@ -142,7 +139,7 @@ virtual    ~XrdProtocol() {}
    Success: Pointer to XrdProtocol object.
    Failure: Null pointer (i.e. 0) which causes the program to exit.
 
-extern "C"
+extern "C"  // This is in a comment!
 {
        XrdProtocol *XrdgetProtocol(const char *protocol_name, char *parms,
                                    XrdProtocol_Config *pi) {....}
@@ -181,7 +178,7 @@ extern "C"
                       need not define XrdgetProtocolPort() if the standard port
                       determination scheme is sufficient.
 
-extern "C"
+extern "C"  // This is in a comment!
 {
        int XrdgetProtocolPort(const char *protocol_name, char *parms,
                               XrdProtocol_Config *pi) {....}

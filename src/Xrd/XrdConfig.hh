@@ -10,9 +10,17 @@
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
 
-//          $Id$ 
-
+#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdInet.hh"
+#include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "Xrd/XrdScheduler.hh"
+#define   XRD_TRACE Trace.
+#include "Xrd/XrdTrace.hh"
+
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
 class XrdNetSecurity;
 class XrdOucStream;
@@ -22,12 +30,16 @@ class XrdConfig
 {
 public:
 
-int   Configure(int argc, char **argv);
+int         Configure(int argc, char **argv);
 
-int   ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest=0);
+int         ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest=0);
 
-      XrdConfig();
-     ~XrdConfig() {}
+         XrdConfig();
+        ~XrdConfig() {}
+
+XrdProtocol_Config  ProtInfo;
+XrdInet            *NetADM;
+XrdInet            *NetTCP[XrdProtLoad::ProtoMax+1];
 
 private:
 
@@ -52,8 +64,15 @@ int   yport(XrdSysError *edest, const char *ptyp, const char *pval);
 
 static const char  *TraceID;
 
-XrdProtocol_Config  ProtInfo;
+XrdSysLogger        Logger;
+XrdSysError         Log;
+XrdOucTrace         Trace;
+XrdScheduler        Sched;
+XrdBuffManager      BuffPool;
 XrdNetSecurity     *Police;
+XrdSysError        *XrdLog;
+XrdOucTrace        *XrdTrace;
+XrdScheduler       *XrdSched;
 const char         *myProg;
 const char         *myName;
 const char         *myDomain;
@@ -72,6 +91,7 @@ int                 Wan_Opts;
 int                 PortTCP;      // TCP Port to listen on
 int                 PortUDP;      // UDP Port to listen on (currently unsupported)
 int                 PortWAN;      // TCP port to listen on for WAN connections
+int                 NetTCPlep;
 int                 AdminMode;
 int                 repInt;
 char                repOpts;

@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -18,7 +16,9 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdJob.hh"
 
+class XrdOucTrace;
 class XrdSchedulerPID;
+class XrdSysError;
 
 class XrdScheduler : public XrdJob
 {
@@ -61,11 +61,15 @@ int        num_Limited; // Number of times max was reached
 
 // Constructor and destructor
 //
-              XrdScheduler(int minw=8, int maxw=2048, int maxi=780);
+              XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
+                           int minw=8, int maxw=2048, int maxi=780);
 
              ~XrdScheduler();
 
 private:
+XrdSysError *XrdLog;
+XrdOucTrace *XrdTrace;
+
 XrdSysMutex DispatchMutex; // Disp: Protects above area
 int        idl_Workers;    // Disp: Number of idle workers
 

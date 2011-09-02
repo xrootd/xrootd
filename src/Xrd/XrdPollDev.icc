@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdPollDevCVSID = "cvsid: $Id$";
-
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -23,16 +19,6 @@ const char *XrdPollDevCVSID = "cvsid: $Id$";
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPollPoll.hh"
 #include "Xrd/XrdScheduler.hh"
-
-/******************************************************************************/
-/*                           G l o b a l   D a t a                            */
-/******************************************************************************/
-
-extern XrdSysError    XrdLog;
-
-extern XrdScheduler   XrdSched;
-
-extern XrdOucTrace    XrdTrace;
   
 /******************************************************************************/
 /*                             n e w P o l l e r                              */
@@ -46,7 +32,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 // Open the /dev/poll driver
 //
    if ((pfd = open("/dev/poll", O_RDWR)) < 0)
-      {XrdLog.Emsg("Poll", errno, "open /dev/poll"); return 0;}
+      {XrdLog->Emsg("Poll", errno, "open /dev/poll"); return 0;}
    fcntl(pfd, F_SETFD, FD_CLOEXEC);
 
 // Calculate the size of the poll table and allocate it
@@ -54,7 +40,7 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
    bytes     = maxfd * sizeof(struct pollfd);
    alignment = (bytes < pagsz ? 1024 : pagsz);
    if (!(pp = (struct pollfd *)memalign(alignment, bytes)))
-      {XrdLog.Emsg("Poll", ENOMEM, "create poll table");
+      {XrdLog->Emsg("Poll", ENOMEM, "create poll table");
        close(pfd);
        return 0;
       }
@@ -105,9 +91,9 @@ void XrdPollDev::Disable(XrdLink *lp, const char *etxt)
 // Verify that all went well and if termination wanted, terminate the link
 // Warning! The link's opMutex must be held if termination is requested!
 //
-   if (myerrno) XrdLog.Emsg("Poll", myerrno, "disable link", lp->ID);
+   if (myerrno) XrdLog->Emsg("Poll", myerrno, "disable link", lp->ID);
       else {mySem.Wait();
-            if (etxt && Finish(lp, etxt)) XrdSched.Schedule((XrdJob *)lp);
+            if (etxt && Finish(lp, etxt)) XrdSched->Schedule((XrdJob *)lp);
            }
 }
 
@@ -132,7 +118,7 @@ int XrdPollDev::Enable(XrdLink *lp)
 
 // Verify that all went well
 //
-   if (nogo) XrdLog.Emsg("Poll", nogo, "enable link", lp->ID);
+   if (nogo) XrdLog->Emsg("Poll", nogo, "enable link", lp->ID);
    return !nogo;
 }
 
@@ -146,7 +132,7 @@ void XrdPollDev::Exclude(XrdLink *lp)
 // Make sure this link is not enabled
 //
    if (lp->isEnabled) 
-      {XrdLog.Emsg("Poll", "Detach of enabled link", lp->ID);
+      {XrdLog->Emsg("Poll", "Detach of enabled link", lp->ID);
        Disable(lp);
       }
 }
@@ -185,9 +171,9 @@ void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
 // If we have a com pipe, add it to our set
 //
    {struct pollfd ptab = {ReqFD, POLLIN | POLLRDNORM, 0};
-    if (PollDfd < 0) XrdLog.Emsg("Poll", "poll pipe not allocated");
+    if (PollDfd < 0) XrdLog->Emsg("Poll", "poll pipe not allocated");
        else if (write(PollDfd,&ptab,sizeof(struct pollfd))!=sizeof(struct pollfd))
-                XrdLog.Emsg("Poll", errno, "add pipe to poll set");
+                XrdLog->Emsg("Poll", errno, "add pipe to poll set");
                 else AOK = 1;
    }
 
@@ -203,7 +189,7 @@ void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
           while (numpolled < 0 && errno == EINTR);
        if (numpolled == 0) continue;
        if (numpolled <  0)
-          {XrdLog.Emsg("Poll", errno, "poll for events");
+          {XrdLog->Emsg("Poll", errno, "poll for events");
            abort();
           }
        numEvents += numpolled;
@@ -215,7 +201,7 @@ void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
            {if (PollTab[i].fd == ReqFD) {xReq = 1; continue;}
             if (lp = XrdLink::fd2link(PollTab[i].fd))
                if (!(lp->isEnabled))
-                  XrdLog.Emsg("Poll", "Disabled event occured for", lp->ID);
+                  XrdLog->Emsg("Poll", "Disabled event occured for", lp->ID);
                   else {lp->isEnabled = 0;
                         if (!(PollTab[i].revents & pollOK))
                            Finish(lp, Poll2Text(PollTab[i].revents));
@@ -231,12 +217,12 @@ void XrdPollDev::Start(XrdSysSemaphore *syncsem, int &retcode)
        //
        if (write(PollDfd, PollTab, numpolled*sizeof(struct pollfd))
                 != static_cast<ssize_t>(numpolled*sizeof(struct pollfd)))
-          XrdLog.Emsg("Poll", errno, "remove an fd from /dev/poll");
+          XrdLog->Emsg("Poll", errno, "remove an fd from /dev/poll");
 
        // Schedule the polled links
        //
-       if (num2sched == 1) XrdSched.Schedule(jfirst);
-          else if (num2sched) XrdSched.Schedule(num2sched, jfirst, jlast);
+       if (num2sched == 1) XrdSched->Schedule(jfirst);
+          else if (num2sched) XrdSched->Schedule(num2sched, jfirst, jlast);
 
        // Handle the queued pipe last
        //
@@ -274,7 +260,7 @@ void XrdPollDev::doRequests(int maxreq)
                  }
               if (!(lp = XrdLink::fd2link(ReqBuff.Parms.Arg.fd)))
                  {sprintf(buff, "%d", ReqBuff.Parms.Arg.fd);
-                  XrdLog.Emsg("Poll", "FD", buff, "does not map to a link");
+                  XrdLog->Emsg("Poll", "FD", buff, "does not map to a link");
                   ptab.events = POLLREMOVE; act = " remove fd ";
                  }
          else if (ReqBuff.req == PipeData::EnFD)
@@ -286,13 +272,13 @@ void XrdPollDev::doRequests(int maxreq)
                   num2do++;
                   act = " disable fd "; edval = 0x00;
                  }
-         else    {XrdLog.Emsg("Poll", "Received an invalid poll pipe request");
+         else    {XrdLog->Emsg("Poll", "Received an invalid poll pipe request");
                   continue;
                  }
          ptab.fd = ReqBuff.Parms.Arg.fd;
          TRACE(POLL, "Poller " <<PID <<act <<ReqBuff.Parms.Arg.fd);
          if (write(PollDfd, &ptab, sizeof(struct pollfd)) != sizeof(struct pollfd))
-            XrdLog.Emsg("Poll", errno, act);
+            XrdLog->Emsg("Poll", errno, act);
          if (lp) lp->isEnabled = edval;
         }
 }
@@ -305,5 +291,5 @@ void XrdPollDev::LogEvent(struct pollfd *pp)
 {
    char buff[32];
    sprintf(buff,"%.4x fd=%d",pp->revents, pp->fd);
-   XrdLog.Emsg("Poll", "Received unexpected event", buff);
+   XrdLog->Emsg("Poll", "Received unexpected event", buff);
 }

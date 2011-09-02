@@ -25,16 +25,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdConfig.hh"
-#include "Xrd/XrdInet.hh"
+#include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
-#include "Xrd/XrdProtLoad.hh"
-#include "Xrd/XrdScheduler.hh"
 #include "Xrd/XrdStats.hh"
-#include "Xrd/XrdTrace.hh"
-#include "Xrd/XrdInfo.hh"
 
 #include "XrdNet/XrdNetSecurity.hh"
 
@@ -43,9 +38,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
-#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
 #ifdef __linux__
@@ -56,25 +49,9 @@
 #endif
 
 /******************************************************************************/
-/*           G l o b a l   C o n f i g u r a t i o n   O b j e c t            */
+/*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
-
-       XrdBuffManager    XrdBuffPool;
-
-       int               XrdNetTCPlep = -1;
-       XrdInet          *XrdNetTCP[XrdProtLoad::ProtoMax+1] = {0};
-extern XrdInet          *XrdNetADM;
-
-extern XrdScheduler      XrdSched;
-
-extern XrdSysError       XrdLog;
-
-extern XrdSysLogger      XrdLogger;
-
-extern XrdSysThread     *XrdThread;
-
-extern XrdOucTrace       XrdTrace;
-
+  
        const char       *XrdConfig::TraceID = "Config";
 
 /******************************************************************************/
@@ -89,6 +66,9 @@ extern XrdOucTrace       XrdTrace;
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
+/******************************************************************************/
+/******************************************************************************/
+/*                         X r d C o n f i g P r o t                          */
 /******************************************************************************/
 
 class XrdConfigProt
@@ -113,32 +93,40 @@ int             wanopt;
                     }
 };
 
+/******************************************************************************/
+/*                          X r d L o g W o r k e r                           */
+/******************************************************************************/
+  
 class XrdLogWorker : XrdJob
 {
 public:
 
-     void DoIt() {XrdLog.Say(0, XrdBANNER);
-                  XrdLog.Say(0, mememe, " running.");
+     void DoIt() {theLog->Say(0, XrdBANNER);
+                  theLog->Say(0, mememe, " running.");
                   midnite += 86400;
-                  XrdSched.Schedule((XrdJob *)this, midnite);
+                  theSched->Schedule((XrdJob *)this, midnite);
                  }
 
-          XrdLogWorker(char *who) : XrdJob("midnight runner")
+          XrdLogWorker(XrdSysError *eP, XrdScheduler *sP, char *who)
+                      : XrdJob("midnight runner"), theLog(eP), theSched(sP)
                          {midnite = XrdSysTimer::Midnight() + 86400;
                           mememe = strdup(who);
-                          XrdSched.Schedule((XrdJob *)this, midnite);
+                          theSched->Schedule((XrdJob *)this, midnite);
                          }
          ~XrdLogWorker() {}
 private:
-time_t midnite;
-const char *mememe;
+XrdSysError  *theLog;
+XrdScheduler *theSched;
+time_t        midnite;
+const char   *mememe;
 };
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdConfig::XrdConfig(void)
+XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
+                         BuffPool(&Log, &Trace)
 {
 
 // Preset all variables with common defaults
@@ -159,19 +147,22 @@ XrdConfig::XrdConfig(void)
    repDest[1] = 0;
    repInt     = 600;
    repOpts    = 0;
+   NetTCPlep  = -1;
+   NetADM     = 0;
+   memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
 
-   ProtInfo.eDest   = &XrdLog;          // Stable -> Error Message/Logging Handler
+   ProtInfo.eDest   = &Log;             // Stable -> Error Message/Logging Handler
    ProtInfo.NetTCP  = 0;                // Stable -> Network Object
-   ProtInfo.BPool   = &XrdBuffPool;     // Stable -> Buffer Pool Manager
-   ProtInfo.Sched   = &XrdSched;        // Stable -> System Scheduler
+   ProtInfo.BPool   = &BuffPool;        // Stable -> Buffer Pool Manager
+   ProtInfo.Sched   = &Sched;           // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
-   ProtInfo.Trace   = &XrdTrace;        // Stable -> Trace Information
-   ProtInfo.Threads = 0;                // Stable -> The thread manager (later)
+   ProtInfo.Trace   = &Trace;           // Stable -> Trace Information
    ProtInfo.AdmPath = AdminPath;        // Stable -> The admin path
    ProtInfo.AdmMode = AdminMode;        // Stable -> The admin path mode
+   ProtInfo.Reserved= 0;                // Use to be the Thread Manager
 
    ProtInfo.Format   = XrdFORMATB;
    ProtInfo.WANPort  = 0;
@@ -243,7 +234,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'c': if (ConfigFN) free(ConfigFN);
                  ConfigFN = strdup(optarg);
                  break;
-       case 'd': XrdTrace.What |= TRACE_ALL;
+       case 'd': Trace.What |= TRACE_ALL;
                  ProtInfo.DebugON = 1;
                  putenv((char *)"XRDDEBUG=1"); // XrdOucEnv::Export()
                  break;
@@ -253,8 +244,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'k': n = strlen(optarg)-1;
                  retc = (isalpha(optarg[n])
-                        ? XrdOuca2x::a2sz(XrdLog,"keep size", optarg,&logkeep)
-                        : XrdOuca2x::a2ll(XrdLog,"keep count",optarg,&logkeep));
+                        ? XrdOuca2x::a2sz(*XrdLog,"keep size", optarg,&logkeep)
+                        : XrdOuca2x::a2ll(*XrdLog,"keep count",optarg,&logkeep));
                  if (retc) Usage(1);
                  if (!isalpha(optarg[n])) logkeep = -logkeep;
                  break;
@@ -264,7 +255,7 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
                            ? 0 : optarg);
                  break;
-       case 'p': if ((clPort = yport(&XrdLog, "tcp", optarg)) < 0) Usage(1);
+       case 'p': if ((clPort = yport(&Log, "tcp", optarg)) < 0) Usage(1);
                  break;
        case 'P': dfltProt = optarg;
                  break;
@@ -274,7 +265,7 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
 
        default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
-                    {XrdLog.Emsg("Config", argv[optind-1],
+                    {Log.Emsg("Config", argv[optind-1],
                                  "parameter not specified.");
                      Usage(1);
                     }
@@ -287,9 +278,9 @@ int XrdConfig::Configure(int argc, char **argv)
 // Drop into non-privileged state if so requested
 //
    if (myGid && setegid(myGid))
-      {XrdLog.Emsg("Config", errno, "set effective gid"); exit(17);}
+      {Log.Emsg("Config", errno, "set effective gid"); exit(17);}
    if (myUid && seteuid(myUid))
-      {XrdLog.Emsg("Config", errno, "set effective uid"); exit(17);}
+      {Log.Emsg("Config", errno, "set effective uid"); exit(17);}
 
 // Pass over any parameters
 //
@@ -305,11 +296,11 @@ int XrdConfig::Configure(int argc, char **argv)
    if (optbg)
    {
 #ifdef WIN32
-      XrdOucUtils::Undercover(XrdLog, !logfn);
+      XrdOucUtils::Undercover(&Log, !logfn);
 #else
       if (pipe( pipeFD ) == -1)
-         {XrdLog.Emsg("Config", errno, "create a pipe"); exit(17);}
-      XrdOucUtils::Undercover(XrdLog, !logfn, pipeFD);
+         {Log.Emsg("Config", errno, "create a pipe"); exit(17);}
+      XrdOucUtils::Undercover(*XrdLog, !logfn, pipeFD);
 #endif
    }
 
@@ -317,9 +308,9 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (logfn)
       {char *lP;
-       if (!(logfn = XrdOucUtils::subLogfn(XrdLog, myInsName, logfn))) _exit(16);
-       if (logkeep) XrdLogger.setKeep(logkeep);
-       XrdLogger.Bind(logfn, 24*60*60);
+       if (!(logfn = XrdOucUtils::subLogfn(Log,myInsName,logfn))) _exit(16);
+       if (logkeep) Log.logger()->setKeep(logkeep);
+       Log.logger()->Bind(logfn, 24*60*60);
        if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
           else lP = (char *)"./";
        XrdOucEnv::Export("XRDLOGDIR", lP);
@@ -329,7 +320,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // Get the full host name. In theory, we should always get some kind of name.
 //
    if (!(myName = XrdSysDNS::getHostName()))
-      {XrdLog.Emsg("Config", "Unable to determine host name; "
+      {Log.Emsg("Config", "Unable to determine host name; "
                              "execution terminated.");
        _exit(16);
       }
@@ -339,13 +330,13 @@ int XrdConfig::Configure(int argc, char **argv)
 // Otherwise, determine our domain name.
 //
    if (isdigit(*myName) && (isdigit(*(myName+1)) || *(myName+1) == '.'))
-      {XrdLog.Emsg("Config", myName, "is not the true host name of this machine.");
-       XrdLog.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
+      {Log.Emsg("Config", myName, "is not the true host name of this machine.");
+       Log.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
                              "this machine is registered in DNS.");
-       XrdLog.Emsg("Config", "Execution continues but connection failures may occur.");
+       Log.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
       } else if (!(myDomain = index(myName, '.')))
-                XrdLog.Say("Config warning: this hostname, ", myName,
+                Log.Say("Config warning: this hostname, ", myName,
                             ", is registered without a domain qualification.");
 
 // Get our IP address
@@ -370,8 +361,8 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Put out the herald
 //
-   XrdLog.Say(0, "Scalla is starting. . .");
-   XrdLog.Say(XrdBANNER);
+   Log.Say(0, "Scalla is starting. . .");
+   Log.Say(XrdBANNER);
 
 // Setup the initial required protocol.
 //
@@ -379,31 +370,30 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Process the configuration file, if one is present
 //
-   XrdLog.Say("++++++ ", myInstance, " initialization started.");
+   Log.Say("++++++ ", myInstance, " initialization started.");
    if (ConfigFN && *ConfigFN)
-      {XrdLog.Say("Config using configuration file ", ConfigFN);
+      {Log.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
        XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
    if (ProtInfo.DebugON) 
-      {XrdTrace.What = TRACE_ALL;
-       XrdSysThread::setDebug(&XrdLog);
+      {Trace.What = TRACE_ALL;
+       XrdSysThread::setDebug(&Log);
       }
    if (!NoGo) NoGo = Setup(dfltProt);
-   ProtInfo.Threads = XrdThread;
 
 // If we hae a net name change the working directory
 //
-   if (myInsName) XrdOucUtils::makeHome(XrdLog, myInsName);
+   if (myInsName) XrdOucUtils::makeHome(Log, myInsName);
 
    // if we call this it means that the daemon has forked and we are
    // in the child process
 #ifndef WIN32
    if (optbg)
    {
-      if (pidFN && !XrdOucUtils::PidFile( XrdLog, pidFN ) )
+      if (pidFN && !XrdOucUtils::PidFile(Log, pidFN ) )
          NoGo = 1;
 
       int status = NoGo ? 1 : 0;
@@ -416,8 +406,8 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    temp = (NoGo ? " initialization failed." : " initialization completed.");
    sprintf(buff, "%s:%d", myInstance, PortTCP);
-   XrdLog.Say("------ ", buff, temp);
-   if (logfn) new XrdLogWorker(buff);
+   Log.Say("------ ", buff, temp);
+   if (logfn) new XrdLogWorker(&Log, &Sched, buff);
 
    return NoGo;
 }
@@ -433,7 +423,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    // Determine whether is is dynamic or not
    //
    if (eDest) dynamic = 1;
-      else   {dynamic = 0; eDest = &XrdLog;}
+      else   {dynamic = 0; eDest = &Log;}
 
    // Process common items
    //
@@ -477,7 +467,7 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 // Make sure we can fit everything in our buffer
 //
    if ((plen + flen + 3) > (int)sizeof(sokpath))
-      {XrdLog.Emsg("Config", "admin path", path, "too long");
+      {Log.Emsg("Config", "admin path", path, "too long");
        return 1;
       }
 
@@ -485,7 +475,7 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 //
    strcpy(xpath, path);
    if ((rc = XrdOucUtils::makePath(xpath, mode)))
-       {XrdLog.Emsg("Config", rc, "create admin path", xpath);
+       {Log.Emsg("Config", rc, "create admin path", xpath);
         return 1;
        }
 
@@ -500,12 +490,12 @@ int XrdConfig::ASocket(const char *path, const char *fname, mode_t mode)
 
 // Create an admin network
 //
-   XrdNetADM = new XrdInet(&XrdLog);
-   if (myDomain) XrdNetADM->setDomain(myDomain);
+   NetADM = new XrdInet(&Log);
+   if (myDomain) NetADM->setDomain(myDomain);
 
 // Bind the netwok to the named socket
 //
-   if (!XrdNetADM->Bind(sokpath)) return 1;
+   if (!NetADM->Bind(sokpath)) return 1;
 
 // Set the mode and return
 //
@@ -523,12 +513,12 @@ int XrdConfig::ConfigProc()
   char *var;
   int  cfgFD, retc, NoGo = 0;
   XrdOucEnv myEnv;
-  XrdOucStream Config(&XrdLog, myInstance, &myEnv, "=====> ");
+  XrdOucStream Config(&Log, myInstance, &myEnv, "=====> ");
 
 // Try to open the configuration file.
 //
    if ( (cfgFD = open(ConfigFN, O_RDONLY, 0)) < 0)
-      {XrdLog.Emsg("Config", errno, "open config file", ConfigFN);
+      {Log.Emsg("Config", errno, "open config file", ConfigFN);
        return 1;
       }
    Config.Attach(cfgFD);
@@ -543,7 +533,7 @@ int XrdConfig::ConfigProc()
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
-      NoGo = XrdLog.Emsg("Config", retc, "read config file", ConfigFN);
+      NoGo = Log.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
 
 // Return final return code
@@ -562,11 +552,11 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 // Get the userid entry
 //
    if (!(*parm))
-      {XrdLog.Emsg("Config", "-R user not specified."); return 0;}
+      {Log.Emsg("Config", "-R user not specified."); return 0;}
 
    if (isdigit(*parm))
       {if (!(newUid = atol(parm)))
-          {XrdLog.Emsg("Config", "-R", parm, "is invalid"); return 0;}
+          {Log.Emsg("Config", "-R", parm, "is invalid"); return 0;}
        pp = getpwuid(newUid);
       }
       else pp = getpwnam(parm);
@@ -574,11 +564,11 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 // Make sure it is valid and acceptable
 //
    if (!pp) 
-      {XrdLog.Emsg("Config", errno, "retrieve -R user password entry");
+      {Log.Emsg("Config", errno, "retrieve -R user password entry");
        return 0;
       }
    if (!(newUid = pp->pw_uid))
-      {XrdLog.Emsg("Config", "-R", parm, "is still unacceptably a superuser!");
+      {Log.Emsg("Config", "-R", parm, "is still unacceptably a superuser!");
        return 0;
       }
    newGid = pp->pw_gid;
@@ -597,7 +587,7 @@ int XrdConfig::setFDL()
 // Get the resource limit
 //
    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno, "get FD limit");
+      return Log.Emsg("Config", errno, "get FD limit");
 
 // Set the limit to the maximum allowed
 //
@@ -607,18 +597,18 @@ int XrdConfig::setFDL()
      rlim.rlim_cur = OPEN_MAX;
 #endif
    if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno,"set FD limit");
+      return Log.Emsg("Config", errno,"set FD limit");
 
 // Obtain the actual limit now
 //
    if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-      return XrdLog.Emsg("Config", errno, "get FD limit");
+      return Log.Emsg("Config", errno, "get FD limit");
 
 // Establish operating limit
 //
    ProtInfo.ConnMax = rlim.rlim_cur;
    sprintf(buff, "%d", ProtInfo.ConnMax);
-   XrdLog.Say("Config maximum number of connections restricted to ", buff);
+   Log.Say("Config maximum number of connections restricted to ", buff);
 
    return 0;
 }
@@ -657,14 +647,16 @@ int XrdConfig::Setup(char *dfltp)
 
 // Initialize the buffer manager
 //
-   XrdBuffPool.Init();
+   BuffPool.Init();
 
 // Start the scheduler
 //
-   XrdSched.Start();
+   Sched.Start();
 
 // Setup the link and socket polling infrastructure
 //
+   XrdLink::Init(&Log, &Trace, &Sched);
+   XrdPoll::Init(&Log, &Trace, &Sched);
    if (!XrdLink::Setup(ProtInfo.ConnMax, ProtInfo.idleWait)
    ||  !XrdPoll::Setup(ProtInfo.ConnMax)) return 1;
 
@@ -692,6 +684,7 @@ int XrdConfig::Setup(char *dfltp)
 // number and arrange them in descending port number order.
 // XrdOucEnv::Export(XRDPORT
 //
+   XrdProtLoad::Init(&Log, &Trace);
    while((cp = Firstcp))
         {ProtInfo.Port = (cp->port < 0 ? PortTCP : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
@@ -706,12 +699,13 @@ int XrdConfig::Setup(char *dfltp)
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
 //
-   ProtInfo.Stats = new XrdStats(ProtInfo.myName, POrder->port,
+   ProtInfo.Stats = new XrdStats(&Log, &Sched, &BuffPool,
+                                 ProtInfo.myName, POrder->port,
                                  ProtInfo.myInst, ProtInfo.myProg);
 
 // Allocate a WAN port number of we need to
 //
-   if (PortWAN &&  (NetWAN = new XrdInet(&XrdLog, Police)))
+   if (PortWAN &&  (NetWAN = new XrdInet(&Log, &Trace, Police)))
       {if (Wan_Opts || Wan_Blen) NetWAN->setDefaults(Wan_Opts, Wan_Blen);
        if (myDomain) NetWAN->setDomain(myDomain);
        if (NetWAN->Bind((PortWAN > 0 ? PortWAN : 0), "tcp")) return 1;
@@ -719,7 +713,7 @@ int XrdConfig::Setup(char *dfltp)
        wsz      = NetWAN->WSize();
        Wan_Blen = (wsz < Wan_Blen || !Wan_Blen ? wsz : Wan_Blen);
        TRACE(NET,"WAN port " <<PortWAN <<" wsz=" <<Wan_Blen <<" (" <<wsz <<')');
-       XrdNetTCP[XrdProtLoad::ProtoMax] = NetWAN;
+       NetTCP[XrdProtLoad::ProtoMax] = NetWAN;
       } else {PortWAN = 0; Wan_Blen = 0;}
 
 // Load the protocols. For each new protocol port number, create a new
@@ -728,14 +722,14 @@ int XrdConfig::Setup(char *dfltp)
 //
    while((cp= POrder))
         {if (cp->port != lastPort)
-            {XrdNetTCP[++XrdNetTCPlep] = new XrdInet(&XrdLog, Police);
+            {NetTCP[++NetTCPlep] = new XrdInet(&Log, &Trace, Police);
              if (Net_Opts || Net_Blen)
-                XrdNetTCP[XrdNetTCPlep]->setDefaults(Net_Opts, Net_Blen);
-             if (myDomain) XrdNetTCP[XrdNetTCPlep]->setDomain(myDomain);
-             if (XrdNetTCP[XrdNetTCPlep]->Bind(cp->port, "tcp")) return 1;
-             ProtInfo.Port   = XrdNetTCP[XrdNetTCPlep]->Port();
-             ProtInfo.NetTCP = XrdNetTCP[XrdNetTCPlep];
-             wsz             = XrdNetTCP[XrdNetTCPlep]->WSize();
+                NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
+             if (myDomain) NetTCP[NetTCPlep]->setDomain(myDomain);
+             if (NetTCP[NetTCPlep]->Bind(cp->port, "tcp")) return 1;
+             ProtInfo.Port   = NetTCP[NetTCPlep]->Port();
+             ProtInfo.NetTCP = NetTCP[NetTCPlep];
+             wsz             = NetTCP[NetTCPlep]->WSize();
              ProtInfo.WSize  = (wsz < Net_Blen || !Net_Blen ? wsz : Net_Blen);
              TRACE(NET,"LCL port " <<ProtInfo.Port <<" wsz=" <<ProtInfo.WSize
                        <<" (" <<wsz <<')');
@@ -755,9 +749,10 @@ int XrdConfig::Setup(char *dfltp)
 // Leave the env port number to be the first used port number. This may
 // or may not be the same as the default port number.
 //
-   ProtInfo.Port = XrdNetTCP[0]->Port();
+   ProtInfo.Port = NetTCP[0]->Port();
    PortTCP = ProtInfo.Port;
    XrdOucEnv::Export("XRDPORT", PortTCP);
+   XrdLink::Init(NetTCP[0]);
 
 // Now check if we have to setup automatic reporting
 //
@@ -901,7 +896,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
        if (XrdOuca2x::a2tm(*eDest,"reshape interval", val, &bint, 300))
           return 1;
 
-    XrdBuffPool.Set((int)blim, bint);
+    BuffPool.Set((int)blim, bint);
     return 0;
 }
 
@@ -1086,7 +1081,7 @@ int XrdConfig::xprot(XrdSysError *eDest, XrdOucStream &Config)
        else parms = 0;
 
     if ((val = index(proname, ':')))
-       {if ((portnum = yport(&XrdLog, "tcp", val+1)) < 0) return 1;
+       {if ((portnum = yport(&Log, "tcp", val+1)) < 0) return 1;
            else *val = '\0';
        }
 
@@ -1310,7 +1305,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 
 // Establish scheduler options
 //
-   XrdSched.setParms(V_mint, V_maxt, V_avlt, V_idle);
+   Sched.setParms(V_mint, V_maxt, V_avlt, V_idle);
    return 0;
 }
 
@@ -1438,6 +1433,6 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
                   }
           val = Config.GetWord();
          }
-    XrdTrace.What = trval;
+    Trace.What = trval;
     return 0;
 }

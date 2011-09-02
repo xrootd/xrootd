@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//           $Id$
-
-const char *XrdPollCVSID = "$Id$";
-
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -22,6 +18,8 @@ const char *XrdPollCVSID = "$Id$";
 #include "XrdSys/XrdSysPthread.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdProtocol.hh"
+
+#define  XRD_TRACE XrdTrace->
 #define  TRACELINK lp
 #include "Xrd/XrdTrace.hh"
 
@@ -65,9 +63,9 @@ int           Stats(char *buff, int blen, int do_sync=0) {return 0;}
 
        const char *XrdPoll::TraceID = "Poll";
 
-extern XrdSysError  XrdLog;
-
-extern XrdOucTrace  XrdTrace;
+       XrdOucTrace  *XrdPoll::XrdTrace = 0;
+       XrdSysError  *XrdPoll::XrdLog   = 0;
+       XrdScheduler *XrdPoll::XrdSched = 0;
 
 /******************************************************************************/
 /*              T h r e a d   S t a r t u p   I n t e r f a c e               */
@@ -106,7 +104,7 @@ XrdPoll::XrdPoll()
        ReqFD = fildes[0]; fcntl(ReqFD, F_SETFD, FD_CLOEXEC);
       } else {
        CmdFD = ReqFD = -1;
-       XrdLog.Emsg("Poll", errno, "create poll pipe");
+       XrdLog->Emsg("Poll", errno, "create poll pipe");
       }
    PipeBuff        = 0;
    PipeBlen        = 0;
@@ -166,7 +164,7 @@ void XrdPoll::Detach(XrdLink *lp)
 //
    doingAttach.Lock();
    if (!pp->numAttached)
-      {XrdLog.Emsg("Poll","Underflow detaching", lp->ID); abort();}
+      {XrdLog->Emsg("Poll","Underflow detaching", lp->ID); abort();}
    pp->numAttached--;
    doingAttach.UnLock();
    TRACEI(POLL, "FD " <<lp->FD <<" detached from poller " <<pp->PID <<"; num=" <<pp->numAttached);
@@ -230,7 +228,7 @@ int XrdPoll::getRequest()
    do {rlen = read(ReqFD, PipeBuff, PipeBlen);} 
       while(rlen < 0 && errno == EINTR);
    if (rlen <= 0)
-      {if (rlen) XrdLog.Emsg("Poll", errno, "read from request pipe");
+      {if (rlen) XrdLog->Emsg("Poll", errno, "read from request pipe");
        return 0;
       }
 
@@ -289,11 +287,11 @@ int XrdPoll::Setup(int numfd)
         TRACE(POLL, "Starting poller " <<i);
         if ((retc = XrdSysThread::Run(&tid,XrdStartPolling,(void *)&PArg,
                                       XRDSYSTHREAD_BIND, "Poller")))
-           {XrdLog.Emsg("Poll", retc, "create poller thread"); return 0;}
+           {XrdLog->Emsg("Poll", retc, "create poller thread"); return 0;}
         Pollers[i]->TID = tid;
         PArg.PollSync.Wait();
         if (PArg.retcode)
-           {XrdLog.Emsg("Poll", PArg.retcode, "start poller");
+           {XrdLog->Emsg("Poll", PArg.retcode, "start poller");
             return 0;
            }
        }
