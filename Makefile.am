@@ -96,7 +96,8 @@ utils/mps_Xeq \
 utils/mps_prep \
 utils/xrdcksum \
 utils/xrdmd5sum \
-utils/XrdCmsNotify.pm
+utils/XrdCmsNotify.pm \
+utils/netchk
 
 dist_xrootdutils_DATA = utils/ooss_CAlloc.pm \
 utils/ooss_Lock.pm \
