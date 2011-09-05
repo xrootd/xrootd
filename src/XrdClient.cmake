@@ -7,6 +7,9 @@ include( XRootDCommon )
 set( XRD_CLIENT_VERSION   0.0.1 )
 set( XRD_CLIENT_SOVERSION 0 )
 
+set( XRD_CLIENT_ADMIN_VERSION   0.0.1 )
+set( XRD_CLIENT_ADMIN_SOVERSION 0 )
+
 #-------------------------------------------------------------------------------
 # The XrdClient lib
 #-------------------------------------------------------------------------------
@@ -102,6 +105,55 @@ target_link_libraries(
   XrdClient )
 
 #-------------------------------------------------------------------------------
+# Perl bindings
+#-------------------------------------------------------------------------------
+if( PERLLIBS_FOUND )
+  include_directories( ${PERL_INCLUDE_PATH} )
+
+  #-----------------------------------------------------------------------------
+  # We have SWIG
+  #-----------------------------------------------------------------------------
+  if( SWIG_FOUND )
+    add_custom_command(
+      OUTPUT XrdClientAdmin_c_wrap.cc XrdClientAdmin.pm
+      COMMAND
+      ${SWIG_EXECUTABLE} -c++ -perl -o XrdClientAdmin_c_wrap.cc
+      ${CMAKE_SOURCE_DIR}/src/XrdClient/XrdClientAdmin_c.hh
+      MAIN_DEPENDENCY XrdClient/XrdClientAdmin_c.hh )
+
+  #-----------------------------------------------------------------------------
+  # No SWIG
+  #-----------------------------------------------------------------------------
+  else()
+    add_custom_command(
+      OUTPUT XrdClientAdmin_c_wrap.cc XrdClientAdmin.pm
+      COMMAND
+      cp ${CMAKE_SOURCE_DIR}/src/XrdClient/XrdClientAdmin_c_wrap.c
+      XrdClientAdmin_c_wrap.cc
+      COMMAND
+      cp ${CMAKE_SOURCE_DIR}/src/XrdClient/XrdClientAdmin.pm . )
+  endif()
+
+  add_library(
+    XrdClientAdmin
+    SHARED
+    XrdClientAdmin_c_wrap.cc
+    XrdClient/XrdClientAdmin_c.cc XrdClient/XrdClientAdmin_c.hh )
+
+  target_link_libraries(
+    XrdClientAdmin
+    XrdClient
+    ${PERL_LIBRARY} )
+
+  set_target_properties(
+    XrdClientAdmin
+    PROPERTIES
+    VERSION   ${XRD_CLIENT_ADMIN_VERSION}
+    SOVERSION ${XRD_CLIENT_ADMIN_SOVERSION} )
+
+endif()
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
@@ -125,18 +177,28 @@ install(
   PATTERN "*.hh"
   PATTERN "*.icc" )
 
+#-------------------------------------------------------------------------------
+# Install the perl bindings
+#-------------------------------------------------------------------------------
+if( PERLLIBS_FOUND )
+  install(
+    TARGETS XrdClientAdmin
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+  install(
+    FILES
+    ${PROJECT_BINARY_DIR}/src/XrdClientAdmin.pm
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PERMISSIONS OWNER_READ OWNER_WRITE )
+endif()
+
 # FIXME: files
-#-rwxr-xr-x 1 ljanyst ljanyst   164 2011-03-21 16:13 BuildSwigPerlWrapper.sh
 #-rw-r--r-- 1 ljanyst ljanyst  1643 2011-03-21 16:13 TestXrdClient.cc
 #-rw-r--r-- 1 ljanyst ljanyst 20576 2011-03-21 16:13 TestXrdClient_read.cc
 #-rwxr-xr-x 1 ljanyst ljanyst  1848 2011-03-21 16:13 tinytestXTNetAdmin.pl
 #-rwxr-xr-x 1 ljanyst ljanyst 15314 2011-03-21 16:13 xrdadmin
 #-rw-r--r-- 1 ljanyst ljanyst  1516 2011-03-21 16:13 XrdClientAbsMonIntf.hh
-#-rw-r--r-- 1 ljanyst ljanyst  7158 2011-03-21 16:13 XrdClientAdmin_c.cc
-#-rw-r--r-- 1 ljanyst ljanyst  2663 2011-03-21 16:13 XrdClientAdmin_c.hh
-#-rw-r--r-- 1 ljanyst ljanyst 76971 2011-03-21 16:13 XrdClientAdmin_c_wrap.c
 #-rw-r--r-- 1 ljanyst ljanyst 18822 2011-03-21 16:13 XrdClientAdminJNI.cc
 #-rw-r--r-- 1 ljanyst ljanyst  3239 2011-03-21 16:13 XrdClientAdminJNI.h
 #-rw-r--r-- 1 ljanyst ljanyst  1636 2011-03-21 16:13 XrdClientAdminJNI.java
-#-rw-r--r-- 1 ljanyst ljanyst  1663 2011-03-21 16:13 XrdClientAdmin.pm
 #-rw-r--r-- 1 ljanyst ljanyst  1026 2011-03-21 16:13 XrdClientCallback.hh

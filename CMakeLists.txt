@@ -57,6 +57,8 @@ find_package( ZLIB )
 find_package( OpenSSL )
 find_package( Kerberos5 )
 find_package( fuse )
+find_package( PerlLibs )
+find_package( SWIG )
 
 if( ${READLINE_FOUND} )
   add_definitions( -DHAVE_READLINE )
