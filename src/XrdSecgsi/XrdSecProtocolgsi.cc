@@ -1810,15 +1810,11 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          if (!cent || (cent && (cent->status != kPFE_ok))) {
             int authzrc = 0;
             if ((authzrc = (*AuthzFun)(Entity)) != 0) {
-               if (authzrc < 0) {
-                  // Fatal error
-                  kS_rc = kgST_error;
-                  PRINT("ERROR: the authorization plug-in reported a fatal failure!");
-                  SafeDelete(key);
-                  break;
-               } else {
-                  PRINT("WARNING: the authorization plug-in reported a non-fatal failure!");
-               }
+               // Error
+               kS_rc = kgST_error;
+               PRINT("ERROR: the authorization plug-in reported a failure for this handshake");
+               SafeDelete(key);
+               break;
             } else {
                if ((cent = cacheAuthzFun.Add(dn))) {
                   cent->status = kPFE_ok;
@@ -4841,8 +4837,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    //    The proxy chain can be either in 'raw' or 'PEM base64' format (see below).
    //    This function returns 
    //                          0      on success
-   //                         <0      on FATAL error
-   //                         >0      on error
+   //                         <0      on error (implies authentication failure)
    //
    // 2. The initialization function:
    //
