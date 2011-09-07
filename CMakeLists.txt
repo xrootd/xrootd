@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # Project description
 #-------------------------------------------------------------------------------
-cmake_minimum_required( VERSION 2.8 )
+cmake_minimum_required( VERSION 2.6 )
 project( XRootD )
 
 set( CMAKE_MODULE_PATH
@@ -60,19 +60,19 @@ find_package( fuse )
 find_package( PerlLibs )
 find_package( SWIG )
 
-if( ${READLINE_FOUND} )
+if( READLINE_FOUND )
   add_definitions( -DHAVE_READLINE )
 endif()
 
-if( ${ZLIB_FOUND} )
+if( ZLIB_FOUND )
   add_definitions( -DHAVE_LIBZ )
 endif()
 
-if( ${OPENSSL_FOUND} )
+if( OPENSSL_FOUND )
   add_definitions( -DHAVE_XRDCRYPTO )
 endif()
 
-if( ${FUSE_FOUND} )
+if( FUSE_FOUND )
   add_definitions( -DHAVE_FUSE )
 endif()
 

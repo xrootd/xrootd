@@ -105,7 +105,7 @@ install(
   TARGETS XrdCrypto XrdCryptoLite XrdCryptossl
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-if( ${OPENSSL_FOUND} )
+if( OPENSSL_FOUND )
   install(
     TARGETS XrdCryptossl
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

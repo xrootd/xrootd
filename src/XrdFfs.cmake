@@ -35,7 +35,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # xrootdfs
 #-------------------------------------------------------------------------------
-if( ${FUSE_FOUND} )
+if( FUSE_FOUND )
   add_executable(
     xrootdfs
     XrdFfs/XrdFfsXrootdfs.cc )
@@ -53,7 +53,7 @@ install(
   TARGETS XrdFfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-if( ${FUSE_FOUND} )
+if( FUSE_FOUND )
   install(
     TARGETS xrootdfs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
