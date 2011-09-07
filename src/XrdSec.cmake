@@ -152,3 +152,11 @@ install(
   XrdSec/XrdSecTLayer.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSec
   PERMISSIONS OWNER_READ OWNER_WRITE )
+
+install(
+  FILES
+  XrdSecsss/XrdSecsssID.hh
+  XrdSecsss/XrdSecsssKT.hh
+  XrdSecsss/XrdSecsssRR.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSecsss
+  PERMISSIONS OWNER_READ OWNER_WRITE )

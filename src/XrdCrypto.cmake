@@ -111,6 +111,12 @@ if( OPENSSL_FOUND )
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 endif()
 
+install(
+  DIRECTORY      XrdCrypto/
+  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCrypto
+  FILES_MATCHING
+  PATTERN "*.hh"
+  PATTERN "*.icc" )
 
 # FIXME: Unused files
 

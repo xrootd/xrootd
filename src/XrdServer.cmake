@@ -105,8 +105,6 @@ add_library(
 
 # FIXME: defines
 #XrdOssAio.cc:#if defined(_POSIX_ASYNCHRONOUS_IO) && !defined(HAVE_SIGWTI)
-#XrdOssAio.cc:#ifndef HAVE_SIGWTI
-#XrdOssAio.cc:#ifndef HAVE_SIGWTI
 #XrdOssAio.cc:#if defined( _POSIX_ASYNCHRONOUS_IO) && !defined(HAVE_SIGWTI)
 
 target_link_libraries(
