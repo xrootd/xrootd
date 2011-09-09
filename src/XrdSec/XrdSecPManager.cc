@@ -236,7 +236,7 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 
 // Form library name
 //
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s.%s", pid, LT_MODULE_EXT );
+   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s", pid, LT_MODULE_EXT );
    libfn[sizeof(libfn)-1] = '\0';
 
 // Determine path

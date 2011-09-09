@@ -1683,7 +1683,7 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // We need to load the protocol getter the first time we are here
    if (!getp) {
       char libfn[80];
-      snprintf( libfn, sizeof(libfn)-1, "libXrdSec.%s", LT_MODULE_EXT );
+      snprintf( libfn, sizeof(libfn)-1, "libXrdSec%s", LT_MODULE_EXT );
       libfn[sizeof(libfn)-1] = '\0';
 
       // Open the security library
