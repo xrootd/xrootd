@@ -1259,7 +1259,7 @@ int main(int argc, char *argv[])
     xrootdfs.daemon_user = NULL;
     xrootdfs.ofsfwd = false;
     xrootdfs.ssskeytab = NULL;
-    xrootdfs.urlcachelife = "3650d"; /* 10 years */
+    xrootdfs.urlcachelife = strdup("3650d"); /* 10 years */
     xrootdfs.nworkers = 4;
 
 /* Get options from environment variables first */
