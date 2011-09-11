@@ -35,6 +35,7 @@
 #include <libgen.h>
 #include <syslog.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #if !defined(__solaris__)
 #include <sys/xattr.h>
 #endif
@@ -57,6 +58,8 @@ struct XROOTDFS {
     bool ofsfwd;
     int  nworkers;
 };
+
+int cwdfd; // File descript of the initial working dir
 
 struct XROOTDFS xrootdfs;
 static struct fuse_opt xrootdfs_opts[13];
@@ -88,6 +91,7 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
         if (i == len) pw = getpwuid(atoi(xrootdfs.daemon_user));
         setgid((gid_t)pw->pw_gid);
         setuid((uid_t)pw->pw_uid);
+        prctl(PR_SET_DUMPABLE, 1); // enable core dump after setuid/setgid
     }
 
 /*
@@ -104,6 +108,10 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
 #else
     syslog(LOG_INFO, "INFO: Not compiled to use task queue");
 #endif
+
+    fchdir(cwdfd);
+    close(cwdfd);
+
     return NULL;
 }
 
@@ -1305,6 +1313,8 @@ int main(int argc, char *argv[])
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
     XrdFfsWcache_init();
     signal(SIGUSR1,xrootdfs_sigusr1_handler);
+
+    cwdfd = open(".",O_RDONLY);
 
     umask(0);
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
