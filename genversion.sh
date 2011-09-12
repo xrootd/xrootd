@@ -14,7 +14,7 @@ function getNumericVersion()
 {
   VERSION=$1
   if test x`echo $VERSION | egrep $EXP2` == x; then
-    echo "0";
+    echo "1000000";
     return;
   fi
   VERSION=${VERSION/v/}
@@ -200,7 +200,7 @@ if test ! -r ${SOURCEPATH}src/XrdVersion.hh.in; then
 fi
 
 sed -e "s/#define XrdVERSION  \"unknown\"/#define XrdVERSION  \"$VERSION\"/" ${SOURCEPATH}src/XrdVersion.hh.in | \
-sed -e "s/#define XrdVNUMBER  0/#define XrdVNUMBER  $NUMVERSION/" \
+sed -e "s/#define XrdVNUMBER  1000000/#define XrdVNUMBER  $NUMVERSION/" \
 > src/XrdVersion.hh.new
 
 if test $? -ne 0; then
