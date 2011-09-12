@@ -6,6 +6,8 @@
 
 #define XrdVERSION  "unknown"
 
+#define XrdVNUMBER  0
+
 #if XrdDEBUG
 #define XrdVSTRING XrdVERSION "_dbg"
 #else

@@ -7,6 +7,25 @@ EXP1='^v[12][0-9][0-9][0-9][01][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9]$'
 EXP2='^v[0-9]+\.[0-9]+\.[0-9]+$'
 EXP3='^v[0-9]+\.[0-9]+\.[0-9]+\-rc.*$'
 
+#-------------------------------------------------------------------------------
+# Get the numeric version
+#-------------------------------------------------------------------------------
+function getNumericVersion()
+{
+  VERSION=$1
+  if test x`echo $VERSION | egrep $EXP2` == x; then
+    echo "0";
+    return;
+  fi
+  VERSION=${VERSION/v/}
+  VERSION=${VERSION//./ }
+  VERSION=($VERSION)
+  printf "%d%02d%02d\n" ${VERSION[0]} ${VERSION[1]} ${VERSION[2]}
+}
+
+#-------------------------------------------------------------------------------
+# Extract version number from git references
+#-------------------------------------------------------------------------------
 function getVersionFromRefs()
 {
   REFS=${1/RefNames:/}
@@ -173,12 +192,16 @@ fi
 #-------------------------------------------------------------------------------
 # Create XrdVersion.hh
 #-------------------------------------------------------------------------------
+NUMVERSION=`getNumericVersion $VERSION`
+
 if test ! -r ${SOURCEPATH}src/XrdVersion.hh.in; then
    echo "[!] Unable to find src/XrdVersion.hh.in" 1>&2
    exit 1
 fi
 
-sed -e "s/#define XrdVERSION  \"unknown\"/#define XrdVERSION  \"$VERSION\"/" ${SOURCEPATH}src/XrdVersion.hh.in > src/XrdVersion.hh.new
+sed -e "s/#define XrdVERSION  \"unknown\"/#define XrdVERSION  \"$VERSION\"/" ${SOURCEPATH}src/XrdVersion.hh.in | \
+sed -e "s/#define XrdVNUMBER  0/#define XrdVNUMBER  $NUMVERSION/" \
+> src/XrdVersion.hh.new
 
 if test $? -ne 0; then
   echo "[!] Error while generating src/XrdVersion.hh from the input template" 1>&2
