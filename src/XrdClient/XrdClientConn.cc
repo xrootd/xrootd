@@ -2085,6 +2085,9 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 XReqErrorType XrdClientConn::GoToAnotherServer(XrdClientUrlInfo &newdest)
 {
     // Re-directs to another server
+    if( EnvGetLong( NAME_PRINT_REDIRECTS ) )
+      Info( XrdClientDebug::kNODEBUG, "GoToAnotherServer",
+            "Going to: " << newdest.Host << ":" << newdest.Port );
 
     fGettingAccessToSrv = false; 
 

@@ -161,6 +161,10 @@
 #define DFLT_XRDCP_SIZE_HINT 1
 #define NAME_XRDCP_SIZE_HINT (char *)"XrdCpSizeHint"
 
+// Enable/disable redirection printing
+#define DFLT_PRINT_REDIRECTS 1
+#define NAME_PRINT_REDIRECTS (char *)"PrintRedirects"
+
 #define TRUE  1
 #define FALSE 0
 
