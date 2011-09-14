@@ -83,8 +83,18 @@ endif()
 #-------------------------------------------------------------------------------
 add_custom_target(
   XrdVersion.hh
-  ALL
   ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR} )
+
+# sigh, yet another ugly hack :(
+macro( add_library _target )
+  _add_library( ${_target} ${ARGN} )
+  add_dependencies( ${_target} XrdVersion.hh )
+endmacro()
+
+macro( add_executable _target )
+  _add_executable( ${_target} ${ARGN} )
+  add_dependencies( ${_target} XrdVersion.hh )
+endmacro()
 
 #-------------------------------------------------------------------------------
 # Build in subdirectories
