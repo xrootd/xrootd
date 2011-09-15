@@ -111,9 +111,17 @@ if( PERLLIBS_FOUND )
   include_directories( ${PERL_INCLUDE_PATH} )
 
   #-----------------------------------------------------------------------------
+  # Check if we have the right version of SWIG
+  #-----------------------------------------------------------------------------
+  set( USE_SWIG FALSE )
+  if( SWIG_FOUND AND ${SWIG_VERSION} VERSION_GREATER "1.3.33" )
+      set( USE_SWIG TRUE )
+  endif()
+
+  #-----------------------------------------------------------------------------
   # We have SWIG
   #-----------------------------------------------------------------------------
-  if( SWIG_FOUND )
+  if( USE_SWIG )
     add_custom_command(
       OUTPUT XrdClientAdmin_c_wrap.cc XrdClientAdmin.pm
       COMMAND
