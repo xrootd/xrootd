@@ -6,6 +6,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_UTILS_VERSION   0.0.1 )
 set( XRD_UTILS_SOVERSION 0 )
+set( XRD_PROTOCOL_LOADER_VERSION   0.0.1 )
+set( XRD_PROTOCOL_LOADER_SOVERSION 0 )
 
 #-------------------------------------------------------------------------------
 # The XrdSys library
@@ -135,10 +137,27 @@ set_target_properties(
   SOVERSION ${XRD_UTILS_SOVERSION} )
 
 #-------------------------------------------------------------------------------
+# The helper lib
+#-------------------------------------------------------------------------------
+add_library(
+  XrdProtocolLoader
+  SHARED
+  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
+  Xrd/XrdMain.cc )
+
+target_link_libraries( XrdProtocolLoader XrdUtils )
+
+set_target_properties(
+  XrdProtocolLoader
+  PROPERTIES
+  VERSION   ${XRD_PROTOCOL_LOADER_VERSION}
+  SOVERSION ${XRD_PROTOCOL_LOADER_SOVERSION} )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils
+  TARGETS XrdUtils XrdProtocolLoader
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
@@ -175,7 +194,6 @@ install(
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/Xrd
   FILES_MATCHING
   PATTERN "*.hh"
-  PATTERN "*.icc"
-  PATTERN "XrdConfig.hh" EXCLUDE )
+  PATTERN "*.icc" )
 
 # FIXME: Bonjour

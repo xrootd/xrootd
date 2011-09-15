@@ -2,15 +2,6 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# The helper lib
-#-------------------------------------------------------------------------------
-add_library(
-  XrdLib
-  STATIC
-  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
-  Xrd/XrdMain.cc )
-
-#-------------------------------------------------------------------------------
 # xrdcp
 #-------------------------------------------------------------------------------
 add_executable(
@@ -42,7 +33,7 @@ add_executable(
 target_link_libraries(
   xrootd
   XrdServer
-  XrdLib
+  XrdProtocolLoader
   XrdOfs
   dl )
 
@@ -84,7 +75,7 @@ target_link_libraries(
   cmsd
   XrdUtils
   XrdServer
-  XrdLib )
+  XrdProtocolLoader )
 
 #-------------------------------------------------------------------------------
 # Install
