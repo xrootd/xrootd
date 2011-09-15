@@ -114,8 +114,10 @@ if( PERLLIBS_FOUND )
   # Check if we have the right version of SWIG
   #-----------------------------------------------------------------------------
   set( USE_SWIG FALSE )
-  if( SWIG_FOUND AND ${SWIG_VERSION} VERSION_GREATER "1.3.33" )
+  if( SWIG_FOUND )
+    if( ${SWIG_VERSION} VERSION_GREATER "1.3.33" )
       set( USE_SWIG TRUE )
+    endif()
   endif()
 
   #-----------------------------------------------------------------------------
