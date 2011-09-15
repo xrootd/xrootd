@@ -58,9 +58,13 @@ find_package( Readline )
 find_package( ZLIB )
 find_package( OpenSSL )
 find_package( Kerberos5 )
-find_package( fuse )
 find_package( PerlLibs )
 find_package( SWIG )
+
+# for now we only support fuse drivers on Linux
+if( Linux )
+  find_package( fuse )
+endif()
 
 if( READLINE_FOUND )
   add_definitions( -DHAVE_READLINE )
