@@ -64,5 +64,6 @@ install(
   ${CMAKE_SOURCE_DIR}/utils/ooss_MonP.pm
   ${CMAKE_SOURCE_DIR}/utils/ooss_name2name.pm
   ${CMAKE_SOURCE_DIR}/utils/mps_monStage.pm
+  ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
   DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils
   PERMISSIONS OWNER_READ OWNER_WRITE )
