@@ -27,11 +27,6 @@ BuildRequires: cmake >= 2.8
 BuildRequires: readline-devel openssl-devel fuse-devel
 BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 
-# For configure.ac perl ldopts
-%if 0%{?rhel} >= 6
-BuildRequires: perl-ExtUtils-Embed
-%endif
-
 %description
 %{summary}
 
