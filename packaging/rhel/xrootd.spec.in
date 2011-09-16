@@ -27,6 +27,11 @@ BuildRequires: cmake >= 2.8
 BuildRequires: readline-devel openssl-devel fuse-devel
 BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 
+# Perl packaging changed on SLC6 - we require perl-devel to build
+%if 0%{?rhel} >= 6
+BuildRequires: perl-devel
+%endif
+
 %description
 %{summary}
 
