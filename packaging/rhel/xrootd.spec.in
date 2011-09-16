@@ -74,8 +74,9 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}, %{name}-client = %{epoc
 Obsoletes: xrootd
 Requires(post): chkconfig
 Requires(preun): chkconfig
-Requires(preun): initscripts   # for /sbin/service
-Requires(postun): initscripts  # for /sbin/service
+# for /sbin/service
+Requires(preun): initscripts
+Requires(postun): initscripts
 
 %description server
 XRootD server
