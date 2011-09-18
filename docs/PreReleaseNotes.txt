@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Defines the livXrdSecgsiAuthzVO plug-in to allow easy mapping from voms
+     vo names to users and groups. The plugin is configurable at run-time.
    * Allow the OucErrInfo object to point to an environment.
    * Add method to SysDNS to format an AF_INETx address into the RFC IPV6
      recommended format.

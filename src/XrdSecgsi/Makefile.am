@@ -8,7 +8,8 @@
 ## Checked in by $Author$
 #######################################################################
 
-lib_LTLIBRARIES = libXrdSecgsi.la libXrdSecgsiGMAPLADP.la
+lib_LTLIBRARIES = libXrdSecgsi.la libXrdSecgsiGMAPLADP.la \
+                  libXrdSecgsiAuthzVO.la
 
 bin_PROGRAMS = xrdgsiproxy
 man1_MANS = ../../docs/man/xrdgsiproxy.1
@@ -34,6 +35,12 @@ libXrdSecgsi_la_LIBADD = ../XrdCrypto/libXrdCryptossl.la \
 # GridMAP function looking up an LDAP database
 libXrdSecgsiGMAPLADP_la_SOURCES = XrdSecgsiGMAPFunLDAP.cc
 libXrdSecgsiGMAPLADP_la_LDFLAGS = -module
+
+# Authz   function to map vo to entity names/groups
+libXrdSecgsiAuthzVO_la_SOURCES = XrdSecgsiAuthzFunVO.cc
+libXrdSecgsiAuthzVO_la_LIBADD =  ../XrdOuc/libXrdOuc.la \
+                                 ../XrdSys/libXrdSys.la
+libXrdSecgsiAuthzVO_la_LDFLAGS = -module
 
 xrdgsiproxy_SOURCES = XrdSecgsiProxy.cc
 xrdgsiproxy_LDFLAGS =  -static -ldl

@@ -54,6 +54,24 @@ set_target_properties(
   SOVERSION ${XRD_SEC_GSI_GMAPLDAP_SOVERSION} )
 
 #-------------------------------------------------------------------------------
+# The XrdSecgsiAuthzVO library
+#-------------------------------------------------------------------------------
+add_library(
+  XrdSecgsiAuthzVO
+  SHARED
+  XrdSecgsi/XrdSecgsiAuthzFunVO.cc )
+
+target_link_libraries(
+  XrdSecgsiAuthzVO
+  XrdUtils )
+
+set_target_properties(
+  XrdSecgsiAuthzVO
+  PROPERTIES
+  VERSION   ${XRD_SEC_GSI_AUTHZVO_VERSION}
+  SOVERSION ${XRD_SEC_GSI_AUTHZVO_SOVERSION} )
+
+#-------------------------------------------------------------------------------
 # The XrdSecgsiGMAPDN library
 #-------------------------------------------------------------------------------
 add_library(

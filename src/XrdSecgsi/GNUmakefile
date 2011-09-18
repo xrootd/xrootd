@@ -1,4 +1,3 @@
-# $Id$
 #------------------------------------------------------------------------------#
 #                       C o m m o n   V a r i a b l e s                        #
 #------------------------------------------------------------------------------#
@@ -54,6 +53,7 @@ SOURCES = \
         XrdSecgsiProxy.cc \
         XrdSecgsitest.cc \
         XrdSecgsiAuthzFunDN.cc \
+        XrdSecgsiAuthzFunVO.cc \
         XrdSecgsiGMAPFunDN.cc \
         XrdSecgsiGMAPFunLDAP.cc
 
@@ -78,6 +78,9 @@ OBJECTD = \
 OBJECTE = \
         $(OBJDIR)/XrdSecgsiAuthzFunDN.o
 
+OBJECTF = \
+        $(OBJDIR)/XrdSecgsiAuthzFunVO.o
+
 GSIEXTRACFLAGS = $(INCSSL) -DPERL5 $(CRYPTOSSLEXTRACFLAGS)
 
 LIBRARY = $(LIBDIR)/libXrdSecgsi.$(TYPESHLIB)
@@ -88,11 +91,13 @@ LIBGMDN = $(LIBDIR)/libXrdSecgsiGMAPDN.$(TYPESHLIB)
 
 LIBAZDN = $(LIBDIR)/libXrdSecgsiAuthzDN.$(TYPESHLIB)
 
+LIBAZVO = $(LIBDIR)/libXrdSecgsiAuthzVO.$(TYPESHLIB)
+
 SECGSITEST = $(BINDIR)/xrdsecgsitest
 
 SECGSIPROXY = $(BINDIR)/xrdgsiproxy
 
-TARGETS = $(LIBRARY) $(LIBGMLDAP) $(LIBGMDN) $(LIBAZDN) $(SECGSIPROXY) $(SECGSITEST)
+TARGETS = $(LIBRARY) $(LIBGMLDAP) $(LIBGMDN) $(LIBAZDN) $(LIBAZVO) $(SECGSIPROXY) $(SECGSITEST)
 
 #------------------------------------------------------------------------------#
 #                           S e a r c h   P a t h s                            #
@@ -134,6 +139,10 @@ $(LIBGMDN): $(OBJECTD)
 $(LIBAZDN): $(OBJECTE)
 	@echo Creating shared library $(LIBAZDN) 
 	$(ECHO)$(LD) $(OBJECTE) $(LDSO) -L$(LIBDIR) -lXrdSecgsi $(LIBLIBS) $(LIBS) -o $(LIBAZDN)
+
+$(LIBAZVO): $(OBJECTF)
+	@echo Creating shared library $(LIBAZVO)
+	$(ECHO)$(LD) $(OBJECTF) $(LDSO) -L$(LIBDIR) -lXrdSecgsi $(LIBLIBS) $(LIBS) -o $(LIBAZVO)
 
 $(SECGSITEST): $(OBJECTA) $(LIBDEPS)
 	@echo Creating executable $(SECGSITEST) 
@@ -187,3 +196,9 @@ $(OBJDIR)/XrdSecgsiAuthzFunDN.o: XrdSecgsiAuthzFunDN.cc XrdOucHash.hh XrdOucStri
 	@echo Compiling XrdSecgsiAuthzFunDN.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdSecgsiAuthzFunDN.o XrdSecgsiAuthzFunDN.cc
 
+$(OBJDIR)/XrdSecgsiAuthzFunVO.o: XrdSecgsiAuthzFunVO.cc \
+                                 XrdSysHeaders.hh     XrdSysPthread.hh \
+                                 XrdSecEntity.hh      XrdOucEnv.hh \
+                                 XrdOucLock.hh
+	@echo Compiling XrdSecgsiAuthzFunVO.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) $(INCSSL) -o $(OBJDIR)/XrdSecgsiAuthzFunVO.o XrdSecgsiAuthzFunVO.cc
