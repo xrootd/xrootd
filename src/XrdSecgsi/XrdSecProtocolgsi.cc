@@ -730,18 +730,23 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (opt.gmapfun && GMAPOpt > 0) {
          if (!(GMAPFun = LoadGMAPFun((const char *) opt.gmapfun,
                                      (const char *) opt.gmapfunparms))) {
-            PRINT("Could not load plug-in: "<<opt.gmapfun<<": ignore");
+            ErrF(erp, kGSErrError, "GMAP plug-in could not be loaded", opt.gmapfun); 
+            PRINT(erp->getErrText());
+            return Parms;
          } else {
             hasgmapfun = 1;
             // Init or reset the cache
             if (cacheGMAPFun.Empty()) {
                if (cacheGMAPFun.Init(100) != 0) {
-                  PRINT("Error initializing GMAPFun cache");
+                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to initialize"); 
+                  PRINT(erp->getErrText());
                   return Parms;
                }
             } else {
                if (cacheGMAPFun.Reset() != 0) {
                   PRINT("Error resetting GMAPFun cache");
+                  ErrF(erp, kGSErrError, "Internal cache for the GMAP plug-in failed to reset"); 
+                  PRINT(erp->getErrText());
                   return Parms;
                }
             }
@@ -764,7 +769,9 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       if (opt.authzfun) {
          if (!(AuthzFun = LoadAuthzFun((const char *) opt.authzfun,
                                        (const char *) opt.authzfunparms, AuthzCertFmt))) {
-            PRINT("Could not load plug-in: "<<opt.authzfun<<": ignore");
+            ErrF(erp, kGSErrError, "Authz plug-in could not be loaded", opt.authzfun); 
+            PRINT(erp->getErrText());
+            return Parms;
          } else {
             hasauthzfun = 1;
             // Notify certificate format
@@ -777,12 +784,14 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             // Init or reset the cache
             if (cacheAuthzFun.Empty()) {
                if (cacheAuthzFun.Init(100) != 0) {
-                  PRINT("Error initializing AuthzFun cache");
+                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to initialize"); 
+                  PRINT(erp->getErrText());
                   return Parms;
                }
             } else {
                if (cacheAuthzFun.Reset() != 0) {
-                  PRINT("Error resetting AuthzFun cache");
+                  ErrF(erp, kGSErrError, "Internal cache for authz plug-in failed to reset"); 
+                  PRINT(erp->getErrText());
                   return Parms;
                }
             }
