@@ -1316,7 +1316,7 @@ int XrdFrmConfig::xcnsd()
    if ((val = cFile->GetWord()))
       {if (strcmp("apath", val))
           {Say.Emsg("Config", "invalid cnsd option '",val,"'."); return 1;}
-       if (!(cnsPath = cFile->GetWord()));
+       if (!(cnsPath = cFile->GetWord()))
           {Say.Emsg("Config", "cnsd apath not specified"); return 1;}
       }
 
