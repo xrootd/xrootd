@@ -28,7 +28,7 @@ char      Length;               // Length, in bytes, of the checksum value
 char      Value[ValuSize];      // The binary checksum value
 
 int       Get(char *Buff, int Blen)
-             {static char hv[] = "0123456789abcdef";
+             {const char *hv = "0123456789abcdef";
               int i, j = 0;
               if (Blen < Length*2+1) return 0;
               for (i = 0; i < Length; i++)

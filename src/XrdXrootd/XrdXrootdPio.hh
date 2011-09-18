@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//        $Id$
   
 #include "XProtocol/XPtypes.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -31,7 +29,7 @@ public:
 static XrdXrootdPio      *Alloc(int n=1);
 
 inline XrdXrootdPio      *Clear(XrdXrootdPio *np=0)
-                               {static const kXR_char zed[2] = {0,0};
+                               {const kXR_char zed[2] = {0,0};
                                 Set(0, 0, 0, zed,'\0');
                                 Next = np; return this;
                                }
