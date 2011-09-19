@@ -256,7 +256,7 @@ exit 0
 %{_libdir}/libXrdSec*.so*
 %{_libdir}/libXrdCrypto*.so*
 %{_libdir}/libXrdUtils.so*
-%{_libdir}/libXrdProtocolLoader.so*
+%{_libdir}/libXrdMain.so*
 
 %files libs-devel
 %defattr(-,root,root,-)

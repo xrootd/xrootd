@@ -33,7 +33,7 @@ add_executable(
 target_link_libraries(
   xrootd
   XrdServer
-  XrdProtocolLoader
+  XrdMain
   XrdOfs
   dl )
 
@@ -75,7 +75,7 @@ target_link_libraries(
   cmsd
   XrdUtils
   XrdServer
-  XrdProtocolLoader )
+  XrdMain )
 
 #-------------------------------------------------------------------------------
 # Install

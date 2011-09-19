@@ -6,8 +6,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_UTILS_VERSION   0.0.1 )
 set( XRD_UTILS_SOVERSION 0 )
-set( XRD_PROTOCOL_LOADER_VERSION   0.0.1 )
-set( XRD_PROTOCOL_LOADER_SOVERSION 0 )
+set( XRD_MAIN_VERSION    0.0.1 )
+set( XRD_MAIN_SOVERSION  0 )
 
 #-------------------------------------------------------------------------------
 # The XrdSys library
@@ -140,24 +140,24 @@ set_target_properties(
 # The helper lib
 #-------------------------------------------------------------------------------
 add_library(
-  XrdProtocolLoader
+  XrdMain
   SHARED
   Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
   Xrd/XrdMain.cc )
 
-target_link_libraries( XrdProtocolLoader XrdUtils )
+target_link_libraries( XrdMain XrdUtils )
 
 set_target_properties(
-  XrdProtocolLoader
+  XrdMain
   PROPERTIES
-  VERSION   ${XRD_PROTOCOL_LOADER_VERSION}
-  SOVERSION ${XRD_PROTOCOL_LOADER_SOVERSION} )
+  VERSION   ${XRD_MAIN_VERSION}
+  SOVERSION ${XRD_MAIN_SOVERSION} )
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils XrdProtocolLoader
+  TARGETS XrdUtils XrdMain
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
