@@ -40,8 +40,7 @@ install(
 install(
   FILES
   ${CMAKE_BINARY_DIR}/src/XrdVersion.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd )
 
 #-------------------------------------------------------------------------------
 # Install the utility scripts
@@ -65,5 +64,4 @@ install(
   ${CMAKE_SOURCE_DIR}/utils/ooss_name2name.pm
   ${CMAKE_SOURCE_DIR}/utils/mps_monStage.pm
   ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
-  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils )

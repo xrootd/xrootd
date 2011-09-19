@@ -166,8 +166,7 @@ install(
   XrdCms/XrdCmsFinder.hh
   XrdCms/XrdCmsClient.hh
   XrdCms/XrdCmsResp.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCms
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCms )
 
 install(
   DIRECTORY      XrdCks/

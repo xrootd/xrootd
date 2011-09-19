@@ -62,8 +62,7 @@ endif()
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
   DIRECTORY      XrdFfs/

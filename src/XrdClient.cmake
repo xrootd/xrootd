@@ -177,8 +177,7 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrd.1
   ${PROJECT_SOURCE_DIR}/docs/man/xprep.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdstagetool.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
   DIRECTORY      XrdClient/
@@ -198,8 +197,7 @@ if( PERLLIBS_FOUND )
   install(
     FILES
     ${PROJECT_BINARY_DIR}/src/XrdClientAdmin.pm
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PERMISSIONS OWNER_READ OWNER_WRITE )
+    DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 endif()
 
 # FIXME: files

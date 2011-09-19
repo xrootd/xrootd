@@ -142,21 +142,18 @@ install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdsssadmin.8
   ${PROJECT_SOURCE_DIR}/docs/man/xrdpwdadmin.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
 
 install(
   FILES
   XrdSec/XrdSecEntity.hh
   XrdSec/XrdSecInterface.hh
   XrdSec/XrdSecTLayer.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSec
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSec )
 
 install(
   FILES
   XrdSecsss/XrdSecsssID.hh
   XrdSecsss/XrdSecsssKT.hh
   XrdSecsss/XrdSecsssRR.hh
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSecsss
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSecsss )

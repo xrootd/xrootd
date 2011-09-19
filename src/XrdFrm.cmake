@@ -97,5 +97,4 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/frm_purged.8
   ${PROJECT_SOURCE_DIR}/docs/man/frm_xfrd.8
   ${PROJECT_SOURCE_DIR}/docs/man/frm_xfragent.8
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8
-  PERMISSIONS OWNER_READ OWNER_WRITE )
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )
