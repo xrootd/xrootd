@@ -125,12 +125,6 @@ int XrdCmsFinderRMT::Configure(char *cfn, XrdOucEnv *envP)
    What = (isTarget ? XrdCmsClientConfig::configSuper
                     : XrdCmsClientConfig::configMan);
 
-// Set the error dest and simply call the configration object
-//
-   if (config.Configure(cfn, What, How)) return 0;
-   XrdCmsClientMan::setConfig(cfn);
-   if (envP) XrdCmsSecurity::setSecFunc(envP->GetPtr("XrdSecGetProtocol*"));
-
 // Establish the network interface that the caller must provide
 //
    if (!envP || !(netP = (XrdInet *)envP->GetPtr("XrdInet*")))
@@ -138,6 +132,12 @@ int XrdCmsFinderRMT::Configure(char *cfn, XrdOucEnv *envP)
        return 0;
       }
    XrdCmsClientMan::setNetwork(netP);
+   XrdCmsClientMan::setConfig(cfn);
+   XrdCmsSecurity::setSecFunc(envP->GetPtr("XrdSecGetProtocol*"));
+
+// Now call the configration object
+//
+   if (config.Configure(cfn, What, How)) return 0;
 
 // Set configured values and start the managers
 //
