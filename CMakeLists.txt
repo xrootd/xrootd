@@ -4,7 +4,7 @@
 cmake_minimum_required( VERSION 2.6 )
 project( XRootD )
 
-set( CMAKE_BUILD_TYPE Debug )
+set( CMAKE_BUILD_TYPE RelWithDebInfo )
 
 set( CMAKE_MODULE_PATH
  ${PROJECT_SOURCE_DIR}/src
