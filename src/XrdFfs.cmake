@@ -35,7 +35,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # xrootdfs
 #-------------------------------------------------------------------------------
-if( FUSE_FOUND )
+if( BUILD_FUSE )
   add_executable(
     xrootdfs
     XrdFfs/XrdFfsXrootdfs.cc )
@@ -53,16 +53,16 @@ install(
   TARGETS XrdFfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-if( FUSE_FOUND )
+if( BUILD_FUSE )
   install(
     TARGETS xrootdfs
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
-endif()
 
-install(
-  FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
-  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+  install(
+    FILES
+    ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+endif()
 
 install(
   DIRECTORY      XrdFfs/

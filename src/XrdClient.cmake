@@ -107,7 +107,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 # Perl bindings
 #-------------------------------------------------------------------------------
-if( PERLLIBS_FOUND )
+if( BUILD_PERL )
   include_directories( ${PERL_INCLUDE_PATH} )
 
   #-----------------------------------------------------------------------------
@@ -189,7 +189,7 @@ install(
 #-------------------------------------------------------------------------------
 # Install the perl bindings
 #-------------------------------------------------------------------------------
-if( PERLLIBS_FOUND )
+if( BUILD_PERL )
   install(
     TARGETS XrdClientAdmin
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

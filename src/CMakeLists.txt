@@ -7,12 +7,12 @@ include( XrdCrypto )
 
 include( XrdSec )
 
-if( OPENSSL_FOUND )
-include( XrdSecgsi )
+if( BUILD_CRYPTO )
+  include( XrdSecgsi )
 endif()
 
-if( KERBEROS5_FOUND )
-include( XrdSeckrb5 )
+if( BUILD_KRB5 )
+  include( XrdSeckrb5 )
 endif()
 
 include( XrdClient )

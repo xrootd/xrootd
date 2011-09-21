@@ -67,7 +67,7 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdCryptossl library
 #-------------------------------------------------------------------------------
-if( OPENSSL_FOUND )
+if( BUILD_CRYPTO )
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
   add_library(
@@ -102,24 +102,51 @@ endif()
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCrypto XrdCryptoLite XrdCryptossl
+  TARGETS XrdCrypto XrdCryptoLite
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
-if( OPENSSL_FOUND )
+install(
+  FILES
+  XrdCrypto/PC1.hh
+  XrdCrypto/PC3.hh
+  XrdCrypto/XrdCryptoAux.hh
+  XrdCrypto/XrdCryptoTrace.hh
+  XrdCrypto/XrdCryptoBasic.hh
+  XrdCrypto/XrdCryptoCipher.hh
+  XrdCrypto/XrdCryptoFactory.hh
+  XrdCrypto/XrdCryptoMsgDigest.hh
+  XrdCrypto/XrdCryptoRSA.hh
+  XrdCrypto/XrdCryptoX509.hh
+  XrdCrypto/XrdCryptoX509Chain.hh
+  XrdCrypto/XrdCryptoX509Crl.hh
+  XrdCrypto/XrdCryptoX509Req.hh
+  XrdCrypto/XrdCryptolocalCipher.hh
+  XrdCrypto/XrdCryptolocalFactory.hh
+  XrdCrypto/XrdCryptoLite.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCrypto )
+
+if( BUILD_CRYPTO )
   install(
     TARGETS XrdCryptossl
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+  install(
+    FILES
+    XrdCrypto/XrdCryptosslAux.hh
+    XrdCrypto/XrdCryptosslCipher.hh
+    XrdCrypto/XrdCryptosslFactory.hh
+    XrdCrypto/XrdCryptosslMsgDigest.hh
+    XrdCrypto/XrdCryptosslRSA.hh
+    XrdCrypto/XrdCryptosslX509.hh
+    XrdCrypto/XrdCryptosslX509Crl.hh
+    XrdCrypto/XrdCryptosslX509Req.hh
+    XrdCrypto/XrdCryptosslgsiAux.hh
+    XrdCrypto/XrdCryptosslgsiX509Chain.hh
+    XrdCrypto/XrdCryptosslTrace.hh
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCrypto )
 endif()
 
-install(
-  DIRECTORY      XrdCrypto/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCrypto
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )
-
 # FIXME: Unused files
-
 #-rw-r--r-- 1 ljanyst ljanyst  2499 2011-03-21 16:13 XrdCryptosslX509Store.cc
 #-rw-r--r-- 1 ljanyst ljanyst  1750 2011-03-21 16:13 XrdCryptosslX509Store.hh
 #-rw-r--r-- 1 ljanyst ljanyst 16721 2011-03-21 16:13 XrdCryptotest.cc
