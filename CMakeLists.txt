@@ -22,6 +22,7 @@ add_library(
   XrdClFile.cc         XrdClFile.hh
   XrdClURL.cc          XrdClURL.hh
                        XrdClStatus.hh
+  XrdClSocket.cc       XrdClSocket.hh
 )
 
 target_link_libraries(
