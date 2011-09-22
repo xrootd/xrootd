@@ -7,6 +7,7 @@ add_library(
   Server.cc          Server.hh
   Utils.cc           Utils.hh
   UrlTest.cc
+  SocketTest.cc
 )
 
 target_link_libraries( XrdClTests ${CPPUNIT_LIBRARIES} XrdCl )
