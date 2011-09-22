@@ -5,6 +5,7 @@ link_directories( ${XROOTD_LIB_DIR} )
 add_library(
   XrdClTests SHARED
   Server.cc          Server.hh
+  Utils.cc           Utils.hh
   UrlTest.cc
 )
 
