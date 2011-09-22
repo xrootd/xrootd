@@ -21,6 +21,7 @@ add_library(
   XrdClDefaultEnv.cc   XrdClDefaultEnv.hh
   XrdClFile.cc         XrdClFile.hh
   XrdClURL.cc          XrdClURL.hh
+                       XrdClStatus.hh
 )
 
 target_link_libraries(
