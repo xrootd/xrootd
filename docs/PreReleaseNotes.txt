@@ -76,6 +76,7 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Set correct checksum length when converting ASCII to binary.
    * Allow the sss protocol to work for multi-homed hosts.
    * Remove old async shutdown workaround patch introduced in Linux 2.3. The
      problem has been since fixed and the solution now causes problems.
