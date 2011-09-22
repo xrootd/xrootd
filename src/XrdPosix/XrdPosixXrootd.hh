@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /* Modified by Frank Winklmeier to add the full Posix file system definition. */
 /******************************************************************************/
-  
-//           $Id$
 
 #include <dirent.h>
 #include <unistd.h>
@@ -120,6 +118,8 @@ inline bool    myFD(int fd) {return fd >= baseFD && fd <= (highFD+baseFD)
                             }
 
 static void    OpenCB(XrdPosixFile *fp, void *cbArg, int res);
+
+static int     QueryChksum(const char *, time_t &, char *, int);
 
 static long long QueryOpaque(const char*, char*, int);
 

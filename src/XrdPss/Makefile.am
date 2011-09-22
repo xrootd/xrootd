@@ -18,9 +18,11 @@ INCLUDES = -I$(top_srcdir)/src -I$(top_builddir)/src
 libXrdPss_la_SOURCES = \
         XrdPss.cc  XrdPss.hh \
         XrdPssAio.cc \
+        XrdPssCks.cc \
         XrdPssConfig.cc
 
 libXrdPss_la_LIBADD =    ../XrdClient/libXrdClient.la \
+                        ../XrdFfs/libXrdCks.la  \
                         ../XrdFfs/libXrdFfs.la  \
                         ../XrdNet/libXrdNet.la \
                         ../XrdOuc/libXrdOuc.la \

@@ -11,11 +11,13 @@ include ../GNUmake.env
 SOURCES  = \
         XrdPss.cc  \
         XrdPssAio.cc  \
+        XrdPssCks.cc  \
         XrdPssConfig.cc
 
 OBJECTS  = \
         $(OBJDIR)/XrdPss.o  \
         $(OBJDIR)/XrdPssAio.o  \
+        $(OBJDIR)/XrdPssCks.o  \
         $(OBJDIR)/XrdPssConfig.o
 
 OBJECTT  = \
@@ -28,6 +30,7 @@ OBJECTU  = $(LIBDIR)/libXrdFfs.a    $(LIBDIR)/libXrdClient.a \
 MORELIBS = -L$(LIBDIR) -lXrdNet -lXrdOuc -lXrdSys
 
 LIBDEP   = $(LIBDIR)/libXrdClient.a \
+           $(LIBDIR)/libXrdCks.a \
            $(LIBDIR)/libXrdFfs.a \
            $(LIBDIR)/libXrdSec.a \
            $(LIBDIR)/libXrdSecsss.a \
@@ -44,6 +47,7 @@ TARGETS  = $(LIBRARY)
 #------------------------------------------------------------------------------#
 
 vpath XrdClient% ../XrdClient
+vpath XrdCks%    ../XrdCks
 vpath XrdFfs%    ../XrdFfs
 vpath XrdNet%    ../XrdNet
 vpath XrdOss%    ../XrdOss
@@ -87,7 +91,14 @@ $(OBJDIR)/XrdPssAio.o:  XrdPssAio.cc   XrdPss.hh \
 	@echo Compiling XrdPssAio.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPssAio.o XrdPssAio.cc
 
-$(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh         XrdFfsDent.hh \
+$(OBJDIR)/XrdPssCks.o:  XrdPssCks.cc        XrdPss.hh \
+                        XrdCks.hh           XrdCksData.hh \
+                        XrdOucTokenizer.hh  XrdPosixXrootd.hh
+	@echo Compiling XrdPssCks.cc
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPssCks.o XrdPssCks.cc
+
+$(OBJDIR)/XrdPssConfig.o:  XrdPssConfig.cc   XrdPss.hh  \
+                           XrdFfsDent.hh \
                            XrdFfsMisc.hh     XrdFfsWcache.hh   XrdFfsQueue.hh \
                            XrdOuca2x.hh      XrdOucEnv.hh      XrdSysError.hh \
                            XrdOucStream.hh   XrdOucTList.hh    XrdOucUtils.hh \

@@ -719,7 +719,7 @@ int XrdPssFile::isCompressed(char *cxidp)  // Not supported for proxies
 /******************************************************************************/
   
 char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
-                 const char *Cgi,   int CgiLn, const char *Ident)
+                 const char *Cgi,   int CgiLn, const char *Ident,int doN2N)
 {
    int   pfxLen, pathln;
    const char *theID = 0, *subPath;
@@ -730,7 +730,7 @@ char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
 // First, apply the N2N mapping if necessary. If N2N fails then the whole
 // mapping fails and ENAMETOOLONG will be returned.
 //
-   if (XrdProxySS.theN2N)
+   if (doN2N && XrdProxySS.theN2N)
       {if (XrdProxySS.theN2N->lfn2pfn(path, Apath, sizeof(Apath))) return 0;
        fname = Apath;
       }

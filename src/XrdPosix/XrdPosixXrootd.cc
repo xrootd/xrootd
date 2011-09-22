@@ -1666,6 +1666,43 @@ int XrdPosixXrootd::mapError(int rc)
 }
 
 /******************************************************************************/
+/*                           Q u e r y C h k s u m                            */
+/******************************************************************************/
+  
+int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
+                                      char *value, int     vsize)
+{
+   XrdPosixAdminNew admin(path);
+   long long st_size;
+   long st_flags, st_modtime, st_id;
+
+// Make sure we connected
+//
+   if (!admin.isOK()) return admin.Result();
+
+// Extract out path from the url
+//
+   XrdOucString str(path);
+   XrdClientUrlInfo url(str);
+
+// Stat the file first to allow vectoring of the request to the right server
+//
+   if (!admin.Admin.Stat(url.File.c_str(),st_id,st_size,st_flags,st_modtime))
+      return admin.Fault();
+
+// Now we can get the checksum as we have landed on the right server
+//
+   if (!admin.Admin.Query(kXR_Qcksum, (kXR_char *)url.File.c_str(),
+                                      (kXR_char *)value, vsize))
+      return admin.Result();
+
+// Return results
+//
+   Mtime = static_cast<time_t>(st_modtime);
+   return strlen((char *)value);
+}
+  
+/******************************************************************************/
 /*                           Q u e r y O p a q u e                            */
 /******************************************************************************/
   

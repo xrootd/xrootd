@@ -17,6 +17,7 @@ add_library(
   SHARED
   XrdPss/XrdPssAio.cc
   XrdPss/XrdPss.cc           XrdPss/XrdPss.hh
+  XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
   XrdPss/XrdPssConfig.cc )
 
 target_link_libraries(

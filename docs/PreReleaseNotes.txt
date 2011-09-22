@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Allow the query checksum request to be issued via a proxy server.
+   * Add a query checksum interface to the POSIX interface.
    * Defines the livXrdSecgsiAuthzVO plug-in to allow easy mapping from voms
      vo names to users and groups. The plugin is configurable at run-time.
    * Allow the OucErrInfo object to point to an environment.
