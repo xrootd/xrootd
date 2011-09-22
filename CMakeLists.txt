@@ -25,8 +25,7 @@ add_library(
 
 target_link_libraries(
   XrdCl
-  XrdOuc
-  XrdSys
+  XrdUtils
   dl )
 
 set_target_properties(
