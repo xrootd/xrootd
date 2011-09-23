@@ -7,9 +7,9 @@
 #include <cstdlib>
 #include <ctime>
 #include "Server.hh"
+#include "Utils.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "Utils.hh"
 
 //------------------------------------------------------------------------------
 // Client handler
@@ -56,6 +56,7 @@ class RandomHandler: public ClientHandler
                       packetSize );
           return;
         }
+        UpdateSentData( buffer, packetSize );
       }
 
       //------------------------------------------------------------------------
@@ -97,9 +98,9 @@ class RandomHandler: public ClientHandler
           if( totalRead == packetSize )
             break;
         }
+        UpdateReceivedData( buffer, packetSize );
         log->Dump( 1, "Received %d bytes from the client", packetSize );
       }
-
     }
 };
 
@@ -155,19 +156,25 @@ void SocketTest::TransferTest()
   uint16_t packetSize;
   Status   sc;
   char     buffer[50000];
+  uint64_t sentCounter = 0;
+  uint32_t sentChecksum = ::Utils::ComputeCRC32( 0, 0 );
+  uint64_t receivedCounter = 0;
+  uint32_t receivedChecksum = ::Utils::ComputeCRC32( 0, 0 );
   sc = sock.ReadRaw( &packets, 1, 60, bytesTransmitted );
   CPPUNIT_ASSERT( sc.status == stOK );
 
   //----------------------------------------------------------------------------
   // Read each packet
   //----------------------------------------------------------------------------
-
   for( int i = 0; i < packets; ++i )
   {
     sc = sock.ReadRaw( &packetSize, 2, 60, bytesTransmitted );
     CPPUNIT_ASSERT( sc.status == stOK );
     sc = sock.ReadRaw( buffer, packetSize, 60, bytesTransmitted );
     CPPUNIT_ASSERT( sc.status == stOK );
+    receivedCounter += bytesTransmitted;
+    receivedChecksum = ::Utils::UpdateCRC32( receivedChecksum, buffer,
+                                             bytesTransmitted );
   }
 
   //----------------------------------------------------------------------------
@@ -187,8 +194,23 @@ void SocketTest::TransferTest()
     CPPUNIT_ASSERT( (sc.status == stOK) && (bytesTransmitted == 2) );
     sc = sock.WriteRaw( buffer, packetSize, 60, bytesTransmitted );
     CPPUNIT_ASSERT( (sc.status == stOK) && (bytesTransmitted == packetSize) );
+    sentCounter += bytesTransmitted;
+    sentChecksum = ::Utils::UpdateCRC32( sentChecksum, buffer,
+                                         bytesTransmitted );
   }
+
+  //----------------------------------------------------------------------------
+  // Check the counters and the checksums
+  //----------------------------------------------------------------------------
+  std::string socketName = sock.GetSockName();
 
   sock.Disconnect();
   CPPUNIT_ASSERT( serv.Stop() );
+
+  std::pair<uint64_t, uint32_t> sent     = serv.GetSentStats( socketName );
+  std::pair<uint64_t, uint32_t> received = serv.GetReceivedStats( socketName );
+  CPPUNIT_ASSERT( sentCounter == received.first );
+  CPPUNIT_ASSERT( receivedCounter == sent.first );
+  CPPUNIT_ASSERT( sentChecksum == received.second );
+  CPPUNIT_ASSERT( receivedChecksum == sent.second );
 }
