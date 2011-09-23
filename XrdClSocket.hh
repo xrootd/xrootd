@@ -87,6 +87,21 @@ namespace XrdClient
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! Poll the socket to see whether it is ready for IO
+      //!
+      //! @param  readyForReading poll for readiness to read
+      //! @param  readyForWriting poll for readiness to write
+      //! @param  timeout         timeout in seconds, -1 to wait indefinitely
+      //! @return stOK                  - ready for IO
+      //!         errSocketDisconnected - on disconnection
+      //!         errSocketError        - on socket error
+      //!         errSocketTimeout      - on socket timeout
+      //!         errInvalidOp          - when called on a non connected socket
+      //------------------------------------------------------------------------
+      Status Poll( bool readyForReading, bool readyForWriting,
+                   uint32_t timeout );
+
       int  pSocket;
       bool pIsConnected;
   };

@@ -115,18 +115,14 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     bytesRead = 0;
 
-    pollfd   pollDesc;
-    int      pollRet;
     char    *current    = buffer;
     bool     useTimeout = (timeout!=-1);
     time_t   now        = 0;
     time_t   newNow     = 0;
+    Status   sc;
 
     if( useTimeout )
       now = ::time(0);
-
-    pollDesc.fd     = pSocket;
-    pollDesc.events = POLLIN | POLLPRI | POLLERR | POLLHUP | POLLNVAL | POLLRDHUP;
 
     //--------------------------------------------------------------------------
     // Repeat the following until we have read all the requested data
@@ -134,45 +130,22 @@ namespace XrdClient
     while ( bytesRead < size )
     {
       //------------------------------------------------------------------------
-      // We loop on poll because it may return -1 even thought no fatal error
-      // has occured, these may be:
-      // * a signal interrupting the execution (errno == EINTR)
-      // * a failure to initialize some internal structures (Solaris only)
-      //   (errno EAGAIN)
+      // Check if we can read something
       //------------------------------------------------------------------------
-      do
-      {
-        pollRet = poll( &pollDesc, 1, (useTimeout ? timeout*1000 : -1) );
-        if( (pollRet < 0) && (errno != EINTR) && (errno != EAGAIN) )
-          return Status( stError, errPoll, errno );
-
-        //----------------------------------------------------------------------
-        // Check if we did not time out in the case where we are not supposed
-        // to wait indefinitely
-        //----------------------------------------------------------------------
-        if( useTimeout )
-        {
-          newNow   = time(0);
-          timeout -= (newNow-now);
-          now      = newNow;
-          if( timeout < 0 )
-            return Status( stError, errSocketTimeout );
-        }
-      }
-      while( pollRet == -1 );
-
-      //------------------------------------------------------------------------
-      // Check if we have timed out
-      //------------------------------------------------------------------------
-      if( pollRet == 0 )
-        return Status( stError, errSocketTimeout );
+      sc = Poll( true, false, useTimeout ? timeout : -1 );
 
       //------------------------------------------------------------------------
       // It looks like we've got an event. Let's check if we can read something.
       //------------------------------------------------------------------------
-      if( pollDesc.revents & (POLLIN | POLLPRI) )
+      if( sc.status == stOK )
       {
         int n = ::read( pSocket, current, (size-bytesRead) );
+
+        if( n > 0 )
+        {
+          bytesRead += n;
+          current   += n;
+        }
 
         //----------------------------------------------------------------------
         // We got a close here - this means that there is no more data in
@@ -192,37 +165,11 @@ namespace XrdClient
           Disconnect();
           return Status( stError, errSocketError, errno );
         }
-
-        if( n > 0 )
-        {
-          bytesRead += n;
-          current   += n;
-        }
       }
-
-      //------------------------------------------------------------------------
-      // Nothing to read this time, let's check for errors
-      //------------------------------------------------------------------------
       else
       {
-        //----------------------------------------------------------------------
-        // We've been hang up on
-        //----------------------------------------------------------------------
-        if( pollDesc.revents & (POLLHUP|POLLRDHUP) )
-        {
-          Disconnect();
-          return Status( stError, errSocketDisconnected );
-        }
-
-        //----------------------------------------------------------------------
-        // We're messed up, either because we messed up ourselves (POLLNVAL) or
-        // got messed up by the network (POLLERR)
-        //----------------------------------------------------------------------
-        if( pollDesc.revents & (POLLNVAL|POLLERR) )
-        {
-          Disconnect();
-          return Status( stError, errSocketError );
-        }
+        Disconnect();
+        return sc;
       }
 
       //------------------------------------------------------------------------
@@ -253,5 +200,91 @@ namespace XrdClient
                            uint32_t &bytesWritten )
   {
     return Status( stOK );
+  }
+
+  //----------------------------------------------------------------------------
+  // Poll the descriptor
+  //----------------------------------------------------------------------------
+  Status Socket::Poll( bool readyForReading, bool readyForWriting,
+                       uint32_t timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Check if we're connected
+    //--------------------------------------------------------------------------
+    if( !pIsConnected )
+      return Status( stError, errInvalidOp );
+
+    //--------------------------------------------------------------------------
+    // Prepare the stuff
+    //--------------------------------------------------------------------------
+    pollfd   pollDesc;
+    int      pollRet;
+    bool     useTimeout = (timeout!=-1);
+    time_t   now        = 0;
+    time_t   newNow     = 0;
+
+    if( useTimeout )
+      now = ::time(0);
+
+    pollDesc.fd     = pSocket;
+    pollDesc.events = POLLERR | POLLHUP | POLLNVAL | POLLRDHUP;
+
+    if( readyForReading )
+      pollDesc.events |= (POLLIN | POLLPRI);
+
+    if( readyForWriting )
+      pollDesc.events |= POLLOUT;
+
+    //--------------------------------------------------------------------------
+    // We loop on poll because it may return -1 even thought no fatal error
+    // has occured, these may be:
+    // * a signal interrupting the execution (errno == EINTR)
+    // * a failure to initialize some internal structures (Solaris only)
+    //   (errno == EAGAIN)
+    //--------------------------------------------------------------------------
+    do
+    {
+      pollRet = poll( &pollDesc, 1, (useTimeout ? timeout*1000 : -1) );
+      if( (pollRet < 0) && (errno != EINTR) && (errno != EAGAIN) )
+        return Status( stError, errPoll, errno );
+
+      //------------------------------------------------------------------------
+      // Check if we did not time out in the case where we are not supposed
+      // to wait indefinitely
+      //------------------------------------------------------------------------
+      if( useTimeout )
+      {
+        newNow   = time(0);
+        timeout -= (newNow-now);
+        now      = newNow;
+        if( timeout < 0 )
+          return Status( stError, errSocketTimeout );
+      }
+    }
+    while( pollRet == -1 );
+
+    //--------------------------------------------------------------------------
+    // Check if we have timed out
+    //--------------------------------------------------------------------------
+    if( pollRet == 0 )
+      return Status( stError, errSocketTimeout );
+
+    //--------------------------------------------------------------------------
+    // We have some events
+    //--------------------------------------------------------------------------
+    if( pollDesc.revents & (POLLIN | POLLPRI | POLLOUT) )
+      return Status( stOK );
+
+    //--------------------------------------------------------------------------
+    // We've been hang up on
+    //--------------------------------------------------------------------------
+    if( pollDesc.revents & (POLLHUP|POLLRDHUP) )
+      return Status( stError, errSocketDisconnected );
+
+    //--------------------------------------------------------------------------
+    // We're messed up, either because we messed up ourselves (POLLNVAL) or
+    // got messed up by the network (POLLERR)
+    //--------------------------------------------------------------------------
+    return Status( stError, errSocketError );
   }
 }
