@@ -96,6 +96,7 @@ Server::Server(): pListenSocket(-1), pHandlerFactory(0)
 Server::~Server()
 {
   delete pLog;
+  delete pHandlerFactory;
   close( pListenSocket );
 }
 
