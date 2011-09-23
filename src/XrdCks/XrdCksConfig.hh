@@ -22,6 +22,10 @@ public:
 
 XrdCks *Configure(const char *dfltCalc=0, int rdsz=0);
 
+int     Manager() {return CksLib != 0;}
+
+int     Manager(const char *Path, const char *Parms);
+
 int     ParseLib(XrdOucStream &Config);
 
         XrdCksConfig(const char *cFN, XrdSysError *Eroute)

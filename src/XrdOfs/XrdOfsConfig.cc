@@ -170,19 +170,21 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Configure the storage system at this point. This must be done prior to
 // configuring cluster processing. First check if we will be proxying.
-// If we are not proxying then we will initialize checksum processing.
+// If so, then substitute the proxy plug-in where we can.
 //
    if (Options & isProxy)
       {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
+       if (!libofs) bp = buff;
+          else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
+                while(bp != buff && *(bp-1) != '/') bp--;
+               }
+       strcpy(bp, "libXrdPss.so");
        if (OssLib) Eroute.Say("Config warning: ",
                    "specified osslib overrides default proxy lib.");
-          else {if (!libofs) bp = buff;
-                   else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
-                         while(bp != buff && *(bp-1) != '/') bp--;
-                        }
-                strcpy(bp, "libXrdPss.so");
-                OssLib = strdup(buff);
-               }
+          else OssLib = strdup(buff);
+       if (CksConfig->Manager()) Eroute.Say("Config warning: ",
+                   "specified ckslib overrides default proxy lib.");
+          else CksConfig->Manager(buff, 0);
       }
 
 // Initialize th Evr object if we are an actual server
@@ -213,9 +215,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
 
-// Configure checksums if we are neither a proxy nor a manager
+// Configure checksums if we are not a manager
 //
-   if (!(Options & (isProxy | isManager))) 
+   if (!(Options & isManager))
       NoGo |= (Cks = CksConfig->Configure(0, CksRdsz)) == 0;
    delete CksConfig;
    CksConfig = 0;

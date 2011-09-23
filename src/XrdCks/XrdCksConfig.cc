@@ -80,6 +80,31 @@ XrdCks *XrdCksConfig::getCks(int rdsz)
 }
   
 /******************************************************************************/
+/*                               M a n a g e r                                */
+/******************************************************************************/
+  
+/* Function: Manager
+
+   Purpose:  Reset the manager plugin library path and parameters.
+
+             <path>    path to the library.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCksConfig::Manager(const char *Path, const char *Parms)
+{
+// Replace the library path and parameters
+//
+   if (CksLib) free(CksLib);
+   CksLib = strdup(Path);
+   if (CksParm) free(CksParm);
+   CksParm = (Parms  && *Parms ? strdup(Parms) : 0);
+   return 0;
+}
+  
+/******************************************************************************/
 /*                              P a r s e L i b                               */
 /******************************************************************************/
   
@@ -124,18 +149,13 @@ int XrdCksConfig::ParseLib(XrdOucStream &Config)
 
 // Record any parms
 //
+   *parms = 0;
    if (!Config.GetRest(parms, parmSize))
       {eDest->Emsg("Config", "ckslib parameters too long for", buff); return 1;}
 
 // Check if this is for the manager
 //
-   if (*buff == '*' && *(buff+1) == ' ')
-      {if (CksLib) free(CksLib);
-       CksLib = strdup(buff+2);
-       if (CksParm) free(CksParm);
-       CksParm = (*parms ? strdup(parms) : 0);
-       return 0;
-      }
+   if (*buff == '*' && *(buff+1) == ' ') return Manager(buff+2, parms);
 
 // Add this digest to the list of digests
 //
