@@ -364,4 +364,22 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     return Status( stError, errSocketError );
   }
+
+  //----------------------------------------------------------------------------
+  // Get the name of the socket
+  //----------------------------------------------------------------------------
+  std::string Socket::GetSockName() const
+  {
+    if( !IsConnected() )
+      return "";
+
+    char      nameBuff[256];
+    sockaddr  sockAddr;
+    socklen_t sockAddrLen = sizeof( sockAddr );
+    if( getsockname( pSocket, &sockAddr, &sockAddrLen ) )
+      return "";
+
+    XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
+    return nameBuff;
+  }
 }

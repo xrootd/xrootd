@@ -86,6 +86,11 @@ namespace XrdClient
         return pSocket;
       }
 
+      //------------------------------------------------------------------------
+      //! Get the name of the socket
+      //------------------------------------------------------------------------
+      std::string GetSockName() const;
+
     private:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
