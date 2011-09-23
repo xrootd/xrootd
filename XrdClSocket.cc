@@ -101,7 +101,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   //! Read raw bytes from the socket
   //----------------------------------------------------------------------------
-  Status Socket::ReadRaw( char *buffer, uint32_t size, int32_t timeout,
+  Status Socket::ReadRaw( void *buffer, uint32_t size, int32_t timeout,
                           uint32_t &bytesRead )
   {
     //--------------------------------------------------------------------------
@@ -115,7 +115,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     bytesRead = 0;
 
-    char    *current    = buffer;
+    char    *current    = (char *)buffer;
     bool     useTimeout = (timeout!=-1);
     time_t   now        = 0;
     time_t   newNow     = 0;
@@ -139,7 +139,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       if( sc.status == stOK )
       {
-        int n = ::read( pSocket, current, (size-bytesRead) );
+        ssize_t n = ::read( pSocket, current, (size-bytesRead) );
 
         if( n > 0 )
         {
@@ -196,9 +196,86 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Write raw bytes to the socket
   //----------------------------------------------------------------------------
-  Status Socket::WriteRaw( char *buffer, uint32_t size, uint16_t timeout,
+  Status Socket::WriteRaw( void *buffer, uint32_t size, uint16_t timeout,
                            uint32_t &bytesWritten )
   {
+    //--------------------------------------------------------------------------
+    // Check if we're connected
+    //--------------------------------------------------------------------------
+    if( !pIsConnected )
+      return Status( stError, errInvalidOp );
+
+    //--------------------------------------------------------------------------
+    // Some usefull variables
+    //--------------------------------------------------------------------------
+    bytesWritten = 0;
+
+    char    *current    = (char *)buffer;
+    bool     useTimeout = (timeout!=-1);
+    time_t   now        = 0;
+    time_t   newNow     = 0;
+    Status   sc;
+
+    if( useTimeout )
+      now = ::time(0);
+
+    //--------------------------------------------------------------------------
+    // Repeat the following until we have written everything
+    //--------------------------------------------------------------------------
+    while ( bytesWritten < size )
+    {
+      //------------------------------------------------------------------------
+      // Check if we can read something
+      //------------------------------------------------------------------------
+      sc = Poll( false, true, useTimeout ? timeout : -1 );
+
+      //------------------------------------------------------------------------
+      // Let's write
+      //------------------------------------------------------------------------
+      if( sc.status == stOK )
+      {
+        ssize_t n = ::write( pSocket, current, (size-bytesWritten) );
+
+        if( n > 0 )
+        {
+          bytesWritten += n;
+          current   += n;
+        }
+
+        //----------------------------------------------------------------------
+        // Error
+        //----------------------------------------------------------------------
+        if( (n <= 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK) )
+        {
+          Disconnect();
+          return Status( stError, errSocketError, errno );
+        }
+      }
+      else
+      {
+        Disconnect();
+        return sc;
+      }
+
+      //------------------------------------------------------------------------
+      // Do we still have time to wait for data?
+      //------------------------------------------------------------------------
+      if( useTimeout )
+      {
+        newNow    = ::time(0);
+        timeout -= (newNow-now);
+        now       = newNow;
+        if( timeout < 0 )
+          break;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Have we managed to read everything?
+    //--------------------------------------------------------------------------
+    if( bytesWritten < size )
+      return Status( stError, errSocketTimeout );
+
     return Status( stOK );
   }
 
