@@ -21,10 +21,11 @@ namespace XrdClient
   // Generic errors
   //----------------------------------------------------------------------------
   uint16_t errNone           = 0; //!< No error
-  uint16_t errInvalidOp      = 1; //!< The operation cannot be performed in the
+  uint16_t errUnknown        = 1;
+  uint16_t errInvalidOp      = 2; //!< The operation cannot be performed in the
                                   //!< given circumstances
-  uint16_t errFcntl          = 2; //!< failed manipulate file descriptor
-  uint16_t errPoll           = 3; //!< error while polling descriptors
+  uint16_t errFcntl          = 3; //!< failed manipulate file descriptor
+  uint16_t errPoll           = 4; //!< error while polling descriptors
 
   //----------------------------------------------------------------------------
   // Socket related errors
