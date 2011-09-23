@@ -15,10 +15,8 @@ set( XRD_POSIX_PRELOAD_SOVERSION 0 )
 add_library(
   XrdPosix
   SHARED
-  XrdPosix/XrdPosix.cc             XrdPosix/XrdPosix.hh
-  XrdPosix/XrdPosixLinkage.cc      XrdPosix/XrdPosixLinkage.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
-                                   XrdPosix/XrdPosixExtern.hh
+  XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
                                    XrdPosix/XrdPosixCallBack.hh
                                    XrdPosix/XrdPosixOsDep.hh    )
 
@@ -40,6 +38,8 @@ add_library(
   SHARED
   XrdPosix/XrdPosixPreload32.cc
   XrdPosix/XrdPosixPreload.cc
+  XrdPosix/XrdPosix.cc           XrdPosix/XrdPosix.hh
+  XrdPosix/XrdPosixLinkage.cc    XrdPosix/XrdPosixLinkage.hh
                                  XrdPosix/XrdPosixExtern.hh
                                  XrdPosix/XrdPosixOsDep.hh )
 

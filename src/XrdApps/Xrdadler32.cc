@@ -8,10 +8,6 @@
 /* and file on a remote xrootd data server. Support using XROOTD_VMP.   */
 /************************************************************************/
 
-//   $Id$
-
-const char *Xrdadler32CVSID = "$Id$";
-
 #define _FILE_OFFSET_BITS 64
 
 #include <stdio.h>
@@ -27,8 +23,8 @@ const char *Xrdadler32CVSID = "$Id$";
 #endif
 #include <zlib.h>
 
-#include "XrdPosix/XrdPosixExtern.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
+#include "XrdPosix/XrdPosixXrootdPath.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClient.hh"
@@ -187,8 +183,9 @@ int main(int argc, char *argv[])
     {
         if (!strncmp(argv[1], "root://", 7))
             strcpy(path, argv[1]);
-        else  
-            XrdPosix_URL(argv[1], path, sizeof(path));
+        else {XrdPosixXrootPath xrdPath;
+              xrdPath.URL(argv[1], path, sizeof(path));
+             }
     }
     if (argc == 1 || path[0] == '\0')
     {                        /* this is a local file */

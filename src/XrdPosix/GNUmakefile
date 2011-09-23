@@ -9,20 +9,21 @@ include ../GNUmake.env
 #------------------------------------------------------------------------------#
 
 SOURCES  = \
-        XrdPosix.cc  \
-        XrdPosixLinkage.cc  \
-        XrdPosixXrootd.cc
+        XrdPosixXrootd.cc   \
+        XrdPosixXrootdPath.cc
 
 SOURCET = \
+        XrdPosix.cc  \
+        XrdPosixLinkage.cc  \
         XrdPosixPreload.cc \
         XrdPosixPreload32.cc
 
 OBJECTS  = \
-        $(OBJDIR)/XrdPosix.o  \
-        $(OBJDIR)/XrdPosixLinkage.o  \
         $(OBJDIR)/XrdPosixXrootd.o
 
 OBJECTT = \
+        $(OBJDIR)/XrdPosix.o  \
+        $(OBJDIR)/XrdPosixLinkage.o  \
         $(OBJDIR)/XrdPosixPreload.o  \
         $(OBJDIR)/XrdPosixPreload32.o
 
@@ -65,17 +66,17 @@ anything: $(TARGETS)
 #                           D e p e n d e n c i e s                            #
 #------------------------------------------------------------------------------#
 
-$(LIBARCH): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+$(LIBARCH): $(OBJECTS) $(LIBDEP)
 	@echo Creating archive $(LIBARCH) 
 	$(ECHO)rm -f $(LIBARCH)
 	$(ECHO)ar -rc $(LIBARCH) $(OBJECTS)
 	$(ECHO)ranlib $(LIBARCH)
 
-$(LIBPLDR): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+$(LIBPLDR): $(OBJECTT) $(LIBDEP)
 	@echo Creating shared library $(LIBPLDR)
-	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTT) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
+	$(ECHO)$(CC) $(CFLAGS) $(OBJECTT) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBPLDR)
 
-$(LIBRARY): $(OBJECTP) $(OBJECTS) $(OBJECTT) $(LIBDEP)
+$(LIBRARY): $(OBJECTS) $(LIBDEP)
 	@echo Creating shared library $(LIBRARY) 
 	$(ECHO)$(CC) $(CFLAGS) $(OBJECTS) $(OBJECTU) $(LDSO) $(MORELIBS) $(LIBS) -o $(LIBRARY)
 ifneq ($(subst $(MACOSX_MINOR),,1234),1234)
@@ -88,7 +89,7 @@ endif
 
 $(OBJDIR)/XrdPosix.o:  XrdPosix.cc XrdPosix.hh XrdPosixXrootd.hh  \
                        XrdPosixExtern.hh XrdPosixLinkage.hh \
-                       XrdOucTokenizer.hh XrdSysHeaders.hh
+                       XrdSysHeaders.hh
 	@echo Compiling XrdPosix.cc
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosix.o XrdPosix.cc
 
@@ -116,8 +117,13 @@ $(OBJDIR)/XrdPosixXrootd.o:  XrdPosixXrootd.cc    XrdPosixXrootd.hh   \
                              XrdClientUrlInfo.hh  XrdClientVector.hh  \
                              XrdOucCache.hh       XrdOucEnv.hh        \
                              XrdOucString.hh      XrdPosixCallBack.hh \
-                             XrdPosixLinkage.hh   XrdPosixOsDep.hh    \
+                             XrdPosixOsDep.hh    \
                              XrdPosixXrootd.hh    XrdSysHeaders.hh    \
                              XrdSysPlatform.hh    XrdSysPthread.hh
 	@echo Compiling XrdPosixXrootd.cc 
 	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixXrootd.o XrdPosixXrootd.cc
+
+$(OBJDIR)/XrdPosixXrootdPath.o:  XrdPosixXrootdPath.cc   XrdPosixXrootdPath.hh \
+                                 XrdOucTokenizer.hh      XrdSysHeaders.hh
+	@echo Compiling XrdPosixXrootdPath.cc 
+	$(ECHO)$(CC) -c $(CFLAGS) $(INCLUDE) -o $(OBJDIR)/XrdPosixXrootdPath.o XrdPosixXrootdPath.cc

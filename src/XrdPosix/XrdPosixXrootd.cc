@@ -27,7 +27,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
-#include "XrdPosix/XrdPosixLinkage.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
@@ -414,7 +413,6 @@ XrdPosixFile::~XrdPosixFile()
 
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 {
-   extern XrdPosixLinkage Xunix;
    struct rlimit rlim;
    long isize;
 
@@ -424,10 +422,6 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
    if (initDone) {myMutex.UnLock(); return;}
    initDone = 1;
    myMutex.UnLock();
-
-// Initialize the linkage table first before any C calls!
-//
-   Xunix.Init();
 
 // Initialize environment if not done before. To avoid static initialization
 // dependencies, we need to do it once but we must be the last ones to do it

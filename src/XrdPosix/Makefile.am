@@ -18,7 +18,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_builddir)/src
 # N.B.: XrdPosixXrootd.hh includes XrdSysPthread.hh!
 xrootdposixincdir = $(includedir)/xrootd/XrdPosix
 xrootdposixinc_HEADERS = XrdPosixXrootd.hh XrdPosixOsDep.hh XrdPosixLinkage.hh \
-                        XrdPosix.hh XrdPosixExtern.hh XrdPosixCallBack.hh
+                        XrdPosix.hh XrdPosixExtern.hh XrdPosixCallBack.hh \
+                        XrdPosixXrootdPath.hh
 
 #############################################################################
 ## deliverables
@@ -29,9 +30,8 @@ lib_LTLIBRARIES = libXrdPosix.la libXrdPosixPreload.la
 ## Build rules
 
 libXrdPosix_la_SOURCES = \
-        XrdPosix.cc  \
-        XrdPosixLinkage.cc \
-        XrdPosixXrootd.cc 
+        XrdPosixXrootd.cc \
+        XrdPosixXrootdPath.cc
 
 libXrdPosix_la_LIBADD = ../XrdClient/libXrdClient.la \
                         ../XrdSec/libXrdSec.la \
@@ -44,6 +44,7 @@ libXrdPosixPreload_la_SOURCES = \
          XrdPosixPreload.cc  \
          XrdPosixLinkage.cc \
          XrdPosixXrootd.cc \
+         XrdPosixXrootdPath.cc \
          XrdPosix.cc
 
 libXrdPosixPreload_la_LIBADD = \

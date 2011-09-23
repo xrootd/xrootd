@@ -59,7 +59,7 @@ $(XRDADLER32): $(XRDADLER32_OBJ) $(XRDADLERDEPT)
 	$(ECHO)$(LD) $(LDOP) $(XRDADLER32_OBJ) $(XRDADLERDEPS) $(XRDADLERLIBS) -o $(XRDADLER32)
 
 $(XRDADLER32_OBJ): Xrdadler32.cc \
-                   XrdPosixExtern.hh    XrdPosixXrootd.hh \
+                   XrdPosixXrootd.hh    XrdPosixXrootdPath.hh \
                    XrdClientUrlInfo.hh  XrdClientConst.hh \
                    XrdClient.hh         XrdClientEnv.hh \
                    XrdClientAdmin.hh \
