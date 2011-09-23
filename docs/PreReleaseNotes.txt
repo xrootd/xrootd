@@ -92,6 +92,9 @@ Version 3.1.0
      writing an ofs plugin easier.
 
 + **Miscellaneous**
+   * Refactor PosixPreeload and Posix libraries to prevent split initialization
+     of the preload library which will cause failures on certain systems.
+   * Provide automatic proxy checksum defaults when role is set to proxy.
    * Remove all references via extern statements to object instances. This
      only applies to the Xrd package.
    * Do not echo lines qualified by an in-line if when the if fails.
