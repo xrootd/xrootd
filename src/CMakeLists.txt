@@ -47,21 +47,9 @@ install(
 #-------------------------------------------------------------------------------
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/utils/XrdOlbNotify.pm
-  ${CMAKE_SOURCE_DIR}/utils/fs_stat
-  ${CMAKE_SOURCE_DIR}/utils/mps_MigrPurg
-  ${CMAKE_SOURCE_DIR}/utils/mps_PreStage
-  ${CMAKE_SOURCE_DIR}/utils/mps_Stage
-  ${CMAKE_SOURCE_DIR}/utils/mps_Xeq
-  ${CMAKE_SOURCE_DIR}/utils/mps_prep
   ${CMAKE_SOURCE_DIR}/utils/xrdcksum
   ${CMAKE_SOURCE_DIR}/utils/xrdmd5sum
   ${CMAKE_SOURCE_DIR}/utils/XrdCmsNotify.pm
   ${CMAKE_SOURCE_DIR}/utils/netchk
-  ${CMAKE_SOURCE_DIR}/utils/ooss_CAlloc.pm
-  ${CMAKE_SOURCE_DIR}/utils/ooss_Lock.pm
-  ${CMAKE_SOURCE_DIR}/utils/ooss_MonP.pm
-  ${CMAKE_SOURCE_DIR}/utils/ooss_name2name.pm
-  ${CMAKE_SOURCE_DIR}/utils/mps_monStage.pm
   ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
   DESTINATION ${CMAKE_INSTALL_DATADIR}/xrootd/utils )
