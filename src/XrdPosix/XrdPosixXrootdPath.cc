@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/param.h>
 
 #include "XrdOuc/XrdOucTokenizer.hh"
