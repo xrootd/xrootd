@@ -4,6 +4,7 @@
 //------------------------------------------------------------------------------
 
 #include "Server.hh"
+#include "Utils.hh"
 #include "XrdSys/XrdSysDNS.hh"
 
 #include <errno.h>
@@ -47,8 +48,10 @@ extern "C"
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-ClientHandler::ClientHandler()
+ClientHandler::ClientHandler(): pSentBytes(0), pReceivedBytes(0)
 {
+  pSentChecksum     = Utils::ComputeCRC32( 0, 0 );
+  pReceivedChecksum = Utils::ComputeCRC32( 0, 0 );
 }
 
 //------------------------------------------------------------------------------
@@ -63,6 +66,8 @@ ClientHandler::~ClientHandler()
 //------------------------------------------------------------------------------
 void ClientHandler::UpdateSentData( char *buffer, uint32_t size )
 {
+  pSentBytes += size;
+  pSentChecksum = Utils::UpdateCRC32( pSentChecksum, buffer, size );
 }
 
 //------------------------------------------------------------------------------
@@ -70,6 +75,8 @@ void ClientHandler::UpdateSentData( char *buffer, uint32_t size )
 //------------------------------------------------------------------------------
 void ClientHandler::UpdateReceivedData( char *buffer, uint32_t size )
 {
+  pReceivedBytes += size;
+  pReceivedChecksum = Utils::UpdateCRC32( pReceivedChecksum, buffer, size );
 }
 
 //------------------------------------------------------------------------------
@@ -189,7 +196,10 @@ bool Server::Stop()
 //------------------------------------------------------------------------------
 std::pair<uint64_t, uint32_t> Server::GetSentStats( const std::string host) const
 {
-  return std::make_pair( 1, 1 );
+  TransferMap::const_iterator it = pSent.find( host );
+  if( it == pSent.end() )
+    return std::make_pair( 0, 0 );
+  return it->second;
 }
 
 //------------------------------------------------------------------------------
@@ -197,7 +207,10 @@ std::pair<uint64_t, uint32_t> Server::GetSentStats( const std::string host) cons
 //------------------------------------------------------------------------------
 std::pair<uint64_t, uint32_t> Server::GetReceivedStats( const std::string host ) const
 {
-  return std::make_pair( 1, 1 );
+  TransferMap::const_iterator it = pReceived.find( host );
+  if( it == pReceived.end() )
+    return std::make_pair( 0, 0 );
+  return it->second;
 }
 
 //------------------------------------------------------------------------------
@@ -273,6 +286,12 @@ int Server::HandleConnections()
       pLog->Error( 1, "Unable to join the clint thread for: %s",
                    (*it)->name.c_str() );
 
+    pSent[(*it)->name]     = std::make_pair(
+                                (*it)->handler->GetSentBytes(),
+                                (*it)->handler->GetSentChecksum() );
+    pReceived[(*it)->name] = std::make_pair(
+                                (*it)->handler->GetReceivedBytes(),
+                                (*it)->handler->GetReceivedChecksum() );
     delete (*it)->handler;
     delete *it;
   }

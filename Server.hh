@@ -48,11 +48,44 @@ class ClientHandler
     //--------------------------------------------------------------------------
     void UpdateReceivedData( char *buffer, uint32_t size );
 
+    //--------------------------------------------------------------------------
+    //! Get sent bytes count
+    //--------------------------------------------------------------------------
+    uint64_t GetSentBytes() const
+    {
+      return pSentBytes;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get the checksum of the sent data buffers
+    //--------------------------------------------------------------------------
+    uint32_t GetSentChecksum() const
+    {
+      return pSentChecksum;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get the received bytes count
+    //--------------------------------------------------------------------------
+    uint64_t GetReceivedBytes() const
+    {
+      return pReceivedBytes;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get the checksum of the received data buffers
+    //--------------------------------------------------------------------------
+    uint32_t GetReceivedChecksum() const
+    {
+      return pReceivedChecksum;
+    }
+
+
   private:
     uint64_t    pSentBytes;
     uint64_t    pReceivedBytes;
-    uint64_t    pSentChecksum;
-    uint64_t    pReceivedChecksum;
+    uint32_t    pSentChecksum;
+    uint32_t    pReceivedChecksum;
 };
 
 //------------------------------------------------------------------------------

@@ -10,7 +10,11 @@ add_library(
   SocketTest.cc
 )
 
-target_link_libraries( XrdClTests ${CPPUNIT_LIBRARIES} XrdCl )
+target_link_libraries(
+  XrdClTests
+  ${CPPUNIT_LIBRARIES}
+  ${ZLIB_LIBRARY}
+  XrdCl )
 
 add_executable( text-runner TextRunner.cc PathProcessor.hh )
 target_link_libraries( text-runner dl cppunit XrdClTests )
