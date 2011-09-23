@@ -97,7 +97,7 @@ namespace XrdClient
         break;
 
       size *= 2;
-      delete buffer;
+      delete [] buffer;
     }
 
     //--------------------------------------------------------------------------
@@ -116,7 +116,7 @@ namespace XrdClient
       out << "[" << now << "][" << LogLevelToString( level ) << "] " << line << std::endl;
 
     pOutput->Write( out.str() );
-    delete buffer;
+    delete [] buffer;
   }
 
   //----------------------------------------------------------------------------
