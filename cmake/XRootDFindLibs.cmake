@@ -33,7 +33,8 @@ else()
   set( BUILD_KRB5 FALSE )
 endif()
 
-if( ENABLE_FUSE AND FUSE_FOUND )
+# mac fuse not supported
+if( ENABLE_FUSE AND FUSE_FOUND AND Linux )
   add_definitions( -DHAVE_FUSE )
   set( BUILD_FUSE TRUE )
 else()
