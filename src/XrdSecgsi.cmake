@@ -13,6 +13,10 @@ set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 0 )
 set( XRD_SEC_GSI_GMAPDN_VERSION     0.0.1 )
 set( XRD_SEC_GSI_GMAPDN_SOVERSION   0 )
 
+set( XRD_SEC_GSI_AUTHZVO_VERSION    0.0.1 )
+set( XRD_SEC_GSI_AUTHZVO_SOVERSION  0 )
+
+
 #-------------------------------------------------------------------------------
 # The XrdSecgsi library
 #-------------------------------------------------------------------------------
@@ -107,6 +111,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 install(
   TARGETS XrdSecgsi XrdSecgsiGMAPDN XrdSecgsiGMAPLDAP xrdgsiproxy
+          XrdSecgsiAuthzVO
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
