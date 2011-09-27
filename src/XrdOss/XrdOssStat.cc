@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdOssStatCVSID = "$Id$";
-
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -48,7 +44,8 @@ const char *XrdOssStatCVSID = "$Id$";
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdOssSys::Stat(const char *path, struct stat *buff, int opts)
+int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
+                    XrdOucEnv  *EnvP)
 {
     const int ro_Mode = ~(S_IWUSR | S_IWGRP | S_IWOTH);
     char actual_path[MAXPATHLEN+1], *local_path, *remote_path;
@@ -83,7 +80,8 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts)
 
 // The file may be offline in a mass storage system, check if this is possible
 //
-   if (!IsRemote(path) || opts & XRDOSS_resonly) return -errno;
+   if (!IsRemote(path) || opts & XRDOSS_resonly
+   ||  (EnvP && EnvP->Get("oss.lcl"))) return -errno;
    if (!RSSCmd) return (popts & XRDEXP_NOCHECK ? -ENOENT : -ENOMSG);
 
 // Generate remote path

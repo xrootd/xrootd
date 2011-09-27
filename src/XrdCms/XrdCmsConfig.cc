@@ -843,13 +843,14 @@ int XrdCmsConfig::isExec(XrdSysError *eDest, const char *ptype, char *prog)
   
 int XrdCmsConfig::MergeP()
 {
+   static const unsigned long long stage4MM = XRDEXP_STAGEMM & ~XRDEXP_STAGE;
    XrdOucPList *plp = PexpList.First();
    XrdCmsPList *pp;
    XrdCmsPInfo opinfo, npinfo;
    const char *ptype;
    char *pbP;
    unsigned long long Opts;
-   int pbLen = 0, NoGo = 0;
+   int pbLen = 0, NoGo = 0, export2MM = isManager && !isServer;
    npinfo.rovec = 1;
 
 // For each path in the export list merge it into the path list
@@ -858,7 +859,8 @@ int XrdCmsConfig::MergeP()
         {Opts = plp->Flag();
          if (!(Opts & XRDEXP_LOCAL))
             {npinfo.rwvec = (Opts & (XRDEXP_GLBLRO | XRDEXP_NOTRW) ? 0 : 1);
-             npinfo.ssvec = (Opts & XRDEXP_STAGE ? 1 : 0);
+             if (export2MM) npinfo.ssvec = (Opts &  stage4MM       ? 1 : 0);
+                else        npinfo.ssvec = (Opts &  XRDEXP_STAGE   ? 1 : 0);
              if (!PathList.Add(plp->Path(), &npinfo))
                 Say.Emsg("Config","Ignoring duplicate export path",plp->Path());
                 else if (npinfo.ssvec) DiskSS = 1;
@@ -1387,7 +1389,6 @@ int XrdCmsConfig::xdelay(XrdSysError *eDest, XrdOucStream &CFile)
 
 int XrdCmsConfig::xdefs(XrdSysError *eDest, XrdOucStream &CFile)
 {
-   if (!isServer) return CFile.noEcho();
    DirFlags = XrdOucExport::ParseDefs(CFile, *eDest, DirFlags);
    return 0;
 }
@@ -1533,23 +1534,10 @@ do{     if (!strcmp("mdhold",  val))
 
 int XrdCmsConfig::xexpo(XrdSysError *eDest, XrdOucStream &CFile)
 {
-   XrdOucPList *plp, *olp;
-   unsigned long long Opts = DirFlags & XRDEXP_SETTINGS;
 
 // Parse the arguments
 //
-   if (!(plp = XrdOucExport::ParsePath(CFile, *eDest, Opts))) return 1;
-
-// Check if this path is being modified or added. For modifications, turn off
-// all bitsin the old path specified in the new path and then set the new bits.
-//
-   if (!(olp = PexpList.Match(plp->Path()))) PexpList.Insert(plp);
-      else {Opts = plp->Flag() >> XRDEXP_MASKSHIFT;
-            Opts = olp->Flag() & ~Opts;
-            olp->Set(Opts | plp->Flag());
-            delete plp;
-           }
-   return 0;
+   return (XrdOucExport::ParsePath(CFile, *eDest, PexpList, DirFlags) ? 0 : 1);
 }
   
 /******************************************************************************/

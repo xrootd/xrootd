@@ -122,7 +122,7 @@ virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
                       {return -ENOTSUP;}
 virtual int     Remdir(const char *, int Opts=0)=0;
 virtual int     Rename(const char *, const char *)=0;
-virtual int     Stat(const char *, struct stat *, int opts=0)=0;
+virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0)=0;
 virtual int     StatFS(const char *path, char *buff, int &blen) 
                       {return -ENOTSUP;}
 virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)

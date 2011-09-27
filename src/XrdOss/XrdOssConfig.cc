@@ -597,11 +597,6 @@ void XrdOssSys::ConfigSpace(const char *Lfn)
 void XrdOssSys::ConfigSpath(XrdSysError &Eroute, const char *Path,
                            unsigned long long &flags, int noMSS)
 {
-
-// Apply defaults for anything not actually specified in the flags
-//
-   flags = flags | (DirFlags & (~(flags >> XRDEXP_MASKSHIFT)));
-
 // mig+r/w -> check unless nocheck was specified
 //
    if ((flags & XRDEXP_MIG) && !(flags & XRDEXP_NOTRW)
@@ -1315,23 +1310,10 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
 {
-    XrdOucPList *plp, *olp;
-    unsigned long long Opts;
 
 // Parse the arguments
 //
-   if (!(plp = XrdOucExport::ParsePath(Config, Eroute, DirFlags))) return 1;
-
-// Check if this path is being modified or added. For modifications, turn off
-// all bitsin the old path specified in the new path and then set the new bits.
-//
-   if (!(olp = RPList.Match(plp->Path()))) RPList.Insert(plp);
-      else {Opts = plp->Flag() >> XRDEXP_MASKSHIFT;
-            Opts = olp->Flag() & ~Opts;
-            olp->Set(Opts | plp->Flag());
-            delete plp;
-           }
-   return 0;
+   return (XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags) ? 0 : 1);
 }
 
 /******************************************************************************/

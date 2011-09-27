@@ -29,6 +29,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucExport.hh"
 
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -58,6 +59,8 @@ const char  *XrdPssSys::myHost;
 const char  *XrdPssSys::myName;
 uid_t        XrdPssSys::myUid     =  geteuid();
 gid_t        XrdPssSys::myGid     =  getegid();
+
+XrdOucPListAnchor XrdPssSys::XPList;
 
 XrdOucTList *XrdPssSys::ManList   =  0;
 const char  *XrdPssSys::urlPlain  =  0;
@@ -138,9 +141,6 @@ int XrdPssSys::Configure(const char *cfn)
    pthread_t tid;
    char *eP, theRdr[maxHLen+1024];
    int i, NoGo = 0;
-
-   N2NLib = NULL;
-   theN2N = NULL;
 
 // Preset tracing options
 //
@@ -282,7 +282,9 @@ int XrdPssSys::ConfigProc(const char *Cfn)
 // Now start reading records until eof.
 //
    while((var = Config.GetMyFirstWord()))
-        {if (!strncmp(var, "pss.", 4))
+        {if (!strncmp(var, "pss.", 4)
+         ||  !strcmp(var, "oss.defaults")
+         ||  !strcmp(var, "all.export"))
             if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
         }
 
@@ -291,6 +293,10 @@ int XrdPssSys::ConfigProc(const char *Cfn)
    if ((retc = Config.LastError()))
       NoGo = eDest.Emsg("Config", retc, "read config file", Cfn);
    Config.Close();
+
+// Set the defaults for the export list
+//
+   XPList.Set(DirFlags);
 
 // Return final return code
 //
@@ -338,6 +344,8 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("setopt",        xsopt);
    TS_Xeq("trace",         xtrac);
    TS_Xeq("namelib",       xnml);
+   TS_Xeq("defaults",      xdef);
+   TS_Xeq("export",        xexp);
 
    // No match found, complain.
    //
@@ -545,6 +553,48 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(Xopts[i].Key, val)) break;
    return 0;
 }
 
+/******************************************************************************/
+/*                                  x d e f                                   */
+/******************************************************************************/
+
+/* Function: xdef
+
+   Purpose:  Parse: defaults <default options>
+                              
+   Notes: See the oss configuration manual for the meaning of each option.
+          The actual implementation is defined in XrdOucExport.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xdef(XrdSysError *Eroute, XrdOucStream &Config)
+{
+   DirFlags = XrdOucExport::ParseDefs(Config, *Eroute, DirFlags);
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x e x p                                   */
+/******************************************************************************/
+
+/* Function: xrcp
+
+   Purpose:  To parse the directive: {export | path} <path> [<options>]
+
+             <path>    the full path that resides in a remote system.
+             <options> a blank separated list of options (see XrdOucExport)
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
+{
+
+// Parse the arguments
+//
+   return (XrdOucExport::ParsePath(Config, *Eroute, XPList, DirFlags) ? 0 : 1);
+}
+  
 /******************************************************************************/
 /*                                  x n m l                                   */
 /******************************************************************************/

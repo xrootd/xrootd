@@ -9,6 +9,7 @@
 /******************************************************************************/
 
 #include "XrdOuc/XrdOucExport.hh"
+#include "XrdOuc/XrdOucPList.hh"
 #include "XrdSys/XrdSysPlatform.hh"
   
 /******************************************************************************/
@@ -27,7 +28,7 @@
 
                              [[no]mlock] [[no]mmap] [outplace] [readonly]
 
-                             [[no]ssdec] [[no]stage]  [[no]rcreate] 
+                             [[no]ssdec] [[no]stage] [stage+] [[no]rcreate]
 
                              [[not]writable] [[no]xattrs]
 
@@ -55,8 +56,6 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"r/w",           XRDEXP_NOTRW,   0,              XRDEXP_ROW_X},
         {"inplace",       0,              XRDEXP_INPLACE, XRDEXP_INPLACE_X},
         {"outplace",      XRDEXP_INPLACE, 0,              XRDEXP_INPLACE_X},
-        {"nofilter",      XRDEXP_FILTER,  0,              XRDEXP_MKEEP_X},
-        {"filter",        0,              XRDEXP_FILTER,  XRDEXP_FILTER_X},
         {"nomig",         XRDEXP_MIG,     0,              XRDEXP_MIG_X},
         {"mig",           0,              XRDEXP_MIG,     XRDEXP_MIG_X},
         {"notmigratable", XRDEXP_MIG,     0,              XRDEXP_MIG_X},
@@ -71,6 +70,7 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
         {"purge",         0,              XRDEXP_PURGE,   XRDEXP_PURGE_X},
         {"nostage",       XRDEXP_STAGE,   0,              XRDEXP_STAGE_X},
         {"stage",         0,              XRDEXP_STAGE,   XRDEXP_STAGE_X},
+        {"stage+",        0,              XRDEXP_STAGEMM, XRDEXP_STAGE_X},
         {"dread",         XRDEXP_NODREAD, 0,              XRDEXP_DREAD_X},
         {"nodread",       0,              XRDEXP_NODREAD, XRDEXP_DREAD_X},
         {"check",         XRDEXP_NOCHECK, 0,              XRDEXP_CHECK_X},
@@ -145,8 +145,10 @@ unsigned long long XrdOucExport::ParseDefs(XrdOucStream      &Config,
 */
   
 XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
+                                     XrdOucPListAnchor &Export,
                                      unsigned long long Defopts)
 {
+    XrdOucPList *plp;
     char *path, pbuff[1024];
     unsigned long long rpval;
 
@@ -157,9 +159,10 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
       {Eroute.Emsg("Export", "path not specified"); return 0;}
    strlcpy(pbuff, path, sizeof(pbuff));
 
-// Process path options
+// Process path options and apply defaults to any unspecified otions
 //
    rpval = ParseDefs(Config, Eroute, 0);
+   rpval = rpval | (Defopts & (~(rpval >> XRDEXP_MASKSHIFT)));
 
 // Make sure that we have no conflicting options
 //
@@ -170,7 +173,19 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
       }
    if (rpval & (XRDEXP_MLOK | XRDEXP_MKEEP)) rpval |= XRDEXP_MMAP;
 
+// Update the export list. If this path is being modified, turn off all bits
+// in the old path specified in the new path and then set the new bits.
+//
+   if ((plp = Export.Match(pbuff)))
+      {unsigned long long Opts = rpval >> XRDEXP_MASKSHIFT;
+       Opts = (plp->Flag() & ~Opts) | rpval;
+       plp->Set(Opts);
+      } else {
+       plp = new XrdOucPList(pbuff,rpval);
+       Export.Insert(plp);
+      }
+
 // Return the path specification
 //
-   return new XrdOucPList(pbuff, rpval);
+   return plp;
 }

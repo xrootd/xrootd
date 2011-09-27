@@ -53,10 +53,10 @@
 #define XRDEXP_LOCAL_X    0x0008000000000000LL
 #define XRDEXP_GLBLRO     0x0000000000100000LL
 #define XRDEXP_GLBLRO_X   0x0018000000000000LL
-//                        0x0020000000200000LL
+#define XRDEXP_STAGEMM    0x0000000000200020LL
+//                        0x0020000000000000LL
 //                        0x0040000000400000LL
-#define XRDEXP_FILTER     0x0000000000800000LL
-#define XRDEXP_FILTER_X   0x0080000000000000LL
+//                        0x0080000000800000LL
 #define XRDEXP_AVAILABLE  0xff000000ff000000LL
 #define XRDEXP_MASKSHIFT  32
 #define XRDEXP_SETTINGS   0x00000000ffffffffLL
@@ -76,6 +76,8 @@
 /******************************************************************************/
 /*                       C l a s s   X r d E x p o r t                        */
 /******************************************************************************/
+
+class XrdOucPListAnchor;
   
 class XrdOucExport
 {
@@ -85,6 +87,7 @@ static unsigned long long ParseDefs(XrdOucStream &Config, XrdSysError &Eroute,
                                     unsigned long long Flags);
 
 static XrdOucPList       *ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
+                                    XrdOucPListAnchor &Export,
                                     unsigned long long Defopts);
 
                    XrdOucExport() {}

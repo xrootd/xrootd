@@ -14,7 +14,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPList.hh"
 #include "XrdOss/XrdOss.hh"
 
 /******************************************************************************/
@@ -103,7 +105,7 @@ int       Init(XrdSysLogger *, const char *);
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Remdir(const char *, int Opts=0);
 int       Rename(const char *, const char *);
-int       Stat(const char *, struct stat *, int resonly=0);
+int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
 int       Truncate(const char *, unsigned long long);
 int       Unlink(const char *, int Opts=0);
 
@@ -116,6 +118,9 @@ static const char  *myHost;
 static const char  *myName;
 static uid_t        myUid;
 static gid_t        myGid;
+static
+XrdOucPListAnchor   XPList;        // Exported path list
+
 static XrdOucTList *ManList;
 static const char  *urlPlain;
 static int          urlPlen;
@@ -133,14 +138,15 @@ static char         allTrunc;
 
 static char         cfgDone;   // Configuration completed
 
-         XrdPssSys() {}
+         XrdPssSys() : N2NLib(0), N2NParms(0), theN2N(0), DirFlags(0) {}
 virtual ~XrdPssSys() {}
 
 private:
 
-char            *N2NLib;   // -> Name2Name Library Path
-char            *N2NParms; // -> Name2Name Object Parameters
-XrdOucName2Name *theN2N;   // -> File mapper object
+char              *N2NLib;   // -> Name2Name Library Path
+char              *N2NParms; // -> Name2Name Object Parameters
+XrdOucName2Name   *theN2N;   // -> File mapper object
+unsigned long long DirFlags; // Defaults for exports
 
 int    buildHdr();
 int    Configure(const char *);
@@ -150,6 +156,8 @@ int    ConfigN2N();
 int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
 char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
+int    xdef( XrdSysError *Eroute, XrdOucStream &Config);
+int    xexp( XrdSysError *Eroute, XrdOucStream &Config);
 int    xorig(XrdSysError *errp,   XrdOucStream &Config);
 int    xsopt(XrdSysError *Eroute, XrdOucStream &Config);
 int    xtrac(XrdSysError *Eroute, XrdOucStream &Config);

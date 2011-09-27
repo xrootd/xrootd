@@ -34,10 +34,17 @@
 
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucExport.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+
+/******************************************************************************/
+/*                               D e f i n e s                                */
+/******************************************************************************/
+
+#define isNOSTAGE(x) !(XRDEXP_STAGE & XrdPssSys::XPList.Find(path))
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -276,13 +283,23 @@ int XrdPssSys::Rename(const char *oldname, const char *newname)
   Notes:    The XRDOSS_resonly flag in Opts is not supported.
 */
 
-int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts)
+int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP)
 {
+   static const char *noStageCGI = "oss.lcl=1";
+   static const int   noStageCGL = strlen(noStageCGI);
+   const char *Cgi;
    char pbuff[PBsz];
+   int CgiLen;
+
+// Setup any required cgi information
+//
+   if ((Opts & XRDOSS_resonly) || isNOSTAGE(path))
+      {Cgi = noStageCGI; CgiLen = noStageCGL;}
+      else {Cgi = 0; CgiLen = 0;}
 
 // Convert path to URL
 //
-   if (!P2URL(pbuff, PBsz, path)) return -ENAMETOOLONG;
+   if (!P2URL(pbuff, PBsz, path, 0, Cgi, CgiLen)) return -ENAMETOOLONG;
 
 // Return proxied stat
 //
@@ -472,17 +489,29 @@ int XrdPssDir::Close(long long *retsz)
 */
 int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 {
-   const char *Cgi = "";
-   char pbuff[PBsz];
+   static const char *noStageCGI = "oss.lcl=1";
+   static const int   noStageCGL = strlen(noStageCGI);
+   const char *Cgi;
+   char pbuff[PBsz], cgbuff[PBsz];
    int CgiLen;
 
 // Return an error if the object is already open
 //
    if (fd >= 0) return -XRDOSS_E8003;
 
-// Obtain the cgi info
+// Setup any required cgi information
 //
-   Cgi   = Env.Env(CgiLen);
+   Cgi= Env.Env(CgiLen);
+   if (isNOSTAGE(path))
+      {if (!CgiLen) {Cgi = noStageCGI; CgiLen = noStageCGL;}
+          else {int n = CgiLen + noStageCGL + 1;
+                if (n >= PBsz) return -ENAMETOOLONG;
+                strcpy(cgbuff, Cgi);
+                cgbuff[CgiLen] = '&';
+                strcpy(cgbuff+CgiLen+1, noStageCGI);
+                Cgi = cgbuff; CgiLen = n;
+               }
+       }
 
 // Convert path to URL
 //

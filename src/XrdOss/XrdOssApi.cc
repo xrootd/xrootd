@@ -35,6 +35,7 @@
 #include "XrdOss/XrdOssError.hh"
 #include "XrdOss/XrdOssMio.hh"
 #include "XrdOss/XrdOssTrace.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -593,9 +594,10 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    if (fd >= 0) return -XRDOSS_E8003;
       else cxobj = 0;
 
-// Construct the processing options for this path
+// Construct the processing options for this path.
 //
    popts = XrdOssSS->PathOpts(path);
+   if (popts & XRDEXP_STAGE && Env.Get("oss.lcl")) popts &= ~XRDEXP_STAGE;
 
 // Generate local path
 //
