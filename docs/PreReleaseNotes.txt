@@ -3,6 +3,14 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Make proxy honor the export list at the storage layer. This allows sites
+     to disable staging via the proxy by specifying nostage for otherwise locally
+     stageable paths.
+   * Do not export the stage attribute to the meta-manager unless the path is
+     tagged with the stage+ attrbute on the export directive.
+   * WARNING: This update makes the oss plug-in source incompatible because an
+     additional parameter was added to the Stat() method. The update is binary
+     compatible and so only affects sites that recompile their plug-in.
    * Allow the query checksum request to be issued via a proxy server.
    * Add a query checksum interface to the POSIX interface.
    * Defines the livXrdSecgsiAuthzVO plug-in to allow easy mapping from voms
