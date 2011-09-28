@@ -210,8 +210,6 @@ int       FDLimit;        //    Largest  file FD number allowed
 unsigned long long DirFlags;//  Default directory settings
 int       Trace;          //    Trace flags
 int       Solitary;       //    True if running in stand-alone mode
-char     *CompSuffix;     // -> Compressed file suffix or null for autodetect
-int       CompSuflen;     //    Length of suffix
 int       OptFlags;       //    General option flags
 
 char             *N2N_Lib;   // -> Name2Name Library Path
@@ -286,7 +284,6 @@ int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
 void   List_Path(const char *, const char *, unsigned long long, XrdSysError &);
 int    xalloc(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcache(XrdOucStream &Config, XrdSysError &Eroute);
-int    xcompdct(XrdOucStream &Config, XrdSysError &Eroute);
 int    xcachescan(XrdOucStream &Config, XrdSysError &Eroute);
 int    xdefault(XrdOucStream &Config, XrdSysError &Eroute);
 int    xfdlimit(XrdOucStream &Config, XrdSysError &Eroute);

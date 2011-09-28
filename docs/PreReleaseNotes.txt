@@ -102,6 +102,9 @@ Version 3.1.0
      writing an ofs plugin easier.
 
 + **Miscellaneous**
+   * Remove compression related attributes (compchk, ssdec) and directives
+     (compdetect) as they were never used nor fully implemented.
+   * Remove the userprty directive. It was deprecated and never specified.
    * Refactor PosixPreeload and Posix libraries to prevent split initialization
      of the preload library which will cause failures on certain systems.
    * Provide automatic proxy checksum defaults when role is set to proxy.
