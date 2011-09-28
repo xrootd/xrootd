@@ -336,17 +336,12 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
    if (OneTimeInitDone) return;
    OneTimeInitDone = 1;
 
-//    EnvPutInt(NAME_RECONNECTTIMEOUT,20);
     EnvPutInt(NAME_FIRSTCONNECTMAXCNT,2);
-    EnvPutInt(NAME_DATASERVERCONN_TTL, 3600);
-//    EnvPutInt(NAME_READAHEADSIZE,DFLT_READAHEADSIZE);
-//    EnvPutInt(NAME_READCACHESIZE,DFLT_READCACHESIZE);
-//    EnvPutInt(NAME_READAHEADSIZE,64*1024);
-//    EnvPutInt(NAME_READCACHESIZE,64*64*1024);
+    EnvPutInt(NAME_DATASERVERCONN_TTL, 99999999);
+    EnvPutInt(NAME_LBSERVERCONN_TTL, 99999999);
     EnvPutInt(NAME_READAHEADSIZE,0);
     EnvPutInt(NAME_READCACHESIZE,0);
     EnvPutInt(NAME_REQUESTTIMEOUT, 30);
-    EnvPutInt(NAME_FIRSTCONNECTMAXCNT, 2);
 
     if (getenv("XROOTDFS_SECMOD") != NULL && !strcmp(getenv("XROOTDFS_SECMOD"), "sss"))
         XrdFfsMisc_xrd_secsss_init();
