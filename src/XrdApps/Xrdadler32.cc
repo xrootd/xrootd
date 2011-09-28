@@ -32,38 +32,33 @@
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdOuc/XrdOucString.hh"
 
-void fSetXattrAdler32(int fd, const char* attr, const char *value)
+#include "XrdCks/XrdCksXAttr.hh"
+#include "XrdOuc/XrdOucXAttr.hh"
+
+void fSetXattrAdler32(const char *path, int fd, const char* attr, char *value)
 {
+    XrdOucXAttr<XrdCksXAttr> xCS;
     struct stat st;
-    char mtime[12], attr_val[25];
-    int rc;
     
-    rc = fstat(fd, &st);
-    if (rc < 0 || strlen(value) != 8) 
-        return; 
-    else
-        sprintf(mtime, "%ld", st.st_mtime);
+    if (fstat(fd, &st) || strlen(value) != 8) return;
 
-    strcpy(attr_val, value);
-    strcat(attr_val, ":"); 
-    strcat(attr_val, mtime);
+    if (!xCS.Attr.Cks.Set("adler32") || !xCS.Attr.Cks.Set(value,8)) return;
 
+    xCS.Attr.Cks.fmTime = static_cast<long long>(st.st_mtime);
+    xCS.Attr.Cks.csTime = static_cast<int>(time(0) - st.st_mtime);
+
+    xCS.Set("", fd);
+
+// Remove any old attribute at this point
+//
 #if defined(__linux__)
-    rc = fsetxattr(fd, attr, attr_val, strlen(attr_val), 0x0);
+    fremovexattr(fd, attr);
 #elif defined(__solaris__)
     int attrfd;
-    attrfd = openat(fd, attr, O_XATTR|O_CREAT|O_TRUNC|O_WRONLY); 
-    if (attrfd < 0) return;
-
-    rc = write(attrfd, attr_val, strlen(attr_val));
-/*
-   Solaris extended attributes are files in orthogonal namespace.
-   Their permission wont' change according to real files.
- */
-    fchmod(attrfd, S_IRWXU|S_IRGRP|S_IROTH);
-    close(attrfd);
+    attrfd = openat(fd, attr, O_XATTR|O_RDONLY);
+    if (attrfd >= 0)
+       {unlinkat(attrfd, attr, 0); close(attrfd);}
 #endif
-    return;
 }
 
 int fGetXattrAdler32(int fd, const char* attr, char *value)
@@ -72,12 +67,8 @@ int fGetXattrAdler32(int fd, const char* attr, char *value)
     char mtime[12], attr_val[25], *p;
     int rc;
 
-    rc = fstat(fd, &st);
-    if (rc < 0)
-        return(0);
-    else
-        sprintf(mtime, "%ld", st.st_mtime);
-
+    if (fstat(fd, &st)) return 0;
+    sprintf(mtime, "%ld", st.st_mtime);
 
 #if defined(__linux__)
     rc = fgetxattr(fd, attr, attr_val, 25);
@@ -100,7 +91,26 @@ int fGetXattrAdler32(int fd, const char* attr, char *value)
     if (strcmp(p, mtime)) return(0);
 
     strcpy(value, attr_val);
+
     return(strlen(value));
+}
+
+int fGetXattrAdler32(const char *path, int fd, const char* attr, char *value)
+{
+    XrdOucXAttr<XrdCksXAttr> xCS;
+    struct stat st;
+
+    if (xCS.Get(path, fd) <= 0 || strcmp(xCS.Attr.Cks.Name, "adler32"))
+       {int rc = fGetXattrAdler32(fd, attr, value);
+        if (rc == 8) fSetXattrAdler32(path, fd, attr, value);
+        return rc;
+       }
+
+    if (fstat(fd, &st)
+    ||  xCS.Attr.Cks.fmTime != static_cast<long long>(st.st_mtime)) return 0;
+
+    xCS.Attr.Cks.Get(value, 9);
+    return 8;
 }
 
 /* get the actual root url pointing to the data server */
@@ -200,7 +210,7 @@ int main(int argc, char *argv[])
                 return 1;
             }
             else  /* see if the adler32 is saved in attribute already */
-                if (fGetXattrAdler32(fd, attr, adler_str) == 8)
+                if (fGetXattrAdler32(path, fd, attr, adler_str) == 8)
                 {
                     printf("%s %s\n", adler_str, path);
                     return 0;
@@ -217,7 +227,7 @@ int main(int argc, char *argv[])
         if (fd != STDIN_FILENO) 
         {   /* try saving adler32 to attribute before close() */
             sprintf(adler_str, "%08lx", adler);
-            fSetXattrAdler32(fd, attr, adler_str);
+            fSetXattrAdler32(path, fd, attr, adler_str);
             close(fd);
         }
         printf("%08lx %s\n", adler, path);
