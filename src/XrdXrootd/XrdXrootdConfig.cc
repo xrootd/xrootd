@@ -736,7 +736,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 /* Function: xmon
 
    Purpose:  Parse directive: monitor [all] [auth] [mbuff <sz>] [rbuff <sz>]
-                                      [flush <sec>] [window <sec>]
+                                      [flush [io] <sec>] [window <sec>]
                                       dest [Events] <host:port>
 
    Events: [files] [info] [io] [redir] [stage] [user] <host:port>
@@ -745,7 +745,8 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
          auth               add authentication information to "user".
          mbuff  <sz>        size of message buffer for event trace monitoring.
          rbuff  <sz>        size of message buffer for redirection monitoring.
-         flush  <sec>       time (seconds, M, H) between auto flushes.
+         flush  [io] <sec>  time (seconds, M, H) between auto flushes. When
+                            io is given applies only to i/o events.
          window <sec>       time (seconds, M, H) between timing marks.
          dest               specified routing information. Up to two dests
                             may be specified.
@@ -766,8 +767,8 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                  };
     char  *val, *cp, *monDest[2] = {0, 0};
     long long tempval;
-    int i, monFlush=0, monMBval=0, monRBval=0, monWWval=0, xmode=0;
-    int    monMode[2] = {0, 0}, mrType;
+    int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0;
+    int    xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
 
     while((val = Config.GetWord()))
 
@@ -775,12 +776,15 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
           else if (!strcmp("auth",  val))
                   monMode[0] = monMode[1] = XROOTD_MON_AUTH;
           else if (!strcmp("flush", val))
-                {if (!(val = Config.GetWord()))
+                {if ((val = Config.GetWord()) && !strcmp("io", val))
+                    {    flushDest = &monFlash; val = Config.GetWord();}
+                    else flushDest = &monFlush;
+                 if (!val)
                     {eDest.Emsg("Config", "monitor flush value not specified");
                      return 1;
                     }
                  if (XrdOuca2x::a2tm(eDest,"monitor flush",val,
-                                           &monFlush,1)) return 1;
+                                           flushDest,1)) return 1;
                 }
           else if (!strcmp("mbuff",val) || !strcmp("rbuff",val))
                   {mrType = (*val == 'r');
@@ -853,7 +857,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 
 // Set the monitor defaults
 //
-   XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval, monFlush);
+   XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval, monFlush, monFlash);
    if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
    if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);

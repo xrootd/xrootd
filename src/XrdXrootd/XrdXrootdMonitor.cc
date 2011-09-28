@@ -49,6 +49,7 @@ int                XrdXrootdMonitor::monRlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
 int                XrdXrootdMonitor::isEnabled  = 0;
 int                XrdXrootdMonitor::numMonitor = 0;
+int                XrdXrootdMonitor::autoFlash  = 0;
 int                XrdXrootdMonitor::autoFlush  = 600;
 int                XrdXrootdMonitor::FlushTime  = 0;
 kXR_int32          XrdXrootdMonitor::currWindow = 0;
@@ -318,13 +319,14 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 
 /******************************************************************************/
 
-void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush)
+void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush, int flash)
 {
 
-// Set default window size
+// Set default window size and flush time
 //
    sizeWindow = (wsz <= 0 ? 60 : wsz);
    autoFlush  = (flush <= 0 ? 600 : flush);
+   autoFlash  = (flash <= 0 ?   0 : flash);
 
 // Set default monitor buffer size
 //
@@ -605,9 +607,10 @@ void XrdXrootdMonitor::Flush()
    fillHeader(&monBuff->hdr, XROOTD_MON_MAPTRCE, size);
 
 // Punt on the right ending time. We are trying to keep same-sized windows
+// This was corrected by Matevz Tadel, as before we were using real time which
+// could have been far into the future due to simple inactivity.
 //
-   if (monBuff->info[0].arg2.Window  != localWindow) now = localWindow;
-      else now = localWindow + sizeWindow;
+   now = lastWindow + sizeWindow;
 
 // Place the ending timing mark, send off the buffer and reinitialize it
 //
@@ -643,21 +646,46 @@ void XrdXrootdMonitor::Mark()
    localWindow = currWindow;
    windowMutex.UnLock();
 
-// Now, optimize placing the window mark in the buffer
+// Using an update provided by Matevz Tadel, UCSD, if this is an I/O buffer
+// mark then we will also flush the I/O buffer if all the following hold:
+// a) flushing enabled, b) buffer not empty, and c) covers the flush time.
+// We would normally do this during Tick() but that would require too much
+// locking in the middle of an I/O path, so we do psudo timed flushing.
 //
-   if (monBuff->info[nextEnt-1].arg0.id[0] == XROOTD_MON_WINDOW)
-      monBuff->info[nextEnt-1].arg2.Window =
-               static_cast<kXR_int32>(ntohl(localWindow));
-      else if (nextEnt+8 > lastEnt) Flush();
-              else {monBuff->info[nextEnt].arg0.rTot[0] = 0;
-                    monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
-                    monBuff->info[nextEnt].arg1.Window  =
-                             static_cast<kXR_int32>(ntohl(lastWindow));
-                    monBuff->info[nextEnt].arg2.Window  =
-                             static_cast<kXR_int32>(ntohl(localWindow));
-                    nextEnt++;
-                   }
-     lastWindow = localWindow;
+   if (this != altMon && autoFlash && nextEnt > 1)
+      {kXR_int32 bufStartWindow = 
+                 static_cast<kXR_int32>(ntohl(monBuff->info[0].arg2.Window));
+       if (localWindow - bufStartWindow >= autoFlash)
+          {Flush();
+           lastWindow = localWindow;
+           return;
+          }
+      }
+
+// Now, optimize placing the window mark in the buffer. Using another MT fix we
+// set the end of the previous window to be lastwindow + sizeWindow (instead of
+// localWindow) to prevent windows from being wrongly zero sized.
+//
+        if (monBuff->info[nextEnt-1].arg0.id[0] == XROOTD_MON_WINDOW)
+   {
+       monBuff->info[nextEnt-1].arg2.Window =
+                static_cast<kXR_int32>(htonl(localWindow));
+   }
+   else if (nextEnt+8 > lastEnt)
+   {
+      Flush();
+   }
+   else
+   {
+      monBuff->info[nextEnt].arg0.rTot[0] = 0;
+      monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
+      monBuff->info[nextEnt].arg1.Window  =
+               static_cast<kXR_int32>(htonl(lastWindow + sizeWindow));
+      monBuff->info[nextEnt].arg2.Window  =
+               static_cast<kXR_int32>(htonl(localWindow));
+      nextEnt++;
+   }
+   lastWindow = localWindow;
 }
  
 /******************************************************************************/

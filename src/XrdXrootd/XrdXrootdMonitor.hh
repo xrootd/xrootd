@@ -65,7 +65,8 @@ static XrdXrootdMonitor *Alloc(int force=0);
        void              Disc(kXR_unt32 dictid, int csec);
 
 static void              Defaults(char *dest1, int m1, char *dest2, int m2);
-static void              Defaults(int msz, int rsz, int wsz, int flush);
+static void              Defaults(int msz, int rsz, int wsz,
+                                  int flush, int flash);
 
        void              Dup(XrdXrootdMonTrace *mrec);
 
@@ -117,6 +118,7 @@ static struct sockaddr    InetAddr2;
 static int                monBlen;
        int                nextEnt;
 static int                lastEnt;
+static int                autoFlash;
 static int                autoFlush;
 static int                FlushTime;
 static kXR_int32          startTime;
