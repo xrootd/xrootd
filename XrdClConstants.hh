@@ -15,6 +15,7 @@ namespace XrdClient
   const uint64_t AppMsg     = 0x0000000000000001;
   const uint64_t UtilityMsg = 0x0000000000000002;
   const uint64_t FileMsg    = 0x0000000000000004;
+  const uint64_t PollerMsg  = 0x0000000000000008;
 
   //----------------------------------------------------------------------------
   // Environment settings
