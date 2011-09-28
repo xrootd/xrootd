@@ -684,6 +684,7 @@ long long XrdPosixXrootd::Getxattr (const char *path, const char *name,
   XrdPosixAdminNew admin(path);
   kXR_int16 ReqCode = 0;
   kXR_int32 vsize;
+  time_t    mTm;
 
 // Check if user just wants the maximum length needed
 //
@@ -693,7 +694,9 @@ long long XrdPosixXrootd::Getxattr (const char *path, const char *name,
 // Check if we support the query
 //
    if (name)
-      {     if (!strcmp(name, "xroot.space")) ReqCode = kXR_Qspace;
+      {     if (!strcmp(name, "xroot.cksum"))
+               return QueryChksum(path,mTm,(char *)value,static_cast<int>(size));
+       else if (!strcmp(name, "xroot.space")) ReqCode = kXR_Qspace;
        else if (!strcmp(name, "xroot.xattr")) ReqCode = kXR_Qxattr;
        else {errno = ENOATTR; return -1;}
       }else {errno = EINVAL;  return -1;}
