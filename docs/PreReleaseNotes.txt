@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Allow auto-fluching of I/O stream monitoring (default is off).
+     Patch submitted by Matevz Tadel, UCSD.
    * Make proxy honor the export list at the storage layer. This allows sites
      to disable staging via the proxy by specifying nostage for otherwise locally
      stageable paths.
