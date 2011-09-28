@@ -3,6 +3,7 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Enforce r/o exports in the proxy server (finally added).
    * Allow auto-fluching of I/O stream monitoring (default is off).
      Patch submitted by Matevz Tadel, UCSD.
    * Make proxy honor the export list at the storage layer. This allows sites
