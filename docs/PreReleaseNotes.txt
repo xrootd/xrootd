@@ -3,6 +3,9 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Make xrdadler32 use the new checksum format if it is set (fallback to old
+     format otherwise). In all cases, the old format is converted to the new
+     format whenever possible.
    * Enforce r/o exports in the proxy server (finally added).
    * Allow auto-fluching of I/O stream monitoring (default is off).
      Patch submitted by Matevz Tadel, UCSD.
