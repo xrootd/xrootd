@@ -65,8 +65,8 @@ int XrdOssSys::Rename(const char *oldname, const char *newname)
 
 // Determine whether we can actually rename a file on this server.
 //
-   remotefs_Old = Check_RO(Rename, old_popts, oldname, "renaming ");
-   remotefs_New = Check_RO(Rename, new_popts, newname, "renaming to ");
+   remotefs_Old = Check_RO(Rename, old_popts, oldname, "rename");
+   remotefs_New = Check_RO(Rename, new_popts, newname, "rename to");
 
 // Make sure we are renaming within compatible file systems
 //

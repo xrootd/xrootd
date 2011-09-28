@@ -55,7 +55,7 @@ int XrdOssSys::Remdir(const char *path, int Opts)
 // Build the right local and remote paths.
 //
    if (Opts & XRDOSS_isPFN) strcpy(local_path, path);
-      else {retc = Check_RO(Unlink, opts, path, "deleting ");
+      else {retc = Check_RO(Unlink, opts, path, "remove");
             if ( (retc = GenLocalPath( path,  local_path))) return retc;
            }
 
@@ -98,7 +98,7 @@ int XrdOssSys::Unlink(const char *path, int Opts)
        haslf = Opts & XRDOSS_isMIG;
        remotefs = 0;
       } else {
-       remotefs = Check_RO(Unlink, haslf, path, "deleting ");
+       remotefs = Check_RO(Unlink, haslf, path, "remove");
        if ( (retc = GenLocalPath( path,  local_path))
        ||   (retc = GenRemotePath(path, remote_path)) ) return retc;
        haslf &= XRDEXP_MAKELF;

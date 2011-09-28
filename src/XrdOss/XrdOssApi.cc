@@ -248,7 +248,12 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
 int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
 {
     char actual_path[MAXPATHLEN+1], *local_path;
+    unsigned long long Popts, Hopts;
     int retc;
+
+// Make sure we can modify this path
+//
+   Popts = Check_RO(Mkdir, Hopts, path, "create directory");
 
 // Generate local path
 //
@@ -377,7 +382,7 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
 
 // Make sure we can modify this path
 //
-   Popts = Check_RO(Truncate, Hopts, path, "truncating ");
+   Popts = Check_RO(Truncate, Hopts, path, "truncate");
 
 // Generate local path
 //

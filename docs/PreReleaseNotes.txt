@@ -88,11 +88,13 @@ Version 3.1.0
    * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
 
 + **Major bug fixes**
+   * Enforce r/o path during mkdir operations.
    * Avoid segv when initializing the finder on a multi-core machine.
    * Avoid stage failures when target file exists in purgeable or writable space.
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Correct bad english in a few error messages.
    * Set correct checksum length when converting ASCII to binary.
    * Allow the sss protocol to work for multi-homed hosts.
    * Remove old async shutdown workaround patch introduced in Linux 2.3. The
