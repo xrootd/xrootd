@@ -151,7 +151,9 @@ long long XrdFfsPosix_getxattr(const char *path, const char *name, void *value, 
     strncpy(nameclass, name, 11);
     nameclass[11] = '\0';
 
-    if (strcmp(nameclass, "xroot.space") != 0 && strcmp(nameclass, "xroot.xattr") != 0)
+    if (strcmp(nameclass, "xroot.space") != 0 && 
+        strcmp(nameclass, "xroot.xattr") != 0 &&
+        strcmp(nameclass, "xroot.cksum") != 0)
     {
         errno = ENOATTR;
         return -1;
@@ -165,7 +167,7 @@ long long XrdFfsPosix_getxattr(const char *path, const char *name, void *value, 
         strcpy(nameclass, name);
         namesubclass = &nameclass[12];
     }
-    else  /* xroot.space or xroot.xattr is provided. */ 
+    else  /* xroot.space or xroot.xattr or xroot.cksum is provided. */ 
     {
         strcpy((char*)value, xattrbuf);
         return bufsize;
