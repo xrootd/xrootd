@@ -13,27 +13,27 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Constants
   //----------------------------------------------------------------------------
-  uint16_t stOK    = 0x0000;  //!< Everything went OK
-  uint16_t stError = 0x0001;  //!< An error occured that could potentially be retried
-  uint16_t stFatal = 0x0003;  //!< Fatal error, it's still an error
+  const uint16_t stOK    = 0x0000;  //!< Everything went OK
+  const uint16_t stError = 0x0001;  //!< An error occured that could potentially be retried
+  const uint16_t stFatal = 0x0003;  //!< Fatal error, it's still an error
 
   //----------------------------------------------------------------------------
   // Generic errors
   //----------------------------------------------------------------------------
-  uint16_t errNone           = 0; //!< No error
-  uint16_t errUnknown        = 1;
-  uint16_t errInvalidOp      = 2; //!< The operation cannot be performed in the
-                                  //!< given circumstances
-  uint16_t errFcntl          = 3; //!< failed manipulate file descriptor
-  uint16_t errPoll           = 4; //!< error while polling descriptors
+  const uint16_t errNone           = 0; //!< No error
+  const uint16_t errUnknown        = 1;
+  const uint16_t errInvalidOp      = 2; //!< The operation cannot be performed in the
+                                        //!< given circumstances
+  const uint16_t errFcntl          = 3; //!< failed manipulate file descriptor
+  const uint16_t errPoll           = 4; //!< error while polling descriptors
 
   //----------------------------------------------------------------------------
   // Socket related errors
   //----------------------------------------------------------------------------
-  uint16_t errInvalidAddr        = 101;
-  uint16_t errSocketError        = 102;
-  uint16_t errSocketTimeout      = 103;
-  uint16_t errSocketDisconnected = 104;
+  const uint16_t errInvalidAddr        = 101;
+  const uint16_t errSocketError        = 102;
+  const uint16_t errSocketTimeout      = 103;
+  const uint16_t errSocketDisconnected = 104;
 
   //----------------------------------------------------------------------------
   //! Proceure execution status
