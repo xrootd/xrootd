@@ -8,6 +8,7 @@ add_library(
   Utils.cc           Utils.hh
   UrlTest.cc
   SocketTest.cc
+  PollerTest.cc
 )
 
 target_link_libraries(
