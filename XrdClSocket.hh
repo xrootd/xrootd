@@ -107,9 +107,11 @@ namespace XrdClient
       Status Poll( bool readyForReading, bool readyForWriting,
                    uint32_t timeout );
 
-      int  pSocket;
-      bool pIsConnected;
+      int                 pSocket;
+      bool                pIsConnected;
+      mutable std::string pSockName;     // mutable because it's for caching
   };
 }
 
 #endif // __XRD_CL_SOCKET_HH__
+ 

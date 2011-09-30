@@ -373,6 +373,9 @@ namespace XrdClient
     if( !IsConnected() )
       return "";
 
+    if( pSockName.length() )
+      return pSockName;
+
     char      nameBuff[256];
     sockaddr  sockAddr;
     socklen_t sockAddrLen = sizeof( sockAddr );
@@ -380,6 +383,7 @@ namespace XrdClient
       return "";
 
     XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
-    return nameBuff;
+    pSockName = nameBuff;
+    return pSockName;
   }
 }
