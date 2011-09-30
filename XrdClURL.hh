@@ -16,13 +16,14 @@ namespace XrdClient
   class URL
   {
     public:
-      typedef std::map<std::string, std::string> ParamsMap;
+      typedef std::map<std::string, std::string> ParamsMap; //!< Map of get
+                                                            //!< params
 
       //------------------------------------------------------------------------
       //! Constructor
       //!
       //! @param url an url in format:
-      //!            user:password@host:port/path?param1=x&param2=y
+      //!            user:password\@host:port/path?param1=x&param2=y
       //------------------------------------------------------------------------
       URL( const std::string &url );
 
@@ -99,7 +100,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // Get the URL params
+      //! Get the URL params
       //------------------------------------------------------------------------
       const ParamsMap &GetParams() const
       {

@@ -18,12 +18,18 @@ namespace XrdClient
   class SocketEventListener
   {
     public:
+      //------------------------------------------------------------------------
+      //! Event type
+      //------------------------------------------------------------------------
       enum EventType
       {
         TimeOut      = 0x01,  //!< Timeout
         ReadyToRead  = 0x02,  //!< New data has arrived
       };
 
+      //------------------------------------------------------------------------
+      //! Called when an event occured on a given socket
+      //------------------------------------------------------------------------
       virtual void Event( uint8_t  type,
                           Socket  *socket,
                           Poller  *poller ) = 0;

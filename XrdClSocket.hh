@@ -61,7 +61,7 @@ namespace XrdClient
       //!
       //! @param buffer    data to be sent
       //! @param size      size of the data buffer
-      //! @param timout    timout value in seconds, -1 to wait indefinitely
+      //! @param timeout   timout value in seconds, -1 to wait indefinitely
       //! @param bytesRead the amount of data actually read
       //------------------------------------------------------------------------
       Status ReadRaw( void *buffer, uint32_t size, int32_t timeout,
@@ -72,8 +72,8 @@ namespace XrdClient
       //!
       //! @param buffer       data to be written
       //! @param size         size of the data buffer
-      //! @param timout       timeout value in seconds, -1 to wait indefinitely
-      //! @param bytedWritten the amount of data actually written
+      //! @param timeout       timeout value in seconds, -1 to wait indefinitely
+      //! @param bytesWritten the amount of data actually written
       //------------------------------------------------------------------------
       Status WriteRaw( void *buffer, uint32_t size, uint16_t timeout,
                        uint32_t &bytesWritten );

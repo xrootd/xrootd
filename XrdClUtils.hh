@@ -24,7 +24,7 @@ namespace XrdClient
       static Log *GetDefaultLog();
 
       //------------------------------------------------------------------------
-      // Split a string
+      //! Split a string
       //------------------------------------------------------------------------
       static void splitString( std::vector<std::string> &result,
                                const std::string        &input,

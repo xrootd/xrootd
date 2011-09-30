@@ -40,11 +40,15 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct Status
   {
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
     Status( uint16_t st = stOK, uint16_t err = errNone, int errN = 0 ):
       status(st), errorType(err), errNo( errN ) {}
-    uint16_t status;
-    uint16_t errorType;
-    int      errNo;
+
+    uint16_t status;     //!< Status of the execution
+    uint16_t errorType;  //!< Error type, if any
+    int      errNo;      //!< Errno, if any
   };
 }
 
