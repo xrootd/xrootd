@@ -5,8 +5,13 @@
 #ifndef __XRD_CL_POLLER_HH__
 #define __XRD_CL_POLLER_HH__
 
+#include <stdint.h>
+
 namespace XrdClient
 {
+  class Socket;
+  class Poller;
+
   //----------------------------------------------------------------------------
   //! Interface
   //----------------------------------------------------------------------------
@@ -15,13 +20,13 @@ namespace XrdClient
     public:
       enum EventType
       {
-        ReadyToRead  = 0,  //!< New data has arrived
-        ReadyToWrite = 1,  //!< A write won't block
-        Error        = 2,  //!< An error occured
-        RemoteClose  = 3   //!< The remote side has closed the socket
+        TimeOut      = 0x01,  //!< Timeout
+        ReadyToRead  = 0x02,  //!< New data has arrived
       };
 
-      virtual void Event( EventType type, int socket ) = 0;
+      virtual void Event( uint8_t  type,
+                          Socket  *socket,
+                          Poller  *poller ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -51,23 +56,30 @@ namespace XrdClient
       virtual bool Stop() = 0;
 
       //------------------------------------------------------------------------
-      //! Add socket to the polling queue
+      //! Add socket to the polling loop
       //!
-      //! @param socket    the socket
-      //! @param listeners the listener that need to be added, if you don't add
-      //!                  any at this point you may miss some events
+      //! @param socket   the socket
+      //! @param listener a listener obhect that will handle
+      //! @param timeout  signal a timeout after this many seconds of inactivity
       //------------------------------------------------------------------------
-      virtual bool AddSocket( int socket, SocketEventListener *listener = 0 ) = 0;
+      virtual bool AddSocket( Socket              *socket,
+                              SocketEventListener *listener,
+                              uint16_t             timeout ) = 0;
 
       //------------------------------------------------------------------------
-      // Remove the socket
+      //! Remove the socket
       //------------------------------------------------------------------------
-      virtual bool RemoveSocket( int socket ) = 0;
+      virtual bool RemoveSocket( Socket *socket ) = 0;
 
       //------------------------------------------------------------------------
-      // Add a new listener to the socket
+      //! Check whether the socket is registered with the poller
       //------------------------------------------------------------------------
-      virtual bool AddSocketListener( int socket, SocketEventListener *listener ) = 0;
+      virtual bool IsRegistered( const Socket *socket )  = 0;
+
+      //------------------------------------------------------------------------
+      //! Is the event loop running?
+      //------------------------------------------------------------------------
+      virtual bool IsRunning() const = 0;
   };
 }
 
