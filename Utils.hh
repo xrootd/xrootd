@@ -31,7 +31,7 @@ class Utils
     //! @param buffer data buffer
     //! @param len    size of the data buffer
     //--------------------------------------------------------------------------
-    static uint32_t ComputeCRC32( void *buffer, uint32_t len )
+    static uint32_t ComputeCRC32( const void *buffer, uint32_t len )
     {
       return crc32( crc32( 0L, Z_NULL, 0 ), (const Bytef*)buffer, len );
     }
@@ -43,7 +43,7 @@ class Utils
     //! @param buffer data buffer
     //! @param len    size of the data buffer
     //--------------------------------------------------------------------------
-    static uint32_t UpdateCRC32( uint32_t crc, void *buffer, uint32_t len )
+    static uint32_t UpdateCRC32( uint32_t crc, const void *buffer, uint32_t len )
     {
       return crc32( crc, (const Bytef*)buffer, len );
     }
