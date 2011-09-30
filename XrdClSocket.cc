@@ -95,6 +95,8 @@ namespace XrdClient
       close( pSocket );
       pIsConnected = false;
       pSocket      = -1;
+      pSockName    = "";
+      pPeerName    = "";
     }
   }
 
@@ -385,5 +387,27 @@ namespace XrdClient
     XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
     pSockName = nameBuff;
     return pSockName;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the name of the remote peer
+  //----------------------------------------------------------------------------
+  std::string Socket::GetPeerName() const
+  {
+    if( !IsConnected() )
+      return "";
+
+    if( pPeerName.length() )
+      return pPeerName;
+
+    char      nameBuff[256];
+    sockaddr  sockAddr;
+    socklen_t sockAddrLen = sizeof( sockAddr );
+    if( getpeername( pSocket, &sockAddr, &sockAddrLen ) )
+      return "";
+
+    XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
+    pPeerName = nameBuff;
+    return pPeerName;
   }
 }
