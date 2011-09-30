@@ -1,4 +1,4 @@
-include_directories( ../ ${XROOTD_INCLUDES}  )
+include_directories( ../ ${XROOTD_INCLUDES} ${LIBEVENT_INCLUDE_DIR} )
 link_directories( ${XROOTD_LIB_DIR} )
 
 #-------------------------------------------------------------------------------
@@ -13,23 +13,26 @@ set( XRD_CL_SOVERSION 0 )
 add_library(
   XrdCl
   SHARED
-  XrdClLog.cc          XrdClLog.hh
-  XrdClUtils.cc        XrdClUtils.hh
-                       XrdClOptimizers.hh
-                       XrdClConstants.hh
-  XrdClEnv.cc          XrdClEnv.hh
-  XrdClDefaultEnv.cc   XrdClDefaultEnv.hh
-  XrdClFile.cc         XrdClFile.hh
-  XrdClURL.cc          XrdClURL.hh
-                       XrdClStatus.hh
-  XrdClSocket.cc       XrdClSocket.hh
-                       XrdClPoller.hh
+  XrdClLog.cc                 XrdClLog.hh
+  XrdClUtils.cc               XrdClUtils.hh
+                              XrdClOptimizers.hh
+                              XrdClConstants.hh
+  XrdClEnv.cc                 XrdClEnv.hh
+  XrdClDefaultEnv.cc          XrdClDefaultEnv.hh
+  XrdClFile.cc                XrdClFile.hh
+  XrdClURL.cc                 XrdClURL.hh
+                              XrdClStatus.hh
+  XrdClSocket.cc              XrdClSocket.hh
+                              XrdClPoller.hh
+  XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
 )
 
 target_link_libraries(
   XrdCl
   XrdUtils
-  dl )
+  dl
+  ${LIBEVENT_LIB}
+  ${LIBEVENTPTHREADS_LIB})
 
 set_target_properties(
   XrdCl
