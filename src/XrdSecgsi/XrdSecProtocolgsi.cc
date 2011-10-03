@@ -1768,6 +1768,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (VOMSAttrOpt > 0) {
          ExtractVOMS(hs->Chain->End(), Entity);
          DEBUG("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
+         DEBUG("VOMS: Entity.grps:         "<< (Entity.grps ? Entity.grps : "<none>"));
          DEBUG("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));
          DEBUG("VOMS: Entity.endorsements: "<< (Entity.endorsements ? Entity.endorsements : "<none>"));
       }
@@ -2047,13 +2048,16 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
    }
 
    int from = 0;
-   XrdOucString vat, vo, role;
+   XrdOucString vat;
    while ((from = vatts.tokenize(vat, from, ',')) != -1) {
+      XrdOucString vo, role, grp;
       if (vat.length() > 0) {
          // The attribute is in the form
          //        /VO[/group[/subgroup(s)]][/Role=role][/Capability=cap]
          int isl = vat.find('/', 1);
          if (isl != STR_NPOS) vo.assign(vat, 1, isl - 1);
+         int igr = vat.find("/Role=", 1);
+         if (igr != STR_NPOS) grp.assign(vat, 0, igr - 1);
          int irl = vat.find("Role=");
          if (irl != STR_NPOS) {
             role.assign(vat, irl + 5);
@@ -2068,6 +2072,9 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
             }
          } else {
             if (vo.length() > 0) ent.vorg = strdup(vo.c_str());
+         }
+         if (grp.length() > 0 && (!ent.grps || grp.length() > strlen(ent.grps))) {
+            ent.grps = strdup(grp.c_str());
          }
          if (role.length() > 0 && role != "NULL" && !ent.role) {
             ent.role = strdup(role.c_str());
