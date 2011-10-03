@@ -3,6 +3,8 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Provide a mode in xrootdfs to auto-update internal list of data servers.
+     and extend client connection TTL from one hour to infinity.
    * Provide virtual xattr ("xroot.cksum") to obtain checksum for consistency.
    * Make xrdadler32 use the new checksum format if it is set (fallback to old
      format otherwise). In all cases, the old format is converted to the new
