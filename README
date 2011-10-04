@@ -44,6 +44,11 @@ handling the perl libraries, therefore version 2.8 or newer is recommended.
 
 2.3 Build steps
 
+  * Create an empty build directory:
+
+    mkdir build
+    cd build
+
   * Generate the build system files using cmake, ie:
 
     cmake /path/to/the/xrootd/source -DCMAKE_INSTALL_PREFIX=/opt/xrootd \
