@@ -70,9 +70,9 @@ char                     *credBuff;      // Credentials buffer (server)
 XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
                                                       XrdOucErrInfo    *error)
 {
-   struct passwd *pEnt;
-   struct group  *pGrp;
-   char Buff[1024], *Bp;
+   struct passwd *pEnt, pStruct;
+   struct group  *gEnt, gStruct;
+   char pgBuff[1024], Buff[1024], *Bp;
    int Blen;
 
 // Set protocol ID in the buffer
@@ -81,14 +81,15 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the username
 //
-   if (!(pEnt = getpwuid(geteuid()))) strcpy(Bp, "*");
+   if (!getpwuid_r(geteuid(), &pStruct, pgBuff, sizeof(pgBuff), &pEnt))
+           strcpy(Bp, "*");
       else strcpy(Bp, pEnt->pw_name);
    Bp += strlen(Bp);
 
 // Get the group name
 //
-   if ((pGrp = getgrgid(getegid())))
-      {*Bp++ = ' '; strcpy(Bp, pGrp->gr_name); Bp += strlen(Bp);}
+   if (!getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt))
+      {*Bp++ = ' '; strcpy(Bp, gEnt->gr_name); Bp += strlen(Bp);}
 
 // Return the credentials
 //
