@@ -81,14 +81,14 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the username
 //
-   if (!getpwuid_r(geteuid(), &pStruct, pgBuff, sizeof(pgBuff), &pEnt))
+   if (getpwuid_r(geteuid(), &pStruct, pgBuff, sizeof(pgBuff), &pEnt))
            strcpy(Bp, "*");
       else strcpy(Bp, pEnt->pw_name);
    Bp += strlen(Bp);
 
 // Get the group name
 //
-   if (!getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt))
+   if (getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt))
       {*Bp++ = ' '; strcpy(Bp, gEnt->gr_name); Bp += strlen(Bp);}
 
 // Return the credentials
