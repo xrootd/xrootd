@@ -11,6 +11,8 @@ set( CMAKE_MODULE_PATH
 set( CMAKE_BUILD_TYPE RelWithDebInfo )
 
 include( XRootDUtils )
+CheckBuildDirectory()
+
 include( XRootDOSDefs )
 include( XRootDDefaults )
 include( XRootDSystemCheck )
