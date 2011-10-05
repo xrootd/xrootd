@@ -169,6 +169,25 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
 }
 
 /******************************************************************************/
+/*                               L f n 2 P f n                                */
+/******************************************************************************/
+  
+int         XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen)
+{
+    if (theN2N) return -(theN2N->lfn2pfn(oldp, newp, blen));
+    if ((int)strlen(oldp) >= blen) return -ENAMETOOLONG;
+    strcpy(newp, oldp);
+    return 0;
+}
+
+const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
+{
+    if (!theN2N) {rc = 0; return oldp;}
+    if ((rc = -(theN2N->lfn2pfn(oldp, newp, blen)))) return 0;
+    return newp;
+}
+
+/******************************************************************************/
 /*                                 M k d i r                                  */
 /******************************************************************************/
 /*

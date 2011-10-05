@@ -102,6 +102,9 @@ int       Chmod(const char *, mode_t mode);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       Init(XrdSysLogger *, const char *);
+int       Lfn2Pfn(const char *Path, char *buff, int blen);
+const
+char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc);
 int       Mkdir(const char *, mode_t mode, int mkpath=0);
 int       Remdir(const char *, int Opts=0);
 int       Rename(const char *, const char *);
@@ -138,11 +141,13 @@ static char         allTrunc;
 
 static char         cfgDone;   // Configuration completed
 
-         XrdPssSys() : N2NLib(0), N2NParms(0), theN2N(0), DirFlags(0) {}
+         XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
+                       DirFlags(0) {}
 virtual ~XrdPssSys() {}
 
 private:
 
+char              *LocalRoot;// -> Local n2n root, if any
 char              *N2NLib;   // -> Name2Name Library Path
 char              *N2NParms; // -> Name2Name Object Parameters
 XrdOucName2Name   *theN2N;   // -> File mapper object

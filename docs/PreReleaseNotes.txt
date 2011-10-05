@@ -95,6 +95,8 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Actually use the N2N library of specified or implied via pss.localroot
+     for proxy server interactions withthe origin (required for Atlas T2).
    * Use re-enterant versions of getpwuid() and getpwgid(). This is need for
      FUSE.
    * Correct bad english in a few error messages.

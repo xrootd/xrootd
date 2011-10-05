@@ -48,6 +48,10 @@
 /*                               d e f i n e s                                */
 /******************************************************************************/
 
+#define Duplicate(x,y) if (y) free(y); y = strdup(x)
+
+#define TS_String(x,m) if (!strcmp(x,var)) {Duplicate(val,m); return 0;}
+
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(&eDest, Config);
 
 /******************************************************************************/
@@ -140,7 +144,7 @@ int XrdPssSys::Configure(const char *cfn)
    const char *xP;
    pthread_t tid;
    char *eP, theRdr[maxHLen+1024];
-   int i, NoGo = 0;
+   int i, hpLen, NoGo = 0;
 
 // Preset tracing options
 //
@@ -167,7 +171,7 @@ int XrdPssSys::Configure(const char *cfn)
       {eDest.Emsg("Config", "Origin for proxy service not specified.");
        return 1;
       }
-   if (buildHdr()) return 1;
+   if (!(hpLen = buildHdr())) return 1;
 
 // Copy out the forwarding that might be happening via the ofs
 //
@@ -181,8 +185,15 @@ int XrdPssSys::Configure(const char *cfn)
    urlPlen = sprintf(theRdr, hdrData, "", "", "", "", "", "", "", "");
    urlPlain= strdup(theRdr);
 
+// Export the origin
+//
+   theRdr[urlPlen-1] = 0;
+   XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr+hpLen);
+   theRdr[urlPlen-1] = '/';
+
 // Configure the N2N library:
-   if (N2NLib && (NoGo = ConfigN2N())) return NoGo;
+//
+   if ((NoGo = ConfigN2N())) return NoGo;
 
 // We would really like that the Ffs interface use the generic method of
 // keeping track of data servers. It does not and it even can't handle more
@@ -192,13 +203,13 @@ int XrdPssSys::Configure(const char *cfn)
       else if ((xP = rindex(eP, ' '))) xP++;
               else xP = eP;
 
-// Tell xrootd to disable async I/O as it just will slow everything down
-//
-   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
-
 // Setup the redirection url
 //
    strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
+
+// Tell xrootd to disable async I/O as it just will slow everything down.
+//
+   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
 
 // Allocate an Xroot proxy object (only one needed here). Tell it to not
 // shadow open files with real file descriptors (we will be honest). This can
@@ -227,11 +238,12 @@ int XrdPssSys::buildHdr()
 {
    XrdOucTList *tp = ManList;
    char buff[maxHLen], *pb;
-   int n, bleft = sizeof(buff);
+   int n, hpLen, bleft = sizeof(buff);
 
 // Fill in start of header
 //
-   strcpy(buff, "root://"); pb = buff+strlen(buff); bleft -= strlen(buff);
+   strcpy(buff, "root://"); hpLen = strlen(buff);
+   pb = buff+hpLen; bleft -= hpLen;
 
 // The redirector list must fit into 1K bytes (along with header)
 //
@@ -245,12 +257,12 @@ int XrdPssSys::buildHdr()
 
    if (tp)
       {eDest.Emsg("Config", "Too many proxy service managers specified.");
-       return 1;
+       return 0;
       }
 
    hdrData = strdup(buff);
    hdrLen  = strlen(buff);
-   return 0;
+   return hpLen;
 }
 
 /******************************************************************************/
@@ -312,6 +324,16 @@ int XrdPssSys::ConfigN2N()
    XrdSysPlugin    *myLib;
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
 
+// Check if we are going to do simple local root prefixing
+//
+   if (!N2NLib)
+      {if (LocalRoot)
+          {theN2N = XrdOucgetName2Name(&eDest, ConfigFN, "", LocalRoot, NULL);
+           XrdOucEnv::Export("XRDLCLROOT", LocalRoot);
+          }
+       return 0;
+      }
+
 // Create a plugin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 // 
@@ -325,7 +347,7 @@ int XrdPssSys::ConfigN2N()
 
 // Get the Object now
 // 
-   theN2N = ep(&eDest, ConfigFN, (N2NParms ? N2NParms : ""), NULL, NULL);
+   theN2N = ep(&eDest, ConfigFN, (N2NParms ? N2NParms : ""), LocalRoot, NULL);
    return theN2N == 0;
 }
 
@@ -335,6 +357,7 @@ int XrdPssSys::ConfigN2N()
 
 int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 {
+   char myVar[80], *val;
 
    // Process items. for either a local or a remote configuration
    //
@@ -346,6 +369,19 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("namelib",       xnml);
    TS_Xeq("defaults",      xdef);
    TS_Xeq("export",        xexp);
+
+   // Copy the variable name as this may change because it points to an
+   // internal buffer in Config. The vagaries of effeciency. Then get value.
+   //
+   strlcpy(myVar, var, sizeof(myVar)); var = myVar;
+   if (!(val = Config.GetWord()))
+      {eDest.Emsg("Config", "no value for directive", var);
+       return 1;
+      }
+
+   // Match directives that take a single argument
+   //
+   TS_String("localroot",  LocalRoot);
 
    // No match found, complain.
    //
