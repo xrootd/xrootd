@@ -6,6 +6,20 @@ Release Notes
 =============
 
 -------------
+Version 3.0.5
+-------------
+
++ **Major bug fixes**
+   * Avoid stage failures when target file exists in purgeable or writable space.
+   * Make sure all the threads are joined when closing a physical connection.
+   * Fix free/delete mismatch in XrdSecProtocolgsi et al.
+
++ **Minor bug fixes**
+   * Remove old async shutdown workaround patch introduced in Linux 2.3. The
+     problem has been since fixed and the solution now causes problems.
+   * Install the netchk tool
+
+-------------
 Version 3.0.4
 -------------
 
