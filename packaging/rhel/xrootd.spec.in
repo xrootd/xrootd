@@ -243,10 +243,17 @@ getent passwd xrootd >/dev/null || \
 exit 0
 %endif
 
-%post client -p /sbin/ldconfig
-%postun client -p /sbin/ldconfig
-%post libs -p /sbin/ldconfig
-%postun libs -p /sbin/ldconfig
+%post client
+/sbin/ldconfig
+
+%postun client
+/sbin/ldconfig
+
+%post libs
+/sbin/ldconfig
+
+%postun libs
+/sbin/ldconfig
 
 #-------------------------------------------------------------------------------
 # Files
