@@ -336,7 +336,7 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
 {
    static const int maxFiles = 256;
    pid_t mypid;
-   int myfd;
+   int myfd, logFD = eDest.baseFD();
 
 // Issue warning if there is no logfile attached
 //
@@ -393,16 +393,19 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
       {eDest.Emsg("Config", errno, "open /dev/null for backgrounding");
        return;
       }
-   dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2);
+   dup2(myfd, 0); dup2(myfd, 1); dup2(myfd, 2); dup2(myfd, logFD);
 
 // Close any open file descriptors left open by the parent process
-// but the communication pipe
+// but the communication pipe and the logger's shadow file descriptor.
 //
   for (myfd = 3; myfd < maxFiles; myfd++)
-    if( !pipeFD || myfd != pipeFD[1] )
-       close(myfd);
+      if( (!pipeFD || myfd != pipeFD[1]) && myfd != logFD ) close(myfd);
 }
 
+/******************************************************************************/
+/*                               P i d F i l e                                */
+/******************************************************************************/
+  
 bool XrdOucUtils::PidFile(XrdSysError &eDest, const char *path)
 {
    char buff[32];

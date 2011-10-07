@@ -90,6 +90,8 @@ Version 3.1.0
    * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
 
 + **Major bug fixes**
+   * Do not close the loger's shadow file descriptor when backgrounding as
+     this may cause random crashes later on.
    * Avoid SEGV by setting network pointer prior to loading the 1st protocol.
    * Enforce r/o path during mkdir operations.
    * Avoid segv when initializing the finder on a multi-core machine.
