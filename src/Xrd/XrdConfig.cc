@@ -737,6 +737,7 @@ int XrdConfig::Setup(char *dfltp)
                 {ProtInfo.WANPort = PortWAN;
                  ProtInfo.WANWSize= Wan_Blen;
                 } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
+             if (!NetTCPlep) XrdLink::Init(NetTCP[0]);
              XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
              lastPort = cp->port;
             }
@@ -752,7 +753,6 @@ int XrdConfig::Setup(char *dfltp)
    ProtInfo.Port = NetTCP[0]->Port();
    PortTCP = ProtInfo.Port;
    XrdOucEnv::Export("XRDPORT", PortTCP);
-   XrdLink::Init(NetTCP[0]);
 
 // Now check if we have to setup automatic reporting
 //
