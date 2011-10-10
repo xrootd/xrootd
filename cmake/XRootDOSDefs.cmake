@@ -11,7 +11,7 @@ add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=6
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
   set( Linux TRUE )
   include( GNUInstallDirs )
-  add_definitions( -D__LINUX__=1 )
+  add_definitions( -D__linux__=1 )
   set( EXTRA_LIBS rt )
 endif()
 
