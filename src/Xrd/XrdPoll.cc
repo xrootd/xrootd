@@ -23,9 +23,9 @@
 #define  TRACELINK lp
 #include "Xrd/XrdTrace.hh"
 
-#if   defined(_DEVPOLL)
+#if defined( __solaris__ )
 #include "Xrd/XrdPollDev.hh"
-#elif defined(_EPOLL) && defined(__linux__)
+#elif defined( __linux__ )
 #include "Xrd/XrdPollE.hh"
 #else
 #include "Xrd/XrdPollPoll.hh"
