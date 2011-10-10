@@ -585,8 +585,17 @@ void XrdOssSys::ConfigSpath(XrdSysError &Eroute, const char *Path,
 {
 // mig+r/w -> check unless nocheck was specified
 //
-   if ((flags & XRDEXP_MIG) && !(flags & XRDEXP_NOTRW)
-   && !((flags | DirFlags) & XRDEXP_CHECK_X )) flags &= ~XRDEXP_NOCHECK;
+   if (!(flags & XRDEXP_CHECK_X))
+      {if ((flags & XRDEXP_MIG) && !(flags & XRDEXP_NOTRW))
+               flags &= ~XRDEXP_NOCHECK;
+          else flags |=  XRDEXP_NOCHECK;
+      }
+// rsscmd  -> dread unless nodread was specified
+//
+   if (!(flags & XRDEXP_DREAD_X))
+      {if (RSSCmd) flags &= ~XRDEXP_NODREAD;
+          else     flags |=  XRDEXP_NODREAD;
+      }
 
 // mig| (purge+r/w) -> lock file creation
 //
@@ -654,7 +663,7 @@ int XrdOssSys::ConfigStage(XrdSysError &Eroute)
          else                                What = 0;
          if (!noMSS && !RSSCmd && What)
             {Eroute.Emsg("Config", fp->Path(), What,
-                         " export attribute but rsscmd not specified.");
+                         "export attribute but rsscmd not specified.");
              NoGo  = 1;
             } else if (What) needRSS = 1;
 

@@ -157,7 +157,8 @@ XrdOucPList *XrdOucExport::ParsePath(XrdOucStream &Config, XrdSysError &Eroute,
 // Process path options and apply defaults to any unspecified otions
 //
    rpval = ParseDefs(Config, Eroute, 0);
-   rpval = rpval | (Defopts & (~(rpval >> XRDEXP_MASKSHIFT)));
+   rpval = rpval | (Defopts & (~(rpval >> XRDEXP_MASKSHIFT)))
+                 | (Defopts & (~(rpval & ~XRDEXP_SETTINGS)));
 
 // Make sure that we have no conflicting options
 //
