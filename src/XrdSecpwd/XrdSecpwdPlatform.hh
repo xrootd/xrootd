@@ -25,13 +25,8 @@ extern "C" char *crypt(const char *, const char *);
 // shadow passwords
 //
 #include <grp.h>
-// For shadow passwords
-#if defined(__solaris__)
-#ifndef R__SHADOWPW
-#define R__SHADOWPW
-#endif
-#endif
-#ifdef R__SHADOWPW
+
+#ifdef HAVE_SHADOWPW
 #include <shadow.h>
 #endif
 

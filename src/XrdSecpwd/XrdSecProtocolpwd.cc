@@ -430,7 +430,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
          // Make sure this setting makes sense
          if (pw) {
 #ifndef R__AFS
-#ifdef R__SHADOWPW
+#ifdef HAVE_SHADOWPW
             // Acquire the privileges, if needed
             XrdSysPrivGuard priv((uid_t) 0, (gid_t) 0);
             if (priv.Valid()) {
@@ -3551,7 +3551,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    fn += ka_LocalCell();
    pwhash = "afs";
 #else
-#ifdef R__SHADOWPW
+#ifdef HAVE_SHADOWPW
    {  // Acquire the privileges; needs to be 'superuser' to access the
       // shadow password file
       XrdSysPrivGuard priv((uid_t)0, (gid_t)0);

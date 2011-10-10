@@ -27,6 +27,9 @@ if( NOT HAVE_SIGWTI )
   compiler_define_if_found( HAVE_SIGWTI_IN_RT HAVE_SIGWTI )
 endif()
 
+check_include_file( shadow.h HAVE_SHADOWPW )
+compiler_define_if_found( HAVE_SHADOWPW HAVE_SHADOWPW )
+
 #-------------------------------------------------------------------------------
 # Some socket related functions
 #-------------------------------------------------------------------------------
