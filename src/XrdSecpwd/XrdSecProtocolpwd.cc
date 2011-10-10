@@ -1947,7 +1947,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
          creds->SetBuf(cbuf, len);
 
    } else {
-#ifndef DONT_HAVE_CRYPT
+#ifdef HAVE_CRYPT
 #ifndef R__AFS
       // Crypt-like: get the pwhash
       String passwd(creds->buffer,creds->size+1);

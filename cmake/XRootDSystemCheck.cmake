@@ -71,7 +71,6 @@ if( NOT HAVE_CRYPT )
   set( CRYPT_LIBRARY "-lcrypt" )
 endif()
 if( NOT HAVE_CRYPT AND NOT HAVE_CRYPT_IN_CRYPT )
-  add_definitions( -DDONT_HAVE_CRYPT )
   set( CRYPT_LIBRARY "" )
 endif()
 

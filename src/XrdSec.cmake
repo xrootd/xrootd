@@ -75,9 +75,6 @@ target_link_libraries(
   xrdpwdadmin
   XrdSecpwd )
 
-# FIXME: DONT_HAVE_CRYPT
-# FIXME: linking against crypt
-
 #-------------------------------------------------------------------------------
 # The XrdSecsss library
 #-------------------------------------------------------------------------------
