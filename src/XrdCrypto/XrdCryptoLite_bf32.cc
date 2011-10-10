@@ -9,13 +9,9 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
-const char *XrdCryptoLite_bf32CVSID = "$Id$";
-
 #include "XrdCrypto/XrdCryptoLite.hh"
 
-#ifdef R__SSL
+#ifdef HAVE_SSL
 
 #include <errno.h>
 #include <stdlib.h>
@@ -152,7 +148,7 @@ int XrdCryptoLite_bf32::Encrypt(const char *key,
   
 XrdCryptoLite *XrdCryptoLite_New_bf32(const char Type)
 {
-#ifdef R__SSL
+#ifdef HAVE_SSL
    return (XrdCryptoLite *)(new XrdCryptoLite_bf32(Type));
 #else
    return (XrdCryptoLite *)0;

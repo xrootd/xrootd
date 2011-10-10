@@ -54,9 +54,16 @@ add_library(
   XrdCrypto/XrdCryptoLite.cc              XrdCrypto/XrdCryptoLite.hh
   XrdCrypto/XrdCryptoLite_bf32.cc )
 
-target_link_libraries(
-  XrdCryptoLite
-  XrdUtils )
+if( BUILD_CRYPTO )
+  target_link_libraries(
+    XrdCryptoLite
+    XrdUtils
+    ${OPENSSL_LIBRARIES} )
+else()
+  target_link_libraries(
+    XrdCryptoLite
+    XrdUtils )
+endif()
 
 set_target_properties(
   XrdCryptoLite

@@ -22,6 +22,7 @@ endif()
 
 if( ENABLE_CRYPTO AND OPENSSL_FOUND )
   add_definitions( -DHAVE_XRDCRYPTO )
+  add_definitions( -DHAVE_SSL )
   set( BUILD_CRYPTO TRUE )
 else()
   set( BUILD_CRYPTO FALSE )
