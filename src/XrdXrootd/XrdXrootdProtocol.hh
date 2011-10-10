@@ -309,6 +309,7 @@ XrdXrootdPio              *pioFree;
 short                      PathID;
 char                       doWrite;
 char                       doWriteC;
+char                       rvSeq;
 
 // Buffers to handle client requests
 //

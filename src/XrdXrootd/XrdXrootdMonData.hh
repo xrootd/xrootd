@@ -26,6 +26,7 @@ struct XrdXrootdMonHeader
 struct XrdXrootdMonTrace
        {union {kXR_int64  val;
                kXR_char   id[8];
+               kXR_unt16  sVal[4];
                kXR_unt32  rTot[2]; } arg0;
         union {kXR_int32  buflen;
                kXR_int32  Window;
@@ -49,6 +50,7 @@ const kXR_char XROOTD_MON_APPID         = 0xa0;
 const kXR_char XROOTD_MON_CLOSE         = 0xc0;
 const kXR_char XROOTD_MON_DISC          = 0xd0;
 const kXR_char XROOTD_MON_OPEN          = 0x80;
+const kXR_char XROOTD_MON_READV         = 0x90;
 const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
 const kXR_char XROOTD_MON_MAPPATH       = 'd';

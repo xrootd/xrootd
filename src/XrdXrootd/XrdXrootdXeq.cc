@@ -1722,7 +1722,9 @@ int XrdXrootdProtocol::do_ReadV()
    struct readahead_list rdVec[maxRvecsz];
    long long totLen;
    int rdVecNum, rdVecLen = Request.header.dlen;
-   int i, rc, xframt, Quantum, Qleft;
+   int i, k, rc, xframt, Quantum, Qleft, rdvamt, rvSeq;
+   int ioMon = (monIO  > 1) && (Monitor != 0);
+   int rvMon = (monIO != 0) && (Monitor != 0);
    char *buffp;
 
 // Compute number of elements in the read vector and make sure we have no
@@ -1779,14 +1781,19 @@ int XrdXrootdProtocol::do_ReadV()
 // Run down the pre-read list. Each read element is prefixed by the verctor
 // element. We also break the reads into Quantum sized units. We do the
 //
-   Qleft = Quantum; buffp = argp->buff;
+   Qleft = Quantum; buffp = argp->buff; k = 0; rdvamt = 0; rvSeq++;
    for (i = 0; i < rdVecNum; i++)
-       {
         // Every request could come from a different file
         //
-        currFH.Set(rdVec[i].fhandle);
+       {currFH.Set(rdVec[i].fhandle);
         if (currFH.handle != lastFH.handle)
-           {if (!(myFile = FTab->Get(currFH.handle)))
+           {if (i && rvMon)
+               {Monitor->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
+                 myFile->readCnt += rdvamt; rdvamt = 0;
+                if (ioMon) for (; k < i; k++)
+                    Monitor->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
+               }
+            if (!(myFile = FTab->Get(currFH.handle)))
                return Response.Send(kXR_FileNotOpen,
                                "readv does not refer to an open file");
                else lastFH.handle = currFH.handle;
@@ -1806,7 +1813,7 @@ int XrdXrootdProtocol::do_ReadV()
         TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
         if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
            break;
-        myFile->readCnt += xframt; numReads++;
+        rdvamt += xframt; numReads++;
         rdVec[i].rlen = htonl(xframt);
         memcpy(buffp, &rdVec[i], hdrSZ);
         buffp += (xframt+hdrSZ); Qleft -= (xframt+hdrSZ);
@@ -1815,7 +1822,14 @@ int XrdXrootdProtocol::do_ReadV()
 // Determine why we ended here
 //
    if (i >= rdVecNum)
-      return Response.Send(argp->buff, Quantum-Qleft);
+      {if (i && rvMon)
+          {Monitor->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
+           myFile->readCnt += rdvamt;
+           if (ioMon) for (; k < i; k++)
+              Monitor->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
+          }
+        return Response.Send(argp->buff, Quantum-Qleft);
+      }
    return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
   

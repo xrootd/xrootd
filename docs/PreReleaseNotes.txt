@@ -3,6 +3,7 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Add IOV as a selectable detail to xrootd.monitor directive.
    * Provide a mode in xrootdfs to auto-update internal list of data servers.
      and extend client connection TTL from one hour to infinity.
    * Provide virtual xattr ("xroot.cksum") to obtain checksum for consistency.
@@ -98,6 +99,7 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Report readv information in the detailed monitoring stream.
    * Correct default settings due to feature interactions after the fact. Now,
      oss.defaults acts as if the setting were actually specified via oss.export.
    * Actually use the N2N library of specified or implied via pss.localroot

@@ -697,6 +697,7 @@ void XrdXrootdProtocol::Reset()
    clientPV           = 0;
    reTry              = 0;
    PathID             = 0;
+   rvSeq              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
    memset(&Entity, 0, sizeof(Entity));

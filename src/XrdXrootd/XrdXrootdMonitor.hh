@@ -33,6 +33,7 @@
 #define XROOTD_MON_AUTH    64
 #define XROOTD_MON_PATH    (XROOTD_MON_IO   | XROOTD_MON_FILE)
 #define XROOTD_MON_REDR   128
+#define XROOTD_MON_IOV    256
 
 class XrdScheduler;
   
@@ -47,6 +48,20 @@ inline void              Add_rd(kXR_unt32 dictid,
                                 kXR_int32 rlen,
                                 kXR_int64 offset)
                                {Add_io(dictid, rlen, offset);}
+
+inline void              Add_rv(kXR_unt32 dictid,
+                                kXR_int32 rlen,
+                                kXR_int16 vcnt,
+                                kXR_char  vseq)
+                               {if (lastWindow != currWindow) Mark();
+                                   else if (nextEnt == lastEnt) Flush();
+                                monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_READV;
+                                monBuff->info[nextEnt].arg0.id[1]    = vseq;
+                                monBuff->info[nextEnt].arg0.sVal[1]  = vcnt;
+                                monBuff->info[nextEnt].arg0.rTot[1]  = 0;
+                                monBuff->info[nextEnt].arg1.buflen   = rlen;
+                                monBuff->info[nextEnt++].arg2.dictid = dictid;
+                               }
 
 inline void              Add_wr(kXR_unt32 dictid,
                                 kXR_int32 wlen, 
