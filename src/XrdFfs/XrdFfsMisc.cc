@@ -170,6 +170,11 @@ time_t XrdFfsMiscUrlcachetime = 0;
 pthread_mutex_t XrdFfsMiscUrlcache_mutex = PTHREAD_MUTEX_INITIALIZER;
 time_t XrdFfsMiscUrlcachelife = 60;
 
+int XrdFfsMisc_get_number_of_data_servers()
+{
+    return XrdFfsMiscNcachedurls;
+}
+
 void XrdFfsMisc_set_Urlcachelife(const char *urlcachelife)
 {
     int t, len;
