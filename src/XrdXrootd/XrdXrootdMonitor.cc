@@ -296,7 +296,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    mmode     = mode1 | mode2;
    isEnabled = (mmode & XROOTD_MON_ALL  ? 1 :-1);
    monIO     = (mmode & XROOTD_MON_IO   ? 1 : 0);
-   monIO     = (mmode & XROOTD_MON_IOV  ? 2 : 0);
+   monIO     = (mmode & XROOTD_MON_IOV  ? 2 : monIO);
    monINFO   = (mmode & XROOTD_MON_INFO ? 1 : 0);
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
    monREDR   = (mmode & XROOTD_MON_REDR ? 1 : 0);
