@@ -25,6 +25,7 @@ add_library(
   XrdClSocket.cc              XrdClSocket.hh
                               XrdClPoller.hh
   XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
+  XrdClPostMaster.cc          XrdClPostMaster.hh
 )
 
 target_link_libraries(
