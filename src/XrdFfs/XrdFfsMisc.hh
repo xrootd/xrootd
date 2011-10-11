@@ -16,6 +16,7 @@
 char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl);
 int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes);
 int XrdFfsMisc_get_list_of_data_servers(char* list);
+int XrdFfsMisc_get_number_of_data_servers();
 void XrdFfsMisc_refresh_url_cache(const char* url);
 void XrdFfsMisc_logging_url_cache(const char* url);
 

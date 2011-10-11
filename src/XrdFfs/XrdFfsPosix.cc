@@ -726,7 +726,8 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
     dir = dirname(p1);
     file = basename(p2);
 
-    if (XrdFfsDent_cache_search(dir, file))
+// if task queue is too long, or if the stat() is from an ls -l command, the stat() against redirector
+    if ( XrdFfsQueue_count_tasks()/XrdFfsMisc_get_number_of_data_servers() > 20 || XrdFfsDent_cache_search(dir, file))
     {
          XrdFfsMisc_xrd_secsss_editurl(rootpath, user_uid);
          res = XrdFfsPosix_stat(rootpath, stbuf);
