@@ -3,6 +3,7 @@ Version 3.1.0
 -------------
 
 + **New Features**
+   * Use CMake to build the source code and retire all the other build systems.
    * Add IOV as a selectable detail to xrootd.monitor directive.
    * Provide a mode in xrootdfs to auto-update internal list of data servers.
      and extend client connection TTL from one hour to infinity.
@@ -31,6 +32,12 @@ Version 3.1.0
    * Allow pointers to be placed in the OucEnv environment table.
    * Extend the kXR_protocol request to allow the server to return detailed
      information about node's role. This is backwardly compatible.
+   * The client uses kXR_protocol request to query for the server's role
+     (to distinguish managers from meta managers).
+   * The client goes back to a meta manager on authentication failure.
+   * The client prints to stdout the redirections it gets. This behavior may be
+     disabled by setting the XRD_PRINTREDIRECTS environment variable to 0, or,
+     from C++ by saying: EnvPutInt( NAME_PRINT_REDIRECTS, 0 )
    * Set $HOST value for possible copycmd substitution.
    * Phase 1 to allow for redirection monitoring. Add rbuff and redir options
      to the xrootd.monitor directive.
@@ -89,6 +96,8 @@ Version 3.1.0
    * In XrdSecgsi, add possibility to extract the VOMS attributes and save them
      in the XrdSecEntity. New switch '-vomsat:0/1 [1]'.
    * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
+   * Automatically build the RPM for the xrootd user when an OSG build is detected
+     and add fedora > 15 init scripts dependencies
 
 + **Major bug fixes**
    * Do not close the loger's shadow file descriptor when backgrounding as
@@ -99,6 +108,7 @@ Version 3.1.0
    * Fix incorrect lock handling for multiple waiters.
 
 + **Minor bug fixes**
+   * Prevent the response to a query from being truncated on the client side.
    * Report readv information in the detailed monitoring stream.
    * Correct default settings due to feature interactions after the fact. Now,
      oss.defaults acts as if the setting were actually specified via oss.export.
@@ -117,8 +127,17 @@ Version 3.1.0
    * Make the default file system a pointer to a dynamic instance of XrdOfs
      instead of a global static (i.e. the Andreas Peters patch). This makes
      writing an ofs plugin easier.
+   * Fix the RPM uninstall scriptlets incorrectly invoking /sbin/ldconfig.
+   * Install XrdOlbMonPerf and netchk tools.
 
 + **Miscellaneous**
+   * Drop Windows support.
+   * Code cleanup: remove XrdTokenAuthzOfs, simple tests, broken utilities,
+     the gridftp code, krb4 and secssl plugins, obsolete documentation files
+   * Make the loadable module extensions configurable depending on the platform
+     (so on Linux and Solaris, dylib on MacOs)
+   * Add new XrdVNUMBER macro.
+   * Clean up the conditional compilation macros.
    * Remove compression related attributes (compchk, ssdec) and directives
      (compdetect) as they were never used nor fully implemented.
    * Remove the userprty directive. It was deprecated and never specified.
