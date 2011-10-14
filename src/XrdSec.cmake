@@ -154,3 +154,9 @@ install(
   XrdSecsss/XrdSecsssKT.hh
   XrdSecsss/XrdSecsssRR.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSecsss )
+
+install(
+  FILES
+  XrdSecgsi/XrdSecProtocolgsi.hh
+  XrdSecgsi/XrdSecgsiTrace.hh
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdSecgsi )
