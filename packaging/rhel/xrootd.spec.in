@@ -270,6 +270,7 @@ exit 0
 %{_includedir}/%{name}/XrdVersion.hh
 %{_includedir}/%{name}/XrdSec
 %{_includedir}/%{name}/XrdSecsss
+%{_includedir}/%{name}/XrdSecgsi
 %{_includedir}/%{name}/XrdCrypto
 %{_includedir}/%{name}/XrdSut
 %{_includedir}/%{name}/XrdNet
