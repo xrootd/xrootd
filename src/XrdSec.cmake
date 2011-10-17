@@ -54,7 +54,6 @@ add_library(
 
 target_link_libraries(
   XrdSecpwd
-  XrdUtils
   XrdCrypto
   ${CRYPT_LIBRARY} )
 
@@ -88,7 +87,6 @@ add_library(
 
 target_link_libraries(
   XrdSecsss
-  XrdUtils
   XrdCryptoLite )
 
 set_target_properties(

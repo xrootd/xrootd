@@ -26,7 +26,6 @@ add_library(
 
 target_link_libraries(
   XrdOfs
-  XrdUtils
   XrdServer )
 
 set_target_properties(

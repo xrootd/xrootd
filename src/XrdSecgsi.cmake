@@ -28,9 +28,7 @@ add_library(
 
 target_link_libraries(
   XrdSecgsi
-  XrdCrypto
-  XrdCryptossl
-  XrdUtils )
+  XrdCrypto )
 
 set_target_properties(
   XrdSecgsi
@@ -48,8 +46,7 @@ add_library(
 
 target_link_libraries(
   XrdSecgsiGMAPLDAP
-  XrdSecgsi
-  XrdUtils )
+  XrdSecgsi )
 
 set_target_properties(
   XrdSecgsiGMAPLDAP
@@ -85,8 +82,7 @@ add_library(
 
 target_link_libraries(
   XrdSecgsiGMAPDN
-  XrdSecgsi
-  XrdUtils )
+  XrdSecgsi )
 
 set_target_properties(
   XrdSecgsiGMAPDN
@@ -103,7 +99,6 @@ add_executable(
 
 target_link_libraries(
   xrdgsiproxy
-  XrdUtils
   XrdCryptossl )
 
 #-------------------------------------------------------------------------------

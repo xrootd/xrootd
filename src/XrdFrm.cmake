@@ -38,7 +38,6 @@ add_executable(
 
 target_link_libraries(
   frm_admin
-  XrdUtils
   XrdServer
   XrdFrm
   ${READLINE_LIBRARY}
@@ -54,7 +53,6 @@ add_executable(
 
 target_link_libraries(
   frm_purged
-  XrdUtils
   XrdServer
   XrdFrm )
 
@@ -67,7 +65,6 @@ add_executable(
 
 target_link_libraries(
   frm_xfrd
-  XrdUtils
   XrdServer
   XrdFrm )
 
@@ -80,7 +77,6 @@ add_executable(
 
 target_link_libraries(
   frm_xfragent
-  XrdUtils
   XrdServer
   XrdFrm )
 

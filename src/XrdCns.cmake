@@ -29,7 +29,6 @@ add_executable(
 target_link_libraries(
   XrdCnsd
   XrdCnsLib
-  XrdUtils
   XrdClient
   XrdServer )
 

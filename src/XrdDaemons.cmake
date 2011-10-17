@@ -32,7 +32,6 @@ add_executable(
 
 target_link_libraries(
   xrootd
-  XrdServer
   XrdMain
   XrdOfs
   dl )
@@ -73,7 +72,6 @@ add_executable(
 
 target_link_libraries(
   cmsd
-  XrdUtils
   XrdServer
   XrdMain )
 
