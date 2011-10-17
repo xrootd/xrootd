@@ -1722,7 +1722,7 @@ int XrdXrootdProtocol::do_ReadV()
    struct readahead_list rdVec[maxRvecsz];
    long long totLen;
    int rdVecNum, rdVecLen = Request.header.dlen;
-   int i, k, rc, xframt, Quantum, Qleft, rdvamt, rvSeq;
+   int i, k, rc, xframt, Quantum, Qleft, rdvamt;
    int ioMon = (monIO  > 1) && (Monitor != 0);
    int rvMon = (monIO != 0) && (Monitor != 0);
    char *buffp;
