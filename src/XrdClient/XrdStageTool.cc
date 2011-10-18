@@ -27,10 +27,10 @@ const char *XrdStageToolCVSID = "$Id$";
 #include <sstream>
 
 #ifdef HAVE_READLINE
+#include <term.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <curses.h>
-#include <term.h>
 #endif
 
 

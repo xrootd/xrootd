@@ -26,6 +26,7 @@
 #include <iomanip>
 
 #ifdef HAVE_READLINE
+#include <term.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -34,8 +35,6 @@
 #define NOMACROS
 #include <curses.h>
 #undef NOMACROS
-
-#include <term.h>
 #endif
 
 #define XRDCLI_VERSION "(C) 2004-2010 by the Xrootd group. Xrootd version: "XrdVSTRING
