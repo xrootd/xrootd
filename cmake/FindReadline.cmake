@@ -5,8 +5,23 @@ if( READLINE_INCLUDE_DIR AND READLINE_LIBRARY AND NCURSES_LIBRARY )
 else( READLINE_INCLUDE_DIR AND READLINE_LIBRARY AND NCURSES_LIBRARY )
   find_path( READLINE_INCLUDE_DIR readline/readline.h /usr/include/readline )
 
-  find_library( READLINE_LIBRARY NAMES readline )
-  find_library( NCURSES_LIBRARY  NAMES ncurses  )
+  find_library(
+    READLINE_LIBRARY
+    NAMES readline
+    HINTS
+    ${READLINE_ROOT_DIR}
+    PATH_SUFFIXES
+    ${LIBRARY_PATH_PREFIX}
+    ${LIB_SEARCH_OPTIONS})
+
+  find_library(
+    NCURSES_LIBRARY
+    NAMES ncurses
+    HINTS
+    ${READLINE_ROOT_DIR}
+    PATH_SUFFIXES
+    ${LIBRARY_PATH_PREFIX}
+    ${LIB_SEARCH_OPTIONS})
 
   find_package_handle_standard_args(
     READLINE

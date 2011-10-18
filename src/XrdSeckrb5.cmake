@@ -1,4 +1,4 @@
-
+include_directories( ${KERBEROS5_INCLUDE_DIR} )
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
@@ -19,7 +19,7 @@ target_link_libraries(
   XrdSeckrb5
   XrdSec
   XrdUtils
-  ${KERBEROS5_LIBRARY} )
+  ${KERBEROS5_LIBRARIES} )
 
 set_target_properties(
   XrdSeckrb5
