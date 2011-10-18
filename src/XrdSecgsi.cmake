@@ -28,7 +28,7 @@ add_library(
 
 target_link_libraries(
   XrdSecgsi
-  XrdCrypto )
+  XrdCryptossl )
 
 set_target_properties(
   XrdSecgsi
