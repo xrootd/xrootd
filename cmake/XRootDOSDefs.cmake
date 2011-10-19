@@ -54,7 +54,7 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   # AMD64 (opteron)
   #-----------------------------------------------------------------------------
   if( SOLARIS_AMD64 AND NOT FORCE_32BITS )
-    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64 -xtarget=opteron -xs" )
+    set( CMAKE_CXX_FLAGS " -m64 -xtarget=opteron -xs ${CMAKE_CXX_FLAGS} " )
     set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -G" )
     set( CMAKE_LIBRARY_PATH "/lib/64;/usr/lib/64" )
     add_definitions( -DSUNX86 )
