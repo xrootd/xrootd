@@ -48,6 +48,9 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   add_definitions( -DSUNCC -D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS )
   set( EXTRA_LIBS rt  Crun Cstd )
 
+  set( CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fast" )
+  set( CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fast" )
+
   define_solaris_flavor()
 
   #-----------------------------------------------------------------------------
