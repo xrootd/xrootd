@@ -110,6 +110,8 @@ Version 3.1.0
      to work correctly
 
 + **Minor bug fixes**
+   * Properly handle the case when a site has an excessive number of groups
+     assignments.
    * Prevent the response to a query from being truncated on the client side.
    * Report readv information in the detailed monitoring stream.
    * Correct default settings due to feature interactions after the fact. Now,
