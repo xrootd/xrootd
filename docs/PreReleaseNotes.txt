@@ -106,6 +106,8 @@ Version 3.1.0
    * Enforce r/o path during mkdir operations.
    * Avoid segv when initializing the finder on a multi-core machine.
    * Fix incorrect lock handling for multiple waiters.
+   * Fix possible deadlocks in XrdSutCache preventing the pwd security module
+     to work correctly
 
 + **Minor bug fixes**
    * Prevent the response to a query from being truncated on the client side.
@@ -129,6 +131,13 @@ Version 3.1.0
      writing an ofs plugin easier.
    * Fix the RPM uninstall scriptlets incorrectly invoking /sbin/ldconfig.
    * Install XrdOlbMonPerf and netchk tools.
+   * Fix a bug preventing the core of authentication errors to be logged to clients
+   * In the krb5 security plugin, define KRB5CCNAME to point to the credential
+     cache file /tmp/krb5cc_<uid> only if this file exists and is readable.
+     Solves an issue with credentials cached in memory (API:<uid>:n).
+   * Fix array deletion mismatches reported by cppcheck (from D. Volgyes)
+   * Make sure that loading of XrdSecgsi.so fails if either the GMAPFun or the
+      AuthzFun plug-ins fail to load.
 
 + **Miscellaneous**
    * Drop Windows support.
