@@ -13,11 +13,11 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <grp.h>
 #include <pwd.h>
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
@@ -71,9 +71,8 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
                                                       XrdOucErrInfo    *error)
 {
    struct passwd *pEnt, pStruct;
-   struct group  *gEnt, gStruct;
-   char pgBuff[1024], Buff[1024], *Bp;
-   int Blen;
+   char pgBuff[1024], Buff[512], *Bp;
+   int Blen, n;
 
 // Set protocol ID in the buffer
 //
@@ -84,16 +83,15 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
    if (getpwuid_r(geteuid(), &pStruct, pgBuff, sizeof(pgBuff), &pEnt))
            strcpy(Bp, "*");
       else strcpy(Bp, pEnt->pw_name);
-   Bp += strlen(Bp);
+   Bp += strlen(Bp); Blen = (Bp - Buff) + 1;
 
 // Get the group name
 //
-   if (getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt) == 0)
-      {*Bp++ = ' '; strcpy(Bp, gEnt->gr_name); Bp += strlen(Bp);}
+   if ((n = XrdOucUtils::GroupName(getegid(),Bp+1,sizeof(pgBuff)-(Blen+4))))
+      {*Bp = ' '; Blen += (n+1);}
 
 // Return the credentials
 //
-   Blen = Bp-Buff+1;
    Bp = (char *)malloc(Blen);
    memcpy(Bp, Buff, Blen);
    return new XrdSecCredentials(Bp, Blen);

@@ -11,7 +11,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <grp.h>
 #include <pwd.h>
 #include <sys/types.h>
 
@@ -19,6 +18,7 @@
 #include "XrdSecsss/XrdSecsssRR.hh"
 
 #include "XrdOuc/XrdOucPup.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
@@ -175,15 +175,14 @@ XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
    XrdSecEntity   myID("sss");
    static const int pgSz = 1024;
    struct passwd *pEnt, pStruct;
-   struct group  *gEnt, gStruct;
-   char pgBuff[pgSz];
+   char pBuff[pgSz], gBuff[pgSz];
 
 // Use either our own uid/gid or a generic
 //
-   myID.name = (Secure || getpwuid_r(geteuid(), &pStruct, pgBuff, pgSz, &pEnt))
+   myID.name = (Secure || getpwuid_r(geteuid(), &pStruct, pBuff, pgSz, &pEnt))
              ? (char *)"nobody" : pEnt->pw_name;
-   myID.grps = (Secure || getgrgid_r(getegid(), &gStruct, pgBuff, pgSz, &gEnt))
-             ? (char *)"nogroup" : gEnt->gr_name;
+   myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz))
+             ? (char *)"nogroup" : gBuff;
 
 // Just return the sssID
 //

@@ -10,6 +10,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <grp.h>
 #include <stdio.h>
 
 #ifdef WIN32
@@ -208,6 +209,42 @@ int XrdOucUtils::genPath(char *buff, int blen, const char *path, const char *psf
          if (psfx[j-1] != '/') strcat(buff, "/");
         }
     return 0;
+}
+
+/******************************************************************************/
+/*                                G r o u p s                                 */
+/******************************************************************************/
+  
+int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
+{
+   static const int maxgBsz = 256*1024;
+   static const int addGsz  = 4096;
+   struct group  *gEnt, gStruct;
+   char gBuff[1024], *gBp = gBuff;
+   int glen, gBsz = sizeof(gBuff), aOK = 1;
+
+// Get the the group struct. If we don't have a large enough buffer, get a
+// larger one and try again up to the maximum buffer we will tolerate.
+//
+   while((getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) == 0) && errno == ERANGE)
+        {if (gBsz >= maxgBsz) {aOK = 0; break;}
+         if (gBsz >  addGsz) free(gBp);
+         gBsz += addGsz;
+         if (!(gBp = (char *)malloc(gBsz))) {aOK = 0; break;}
+        }
+
+// Return a group name if all went well
+//
+   if (aOK)
+      {glen = strlen(gEnt->gr_name);
+       if (glen >= gNsz) glen = 0;
+          else strcpy(gName, gEnt->gr_name);
+      } else glen = 0;
+
+// Free any allocated buffer and return result
+//
+   if (gBsz >  addGsz && gBp) free(gBp);
+   return glen;
 }
 
 /******************************************************************************/
