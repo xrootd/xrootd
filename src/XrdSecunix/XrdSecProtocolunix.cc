@@ -88,7 +88,7 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the group name
 //
-   if (getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt))
+   if (getgrgid_r(getegid(), &gStruct, pgBuff, sizeof(pgBuff), &gEnt) == 0)
       {*Bp++ = ' '; strcpy(Bp, gEnt->gr_name); Bp += strlen(Bp);}
 
 // Return the credentials
