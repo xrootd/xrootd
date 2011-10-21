@@ -2,6 +2,8 @@
 # Define the OS variables
 #-------------------------------------------------------------------------------
 
+include( CheckCXXSourceRuns )
+
 set( Linux    FALSE )
 set( MacOSX   FALSE )
 set( Solaris  FALSE )
@@ -64,4 +66,21 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
     set( LIB_SEARCH_OPTIONS NO_DEFAULT_PATH )
     set( LIBRARY_PATH_PREFIX "lib/64" )
   endif()
+
+  #-----------------------------------------------------------------------------
+  # Check if the SunCC compiler can do optimizations
+  #-----------------------------------------------------------------------------
+  check_cxx_source_runs(
+  "
+    int main()
+    {
+      #if __SUNPRO_CC > 0x5100
+      return 0;
+      #else
+      return 1;
+      #endif
+    }
+  "
+  SUNCC_CAN_DO_OPTS )
+
 endif()
