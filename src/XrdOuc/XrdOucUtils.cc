@@ -226,7 +226,7 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
 // Get the the group struct. If we don't have a large enough buffer, get a
 // larger one and try again up to the maximum buffer we will tolerate.
 //
-   while((getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) == 0) && errno == ERANGE)
+   while((getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) != 0) && errno == ERANGE)
         {if (gBsz >= maxgBsz) {aOK = 0; break;}
          if (gBsz >  addGsz) free(gBp);
          gBsz += addGsz;
