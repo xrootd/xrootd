@@ -378,8 +378,8 @@ exit 0
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
-* Tue Oct 05 2011 Lukasz Janyst <ljanyst@cern.ch> 3.1.0-0.rc1
-- bump the version to 3.1.0-rc1
+* Fri Oct 21 2011 Lukasz Janyst <ljanyst@cern.ch> 3.1.0-1
+- bump the version to 3.1.0
 
 * Tue Apr 11 2011 Lukasz Janyst <ljanyst@cern.ch> 3.0.3-1
 - the first RPM release - version 3.0.3
