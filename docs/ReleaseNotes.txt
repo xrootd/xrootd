@@ -6,6 +6,177 @@ Release Notes
 =============
 
 -------------
+Version 3.1.0
+-------------
+
++ **New Features**
+   * Use CMake to build the source code and retire all the other build systems.
+   * Add IOV as a selectable detail to xrootd.monitor directive.
+   * Provide a mode in xrootdfs to auto-update internal list of data servers.
+     and extend client connection TTL from one hour to infinity.
+   * Provide virtual xattr ("xroot.cksum") to obtain checksum for consistency.
+   * Make xrdadler32 use the new checksum format if it is set (fallback to old
+     format otherwise). In all cases, the old format is converted to the new
+     format whenever possible.
+   * Enforce r/o exports in the proxy server (finally added).
+   * Allow auto-fluching of I/O stream monitoring (default is off).
+     Patch submitted by Matevz Tadel, UCSD.
+   * Make proxy honor the export list at the storage layer. This allows sites
+     to disable staging via the proxy by specifying nostage for otherwise locally
+     stageable paths.
+   * Do not export the stage attribute to the meta-manager unless the path is
+     tagged with the stage+ attrbute on the export directive.
+   * WARNING: This update makes the oss plug-in source incompatible because an
+     additional parameter was added to the Stat() method. The update is binary
+     compatible and so only affects sites that recompile their plug-in.
+   * Allow the query checksum request to be issued via a proxy server.
+   * Add a query checksum interface to the POSIX interface.
+   * Defines the livXrdSecgsiAuthzVO plug-in to allow easy mapping from voms
+     vo names to users and groups. The plugin is configurable at run-time.
+   * Allow the OucErrInfo object to point to an environment.
+   * Add method to SysDNS to format an AF_INETx address into the RFC IPV6
+     recommended format.
+   * Allow pointers to be placed in the OucEnv environment table.
+   * Extend the kXR_protocol request to allow the server to return detailed
+     information about node's role. This is backwardly compatible.
+   * The client uses kXR_protocol request to query for the server's role
+     (to distinguish managers from meta managers).
+   * The client goes back to a meta manager on authentication failure.
+   * The client prints to stdout the redirections it gets. This behavior may be
+     disabled by setting the XRD_PRINTREDIRECTS environment variable to 0, or,
+     from C++ by saying: EnvPutInt( NAME_PRINT_REDIRECTS, 0 )
+   * Set $HOST value for possible copycmd substitution.
+   * Phase 1 to allow for redirection monitoring. Add rbuff and redir options
+     to the xrootd.monitor directive.
+   * Add error, redirect, and delay counts to the xrootd protocol summary
+     statistics.
+   * Allow file additions/deletion to be communicated to the XrdCnsd so that is
+     can maintain an accurate inventory. This update adds the frm.all.cnsd
+     directive which specifies how the information is to be commuincated.
+   * Enable cmsd monitoring. For now, only [meta]manager information is reported.
+   * Add new repstats config directive to increase reporting detail.
+   * New class, XrdCmsRole, to make role naming/handling consistent.
+   * Implement the 'cms.delay qdn' directive which allows one to tell the
+     meta-manager the minimum number of responses needed to satisfy a hold
+     delay (i.e. fast redirect).
+   * Accept XrdSecSSSKT envar as documented but also continue to support
+     XrdSecsssKT for backward compatability.
+   * Allow servers to specify to the meta-manager what share of requests they
+     are willing to handle. Add the 'cms.sched gsdflt' and 'cms.sched gshr'
+     configuration directives to specify this.
+   * Include additional information in the protocol statistics.
+   * Resize some counters to prevent overflows.
+   * Add the 'cms.delay qdn' directive to allow better redirection control in
+     the future.
+   * Allow a plugin (notably the proxy plugin) to disable async I/O.
+   * Implement a general memory caching object. Currently, this will be used
+     by the Posix object.
+   * Allow optional memory caching when using the Posix library. This is
+     primarily used by the proxy object to reduce trips to a data server when
+     small blocks are accessed via the proxy server. This requires
+     configuration using the new 'pss.memcache' directive.
+   * Finally implement adding authentication information to the user monitoring
+     record (requested by Matevz Tadel, CMS). This adds a new generic option,
+     auth, to the xrootd.monitor directive. It needs to be specified for the
+     authentication information to be added. This keeps backward compatability.
+   * Add a new method, chksum, to the standard filesystem interface.
+   * Integrate checksums into the logical filesystem layer implementation.
+     See the ofs.ckslib directive on how to do non-default configuration.
+     This also added a more effecient lfn2pfn() method to the storage system.
+   * Allow native checksums to be enabled in the xrootd layer.
+     See the xrootd.chksum directive on how to do this.
+   * Add checksum management to the frm_admin command.
+   * Allow XrdOucProg to dispatch a local program as well as a process.
+   * Allow a line to be insrerted into an XrdOucStream managed stream.
+   * Implement native checksums usable stand-alone or as plugins. Three digests
+     are supported: adler32, crc32, and md5. An additional digest can be added
+     via a plugin. Also, the native digests can be over-ridden via a plugin.
+   * In XrdSecgsi, new interface for the authorization plug-in which has now full
+     access to the XrdSecEntity object, with the possibility to fill/modify all the
+     fields according to the proxy chain. The plug-in is now called at the end of
+     the all process, after a successful handshake and DN-username mapping.
+     Implementations must contain three extern C functions; see the dummy example
+     provided in src/XrdSecgsi/XrdSecgsiAuthzFunDN.cc. 
+     See also the header of XrdSecProtocolgsi::LoadAuthzFun.
+   * In XrdCryptosslgsiAux, add function to extract the VOMS attributes; can be
+     used in authz plug-ins.
+   * In XrdSecgsi, add possibility to extract the VOMS attributes and save them
+     in the XrdSecEntity. New switch '-vomsat:0/1 [1]'.
+   * In 'xrdgsiproxy info' show also the VOMS attributes, if present. 
+   * Automatically build the RPM for the xrootd user when an OSG build is detected
+     and add fedora > 15 init scripts dependencies
+
++ **Major bug fixes**
+   * Do not close the loger's shadow file descriptor when backgrounding as
+     this may cause random crashes later on.
+   * Avoid SEGV by setting network pointer prior to loading the 1st protocol.
+   * Enforce r/o path during mkdir operations.
+   * Avoid segv when initializing the finder on a multi-core machine.
+   * Fix incorrect lock handling for multiple waiters.
+   * Fix possible deadlocks in XrdSutCache preventing the pwd security module
+     to work correctly
+
++ **Minor bug fixes**
+   * Properly handle the case when a site has an excessive number of groups
+     assignments.
+   * Prevent the response to a query from being truncated on the client side.
+   * Report readv information in the detailed monitoring stream.
+   * Correct default settings due to feature interactions after the fact. Now,
+     oss.defaults acts as if the setting were actually specified via oss.export.
+   * Actually use the N2N library of specified or implied via pss.localroot
+     for proxy server interactions withthe origin (required for Atlas T2).
+   * Use re-enterant versions of getpwuid() and getpwgid(). This is need for
+     FUSE.
+   * Correct bad english in a few error messages.
+   * Set correct checksum length when converting ASCII to binary.
+   * Allow the sss protocol to work for multi-homed hosts.
+   * Correct definition of AtomicISM that caused the maximum link count to
+     never be updated in the statistics.
+   * Apply N2N mapping to source path when relocating the file.
+   * Report correct port when locate is directly issued to a data server
+     (before it was being reported as 0).
+   * Make the default file system a pointer to a dynamic instance of XrdOfs
+     instead of a global static (i.e. the Andreas Peters patch). This makes
+     writing an ofs plugin easier.
+   * Fix the RPM uninstall scriptlets incorrectly invoking /sbin/ldconfig.
+   * Install XrdOlbMonPerf and netchk tools.
+   * Fix a bug preventing the core of authentication errors to be logged to clients
+   * In the krb5 security plugin, define KRB5CCNAME to point to the credential
+     cache file /tmp/krb5cc_<uid> only if this file exists and is readable.
+     Solves an issue with credentials cached in memory (API:<uid>:n).
+   * Fix array deletion mismatches reported by cppcheck (from D. Volgyes)
+   * Make sure that loading of XrdSecgsi.so fails if either the GMAPFun or the
+     AuthzFun plug-ins fail to load.
+
++ **Miscellaneous**
+   * Drop Windows support.
+   * Code cleanup: remove XrdTokenAuthzOfs, simple tests, broken utilities,
+     the gridftp code, krb4 and secssl plugins, obsolete documentation files
+   * Make the loadable module extensions configurable depending on the platform
+     (so on Linux and Solaris, dylib on MacOs)
+   * Add new XrdVNUMBER macro.
+   * Clean up the conditional compilation macros.
+   * Remove compression related attributes (compchk, ssdec) and directives
+     (compdetect) as they were never used nor fully implemented.
+   * Remove the userprty directive. It was deprecated and never specified.
+   * Refactor PosixPreeload and Posix libraries to prevent split initialization
+     of the preload library which will cause failures on certain systems.
+   * Provide automatic proxy checksum defaults when role is set to proxy.
+   * Remove all references via extern statements to object instances. This
+     only applies to the Xrd package.
+   * Do not echo lines qualified by an in-line if when the if fails.
+   * Remove the old "redirect" directive. It has passed its prime.
+   * Remove back references to symbols defined in XrdXrootd package used by
+     the cms client to allow for clean shared library builds.
+   * Remove externs to XrdSecGetProtocol and XrdSecGetService from
+     XrdSecInterface.hh to avoid having undefined references just because the
+     include file was included somewhere.
+   * Rename XrdNetDNS to XrdSysDNS to avoid cross-dependencies. This means that all
+     plug-in developers will need to do the same as XrdNetDNS no longer exists.
+   * Split XrdFrm into XrdFrm and XrdFrc. This prevents cross-dependencies in
+     packages that use the File Residency Manager.
+
+-------------
 Version 3.0.5
 -------------
 
