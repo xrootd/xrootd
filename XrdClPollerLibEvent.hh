@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_POLLER_LIBEVENT_HH__
@@ -51,18 +53,41 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Add socket to the polling loop
       //!
-      //! @param socket   the socket
-      //! @param listener a listener obhect that will handle
-      //! @param timeout  signal a timeout after this many seconds of inactivity
+      //! @param socket  the socket
+      //! @param handler object handling the events
       //------------------------------------------------------------------------
-      virtual bool AddSocket( Socket              *socket,
-                              SocketEventListener *listener,
-                              uint16_t             timeout );
+      virtual bool AddSocket( Socket        *socket,
+                              SocketHandler *handler );
+
 
       //------------------------------------------------------------------------
       //! Remove the socket
       //------------------------------------------------------------------------
       virtual bool RemoveSocket( Socket *socket );
+
+      //------------------------------------------------------------------------
+      //! Notify the handler about read events
+      //!
+      //! @param socket  the socket
+      //! @param notify  specify if the handler should be notified
+      //! @param timeout if no read event occured after this time a timeout
+      //!                event will be generated
+      //------------------------------------------------------------------------
+      virtual bool NotifyRead( Socket  *socket,
+                               bool     notify,
+                               uint16_t timeout = 60 );
+
+      //------------------------------------------------------------------------
+      //! Notify the handler about write events
+      //!
+      //! @param socket  the socket
+      //! @param notify  specify if the handler should be notified
+      //! @param timeout if no write event occured after this time a timeout
+      //!                event will be generated
+      //------------------------------------------------------------------------
+      virtual bool NotifyWrite( Socket  *socket,
+                                bool     notify,
+                                uint16_t timeout = 60);
 
       //------------------------------------------------------------------------
       //! Check whether the socket is registered with the poller

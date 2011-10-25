@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClPollerLibEvent.hh"
@@ -27,26 +29,28 @@
 #endif
 
 //------------------------------------------------------------------------------
-// A helper struct
+// A helper struct being passed as custom data to libevent callbacks
 //------------------------------------------------------------------------------
 namespace
 {
   struct PollerHelper
   {
-    PollerHelper( XrdClient::SocketEventListener *lst,
-                  XrdClient::Socket              *sock,
-                  XrdClient::Poller              *pol,
-                  event                          *ev = 0 ):
-      listener( lst ), socket( sock ), poller( pol ), pollerEvent( ev ) {}
-    XrdClient::SocketEventListener *listener;
-    XrdClient::Socket              *socket;
-    XrdClient::Poller              *poller;
-    event                          *pollerEvent;
+    PollerHelper( XrdClient::SocketHandler *hndl,
+                  XrdClient::Socket        *sock ):
+      handler( hndl ), socket( sock ),
+      readEvent( 0 ), writeEvent( 0 ),
+      readEnabled( false ), writeEnabled( false ) {}
+    XrdClient::SocketHandler *handler;
+    XrdClient::Socket        *socket;
+    event                    *readEvent;
+    event                    *writeEvent;
+    bool                      readEnabled;
+    bool                      writeEnabled;
   };
 }
 
 //------------------------------------------------------------------------------
-// The stuff that needs to stay demangled
+// The stuff that needs to stay unmangled
 //------------------------------------------------------------------------------
 extern "C"
 {
@@ -95,21 +99,50 @@ extern "C"
   //----------------------------------------------------------------------------
   // Dummy callback
   //----------------------------------------------------------------------------
-  void DummyCallback( evutil_socket_t fd, short what, void *arg )
+  static void DummyCallback( evutil_socket_t fd, short what, void *arg )
   {
   }
 
   //----------------------------------------------------------------------------
-  // Event callback
+  // Read event callback
   //----------------------------------------------------------------------------
-  void EventCallback( evutil_socket_t fd, short what, void *arg )
+  static void ReadEventCallback( evutil_socket_t fd, short what, void *arg )
   {
     using namespace XrdClient;
+
     PollerHelper *helper = (PollerHelper *)arg;
     uint8_t       ev     = 0;
-    if( what | EV_TIMEOUT ) ev |= SocketEventListener::TimeOut;
-    if( what | EV_READ    ) ev |= SocketEventListener::ReadyToRead;
-    helper->listener->Event( ev, helper->socket, helper->poller );
+
+    if( what & EV_TIMEOUT ) ev |= SocketHandler::ReadTimeOut;
+    if( what & EV_READ    ) ev |= SocketHandler::ReadyToRead;
+
+    Log *log = Utils::GetDefaultLog();
+    log->Dump( PollerMsg, "Got socket read event: %s: %s",
+                           helper->socket->GetName().c_str(),
+                           SocketHandler::EventTypeToString( ev ).c_str() );
+
+    helper->handler->Event( ev, helper->socket );
+  }
+
+  //----------------------------------------------------------------------------
+  // Write event callback
+  //----------------------------------------------------------------------------
+  static void WriteEventCallback( evutil_socket_t fd, short what, void *arg )
+  {
+    using namespace XrdClient;
+
+    PollerHelper *helper = (PollerHelper *)arg;
+    uint8_t       ev     = 0;
+
+    if( what & EV_TIMEOUT ) ev |= SocketHandler::WriteTimeOut;
+    if( what & EV_WRITE   ) ev |= SocketHandler::ReadyToWrite;
+
+    Log *log = Utils::GetDefaultLog();
+    log->Dump( PollerMsg, "Got socket write event: %s: %s",
+                           helper->socket->GetName().c_str(),
+                           SocketHandler::EventTypeToString( ev ).c_str() );
+
+    helper->handler->Event( ev, helper->socket );
   }
 }
 
@@ -177,8 +210,19 @@ namespace XrdClient
     for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
     {
       PollerHelper *helper = (PollerHelper *)it->second;
-      ::event_del( helper->pollerEvent );
-      ::event_free( helper->pollerEvent );
+
+      if( helper->readEvent )
+      {
+        ::event_del( helper->readEvent );
+        ::event_free( helper->readEvent );
+      }
+
+      if( helper->writeEvent )
+      {
+        ::event_del( helper->writeEvent );
+        ::event_free( helper->writeEvent );
+      }
+
       delete helper;
     }
     ::event_base_free( pEventBase );
@@ -245,17 +289,13 @@ namespace XrdClient
   //------------------------------------------------------------------------
   // Add socket to the polling queue
   //------------------------------------------------------------------------
-  bool PollerLibEvent::AddSocket( Socket              *socket,
-                                  SocketEventListener *listener,
-                                  uint16_t             timeout )
+  bool PollerLibEvent::AddSocket( Socket        *socket,
+                                  SocketHandler *handler )
   {
     Log *log = Utils::GetDefaultLog();
-    timeval tOut = { timeout, 0 };
     XrdSysMutexHelper( pMutex );
 
-    log->Debug( PollerMsg, "Adding socket: <%s><--><%s>",
-                           socket->GetSockName().c_str(),
-                           socket->GetPeerName().c_str() );
+    log->Debug( PollerMsg, "Adding socket: %s", socket->GetName().c_str() );
 
     //--------------------------------------------------------------------------
     // Check if the socket is already registered
@@ -268,33 +308,10 @@ namespace XrdClient
     }
 
     //--------------------------------------------------------------------------
-    // Create the socket event
+    // Create the socket helper
     //--------------------------------------------------------------------------
-    PollerHelper *helper = new PollerHelper( listener, socket, this );
-    event *ev = ::event_new( pEventBase, socket->GetFD(),
-                             EV_TIMEOUT|EV_READ|EV_PERSIST,
-                             EventCallback, helper );
-
-    if( !ev )
-    {
-      log->Error( PollerMsg, "Unable to create an event." );
-      delete helper;
-      return false;
-    }
-
-    helper->pollerEvent = ev;
-
-    //--------------------------------------------------------------------------
-    // Add the event to the loop
-    //--------------------------------------------------------------------------
-    if( ::event_add( ev, &tOut ) != 0 )
-    {
-      log->Error( PollerMsg, "Unable to add the event." );
-      delete helper;
-      ::event_free( ev );
-      return false;
-    }
-
+    PollerHelper *helper = new PollerHelper( handler, socket );
+    handler->Initialize( this );
     pSocketMap[socket] = helper;
 
     return true;
@@ -307,9 +324,8 @@ namespace XrdClient
   {
     Log *log = Utils::GetDefaultLog();
 
-    log->Debug( PollerMsg, "Removing socket: <%s><--><%s>",
-                           socket->GetSockName().c_str(),
-                           socket->GetPeerName().c_str() );
+    log->Debug( PollerMsg, "Removing socket: %s",
+                           socket->GetName().c_str() );
 
     //--------------------------------------------------------------------------
     // Find the right event
@@ -319,7 +335,8 @@ namespace XrdClient
     if( it == pSocketMap.end() )
     {
       log->Warning( PollerMsg, "Attempted to remove socket that has not "
-                               "been registered" );
+                               "been registered: %s",
+                               socket->GetName().c_str() );
       return false;
     }
 
@@ -328,16 +345,213 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     PollerHelper *helper = (PollerHelper*)it->second;
 
-    if( ::event_del( helper->pollerEvent ) != 0 )
+    //--------------------------------------------------------------------------
+    // Disable the events if they are enabled
+    //--------------------------------------------------------------------------
+    if( helper->readEnabled )
     {
-      log->Error( PollerMsg, "Failed to remove the socket from the event "
-                             "loop" );
+      if( ::event_del( helper->readEvent ) != 0 )
+      {
+        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        return false;
+      }
+    }
+
+    if( helper->writeEnabled )
+    {
+      if( ::event_del( helper->readEvent ) != 0 )
+      {
+        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        return false;
+      }
+    }
+
+    if( helper->readEvent )
+      ::event_free( helper->readEvent );
+
+    if( helper->writeEvent )
+      ::event_free( helper->writeEvent );
+
+    delete helper;
+    pSocketMap.erase( it );
+
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Notify the handler about read events
+  //----------------------------------------------------------------------------
+  bool PollerLibEvent::NotifyRead( Socket  *socket,
+                                   bool     notify,
+                                   uint16_t timeout )
+  {
+    Log *log = Utils::GetDefaultLog();
+
+    //--------------------------------------------------------------------------
+    // Check if the socket is registered
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper( pMutex );
+    SocketMap::const_iterator it = pSocketMap.find( socket );
+    if( it == pSocketMap.end() )
+    {
+      log->Warning( PollerMsg, "Socket %s is not registered",
+                               socket->GetName().c_str() );
       return false;
     }
 
-    ::event_free( helper->pollerEvent );
-    delete helper;
-    pSocketMap.erase( it );
+    PollerHelper *helper = (PollerHelper*)it->second;
+
+    //--------------------------------------------------------------------------
+    // Enable read notifications
+    //--------------------------------------------------------------------------
+    if( notify )
+    {
+      if( helper->readEnabled )
+        return true;
+
+      log->Debug( PollerMsg, "Enable read notifications on: %s",
+                             socket->GetName().c_str() );
+
+      //------------------------------------------------------------------------
+      // Create the read event if it doesn't exist
+      //------------------------------------------------------------------------
+      if( !helper->readEvent )
+      {
+        event *ev = ::event_new( pEventBase, socket->GetFD(),
+                                 EV_TIMEOUT|EV_READ|EV_PERSIST,
+                                 ReadEventCallback, it->second );
+
+        if( !ev )
+        {
+          log->Error( PollerMsg, "Unable to create a read event for %s",
+                                 socket->GetName().c_str() );
+          return false;
+        }
+
+        helper->readEvent = ev;
+      }
+
+      //------------------------------------------------------------------------
+      // Add the event to the loop
+      //------------------------------------------------------------------------
+      timeval tOut = { timeout, 0 };
+      if( ::event_add( helper->readEvent, &tOut ) != 0 )
+      {
+        log->Error( PollerMsg, "Unable to register a read event for %s",
+                               socket->GetName().c_str() );
+        return false;
+      }
+
+      helper->readEnabled = true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Disable read notifications
+    //--------------------------------------------------------------------------
+    else
+    {
+      if( !helper->readEnabled )
+        return true;
+
+      log->Debug( PollerMsg, "Disable read notifications on: %s",
+                             socket->GetName().c_str() );
+
+      if( ::event_del( helper->readEvent ) != 0 )
+      {
+        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        return false;
+      }
+      helper->readEnabled = false;
+    }
+    return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Notify the handler about write events
+  //----------------------------------------------------------------------------
+  bool PollerLibEvent::NotifyWrite( Socket  *socket,
+                                    bool     notify,
+                                    uint16_t timeout )
+  {
+    Log *log = Utils::GetDefaultLog();
+
+    //--------------------------------------------------------------------------
+    // Check if the socket is registered
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper( pMutex );
+    SocketMap::const_iterator it = pSocketMap.find( socket );
+    if( it == pSocketMap.end() )
+    {
+      log->Warning( PollerMsg, "Socket %s is not registered",
+                               socket->GetName().c_str() );
+      return false;
+    }
+
+    PollerHelper *helper = (PollerHelper*)it->second;
+
+    //--------------------------------------------------------------------------
+    // Enable write notifications
+    //--------------------------------------------------------------------------
+    if( notify )
+    {
+      if( helper->writeEnabled )
+        return true;
+
+      log->Debug( PollerMsg, "Enable write notifications on: %s",
+                             socket->GetName().c_str() );
+
+      //------------------------------------------------------------------------
+      // Create the read event if it doesn't exist
+      //------------------------------------------------------------------------
+      if( !helper->writeEvent )
+      {
+        event *ev = ::event_new( pEventBase, socket->GetFD(),
+                                 EV_TIMEOUT|EV_WRITE|EV_PERSIST,
+                                 WriteEventCallback, it->second );
+
+        if( !ev )
+        {
+          log->Error( PollerMsg, "Unable to create a write event for %s",
+                                 socket->GetName().c_str() );
+          return false;
+        }
+
+        helper->writeEvent = ev;
+      }
+
+      //------------------------------------------------------------------------
+      // Add the event to the loop
+      //------------------------------------------------------------------------
+      timeval tOut = { timeout, 0 };
+      if( ::event_add( helper->writeEvent, &tOut ) != 0 )
+      {
+        log->Error( PollerMsg, "Unable to register a write event for %s",
+                               socket->GetName().c_str() );
+        return false;
+      }
+
+      helper->writeEnabled = true;
+    }
+
+    //--------------------------------------------------------------------------
+    // Disable read notifications
+    //--------------------------------------------------------------------------
+    else
+    {
+      if( !helper->writeEnabled )
+        return true;
+
+      log->Debug( PollerMsg, "Disable write notifications on: %s",
+                             socket->GetName().c_str() );
+
+      if( ::event_del( helper->writeEvent ) != 0 )
+      {
+        log->Error( PollerMsg, "Failed to unregister the write event for %s" );
+        return false;
+      }
+
+      helper->writeEnabled = false;
+    }
     return true;
   }
 
