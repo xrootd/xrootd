@@ -97,6 +97,7 @@ namespace XrdClient
       pSocket      = -1;
       pSockName    = "";
       pPeerName    = "";
+      pName        = "";
     }
   }
 
@@ -409,5 +410,24 @@ namespace XrdClient
     XrdSysDNS::IPFormat( &sockAddr, nameBuff, sizeof(nameBuff) );
     pPeerName = nameBuff;
     return pPeerName;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the string representation of the socket
+  //----------------------------------------------------------------------------
+  std::string Socket::GetName() const
+  {
+    if( !IsConnected() )
+      return "<x><--><x>";
+
+    if( pName.length() )
+      return pName;
+
+    pName = "<";
+    pName += GetSockName();
+    pName += "><--><";
+    pName += GetPeerName();
+    pName += ">";
+    return pName;
   }
 }

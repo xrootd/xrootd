@@ -96,6 +96,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       std::string GetPeerName() const;
 
+      //------------------------------------------------------------------------
+      //! Get the string representation of the socket
+      //------------------------------------------------------------------------
+      std::string GetName() const;
+
     private:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -116,6 +121,7 @@ namespace XrdClient
       bool                pIsConnected;
       mutable std::string pSockName;     // mutable because it's for caching
       mutable std::string pPeerName;
+      mutable std::string pName;
   };
 }
 
