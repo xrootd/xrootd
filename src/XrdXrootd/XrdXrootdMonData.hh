@@ -37,7 +37,7 @@ struct XrdXrootdMonTrace
 
 struct XrdXrootdMonBuff
        {XrdXrootdMonHeader hdr;
-        XrdXrootdMonTrace  info[1];    // Actually this is [n]
+        XrdXrootdMonTrace  info[sizeof(XrdXrootdMonTrace)]; //This is really [n]
        };
 
 struct XrdXrootdMonMap
