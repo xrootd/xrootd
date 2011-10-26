@@ -25,6 +25,8 @@
 
 #define XROOTD_MON_INFO     1
 #define XROOTD_MON_STAGE    2
+#define XROOTD_MON_MIGR     4
+#define XROOTD_MON_PURGE    8
 
 class XrdFrmMonitor
 {
@@ -36,6 +38,8 @@ static int               Init();
 
 static kXR_unt32         Map(const char code,const char *uname,const char *path);
 
+static char              monMIGR;
+static char              monPURGE;
 static char              monSTAGE;
 
                          XrdFrmMonitor();

@@ -739,7 +739,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                                       [flush [io] <sec>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [files] [info] [io] [iov] [redir] [stage] [user] <host:port>
+   Events: [files] [info] [io] [iov] [migr] [purge] [redir] [stage] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
@@ -754,6 +754,8 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
          iov                like I/O but also unwinds vector reads.
+         migr               monitors file migr  operations
+         purge              monitors file purge operations
          redir              monitors request redirections
          stage              monitors file stage operations
          user               monitors user login and disconnect events.
@@ -817,6 +819,8 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
               else if (!strcmp("iov",  val)) monMode[i] |= (XROOTD_MON_IOV
                                                            |XROOTD_MON_IOV);
+              else if (!strcmp("purge",val)) monMode[i] |=  XROOTD_MON_PURGE;
+              else if (!strcmp("migr", val)) monMode[i] |=  XROOTD_MON_MIGR;
               else if (!strcmp("redir",val)) monMode[i] |=  XROOTD_MON_REDR;
               else if (!strcmp("stage",val)) monMode[i] |=  XROOTD_MON_STAGE;
               else if (!strcmp("user", val)) monMode[i] |=  XROOTD_MON_USER;

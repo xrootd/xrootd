@@ -131,9 +131,10 @@ const char *XrdFrmTransfer::Fetch()
    XrdFrmTranArg cmdArg(&myEnv);
    struct stat pfnStat;
    time_t xfrET;
-   const char *eTxt;
-   char lfnpath[MAXPATHLEN+8], *Lfn, Rfn[MAXPATHLEN+256], *theSrc;
-   int iXfr, lfnEnd, rc, isURL = 0;
+   const char *eTxt, *retMsg = 0;
+   char lfnpath[MAXPATHLEN+1024+512+8], *Lfn, Rfn[MAXPATHLEN+256], *theSrc;
+   char pdBuff[1024];
+   int iXfr, pdSZ, lfnEnd, rc, isURL = 0;
    long long fSize = 0;
 
 // The remote source is either the url-lfn or a translated lfn
@@ -200,14 +201,18 @@ const char *XrdFrmTransfer::Fetch()
           }
       }
 
+// Setup program monitoring data
+//
+   pdSZ = (Config.xfrCmd[iXfr].Opts & Config.cmdXPD ? sizeof(pdBuff) : 0);
+
 // Now run the command to get the file and make sure the file is there
 // If it is, make sure that if a lock file exists its date/time is greater than
 // the file we just fetched; then rename it to be the correct name.
 //
    xfrET = time(0);
-   if (!(rc = cmdArg.theCmd->Run()))
+   if (!(rc = cmdArg.theCmd->Run(pdBuff, pdSZ)))
       {if ((rc = stat(xfrP->PFN, &pfnStat)))
-          Say.Emsg("Fetch", lfnpath, "fetched but not found!");
+          {Say.Emsg("Fetch", lfnpath, "fetched but not found!"); fSize = 0;}
           else {fSize  = pfnStat.st_size;
                 if (Config.xfrCmd[iXfr].Opts & Config.cmdAlloc)
                    FetchDone(lfnpath, pfnStat, rc);
@@ -220,37 +225,38 @@ const char *XrdFrmTransfer::Fetch()
    if (rc)
       {Config.ossFS->Unlink(lfnpath);
        ffMake(rc == -2);
-       if (rc == -2) {xfrP->RetCode = 2; return "file not found";}
-       return "fetch failed";
-      }
-   if (Config.cmsPath) Config.cmsPath->Have(Lfn);
+       if (rc == -2) {xfrP->RetCode = 2; retMsg = "file not found";}
+          else retMsg =  "fetch failed";
+      } else if (Config.cmsPath) Config.cmsPath->Have(Lfn);
 
-// We completed successfully, see if we need to do statistics
+// We completed, see if we need to do statistics
 //
-   if ((Config.xfrCmd[iXfr].Opts & Config.cmdStats) || Config.monStage
+   if ((Config.xfrCmd[iXfr].Opts & Config.cmdStats) || XrdFrmMonitor::monSTAGE
    ||  (Trace.What & TRACE_Debug))
       {time_t eNow = time(0);
        int inqT, xfrT;
        inqT = static_cast<int>(xfrET - time_t(xfrP->reqData.addTOD));
        if ((xfrT = static_cast<int>(eNow - xfrET)) <= 0) xfrT = 1;
-       if ((Config.xfrCmd[iXfr].Opts & Config.cmdStats) 
-       ||  (Trace.What & TRACE_Debug))
+       if (((Config.xfrCmd[iXfr].Opts & Config.cmdStats)
+       ||   (Trace.What & TRACE_Debug)) && !retMsg)
           {char sbuff[80];
-           sprintf(sbuff, "Got: %lld qt: %d xt: %d up: ",fSize,inqT,xfrT);
+           sprintf(sbuff, "Got: %lld qt: %d xt: %d up: ", fSize, inqT, xfrT);
            lfnpath[lfnEnd] = '\0';
            Say.Say(0, sbuff, xfrP->reqData.User, " ", lfnpath);
           }
-       if (Config.monStage)
-          {snprintf(lfnpath+lfnEnd, sizeof(lfnpath)-lfnEnd-1,
-                    "\n&tod=%lld&sz=%lld&qt=%d&tm=%d",
-                    static_cast<long long>(eNow), fSize, inqT, xfrT);
+       if (XrdFrmMonitor::monSTAGE)
+          {if (rc < 0) rc = -rc;
+           snprintf(lfnpath+lfnEnd, sizeof(lfnpath)-lfnEnd-1,
+                    "\n&tod=%lld&sz=%lld&qt=%d&tm=%d&op=%c&rc=%d%s%s",
+                    static_cast<long long>(eNow), fSize, inqT, xfrT,
+                    xfrP->Act, rc, (pdSZ ? "&pd=" : ""), (pdSZ ? pdBuff : ""));
            XrdFrmMonitor::Map(XROOTD_MON_MAPSTAG,xfrP->reqData.User,lfnpath);
           }
      }
 
 // All done
 //
-   return 0;
+   return retMsg;
 }
 
 /******************************************************************************/
@@ -446,7 +452,7 @@ void XrdFrmTransfer::Start()
 
          if (xfrP->RetCode || Config.Verbose)
             {char buff1[80], buff2[80];
-             sprintf(buff1, "%s for %s ", xfrP->RetCode ? "failed" : "complete",
+             sprintf(buff1, "%s for %s", xfrP->RetCode ? "failed" : "complete",
                                           xfrP->reqData.User);
              if (xfrP->RetCode == 0) *buff2 = 0;
                 else sprintf(buff2, "; %s", (Msg ? Msg : "reason unknown"));
@@ -536,10 +542,11 @@ const char *XrdFrmTransfer::Throw()
    struct stat begStat, endStat;
    XrdFrmTranChk Chk(&begStat);
    time_t xfrET;
-   const char *eTxt;
-   char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest;
+   const char *eTxt, *retMsg = 0;
+   char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest, pF = '0';
+   char pdBuff[1024];
    int isMigr = xfrP->reqData.Options & XrdFrcRequest::Migrate;
-   int iXfr, isURL, rc, mDP = -1;
+   int iXfr, isURL, pdSZ, rc, mDP = -1;
 
 // The remote source is either the url-lfn or a translated lfn
 //
@@ -591,58 +598,79 @@ const char *XrdFrmTransfer::Throw()
       mDP = TrackDC(lfnpath+xfrP->reqData.LFO, cmdArg.theMDP, Rfn);
    if (!SetupCmd(&cmdArg)) return "outgoing transfer setup failed";
 
+// Setup program monitoring data
+//
+   pdSZ = (Config.xfrCmd[iXfr].Opts & Config.cmdXPD ? sizeof(pdBuff) : 0);
+
 // Now run the command to put the file. If the command fails and this is a
 // migration request, cretae a fail file if one does not exist.
 //
    xfrET = time(0);
-   if ((rc = cmdArg.theCmd->Run()))
-      {if (isMigr) ffMake(rc == 2);
-       return "copy failed";
+   if ((rc = cmdArg.theCmd->Run(pdBuff, pdSZ)))
+      {if (isMigr) ffMake(rc == -2);
+       retMsg = "copy failed";
       }
 
 // Track directory creations if we need to track them
 //
-   if (mDP >= 0) TrackDC(Rfn);
+   if (!rc && mDP >= 0) TrackDC(Rfn);
 
-// Obtain state of the file after the copy
+// Obtain state of the file after the copy and make sure the file was not
+// modified during the copy. This is an error for queued requests but
+// internally generated requests will simply be retried.
 //
-   if (stat(xfrP->PFN, &endStat))
-      {Say.Emsg("Throw", lfnpath, "transfered but not found!");
-       return "unable to verify copy";
-      }
-
-// Make sure the file was not modified during the copy. This is an error for
-// queued requests but internally generated requests will simply be retried.
-//
-   if (begStat.st_mtime != endStat.st_mtime
-    || begStat.st_size  != endStat.st_size)
-      {Say.Emsg("Throw", lfnpath, "modified during transfer!");
-       return "file modified during copy";
-      }
+   if (!rc)
+      {if ((rc = stat(xfrP->PFN, &endStat)))
+          {Say.Emsg("Throw", lfnpath, "transfered but not found!");
+           retMsg = "unable to verify copy";
+          } else {
+           if (begStat.st_mtime != endStat.st_mtime
+           || begStat.st_size  != endStat.st_size)
+              {Say.Emsg("Throw", lfnpath, "modified during transfer!");
+               retMsg = "file modified during copy"; rc = 1;
+              }
+          }
+        }
 
 // Purge the file if so wanted. Otherwise, if this is a migration request,
 // make sure that if a lock file exists its date/time is equal to the file
 // we just copied to prevent the file from being copied again (we have a lock).
 //
-   if (xfrP->reqData.Options & XrdFrcRequest::Purge) Throwaway();
-      else if (isMigr) ThrowDone(&Chk, endStat.st_mtime);
+   if (!rc)
+      {if (xfrP->reqData.Options & XrdFrcRequest::Purge) {Throwaway(); pF='1';}
+          else if (isMigr) ThrowDone(&Chk, endStat.st_mtime);
+      }
 
 // Do statistics if so wanted
 //
-   if ((Config.xfrCmd[iXfr].Opts & Config.cmdStats) 
+   if ((Config.xfrCmd[iXfr].Opts & Config.cmdStats)  || XrdFrmMonitor::monMIGR
    ||  (Trace.What & TRACE_Debug))
-      {int inqT, xfrT;
-       long long Fsize = endStat.st_size;
-       char sbuff[80];
+      {time_t eNow = time(0);
+       int inqT, xfrT;
+       long long Fsize = begStat.st_size;
        inqT = static_cast<int>(xfrET - time_t(xfrP->reqData.addTOD));
-       if ((xfrT = static_cast<int>(time(0) - xfrET)) <= 0) xfrT = 1;
-       sprintf(sbuff, "Put: %lld qt: %d xt: %d up: ",Fsize,inqT,xfrT);
-       Say.Say(0, sbuff, xfrP->reqData.User, " ", xfrP->reqData.LFN);
+       if ((xfrT = static_cast<int>(eNow - xfrET)) <= 0) xfrT = 1;
+       if (((Config.xfrCmd[iXfr].Opts & Config.cmdStats)
+       ||   (Trace.What & TRACE_Debug)) && !rc)
+          {char sbuff[80];
+           sprintf(sbuff, "Put: %lld qt: %d xt: %d up: ",Fsize,inqT,xfrT);
+           Say.Say(0, sbuff, xfrP->reqData.User, " ", xfrP->reqData.LFN);
+          }
+       if (XrdFrmMonitor::monMIGR)
+          {char monBuff[MAXPATHLEN+1024+512+8];
+           if (rc < 0) rc = -rc;
+           snprintf(monBuff, sizeof(monBuff),
+                    "%s\n&tod=%lld&sz=%lld&qt=%d&tm=%d&op=%c&rc=%d%s%s",
+                    xfrP->reqData.LFN, static_cast<long long>(eNow), Fsize,
+                    inqT, xfrT, xfrP->Act, pF, rc,
+                    (pdSZ ? "&pd=" : ""), (pdSZ ? pdBuff : ""));
+           XrdFrmMonitor::Map(XROOTD_MON_MAPMIGR,xfrP->reqData.User,monBuff);
+          }
      }
 
 // All done
 //
-   return 0;
+   return retMsg;
 }
 
 /******************************************************************************/
@@ -654,12 +682,13 @@ void XrdFrmTransfer::Throwaway()
    EPNAME("Throwaway");
 
 // Purge the file. We do this via the pfn but also indicate we want all
-// migration support suffixes removed it they exist.
+// migration support suffixes removed it they exist. Notify the cmsd & cnsd.
 //
    if (Config.Test) {DEBUG("Would have removed '" <<xfrP->PFN <<"'");}
       else {Config.ossFS->Unlink(xfrP->PFN, XRDOSS_isPFN|XRDOSS_isMIG);
             DEBUG("removed '" <<xfrP->PFN <<"'");
             if (Config.cmsPath) Config.cmsPath->Gone(xfrP->PFN);
+            XrdFrmCns::Rm(xfrP->PFN);
            }
 }
   

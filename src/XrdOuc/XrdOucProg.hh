@@ -10,8 +10,6 @@
 /*                DE-AC03-76-SFO0515 with the Deprtment of Energy             */
 /******************************************************************************/
 
-//          $Id$
-
 #include <sys/types.h>
 
 class XrdSysError;
@@ -61,6 +59,9 @@ int          Run(XrdOucStream *Sp,  const char *arg1=0, const char *arg2=0,
 int          Run(const char *arg1=0, const char *arg2=0,
                  const char *arg3=0, const char *arg4=0);
 
+int          Run(char *outBuff, int outBsz,
+                 const char *arg1=0, const char *arg2=0,
+                 const char *arg3=0, const char *arg4=0);
 
 // Start executes the command that was passed via Setup(). The started
 // program is expected to linger so that you can send directives to it
@@ -83,6 +84,7 @@ int          Setup(const char *prog,
 /******************************************************************************/
   
 private:
+  int           RunDone(XrdOucStream &cmd);
   int           Restart();
   XrdSysError  *eDest;
   XrdOucStream *myStream;

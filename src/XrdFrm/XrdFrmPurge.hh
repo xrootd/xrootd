@@ -50,6 +50,7 @@ const  char         *Eligible(XrdFrmFileset *sP, time_t &xTime, int hTime=0);
 static XrdFrmPurge  *Find(const char *snp);
 static int           LowOnSpace();
        int           PurgeFile();
+       int           PurgeFile(XrdFrmFileset *fP, const char *pFN);
 static void          Scan();
 static void          Stats(int Final);
        void          Track(XrdFrmFileset *sP);

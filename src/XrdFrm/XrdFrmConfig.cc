@@ -153,7 +153,6 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
    ossLib   = 0;
    cmsPath  = 0;
-   monStage = 0;
    haveCMS  = 0;
    isOTO    = 0;
    Test     = 0;
@@ -995,6 +994,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "polprog"       )) return xpolprog();
        if (!strcmp(var, "oss.space"     )) return xspace(1);
        if (!strcmp(var, "waittime"      )) return xitm("purge wait",WaitPurge);
+       if (!strcmp(var, "xrootd.monitor")) return xmon();
       }
 
    // No match found, complain.
@@ -1052,7 +1052,14 @@ int XrdFrmConfig::ConfigXfr()
 
 // Finally configure monitoring
 //
-   isBad |= (monStage &&!XrdFrmMonitor::Init());
+   if (XrdFrmMonitor::monSTAGE||XrdFrmMonitor::monPURGE||XrdFrmMonitor::monMIGR)
+      {if (!XrdFrmMonitor::Init()) isBad = 1;
+          else {if (!XrdFrmMonitor::monSTAGE)
+                   {xfrCmd[0].Opts &= ~cmdXPD; xfrCmd[2].Opts &= ~cmdXPD;}
+                if (!XrdFrmMonitor::monMIGR)
+                   {xfrCmd[1].Opts &= ~cmdXPD; xfrCmd[3].Opts &= ~cmdXPD;}
+               }
+      }
 
 // All done
 //
@@ -1333,7 +1340,7 @@ int XrdFrmConfig::xcnsd()
 
    Purpose:  To parse the directive: copycmd [Options] cmd [args]
 
-   Options:  [in] [out] [stats] [timeout <sec>] [url] cmd [args]
+   Options:  [in] [out] [stats] [timeout <sec>] [url] [xpd] cmd [args]
 
              in        use command for incomming copies.
              noalloc   do not pre-allocate space for incomming copies.
@@ -1341,11 +1348,13 @@ int XrdFrmConfig::xcnsd()
              stats     print transfer statistics in the log.
              timeout   how long the cmd can run before it is killed.
              url       use command for url-based transfers.
+             xpd       extend monitoring with program data.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcopy()
 {  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0;
+   int monPD = 0;
    char *val, *theCmd = 0;
    struct copyopts {const char *opname; int *oploc;} cpopts[] =
          {
@@ -1354,7 +1363,8 @@ int XrdFrmConfig::xcopy()
           {"noalloc",&noAlo},
           {"stats",  &Stats},
           {"timeout",&TLim},
-          {"url",    &cmdUrl}
+          {"url",    &cmdUrl},
+          {"xpd",    &monPD}
          };
    int i, n, numopts = sizeof(cpopts)/sizeof(struct copyopts);
 
@@ -1392,6 +1402,7 @@ int XrdFrmConfig::xcopy()
           {if (xfrCmd[n].theCmd) free(xfrCmd[n].theCmd);
            xfrCmd[n].theCmd = strdup(theCmd);
            if (Stats)  xfrCmd[n].Opts  |= cmdStats;
+           if (monPD)  xfrCmd[n].Opts  |= cmdXPD;
            if (hasMDP) xfrCmd[n].Opts  |= cmdMDP;
            if (noAlo)  xfrCmd[n].Opts  &=~cmdAlloc;
               else     xfrCmd[n].Opts  |= cmdAlloc;
@@ -1500,7 +1511,7 @@ int XrdFrmConfig::xitm(const char *What, int &tDest)
                                       [flush <sec>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [files] [info] [io] [stage] [user] <host:port>
+   Events: [files] [info] [io] [migr] [purge] [stage] [user]
 
          all                enables monitoring for all connections.
          mbuff  <sz>        size of message buffer.
@@ -1511,6 +1522,8 @@ int XrdFrmConfig::xitm(const char *What, int &tDest)
          files              only monitors file open/close events.
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
+         migr               monitors file migr  operations
+         purge              monitors file purge operations
          stage              monitors file stage operations
          user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
@@ -1563,6 +1576,8 @@ int XrdFrmConfig::xmon()
                    ||  !strcmp("io",   val)
                    ||  !strcmp("user", val)) {}
               else if (!strcmp("stage",val)) monMode[i] |=  XROOTD_MON_STAGE;
+              else if (!strcmp("migr", val)) monMode[i] |=  XROOTD_MON_MIGR;
+              else if (!strcmp("purge",val)) monMode[i] |=  XROOTD_MON_PURGE;
               else break;
           if (!val) {Say.Emsg("Config","monitor dest value not specified");
                      return 1;
@@ -1592,7 +1607,6 @@ int XrdFrmConfig::xmon()
 // Don't bother doing any more if staging is not enabled
 //
    if (!monMode[0] && !monMode[1]) return 0;
-   monStage = 1;
 
 // Set the monitor defaults
 //

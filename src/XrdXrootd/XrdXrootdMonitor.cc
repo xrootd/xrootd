@@ -57,6 +57,8 @@ kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
 char               XrdXrootdMonitor::monINFO    = 0;
 char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
+char               XrdXrootdMonitor::monMIGR    = 0;
+char               XrdXrootdMonitor::monPURGE   = 0;
 char               XrdXrootdMonitor::monREDR    = 0;
 char               XrdXrootdMonitor::monSTAGE   = 0;
 char               XrdXrootdMonitor::monUSER    = 0;
@@ -299,6 +301,8 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    monIO     = (mmode & XROOTD_MON_IOV  ? 2 : monIO);
    monINFO   = (mmode & XROOTD_MON_INFO ? 1 : 0);
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
+   monMIGR   = (mmode & XROOTD_MON_MIGR ? 1 : 0);
+   monPURGE  = (mmode & XROOTD_MON_PURGE? 1 : 0);
    monREDR   = (mmode & XROOTD_MON_REDR ? 1 : 0);
    monSTAGE  = (mmode & XROOTD_MON_STAGE? 1 : 0);
    monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
@@ -459,8 +463,10 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
 
 // Route the packet to all destinations that need them
 //
-        if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
-   else if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
+        if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
+   else if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
+   else if (code == XROOTD_MON_MAPMIGR) montype = XROOTD_MON_MIGR;
+   else if (code == XROOTD_MON_MAPPURG) montype = XROOTD_MON_PURGE;
    else if (code == XROOTD_MON_MAPSTAG) montype = XROOTD_MON_STAGE;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);

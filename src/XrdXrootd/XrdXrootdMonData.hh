@@ -17,7 +17,7 @@
 /******************************************************************************/
   
 struct XrdXrootdMonHeader
-       {kXR_char   code;         // 'd' | 'i' | 'r' | 't' | 'u'
+       {kXR_char   code;         // 'd' | 'i' | 'm' | 'r' | 's' | 't' | 'u'
         kXR_char   pseq;         // packet sequence
         kXR_unt16  plen;         // packet length
         kXR_int32  stod;         // Unix time at Server Start
@@ -55,6 +55,8 @@ const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
 const kXR_char XROOTD_MON_MAPPATH       = 'd';
 const kXR_char XROOTD_MON_MAPINFO       = 'i';
+const kXR_char XROOTD_MON_MAPMIGR       = 'm';
+const kXR_char XROOTD_MON_MAPPURG       = 'p';
 const kXR_char XROOTD_MON_MAPREDR       = 'r';
 const kXR_char XROOTD_MON_MAPSTAG       = 's';
 const kXR_char XROOTD_MON_MAPTRCE       = 't';

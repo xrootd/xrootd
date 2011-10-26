@@ -27,6 +27,7 @@
 #include "XrdFrm/XrdFrmFiles.hh"
 #include "XrdFrm/XrdFrmCns.hh"
 #include "XrdFrm/XrdFrmConfig.hh"
+#include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdFrm/XrdFrmPurge.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -600,7 +601,6 @@ do{psP = First;
 int XrdFrmPurge::PurgeFile()
 {
    EPNAME("PurgeFile");
-   static const int unOpts = XRDOSS_isPFN|XRDOSS_isMIG;
    XrdFrmFileset *fP;
    const char *fn, *Why;
    time_t xTime;
@@ -617,9 +617,7 @@ do{if (!(fP = FSTab.Oldest()) && !(fP = Advance()))
    if (fP->Refresh() && !(Why = Eligible(fP, xTime, Hold))
    && (!Ext || !(Why = XPolOK(fP))))
       {fn = fP->basePath();
-       if (Config.Test) rc = 0;
-          else if (!(rc = Config.ossFS->Unlink(fn, unOpts)) && Config.cmsPath)
-                  {Config.cmsPath->Gone(fn); XrdFrmCns::Rm(fn);}
+       rc = (Config.Test ? 0 : PurgeFile(fP, fn));
        if (!rc) {prgFiles++; FilePurged = 1;
                  freeSpace += fP->baseFile()->Stat.st_size;
                  purgBytes += fP->baseFile()->Stat.st_size;
@@ -633,7 +631,52 @@ do{if (!(fP = FSTab.Oldest()) && !(fP = Advance()))
 //
    return freeSpace >= maxFSpace || Stop;
 }
+
+/******************************************************************************/
   
+int XrdFrmPurge::PurgeFile(XrdFrmFileset *fP, const char *pFN)
+{
+   static const char *Me = "frm_purged:0.0@localhost";
+   static const int unOpts = XRDOSS_isPFN|XRDOSS_isMIG;
+   XrdOucNSWalk::NSEnt *bfP;
+   char mBuff[MAXPATHLEN+1024];
+   int n, rc, isLFN = 0;
+
+// First try to unlink the file
+//
+   if ((rc = Config.ossFS->Unlink(pFN, unOpts))) return rc;
+
+// Now convert pfn to lfn
+//
+   if (!(isLFN = Config.LogicalPath(pFN, mBuff, sizeof(mBuff))))
+      strcpy(mBuff,pFN);
+
+// Notify the cmsd and the cnsd
+//
+   if (Config.cmsPath) Config.cmsPath->Gone(mBuff, !isLFN);
+   XrdFrmCns::Rm(mBuff, isLFN);
+
+// Monitor this event
+//
+   if (XrdFrmMonitor::monPURGE)
+      {n = strlen(mBuff);
+       bfP = fP->baseFile();
+       snprintf(mBuff+n, sizeof(mBuff)-n,
+                "\n&tod=%lld&sz=%lld&at=%lld&ct=%lld&mt=%lld&fn=%c",
+                static_cast<long long>(time(0)),
+                static_cast<long long>(bfP->Stat.st_size),
+                static_cast<long long>(bfP->Stat.st_atime),
+                static_cast<long long>(bfP->Stat.st_ctime),
+                static_cast<long long>(bfP->Stat.st_mtime),
+                (isLFN ? 'l' : 'p'));
+       XrdFrmMonitor::Map(XROOTD_MON_MAPPURG, Me, mBuff);
+      }
+
+// All done
+//
+   return 0;
+}
+
 /******************************************************************************/
 /* Private:                         S c a n                                   */
 /******************************************************************************/

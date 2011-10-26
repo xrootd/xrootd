@@ -39,6 +39,8 @@ int                XrdFrmMonitor::monMode2   = 0;
 struct sockaddr    XrdFrmMonitor::InetAddr2;
 kXR_int32          XrdFrmMonitor::startTime  = 0;
 int                XrdFrmMonitor::isEnabled  = 0;
+char               XrdFrmMonitor::monMIGR    = 0;
+char               XrdFrmMonitor::monPURGE   = 0;
 char               XrdFrmMonitor::monSTAGE   = 0;
 
 /******************************************************************************/
@@ -69,6 +71,8 @@ void XrdFrmMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 
 // Set overall monitor mode
 //
+   monMIGR   = ((mode1 | mode2) & XROOTD_MON_MIGR  ? 1 : 0);
+   monPURGE  = ((mode1 | mode2) & XROOTD_MON_PURGE ? 1 : 0);
    monSTAGE  = ((mode1 | mode2) & XROOTD_MON_STAGE ? 1 : 0);
 
 // Do final check
@@ -126,21 +130,12 @@ int XrdFrmMonitor::Init()
 kXR_unt32 XrdFrmMonitor::Map(const char code,
                                    const char *uname, const char *path)
 {
-     static XrdSysMutex  seqMutex;
-     static unsigned int monSeqID = 1;
      XrdXrootdMonMap     map;
      int                 size, montype;
-     unsigned int        mySeqID;
 
-// Assign a unique ID for this entry
+// Copy in the username and path the dictid is always zero for us.
 //
-   seqMutex.Lock();
-   mySeqID = monSeqID++;
-   seqMutex.UnLock();
-
-// Copy in the username and path
-//
-   map.dictid = htonl(mySeqID);
+   map.dictid = 0;
    strcpy(map.info, uname);
    size = strlen(uname);
    if (path)
@@ -153,10 +148,13 @@ kXR_unt32 XrdFrmMonitor::Map(const char code,
 //
    size = sizeof(XrdXrootdMonHeader)+sizeof(kXR_int32)+size;
    fillHeader(&map.hdr, code, size);
+cerr <<"Mon send "<<code <<": " <<map.info <<endl;
 
 // Route the packet to all destinations that need them
 //
         if (code == XROOTD_MON_MAPSTAG) montype = XROOTD_MON_STAGE;
+   else if (code == XROOTD_MON_MAPMIGR) montype = XROOTD_MON_MIGR;
+   else if (code == XROOTD_MON_MAPPURG) montype = XROOTD_MON_PURGE;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);
 
@@ -201,7 +199,6 @@ int XrdFrmMonitor::Send(int monMode, void *buff, int blen)
     EPNAME("Send");
     static XrdSysMutex sendMutex;
     int rc1, rc2;
-
     sendMutex.Lock();
     if (monMode & monMode1 && monFD1 >= 0)
        {rc1  = (int)sendto(monFD1, buff, blen, 0,

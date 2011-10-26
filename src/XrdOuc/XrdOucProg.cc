@@ -144,6 +144,55 @@ int XrdOucProg::Run(const char *arg1, const char *arg2,
    while((lp = cmd.GetLine()))
         if (eDest && *lp) eDest->Emsg("Run", lp);
 
+// All done
+//
+   return RunDone(cmd);
+}
+/******************************************************************************/
+
+int XrdOucProg::Run(char *outBuff, int outBsz,
+                    const char *arg1, const char *arg2,
+                    const char *arg3, const char *arg4)
+{
+   XrdOucStream cmd;
+   char *lp, *tp;
+   int n, rc;
+
+// Execute the command
+//
+   if ((rc = Run(&cmd, arg1, arg2, arg3, arg4))) return rc;
+
+// Drain the first line to the output buffer
+//
+   if (outBuff && outBsz > 0)
+      {if ((lp = cmd.GetLine()))
+          {while (*lp && *lp == ' ') lp++;
+           if ((n = strlen(lp)))
+              {tp = lp+n-1;
+               while(*tp-- == ' ') n--;
+               if (n >= outBsz) n = outBsz-1;
+               strncpy(outBuff, lp, n); outBuff += n;
+              }
+          }
+       *outBuff = 0;
+      }
+
+// Drain remaining output
+//
+   while((lp = cmd.GetLine())) {}
+
+// All done
+//
+   return RunDone(cmd);
+}
+
+/******************************************************************************/
+/*                               R u n D o n e                                */
+/******************************************************************************/
+int XrdOucProg::RunDone(XrdOucStream &cmd)
+{
+   int rc;
+
 // Drain the command
 //
    rc = cmd.Drain();

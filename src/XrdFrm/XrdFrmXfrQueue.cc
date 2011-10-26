@@ -134,7 +134,8 @@ int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
    xP->pfnEnd   = strlen(lclpath);
    xP->RetCode  = 0;
    xP->qNum     = qNum;
-   xP->Type     = xfrType;
+   xP->Act      =*xfrType;
+   xP->Type     = xfrType+1;
 
 // Add this to the table of requests
 //
@@ -474,21 +475,21 @@ const char *XrdFrmXfrQueue::xfrName(XrdFrcRequest &reqData, int qNum)
 //
    switch(qNum)
          {case XrdFrcRequest::getQ:
-               return "CopyIn ";
+               return "1CopyIn ";
                break;
           case XrdFrcRequest::migQ: 
                return (reqData.Options & XrdFrcRequest::Purge ?
-                       "Migr+rm ":"Migrate ");
+                       "3Migr+rm ":"2Migrate ");
                break;
           case XrdFrcRequest::putQ:
                return (reqData.Options&XrdFrcRequest::Purge ?
-                       "Copy+rm " : "CopyOut ");
+                       "5Copy+rm " : "4CopyOut ");
                break;
           case XrdFrcRequest::stgQ:
-               return "Staging ";
+               return "6Staging ";
                break;
           default:   break;
          }
 
-   return "Unknown ";
+   return "0Unknown ";
 }

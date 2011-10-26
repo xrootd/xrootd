@@ -30,5 +30,6 @@ char           PFN[MAXPATHLEN+16];
 int            pfnEnd;
 int            RetCode;
 int            qNum;
+char           Act;
 };
 #endif

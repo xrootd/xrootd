@@ -81,7 +81,7 @@ void XrdFrmXfrAgent::Add(XrdOucStream   &Request, char *Tok,
 
    if (!Miss)
       {if (!(tp = Request.GetToken())) Miss = "mode";
-          else myReq.Options = XrdFrcUtils::MapM2O(myReq.Notify, tp);
+          else myReq.Options |= XrdFrcUtils::MapM2O(myReq.Notify, tp);
       }
 
    if (!Miss && !(tp = Request.GetToken())) Miss = "path";
