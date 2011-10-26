@@ -109,7 +109,7 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     syslog(LOG_INFO, "INFO: Not compiled to use task queue");
 #endif
 
-    fchdir(cwdfd);
+    if (fchdir(cwdfd)) {};
     close(cwdfd);
 
     return NULL;
