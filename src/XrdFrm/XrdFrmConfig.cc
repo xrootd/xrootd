@@ -472,6 +472,17 @@ int XrdFrmConfig::LogicalPath(const char *oldp, char *newp, int newpsz)
 }
 
 /******************************************************************************/
+/* Public:                      N e e d s C T A                               */
+/******************************************************************************/
+
+int XrdFrmConfig::NeedsCTA(const char *Lfn)
+{
+   extern XrdOucPListAnchor *XrdOssRPList;
+
+   return (XrdOssRPList->Find(Lfn) & XRDEXP_MAKELF) != 0;
+}
+
+/******************************************************************************/
 /* Public:                      P a t h O p t s                               */
 /******************************************************************************/
 

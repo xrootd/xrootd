@@ -269,7 +269,7 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, struct stat &Stat, int &rc)
 // If we are running in new mode, update file attributes
 //
    rc = 0;
-   if (Config.runNew)
+   if (Config.runNew && Config.NeedsCTA(lfnpath))
       {XrdOucXAttr<XrdFrcXAttrCpy> cpyInfo;
        cpyInfo.Attr.cpyTime = static_cast<long long>(Stat.st_mtime);
        if ((rc = cpyInfo.Set(xfrP->PFN)))
@@ -278,7 +278,7 @@ const char *XrdFrmTransfer::FetchDone(char *lfnpath, struct stat &Stat, int &rc)
 
 // Check for a lock file and if we have one, reset it's time or delete it
 //
-   if (Config.runOld)
+   if (Config.runOld && Config.NeedsCTA(lfnpath))
       {struct stat lkfStat;
        strcpy(&xfrP->PFN[xfrP->pfnEnd+5], ".lock");
        if (!stat(xfrP->PFN, &lkfStat))

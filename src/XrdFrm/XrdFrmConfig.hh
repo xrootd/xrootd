@@ -134,6 +134,8 @@ int          LocalPath  (const char *oldp, char *newp, int newpsz);
 
 int          LogicalPath(const char *oldp, char *newp, int newpsz);
 
+int          NeedsCTA(const char *Lfn);
+
 unsigned
 long long    PathOpts(const char *Lfn);
 

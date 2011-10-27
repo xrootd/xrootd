@@ -12,5 +12,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Do not create meta-files or update extended attributes when placing a
+     file into read-only space.
 
 + **Miscellaneous**
