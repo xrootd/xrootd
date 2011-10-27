@@ -11,12 +11,13 @@
 /******************************************************************************/
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucStats.hh"
 
 class XrdSfsFileSystem;
 class XrdStats;
 class XrdXrootdResponse;
 
-class XrdXrootdStats
+class XrdXrootdStats : public XrdOucStats
 {
 public:
 int              Count;        // Stats: Number of matches
@@ -36,8 +37,9 @@ long long        AsyncRej;     // Stats: Number of async rejected
 long long        AsyncNow;     // Stats: Number of async now (not locked)
 int              AsyncMax;     // Stats: Number of async max
 int              Refresh;      // Stats: Number of refresh requests
-
-XrdSysMutex      statsMutex;   // Mutex to serialize updates
+int              LoginAU;      // Stats: Number of   authenticated logins
+int              LoginUA;      // Stats: Number of unauthenticated logins
+int              AuthBad;      // Stats: Number of authentication failures
 
 void             setFS(XrdSfsFileSystem *fsp) {fsP = fsp;}
 

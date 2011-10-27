@@ -98,12 +98,6 @@ XrdObjectQ<XrdXrootdProtocol>
                                        "xrootd protocol anchor");
 
 /******************************************************************************/
-/*                         L o c a l   D e f i n e s                          */
-/******************************************************************************/
-  
-#define UPSTATS(x) SI->statsMutex.Lock(); SI->x++; SI->statsMutex.UnLock()
-
-/******************************************************************************/
 /*                       P r o t o c o l   L o a d e r                        */
 /*                        X r d g e t P r o t o c o l                         */
 /******************************************************************************/
@@ -288,7 +282,7 @@ int dlen, rc;
 
 // Bind the protocol to the link and return the protocol
 //
-   UPSTATS(Count);
+   SI->Bump(SI->Count);
    xp->Link = lp;
    xp->Response.Set(lp);
    strcpy(xp->Entity.prot, "host");
@@ -440,7 +434,7 @@ int XrdXrootdProtocol::Process2()
 
 // Update misc stats count
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Now process whatever we have
 //

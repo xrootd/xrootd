@@ -70,8 +70,6 @@ struct XrdXrootdSessID
 #define CRED (const XrdSecEntity *)Client
 
 #define TRACELINK Link
-
-#define UPSTATS(x) SI->statsMutex.Lock(); SI->x++; SI->statsMutex.UnLock()
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -128,7 +126,7 @@ int XrdXrootdProtocol::do_Auth()
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
       {const char *msg = (Status & XRD_ADMINUSER ? "admin login as"
                                                  : "login as");
-       rc = Response.Send(); Status &= ~XRD_NEED_AUTH;
+       rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (Monitor && XrdXrootdMonitor::monUSER) MonAuth();
        if (Client->name) 
@@ -160,6 +158,7 @@ int XrdXrootdProtocol::do_Auth()
 
 // We got an error, bail out.
 //
+   SI->Bump(SI->AuthBad);
    eText = eMsg.getErrText(rc);
    eDest.Emsg("Xeq", "User authentication failed;", eText);
    return Response.Send(kXR_NotAuthorized, eText);
@@ -179,7 +178,7 @@ int XrdXrootdProtocol::do_Bind()
 
 // Update misc stats count
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Find the link we are to bind to
 //
@@ -397,7 +396,7 @@ int XrdXrootdProtocol::do_Close()
 
 // Keep statistics
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Find the file object
 //
@@ -510,7 +509,7 @@ int XrdXrootdProtocol::do_Endsess()
 
 // Update misc stats count
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Extract out the FD and Instance from the session ID
 //
@@ -559,7 +558,7 @@ int XrdXrootdProtocol::do_Getfile()
 
 // Keep Statistics
 //
-   UPSTATS(getfCnt);
+   SI->Bump(SI->getfCnt);
 
 // Unmarshall the data
 //
@@ -635,7 +634,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Keep Statistics
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Unmarshall the data
 //
@@ -691,13 +690,13 @@ int XrdXrootdProtocol::do_Login()
                      }
           else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
                               : Response.Send());
-                Status = XRD_LOGGEDIN;
+                Status = XRD_LOGGEDIN; SI->Bump(SI->LoginUA);
                 if (pp) {Entity.tident = Link->ID; Client = &Entity;}
                }
       }
       else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
                           : Response.Send());
-            Status = XRD_LOGGEDIN;
+            Status = XRD_LOGGEDIN; SI->Bump(SI->LoginUA);
            }
 
 // Allocate a monitoring object, if needed for this connection
@@ -720,6 +719,7 @@ int XrdXrootdProtocol::do_Login()
    if (!(Status & XRD_NEED_AUTH))
       eDest.Log(SYS_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
                             ? "admin login" : "login"));
+
    return rc;
 }
 
@@ -951,7 +951,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Keep Statistics
 //
-   UPSTATS(openCnt);
+   SI->Bump(SI->openCnt);
 
 // Unmarshall the data
 //
@@ -988,7 +988,7 @@ int XrdXrootdProtocol::do_Open()
    if ((opts & kXR_async || as_force) && !as_noaio)
                                       {*op++ = 'a'; isAsync = '1';}
    if (opts & kXR_refresh)            {*op++ = 's'; openopts |= SFS_O_RESET;
-                                       UPSTATS(Refresh);
+                                       SI->Bump(SI->Refresh);
                                       }
    if (opts & kXR_retstat)            {*op++ = 't'; retStat = 1;}
    if (opts & kXR_posc)               {*op++ = 'p'; openopts |= SFS_O_POSC;}
@@ -1131,7 +1131,7 @@ int XrdXrootdProtocol::do_Ping()
 
 // Keep Statistics
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // This is a basic nop
 //
@@ -1264,7 +1264,7 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 
 // Keep Statistics
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Determine which response to provide
 //
@@ -1288,7 +1288,7 @@ int XrdXrootdProtocol::do_Putfile()
 
 // Keep Statistics
 //
-   UPSTATS(putfCnt);
+   SI->Bump(SI->putfCnt);
 
 // Unmarshall the data
 //
@@ -1381,7 +1381,7 @@ int XrdXrootdProtocol::do_Qfh()
 
 // Update misc stats count
 //
-   UPSTATS(miscCnt);
+   SI->Bump(SI->miscCnt);
 
 // Perform the appropriate query
 //
@@ -2074,7 +2074,7 @@ int XrdXrootdProtocol::do_Sync()
 
 // Keep Statistics
 //
-   UPSTATS(syncCnt);
+   SI->Bump(SI->syncCnt);
 
 // Find the file object
 //
@@ -2114,7 +2114,7 @@ int XrdXrootdProtocol::do_Truncate()
       {
        // Update misc stats count
        //
-          UPSTATS(miscCnt);
+          SI->Bump(SI->miscCnt);
 
       // Find the file object
       //
