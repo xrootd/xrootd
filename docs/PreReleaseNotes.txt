@@ -1,0 +1,16 @@
+======
+XRootD
+======
+
+Prerelease Notes
+================
+
++ **New Features**
+   * Allow configuration of staging, migration, and purging events.
+   * Allow transfer script to inject information into the monitoring stream.
+
++ **Major bug fixes**
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
