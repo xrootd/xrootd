@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
 
 #include <string.h>
 
@@ -22,6 +20,7 @@
 
 class XrdSfsFile;
 class XrdXrootdFileLock;
+class XrdXrootdMonitor;
 
 class XrdXrootdFile
 {
@@ -87,10 +86,12 @@ inline XrdXrootdFile *Get(int fnum)
                           return (XrdXrootdFile *)0;
                          }
 
+       void            Recycle(XrdXrootdMonitor *monP=0, int doDel=1);
+
        XrdXrootdFileTable() {memset((void *)FTab, 0, sizeof(FTab));
                              FTfree = 0; XTab = 0; XTnum = XTfree = 0;
                             }
-      ~XrdXrootdFileTable();
+      ~XrdXrootdFileTable() {Recycle(0, 0);}
 
 private:
 

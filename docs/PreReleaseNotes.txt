@@ -10,10 +10,14 @@ Prerelease Notes
    * Allow transfer script to inject information into the monitoring stream.
    * Report number of authentication failures, authenticated login, and
      unauthenticated logins in the summary statistics.
+   * Indicate whether a disconnect was forced and whether it was a parallel
+     path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Make sure to cut close records for open files during a forced disconnect
+     when monitoring file information.
    * Do not create meta-files or update extended attributes when placing a
      file into read-only space.
 

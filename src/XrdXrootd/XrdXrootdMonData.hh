@@ -62,4 +62,7 @@ const kXR_char XROOTD_MON_MAPSTAG       = 's';
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 
+const kXR_char XROOTD_MON_FORCED        = 0x01;
+const kXR_char XROOTD_MON_BOUNDP        = 0x02;
+
 #endif

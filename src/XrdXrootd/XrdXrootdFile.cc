@@ -20,6 +20,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #define  TRACELINK this
 #include "XrdXrootd/XrdXrootdTrace.hh"
  
@@ -118,30 +119,6 @@ XrdXrootdFile::~XrdXrootdFile()
 /*                   x r d _ F i l e T a b l e   C l a s s                    */
 /******************************************************************************/
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
-/******************************************************************************/
-  
-// WARNING! The object subject to this destructor must be serialized. There can
-// be no active requests on link associated with this object at the time the
-// destructor is called. The same restrictions apply to Add() and Del().
-//
-XrdXrootdFileTable::~XrdXrootdFileTable()
-{
-   int i;
-
-// Delete all objects from the internal table (see warning)
-//
-   for (i = 0; i < XRD_FTABSIZE; i++) if (FTab[i]) Del(i);
-
-// Delete all objects from the external table (see warning)
-//
-   if (XTab)
-      {for (i = 0; i < XTnum; i++)    if (XTab[i]) Del(i+XRD_FTABSIZE);
-       free(*XTab);
-      }
-}
-
-/******************************************************************************/
 /*                                   A d d                                    */
 /******************************************************************************/
   
@@ -216,6 +193,45 @@ void XrdXrootdFileTable::Del(int fnum)
    if (fp) delete fp;  // Will do the close
 }
 
+/******************************************************************************/
+/*                               R e c y c l e                                */
+/******************************************************************************/
+  
+// WARNING! The object subject to this method must be serialized. There can
+// be no active requests on link associated with this object at the time the
+// destructor is called. The same restrictions apply to Add() and Del().
+//
+void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, int doDel)
+{
+   int i;
+
+// Delete all objects from the internal table (see warning)
+//
+   FTfree = 0;
+   for (i = 0; i < XRD_FTABSIZE; i++)
+       if (FTab[i])
+          {if (monP) monP->Close(FTab[i]->FileID,FTab[i]->readCnt,
+                                                 FTab[i]->writeCnt);
+           delete FTab[i]; FTab[i] = 0;
+          }
+
+// Delete all objects from the external table (see warning)
+//
+if (XTab)
+  {for (i = 0; i < XTnum; i++)
+       if (XTab[i])
+          {if (monP) monP->Close(XTab[i]->FileID,XTab[i]->readCnt,
+                                                 XTab[i]->writeCnt);
+           delete XTab[i];
+          }
+       free(*XTab); XTab = 0; XTnum = 0; XTfree = 0;
+  }
+
+// Delete this object if not called from destructor
+//
+   if (doDel) delete this;
+}
+  
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/

@@ -246,7 +246,7 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 /*                                  D i s c                                   */
 /******************************************************************************/
 
-void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec)
+void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec, char Flags)
 {
   XrdXrootdMonitorLock mLock(this);
 
@@ -261,6 +261,7 @@ void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec)
       else if (nextEnt == lastEnt) Flush();
    monBuff->info[nextEnt].arg0.rTot[0]  = 0;
    monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_DISC;
+   monBuff->info[nextEnt].arg0.id[1]    = Flags;
    monBuff->info[nextEnt].arg1.wTot     = htonl(csec);
    monBuff->info[nextEnt++].arg2.dictid = dictid;
 

@@ -79,7 +79,7 @@ static XrdXrootdMonitor *Alloc(int force=0);
 
        void              Close(kXR_unt32 dictid, long long rTot, long long wTot);
 
-       void              Disc(kXR_unt32 dictid, int csec);
+       void              Disc(kXR_unt32 dictid, int csec, char Flags=0);
 
 static void              Defaults(char *dest1, int m1, char *dest2, int m2);
 static void              Defaults(int msz, int rsz, int wsz,
