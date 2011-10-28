@@ -37,6 +37,7 @@ long long        AsyncRej;     // Stats: Number of async rejected
 long long        AsyncNow;     // Stats: Number of async now (not locked)
 int              AsyncMax;     // Stats: Number of async max
 int              Refresh;      // Stats: Number of refresh requests
+int              LoginAT;      // Stats: Number of   attempted     logins
 int              LoginAU;      // Stats: Number of   authenticated logins
 int              LoginUA;      // Stats: Number of unauthenticated logins
 int              AuthBad;      // Stats: Number of authentication failures

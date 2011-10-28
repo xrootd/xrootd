@@ -634,7 +634,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Keep Statistics
 //
-   SI->Bump(SI->miscCnt);
+   SI->Bump(SI->LoginAT);
 
 // Unmarshall the data
 //

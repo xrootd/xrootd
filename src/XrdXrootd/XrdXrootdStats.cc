@@ -41,6 +41,7 @@ AsyncMax = 0;     // Stats: Number of async max
 AsyncRej = 0;     // Stats: Number of async rejected
 AsyncNow = 0;     // Stats: Number of async now (not locked)
 Refresh  = 0;     // Stats: Number of refresh requests
+LoginAT  = 0;     // Stats: Number of   attempted     logins
 LoginAU  = 0;     // Stats: Number of   authenticated logins
 LoginUA  = 0;     // Stats: Number of unauthenticated logins
 AuthBad  = 0;     // Stats: Number of authentication failures
@@ -57,7 +58,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
    "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
    "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
-   "<lgn><af>%d</af><au>%d</au><ua>%d</ua></stats>";
+   "<lgn>%d<af>%d</af><au>%d</au><ua>%d</ua></stats>";
    int len;
 
 // If no buffer, caller wants the maximum size we will generate
@@ -70,7 +71,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    len = snprintf(buff, blen, statfmt, Count, openCnt, Refresh, readCnt,
                   prerCnt, writeCnt, syncCnt, getfCnt, putfCnt, miscCnt,
                   AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt,
-                  AuthBad, LoginAU, LoginUA);
+                  LoginAT, AuthBad, LoginAU, LoginUA);
    statsMutex.UnLock();
 
 // Now include filesystem statistics and return

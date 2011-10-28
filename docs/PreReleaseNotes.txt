@@ -8,8 +8,8 @@ Prerelease Notes
 + **New Features**
    * Allow configuration of staging, migration, and purging events.
    * Allow transfer script to inject information into the monitoring stream.
-   * Report number of authentication failures, authenticated login, and
-     unauthenticated logins in the summary statistics.
+   * Report number of attempted login, authentication failures, successful
+     authenticated and unauthenticated logins in the summary statistics.
    * Indicate whether a disconnect was forced and whether it was a parallel
      path (as opposed to a control path) in the monitoring record.
 
