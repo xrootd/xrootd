@@ -106,7 +106,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
-                          "a:b:B:c:dD:e:E:i:I:l:L:N:p:q:R:");
+                          "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:");
    char buff[2048], *dP, *tP, *dnsEtxt = 0, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
    long long llval;
