@@ -16,6 +16,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Add 'k' to the option list. It was wrongly deleted in the last option
+     refalgamization.
    * Make sure to cut close records for open files during a forced disconnect
      when monitoring file information.
    * Do not create meta-files or update extended attributes when placing a
