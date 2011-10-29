@@ -169,6 +169,7 @@ XrdXrootdMonitor::~XrdXrootdMonitor()
   
 void XrdXrootdMonitor::appID(char *id)
 {
+   static const int apInfoSize = sizeof(XrdXrootdMonTrace)-4;
 
 // Application ID's are only meaningful for io event recording
 //
@@ -179,8 +180,7 @@ void XrdXrootdMonitor::appID(char *id)
    if (lastWindow != currWindow) Mark();
       else if (nextEnt == lastEnt) Flush();
    monBuff->info[nextEnt].arg0.id[0]  = XROOTD_MON_APPID;
-   strncpy((char *)&monBuff->info[nextEnt].arg0.id[4], id,
-           sizeof(XrdXrootdMonTrace)-4);
+   strncpy((char *)(&(monBuff->info[nextEnt])+4), id, apInfoSize);
 }
 
 /******************************************************************************/
