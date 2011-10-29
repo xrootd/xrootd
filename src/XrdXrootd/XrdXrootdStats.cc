@@ -58,7 +58,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
    "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
    "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
-   "<lgn>%d<af>%d</af><au>%d</au><ua>%d</ua></stats>";
+   "<lgn>%d<af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
    int len;
 
 // If no buffer, caller wants the maximum size we will generate
