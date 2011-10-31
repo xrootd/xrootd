@@ -14,6 +14,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Avoid SEGV in ClientSid class by making it fully thread-safe. This
+     largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
    * Add 'k' to the option list. It was wrongly deleted in the last option

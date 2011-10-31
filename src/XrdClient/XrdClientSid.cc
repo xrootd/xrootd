@@ -159,7 +159,7 @@ static int printoutreq(kXR_unt16,
 
 void XrdClientSid::PrintoutOutstandingRequests() {
   cerr << "-------------------------------------------------- start outstanding reqs dump. freesids: " << freesids.GetSize() << endl;
-
+  XrdSysMutexHelper l(fMutex);
   childsidnfo.Apply(printoutreq, this);
   cerr << "++++++++++++++++++++++++++++++++++++++++++++++++++++ end  outstanding reqs dump." << endl;
 }
@@ -232,6 +232,7 @@ static int countOutstandingWriteReq(kXR_unt16 sid,
 }
 
 int XrdClientSid::GetFailedOutstandingWriteRequests(kXR_unt16 fathersid, XrdClientVector<ClientRequest> &reqvect) {
+  XrdSysMutexHelper l(fMutex);
   sniffOutstandingFailedWriteReq_data data;
   data.reqs = &reqvect;
   data.fathersid = fathersid;
@@ -242,6 +243,7 @@ int XrdClientSid::GetFailedOutstandingWriteRequests(kXR_unt16 fathersid, XrdClie
 }
 
 int XrdClientSid::GetOutstandingWriteRequestCnt(kXR_unt16 fathersid) {
+  XrdSysMutexHelper l(fMutex);
   countOutstandingWriteReq_data data;
   data.fathersid = fathersid;
   data.cnt = 0;
@@ -252,6 +254,7 @@ int XrdClientSid::GetOutstandingWriteRequestCnt(kXR_unt16 fathersid) {
 
 
 int XrdClientSid::GetAllOutstandingWriteRequests(kXR_unt16 fathersid, XrdClientVector<ClientRequest> &reqvect) {
+  XrdSysMutexHelper l(fMutex);
   sniffOutstandingFailedWriteReq_data data;
   data.reqs = &reqvect;
   data.fathersid = fathersid;
