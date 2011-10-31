@@ -300,6 +300,9 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if the socket is already registered
     //--------------------------------------------------------------------------
+    if( !socket->IsConnected() )
+      return false;
+
     SocketMap::const_iterator it = pSocketMap.find( socket );
     if( it != pSocketMap.end() )
     {
@@ -381,9 +384,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Notify the handler about read events
   //----------------------------------------------------------------------------
-  bool PollerLibEvent::NotifyRead( Socket  *socket,
-                                   bool     notify,
-                                   uint16_t timeout )
+  bool PollerLibEvent::EnableReadNotification( Socket  *socket,
+                                               bool     enable,
+                                               uint16_t timeout )
   {
     Log *log = Utils::GetDefaultLog();
 
@@ -404,7 +407,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Enable read notifications
     //--------------------------------------------------------------------------
-    if( notify )
+    if( enable )
     {
       if( helper->readEnabled )
         return true;
@@ -469,9 +472,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Notify the handler about write events
   //----------------------------------------------------------------------------
-  bool PollerLibEvent::NotifyWrite( Socket  *socket,
-                                    bool     notify,
-                                    uint16_t timeout )
+  bool PollerLibEvent::EnableWriteNotification( Socket  *socket,
+                                                bool     enable,
+                                                uint16_t timeout )
   {
     Log *log = Utils::GetDefaultLog();
 
@@ -492,7 +495,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Enable write notifications
     //--------------------------------------------------------------------------
-    if( notify )
+    if( enable )
     {
       if( helper->writeEnabled )
         return true;
