@@ -85,15 +85,22 @@ class RandomPumpHandlerFactory: public ClientHandlerFactory
 //------------------------------------------------------------------------------
 // Socket listener
 //------------------------------------------------------------------------------
-class SocketHandler: public XrdClient::SocketEventListener
+class SocketHandler: public XrdClient::SocketHandler
 {
   public:
+    //--------------------------------------------------------------------------
+    // Initializer
+    //--------------------------------------------------------------------------
+    virtual void Initialize( XrdClient::Poller *poller )
+    {
+      pPoller = poller;
+    }
+
     //--------------------------------------------------------------------------
     // Handle an event
     //--------------------------------------------------------------------------
     virtual void Event( uint8_t type,
-                        XrdClient::Socket *socket,
-                        XrdClient::Poller *poller )
+                        XrdClient::Socket *socket )
     {
       //------------------------------------------------------------------------
       // Read event
@@ -119,14 +126,14 @@ class SocketHandler: public XrdClient::SocketEventListener
 
           if( ret == 0 )
           {
-            poller->RemoveSocket( socket );
+            pPoller->RemoveSocket( socket );
             return;
           }
 
           if( ret < 0 )
           {
             if( errno != EAGAIN && errno != EWOULDBLOCK )
-              poller->RemoveSocket( socket );
+              pPoller->EnableReadNotification( socket, false );
             return;
           }
         }
@@ -135,8 +142,8 @@ class SocketHandler: public XrdClient::SocketEventListener
       //------------------------------------------------------------------------
       // Timeout
       //------------------------------------------------------------------------
-      if( type & TimeOut )
-        poller->RemoveSocket( socket );
+      if( type & ReadTimeOut )
+        pPoller->RemoveSocket( socket );
     }
 
     //--------------------------------------------------------------------------
@@ -179,7 +186,8 @@ class SocketHandler: public XrdClient::SocketEventListener
     }
 
   private:
-    Server::TransferMap pMap;
+    Server::TransferMap  pMap;
+    XrdClient::Poller   *pPoller;
 };
 
 //------------------------------------------------------------------------------
@@ -187,10 +195,12 @@ class SocketHandler: public XrdClient::SocketEventListener
 //------------------------------------------------------------------------------
 void PollerTest::FunctionTest( XrdClient::Poller *poller )
 {
+  using XrdClient::Socket;
+  using XrdClient::URL;
+
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  using namespace XrdClient;
   Server server;
   Socket s[3];
   CPPUNIT_ASSERT( server.Setup( 9999, 3, new RandomPumpHandlerFactory() ) );
@@ -204,8 +214,10 @@ void PollerTest::FunctionTest( XrdClient::Poller *poller )
   SocketHandler *handler = new SocketHandler();
   for( int i = 0; i < 3; ++i )
   {
-    CPPUNIT_ASSERT( s[i].Connect( URL( "localhost:9999" ) ).status == stOK );
-    CPPUNIT_ASSERT( poller->AddSocket( &s[i], handler, 60 ) );
+    CPPUNIT_ASSERT( s[i].Connect( URL( "localhost:9999" ) ).status ==
+                    XrdClient::stOK );
+    CPPUNIT_ASSERT( poller->AddSocket( &s[i], handler ) );
+    CPPUNIT_ASSERT( poller->EnableReadNotification( &s[i], true, 60 ) );
     CPPUNIT_ASSERT( poller->IsRegistered( &s[i] ) );
   }
 
