@@ -580,7 +580,8 @@ int                XrdSecProtocolsss::Decode(XrdOucErrInfo      *error,
 //
    genTime = ntohl(rrData->GenTime);
    if (genTime + deltaTime <= myClock())
-      return Fatal(error, "Decode", ESTALE, "Credentials expired.");
+      return Fatal(error, "Decode", ESTALE,
+                   "Credentials expired (check for clock skew).");
 
 // Return success (size of decrypted info)
 //
