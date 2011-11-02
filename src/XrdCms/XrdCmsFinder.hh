@@ -75,6 +75,7 @@ int              RepWait;
 int              FwdWait;
 int              PrepWait;
 int              isMeta;
+int              isProxy;
 int              isTarget;
 int              myPort;
 unsigned char    SMode;

@@ -79,9 +79,7 @@ XrdOucTrace  Trace(&Say);
 /******************************************************************************/
   
 XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
-               : XrdCmsClient((whoami & IsProxy
-                                      ? XrdCmsClient::amProxy
-                                      : XrdCmsClient::amRemote))
+               : XrdCmsClient(XrdCmsClient::amRemote)
 {
      myManagers  = 0;
      myManCount  = 0;
@@ -89,6 +87,7 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
      SMode       = 0;
      sendID      = 0;
      isMeta      = whoami & IsMeta;
+     isProxy     = whoami & IsProxy;
      isTarget    = whoami & IsTarget;
      Say.logger(lp);
 }
@@ -118,7 +117,7 @@ int XrdCmsFinderRMT::Configure(char *cfn, XrdOucEnv *envP)
 
 // Establish what we will be configuring
 //
-   if (myPersona == XrdCmsClient::amProxy) 
+   if (isProxy)
       {How = XrdCmsClientConfig::configProxy; Topts |= IsProxy;}
       else if (isMeta) How = XrdCmsClientConfig::configMeta;
               else     How = XrdCmsClientConfig::configNorm;
@@ -148,7 +147,7 @@ int XrdCmsFinderRMT::Configure(char *cfn, XrdOucEnv *envP)
    ConWait    = config.ConWait;
    FwdWait    = config.FwdWait;
    PrepWait   = config.PrepWait;
-   if (myPersona == XrdCmsClient::amProxy)
+   if (isProxy)
            {SMode = config.SModeP; StartManagers(config.PanList);}
       else {SMode = config.SMode;  StartManagers(config.ManList);}
 

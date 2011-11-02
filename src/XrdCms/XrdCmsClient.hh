@@ -52,7 +52,7 @@ virtual void   Removed(const char *path) = 0;
 
 virtual int    Space(XrdOucErrInfo &Resp, const char *path) = 0;
 
-        enum   Persona {amLocal, amProxy, amRemote, amTarget};
+        enum   Persona {amLocal, amRemote, amTarget};
 
                XrdCmsClient(Persona acting) {myPersona = acting;}
 virtual       ~XrdCmsClient() {}
