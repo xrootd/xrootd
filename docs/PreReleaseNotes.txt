@@ -15,6 +15,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Prevent SEGV's by making joined threads actually joinable and not
+     deleting object during the cancel phase.
    * Don't force libXrdPss.so to be loaded for proxy managers.
    * Avoid SEGV in ClientSid class by making it fully thread-safe. This
      largely affects xrdcp and some clients on slow links.
