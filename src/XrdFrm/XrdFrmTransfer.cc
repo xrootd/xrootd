@@ -543,7 +543,7 @@ const char *XrdFrmTransfer::Throw()
    XrdFrmTranChk Chk(&begStat);
    time_t xfrET;
    const char *eTxt, *retMsg = 0;
-   char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest, pF = '0';
+   char Rfn[MAXPATHLEN+256], *lfnpath = xfrP->reqData.LFN, *theDest;
    char pdBuff[1024];
    int isMigr = xfrP->reqData.Options & XrdFrcRequest::Migrate;
    int iXfr, isURL, pdSZ, rc, mDP = -1;
@@ -637,7 +637,7 @@ const char *XrdFrmTransfer::Throw()
 // we just copied to prevent the file from being copied again (we have a lock).
 //
    if (!rc)
-      {if (xfrP->reqData.Options & XrdFrcRequest::Purge) {Throwaway(); pF='1';}
+      {if (xfrP->reqData.Options & XrdFrcRequest::Purge) Throwaway();
           else if (isMigr) ThrowDone(&Chk, endStat.st_mtime);
       }
 
@@ -662,7 +662,7 @@ const char *XrdFrmTransfer::Throw()
            snprintf(monBuff, sizeof(monBuff),
                     "%s\n&tod=%lld&sz=%lld&qt=%d&tm=%d&op=%c&rc=%d%s%s",
                     xfrP->reqData.LFN, static_cast<long long>(eNow), Fsize,
-                    inqT, xfrT, xfrP->Act, pF, rc,
+                    inqT, xfrT, xfrP->Act, rc,
                     (pdSZ ? "&pd=" : ""), (pdSZ ? pdBuff : ""));
            XrdFrmMonitor::Map(XROOTD_MON_MAPMIGR,xfrP->reqData.User,monBuff);
           }
