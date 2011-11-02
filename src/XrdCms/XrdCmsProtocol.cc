@@ -245,6 +245,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    CmsLoginData Data, loginData;
    unsigned int Mode, Role = 0;
    int myShare = Config.P_gshr << CmsLoginData::kYR_shift;
+   int myTimeZ = Config.TimeZone<< CmsLoginData::kYR_shifttz;
    int Lvl=0, Netopts=0, waits=6, tries=6, fails=0, xport=mport;
    int rc, fsUtil, KickedOut, myNID = ManTree.Register();
    int chk4Suspend = XrdCmsState::All_Suspend, TimeOut = Config.AskPing*1000;
@@ -336,7 +337,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        loginData.fSpace= Meter.FreeSpace(fsUtil);
        loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
        KickedOut = 0; loginData.dPort = CmsState.Port();
-       Data = loginData; Data.Mode = Mode | myShare;
+       Data = loginData; Data.Mode = Mode | myShare | myTimeZ;
        if (!(rc = XrdCmsLogin::Login(Link, Data, TimeOut)))
           {if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
              else {Say.Emsg("Protocol", "Logged into", Link->Name());
@@ -484,7 +485,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    const char  *Reason;
    SMask_t      newmask, servset(0);
    int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
-   int wasSuspended = 0, Share = 100;;
+   int wasSuspended = 0, Share = 100, tZone = 0;
 
 // Establish outgoing mode
 //
@@ -571,13 +572,16 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
       {Share  = (Data.Mode & CmsLoginData::kYR_share)>>CmsLoginData::kYR_shift;
        if (Share <= 0 || Share > 100) Share = Config.P_gsdf;
        if (Share > 0) myNode->setShare(Share);
+       tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
+       tZone = myNode->setTZone(tZone);
       }
 
 // Record the status of the server's filesystem
 //
    DEBUG(Link->Name() <<" TSpace="  <<Data.tSpace <<"GB NumFS=" <<Data.fsNum
                       <<" FSpace="  <<Data.fSpace <<"MB MinFR=" <<Data.mSpace
-                      <<" MB Util=" <<Data.fsUtil <<" Share="   <<Share);
+                      <<" MB Util=" <<Data.fsUtil <<" Share="   <<Share
+                      <<" TZone="   <<tZone);
    myNode->DiskTotal = Data.tSpace;
    myNode->DiskMinF  = Data.mSpace;
    myNode->DiskFree  = Data.fSpace;

@@ -5,8 +5,6 @@
 #define __attribute__(x)
 #endif
 
-//        $Id$
-
 #include "XProtocol/XPtypes.hh"
 
 // We need to pack structures sent all over the net!
@@ -231,7 +229,9 @@ struct CmsLoginData
                   kYR_trying  =   0x00000400,   // Extensive login retries
                   kYR_debug   =   0x80000000,
                   kYR_share   =   0x7f000000,   // Mask to isolate share
-                  kYR_shift   =   24            // Share shift position
+                  kYR_shift   =   24,           // Share shift position
+                  kYR_tzone   =   0x00f80000,   // Mask to isolate time zone
+                  kYR_shifttz =   19            // TZone shift position
                  };
 };
 

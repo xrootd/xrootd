@@ -592,6 +592,10 @@ int XrdCmsConfig::GenLocalPath(const char *oldp, char *newp)
 
 void XrdCmsConfig::ConfigDefaults(void)
 {
+   extern long timezone;
+   time_t myTime = time(0);
+   struct tm *tmP = localtime(&myTime);
+   int myTZ, isEast = 0;
 
 // Preset all variables with common defaults
 //
@@ -681,6 +685,13 @@ void XrdCmsConfig::ConfigDefaults(void)
    SecLib      = 0;
    ossLib      = 0;
    ossFS       = 0;
+
+// Compute the time zone we are in
+//
+   myTZ = timezone/(60*60);
+   if (myTZ < 0) {isEast = 0x10; myTZ = -myTZ;}
+   if (myTZ > 12) myTZ = 12;
+   TimeZone = (myTZ | isEast);
 }
   
 /******************************************************************************/

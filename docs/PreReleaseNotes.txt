@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Report the timezone when connecting to a [meta]manager.
    * Allow configuration of staging, migration, and purging events.
    * Allow transfer script to inject information into the monitoring stream.
    * Report number of attempted login, authentication failures, successful

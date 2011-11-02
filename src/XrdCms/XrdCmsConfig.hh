@@ -105,7 +105,7 @@ char        *LocalRoot;   // Server Only
 char        *RemotRoot;   // Manager
 char        *myPaths;     // Exported paths
 short        RepStats;    // Statistics to report (see RepStat_xxx below)
-char         Rsvc;
+char         TimeZone;    // Time zone we are in (|0x80 -> east of UTC)
 char         myRoleID;
 char         myRType[4];
 char        *myRole;
