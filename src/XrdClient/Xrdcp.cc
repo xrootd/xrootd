@@ -651,13 +651,14 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
          nfo->startfromblk = iii*xrdxtrdfile->GetNBlks() / xtremeclients.GetSize();
          nfo->maxoutstanding = xrdmin( 5, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() );
 
-         XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, (void *)nfo);
+         XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, 
+                           (void *)nfo, XRDSYSTHREAD_HOLD);
          myTIDVec.Push_back(myTID);
       }
       
    }
    else {
-      XrdSysThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+      XrdSysThread::Run(&myTID,ReaderThread_xrd,(void *)&cpnfo,XRDSYSTHREAD_HOLD);
       myTIDVec.Push_back(myTID);
    }
    
@@ -767,10 +768,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       for (int i = 0; i < myTIDVec.GetSize(); i++) {
          pthread_cancel(myTIDVec[i]);
          pthread_join(myTIDVec[i], &thret);	 
-
-         delete cpnfo.XrdCli;
-         cpnfo.XrdCli = 0;
       }
+
+      delete cpnfo.XrdCli;
+      cpnfo.XrdCli = 0;
    }
 
    if( !(*xrddest)->Close() )
@@ -934,13 +935,14 @@ int doCp_xrd2loc(const char *src, const char *dst) {
          nfo->startfromblk = iii*xrdxtrdfile->GetNBlks() / xtremeclients.GetSize();
          nfo->maxoutstanding = xrdmax(xrdmin( 3, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() ), 1);
 
-         XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, (void *)nfo);
+         XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, 
+                           (void *)nfo, XRDSYSTHREAD_HOLD);
       }
 
    }
    else {
       doXtremeCp = false;
-      XrdSysThread::Run(&myTID, ReaderThread_xrd, (void *)&cpnfo);
+      XrdSysThread::Run(&myTID,ReaderThread_xrd,(void *)&cpnfo,XRDSYSTHREAD_HOLD);
    }
 
    int len = 1;
@@ -1053,11 +1055,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       for (int i = 0; i < myTIDVec.GetSize(); i++) {
          pthread_cancel(myTIDVec[i]);
          pthread_join(myTIDVec[i], &thret);	 
-
-         delete cpnfo.XrdCli;
-         cpnfo.XrdCli = 0;
       }
-
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
    }
@@ -1110,7 +1108,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    }
       
    // Start reader on loc
-   XrdSysThread::Run(&myTID, ReaderThread_loc, (void *)&cpnfo);
+   XrdSysThread::Run(&myTID,ReaderThread_loc,(void *)&cpnfo,XRDSYSTHREAD_HOLD);
 
    int len = 1;
    void *buf;
