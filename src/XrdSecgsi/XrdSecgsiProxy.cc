@@ -556,7 +556,7 @@ int ParseArguments(int argc, char **argv)
          EEkey.insert(XrdSutHome(), 0);
          if (stat(EEkey.c_str(),&st) != 0) {
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-            PRT("+ Cannot access certificate file: "<<EEkey.c_str());
+            PRT("+ Cannot access private key file: "<<EEkey.c_str());
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             return 1;
          }
@@ -567,7 +567,7 @@ int ParseArguments(int argc, char **argv)
           (st.st_mode & (S_IRGRP | S_IROTH)) != 0 ||
           (st.st_mode & (S_IWUSR)) != 0) {
           PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
-          PRT("+ Wrong permissions for file: "<<EEkey.c_str());
+          PRT("+ Wrong permissions for file: "<<EEkey.c_str()<< " (should be 0600)");
           PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
           return 1;
       }
