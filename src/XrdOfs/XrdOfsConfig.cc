@@ -172,7 +172,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // configuring cluster processing. First check if we will be proxying.
 // If so, then substitute the proxy plug-in where we can.
 //
-   if (Options & isProxy)
+   if ((Options & isProxy) && !(Options & isManager))
       {char buff[2048], *bp, *libofs = getenv("XRDOFSLIB");
        if (!libofs) bp = buff;
           else {strcpy(buff, libofs); bp = buff+strlen(buff)-1;
