@@ -689,7 +689,7 @@ void XrdCmsConfig::ConfigDefaults(void)
 // Compute the time zone we are in
 //
    myTZ = timezone/(60*60);
-   if (myTZ < 0) {isEast = 0x10; myTZ = -myTZ;}
+   if (myTZ <= 0) {isEast = 0x10; myTZ = -myTZ;}
    if (myTZ > 12) myTZ = 12;
    TimeZone = (myTZ | isEast);
 }

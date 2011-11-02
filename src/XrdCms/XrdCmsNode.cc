@@ -115,6 +115,8 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
        else myCID = myNID;
     myLevel  = lvl;
     ConfigID =  0;
+    TZValid  = 0;
+    TimeZone = 0;
 
 // setName() will set Ident, IPAddr, IPV6, myName, myNlen, & Port!
 //
