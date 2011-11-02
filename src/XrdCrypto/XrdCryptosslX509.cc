@@ -109,10 +109,9 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
          }
          if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
              (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
-             (st.st_mode & (S_IRGRP | S_IROTH)) != 0 ||
-             (st.st_mode & (S_IWUSR)) != 0) {
+             (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
             DEBUG("private key file "<<kf<<" has wrong permissions "<<
-                  (st.st_mode & 0777) << " (should be 0400)");
+                  (st.st_mode & 0777) << " (should be 0600)");
             return;
          }
          // Open file in read mode
