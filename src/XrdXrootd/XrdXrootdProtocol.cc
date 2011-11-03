@@ -34,6 +34,7 @@
 XrdOucTrace          *XrdXrootdTrace;
 
 XrdXrootdXPath        XrdXrootdProtocol::RPList;
+XrdXrootdXPath        XrdXrootdProtocol::RQList;
 XrdXrootdXPath        XrdXrootdProtocol::XPList;
 XrdSfsFileSystem     *XrdXrootdProtocol::osFS;
 char                 *XrdXrootdProtocol::FSLib    = 0;
@@ -82,6 +83,7 @@ int                   XrdXrootdProtocol::as_syncw     = 0;
 
 const char           *XrdXrootdProtocol::myInst  = 0;
 const char           *XrdXrootdProtocol::TraceID = "Protocol";
+int                   XrdXrootdProtocol::RQLxist = 0;
 int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 
 int                   XrdXrootdProtocol::myRole = 0;

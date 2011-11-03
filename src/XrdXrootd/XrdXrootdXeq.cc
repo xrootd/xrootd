@@ -293,7 +293,7 @@ int XrdXrootdProtocol::do_Chmod()
 
 // An error occured
 //
-   return fsError(rc, myError);
+   return fsError(rc, myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -305,6 +305,11 @@ int XrdXrootdProtocol::do_CKsum(int canit)
    const char *opaque;
    char *args[3];
    int rc;
+
+// Check for static routing
+//
+   if (Route[RD_chksum].Port)
+      return Response.Send(kXR_redirect,Route[RD_chksum].Port,Route[RD_chksum].Host);
 
 // Check if we support this operation
 //
@@ -459,7 +464,7 @@ int XrdXrootdProtocol::do_Dirlist()
 // First open the directory
 //
    if ((rc = dp->open(argp->buff, CRED, opaque)))
-      {rc = fsError(rc, dp->error); delete dp; return rc;}
+      {rc = fsError(rc, dp->error, argp->buff); delete dp; return rc;}
 
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
@@ -617,7 +622,7 @@ int XrdXrootdProtocol::do_Locate()
 //
    rc = osFS->fsctl(fsctl_cmd, fn, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" locate " <<fn);
-   return fsError(rc, myError);
+   return fsError(rc, myError, Path);
 }
   
 /******************************************************************************/
@@ -754,7 +759,7 @@ int XrdXrootdProtocol::do_Mkdir()
 
 // An error occured
 //
-   return fsError(rc, myError);
+   return fsError(rc, myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -801,7 +806,7 @@ int XrdXrootdProtocol::do_Mv()
 
 // An error occured
 //
-   return fsError(rc, myError);
+   return fsError(rc, myError, oldp);
 }
 
 /******************************************************************************/
@@ -1024,7 +1029,7 @@ int XrdXrootdProtocol::do_Open()
 //
    if ((rc = fp->open(fn, (XrdSfsFileOpenMode)openopts,
                      (mode_t)mode, CRED, opaque)))
-      {rc = fsError(rc, fp->error); delete fp; return rc;}
+      {rc = fsError(rc, fp->error, fn); delete fp; return rc;}
 
 // Obtain a hyper file object
 //
@@ -1861,7 +1866,7 @@ int XrdXrootdProtocol::do_Rm()
 
 // An error occured
 //
-   return fsError(rc, myError);
+   return fsError(rc, myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -1892,7 +1897,7 @@ int XrdXrootdProtocol::do_Rmdir()
 
 // An error occured
 //
-   return fsError(rc, myError);
+   return fsError(rc, myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -2025,7 +2030,7 @@ int XrdXrootdProtocol::do_Stat()
        TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
        if (rc == SFS_OK) return Response.Send(xxBuff, StatGen(buf, xxBuff));
       }
-   return fsError(rc, myError);
+   return fsError(rc, myError, argp->buff);
 }
 
 /******************************************************************************/
@@ -2041,6 +2046,11 @@ int XrdXrootdProtocol::do_Statx()
    mode_t mode;
    XrdOucErrInfo myError(Link->ID, &statxCB, ReqID.getID());
    XrdOucTokenizer pathlist(argp->buff);
+
+// Check for static routing
+//
+   if (Route[RD_stat].Port) 
+      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
 
 // Cycle through all of the paths in the list
 //
@@ -2134,6 +2144,11 @@ int XrdXrootdProtocol::do_Truncate()
        XrdOucErrInfo myError(Link->ID);
        const char *opaque;
 
+    // Check for static routing
+    //
+       if (Route[RD_trunc].Port) return Response.Send(kXR_redirect,
+                                 Route[RD_trunc].Port,Route[RD_trunc].Host);
+
     // Verify the path and extract out the opaque information
     //
        if (rpCheck(argp->buff,&opaque)) return rpEmsg("Truncating",argp->buff);
@@ -2144,7 +2159,7 @@ int XrdXrootdProtocol::do_Truncate()
        rc = osFS->truncate(argp->buff, (XrdSfsFileOffset)theOffset, myError,
                            CRED, opaque);
        TRACEP(FS, "rc=" <<rc <<" trunc " <<theOffset <<' ' <<argp->buff);
-       if (SFS_OK != rc) return fsError(rc, myError);
+       if (SFS_OK != rc) return fsError(rc, myError, argp->buff);
    }
 
 // Respond that all went well
@@ -2312,9 +2327,9 @@ int XrdXrootdProtocol::do_WriteNone()
 /*                               f s E r r o r                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
+int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError, const char *Path)
 {
-   int ecode;
+   int ecode, popt;
    const char *eMsg = myError.getErrText(ecode);
 
 // Process standard errors
@@ -2322,6 +2337,9 @@ int XrdXrootdProtocol::fsError(int rc, XrdOucErrInfo &myError)
    if (rc == SFS_ERROR)
       {SI->errorCnt++;
        rc = XProtocol::mapError(ecode);
+       if (Path && (rc == kXR_NotFound) && RQLxist
+       &&  (popt = RQList.Validate(Path)))
+          return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
        return Response.Send((XErrorCode)rc, eMsg);
       }
 

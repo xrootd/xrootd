@@ -89,9 +89,10 @@ private:
 
 // Note that Route[] structure (below) must have RD_Num elements!
 //
-enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
-              RD_prepare,   RD_prepstg, RD_rm,    RD_rmdir, RD_stat,
-              RD_open1,     RD_open2,   RD_open3, RD_open4, RD_Num};
+enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
+              RD_mv,        RD_prepare, RD_prepstg, RD_rm,     RD_rmdir,
+              RD_stat,      RD_trunc,
+              RD_open1,     RD_open2,   RD_open3,   RD_open4,  RD_Num};
 
        int   do_Admin();
        int   do_Auth();
@@ -147,7 +148,7 @@ enum RD_func {RD_chmod = 0, RD_dirlist, RD_locate,RD_mkdir, RD_mv,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
-       int   fsError(int rc, XrdOucErrInfo &myError);
+       int   fsError(int rc, XrdOucErrInfo &myError, const char *Path=0);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
@@ -180,6 +181,7 @@ XrdObject<XrdXrootdProtocol>         ProtLink;
 protected:
 
 static XrdXrootdXPath        RPList;    // Redirected paths
+static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
 static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSecService        *CIA;       // Authentication Server
@@ -190,6 +192,7 @@ static XrdSysError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;
 static       char           *pidPath;
+static int                   RQLxist;   // Something is present in RQList
 static int                   myPID;
 static int                   myRole;     // Role for kXR_protocol (>= 2.9.7)
 static int                   myRolf;     // Role for kXR_protocol (<  2.9.7)
