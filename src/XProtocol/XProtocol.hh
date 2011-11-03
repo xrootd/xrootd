@@ -33,7 +33,7 @@
 #define kXR_isServer  0x00000001
 #define kXR_attrMeta  0x00000100
 #define kXR_attrProxy 0x00000200
-#define lXR_attrSuper 0x00000400
+#define kXR_attrSuper 0x00000400
 
 #define kXR_maxReqRetry 10
 
