@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow an automatic redirect when a file operation ends with ENOENT.
+     Allow redirects for chsum and trunc operations.
+     Both of the above are controlled via the xrootd.redirect directive.
    * Report the timezone when connecting to a [meta]manager.
    * Allow configuration of staging, migration, and purging events.
    * Allow transfer script to inject information into the monitoring stream.
