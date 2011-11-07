@@ -12,13 +12,24 @@ else()
     include )
 
   find_library(
-    KERBEROS5_LIBRARIES
+    KERBEROS5_LIBRARY
     NAMES krb5
     HINTS
     ${KERBEROS5_ROOT_DIR}
     PATH_SUFFIXES
     ${LIBRARY_PATH_PREFIX}
     ${LIB_SEARCH_OPTIONS})
+
+  find_library(
+    COM_ERR_LIBRARY
+    NAMES com_err
+    HINTS
+    ${KERBEROS5_ROOT_DIR}
+    PATH_SUFFIXES
+    ${LIBRARY_PATH_PREFIX}
+    ${LIB_SEARCH_OPTIONS})
+
+  set( KERBEROS5_LIBRARIES ${KERBEROS5_LIBRARY} ${COM_ERR_LIBRARY} )
 
   find_package_handle_standard_args(
     KERBEROS5
