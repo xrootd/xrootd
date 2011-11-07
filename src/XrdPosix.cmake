@@ -28,7 +28,8 @@ set_target_properties(
   XrdPosix
   PROPERTIES
   VERSION   ${XRD_POSIX_VERSION}
-  SOVERSION ${XRD_POSIX_SOVERSION} )
+  SOVERSION ${XRD_POSIX_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdPosixPreload library
@@ -51,7 +52,8 @@ set_target_properties(
   XrdPosixPreload
   PROPERTIES
   VERSION   ${XRD_POSIX_PRELOAD_VERSION}
-  SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION} )
+  SOVERSION ${XRD_POSIX_PRELOAD_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

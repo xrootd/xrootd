@@ -44,13 +44,15 @@ add_library(
 
 target_link_libraries(
   XrdClient
-  XrdUtils )
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdClient
   PROPERTIES
   VERSION   ${XRD_CLIENT_VERSION}
-  SOVERSION ${XRD_CLIENT_SOVERSION} )
+  SOVERSION ${XRD_CLIENT_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrdcp
@@ -66,6 +68,7 @@ target_link_libraries(
   xrdcp
   XrdClient
   XrdCrypto
+  XrdUtils
   dl
   ${ZLIB_LIBRARY} )
 
@@ -79,6 +82,7 @@ add_executable(
 target_link_libraries(
   xrd
   XrdClient
+  XrdUtils
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
 
@@ -91,7 +95,8 @@ add_executable(
 
 target_link_libraries(
   xprep
-  XrdClient )
+  XrdClient
+  XrdUtils )
 
 #-------------------------------------------------------------------------------
 # xrdstagetool
@@ -102,7 +107,8 @@ add_executable(
 
 target_link_libraries(
   xrdstagetool
-  XrdClient )
+  XrdClient
+  XrdUtils )
 
 #-------------------------------------------------------------------------------
 # Perl bindings
@@ -159,7 +165,8 @@ if( BUILD_PERL )
     XrdClientAdmin
     PROPERTIES
     VERSION   ${XRD_CLIENT_ADMIN_VERSION}
-    SOVERSION ${XRD_CLIENT_ADMIN_SOVERSION} )
+    SOVERSION ${XRD_CLIENT_ADMIN_SOVERSION}
+    LINK_INTERFACE_LIBRARIES "" )
 
 endif()
 

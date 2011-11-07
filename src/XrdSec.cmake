@@ -36,7 +36,8 @@ set_target_properties(
   XrdSec
   PROPERTIES
   VERSION   ${XRD_SEC_VERSION}
-  SOVERSION ${XRD_SEC_SOVERSION} )
+  SOVERSION ${XRD_SEC_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 # FIXME: test
 #-rw-r--r-- 1 ljanyst ljanyst  5806 2011-03-21 16:13 XrdSectestClient.cc
@@ -61,7 +62,8 @@ set_target_properties(
   XrdSecpwd
   PROPERTIES
   VERSION   ${XRD_SEC_PWD_VERSION}
-  SOVERSION ${XRD_SEC_PWD_SOVERSION} )
+  SOVERSION ${XRD_SEC_PWD_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrdpwdadmin
@@ -72,7 +74,9 @@ add_executable(
 
 target_link_libraries(
   xrdpwdadmin
-  XrdSecpwd )
+  XrdSecpwd
+  XrdCrypto
+  XrdUtils )
 
 #-------------------------------------------------------------------------------
 # The XrdSecsss library
@@ -93,7 +97,8 @@ set_target_properties(
   XrdSecsss
   PROPERTIES
   VERSION   ${XRD_SEC_SSS_VERSION}
-  SOVERSION ${XRD_SEC_SSS_SOVERSION} )
+  SOVERSION ${XRD_SEC_SSS_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrdsssadmin
@@ -105,7 +110,8 @@ add_executable(
 target_link_libraries(
   xrdsssadmin
   XrdSecsss
-  XrdCryptoLite )
+  XrdCryptoLite
+  XrdUtils )
 
 #-------------------------------------------------------------------------------
 # The XrdSecunix library
@@ -123,7 +129,8 @@ set_target_properties(
   XrdSecunix
   PROPERTIES
   VERSION   ${XRD_SEC_UNIX_VERSION}
-  SOVERSION ${XRD_SEC_UNIX_SOVERSION} )
+  SOVERSION ${XRD_SEC_UNIX_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install
