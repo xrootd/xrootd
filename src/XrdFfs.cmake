@@ -29,7 +29,8 @@ set_target_properties(
   XrdFfs
   PROPERTIES
   VERSION   ${XRD_FFS_VERSION}
-  SOVERSION ${XRD_FFS_SOVERSION} )
+  SOVERSION ${XRD_FFS_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrootdfs
@@ -42,6 +43,7 @@ if( BUILD_FUSE )
   target_link_libraries(
     xrootdfs
     XrdFfs
+    XrdPosix
     ${FUSE_LIBRARIES} )
 endif()
 

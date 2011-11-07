@@ -40,8 +40,11 @@ target_link_libraries(
   frm_admin
   XrdServer
   XrdFrm
+  XrdUtils
   ${READLINE_LIBRARY}
-  ${NCURSES_LIBRARY} )
+  ${NCURSES_LIBRARY}
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # frm_purged
@@ -54,7 +57,10 @@ add_executable(
 target_link_libraries(
   frm_purged
   XrdServer
-  XrdFrm )
+  XrdUtils
+  XrdFrm
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # frm_xfrd
@@ -66,7 +72,10 @@ add_executable(
 target_link_libraries(
   frm_xfrd
   XrdServer
-  XrdFrm )
+  XrdUtils
+  XrdFrm
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # frm_xfragent
@@ -78,7 +87,10 @@ add_executable(
 target_link_libraries(
   frm_xfragent
   XrdServer
-  XrdFrm )
+  XrdUtils
+  XrdFrm
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install

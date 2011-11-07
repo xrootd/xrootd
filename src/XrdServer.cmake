@@ -116,7 +116,8 @@ set_target_properties(
   XrdServer
   PROPERTIES
   VERSION   ${XRD_SERVER_VERSION}
-  SOVERSION ${XRD_SERVER_SOVERSION} )
+  SOVERSION ${XRD_SERVER_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # Install

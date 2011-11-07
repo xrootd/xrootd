@@ -37,13 +37,15 @@ add_library(
 
 target_link_libraries(
   XrdCrypto
-  XrdUtils )
+  XrdUtils
+  dl )
 
 set_target_properties(
   XrdCrypto
   PROPERTIES
   VERSION   ${XRD_CRYPTO_VERSION}
-  SOVERSION ${XRD_CRYPTO_SOVERSION} )
+  SOVERSION ${XRD_CRYPTO_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdCryptoLite library
@@ -69,7 +71,8 @@ set_target_properties(
   XrdCryptoLite
   PROPERTIES
   VERSION   ${XRD_CRYPTO_LITE_VERSION}
-  SOVERSION ${XRD_CRYPTO_LITE_SOVERSION} )
+  SOVERSION ${XRD_CRYPTO_LITE_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The XrdCryptossl library
@@ -102,7 +105,8 @@ if( BUILD_CRYPTO )
     XrdCryptossl
     PROPERTIES
     VERSION   ${XRD_CRYPTO_SSL_VERSION}
-    SOVERSION ${XRD_CRYPTO_SSL_SOVERSION} )
+    SOVERSION ${XRD_CRYPTO_SSL_SOVERSION}
+    LINK_INTERFACE_LIBRARIES "" )
 endif()
 
 #-------------------------------------------------------------------------------

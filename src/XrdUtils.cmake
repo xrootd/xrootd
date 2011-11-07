@@ -134,7 +134,8 @@ set_target_properties(
   XrdUtils
   PROPERTIES
   VERSION   ${XRD_UTILS_VERSION}
-  SOVERSION ${XRD_UTILS_SOVERSION} )
+  SOVERSION ${XRD_UTILS_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # The helper lib
