@@ -100,7 +100,8 @@ int fGetXattrAdler32(const char *path, int fd, const char* attr, char *value)
     XrdOucXAttr<XrdCksXAttr> xCS;
     struct stat st;
 
-    if (xCS.Get(path, fd) <= 0 || strcmp(xCS.Attr.Cks.Name, "adler32"))
+    if (!xCS.Attr.Cks.Set("adler32") || xCS.Get(path, fd) <= 0
+    || strcmp(xCS.Attr.Cks.Name, "adler32"))
        {int rc = fGetXattrAdler32(fd, attr, value);
         if (rc == 8) fSetXattrAdler32(path, fd, attr, value);
         return rc;
