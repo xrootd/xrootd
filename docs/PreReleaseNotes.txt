@@ -27,6 +27,8 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Initialize xattr variable name so that xrdadler32 can fetch previous
+     checksum. The error caused xrdadler32 to always recompute the checksum.
    * Add 'k' to the option list. It was wrongly deleted in the last option
      refalgamization.
    * Make sure to cut close records for open files during a forced disconnect
