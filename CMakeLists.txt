@@ -9,6 +9,7 @@ add_library(
   UrlTest.cc
   SocketTest.cc
   PollerTest.cc
+  PostMasterTest.cc
 )
 
 target_link_libraries(
