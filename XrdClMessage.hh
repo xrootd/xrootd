@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_MESSAGE_HH__
@@ -17,7 +19,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Message( uint32_t size = 0 ): pBuffer(0), pSize(0)
+      Message( uint32_t size = 0 ): pBuffer(0), pSize(0), pCursor(0)
       {
         if( size )
         {
@@ -47,7 +49,7 @@ namespace XrdClient
         return pBuffer+offset;
       }
 
-      //------------------------------------------------------------------------
+      //------------------------------------------------------------------------fss
       //! Reallocate the buffer to a new location of a given size
       //------------------------------------------------------------------------
       void ReAllocate( uint32_t size )
@@ -66,6 +68,7 @@ namespace XrdClient
         free( pBuffer );
         pBuffer = 0;
         pSize   = 0;
+        pCursor = 0;
       }
 
       //------------------------------------------------------------------------
@@ -95,9 +98,63 @@ namespace XrdClient
         return pSize;
       }
 
+      //------------------------------------------------------------------------
+      //! Get append cursor
+      //------------------------------------------------------------------------
+      uint32_t GetCursor() const
+      {
+        return pCursor;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the cursor
+      //------------------------------------------------------------------------
+      void SetCursor( uint32_t cursor )
+      {
+        pCursor = cursor;
+      }
+
+      //------------------------------------------------------------------------
+      //! Advance the cursor
+      //------------------------------------------------------------------------
+      void AdvanceCursor( uint32_t delta )
+      {
+        pCursor += delta;
+      }
+
+      //------------------------------------------------------------------------
+      //! Append data at the position pointed to by the append cursor
+      //------------------------------------------------------------------------
+      bool Append( char *buffer, uint32_t size )
+      {
+        if( pCursor >= pSize )
+          return false;
+
+        uint32_t remaining = pSize-pCursor;
+        if( remaining < size )
+          ReAllocate( pCursor+size );
+
+        memcpy( pBuffer+pCursor, buffer, size );
+        pCursor += size;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the buffer pointer at the append cursor
+      //------------------------------------------------------------------------
+      char *GetBufferAtCursor()
+      {
+        return GetBuffer( pCursor );
+      }
+
+      const char *GetBufferAtCursor() const
+      {
+        return GetBuffer( pCursor );
+      }
+
     private:
       char     *pBuffer;
       uint32_t  pSize;
+      uint32_t  pCursor;
   };
 }
 
