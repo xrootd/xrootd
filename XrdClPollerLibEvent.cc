@@ -117,7 +117,7 @@ extern "C"
     if( what & EV_READ    ) ev |= SocketHandler::ReadyToRead;
 
     Log *log = Utils::GetDefaultLog();
-    log->Dump( PollerMsg, "Got socket read event: %s: %s",
+    log->Dump( PollerMsg, "%s Got read event: %s",
                            helper->socket->GetName().c_str(),
                            SocketHandler::EventTypeToString( ev ).c_str() );
 
@@ -138,7 +138,7 @@ extern "C"
     if( what & EV_WRITE   ) ev |= SocketHandler::ReadyToWrite;
 
     Log *log = Utils::GetDefaultLog();
-    log->Dump( PollerMsg, "Got socket write event: %s: %s",
+    log->Dump( PollerMsg, "%s Got write event %s",
                            helper->socket->GetName().c_str(),
                            SocketHandler::EventTypeToString( ev ).c_str() );
 
@@ -293,9 +293,10 @@ namespace XrdClient
                                   SocketHandler *handler )
   {
     Log *log = Utils::GetDefaultLog();
-    XrdSysMutexHelper( pMutex );
+    XrdSysMutexHelper scopedLock( pMutex );
 
-    log->Debug( PollerMsg, "Adding socket: %s", socket->GetName().c_str() );
+    log->Debug( PollerMsg, "%s Adding socket to the poller",
+                           socket->GetName().c_str() );
 
     //--------------------------------------------------------------------------
     // Check if the socket is already registered
@@ -306,7 +307,8 @@ namespace XrdClient
     SocketMap::const_iterator it = pSocketMap.find( socket );
     if( it != pSocketMap.end() )
     {
-      log->Warning( PollerMsg, "The socket is already registered" );
+      log->Warning( PollerMsg, "%s Already registered",
+                               socket->GetName().c_str() );
       return false;
     }
 
@@ -327,21 +329,16 @@ namespace XrdClient
   {
     Log *log = Utils::GetDefaultLog();
 
-    log->Debug( PollerMsg, "Removing socket: %s",
-                           socket->GetName().c_str() );
-
     //--------------------------------------------------------------------------
     // Find the right event
     //--------------------------------------------------------------------------
-    XrdSysMutexHelper( pMutex );
+    XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::iterator it = pSocketMap.find( socket );
     if( it == pSocketMap.end() )
-    {
-      log->Warning( PollerMsg, "Attempted to remove socket that has not "
-                               "been registered: %s",
-                               socket->GetName().c_str() );
-      return false;
-    }
+      return true;
+
+    log->Debug( PollerMsg, "%s Removing socket from the poller",
+                           socket->GetName().c_str() );
 
     //--------------------------------------------------------------------------
     // Remove the event
@@ -355,7 +352,8 @@ namespace XrdClient
     {
       if( ::event_del( helper->readEvent ) != 0 )
       {
-        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        log->Error( PollerMsg, "%s Failed to unregister a read event",
+                               socket->GetName().c_str() );
         return false;
       }
     }
@@ -364,7 +362,8 @@ namespace XrdClient
     {
       if( ::event_del( helper->readEvent ) != 0 )
       {
-        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        log->Error( PollerMsg, "%s Failed to unregister a write event",
+                                socket->GetName().c_str() );
         return false;
       }
     }
@@ -393,11 +392,11 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if the socket is registered
     //--------------------------------------------------------------------------
-    XrdSysMutexHelper( pMutex );
+    XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::const_iterator it = pSocketMap.find( socket );
     if( it == pSocketMap.end() )
     {
-      log->Warning( PollerMsg, "Socket %s is not registered",
+      log->Warning( PollerMsg, "%s Socket is not registered",
                                socket->GetName().c_str() );
       return false;
     }
@@ -412,8 +411,8 @@ namespace XrdClient
       if( helper->readEnabled )
         return true;
 
-      log->Debug( PollerMsg, "Enable read notifications on: %s",
-                             socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable read notifications",
+                            socket->GetName().c_str() );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist
@@ -426,7 +425,7 @@ namespace XrdClient
 
         if( !ev )
         {
-          log->Error( PollerMsg, "Unable to create a read event for %s",
+          log->Error( PollerMsg, "%s Unable to create a read event",
                                  socket->GetName().c_str() );
           return false;
         }
@@ -440,7 +439,7 @@ namespace XrdClient
       timeval tOut = { timeout, 0 };
       if( ::event_add( helper->readEvent, &tOut ) != 0 )
       {
-        log->Error( PollerMsg, "Unable to register a read event for %s",
+        log->Error( PollerMsg, "%s Unable to register a read event",
                                socket->GetName().c_str() );
         return false;
       }
@@ -456,12 +455,12 @@ namespace XrdClient
       if( !helper->readEnabled )
         return true;
 
-      log->Debug( PollerMsg, "Disable read notifications on: %s",
-                             socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Disable read notifications",
+                            socket->GetName().c_str() );
 
       if( ::event_del( helper->readEvent ) != 0 )
       {
-        log->Error( PollerMsg, "Failed to unregister a read event for %s" );
+        log->Error( PollerMsg, "%s Failed to unregister a read event" );
         return false;
       }
       helper->readEnabled = false;
@@ -481,11 +480,11 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if the socket is registered
     //--------------------------------------------------------------------------
-    XrdSysMutexHelper( pMutex );
+    XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::const_iterator it = pSocketMap.find( socket );
     if( it == pSocketMap.end() )
     {
-      log->Warning( PollerMsg, "Socket %s is not registered",
+      log->Warning( PollerMsg, "%s Socket is not registered",
                                socket->GetName().c_str() );
       return false;
     }
@@ -500,8 +499,8 @@ namespace XrdClient
       if( helper->writeEnabled )
         return true;
 
-      log->Debug( PollerMsg, "Enable write notifications on: %s",
-                             socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable write notifications",
+                            socket->GetName().c_str() );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist
@@ -514,7 +513,7 @@ namespace XrdClient
 
         if( !ev )
         {
-          log->Error( PollerMsg, "Unable to create a write event for %s",
+          log->Error( PollerMsg, "%s Unable to create a write event",
                                  socket->GetName().c_str() );
           return false;
         }
@@ -528,7 +527,7 @@ namespace XrdClient
       timeval tOut = { timeout, 0 };
       if( ::event_add( helper->writeEvent, &tOut ) != 0 )
       {
-        log->Error( PollerMsg, "Unable to register a write event for %s",
+        log->Error( PollerMsg, "%s Unable to register a write event",
                                socket->GetName().c_str() );
         return false;
       }
@@ -544,12 +543,13 @@ namespace XrdClient
       if( !helper->writeEnabled )
         return true;
 
-      log->Debug( PollerMsg, "Disable write notifications on: %s",
-                             socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Disable write notifications",
+                            socket->GetName().c_str() );
 
       if( ::event_del( helper->writeEvent ) != 0 )
       {
-        log->Error( PollerMsg, "Failed to unregister the write event for %s" );
+        log->Error( PollerMsg, "%s Failed to unregister the write event",
+                               socket->GetName().c_str() );
         return false;
       }
 
@@ -619,7 +619,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PollerLibEvent::IsRegistered( const Socket *socket )
   {
-    XrdSysMutexHelper( pMutex );
+    XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::const_iterator it = pSocketMap.find( socket );
     return it != pSocketMap.end();
   }
