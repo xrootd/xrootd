@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClLog.hh"
@@ -16,7 +18,7 @@ namespace XrdClient
   // Constructor
   //----------------------------------------------------------------------------
   URL::URL( const std::string &url ):
-    pIsValid( false ), pUrl( url ), pPort( -1 )
+    pIsValid( false ), pUrl( url ), pPort( 1094 )
   {
     ParseUrl();
   }
@@ -67,6 +69,7 @@ namespace XrdClient
 
     std::string userHost = pUrl.substr( currentStart, pos-currentStart );
     currentStart = pos+1;
+    pHostId = userHost;
 
     //--------------------------------------------------------------------------
     // Do we have username and password?

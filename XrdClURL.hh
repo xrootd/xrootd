@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_URL_HH__
@@ -38,9 +40,17 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the URL
       //------------------------------------------------------------------------
-      const std::string GetURL() const
+      const std::string &GetURL() const
       {
         return pUrl;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the host part of the URL (user:password@host:port)
+      //------------------------------------------------------------------------
+      const std::string &GetHostId() const
+      {
+        return pHostId;
       }
 
       //------------------------------------------------------------------------
@@ -111,6 +121,7 @@ namespace XrdClient
       void ParseUrl();
       bool        pIsValid;
       std::string pUrl;
+      std::string pHostId;
       std::string pProtocol;
       std::string pUserName;
       std::string pPassword;
