@@ -1,5 +1,7 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -16,18 +18,21 @@ namespace XrdClient
   DefaultEnv::DefaultEnv()
   {
     PutInt( "ConnectionTimeout", DefaultConnectionTimeout );
+    PutInt( "ConnectionRetry",   DefaultConnectionRetry   );
+    PutInt( "RequestTimeout",    DefaultRequestTimeout    );
     PutInt( "DataServerTimeout", DefaultDataServerTimeout );
     PutInt( "ManagerTimeout",    DefaultManagerTimeout    );
+    PutInt( "StreamsPerChannel", DefaultStreamsPerChannel );
   }
 
   //----------------------------------------------------------------------------
   // Get default client environment
   //----------------------------------------------------------------------------
-  Env *DefaultEnv::GetDefaultEnv()
+  Env *DefaultEnv::GetEnv()
   {
     if( !sEnv )
     {
-      XrdSysMutexHelper( sMutex );
+      XrdSysMutexHelper scopedLock( sMutex );
       if( sEnv )
         return sEnv;
       sEnv = new DefaultEnv();

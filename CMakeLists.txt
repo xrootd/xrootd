@@ -26,6 +26,11 @@ add_library(
                               XrdClPoller.hh
   XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
   XrdClPostMaster.cc          XrdClPostMaster.hh
+                              XrdClPostMasterInterfaces.hh
+  XrdClChannel.cc             XrdClChannel.hh
+  XrdClStream.cc              XrdClStream.hh
+  XrdClXRootDTransport.cc     XrdClXRootDTransport.hh
+  XrdClInQueue.cc             XrdClInQueue.hh
 )
 
 target_link_libraries(

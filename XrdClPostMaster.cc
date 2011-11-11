@@ -1,8 +1,13 @@
 //------------------------------------------------------------------------------
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClPollerLibEvent.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClMessage.hh"
 
 namespace XrdClient
 {
@@ -11,6 +16,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   PostMaster::PostMaster()
   {
+    pPoller = new PollerLibEvent();
+    pTransportHandler = new XRootDTransport();
   }
 
   //----------------------------------------------------------------------------
@@ -18,6 +25,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   PostMaster::~PostMaster()
   {
+    delete pPoller;
+    delete pTransportHandler;
   }
 
   //----------------------------------------------------------------------------
@@ -25,7 +34,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Initialize()
   {
-    return true;
+    return pPoller->Initialize();
   }
 
   //----------------------------------------------------------------------------
@@ -33,7 +42,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Finalize()
   {
-    return true;
+    return pPoller->Finalize();
   }
 
   //----------------------------------------------------------------------------
@@ -41,7 +50,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Start()
   {
-    return true;
+    return pPoller->Start();
   }
 
   //----------------------------------------------------------------------------
@@ -49,7 +58,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
-    return true;
+    return pPoller->Stop();
   }
 
   //----------------------------------------------------------------------------
@@ -65,37 +74,60 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status PostMaster::Send( const URL &url, Message *msg, uint16_t timeout )
   {
-    return Status();
+    Channel *channel = GetChannel( url );
+    return channel->Send( msg, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Send the message asynchronously
   //----------------------------------------------------------------------------
-  Status PostMaster::Send( const URL             &url,
-                           Message               *msg,
-                           MessageStatusListener *listener,
-                           uint16_t               timeout )
+  Status PostMaster::Send( const URL            &url,
+                           Message              *msg,
+                           MessageStatusHandler *handler,
+                           uint16_t              timeout )
   {
+    Channel *channel = GetChannel( url );
+    return channel->Send( msg, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Synchronously receive a message
   //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL     &url,
-                              Message       *msg,
-                              MessageFilter *filter,
-                              uint16_t       timeout )
+  Status PostMaster::Receive( const URL      &url,
+                              Message       *&msg,
+                              MessageFilter  *filter,
+                              uint16_t        timeout )
   {
-    return Status();
+    Channel *channel = GetChannel( url );
+    return channel->Receive( msg, filter, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Listen to incomming messages
   //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL       &url,
-                              MessageListener *listener,
-                              uint16_t         timeout )
+  Status PostMaster::Receive( const URL      &url,
+                              MessageHandler *handler,
+                              uint16_t        timeout )
   {
-    return Status();
+    Channel *channel = GetChannel( url );
+    return channel->Receive( handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the channel
+  //----------------------------------------------------------------------------
+  Channel *PostMaster::GetChannel( const URL &url )
+  {
+    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    Channel *channel = 0;
+    ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
+    if( it == pChannelMap.end() )
+    {
+      channel = new Channel( url, pPoller, pTransportHandler );
+      pChannelMap[url.GetHostId()] = channel;
+    }
+    else
+      channel = it->second;
+    return channel;
   }
 }

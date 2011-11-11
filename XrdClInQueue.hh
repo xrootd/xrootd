@@ -4,36 +4,43 @@
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_DEFAULT_ENV_HH__
-#define __XRD_CL_DEFAULT_ENV_HH__
+#ifndef __XRD_CL_IN_QUEUE_HH__
+#define __XRD_CL_IN_QUEUE_HH__
 
-#include "XrdSys/XrdSysPthread.hh"
-
-#include "XrdCl/XrdClEnv.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <list>
 
 namespace XrdClient
 {
+  class Message;
+  class MessageHandler;
+
   //----------------------------------------------------------------------------
-  //! Default environment for the client. Responsible for setting/importing
-  //! defaults for the variables used in the client.
+  //! A synchronize queue for incomming data
   //----------------------------------------------------------------------------
-  class DefaultEnv: public Env
+  class InQueue
   {
     public:
       //------------------------------------------------------------------------
-      //! Constructor
+      //! Add a message to the queue
       //------------------------------------------------------------------------
-      DefaultEnv();
+      bool AddMessage( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Get default client environment
+      //! Add a listener that should be notified about incomming messages
       //------------------------------------------------------------------------
-      static Env *GetEnv();
+      void AddMessageHandler( MessageHandler *handler );
+
+      //------------------------------------------------------------------------
+      //! Remove a listener
+      //------------------------------------------------------------------------
+      void RemoveMessageHandler( MessageHandler *handler );
 
     private:
-      static XrdSysMutex  sMutex;
-      static Env         *sEnv;
+      std::list<Message *>        pMessages;
+      std::list<MessageHandler *> pHandlers;
+      XrdSysMutex                 pMutex;
   };
 }
 
-#endif // __XRD_CL_DEFAULT_ENV_HH__
+#endif // __XRD_CL_IN_QUEUE_HH__
