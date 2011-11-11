@@ -1,6 +1,7 @@
 //------------------------------------------------------------------------------
-// author: Lukasz Janyst <ljanyst@cern.ch>
-// desc:   Path processor
+// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
+// Author: Lukasz Janyst <ljanyst@cern.ch>
+// See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
 #ifndef EOS_NS_PATH_PROCESSOR_HH
