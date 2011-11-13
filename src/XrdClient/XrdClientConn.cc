@@ -71,6 +71,7 @@
 typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *, const struct sockaddr &,
                                            const XrdSecParameters &, XrdOucErrInfo *);
 
+XrdSysMutex                              XrdClientConn::fSessionIDRMutex;
 XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
 
 // Instance of the Connection Manager
@@ -1474,7 +1475,7 @@ bool XrdClientConn::DoLogin()
 
     // plist is the plain response from the server. We need a way to 0-term it.
     XrdSecProtocol *secp = 0;
-    SessionIDInfo *prevsessid = 0;
+    SessionIDInfo prevSessionID, *prevsessidP = 0;
     XrdOucString sessname;
     XrdOucString sessdump;
     if (resp && LastServerResp.dlen && plist) {
@@ -1500,16 +1501,23 @@ bool XrdClientConn::DoLogin()
 	    // Get the previous session id, in order to kill it later
 
 	    char buf[20];
-	    snprintf(buf, 20, "%d", fUrl.Port);
+	    snprintf(buf, 20, ":%d.", fUrl.Port);
 
-	    sessname = fUrl.HostAddr;
+	    sessname+= fUrl.HostAddr;
 	    if (sessname.length() <= 0)
 		sessname = fUrl.Host;
 
-	    sessname += ":";
 	    sessname += buf;
+            sessname += fUrl.User;
 
-	    prevsessid = fSessionIDRepo.Find(sessname.c_str());
+            memcpy(&mySessionID, plist, sizeof(mySessionID));
+            fSessionIDRMutex.Lock();
+            prevsessidP = fSessionIDRepo.Find(sessname.c_str());
+            if (prevsessidP)
+               {prevSessionID = *prevsessidP;
+                memcpy(prevsessidP, &mySessionID, sizeof(mySessionID));
+               }
+            fSessionIDRMutex.UnLock();
 
 	    // Check if we need to authenticate 
 	    if (LastServerResp.dlen > 16) {
@@ -1553,7 +1561,7 @@ bool XrdClientConn::DoLogin()
 	}
 
         if( resp ) {
-	if (prevsessid) {
+	if (prevsessidP) {
 	    //
 	    // We have to kill the previous session, if any
 	    // By sending a kXR_endsess
@@ -1561,8 +1569,8 @@ bool XrdClientConn::DoLogin()
            if (XrdClientDebug::kHIDEBUG <= DebugLevel()) {
 	      XrdOucString sessdump;
 	      char b[20];
-	      for (unsigned int i = 0; i < sizeof(prevsessid->id); i++) {
-		  snprintf(b, 20, "%.2x", prevsessid->id[i]);
+	      for (unsigned int i = 0; i < sizeof(prevsessidP->id); i++) {
+		  snprintf(b, 20, "%.2x", prevsessidP->id[i]);
 		  sessdump += b;
 	      }
 	      Info(XrdClientDebug::kHIDEBUG,
@@ -1574,7 +1582,7 @@ bool XrdClientConn::DoLogin()
 	    SetSID(reqhdr.header.streamid);
 	    reqhdr.header.requestid = kXR_endsess;
 
-	    memcpy(reqhdr.endsess.sessid, prevsessid->id, sizeof(prevsessid->id));
+	    memcpy(reqhdr.endsess.sessid, &prevSessionID, sizeof(prevSessionID));
 
 	    // terminate session
 	    Info(XrdClientDebug::kHIDEBUG,
@@ -1583,23 +1591,17 @@ bool XrdClientConn::DoLogin()
 	    SendGenCommand(&reqhdr, 0, 0, 0, 
 			   FALSE, (char *)"XrdClientConn::Endsess");
 
-	    // Now overwrite the previous session info with the new one
-	    for (unsigned int i=0; i < 16; i++)
-		prevsessid->id[i] = plist[i];
-
-
-
 	} else {
 	    Info(XrdClientDebug::kHIDEBUG,
 		 "DoLogin","No prev session info for " << sessname);
 
 	    // No session info? Let's create one.
 	    SessionIDInfo *newsessid = new SessionIDInfo;
+     *newsessid = mySessionID;
 
-	    for (int i=0; i < int(sizeof(newsessid->id)); i++)
-		newsessid->id[i] = plist[i];
-
+	    fSessionIDRMutex.Lock();
 	    fSessionIDRepo.Rep(sessname.c_str(), newsessid);
+	    fSessionIDRMutex.UnLock();
 	}
 
     } } //resp
