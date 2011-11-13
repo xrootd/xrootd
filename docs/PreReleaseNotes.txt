@@ -18,6 +18,11 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Handle the sessionID in a consistent and thread-safe manner. This should
+     solve the problem of sessions being uselessly terminated making secsss
+     less than robust.
+   * Rework the handshake when making a parallel connection. Previous method
+     caused a deadlock when parallel connections were requested (e.g. xrdcp).
    * Remove regressions that prevent a proxy cluster from being fully
      configured.
    * Prevent SEGV's by making joined threads actually joinable and not
