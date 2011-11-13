@@ -679,10 +679,12 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 {
    // Performs initial hand-shake with the server in order to understand which 
    // kind of server is there at the other side and to make the server know who 
-   // we are
+   // we are. Note that if the substreamid is negative, this is a handshake for
+   // a parallel stream and we can do a short handshake.
    struct ClientInitHandShake initHS;
    ServerResponseType type;
    ERemoteServerType typeres = kSTNone;
+   int isPS = (substreamid < 0);
 
    int writeres, readres, len;
 
@@ -702,18 +704,26 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
    //---------------------------------------------------------------------------
    // Send the handshake and the kXR_protocol request
    //---------------------------------------------------------------------------
-   Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
-         "HandShake step 1: Sending handshake with a piggy-backed protocol request" );
 
    if( DebugLevel() >= XrdClientDebug::kDUMPDEBUG )
      smartPrintClientHeader( &req );
-
-   clientMarshall( &req );
-   len = sizeof( req ) + sizeof( initHS );
-   char buffer[sizeof(req)+sizeof(initHS)];
-   memcpy( buffer, &initHS, sizeof( initHS ) );
-   memcpy( buffer+sizeof( initHS ), &req, sizeof( req ) );
-   writeres = WriteRaw( buffer, len, substreamid );
+   // For parallel streams we only send the handshake. For normal streams we
+   // piggy-back a protocol request (i.e., extended handshake). This is for
+   // historical reasons to keep backward compatability.
+   if (isPS)
+      {Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+            "HandShake step 1: Sending handshake for a parallel stream" );
+       writeres = WriteRaw( &initHS, sizeof(initHS), substreamid );
+      } else {
+       Info( XrdClientDebug::kHIDEBUG, "DoHandShake",
+            "HandShake step 1: Sending handshake with a piggy-backed protocol request" );
+       clientMarshall( &req );
+       len = sizeof( req ) + sizeof( initHS );
+       char buffer[sizeof(req)+sizeof(initHS)];
+       memcpy( buffer, &initHS, sizeof( initHS ) );
+       memcpy( buffer+sizeof( initHS ), &req, sizeof( req ) );
+       writeres = WriteRaw( buffer, len, substreamid );
+      }
 
    if( writeres < 0 )
    {
@@ -772,6 +782,21 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
       Info(XrdClientDebug::kHIDEBUG,
 	   "DoHandShake",
 	   "Server protocol: " << xbody.protover << " type: " << xbody.msgval);
+
+      // For parallel streams we never sent a protocol request. Otherwise, we
+      // need to get the protocol request response. Ideally, we would continue
+      // doing this using the unlocked ReadRaw() as the handshake is technically
+      // atomic. The added code went through the message queue making it not
+      // atomic which made it impossible to setup a parallel stream. the ideal
+      // fix would cause too much code to change, so we do a quick and dirty.
+      //
+      if (isPS)
+         {typeres = kSTDataXrootd;
+          if (xbody.msgval & kXR_DataServer) fServerType = kSTDataXrootd;
+             else fServerType = kSTBaseXrootd;
+          fServerProto = xbody.protover;
+          return fServerType;
+         }
 
       //------------------------------------------------------------------------
       // Get the response to the protocol message
