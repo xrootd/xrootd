@@ -183,7 +183,7 @@ static void prepare()
   if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->ShutDown();
-    SessionIDRepo.Purge();
+    XrdClientConn::DelSessionIDRepo();
   }
 }
 

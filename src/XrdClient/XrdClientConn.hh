@@ -11,8 +11,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//       $Id$
-
 #ifndef XRD_CONN_H
 #define XRD_CONN_H
 
@@ -25,9 +23,9 @@
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientReadCache.hh"
 #include "XrdOuc/XrdOucHash.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #define ConnectionManager XrdClientConn::GetConnectionMgr()
-#define SessionIDRepo     XrdClientConn::GetSessionIDRepo()
 
 class XrdClientAbs;
 class XrdSecProtocol;
@@ -292,24 +290,12 @@ public:
     static XrdClientConnectionMgr *GetConnectionMgr()
     { return fgConnectionMgr;} //Instance of the conn manager
 
-    static XrdOucHash<SessionIDInfo> &GetSessionIDRepo()
-    { return fSessionIDRepo; }
+    static void DelSessionIDRepo()         {fSessionIDRMutex.Lock();
+                                            fSessionIDRepo.Purge();
+                                            fSessionIDRMutex.UnLock();
+                                           }
 
-    void GetSessionID(SessionIDInfo &sess) {
-      XrdOucString sessname;
-      char buf[20];
-      
-      snprintf(buf, 20, "%d", fUrl.Port);
-
-      sessname = fUrl.HostAddr;
-      if (sessname.length() <= 0)
-	sessname = fUrl.Host;
-
-      sessname += ":";
-      sessname += buf;
-
-      sess = *( fSessionIDRepo.Find(sessname.c_str()) );
-    }
+    void GetSessionID(SessionIDInfo &sess) {sess = mySessionID;}
 
     long                       GetServerProtocol() { return fServerProto; }
 
@@ -379,11 +365,14 @@ private:
 
     long                       fServerProto;        // The server protocol
     ERemoteServerType          fServerType;         // Server type as returned by doHandShake() 
+    SessionIDInfo              mySessionID;         // Login session ID
 
+
+    static XrdSysMutex         fSessionIDRMutex;    // Mutex for the Repo
     static XrdOucHash<SessionIDInfo>
     fSessionIDRepo;      // The repository of session IDs, shared.
     // Association between
-    // <hostname>:<port> and a SessionIDInfo struct
+    // <hostname>:<port>.<user> and a SessionIDInfo struct
 
     int                        fOpenSockFD;         // Descriptor of the underlying socket
     static XrdClientConnectionMgr *fgConnectionMgr; //Instance of the Connection Manager
@@ -425,7 +414,7 @@ private:
 						  ClientRequest *, bool, void**,
 						  EThreeStateReadHandler &);
 
-    void                       ClearSessionID();
+//  void                       ClearSessionID();
 
     XReqErrorType              WriteToServer(ClientRequest *req, 
 					     const void* reqMoreData,
