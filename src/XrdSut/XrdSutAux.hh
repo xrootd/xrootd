@@ -1,4 +1,3 @@
-// $Id$
 #ifndef __SUT_AUX_H__
 #define __SUT_AUX_H__
 /******************************************************************************/
@@ -178,7 +177,7 @@ int XrdSutResolve(XrdOucString &path,
 /*  X r d S u t H o m e                                                       */
 /*                                                                            */
 /*  Return the home directory                                                 */
-/*  Checks, in the order, HOME and getpwuid()                                 */
+/*  Checks, in the order, HOME and pwd entry
 /******************************************************************************/
 const char *XrdSutHome();
 

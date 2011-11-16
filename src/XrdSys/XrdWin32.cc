@@ -1,7 +1,3 @@
-//          $Id$
-
-//const char *XrdWin32CVSID = "$Id$";
-
 #include "XrdSys/XrdWin32.hh"
 #include <Windows.h>
 #include <errno.h>
@@ -473,14 +469,6 @@ char *getlogin()
    if (GetUserName(user_name, &length))
       return user_name;
    return NULL;
-}
-
-char *cuserid(char * s)
-{
-   char * name = getlogin();
-   if (s)
-      return strcpy(s, name ? name : "");
-   return name;
 }
 
 int posix_memalign(void **memptr, size_t alignment, size_t size)

@@ -36,6 +36,7 @@ extern "C" {
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysPwd.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysPriv.hh"
@@ -751,7 +752,8 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
         nlen += (ln - 6);
         }
     char *puid = (char *) strstr(&ccfile[0], "<uid>");
-    struct passwd *pw = getpwnam(CName);
+    struct passwd *pw;
+    XrdSysPwd thePwd(CName, &pw);
     if (puid)
        {char cuid[20] = {0};
         if (pw)

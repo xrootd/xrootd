@@ -18,6 +18,7 @@
 #include "XrdSys/XrdWin32.hh"
 #else
 #include <fcntl.h>
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
@@ -437,6 +438,30 @@ void XrdOucUtils::Undercover(XrdSysError &eDest, int noLog, int *pipeFD)
 //
   for (myfd = 3; myfd < maxFiles; myfd++)
       if( (!pipeFD || myfd != pipeFD[1]) && myfd != logFD ) close(myfd);
+}
+
+/******************************************************************************/
+/*                              U s e r N a m e                               */
+/******************************************************************************/
+  
+int XrdOucUtils::UserName(uid_t uID, char *uName, int uNsz)
+{
+   struct passwd *pEnt, pStruct;
+   char pBuff[1024];
+   int rc;
+
+// Try to obtain the username. We use this form to make sure we are using
+// the standards conforming version (compilation error otherwise).
+//
+   rc = getpwuid_r(uID, &pStruct, pBuff, sizeof(pBuff), &pEnt);
+   if (rc)    return rc;
+   if (!pEnt) return ESRCH;
+
+// Return length of username or zero if it is too big
+//
+   if (uNsz <= (int)strlen(pEnt->pw_name)) return ENAMETOOLONG;
+   strcpy(uName, pEnt->pw_name);
+   return 0;
 }
 
 /******************************************************************************/

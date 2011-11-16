@@ -5,9 +5,6 @@
 /* (c) 2006 G. Ganis (CERN)                                                   */
 /*     All Rights Reserved. See XrdInfo.cc for complete License Terms         */
 /******************************************************************************/
-// $Id$
-
-const char *XrdSysPrivCVSID = "$Id$";
 
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
@@ -26,6 +23,7 @@ const char *XrdSysPrivCVSID = "$Id$";
 #if !defined(WINDOWS)
 #include <stdio.h>
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPwd.hh"
 #include <unistd.h>
 #include <pwd.h>
 #include <errno.h>
@@ -341,7 +339,8 @@ XrdSysPrivGuard::XrdSysPrivGuard(const char *usr)
 
 #if !defined(WINDOWS)
    if (usr && strlen(usr) > 0) {
-      struct passwd *pw = getpwnam(usr);
+      struct passwd *pw;
+      XrdSysPwd thePwd(usr, &pw);
       if (pw)
          Init(pw->pw_uid, pw->pw_gid);
    }

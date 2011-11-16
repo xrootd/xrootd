@@ -320,7 +320,6 @@ extern int close(int fd);
 extern int writev(int sock, const struct iovec iov[], int nvecs);
 extern int posix_memalign (void **memptr, size_t alignment, size_t size);
 extern char *index(const char *str, int c);
-extern char *cuserid(char * s);
 
 #ifndef localtime_r
 #define localtime_r( _clock, _result ) \

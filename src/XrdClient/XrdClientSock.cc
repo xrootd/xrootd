@@ -11,10 +11,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//         $Id$
-
-const char *XrdClientSockCVSID = "$Id$";
-
 #include <memory>
 #include <errno.h>
 #include <stdio.h>
@@ -24,6 +20,7 @@ const char *XrdClientSockCVSID = "$Id$";
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdNet/XrdNetOpts.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -39,7 +36,6 @@ const char *XrdClientSockCVSID = "$Id$";
 
 #ifdef __FreeBSD__
 #include <sys/types.h>
-#include <pwd.h>
 #endif
 
 //_____________________________________________________________________________
@@ -458,10 +454,7 @@ int XrdClientSock::TryConnect_low(bool isUnix, int altport, int windowsz)
 
 int XrdClientSock::Socks4Handshake(int sockid) {
 
-    char buf[4096], userid[4096];
-#ifdef __FreeBSD__
-    struct passwd *pwd;
-#endif
+    char buf[4096], userid[256];
     uint16_t port;
     char a, b, c, d;
 
@@ -478,14 +471,7 @@ int XrdClientSock::Socks4Handshake(int sockid) {
     buf[6] = c;
     buf[7] = d;
 
-#ifdef __FreeBSD__
-    if ((pwd = getpwuid(geteuid())) == NULL)
-        *userid = '\0';
-    else
-        (void)strncpy(userid, pwd->pw_name, L_cuserid);
-#else
-    cuserid(userid);
-#endif
+    if (XrdOucUtils::UserName(geteuid(), userid, sizeof(userid))) *userid = 0;
     strcpy(buf+8, userid);
 
     // send the buffer to the server!
