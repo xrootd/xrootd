@@ -1,6 +1,3 @@
-// $Id$
-
-const char *XrdSecgsiProxyCVSID = "$Id$";
 /******************************************************************************/
 /*                                                                            */
 /*                   X r d S e c g s i P r o x y . c c                        */
@@ -29,6 +26,7 @@ const char *XrdSecgsiProxyCVSID = "$Id$";
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
+#include <XrdSys/XrdSysPwd.hh>
 
 #include <XrdSut/XrdSutAux.hh>
 
@@ -457,12 +455,13 @@ int ParseArguments(int argc, char **argv)
    //
    // we may need later
    struct passwd *pw = 0;
+   XrdSysPwd thePwd;
 
    //
    // Check proxy file
    if (PXcert.length() <= 0) {
       // Use defaults
-      if (!pw && !(pw = getpwuid(getuid()))) {
+      if (!pw && !(pw = thePwd.Get(getuid()))) {
          // Cannot get info about current user
          PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
          PRT("+ Cannot get info about current user - exit ");
@@ -515,7 +514,7 @@ int ParseArguments(int argc, char **argv)
          }
       } else {
          // Use defaults
-         if (!pw && !(pw = getpwuid(getuid()))) {
+         if (!pw && !(pw = thePwd.Get(getuid()))) {
             // Cannot get info about current user
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Cannot get info about current user - exit ");
@@ -546,7 +545,7 @@ int ParseArguments(int argc, char **argv)
          }
       } else {
          // Use defaults
-         if (!pw && !(pw = getpwuid(getuid()))) {
+         if (!pw && !(pw = thePwd.Get(getuid()))) {
             // Cannot get info about current user
             PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
             PRT("+ Cannot get info about current user - exit ");

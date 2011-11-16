@@ -1,6 +1,3 @@
-// $Id$
-
-const char *XrdSutAuxCVSID = "$Id$";
 /******************************************************************************/
 /*                                                                            */
 /*                        X r d S u t A u x . c c                             */
@@ -25,6 +22,7 @@ const char *XrdSutAuxCVSID = "$Id$";
 
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
+#include <XrdSys/XrdSysPwd.hh>
 #include <XrdOuc/XrdOucString.hh>
 
 #include <XrdSut/XrdSutAux.hh>
@@ -370,8 +368,9 @@ int XrdSutExpand(XrdOucString &path)
       } else
          sdir = '/';
       if (unam.length() > 0) {
-         struct passwd *pw = 0;
-         if (!(pw = getpwnam(unam.c_str()))) {
+         struct passwd *pw;
+         XrdSysPwd thePwd(unam.c_str(), &pw);
+         if (!pw) {
             DEBUG("cannot pwnam information for local user "<<
                  ((unam.length() > 0) ? unam : XrdOucString("")));
             return -errno;
@@ -436,7 +435,7 @@ int XrdSutResolve(XrdOucString &path,
 /******************************************************************************/
 const char *XrdSutHome()
 {
-   // Gets the home directory preferentially from HOME or from getpwuid()
+   // Gets the home directory preferentially from HOME or from pwd entry
    EPNAME("Home");
 
    // Use the save value, if any
@@ -446,8 +445,9 @@ const char *XrdSutHome()
       if (getenv("HOME"))
          homedir = getenv("HOME");
       if (homedir.length() <= 0) {
-         struct passwd *pw = getpwuid(getuid());
-         homedir = pw->pw_dir;
+         struct passwd *pw;
+         XrdSysPwd thePwd(getuid(), &pw);
+         if (pw) homedir = pw->pw_dir;
       }
       if (homedir.length() <= 0)
          DEBUG("Warning: home directory undefined! ");

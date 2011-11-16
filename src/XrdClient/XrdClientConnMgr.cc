@@ -28,6 +28,7 @@ const char *XrdClientConnMgrCVSID = "$Id$";
 #include "XrdClient/XrdClientThread.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientSid.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #ifdef WIN32
 #include "XrdSys/XrdWin32.hh"
 #endif
@@ -43,7 +44,6 @@ const char *XrdClientConnMgrCVSID = "$Id$";
 // For user info
 #ifndef WIN32
 #include <sys/types.h>
-#include <pwd.h>
 #endif
 
 // Max number allowed of logical connections ( 2**15 - 1, short int)
@@ -311,11 +311,11 @@ int XrdClientConnectionMgr::Connect(XrdClientUrlInfo RemoteServ)
 
    // If empty, fill the user name with the default to avoid fake mismatches
    if (RemoteServ.User.length() <= 0) {
-#ifndef WIN32
-      struct passwd *pw = getpwuid(getuid());
-      RemoteServ.User = (pw) ? pw->pw_name : "";
-#else
       char  name[256];
+#ifndef WIN32
+      RemoteServ.User = (XrdOucUtils::UserName(getuid(), name, sizeof(name))
+                      ? "" : name);
+#else
       DWORD length = sizeof (name);
       ::GetUserName(name, &length);
       RemoteServ.User = name;
@@ -647,11 +647,11 @@ XrdClientPhyConnection *XrdClientConnectionMgr::GetPhyConnection(XrdClientUrlInf
 
   // If empty, fill the user name with the default to avoid fake mismatches
   if (server.User.length() <= 0) {
-#ifndef WIN32
-    struct passwd *pw = getpwuid(getuid());
-    server.User = (pw) ? pw->pw_name : "";
-#else
     char  name[256];
+#ifndef WIN32
+    server.User = (XrdOucUtils::UserName(getuid(), name, sizeof(name))
+                ? "" : name);
+#else
     DWORD length = sizeof (name);
     ::GetUserName(name, &length);
     server.User = name;

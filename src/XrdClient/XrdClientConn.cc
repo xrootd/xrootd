@@ -21,6 +21,7 @@
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
@@ -54,7 +55,6 @@
 #include <stdio.h>      // needed by printf
 #include <stdlib.h>     // needed by getenv()
 #ifndef WIN32
-#include <pwd.h>        // needed by getpwuid()
 #include <sys/types.h>  // needed by getpid()
 #include <unistd.h>     // needed by getpid() and getuid()
 #else
@@ -1408,12 +1408,10 @@ bool XrdClientConn::DoLogin()
     XrdOucString User = fUrl.User;
     if (User.length() <= 0) {
 	// Use local username, if not specified
-#ifndef WIN32
-	struct passwd *u = getpwuid(getuid());
-	if (u >= 0)
-	    User = u->pw_name;
-#else
 	char  name[256];
+#ifndef WIN32
+if (!XrdOucUtils::UserName(geteuid(), name, sizeof(name))) User = name;
+#else
 	DWORD length = sizeof (name);
 	GetUserName(name, &length);
 	User = name;

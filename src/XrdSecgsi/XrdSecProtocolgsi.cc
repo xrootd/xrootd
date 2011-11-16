@@ -25,6 +25,7 @@
 #include <XrdSys/XrdSysError.hh>
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPriv.hh"
+#include "XrdSys/XrdSysPwd.hh"
 #include <XrdOuc/XrdOucStream.hh>
 
 #include <XrdSut/XrdSutCache.hh>
@@ -898,7 +899,8 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          return Parms;
       }
       // use default dir $(HOME)/.<prefix>
-      struct passwd *pw = getpwuid(getuid());
+      struct passwd *pw;
+      XrdSysPwd thePwd(getuid(), &pw);
       if (!pw) {
          DEBUG("WARNING: cannot get user information (uid:"<<getuid()<<")");
       }
@@ -3490,7 +3492,8 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
    if ((PxyReqOpts & kOptsPxFile)) {
       if (user.length() > 0) {
          String pxfile = UsrProxy, name;
-         struct passwd *pw = getpwnam(user.c_str());
+         struct passwd *pw;
+         XrdSysPwd thePwd(user.c_str(), &pw);
          if (pw) {
             name = pw->pw_name;
          } else {

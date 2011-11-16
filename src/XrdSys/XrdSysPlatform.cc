@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//        $Id$
-
-const char *XrdSysPlatformCVSID = "$Id$";
 
 #include <stdio.h>
 #include <string.h>
@@ -52,24 +48,5 @@ size_t strlcpy(char *dst, const char *src, size_t sz)
 
     return slen;
 }
-}
-#endif
-#ifdef __macos__
-#include <pwd.h>
-// This is not re-enetrant or mt-safe but it's all we have
-//
-char *cuserid(char *buff)
-{
-  static char myBuff[33];
-  char *theBuff = (buff ? buff : myBuff);
-
-  struct passwd *thePWD = getpwuid(getuid());
-  if (!thePWD)
-    {if (buff) *buff = '\0';
-     return buff;
-    }
-
-  strlcpy(theBuff, thePWD->pw_name, 33);
-  return theBuff;
 }
 #endif

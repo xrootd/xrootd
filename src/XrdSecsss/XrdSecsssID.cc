@@ -173,14 +173,13 @@ int XrdSecsssID::Register(const char *lid, XrdSecEntity *eP, int doRep)
 XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
 {
    XrdSecEntity   myID("sss");
-   static const int pgSz = 1024;
-   struct passwd *pEnt, pStruct;
+   static const int pgSz = 256;
    char pBuff[pgSz], gBuff[pgSz];
 
 // Use either our own uid/gid or a generic
 //
-   myID.name = (Secure || getpwuid_r(geteuid(), &pStruct, pBuff, pgSz, &pEnt))
-             ? (char *)"nobody" : pEnt->pw_name;
+   myID.name = (Secure || XrdOucUtils:: UserName(geteuid(), pBuff, pgSz))
+             ? (char *)"nobody"  : pBuff;
    myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz))
              ? (char *)"nogroup" : gBuff;
 

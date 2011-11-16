@@ -45,6 +45,7 @@ void      ka_StringToKey(char *str, char *cell,
 #include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
+#include <XrdSys/XrdSysPwd.hh>
 #include <XrdOuc/XrdOucStream.hh>
 
 #include <XrdSys/XrdSysPriv.hh>
@@ -353,10 +354,12 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    XrdCryptoSetTrace(trace);
 
    // Get user info
-   struct passwd *pw = getpwuid(getuid());
+   struct passwd *pw;
+   XrdSysPwd thePwd(getuid(), &pw);
+
    if (!pw) {
       PRINT("no user info available - invalid ");
-      ErrF(erp, kPWErrInit, "could not get user info from getpwuid");
+      ErrF(erp, kPWErrInit, "could not get user info from pwuid");
       return Parms;
    }
 
@@ -2603,7 +2606,8 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
    // Check first info in user's home, if allowed
    if (UserPwd) {
       // Get userinfo
-      struct passwd *pw = getpwnam(hs->User.c_str());
+      struct passwd *pw;
+      XrdSysPwd thePwd(hs->User.c_str(), &pw);
       int rcst = 0;
       kXR_int32 mtime = -1;
       bool fcrypt = 0;
@@ -2744,7 +2748,8 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
       if (AutoReg != kpAR_none) {
          status = kPFE_allowed;
          if (AutoReg == kpAR_users) {
-            struct passwd *pw = getpwnam(hs->User.c_str());
+            struct passwd *pw;
+            XrdSysPwd thePwd(hs->User.c_str(), &pw);
             if (!pw) {
                status = kPFE_disabled;
                bad = 1;
@@ -3462,7 +3467,8 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 
    //
    // Get the password structure
-   struct passwd *pw = getpwnam(hs->User.c_str());
+   struct passwd *pw;
+   XrdSysPwd thePwd(hs->User.c_str(), &pw);
    if (!pw) {
       DEBUG("Cannot get pwnam structure for user "<<hs->User);
       return -1;

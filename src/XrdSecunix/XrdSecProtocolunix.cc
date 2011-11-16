@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <pwd.h>
 #include <sys/types.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -70,8 +69,7 @@ char                     *credBuff;      // Credentials buffer (server)
 XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
                                                       XrdOucErrInfo    *error)
 {
-   struct passwd *pEnt, pStruct;
-   char pgBuff[1024], Buff[512], *Bp;
+   char Buff[512], *Bp;
    int Blen, n;
 
 // Set protocol ID in the buffer
@@ -80,14 +78,12 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the username
 //
-   if (getpwuid_r(geteuid(), &pStruct, pgBuff, sizeof(pgBuff), &pEnt))
-           strcpy(Bp, "*");
-      else strcpy(Bp, pEnt->pw_name);
+   if (XrdOucUtils::UserName(geteuid(), Bp, 256)) strcpy(Bp, "*");
    Bp += strlen(Bp); Blen = (Bp - Buff) + 1;
 
 // Get the group name
 //
-   if ((n = XrdOucUtils::GroupName(getegid(),Bp+1,sizeof(pgBuff)-(Blen+4))))
+   if ((n = XrdOucUtils::GroupName(getegid(), Bp+1, Blen-1)))
       {*Bp = ' '; Blen += (n+1);}
 
 // Return the credentials

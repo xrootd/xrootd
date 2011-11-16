@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdAccGroupsCVSID = "$Id$";
-
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -24,14 +20,10 @@ const char *XrdAccGroupsCVSID = "$Id$";
 #include <sys/types.h>
 
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPwd.hh"
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdAcc/XrdAccPrivs.hh"
-
-// This routine uses non mt-safe routines such as getpwnam, getgrent, etc.
-// We do so because we are the only ones using these routines and thet are
-// protected by the Group_Build_Context mutex. Anyway, the re-enterant
-// version of the same routines are not mt-safe in any case, sigh.
 
 // Additionally, this routine does not support a user in more than
 // NGROUPS_MAX groups. This is a standard unix limit defined in limits.h.
@@ -163,18 +155,16 @@ char *Gtab[NGROUPS_MAX];
 
 // If the user has no password file entry, then we have no groups for user.
 // All code that tries to construct a group list is protected by the
-// Group_Build_Context mutex.
+// Group_Build_Context mutex, obtained after we get the pwd entry.
 //
-   Group_Build_Context.Lock();
-   if ( (pw = getpwnam(user)) == NULL)
-      {Group_Build_Context.UnLock();
-       return (XrdAccGroupList *)0;
-      }
+   XrdSysPwd thePwd(user, &pw);
+   if ( (pw == NULL) ) return (XrdAccGroupList *)0;
 
 // Build first entry for the primary group. We will ignore the primary group
 // listing later. We do this to ensure that the user has at least one group
 // regardless of what the groups file actually says.
 //
+   Group_Build_Context.Lock();
    gtabi = addGroup(user, pw->pw_gid, 0, Gtab, 0);
 
 // Now run through all of the group entries getting the list of user's groups

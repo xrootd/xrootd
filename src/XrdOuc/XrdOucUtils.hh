@@ -50,6 +50,8 @@ static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
 
 static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
 
+static int   UserName(uid_t uID, char *uName, int uNsz);
+
 static bool PidFile(XrdSysError &eDest, const char *path);
 
        XrdOucUtils() {}
