@@ -18,6 +18,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Replace non-reentrant versions of getpwxxx and getgrxxx with reentrant
+     versions. This should prevent spurious uid/gid translations.
    * Handle the sessionID in a consistent and thread-safe manner. This should
      solve the problem of sessions being uselessly terminated making secsss
      less than robust.
