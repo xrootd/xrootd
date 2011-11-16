@@ -74,7 +74,17 @@ bool ofsfwd;
 
 static void* xrootdfs_init(struct fuse_conn_info *conn)
 {
-    struct passwd *pw;
+    struct passwd pw, *pwp;
+    char *pwbuf;
+    size_t pwbuflen;
+
+    struct rlimit rl;
+    rl.rlim_cur = RLIM_INFINITY;
+    rl.rlim_max = RLIM_INFINITY;
+    setrlimit(RLIMIT_CORE, &rl);  // attemp to enable core dump
+
+    pwbuflen = sysconf(_SC_GETPW_R_SIZE_MAX);
+    pwbuf = (char*)malloc(pwbuflen + 1);
 
     if (xrootdfs.daemon_user != NULL)
     {
@@ -84,15 +94,16 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
         {
             if (isdigit(xrootdfs.daemon_user[i]) == 0) 
             {
-                pw = getpwnam(xrootdfs.daemon_user);
+                getpwnam_r(xrootdfs.daemon_user, &pw, pwbuf, pwbuflen, &pwp);
                 break;
             }
         }
-        if (i == len) pw = getpwuid(atoi(xrootdfs.daemon_user));
-        setgid((gid_t)pw->pw_gid);
-        setuid((uid_t)pw->pw_uid);
+        if (i == len) getpwuid_r(atoi(xrootdfs.daemon_user), &pw, pwbuf, pwbuflen, &pwp);
+        setgid((gid_t)pw.pw_gid);
+        setuid((uid_t)pw.pw_uid);
         prctl(PR_SET_DUMPABLE, 1); // enable core dump after setuid/setgid
     }
+    free(pwbuf);
 
 /*
    From FAQ:

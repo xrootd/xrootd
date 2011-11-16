@@ -375,15 +375,12 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
 
 /*  SSS security module */
 
-XrdSecEntity *XrdFfsMiscUent;
 XrdSecsssID *XrdFfsMiscSssid;
 bool XrdFfsMiscSecsss = false;
-pthread_mutex_t XrdFfsMiscSecsss_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void XrdFfsMisc_xrd_secsss_init()
 {
     XrdFfsMiscSecsss = true;
-    XrdFfsMiscUent = new XrdSecEntity("");
     XrdFfsMiscSssid = new XrdSecsssID(XrdSecsssID::idDynamic);
 
 /* Enforce "sss" security */
@@ -392,22 +389,31 @@ void XrdFfsMisc_xrd_secsss_init()
 
 void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
 {
-    struct passwd *pw;
-    struct group *gr;
-    char user_num[9];
+    struct passwd pw, *pwp;
+    struct group gr, *grp;
+    char user_num[9], *pwbuf, *grbuf;
+    static size_t pwbuflen = 0;
+    static size_t grbuflen = 0;
+
+    if (pwbuflen == 0) pwbuflen = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (grbuflen == 0) grbuflen = sysconf(_SC_GETGR_R_SIZE_MAX);
+
+    XrdSecEntity XrdFfsMiscUent("");
 
     if (XrdFfsMiscSecsss)
     {
         sprintf(user_num, "%x", user_uid);
-        pthread_mutex_lock(&XrdFfsMiscSecsss_mutex);
-    
-        pw = getpwuid(user_uid);
-        gr = getgrgid(user_gid);
-        XrdFfsMiscUent->name = pw->pw_name;
-        XrdFfsMiscUent->grps = gr->gr_name;
-        XrdFfsMiscSssid->Register(user_num, XrdFfsMiscUent, 1);
 
-        pthread_mutex_unlock(&XrdFfsMiscSecsss_mutex);
+        pwbuf = (char*) malloc(pwbuflen);
+        getpwuid_r(user_uid, &pw, pwbuf, pwbuflen, &pwp);
+        grbuf = (char*) malloc(grbuflen);
+        getgrgid_r(user_gid, &gr, grbuf, grbuflen, &grp);
+
+        XrdFfsMiscUent.name = pw.pw_name;
+        XrdFfsMiscUent.grps = gr.gr_name;
+        XrdFfsMiscSssid->Register(user_num, &XrdFfsMiscUent, 0);
+        free(pwbuf);
+        free(grbuf);
     }
 }
 
