@@ -6,6 +6,11 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Uniformly pass the execution environment to all oss and cms client
+     methods. This is largely for DPM support.
+     WARNING: While this update is binary backwad compatible to existing oss
+              plug-ins it is not source compatible. Plug-in writers will need
+              to modify their oss methods to successfully compile.
    * Allow an automatic redirect when a file operation ends with ENOENT.
      Allow redirects for chsum and trunc operations.
      Both of the above are controlled via the xrootd.redirect directive.
