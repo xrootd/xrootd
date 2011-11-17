@@ -27,7 +27,7 @@ class XrdPssDir : public XrdOssDF
 {
 public:
 int     Close(long long *retsz=0);
-int     Opendir(const char *);
+int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
@@ -98,19 +98,20 @@ virtual XrdOssDF *newDir(const char *tident)
 virtual XrdOssDF *newFile(const char *tident)
                        {return (XrdOssDF *)new XrdPssFile(tident);}
 
-int       Chmod(const char *, mode_t mode);
+int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
 int       Init(XrdSysLogger *, const char *);
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
 const
 char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc);
-int       Mkdir(const char *, mode_t mode, int mkpath=0);
-int       Remdir(const char *, int Opts=0);
-int       Rename(const char *, const char *);
+int       Mkdir(const char *, mode_t mode, int mkpath=0, XrdOucEnv *eP=0);
+int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0);
+int       Rename(const char *, const char *,
+                 XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
 int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
-int       Truncate(const char *, unsigned long long);
-int       Unlink(const char *, int Opts=0);
+int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0);
+int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
 
 static char *P2URL(char *pbuff, int pblen,   const char *path, int Split=0,
              const char *Cgi=0, int CgiLn=0, const char *tIdent=0, int doN2N=1);

@@ -211,7 +211,7 @@ int XrdOfsDirectory::open(const char              *dir_path, // In
 // Open the directory and allocate a handle for it
 //
    if (!(dp = XrdOfsOss->newDir(tident))) retc = -ENOMEM;
-      else if (!(retc = dp->Opendir(dir_path)))
+      else if (!(retc = dp->Opendir(dir_path, Open_Env)))
               {fname = strdup(dir_path);
                return SFS_OK;
               }
@@ -1282,7 +1282,7 @@ int XrdOfs::chmod(const char             *path,    // In
 
 // Now try to find the file or directory
 //
-   if (!(retc = XrdOfsOss->Chmod(path, acc_mode))) return SFS_OK;
+   if (!(retc = XrdOfsOss->Chmod(path, acc_mode, &chmod_Env))) return SFS_OK;
 
 // An error occured, return the error info
 //
@@ -1335,7 +1335,7 @@ int XrdOfs::exists(const char                *path,        // In
 
 // Now try to find the file or directory
 //
-   retc = XrdOfsOss->Stat(path, &fstat);
+   retc = XrdOfsOss->Stat(path, &fstat, 0, &stat_Env);
    if (!retc)
       {     if (S_ISDIR(fstat.st_mode)) file_exists=XrdSfsFileExistIsDirectory;
        else if (S_ISREG(fstat.st_mode)) file_exists=XrdSfsFileExistIsFile;
@@ -1398,19 +1398,20 @@ int XrdOfs::fsctl(const int               cmd,
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {struct stat fstat;
-       const char *Path, *locArg;
-       char rType[3], *Resp[] = {rType, locResp};
-            if (*args == '*')      {Path = args+1; locArg = args;}
-       else if (cmd & SFS_O_TRUNC) {Path = args;   locArg = (char *)"*";}
-       else                         Path = locArg = args;
+       char pbuff[1024], rType[3], *Resp[] = {rType, locResp};
+       const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
+            if (*Path == '*')      {locArg = Path; Path++;}
+       else if (cmd & SFS_O_TRUNC) {locArg = (char *)"*";}
+       else                         locArg = Path;
+       XrdOucEnv loc_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"locate",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Locate(einfo, locArg, find_flag)))
+       &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
           return fsError(einfo, retc);
-       if ((retc = XrdOfsOss->Stat(Path, &fstat)))
+       if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
        rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
-       rType[1] = (fstat.st_mode & S_IWUSR            ? 'w' : 'r');
+       rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
        rType[2] = '\0';
        einfo.setErrInfo(locRlen+3, (const char **)Resp, 2);
        return SFS_DATA;
@@ -1419,11 +1420,15 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the STATFS request
 //
    if (opcode == SFS_FSCTL_STATFS)
-      {AUTHORIZE(client,0,AOP_Stat,"statfs",args,einfo);
+      {char pbuff[1024];
+       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
+       XrdOucEnv fs_Env(opq ? opq+1 : 0,0,client);
+       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, args))) return fsError(einfo, retc);
+       &&  (retc = Finder->Space(einfo, Path, &fs_Env))) 
+          return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatFS(args, bP, blen)))
+       if ((retc = XrdOfsOss->StatFS(Path, bP, blen, &fs_Env)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "statfs", args);
        einfo.setErrCode(blen+1);
        return SFS_DATA;
@@ -1432,21 +1437,15 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the STATLS request
 //
    if (opcode == SFS_FSCTL_STATLS)
-      {const char *path;
-	char pbuff[1024], *opq = (char *) index(args, '?');
+      {char pbuff[1024];
+       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
-       if (!opq) path = args;
-          else {int plen = opq-args;
-                if (plen >= (int)sizeof(pbuff)) plen = sizeof(pbuff)-1;
-                strncpy(pbuff, args, plen);
-                path = pbuff;
-               }
-       AUTHORIZE(client,0,AOP_Stat,"statfs",path,einfo);
+       AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, path))) return fsError(einfo, retc);
+       &&  (retc = Finder->Space(einfo, Path))) return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatLS(statls_Env, path, bP, blen)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "statls", path);
+       if ((retc = XrdOfsOss->StatLS(statls_Env, Path, bP, blen)))
+          return XrdOfsFS->Emsg(epname, einfo, retc, "statls", Path);
        einfo.setErrCode(blen+1);
        return SFS_DATA;
       }
@@ -1454,15 +1453,18 @@ int XrdOfs::fsctl(const int               cmd,
 // Process the STATXA request
 //
    if (opcode == SFS_FSCTL_STATXA)
-      {AUTHORIZE(client,0,AOP_Stat,"statxa",args,einfo);
+      {char pbuff[1024];
+       const char *opq, *Path = Split(args, &opq, pbuff, sizeof(pbuff));
+       XrdOucEnv xa_Env(opq ? opq+1 : 0,0,client);
+       AUTHORIZE(client,0,AOP_Stat,"statxa",Path,einfo);
        if (Finder && Finder->isRemote()
-       && (retc = Finder->Locate(einfo, args, SFS_O_RDONLY|SFS_O_STAT)))
+       && (retc = Finder->Locate(einfo,Path,SFS_O_RDONLY|SFS_O_STAT,&xa_Env)))
           return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
-       if ((retc = XrdOfsOss->StatXA(args, bP, blen)))
-          return XrdOfsFS->Emsg(epname, einfo, retc, "statxa", args);
+       if ((retc = XrdOfsOss->StatXA(Path, bP, blen, &xa_Env)))
+          return XrdOfsFS->Emsg(epname, einfo, retc, "statxa", Path);
        if (!client || !XrdOfsFS->Authorization) privs = XrdAccPriv_All;
-          else privs = XrdOfsFS->Authorization->Access(client, args, AOP_Any);
+          else privs = XrdOfsFS->Authorization->Access(client, Path, AOP_Any);
        cP = bP + blen; strcpy(cP, "&ofs.ap="); cP += 8;
        if (privs == XrdAccPriv_All) *cP++ = 'a';
           else {for (i = 0; i < PrivNum; i++)
@@ -1559,7 +1561,7 @@ int XrdOfs::mkdir(const char             *path,    // In
 
 // Perform the actual operation
 //
-    if ((retc = XrdOfsOss->Mkdir(path, acc_mode, mkpath)))
+    if ((retc = XrdOfsOss->Mkdir(path, acc_mode, mkpath, &mkdir_Env)))
        return XrdOfsFS->Emsg(epname, einfo, retc, "mkdir", path);
 
 // Check if we should generate an event
@@ -1585,6 +1587,7 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
                     const XrdSecEntity     *client)     // In
 {
    EPNAME("prepare");
+   XrdOucEnv prep_Env(0,0,client);
    XrdOucTList *tp = pargs.paths;
    int retc;
 
@@ -1598,7 +1601,8 @@ int XrdOfs::prepare(      XrdSfsPrep       &pargs,      // In
 // If we have a finder object, use it to prepare the paths. Otherwise,
 // ignore this prepare request (we may change this in the future).
 //
-   if (XrdOfsFS->Finder && (retc = XrdOfsFS->Finder->Prepare(out_error, pargs)))
+   if (XrdOfsFS->Finder
+   && (retc = XrdOfsFS->Finder->Prepare(out_error, pargs, &prep_Env)))
       return fsError(out_error, retc);
    return 0;
 }
@@ -1660,7 +1664,8 @@ int XrdOfs::remove(const char              type,    // In
 
 // Perform the actual deletion
 //
-    retc = (type=='d' ? XrdOfsOss->Remdir(path) : XrdOfsOss->Unlink(path,Opt));
+    retc = (type=='d' ? XrdOfsOss->Remdir(path, 0,   &rem_Env)
+                      : XrdOfsOss->Unlink(path, Opt, &rem_Env));
     if (retc) return XrdOfsFS->Emsg(epname, einfo, retc, "remove", path);
     if (type == 'f') XrdOfsHandle::Hide(path);
     if (Balancer) Balancer->Removed(path);
@@ -1724,7 +1729,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 
 // Perform actual rename operation
 //
-   if ((retc = XrdOfsOss->Rename(old_name, new_name)))
+   if ((retc = XrdOfsOss->Rename(old_name, new_name, &old_Env, &new_Env)))
       return XrdOfsFS->Emsg(epname, einfo, retc, "rename", old_name);
    XrdOfsHandle::Hide(old_name);
    if (Balancer) {Balancer->Removed(old_name);
@@ -1819,9 +1824,10 @@ int XrdOfs::stat(const char             *path,        // In
 
 // Now try to find the file or directory
 //
-   if (!(retc = XrdOfsOss->Stat(path, &buf, XRDOSS_resonly))) mode=buf.st_mode;
-      else if ((-ENOMSG) != retc) return XrdOfsFS->Emsg(epname, einfo, retc,
-                                                    "locate", path);
+   if (!(retc = XrdOfsOss->Stat(path, &buf, XRDOSS_resonly, &stat_Env)))
+       mode=buf.st_mode;
+      else if ((-ENOMSG) != retc)
+              return XrdOfsFS->Emsg(epname, einfo, retc, "locate", path);
    return SFS_OK;
 }
 
@@ -1877,7 +1883,7 @@ int XrdOfs::truncate(const char             *path,    // In
 
 // Now try to find the file or directory
 //
-   if (!(retc = XrdOfsOss->Truncate(path, Size))) return SFS_OK;
+   if (!(retc = XrdOfsOss->Truncate(path, Size, &trunc_Env))) return SFS_OK;
 
 // An error occured, return the error info
 //
@@ -2010,6 +2016,22 @@ int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
    if (rc > 0)             {OfsStats.Data.numDelays++;   return rc;          }
    if (rc == -EALREADY)    {OfsStats.Data.numReplies++;  return SFS_DATA;    }
                            {OfsStats.Data.numErrors++;   return SFS_ERROR;   }
+}
+
+/******************************************************************************/
+/*                                 S p l i t                                  */
+/******************************************************************************/
+  
+const char * XrdOfs::Split(const char *Args, const char **Opq,
+                                 char *Path, int Plen)
+{
+   int xlen;
+   *Opq = index(Args, '?');
+   if (!(*Opq)) return Args;
+   xlen = (*Opq)-Args;
+   if (xlen >= Plen) xlen = Plen-1;
+   strncpy(Path, Args, xlen);
+   return Path;
 }
 
 /******************************************************************************/

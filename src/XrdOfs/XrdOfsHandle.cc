@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdOfsHandleCVSID = "$Id$";
-
 #include <stdio.h>
 #include <time.h>
 #include <sys/errno.h>
@@ -35,7 +31,7 @@ class XrdOfsHanOss : public XrdOssDF
 {
 public:
                 // Directory oriented methods
-        int     Opendir(const char *)                        {return -EBADF;}
+        int     Opendir(const char *, XrdOucEnv &)           {return -EBADF;}
         int     Readdir(char *buff, int blen)                {return -EBADF;}
 
                 // File oriented methods

@@ -42,13 +42,14 @@ public:
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv *Info=0);
 
-        int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs);
+        int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
+                       XrdOucEnv *Info=0);
 
         void   Removed(const char *path) {}
 
         void   setSS(XrdOss *thess) {}
 
-        int    Space(XrdOucErrInfo &Resp, const char *path);
+        int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *Info=0);
 
                XrdCmsFinderRMT(XrdSysLogger *lp, int whoami=0, int Port=0);
               ~XrdCmsFinderRMT();
@@ -102,13 +103,15 @@ public:
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv *Info=0) {return 0;}
 
-        int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) {return 0;}
+        int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
+                       XrdOucEnv *Info=0) {return 0;}
 
         void   Removed(const char *path);
 
         int    RunAdmin(char *Path);
 
-        int    Space(XrdOucErrInfo &Resp, const char *path) {return 0;}
+        int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *envP=0)
+                    {return 0;}
 
         void  *Start();
 

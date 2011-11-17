@@ -358,7 +358,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 /*                               P r e p a r e                                */
 /******************************************************************************/
   
-int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs)
+int XrdCmsFinderRMT::Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
+                             XrdOucEnv *envP)
 {
    EPNAME("Prepare")
    static const int   xNum   = 16;
@@ -660,7 +661,7 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *myManList)
 /*                                 S p a c e                                  */
 /******************************************************************************/
   
-int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path)
+int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *eP)
 {
    static const int xNum   = 4;
 

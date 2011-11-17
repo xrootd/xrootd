@@ -46,10 +46,13 @@ extern XrdOucTrace OssTrace;
 
   Input:    old_name  - Is the fully qualified name of the file to be renamed.
             new_name  - Is the fully qualified name that the file is to have.
+            old_env   - Environmental information for old_name.
+            new_env   - Environmental information for new_name.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdOssSys::Rename(const char *oldname, const char *newname)
+int XrdOssSys::Rename(const char *oldname, const char *newname,
+                      XrdOucEnv  *old_env, XrdOucEnv  *new_env)
 {
     EPNAME("Rename")
     static const mode_t pMode = S_IRWXU | S_IRWXG;

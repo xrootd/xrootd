@@ -126,13 +126,14 @@ int XrdPssSys::Init(XrdSysLogger *lp, const char *configfn)
 
   Input:    path        - Is the fully qualified name of the target file.
             mode        - The new mode that the file is to have.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
   Notes:    This function is currently unsupported.
 */
 
-int XrdPssSys::Chmod(const char *path, mode_t mode)
+int XrdPssSys::Chmod(const char *path, mode_t mode, XrdOucEnv *eP)
 {
 // We currently do not support chmod()
 //
@@ -196,6 +197,7 @@ const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
   Input:    path        - Is the fully qualified name of the new directory.
             mode        - The new mode that the directory is to have.
             mkpath      - If true, makes the full path.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
@@ -203,7 +205,7 @@ const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
             Currently, we do not propogate the mkpath option.
 */
 
-int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath)
+int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 {
    char pbuff[PBsz];
 
@@ -228,10 +230,11 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath)
   Function: Removes the directory 'path'
 
   Input:    path      - Is the fully qualified name of the directory to remove.
+            envP      - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdPssSys::Remdir(const char *path, int Opts)
+int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 {
    const char *Cgi = (Opts & XRDOSS_Online ? "ofs.lcl=1" : "");
    char pbuff[PBsz], *subPath;
@@ -269,10 +272,13 @@ int XrdPssSys::Remdir(const char *path, int Opts)
 
   Input:    old_name  - Is the fully qualified name of the file to be renamed.
             new_name  - Is the fully qualified name that the file is to have.
+            old_envP  - Environmental information for old_name.
+            new_envP  - Environmental information for new_name.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdPssSys::Rename(const char *oldname, const char *newname)
+int XrdPssSys::Rename(const char *oldname, const char *newname,
+                      XrdOucEnv  *oldenvP, XrdOucEnv  *newenvP)
 {
    char oldName[PBsz], *oldSubP, newName[PBsz], *newSubP;
 
@@ -310,6 +316,7 @@ int XrdPssSys::Rename(const char *oldname, const char *newname)
             buff        - pointer to a 'stat' structure to hold the attributes
                           of the file.
             Opts        - stat() options.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
@@ -347,11 +354,13 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 
   Input:    path        - Is the fully qualified name of the target file.
             flen        - The new size that the file is to have.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdPssSys::Truncate(const char *path, unsigned long long flen)
+int XrdPssSys::Truncate(const char *path, unsigned long long flen,
+                        XrdOucEnv *envP)
 {
    char pbuff[PBsz];
 
@@ -377,10 +386,11 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen)
   Function: Delete a file from the namespace and release it's data storage.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
+            envP      - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdPssSys::Unlink(const char *path, int Opts)
+int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 {
    const char *Cgi = (Opts & XRDOSS_Online ? "ofs.lcl=1" : "");
    char pbuff[PBsz], *subPath;
@@ -420,10 +430,11 @@ int XrdPssSys::Unlink(const char *path, int Opts)
   Function: Open the directory `path' and prepare for reading.
 
   Input:    path      - The fully qualified name of the directory to open.
+            envP      - Environmental information.
 
   Output:   Returns XrdOssOK upon success; (-errno) otherwise.
 */
-int XrdPssDir::Opendir(const char *dir_path) 
+int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 {
    char pbuff[PBsz], *subPath;
    int theUid = XrdPssSys::T2UID(tident);

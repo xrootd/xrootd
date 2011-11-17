@@ -31,7 +31,7 @@ class XrdOssDir : public XrdOssDF
 {
 public:
 int     Close(long long *retsz=0);
-int     Opendir(const char *);
+int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
 
         // Constructor and destructor
@@ -125,7 +125,7 @@ virtual XrdOssDF *newDir(const char *tident)
 virtual XrdOssDF *newFile(const char *tident)
                        {return (XrdOssDF *)new XrdOssFile(tident);}
 
-int       Chmod(const char *, mode_t mode);
+int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
 int       Configure(const char *, XrdSysError &);
 void      Config_Display(XrdSysError &);
 virtual
@@ -137,26 +137,27 @@ int       IsRemote(const char *path)
                   {return (RPList.Find(path) & XRDEXP_REMOTE) != 0;}
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
 const char *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc);
-int       Mkdir(const char *, mode_t mode, int mkpath=0);
+int       Mkdir(const char *, mode_t mode, int mkpath=0, XrdOucEnv *eP=0);
 int       Mkpath(const char *, mode_t mode);
 unsigned long long PathOpts(const char *path) {return RPList.Find(path);}
 int       Reloc(const char *tident, const char *path,
                 const char *cgName, const char *anchor=0);
-int       Remdir(const char *, int Opts=0);  // In Unlink()
-int       Rename(const char *, const char *);
+int       Remdir(const char *, int Opts=0, XrdOucEnv *eP=0);  // In Unlink()
+int       Rename(const char *, const char *,
+                 XrdOucEnv *eP1=0, XrdOucEnv *eP2=0);
 virtual 
 int       Stage(const char *, const char *, XrdOucEnv &, int, mode_t, unsigned long long );
 void     *Stage_In(void *carg);
 int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *Env=0);
-int       StatFS(const char *path, char *buff, int &blen);
+int       StatFS(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatFS(const char *path, unsigned long long &Opt,
                  long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
 int       StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
-int       StatXA(const char *path, char *buff, int &blen);
-int       StatXP(const char *path, unsigned long long &attr);
-int       Truncate(const char *, unsigned long long Size);
-int       Unlink(const char *, int Opts=0);
+int       StatXA(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
+int       StatXP(const char *path, unsigned long long &attr, XrdOucEnv *Env=0);
+int       Truncate(const char *, unsigned long long Size, XrdOucEnv *eP=0);
+int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
 
 int       Stats(char *bp, int bl);
 

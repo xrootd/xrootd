@@ -46,11 +46,13 @@ virtual int    isRemote() {return myPersona == XrdCmsClient::amRemote;}
 virtual int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv  *Info=0) = 0;
 
-virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs) = 0;
+virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
+                       XrdOucEnv  *Info=0) = 0;
 
 virtual void   Removed(const char *path) = 0;
 
-virtual int    Space(XrdOucErrInfo &Resp, const char *path) = 0;
+virtual int    Space(XrdOucErrInfo &Resp, const char *path,
+                     XrdOucEnv  *Info=0) = 0;
 
         enum   Persona {amLocal, amRemote, amTarget};
 

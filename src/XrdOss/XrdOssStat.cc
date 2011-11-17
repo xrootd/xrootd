@@ -40,6 +40,8 @@
   Input:    path        - Is the fully qualified name of the file to be tested.
             buff        - pointer to a 'stat' structure to hold the attributes
                           of the file.
+            opts        - Options.
+            env         - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
@@ -110,12 +112,13 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
   Input:    path        - Is the fully qualified name of the file to be tested.
             buff        - pointer to a buffer to hold the information.
             blen        - the length of the buffer
+            envP        - Environmental Information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
             blen is updated with the actual length of the buff data.
 */
 
-int XrdOssSys::StatFS(const char *path, char *buff, int &blen)
+int XrdOssSys::StatFS(const char *path, char *buff, int &blen, XrdOucEnv *envP)
 {
    int sVal, wVal, Util;
    long long fSpace, fSize;
@@ -293,12 +296,13 @@ int XrdOssSys::StatVS(XrdOssVSInfo *sP, const char *sname, int updt)
   Input:    path        - Is the fully qualified name of the target file.
             buff        - pointer to a buffer to hold the information.
             blen        - the length of the buffer
+            envP        - Environmental Information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
             blen is updated with the actual length of the buff data.
 */
 
-int XrdOssSys::StatXA(const char *path, char *buff, int &blen)
+int XrdOssSys::StatXA(const char *path, char *buff, int &blen, XrdOucEnv *envP)
 {
    struct stat sbuff;
    char cgbuff[XrdOssSpace::minSNbsz], fType;
@@ -333,11 +337,13 @@ int XrdOssSys::StatXA(const char *path, char *buff, int &blen)
 
   Input:    path        - Is the path whose export attributes are wanted.
             attr        - reference to the are to receive the export attributes
+            envP        - Environmental Information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
 
-int XrdOssSys::StatXP(const char *path, unsigned long long &attr)
+int XrdOssSys::StatXP(const char *path, unsigned long long &attr,
+                      XrdOucEnv *envP)
 {
 
 // Construct the processing options for this path

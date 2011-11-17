@@ -206,13 +206,14 @@ int XrdOssSys::GenRemotePath(const char *oldp, char *newp)
 
   Input:    path        - Is the fully qualified name of the target file.
             mode        - The new mode that the file is to have.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
   Notes:    Files are only changed in the local disk cache.
 */
 
-int XrdOssSys::Chmod(const char *path, mode_t mode)
+int XrdOssSys::Chmod(const char *path, mode_t mode, XrdOucEnv *envP)
 {
     char actual_path[MAXPATHLEN+1], *local_path;
     int retc;
@@ -239,13 +240,14 @@ int XrdOssSys::Chmod(const char *path, mode_t mode)
   Input:    path        - Is the fully qualified name of the new directory.
             mode        - The new mode that the directory is to have.
             mkpath      - If true, makes the full path.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
   Notes:    Directories are only created in the local disk cache.
 */
 
-int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath)
+int XrdOssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *envP)
 {
     char actual_path[MAXPATHLEN+1], *local_path;
     unsigned long long Popts, Hopts;
@@ -366,13 +368,15 @@ int XrdOssSys::Stats(char *buff, int blen)
 
   Input:    path        - Is the fully qualified name of the target file.
             size        - The new size that the file is to have.
+            envP        - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 
   Notes:    Files are only changed in the local disk cache.
 */
 
-int XrdOssSys::Truncate(const char *path, unsigned long long size)
+int XrdOssSys::Truncate(const char *path, unsigned long long size,
+                        XrdOucEnv *envP)
 {
     struct stat statbuff;
     char actual_path[MAXPATHLEN+1], *local_path;
@@ -423,10 +427,11 @@ int XrdOssSys::Truncate(const char *path, unsigned long long size)
   Function: Open the directory `path' and prepare for reading.
 
   Input:    path      - The fully qualified name of the directory to open.
+            env       - Environmental information.
 
   Output:   Returns XrdOssOK upon success; (-errno) otherwise.
 */
-int XrdOssDir::Opendir(const char *dir_path) 
+int XrdOssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 {
    EPNAME("Opendir");
    char actual_path[MAXPATHLEN+1], *local_path, *remote_path;

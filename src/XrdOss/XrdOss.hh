@@ -38,7 +38,7 @@ class XrdOssDF
 {
 public:
                 // Directory oriented methods
-virtual int     Opendir(const char *)                        {return -ENOTDIR;}
+virtual int     Opendir(const char *, XrdOucEnv &)           {return -ENOTDIR;}
 virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
 
                 // File oriented methods
@@ -113,26 +113,28 @@ public:
 virtual XrdOssDF *newDir(const char *tident)=0;
 virtual XrdOssDF *newFile(const char *tident)=0;
 
-virtual int     Chmod(const char *, mode_t mode)=0;
+virtual int     Chmod(const char *, mode_t mode, XrdOucEnv *eP=0)=0;
 virtual int     Create(const char *, const char *, mode_t, XrdOucEnv &, 
                        int opts=0)=0;
 virtual int     Init(XrdSysLogger *, const char *)=0;
-virtual int     Mkdir(const char *, mode_t mode, int mkpath=0)=0;
+virtual int     Mkdir(const char *, mode_t mode, int mkpath=0,
+                      XrdOucEnv *eP=0)=0;
 virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
                       {return -ENOTSUP;}
-virtual int     Remdir(const char *, int Opts=0)=0;
-virtual int     Rename(const char *, const char *)=0;
+virtual int     Remdir(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
+virtual int     Rename(const char *, const char *,
+                       XrdOucEnv *eP1=0, XrdOucEnv *eP2=0)=0;
 virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0)=0;
-virtual int     StatFS(const char *path, char *buff, int &blen) 
+virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
                       {return -ENOTSUP;}
 virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
                       {return -ENOTSUP;}
-virtual int     StatXA(const char *path, char *buff, int &blen)
+virtual int     StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
                       {return -ENOTSUP;}
-virtual int     StatXP(const char *path, unsigned long long &attr)
-                      {return -ENOTSUP;}
-virtual int     Truncate(const char *, unsigned long long)=0;
-virtual int     Unlink(const char *, int Opts=0)=0;
+virtual int     StatXP(const char *path, unsigned long long &attr,
+                       XrdOucEnv *eP=0) {return -ENOTSUP;}
+virtual int     Truncate(const char *, unsigned long long, XrdOucEnv *eP=0)=0;
+virtual int     Unlink(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
 
 virtual int     Stats(char *bp, int bl) {return 0;}
 

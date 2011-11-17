@@ -42,10 +42,11 @@ extern XrdOucTrace OssTrace;
   Function: Delete a directory from the namespace.
 
   Input:    path      - Is the fully qualified name of the dir to be removed.
+            envP      - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdOssSys::Remdir(const char *path, int Opts)
+int XrdOssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 {
     unsigned long long opts;
     int retc;
@@ -77,10 +78,11 @@ int XrdOssSys::Remdir(const char *path, int Opts)
   Function: Delete a file from the namespace and release it's data storage.
 
   Input:    path      - Is the fully qualified name of the file to be removed.
+            envP      - Environmental information.
 
   Output:   Returns XrdOssOK upon success and -errno upon failure.
 */
-int XrdOssSys::Unlink(const char *path, int Opts)
+int XrdOssSys::Unlink(const char *path, int Opts, XrdOucEnv *eP)
 {
     EPNAME("Unlink")
     unsigned long long haslf, remotefs;
