@@ -68,10 +68,7 @@ inline void              Add_rv(kXR_unt32 dictid,
 inline void              Add_wr(kXR_unt32 dictid,
                                 kXR_int32 wlen, 
                                 kXR_int64 offset)
-                               {unsigned int temp = ~ntohl(wlen)+1;
-                                Add_io(dictid,
-                                      (kXR_int32)htonl(temp), offset);
-                               }
+                               {Add_io(dictid,(kXR_int32)htonl(-wlen),offset);}
 
        void              appID(char *id);
 
