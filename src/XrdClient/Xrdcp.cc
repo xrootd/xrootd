@@ -85,6 +85,8 @@ struct XrdCpInfo {
    long long                    len, bread, bwritten;
    XrdCpMthrQueue               queue;
    XrdClientAbsMonIntf          *mon;
+
+   XrdCpInfo() : XrdCli(0),localfile(0),len(0),bread(0),bwritten(0),mon(0) {}
 } cpnfo;
 
 #define XRDCP_BLOCKSIZE          (8*1024*1024)
@@ -116,6 +118,7 @@ bool recurse = false;
 char BWMHost[1024]; // The given bandwidth limiter on the local site. If not empty then a bwm has to be used
 
 bool doXtremeCp = false;
+int  maxSources = 12;
 XrdOucString XtremeCpRdr;
 
 ///////////////////////
@@ -633,7 +636,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    XrdXtRdFile *xrdxtrdfile = 0;
    
    if (doXtremeCp) 
-      XrdXtRdFile::GetListOfSources(cpnfo.XrdCli, XtremeCpRdr, xtremeclients);
+      XrdXtRdFile::GetListOfSources(cpnfo.XrdCli, XtremeCpRdr,
+                                    xtremeclients, maxSources);
    
    // Start reader on xrdc
    if (doXtremeCp && (xtremeclients.GetSize() > 1)) {
@@ -724,7 +728,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
       else {
          cerr << endl << endl << 
             "Critical read timeout. Unable to read data from the source." << endl;
-         retvalue = -1;
+         retvalue = 17;
          break;
       }
 
@@ -763,8 +767,6 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    }
 #endif
       
-   if (retvalue >= 0) {
-
       for (int i = 0; i < myTIDVec.GetSize(); i++) {
          pthread_cancel(myTIDVec[i]);
          pthread_join(myTIDVec[i], &thret);	 
@@ -772,7 +774,6 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
-   }
 
    if( !(*xrddest)->Close() )
    {
@@ -917,7 +918,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    XrdXtRdFile *xrdxtrdfile = 0;
 
    if (doXtremeCp) 
-      XrdXtRdFile::GetListOfSources(cpnfo.XrdCli, XtremeCpRdr, xtremeclients);
+      XrdXtRdFile::GetListOfSources(cpnfo.XrdCli, XtremeCpRdr,
+                                    xtremeclients, maxSources);
 
    // Start reader on xrdc
    if (doXtremeCp && (xtremeclients.GetSize() > 1)) {
@@ -937,12 +939,14 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 
          XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, 
                            (void *)nfo, XRDSYSTHREAD_HOLD);
+         myTIDVec.Push_back(myTID);
       }
 
    }
    else {
       doXtremeCp = false;
       XrdSysThread::Run(&myTID,ReaderThread_xrd,(void *)&cpnfo,XRDSYSTHREAD_HOLD);
+      myTIDVec.Push_back(myTID);
    }
 
    int len = 1;
@@ -1008,7 +1012,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
       }
       else {
 	 cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
-	 retvalue = -1;
+	 retvalue = 17;
 	 break;
       }
 	 
@@ -1049,16 +1053,14 @@ int doCp_xrd2loc(const char *src, const char *dst) {
 #endif
 
    int closeres = close(f);
-   if (!retvalue) retvalue = closeres;
+   if (!retvalue) retvalue = (closeres ? errno : 0);
 
-   if (retvalue >= 0) {
       for (int i = 0; i < myTIDVec.GetSize(); i++) {
          pthread_cancel(myTIDVec[i]);
          pthread_join(myTIDVec[i], &thret);	 
       }
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
-   }
 
    return retvalue;
 }
@@ -1160,7 +1162,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
       }
       else {
 	 cerr << endl << endl << "Critical read timeout. Unable to read data from the source." << endl;
-	 retvalue = -1;
+	 retvalue = 17;
 	 break;
       }
 
@@ -1217,9 +1219,12 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 
 
 void PrintUsage() {
-   cerr << "usage: xrdcp <source> <dest> "
-     "[-d lvl] [-DSparmname stringvalue] ... [-DIparmname intvalue] [-s] [-ns] [-v]"
-     " [-OS<opaque info>] [-OD<opaque info>] [-force] [-md5] [-adler] [-np] [-f] [-R] [-S]" << endl << endl;
+   cerr << "usage:   xrdcp [options] <source> <dest>\n\n"
+     "options: [-adler] [-d lvl] [-D proxyaddr:proxyport] [-DIparmname intvalue]\n"
+     "         [-DSparmname stringvalue] [-f] [-force] [-F] [-md5] [-MLlibname]\n"
+     "         [-np] [-OS<opaque_info>] [-OD<opaque_info>] [-P] [-R] [-s] [-S num]\n"
+     "         [-v] [-x] [-X rdr] [-y num]"
+      << endl << endl;
 
    cerr << "<source> can be:" << endl <<
      "   a local file" << endl <<
@@ -1232,42 +1237,43 @@ void PrintUsage() {
      "   an xrootd URL in the form root://user@host/<absolute Logical File Name in xrootd domain>" << endl <<
      "      (can be a directory LFN)" << endl << endl;
 
+#ifdef HAVE_LIBZ
+   cerr << " -adler :         calculate the adler32 checksum during transfers\n" << endl; 
+#endif
    cerr << " -d lvl :         debug level: 1 (low), 2 (medium), 3 (high)" << endl;
    cerr << " -D proxyaddr:proxyport" << endl <<
            "        :         use proxyaddr:proxyport as a SOCKS4 proxy."
      " Only numerical addresses are supported." << endl;
-   cerr << " -DSparmname stringvalue" << endl <<
-	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
-	   "                   See XrdClientConst.hh for a list of parameters." << endl;
    cerr << " -DIparmname intvalue" << endl <<
            "        :         set the internal parm <parmname> with the integer value <intvalue>" << endl <<
            "                   See XrdClientConst.hh for a list of parameters." << endl <<
 	   "                   Examples: -DIReadCacheSize 3000000 -DIReadAheadSize 1000000" << endl;
-   cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
-   cerr << " -np    :         no progress bar" << endl;
-   cerr << " -v     :         display summary output" << endl <<endl;
-   cerr << " -OS    :         adds some opaque information to any SOURCE xrootd url" << endl;
-   cerr << " -OD    :         adds some opaque information to any DEST xrootd url" << endl;
+   cerr << " -DSparmname stringvalue" << endl <<
+	   "        :         set the internal parm <parmname> with the string value <stringvalue>" << endl <<
+	   "                   See XrdClientConst.hh for a list of parameters." << endl;
    cerr << " -f     :         re-create a file if already present" << endl;
    cerr << " -F     :         set the 'force' flag for xrootd dest file opens"
      " (ignore if file is already opened)" << endl;
    cerr << " -force :         set 1-min (re)connect attempts to retry for up to 1 week,"
-     " to block until xrdcp is executed" << endl << endl;
+     " to block until xrdcp is executed" << endl;
    cerr << " -md5   :         calculate the md5 checksum during transfers\n" << endl; 
-#ifdef HAVE_LIBZ
-   cerr << " -adler :         calculate the adler32 checksum during transfers\n" << endl; 
-#endif
-   cerr << " -R     :         recurse subdirectories (where it can be applied)" << endl;
-   cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
-           "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
    cerr << " -MLlibname" << endl <<
            "        :         use <libname> as external monitoring reporting library." << endl <<
            "                  The default name if XrdCpMonitorClient.so . Make sure it is reachable." << endl;
-   cerr << " -X rdr :         Activate the Xtreme copy algorithm. Use 'rdr' as hostname where to query for " << endl <<
-           "                  additional sources." << endl;
+   cerr << " -np    :         no progress bar" << endl;
+   cerr << " -OS    :         adds some opaque information to any SOURCE xrootd url" << endl;
+   cerr << " -OD    :         adds some opaque information to any DEST xrootd url" << endl;
+   cerr << " -P     :         request POSC (persist-on-successful-close) processing to create a new file." << endl;
+   cerr << " -R     :         recurse subdirectories (where it can be applied)" << endl;
+   cerr << " -s     :         silent mode, no summary output, no progress bar" << endl;
+   cerr << " -S num :         use <num> additional parallel streams to do the xfer." << endl << 
+           "                  The max value is 15. The default is 0 (i.e. use only the main stream)" << endl;
+   cerr << " -v     :         display summary output" << endl <<endl;
    cerr << " -x     :         Activate the Xtreme copy algorithm. Use the source hostname to query for " << endl <<
            "                  additional sources." << endl;
-   cerr << " -P     :         request POSC (persist-on-successful-close) processing to create a new file." << endl;
+   cerr << " -X rdr :         Activate the Xtreme copy algorithm. Use 'rdr' as hostname where to query for " << endl <<
+           "                  additional sources." << endl;
+   cerr << " -y num :         use no more than <num> additional sourced for Xtreme copy (default 12)" << endl;
    cerr << " where:" << endl;
    cerr << "   parmname     is the name of an internal parameter" << endl;
    cerr << "   stringvalue  is a string to be assigned to an internal parameter" << endl;
@@ -1427,7 +1433,7 @@ int main(int argc, char**argv) {
 	}
 	else {
 	  cerr << "Malformed -D option." << endl;
-	  exit(-1);
+	  exit(1);
 	}
 
 	i++;
@@ -1465,10 +1471,6 @@ int main(int argc, char**argv) {
            (argc >= i+2) ) {
          doXtremeCp = true;
          XtremeCpRdr = argv[i+1];
-
-	 cerr << "Extreme Copy enabled. XtremeCpRdr: " << XtremeCpRdr << endl;
-
-
          i++;
          continue;
       }
@@ -1476,9 +1478,13 @@ int main(int argc, char**argv) {
       if ( (strstr(argv[i], "-x") == argv[i]) ) {
          doXtremeCp = true;
          XtremeCpRdr = "";
+         continue;
+      }
 
-	 cerr << "Extreme Copy enabled. " << endl;
-
+      if ( (strstr(argv[i], "-y") == argv[i]) &&
+           (argc >= i+2) ) {
+         int maxSources = atoi(argv[i+1]);
+         i++;
          continue;
       }
 
@@ -1489,13 +1495,13 @@ int main(int argc, char**argv) {
 
 	if (!(gCryptoFactory = XrdCryptoFactory::GetCryptoFactory("ssl"))) {
 	  cerr << "Cannot instantiate crypto factory ssl" << endl;
-	  exit(-1);
+	  exit(1);
 	}
 
 	MD_5 = gCryptoFactory->MsgDigest("md5");
 	if (! MD_5) {
 	  cerr << "MD object could not be instantiated " << endl;
-	  exit(-1);
+	  exit(1);
 	}
 	continue;
       }
@@ -1532,7 +1538,14 @@ int main(int argc, char**argv) {
       exit(1);
    }
 
-   if (XtremeCpRdr == "") XtremeCpRdr = srcpath;
+   if (doXtremeCp)
+      {if (maxSources < 2) doXtremeCp = false;
+          else {cerr << "Extreme Copy enabled.";
+                if (XtremeCpRdr == "") XtremeCpRdr = srcpath;
+                   else cerr <<" XtremeCpRdr: " << XtremeCpRdr;
+                cerr << endl;
+               }
+      }
 
    DebugSetLevel(EnvGetLong(NAME_DEBUG));
 

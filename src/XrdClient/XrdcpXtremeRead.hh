@@ -9,8 +9,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//         $Id$
-
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientVector.hh"
@@ -70,7 +68,9 @@ public:
    void MarkBlkAsRequested(int blkidx);
    int MarkBlkAsRead(int blkidx);
 
-   static int GetListOfSources(XrdClient *ref, XrdOucString xtrememgr, XrdClientVector<XrdClient *> &clients);
+   static int GetListOfSources(XrdClient *ref, XrdOucString xtrememgr,
+                               XrdClientVector<XrdClient *> &clients,
+                               int maxSources=12);
 
 
 };
