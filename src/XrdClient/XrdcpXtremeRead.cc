@@ -9,10 +9,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//         $Id$
-
-const char *XrdXtremeReadCVSID = "$Id$";
-
 #include "XrdClient/XrdcpXtremeRead.hh"
 #include "XrdClient/XrdClientAdmin.hh"
 
@@ -129,7 +125,10 @@ int XrdXtRdFile::MarkBlkAsRead(int blkidx) {
 }
 
 
-int XrdXtRdFile::GetListOfSources(XrdClient *ref, XrdOucString xtrememgr, XrdClientVector<XrdClient *> &clients) {
+int XrdXtRdFile::GetListOfSources(XrdClient *ref, XrdOucString xtrememgr,
+                                  XrdClientVector<XrdClient *> &clients,
+                                  int maxSources)
+{
    // Exploit Locate in order to find as many sources as possible.
    // Make sure that ref appears once and only once
    // Instantiate and open the relative client instances
@@ -153,17 +152,18 @@ int XrdXtRdFile::GetListOfSources(XrdClient *ref, XrdOucString xtrememgr, XrdCli
 
    int locateok = adm.Locate((kXR_char *)ref->GetCurrentUrl().File.c_str(), hosts, kXR_nowait);
    if (!locateok || !hosts.GetSize()) return 0;
+   if (maxSources > hosts.GetSize()) maxSources = hosts.GetSize();
 
    // Here we have at least a result... hopefully
    bool found = false;
-   for (int i = 0; i < hosts.GetSize(); i++)
+   for (int i = 0; i < maxSources; i++)
       if (ref->GetCurrentUrl().HostWPort == (const char *)(hosts[i].Location)) {
          found = true;
          break;
       }
 
    // Now initialize the clients and start the parallel opens
-   for (int i = 0; i < hosts.GetSize(); i++) {
+   for (int i = 0; i < maxSources; i++) {
       XrdOucString loc;
 
       loc = "root://";
