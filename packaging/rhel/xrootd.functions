@@ -237,9 +237,13 @@ function handleDaemons()
       EXEC=/usr/bin/$DAEMON
       CONFIG_NAME=`echo $DAEMON |  tr '[[:lower:]]' '[[:upper:]]'`
       ;;
-    'frm_purged' | 'frm_xfrd')
+    'frm_purged')
       EXEC=/usr/bin/$DAEMON
-      CONFIG_NAME=FRMD
+      CONFIG_NAME=PURD
+      ;;
+     'frm_xfrd')
+      EXEC=/usr/bin/$DAEMON
+      CONFIG_NAME=XFRD
       ;;
     *)
       echo "Unrecognized daemon: $DAEMON"
