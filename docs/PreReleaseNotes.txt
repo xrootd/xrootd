@@ -53,3 +53,4 @@ Prerelease Notes
      file into read-only space.
 
 + **Miscellaneous**
+   * Make frm_purged and frm_xfrd use sparate log files.
