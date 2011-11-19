@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add -y option to xrdcp to limit number of extreme copy sources.
    * Uniformly pass the execution environment to all oss and cms client
      methods. This is largely for DPM support.
      WARNING: While this update is binary backwad compatible to existing oss
@@ -39,6 +40,8 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Fix various issues in xrdcp that could result in a SEGV, especially when
+     using extreme copy mode.
    * Make sure that monitor write length is really negative.
    * Initialize xattr variable name so that xrdadler32 can fetch previous
      checksum. The error caused xrdadler32 to always recompute the checksum.
