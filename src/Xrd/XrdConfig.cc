@@ -101,23 +101,26 @@ class XrdLogWorker : XrdJob
 {
 public:
 
-     void DoIt() {theLog->Say(0, XrdBANNER);
-                  theLog->Say(0, mememe, " running.");
-                  midnite += 86400;
-                  theSched->Schedule((XrdJob *)this, midnite);
+     void DoIt() {if (WTime == 86400)
+                     {theLog->Say(0, XrdBANNER);
+                      theLog->Say(0, mememe, " running.");
+                      WTime = 43200;
+                     } else WTime = 86400;
+                  theSched->Schedule((XrdJob *)this,XrdSysTimer::Midnight()+WTime);
                  }
 
           XrdLogWorker(XrdSysError *eP, XrdScheduler *sP, char *who)
-                      : XrdJob("midnight runner"), theLog(eP), theSched(sP)
-                         {midnite = XrdSysTimer::Midnight() + 86400;
-                          mememe = strdup(who);
-                          theSched->Schedule((XrdJob *)this, midnite);
-                         }
+                      : XrdJob("midnight runner"), theLog(eP), theSched(sP),
+                        mememe(strdup(who))
+                      {time_t Now=time(0), Midnite=XrdSysTimer::Midnight(Now);
+                       WTime = ((Midnite+43200) >= Now ? 86400 : 43200);
+                       theSched->Schedule((XrdJob *)this, Midnite+WTime);
+                      }
          ~XrdLogWorker() {}
 private:
 XrdSysError  *theLog;
 XrdScheduler *theSched;
-time_t        midnite;
+time_t        WTime;
 const char   *mememe;
 };
 

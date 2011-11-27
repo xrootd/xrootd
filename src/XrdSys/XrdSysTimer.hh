@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #ifndef WIN32
 #include <sys/time.h>
 #else
@@ -55,6 +53,8 @@ static void Snooze(int seconds);
 static char *s2hms(int sec, char *buff, int blen);
 
 static void Wait(int milliseconds);
+
+static void Wait4Midnight();
 
       XrdSysTimer() {Reset();}
 

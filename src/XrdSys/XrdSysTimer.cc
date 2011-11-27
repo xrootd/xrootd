@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdSysTimerCVSID = "$Id$";
-
 #ifndef WIN32
 #include <unistd.h>
 #else
@@ -207,4 +203,20 @@ void XrdSysTimer::Wait(int mills)
 #else
    ::Sleep(mills);
 #endif
+}
+
+/******************************************************************************/
+/*                         W a i t 4 M i d n i g h t                          */
+/******************************************************************************/
+  
+void XrdSysTimer::Wait4Midnight()
+{
+   static const time_t HalfDay = 43200, FullDay = 86400;
+   time_t Now = time(0), Midnite = Midnight(Now);
+
+// Break the snooze time into half day increments so that we can catch
+// a timezone change and sleep exactly to midnight of the following day.
+//
+   if ((Now - Midnite) < HalfDay) Snooze((Midnite + HalfDay) - time(0));
+   Snooze((Midnite + FullDay) - time(0));
 }

@@ -110,14 +110,12 @@ void *XrdFrmConfigMum(void *parg)
 
 void *XrdLogWorker(void *parg)
 {
-   time_t midnite = XrdSysTimer::Midnight() + 86400;
    char *mememe = strdup((char *)parg);
 
    while(1)
-        {XrdSysTimer::Snooze(midnite-time(0));
+        {XrdSysTimer::Wait4Midnight();
          Say.Say(0, XrdBANNER);
          Say.Say(0, mememe, " running.");
-         midnite += 86400;
         }
    return (void *)0;
 }

@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//           $Id$
-
-const char *XrdCnsSsiMainCVSID = "$Id$";
-
 /* This is the Cluster Name Space utility. The syntax is:
 
    cns_ssi {diff | list | updt} [options] <path>
@@ -87,14 +83,11 @@ namespace XrdCns
 {
 void *MLogWorker(void *parg)
 {
-   time_t midnite = XrdSysTimer::Midnight() + 86400;
-
 // Just blab out the midnight herald
 //
    while(1)
-        {XrdSysTimer::Wait(midnite - time(0));
+        {XrdSysTimer::Wait4Midnight();
          MLog.Say(0, "XrdCnsd - Cluster Name Space Daemon");
-         midnite += 86400;
         }
    return (void *)0;
 }
