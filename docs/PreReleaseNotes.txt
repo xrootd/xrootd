@@ -40,6 +40,8 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Take timezone changes into account when waiting for midnight. This solves
+     the log rolling problem when changing between DST and standard time.
    * Fix various issues in xrdcp that could result in a SEGV, especially when
      using extreme copy mode.
    * Make sure that monitor write length is really negative.
