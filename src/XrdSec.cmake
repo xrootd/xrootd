@@ -30,7 +30,9 @@ add_library(
 
 target_link_libraries(
   XrdSec
-  XrdUtils )
+  XrdUtils
+  pthread
+  dl )
 
 set_target_properties(
   XrdSec
@@ -56,6 +58,8 @@ add_library(
 target_link_libraries(
   XrdSecpwd
   XrdCrypto
+  XrdUtils
+  pthread
   ${CRYPT_LIBRARY} )
 
 set_target_properties(
@@ -74,7 +78,6 @@ add_executable(
 
 target_link_libraries(
   xrdpwdadmin
-  XrdSecpwd
   XrdCrypto
   XrdUtils )
 
@@ -91,7 +94,8 @@ add_library(
 
 target_link_libraries(
   XrdSecsss
-  XrdCryptoLite )
+  XrdCryptoLite
+  XrdUtils )
 
 set_target_properties(
   XrdSecsss

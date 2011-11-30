@@ -26,7 +26,9 @@ add_library(
 
 target_link_libraries(
   XrdOfs
-  XrdServer )
+  XrdServer
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdOfs

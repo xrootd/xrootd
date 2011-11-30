@@ -34,7 +34,9 @@ target_link_libraries(
   xrootd
   XrdMain
   XrdOfs
+  XrdUtils
   dl
+  pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
@@ -76,6 +78,8 @@ target_link_libraries(
   cmsd
   XrdServer
   XrdMain
+  XrdUtils
+  pthread
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------

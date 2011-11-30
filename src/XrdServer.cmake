@@ -110,6 +110,8 @@ add_library(
 target_link_libraries(
   XrdServer
   XrdUtils
+  pthread
+  dl
   ${EXTRA_LIBS} )
 
 set_target_properties(

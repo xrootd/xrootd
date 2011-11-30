@@ -146,7 +146,7 @@ add_library(
   Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
   Xrd/XrdMain.cc )
 
-target_link_libraries( XrdMain XrdUtils )
+target_link_libraries( XrdMain XrdUtils pthread )
 
 set_target_properties(
   XrdMain

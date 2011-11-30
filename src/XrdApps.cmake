@@ -13,6 +13,7 @@ target_link_libraries(
   XrdPosix
   XrdClient
   XrdUtils
+  pthread
   ${ZLIB_LIBRARY} )
 
 #-------------------------------------------------------------------------------
@@ -37,6 +38,7 @@ target_link_libraries(
   mpxstats
   XrdUtils
   ${EXTRA_LIBS}
+  pthread
   ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
@@ -49,6 +51,7 @@ add_executable(
 target_link_libraries(
   wait41
   XrdUtils
+  pthread
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------

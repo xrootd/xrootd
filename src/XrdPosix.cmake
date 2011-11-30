@@ -22,7 +22,9 @@ add_library(
 
 target_link_libraries(
   XrdPosix
-  XrdClient )
+  XrdClient
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdPosix
@@ -46,7 +48,8 @@ add_library(
 
 target_link_libraries(
   XrdPosixPreload
-  XrdPosix )
+  XrdPosix
+  dl )
 
 set_target_properties(
   XrdPosixPreload

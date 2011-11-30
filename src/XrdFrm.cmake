@@ -41,6 +41,7 @@ target_link_libraries(
   XrdServer
   XrdFrm
   XrdUtils
+  pthread
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY}
   ${EXTRA_LIBS}
@@ -59,6 +60,7 @@ target_link_libraries(
   XrdServer
   XrdUtils
   XrdFrm
+  pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
@@ -74,6 +76,7 @@ target_link_libraries(
   XrdServer
   XrdUtils
   XrdFrm
+  pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
@@ -89,6 +92,7 @@ target_link_libraries(
   XrdServer
   XrdUtils
   XrdFrm
+  pthread
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 

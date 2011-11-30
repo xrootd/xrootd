@@ -22,7 +22,9 @@ add_library(
 
 target_link_libraries(
   XrdPss
-  XrdFfs )
+  XrdFfs
+  XrdPosix
+  XrdUtils )
 
 set_target_properties(
   XrdPss
@@ -47,7 +49,9 @@ add_library(
 
 target_link_libraries(
   XrdBwm
-  XrdServer )
+  XrdServer
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdBwm

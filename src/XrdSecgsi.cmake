@@ -16,7 +16,6 @@ set( XRD_SEC_GSI_GMAPDN_SOVERSION   0 )
 set( XRD_SEC_GSI_AUTHZVO_VERSION    0.0.1 )
 set( XRD_SEC_GSI_AUTHZVO_SOVERSION  0 )
 
-
 #-------------------------------------------------------------------------------
 # The XrdSecgsi library
 #-------------------------------------------------------------------------------
@@ -28,7 +27,10 @@ add_library(
 
 target_link_libraries(
   XrdSecgsi
-  XrdCryptossl )
+  XrdCryptossl
+  XrdCrypto
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdSecgsi
@@ -45,9 +47,9 @@ add_library(
   SHARED
   XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc )
 
-target_link_libraries(
-  XrdSecgsiGMAPLDAP
-  XrdSecgsi )
+#target_link_libraries(
+#  XrdSecgsiGMAPLDAP
+#  XrdSecgsi )
 
 set_target_properties(
   XrdSecgsiGMAPLDAP
@@ -85,7 +87,8 @@ add_library(
 
 target_link_libraries(
   XrdSecgsiGMAPDN
-  XrdSecgsi )
+  XrdSecgsi
+  XrdUtils )
 
 set_target_properties(
   XrdSecgsiGMAPDN
