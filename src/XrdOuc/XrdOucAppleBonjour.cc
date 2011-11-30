@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include "Xrd/XrdConfig.hh"
 #include "XrdOuc/XrdOucBonjour.hh"
-#include "XrdOuc/XrdOucFactoryBonjour.hh"
+#include "XrdOuc/XrdOucAppleBonjour.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdProtLoad.hh"

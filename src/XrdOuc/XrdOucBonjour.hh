@@ -6,7 +6,7 @@
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#if defined(R__BJRAVAHI)
+#if defined(__linux__)
 #include <avahi-client/client.h>
 #include <avahi-client/publish.h>
 #include <avahi-common/strlst.h>
@@ -37,10 +37,10 @@ typedef struct XrdOucBonjourRegisteredEntry {
    XrdOucBonjourRecord * record;
    unsigned short port;
    // Data for the service reference, both Avahi and Bonjour.
-#if defined(R__BJRDNSSD)
+#if defined(__macos__)
    // We must mantain this reference alive, since its our link to the mDNS.
    DNSServiceRef bonjourRef;
-#elif defined(R__BJRAVAHI)
+#elif defined(__linux__)
    // In the case we are using Avahi, lets store the client info structure.
    struct {
       AvahiClient * avahiClient;
@@ -56,7 +56,7 @@ typedef struct XrdOucBonjourSubscribedEntry {
    void * context;
    XrdOucString * serviceType;
    // Used to carry the Avahi browser information.
-#if defined(R__BJRAVAHI)
+#if defined(__linux__)
    AvahiClient * client;
 #endif
 } XrdOucBonjourSubscribedEntry;
@@ -121,7 +121,7 @@ public:
       return TXTRecordGetLength(&TXTRecord);
    }
 
-#if defined(R__BJRAVAHI)
+#if defined(__linux__)
    AvahiStringList *GetTXTAvahiList();
 #endif
 

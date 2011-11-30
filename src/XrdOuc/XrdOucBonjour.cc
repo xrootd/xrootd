@@ -13,7 +13,11 @@
 #include "Xrd/XrdProtLoad.hh"
 
 // Conditional inclusion of headers dependent on platform.
-#include "XrdOuc/XrdOucFactoryBonjour.hh"
+#ifdef __linux__
+#include "XrdOuc/XrdOucAvahiBonjour.hh"
+#elif __macos__
+#include "XrdOuc/XrdOucAppleBonjour.hh"
+#endif
 
 /******************************************************************************/
 /*                      G l o b a l   V a r i a b l e s                       */
@@ -25,7 +29,7 @@ extern XrdSysError  XrdLog;               // Defined in XrdMain.cc
 /*                        B o n j o u r   r e c o r d                         */
 /******************************************************************************/
 
-#if !defined(R__BJRDNSSD)
+#if !defined(__macos__)
 AvahiStringList *XrdOucBonjourRecord::GetTXTAvahiList()
 {
    AvahiStringList *list;
@@ -239,9 +243,9 @@ XrdOucBonjourFactory *XrdOucBonjourFactory::FactoryByPlatform()
    // There is room to improvement here, refining how we detect the operating
    // system and taking into account how to deal with Windows, since there is a
    // project to port Avahi to Win32 (natively) and mDNS is currently supported.
-#if defined(R__BJRDNSSD)  // We are on Mac OS X, so load the mDNS version.
+#if defined(__macos__)  // We are on Mac OS X, so load the mDNS version.
    return new XrdOucAppleBonjourFactory();
-#elif defined(R__BJRAVAHI) // We are on GNU/Linux, so load the Avahi version.
+#elif defined(__linux__) // We are on GNU/Linux, so load the Avahi version.
    return new XrdOucAvahiBonjourFactory();
 #else // Currently, Windows is not supported (altough with mDNS can be).
    return NULL;
