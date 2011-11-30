@@ -45,6 +45,7 @@ add_library(
 target_link_libraries(
   XrdClient
   XrdUtils
+  dl
   pthread )
 
 set_target_properties(
@@ -70,6 +71,7 @@ target_link_libraries(
   XrdCrypto
   XrdUtils
   dl
+  pthread
   ${ZLIB_LIBRARY} )
 
 #-------------------------------------------------------------------------------
@@ -83,6 +85,7 @@ target_link_libraries(
   xrd
   XrdClient
   XrdUtils
+  pthread
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
 
@@ -96,7 +99,8 @@ add_executable(
 target_link_libraries(
   xprep
   XrdClient
-  XrdUtils )
+  XrdUtils
+  pthread )
 
 #-------------------------------------------------------------------------------
 # xrdstagetool
@@ -108,7 +112,8 @@ add_executable(
 target_link_libraries(
   xrdstagetool
   XrdClient
-  XrdUtils )
+  XrdUtils
+  pthread )
 
 #-------------------------------------------------------------------------------
 # Perl bindings
@@ -159,6 +164,8 @@ if( BUILD_PERL )
   target_link_libraries(
     XrdClientAdmin
     XrdClient
+    XrdUtils
+    pthread
     ${PERL_LIBRARY} )
 
   set_target_properties(
@@ -191,7 +198,8 @@ install(
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdClient
   FILES_MATCHING
   PATTERN "*.hh"
-  PATTERN "*.icc" )
+  PATTERN "*.icc"
+  PATTERN "XrdClientAdmin_c.hh" EXCLUDE )
 
 #-------------------------------------------------------------------------------
 # Install the perl bindings

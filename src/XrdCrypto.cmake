@@ -60,7 +60,7 @@ if( BUILD_CRYPTO )
   target_link_libraries(
     XrdCryptoLite
     XrdUtils
-    ${OPENSSL_LIBRARIES} )
+    ${OPENSSL_CRYPTO_LIBRARY} )
 else()
   target_link_libraries(
     XrdCryptoLite
@@ -99,6 +99,7 @@ if( BUILD_CRYPTO )
     XrdCryptossl
     XrdCrypto
     XrdUtils
+    pthread
     ${OPENSSL_LIBRARIES} )
 
   set_target_properties(

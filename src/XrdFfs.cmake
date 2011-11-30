@@ -23,7 +23,10 @@ add_library(
 target_link_libraries(
   XrdFfs
   XrdPosix
-  XrdSecsss )
+  XrdSecsss
+  XrdClient
+  XrdUtils
+  pthread )
 
 set_target_properties(
   XrdFfs
@@ -44,6 +47,7 @@ if( BUILD_FUSE )
     xrootdfs
     XrdFfs
     XrdPosix
+    pthread
     ${FUSE_LIBRARIES} )
 endif()
 

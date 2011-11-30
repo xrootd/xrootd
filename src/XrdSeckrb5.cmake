@@ -17,7 +17,6 @@ add_library(
 
 target_link_libraries(
   XrdSeckrb5
-  XrdSec
   XrdUtils
   ${KERBEROS5_LIBRARIES} )
 

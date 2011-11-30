@@ -32,6 +32,7 @@ target_link_libraries(
   XrdClient
   XrdServer
   XrdUtils
+  pthread
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ target_link_libraries(
   cns_ssi
   XrdUtils
   XrdCnsLib
+  pthread
   ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
