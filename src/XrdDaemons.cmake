@@ -62,18 +62,12 @@ add_executable(
   XrdCms/XrdCmsPrepare.cc         XrdCms/XrdCmsPrepare.hh
   XrdCms/XrdCmsPrepArgs.cc        XrdCms/XrdCmsPrepArgs.hh
   XrdCms/XrdCmsProtocol.cc        XrdCms/XrdCmsProtocol.hh
-  XrdCms/XrdCmsReq.cc             XrdCms/XrdCmsReq.hh
   XrdCms/XrdCmsRouting.cc         XrdCms/XrdCmsRouting.hh
   XrdCms/XrdCmsRRQ.cc             XrdCms/XrdCmsRRQ.hh
-  XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
                                   XrdCms/XrdCmsSelect.hh
   XrdCms/XrdCmsState.cc           XrdCms/XrdCmsState.hh
   XrdCms/XrdCmsSupervisor.cc      XrdCms/XrdCmsSupervisor.hh
-                                  XrdCms/XrdCmsTrace.hh
-                                  XrdCms/XrdCmsTypes.hh
-                                  XrdCms/XrdCmsXmi.hh
-  XrdCms/XrdCmsXmiReq.cc          XrdCms/XrdCmsXmiReq.hh )
-
+                                  XrdCms/XrdCmsTrace.hh )
 target_link_libraries(
   cmsd
   XrdServer
