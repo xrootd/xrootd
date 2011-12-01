@@ -8,8 +8,6 @@ component_status( KRB5     BUILD_KRB5      KERBEROS5_FOUND )
 component_status( PERL     BUILD_PERL      PERLLIBS_FOUND )
 component_status( BONJOUR  BUILD_BONJOUR   BONJOUR_FOUND )
 
-message( "=== ${BONJOUR_FOUND} ${BUILD_BONJOUR}" )
-
 message( STATUS "----------------------------------------" )
 message( STATUS "Installation path: " ${CMAKE_INSTALL_PREFIX} )
 message( STATUS "C Compiler:        " ${CMAKE_C_COMPILER} )
