@@ -90,12 +90,6 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
 /*                     X r d S y s F A t t r : : L i s t                      */
 /******************************************************************************/
 
-#if !defined(__XOPEN_OR_POSIX)
-#define DIRFD(x) x->dd_fd
-#else
-#define DIRFD(x) x->d_fd
-#endif
-  
 int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 {
    AList *aNew;
@@ -132,7 +126,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
         {if ((*(dEnt->d_name) != '.' || strcmp(".", (dEnt->d_name)+1))
          &&  (aNew = getEnt(Path, fd, dEnt->d_name, *aPL, 0)))
             {if (getSz)
-                {if (fstatat(DIRFD(dP), dEnt->d_name, &Stat, 0))
+                {if (fstatat(dirfd(dP), dEnt->d_name, &Stat, 0))
                     {Diagnose("stat", dEnt->d_name, Path, errno); continue;}
                  aNew->Vlen = Stat.st_size;
                  if (maxSz < aNew->Vlen) maxSz = aNew->Vlen;
