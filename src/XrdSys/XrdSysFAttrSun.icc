@@ -89,7 +89,7 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
 /******************************************************************************/
 /*                     X r d S y s F A t t r : : L i s t                      */
 /******************************************************************************/
-if SOLARIS_VERSION < 11
+#if SOLARIS_VERSION < 11
 #if !defined(__XOPEN_OR_POSIX)
 #define dirfd(x) x->dd_fd
 #else
