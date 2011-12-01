@@ -89,6 +89,13 @@ int XrdSysFAttr::Get(const char *Aname, void *Aval, int Avsz,
 /******************************************************************************/
 /*                     X r d S y s F A t t r : : L i s t                      */
 /******************************************************************************/
+if SOLARIS_VERSION < 11
+#if !defined(__XOPEN_OR_POSIX)
+#define dirfd(x) x->dd_fd
+#else
+#define dirfd(x) x->d_fd
+#endif
+#endif
 
 int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 {

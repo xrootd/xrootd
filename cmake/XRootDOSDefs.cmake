@@ -83,4 +83,14 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   "
   SUNCC_CAN_DO_OPTS )
 
+  #-----------------------------------------------------------------------------
+  # Define solaris version
+  #-----------------------------------------------------------------------------
+  execute_process( COMMAND uname -r
+                   OUTPUT_VARIABLE SOLARIS_VER )
+  string( REPLACE "." ";" SOLARIS_VER_LIST ${SOLARIS_VER} )
+  list( GET SOLARIS_VER_LIST 1 SOLARIS_VERSION )
+  string( REPLACE "\n" "" SOLARIS_VERSION ${SOLARIS_VERSION} )
+  add_definitions( -DSOLARIS_VERSION=${SOLARIS_VERSION} )
+
 endif()
