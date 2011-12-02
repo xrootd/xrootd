@@ -22,6 +22,7 @@ const char *XrdClientAdminCVSID = "$Id$";
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientConnMgr.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdVersion.hh"
 
 
 #include <stdio.h>
@@ -66,7 +67,7 @@ XrdClientAdmin::XrdClientAdmin(const char *url) {
   if (!ConnectionManager)
     Info(XrdClientDebug::kUSERDEBUG,
 	 "",
-	 "(C) 2004-2010 by the Xrootd group. XrdClientAdmin " << XRD_CLIENT_VERSION);
+	 "(C) 2004-2010 by the Xrootd group. XrdClientAdmin " << XrdVSTRING);
 
    fInitialUrl = url;
 
