@@ -509,9 +509,9 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
        if (lp) return;  // Async close
       }
 
-// Check if we should monitor disconnects
+// If we are monitoring logins then we are also monitoring disconnects
 //
-   if (XrdXrootdMonitor::monUSER && Monitor) Monitor->Disc(monUID, csec, Flags);
+   if (Monitor.Logins()) Monitor.Agent->Disc(Monitor.Did, csec, Flags);
 
 // Release all appendages
 //
@@ -595,7 +595,7 @@ void XrdXrootdProtocol::Cleanup()
 
 // Delete the FTab if we have it
 //
-   if (FTab) {FTab->Recycle(monFILE ? Monitor : 0); FTab = 0;}
+   if (FTab) {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0); FTab = 0;}
 
 // Handle parallel stream cleanup. The session stream cannot be closed if
 // there is any queued activity on subordinate streams. A subordinate
@@ -622,7 +622,7 @@ void XrdXrootdProtocol::Cleanup()
 
 // Handle Monitor
 //
-   if (Monitor) {Monitor->unAlloc(Monitor); Monitor = 0;}
+   Monitor.Clear();
 
 // Handle authentication protocol
 //
@@ -687,10 +687,6 @@ void XrdXrootdProtocol::Reset()
    hcPrev             =13;
    hcNext             =21;
    hcNow              =13;
-   Monitor            = 0;
-   monUID             = 0;
-   monFILE            = 0;
-   monIO              = 0;
    Client             = 0;
    AuthProt           = 0;
    mySID              = 0;

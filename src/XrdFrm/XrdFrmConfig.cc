@@ -381,10 +381,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (!NoGo) switch(ssID)
       {case ssAdmin: NoGo = (ConfigN2N() || ConfigMss() || ConfigCks());
                      break;
-       case ssPurg:  if (!(NoGo = (ConfigN2N() || ConfigMP("purgeable"))))
+       case ssPurg:  if (!(NoGo = (ConfigMon(0) || ConfigMP("purgeable"))))
                         ConfigPF("frm_purged");
                      break;
-       case ssXfr:   if (!isAgent && !(NoGo = ConfigXfr()))
+       case ssXfr:   if (!isAgent && !(NoGo = (ConfigMon(1) || ConfigXfr())))
                         ConfigPF("frm_xfrd");
                      break;
        default:      break;
@@ -587,6 +587,33 @@ XrdOucMsubs *XrdFrmConfig::ConfigCmd(const char *cname, char *cdata)
    if (msubs->Parse(cname, cdata)) return msubs;
 
    return 0;  // We will exit no need to delete msubs
+}
+
+/******************************************************************************/
+/* Private:                    C o n f i g M o n                              */
+/******************************************************************************/
+
+int XrdFrmConfig::ConfigMon(int isXfr)
+{
+// We configure the name2name here
+//
+   if (ConfigN2N()) return 1;
+
+// If we need to configure monitoring, do so here
+//
+   if (( isXfr && (XrdFrmMonitor::monSTAGE||XrdFrmMonitor::monMIGR))
+   ||  (!isXfr &&  XrdFrmMonitor::monPURGE))
+      {if (!XrdFrmMonitor::Init(myName, myProg, myInst)) return 1;
+          else {if (!XrdFrmMonitor::monSTAGE)
+                   {xfrCmd[0].Opts &= ~cmdXPD; xfrCmd[2].Opts &= ~cmdXPD;}
+                if (!XrdFrmMonitor::monMIGR)
+                   {xfrCmd[1].Opts &= ~cmdXPD; xfrCmd[3].Opts &= ~cmdXPD;}
+               }
+      }
+
+// All done
+//
+   return 0;
 }
 
 /******************************************************************************/
@@ -980,7 +1007,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "oss.namelib"   )) return xnml();
        if (!strcmp(var, "oss.remoteroot")) return Grab(var, &RemoteRoot, 0);
        if (!strcmp(var, "oss.xfr"       )) return xxfr();
-       if (!strcmp(var, "xrootd.monitor")) return xmon();
+       if (!strcmp(var, "frm.all.monitor"))return xmon();
 
        if (!strcmp(var, "copycmd"       )) return xcopy();
        if (!strcmp(var, "copymax"       )) return xcmax();
@@ -1003,7 +1030,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "polprog"       )) return xpolprog();
        if (!strcmp(var, "oss.space"     )) return xspace(1);
        if (!strcmp(var, "waittime"      )) return xitm("purge wait",WaitPurge);
-       if (!strcmp(var, "xrootd.monitor")) return xmon();
+       if (!strcmp(var, "frm.all.monitor"))return xmon();
       }
 
    // No match found, complain.
@@ -1025,7 +1052,7 @@ int XrdFrmConfig::ConfigXfr()
 
 // Configure the name2name library and migratable paths and mass storage
 //
-   isBad = ConfigN2N() || ConfigMP("migratable") ||  ConfigMss();
+   isBad = ConfigMP("migratable") ||  ConfigMss();
 
 // Make sure
 
@@ -1058,17 +1085,6 @@ int XrdFrmConfig::ConfigXfr()
    if (!(xfrOUT = ioOK[1]))
       Say.Emsg("Config", "Output copy command not specified; "
                          "outgoing transfers prohibited!");
-
-// Finally configure monitoring
-//
-   if (XrdFrmMonitor::monSTAGE||XrdFrmMonitor::monPURGE||XrdFrmMonitor::monMIGR)
-      {if (!XrdFrmMonitor::Init()) isBad = 1;
-          else {if (!XrdFrmMonitor::monSTAGE)
-                   {xfrCmd[0].Opts &= ~cmdXPD; xfrCmd[2].Opts &= ~cmdXPD;}
-                if (!XrdFrmMonitor::monMIGR)
-                   {xfrCmd[1].Opts &= ~cmdXPD; xfrCmd[3].Opts &= ~cmdXPD;}
-               }
-      }
 
 // All done
 //
@@ -1516,61 +1532,33 @@ int XrdFrmConfig::xitm(const char *What, int &tDest)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [mbuff <sz>] 
-                                      [flush <sec>] [window <sec>]
-                                      dest [Events] <host:port>
+   Purpose:  Parse directive: monitor [ident <sec>] dest [Events] <host:port>
 
-   Events: [files] [info] [io] [migr] [purge] [stage] [user]
+   Events: [migr] [purge] [stage]
 
-         all                enables monitoring for all connections.
-         mbuff  <sz>        size of message buffer.
-         flush  <sec>       time (seconds, M, H) between auto flushes.
-         window <sec>       time (seconds, M, H) between timing marks.
+         ident  <sec>       time (seconds, M, H) between ident records.
          dest               specified routing information. Up to two dests
                             may be specified.
-         files              only monitors file open/close events.
-         info               monitors client appid and info requests.
-         io                 monitors I/O requests, and files open/close events.
          migr               monitors file migr  operations
          purge              monitors file purge operations
          stage              monitors file stage operations
-         user               monitors user login and disconnect events.
          <host:port>        where monitor records are to be sentvia UDP.
 
    Output: 0 upon success or !0 upon failure. Ignored by master.
 */
 int XrdFrmConfig::xmon()
 {   char  *val, *cp, *monDest[2] = {0, 0};
-    long long tempval;
-    int i, monFlush=0, monMBval=0, monWWval=0, monMode[2] = {0, 0};
+    int i, monIdent=3600, monMode[2] = {0, 0};
 
     while((val = cFile->GetWord()))
 
-         {     if (!strcmp("all",  val)) {}
-          else if (!strcmp("flush", val))
+         {     if (!strcmp("ident", val))
                 {if (!(val = cFile->GetWord()))
-                    {Say.Emsg("Config", "monitor flush value not specified");
+                    {Say.Emsg("Config", "monitor ident value not specified");
                      return 1;
                     }
-                 if (XrdOuca2x::a2tm(Say,"monitor flush",val,
-                                         &monFlush,1)) return 1;
-                }
-          else if (!strcmp("mbuff",val))
-                  {if (!(val = cFile->GetWord()))
-                      {Say.Emsg("Config", "monitor mbuff value not specified");
-                       return 1;
-                      }
-                   if (XrdOuca2x::a2sz(Say,"monitor mbuff", val,
-                                           &tempval, 1024, 65536)) return 1;
-                    monMBval = static_cast<int>(tempval);
-                  }
-          else if (!strcmp("window", val))
-                {if (!(val = cFile->GetWord()))
-                    {Say.Emsg("Config", "monitor window value not specified");
-                     return 1;
-                    }
-                 if (XrdOuca2x::a2tm(Say,"monitor window",val,
-                                         &monWWval,1)) return 1;
+                 if (XrdOuca2x::a2tm(Say,"monitor ident",val,
+                                         &monIdent,0)) return 1;
                 }
           else break;
          }
@@ -1580,11 +1568,7 @@ int XrdFrmConfig::xmon()
     for (i = 0; i < 2; i++)
         {if (strcmp("dest", val)) break;
          while((val = cFile->GetWord()))
-                   if (!strcmp("files",val)
-                   ||  !strcmp("info", val)
-                   ||  !strcmp("io",   val)
-                   ||  !strcmp("user", val)) {}
-              else if (!strcmp("stage",val)) monMode[i] |=  XROOTD_MON_STAGE;
+                   if (!strcmp("stage",val)) monMode[i] |=  XROOTD_MON_STAGE;
               else if (!strcmp("migr", val)) monMode[i] |=  XROOTD_MON_MIGR;
               else if (!strcmp("purge",val)) monMode[i] |=  XROOTD_MON_PURGE;
               else break;
@@ -1613,13 +1597,13 @@ int XrdFrmConfig::xmon()
        free(monDest[1]); monDest[1] = 0;
       }
 
-// Don't bother doing any more if staging is not enabled
+// Don't bother doing any more if monitoring is not enabled
 //
    if (!monMode[0] && !monMode[1]) return 0;
 
 // Set the monitor defaults
 //
-   XrdFrmMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
+   XrdFrmMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1],monIdent);
    return 0;
 }
 

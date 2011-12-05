@@ -367,8 +367,8 @@ int XrdXrootdAdmin::do_Lsd()
              ctyp = (pp->Status & XRD_ADMINUSER ? 'a' : 'u');
              conn = static_cast<long long>(lp->timeCon());
              mm = monit;
-             if (pp->monFILE) *mm++ = 'f';
-             if (pp->monIO  ) *mm++ = 'i';
+             if (pp->Monitor.Files()) *mm++ = 'f';
+             if (pp->Monitor.InOut()) *mm++ = 'i';
              *mm = '\0';
              inuse = lp->getIOStats(inBytes, outBytes, stalls, tardies);
              mlen[0] = sprintf(buff, fmt2, ctyp, conn, cver, monit);

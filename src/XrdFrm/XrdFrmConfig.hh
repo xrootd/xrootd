@@ -153,6 +153,7 @@ int          ConfigCks();
 XrdOucMsubs *ConfigCmd(const char *cname, char *cdata);
 int          ConfigMum(XrdFrmConfigSE &theSE);
 int          ConfigN2N();
+int          ConfigMon(int isxfr);
 int          ConfigMP(const char *);
 int          ConfigMss();
 int          ConfigOTO(char *Parms);

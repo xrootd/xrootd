@@ -128,7 +128,7 @@ int XrdXrootdProtocol::do_Auth()
                                                  : "login as");
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
-       if (Monitor && XrdXrootdMonitor::monUSER) MonAuth();
+       if (Monitor.Logins()) MonAuth();
        if (Client->name) 
           eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
@@ -416,7 +416,8 @@ int XrdXrootdProtocol::do_Close()
 
 // If we are monitoring, insert a close entry
 //
-   if (monFILE && Monitor) Monitor->Close(fp->FileID,fp->readCnt,fp->writeCnt);
+   if (Monitor.Files())
+      Monitor.Agent->Close(fp->FileID, fp->readCnt, fp->writeCnt);
 
 // Do an explicit close of the file here; reflecting any errors
 //
@@ -706,13 +707,10 @@ int XrdXrootdProtocol::do_Login()
 
 // Allocate a monitoring object, if needed for this connection
 //
-   if ((Monitor = XrdXrootdMonitor::Alloc()))
-      {monFILE = XrdXrootdMonitor::monFILE;
-       monIO   = XrdXrootdMonitor::monIO;
-       if ( XrdXrootdMonitor::monUSER
-       && (!XrdXrootdMonitor::monAUTH || !(Status & XRD_NEED_AUTH)))
-          monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID,
-                                         XrdXrootdMonitor::monAUTH ? "" : 0);
+   if (Monitor.Ready())
+      {Monitor.Register(Link->ID, Link->Host());
+       if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
+          Monitor.Report(Monitor.Auths() ? "" : 0);
       }
 
 // Complete the rquestID object
@@ -1111,9 +1109,9 @@ int XrdXrootdProtocol::do_Open()
 
 // If we are monitoring, send off a path to dictionary mapping
 //
-   if (monFILE && Monitor) 
-      {xp->FileID = Monitor->Map(XROOTD_MON_MAPPATH, Link->ID, fn);
-       Monitor->Open(xp->FileID, statbuf.st_size);
+   if (Monitor.Files())
+      {xp->FileID = Monitor.MapPath(fn);
+       Monitor.Agent->Open(xp->FileID, statbuf.st_size);
       }
 
 // Insert the file handle
@@ -1590,8 +1588,8 @@ int XrdXrootdProtocol::do_Read()
 
 // If we are monitoring, insert a read entry
 //
-   if (monIO && Monitor) Monitor->Add_rd(myFile->FileID, Request.read.rlen,
-                                         Request.read.offset);
+   if (Monitor.InOut()) Monitor.Agent->Add_rd(myFile->FileID, Request.read.rlen,
+                                              Request.read.offset);
 
 // See if an alternate path is required, offload the read
 //
@@ -1728,8 +1726,8 @@ int XrdXrootdProtocol::do_ReadV()
    long long totLen;
    int rdVecNum, rdVecLen = Request.header.dlen;
    int i, k, rc, xframt, Quantum, Qleft, rdvamt;
-   int ioMon = (monIO  > 1) && (Monitor != 0);
-   int rvMon = (monIO != 0) && (Monitor != 0);
+   int rvMon = Monitor.InOut();
+   int ioMon = (rvMon > 1);
    char *buffp;
 
 // Compute number of elements in the read vector and make sure we have no
@@ -1793,10 +1791,12 @@ int XrdXrootdProtocol::do_ReadV()
        {currFH.Set(rdVec[i].fhandle);
         if (currFH.handle != lastFH.handle)
            {if (i && rvMon)
-               {Monitor->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
+               {Monitor.Agent->Add_rv(myFile->FileID, htonl(rdvamt),
+                                                      htons(i-k), rvSeq);
                  myFile->readCnt += rdvamt; rdvamt = 0;
                 if (ioMon) for (; k < i; k++)
-                    Monitor->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
+                    Monitor.Agent->Add_rd(myFile->FileID, rdVec[k].rlen,
+                                                          rdVec[k].offset);
                }
             if (!(myFile = FTab->Get(currFH.handle)))
                return Response.Send(kXR_FileNotOpen,
@@ -1828,10 +1828,10 @@ int XrdXrootdProtocol::do_ReadV()
 //
    if (i >= rdVecNum)
       {if (i && rvMon)
-          {Monitor->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
+          {Monitor.Agent->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
            myFile->readCnt += rdvamt;
            if (ioMon) for (; k < i; k++)
-              Monitor->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
+              Monitor.Agent->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
           }
         return Response.Send(argp->buff, Quantum-Qleft);
       }
@@ -1953,11 +1953,10 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 // monitor entry, since it knows how to forward the information.
 //
    if (!strcmp(val, "info"))
-      {if (appid && XrdXrootdMonitor::monINFO)
+      {if (appid && Monitor.Info())
           {while(*appid && *appid == ' ') appid++;
            if (strlen(appid) > 1024) appid[1024] = '\0';
-           if (*appid) myseq = XrdXrootdMonitor::Map(XROOTD_MON_MAPINFO,
-                               Link->ID, appid);
+           if (*appid) myseq = Monitor.MapInfo(appid);
           }
        return Response.Send((void *)&myseq, sizeof(myseq));
       }
@@ -1965,28 +1964,23 @@ int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 // Determine if on do appropriate processing
 //
    if (!strcmp(val, "on"))
-      {if (Monitor || (Monitor = XrdXrootdMonitor::Alloc(1)))
-          {if (appid && XrdXrootdMonitor::monIO)
-              {while(*appid && *appid == ' ') appid++;
-               if (*appid) Monitor->appID(appid);
-              }
-           monIO   =  XrdXrootdMonitor::monIO;
-           monFILE =  XrdXrootdMonitor::monFILE;
-           if (XrdXrootdMonitor::monUSER && !monUID && Monitor) MonAuth();
+      {Monitor.Enable();
+       if (appid && Monitor.InOut())
+          {while(*appid && *appid == ' ') appid++;
+           if (*appid) Monitor.Agent->appID(appid);
           }
+       if (!Monitor.Did && Monitor.Logins()) MonAuth();
        return Response.Send();
       }
 
 // Determine if off and do appropriate processing
 //
    if (!strcmp(val, "off"))
-      {if (Monitor)
-          {if (appid && XrdXrootdMonitor::monIO)
-              {while(*appid && *appid == ' ') appid++;
-               if (*appid) Monitor->appID(appid);
-              }
-           Monitor->unAlloc(Monitor); Monitor = 0; monIO = monFILE = 0;
+      {if (appid && Monitor.InOut())
+          {while(*appid && *appid == ' ') appid++;
+           if (*appid) Monitor.Agent->appID(appid);
           }
+       Monitor.Disable();
        return Response.Send();
       }
 
@@ -2193,8 +2187,8 @@ int XrdXrootdProtocol::do_Write()
 
 // If we are monitoring, insert a write entry
 //
-   if (monIO && Monitor) Monitor->Add_wr(myFile->FileID, Request.write.dlen,
-                                         Request.write.offset);
+   if (Monitor.InOut())
+      Monitor.Agent->Add_wr(myFile->FileID,Request.write.dlen,Request.write.offset);
 
 // If zero length write, simply return
 //
@@ -2452,7 +2446,7 @@ void XrdXrootdProtocol::MonAuth()
          char Buff[2048];
    const char *bP = Buff;
 
-   if (Client == &Entity) bP = (XrdXrootdMonitor::monAUTH ? "" : 0);
+   if (Client == &Entity) bP = (Monitor.Auths() ? "" : 0);
       else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s",
                      Client->prot,
                     (Client->name ? Client->name : ""),
@@ -2463,7 +2457,7 @@ void XrdXrootdProtocol::MonAuth()
                     (Client->moninfo ? Client->moninfo : "")
                    );
 
-   monUID = XrdXrootdMonitor::Map(XROOTD_MON_MAPUSER, Link->ID, bP);
+   Monitor.Report(bP);
 }
   
 /******************************************************************************/

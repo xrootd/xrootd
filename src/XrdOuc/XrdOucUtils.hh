@@ -36,6 +36,10 @@ static int   genPath(char *buff, int blen, const char *path, const char *psfx=0)
 
 static int   GroupName(gid_t gID, char *gName, int gNsz);
 
+static char *Ident(long long  &mySID, char *iBuff, int iBlen,
+                   const char *iHost, const char *iProg, const char *iName,
+                   int Port);
+
 static const char *InstName(int TranOpt=0);
 
 static const char *InstName(const char *name, int Fillit=1);

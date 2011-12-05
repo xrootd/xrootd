@@ -19,9 +19,12 @@
 #include "XrdFrm/XrdFrmMonitor.hh"
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdFrc;
 
@@ -37,17 +40,33 @@ char              *XrdFrmMonitor::Dest2      = 0;
 int                XrdFrmMonitor::monFD2     = -1;
 int                XrdFrmMonitor::monMode2   = 0;
 struct sockaddr    XrdFrmMonitor::InetAddr2;
-kXR_int32          XrdFrmMonitor::startTime  = 0;
+kXR_int32          XrdFrmMonitor::startTime  = htonl(time(0));
 int                XrdFrmMonitor::isEnabled  = 0;
+char              *XrdFrmMonitor::idRec      = 0;
+int                XrdFrmMonitor::idLen      = 0;
+int                XrdFrmMonitor::sidSize    = 0;
+char              *XrdFrmMonitor::sidName    = 0;
+int                XrdFrmMonitor::idTime     = 3600;
 char               XrdFrmMonitor::monMIGR    = 0;
 char               XrdFrmMonitor::monPURGE   = 0;
 char               XrdFrmMonitor::monSTAGE   = 0;
 
 /******************************************************************************/
+/*                     T h r e a d   I n t e r f a c e s                      */
+/******************************************************************************/
+
+void *XrdFrmMonitorID(void *parg)
+{
+   XrdFrmMonitor::Ident();
+   return (void *)0;
+}
+  
+/******************************************************************************/
 /*                              D e f a u l t s                               */
 /******************************************************************************/
 
-void XrdFrmMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
+void XrdFrmMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2,
+                             int iTime)
 {
 
 // Make sure if we have a proper destinations and modes
@@ -78,21 +97,51 @@ void XrdFrmMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 // Do final check
 //
    isEnabled = (Dest1 == 0 && Dest2 == 0 ? 0 : 1);
+   idTime = iTime;
+}
+
+/******************************************************************************/
+/*                                 I d e n t                                  */
+/******************************************************************************/
+  
+void XrdFrmMonitor::Ident()
+{
+do{Send(-1, idRec, idLen);
+   XrdSysTimer::Snooze(idTime);
+  } while(1);
 }
 
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdFrmMonitor::Init()
+int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 {
    XrdNet     myNetwork(&Say, 0);
    XrdNetPeer monDest;
-   char      *etext;
+   XrdXrootdMonMap *mP;
+   long long  mySid;
+   char      *etext, iBuff[1024], *sName;
+
+// Generate our server ID
+//
+   sidName = XrdOucUtils::Ident(mySid, iBuff, sizeof(iBuff), iHost, iProg,
+                                (iName ? iName : "anon"), 0);
+   sidSize = strlen(sidName);
 
 // There is nothing to do unless we have been enabled via Defaults()
 //
    if (!isEnabled) return 1;
+
+// Create identification record
+//
+   idLen = strlen(iBuff) + sizeof(XrdXrootdMonHeader) + sizeof(kXR_int32);
+   idRec = (char *)malloc(idLen+1);
+   mP = (XrdXrootdMonMap *)idRec;
+   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen);
+   mP->hdr.pseq = 0;
+   mP->dictid   = 0;
+   strcpy(mP->info, iBuff);
 
 // Get the address of the primary destination
 //
@@ -117,9 +166,17 @@ int XrdFrmMonitor::Init()
        monFD2 = monDest.fd;
       }
 
+// Check if we will be producing identification records
+//
+   if (idTime)
+      {pthread_t tid;
+       int retc;
+       if ((retc = XrdSysThread::Run(&tid,XrdFrmMonitorID,0,0,"mon ident")))
+          {Say.Emsg("Init", retc, "create monitor ident thread"); return 0;}
+      }
+
 // All done
 //
-   startTime = htonl(time(0));
    return 1;
 }
 
@@ -127,35 +184,48 @@ int XrdFrmMonitor::Init()
 /*                                   M a p                                    */
 /******************************************************************************/
   
-kXR_unt32 XrdFrmMonitor::Map(const char code,
-                                   const char *uname, const char *path)
+kXR_unt32 XrdFrmMonitor::Map(char code, const char *uname, const char *path)
 {
-     XrdXrootdMonMap     map;
-     int                 size, montype;
+   XrdXrootdMonMap     map;
+   char *colonP, *atP, uBuff[1024];
+   int                 size, montype;
+
+// Decode the user name as a.b:c@d
+//
+   if ((colonP = index(uname, ':')) && (atP = index(colonP+1, '@')))
+      {int n = colonP - uname + 1;
+       strncpy(uBuff, uname, n);
+       strcpy(uBuff+n, sidName);
+       strcpy(uBuff+n+sidSize, atP);
+      } else strcpy(uBuff, uname);
 
 // Copy in the username and path the dictid is always zero for us.
 //
    map.dictid = 0;
-   strcpy(map.info, uname);
-   size = strlen(uname);
+   strcpy(map.info, uBuff);
+   size = strlen(uBuff);
    if (path)
       {*(map.info+size) = '\n';
        strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
        size = size + strlen(path) + 1;
       }
 
-// Fill in the header
+// Route the packet to all destinations that need them
+//
+        if (code == XROOTD_MON_MAPSTAG){montype = XROOTD_MON_STAGE;
+                                        code    = XROOTD_MON_MAPXFER;
+                                       }
+   else if (code == XROOTD_MON_MAPMIGR){montype = XROOTD_MON_MIGR;
+                                        code    = XROOTD_MON_MAPXFER;
+                                       }
+   else if (code == XROOTD_MON_MAPPURG) montype = XROOTD_MON_PURGE;
+   else                                 montype = XROOTD_MON_INFO;
+
+// Fill in the header and route the packet
 //
    size = sizeof(XrdXrootdMonHeader)+sizeof(kXR_int32)+size;
    fillHeader(&map.hdr, code, size);
-cerr <<"Mon send "<<code <<": " <<map.info <<endl;
-
-// Route the packet to all destinations that need them
-//
-        if (code == XROOTD_MON_MAPSTAG) montype = XROOTD_MON_STAGE;
-   else if (code == XROOTD_MON_MAPMIGR) montype = XROOTD_MON_MIGR;
-   else if (code == XROOTD_MON_MAPPURG) montype = XROOTD_MON_PURGE;
-   else                                 montype = XROOTD_MON_INFO;
+// cerr <<"Mon send "<<code <<": " <<map.info <<endl;
    Send(montype, (void *)&map, size);
 
 // Return the dictionary id

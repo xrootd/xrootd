@@ -19,6 +19,7 @@
 
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdReqID.hh"
 #include "XrdXrootd/XrdXrootdResponse.hh"
 #include "XProtocol/XProtocol.hh"
@@ -258,13 +259,10 @@ long long                  totReadP;     // Bytes
 XrdLink                   *Link;
 XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
-XrdXrootdMonitor          *Monitor;
-kXR_unt32                  monUID;
-char                       monFILE;
-char                       monIO;
+XrdXrootdMonitor::User     Monitor;
+int                        clientPV;
 char                       Status;
 unsigned char              CapVer;
-int                        clientPV;
 
 // Authentication area
 //

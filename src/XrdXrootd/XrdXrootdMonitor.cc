@@ -20,6 +20,7 @@
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -34,6 +35,8 @@
   
 XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdSysError       *XrdXrootdMonitor::eDest      = 0;
+char              *XrdXrootdMonitor::idRec      = 0;
+int                XrdXrootdMonitor::idLen      = 0;
 int                XrdXrootdMonitor::monFD;
 char              *XrdXrootdMonitor::Dest1      = 0;
 int                XrdXrootdMonitor::monMode1   = 0;
@@ -43,7 +46,7 @@ int                XrdXrootdMonitor::monMode2   = 0;
 struct sockaddr    XrdXrootdMonitor::InetAddr2;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
-kXR_int32          XrdXrootdMonitor::startTime  = 0;
+kXR_int32          XrdXrootdMonitor::startTime  =  htonl(time(0));
 int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::monRlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
@@ -52,17 +55,19 @@ int                XrdXrootdMonitor::numMonitor = 0;
 int                XrdXrootdMonitor::autoFlash  = 0;
 int                XrdXrootdMonitor::autoFlush  = 600;
 int                XrdXrootdMonitor::FlushTime  = 0;
+int                XrdXrootdMonitor::monIdent   = 3600;
 kXR_int32          XrdXrootdMonitor::currWindow = 0;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
+long long          XrdXrootdMonitor::mySID      = 0;
+char               XrdXrootdMonitor::sidName[16]= {0};
+short              XrdXrootdMonitor::sidSize    = 0;
 char               XrdXrootdMonitor::monINFO    = 0;
 char               XrdXrootdMonitor::monIO      = 0;
 char               XrdXrootdMonitor::monFILE    = 0;
-char               XrdXrootdMonitor::monMIGR    = 0;
-char               XrdXrootdMonitor::monPURGE   = 0;
 char               XrdXrootdMonitor::monREDR    = 0;
-char               XrdXrootdMonitor::monSTAGE   = 0;
 char               XrdXrootdMonitor::monUSER    = 0;
 char               XrdXrootdMonitor::monAUTH    = 0;
+char               XrdXrootdMonitor::monACTIVE  = 0;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -73,6 +78,31 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
+/******************************************************************************/
+/*                X r d X r o o t d M o n i t o r _ I d e n t                 */
+/******************************************************************************/
+  
+class XrdXrootdMonitor_Ident : public XrdJob
+{
+public:
+
+void          DoIt() {
+#ifndef NODEBUG
+                      const char *TraceID = "MonIdent";
+#endif
+                      XrdXrootdMonitor::Ident();
+                      Sched->Schedule((XrdJob *)this, time(0)+idInt);
+                     }
+
+      XrdXrootdMonitor_Ident(XrdScheduler *sP, int idt)
+                            : XrdJob("monitor ident"), Sched(sP), idInt(idt) {}
+     ~XrdXrootdMonitor_Ident() {}
+
+private:
+XrdScheduler  *Sched;     // System scheduler
+int            idInt;
+};
+
 /******************************************************************************/
 /*           C l a s s   X r d X r o o t d M o n i t o r _ T i c k            */
 /******************************************************************************/
@@ -93,8 +123,8 @@ void          DoIt() {
 
 void          Set(XrdScheduler *sp, int intvl) {Sched = sp; Window = intvl;}
 
-      XrdXrootdMonitor_Tick() : XrdJob("monitor window clock")
-                                  {Sched = 0; Window = 0;}
+      XrdXrootdMonitor_Tick() : XrdJob("monitor window clock"),
+                                Sched(0), Window(0) {}
      ~XrdXrootdMonitor_Tick() {}
 
 private:
@@ -128,6 +158,58 @@ static XrdSysMutex monLock;
 
 XrdSysMutex XrdXrootdMonitorLock::monLock;
 
+/******************************************************************************/
+/*       X r d X r o o t d M o n i t o r : : U s e r : : D i s a b l e        */
+/******************************************************************************/
+
+void XrdXrootdMonitor::User::Disable()
+{
+   if (Agent)
+      {XrdXrootdMonitor::unAlloc(Agent); Agent = 0;}
+   Fops = Iops = 0;
+}
+  
+/******************************************************************************/
+/*        X r d X r o o t d M o n i t o r : : U s e r : : E n a b l e         */
+/******************************************************************************/
+
+void XrdXrootdMonitor::User::Enable()
+{
+   if (Agent || (Agent = XrdXrootdMonitor::Alloc(1)))
+      {Iops = XrdXrootdMonitor::monIO;
+       Fops = XrdXrootdMonitor::monFILE;
+      } else Iops = Fops = 0;
+}
+  
+/******************************************************************************/
+/*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
+/******************************************************************************/
+  
+void XrdXrootdMonitor::User::Register(const char *Uname, const char *Hname)
+{
+   char *colonP, *atP, uBuff[1024];
+
+// Decode the user name as a.b:c@d
+//
+   if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
+      {int n = colonP - Uname + 1;
+       strncpy(uBuff, Uname, n);
+       strcpy(uBuff+n, sidName);
+       n += sidSize; uBuff[n++] = '@';
+       strcpy(uBuff+n, Hname);
+      } else strcpy(uBuff, Uname);
+
+// Generate a monitor identity for this user. We do not assign a dictioary
+// identifier unless this entry is reported.
+//
+   Agent = XrdXrootdMonitor::Alloc();
+   Did   = 0;
+   Len   = strlen(uBuff);
+   Name  = strdup(uBuff);
+   Iops  = XrdXrootdMonitor::monIO;
+   Fops  = XrdXrootdMonitor::monFILE;
+}
+  
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -297,15 +379,13 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 // Set overall monitor mode
 //
    mmode     = mode1 | mode2;
+   monACTIVE = (mmode                   ? 1 : 0);
    isEnabled = (mmode & XROOTD_MON_ALL  ? 1 :-1);
    monIO     = (mmode & XROOTD_MON_IO   ? 1 : 0);
    monIO     = (mmode & XROOTD_MON_IOV  ? 2 : monIO);
    monINFO   = (mmode & XROOTD_MON_INFO ? 1 : 0);
    monFILE   = (mmode & XROOTD_MON_FILE ? 1 : 0) | monIO;
-   monMIGR   = (mmode & XROOTD_MON_MIGR ? 1 : 0);
-   monPURGE  = (mmode & XROOTD_MON_PURGE? 1 : 0);
    monREDR   = (mmode & XROOTD_MON_REDR ? 1 : 0);
-   monSTAGE  = (mmode & XROOTD_MON_STAGE? 1 : 0);
    monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
    monAUTH   = (mmode & XROOTD_MON_AUTH ? 1 : 0);
 
@@ -325,7 +405,8 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 
 /******************************************************************************/
 
-void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush, int flash)
+void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
+                                int flush, int flash, int idt)
 {
 
 // Set default window size and flush time
@@ -333,6 +414,7 @@ void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush, int flash)
    sizeWindow = (wsz <= 0 ? 60 : wsz);
    autoFlush  = (flush <= 0 ? 600 : flush);
    autoFlash  = (flash <= 0 ?   0 : flash);
+   monIdent   = (idt   <  0 ?   0 : idt);
 
 // Set default monitor buffer size
 //
@@ -347,10 +429,6 @@ void XrdXrootdMonitor::Defaults(int msz, int rsz, int wsz, int flush, int flash)
 //
    if (rsz <= 0) monRlen = 32768;
       else if (rsz < 2048) monRlen = 2048;
-
-// Set the start time
-//
-   startTime = htonl(time(0));
 }
   
 /******************************************************************************/
@@ -373,16 +451,30 @@ void XrdXrootdMonitor::Dup(XrdXrootdMonTrace *mrec)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdSysError *errp)
+int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
+                           const char   *iHost, const char  *iProg,
+                           const char   *iName, int Port)
 {
+   static     XrdXrootdMonitor_Ident MonIdent(sp, monIdent);
+   XrdXrootdMonMap *mP;
    XrdNet     myNetwork(errp, 0);
    XrdNetPeer monDest;
-   char      *etext;
+   long long  xxSid;
+   char      *etext, iBuff[1024], *sName;
 
-// Set various statics
+// Set static variables
 //
    Sched = sp;
    eDest = errp;
+
+// Generate our server ID
+//
+   sName = XrdOucUtils::Ident(xxSid, iBuff, sizeof(iBuff),
+                              iHost, iProg, iName, Port);
+   sidSize = strlen(sName);
+   if (sidSize >= (int)sizeof(sidName)) sName[sizeof(sidName)-1] = 0;
+   strcpy(sidName, sName);
+   free(sName);
 
 // There is nothing to do unless we have been enabled via Defaults()
 //
@@ -422,6 +514,20 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdSysError *errp)
 //
    if (isEnabled > 0) startClock();
 
+// Create identification record
+//
+   idLen = strlen(iBuff) + sizeof(XrdXrootdMonHeader) + sizeof(kXR_int32);
+   idRec = (char *)malloc(idLen+1);
+   mP = (XrdXrootdMonMap *)idRec;
+   fillHeader(&(mP->hdr), XROOTD_MON_MAPIDNT, idLen);
+   mP->hdr.pseq = 0;
+   mP->dictid   = 0;
+   strcpy(mP->info, iBuff);
+
+// Now schedule the first identification record
+//
+   if (Sched && monIdent) Sched->Schedule((XrdJob *)&MonIdent);
+
 // All done
 //
    return 1;
@@ -431,8 +537,8 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp, XrdSysError *errp)
 /*                                   M a p                                    */
 /******************************************************************************/
   
-kXR_unt32 XrdXrootdMonitor::Map(const char code,
-                                   const char *uname, const char *path)
+kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
+                                const char *path)
 {
      static XrdSysMutex  seqMutex;
      static unsigned int monSeqID = 1;
@@ -449,8 +555,8 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
 // Copy in the username and path
 //
    map.dictid = htonl(mySeqID);
-   strcpy(map.info, uname);
-   size = strlen(uname);
+   strcpy(map.info, uInfo.Name);
+   size = uInfo.Len;
    if (path)
       {*(map.info+size) = '\n';
        strlcpy(map.info+size+1, path, sizeof(map.info)-size-1);
@@ -466,9 +572,6 @@ kXR_unt32 XrdXrootdMonitor::Map(const char code,
 //
         if (code == XROOTD_MON_MAPPATH) montype = XROOTD_MON_PATH;
    else if (code == XROOTD_MON_MAPUSER) montype = XROOTD_MON_USER;
-   else if (code == XROOTD_MON_MAPMIGR) montype = XROOTD_MON_MIGR;
-   else if (code == XROOTD_MON_MAPPURG) montype = XROOTD_MON_PURGE;
-   else if (code == XROOTD_MON_MAPSTAG) montype = XROOTD_MON_STAGE;
    else                                 montype = XROOTD_MON_INFO;
    Send(montype, (void *)&map, size);
 
@@ -685,7 +788,7 @@ void XrdXrootdMonitor::Mark()
    }
    else
    {
-      monBuff->info[nextEnt].arg0.rTot[0] = 0;
+      monBuff->info[nextEnt].arg0.val     = mySID;
       monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
       monBuff->info[nextEnt].arg1.Window  =
                static_cast<kXR_int32>(htonl(lastWindow + sizeWindow));
@@ -712,18 +815,20 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
     if (monMode & monMode1) 
        {rc1  = (int)sendto(monFD, buff, blen, 0,
                         (const struct sockaddr *)&InetAddr1, sizeof(sockaddr));
-        TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<(rc1 ? errno : 0));
+        rc1 = (rc1 < 0 ? -errno : 0);
+        TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
        }
        else rc1 = 0;
     if (monMode & monMode2) 
        {rc2 = (int)sendto(monFD, buff, blen, 0,
                         (const struct sockaddr *)&InetAddr2, sizeof(sockaddr));
-        TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<(rc2 ? errno : 0));
+        rc2 = (rc2 < 0 ? -errno : 0);
+        TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
        }
        else rc2 = 0;
     sendMutex.UnLock();
 
-    return (rc1 > rc2 ? rc1 : rc2);
+    return (rc1 < rc2 ? rc1 : rc2);
 }
 
 /******************************************************************************/

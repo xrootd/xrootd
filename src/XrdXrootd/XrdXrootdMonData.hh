@@ -17,7 +17,7 @@
 /******************************************************************************/
   
 struct XrdXrootdMonHeader
-       {kXR_char   code;         // 'd' | 'i' | 'm' | 'r' | 's' | 't' | 'u'
+       {kXR_char   code;         // '='|'d'|'i'|'p'|'r'|'t'|'u'|'x'
         kXR_char   pseq;         // packet sequence
         kXR_unt16  plen;         // packet length
         kXR_int32  stod;         // Unix time at Server Start
@@ -53,16 +53,20 @@ const kXR_char XROOTD_MON_OPEN          = 0x80;
 const kXR_char XROOTD_MON_READV         = 0x90;
 const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 
+const kXR_char XROOTD_MON_MAPIDNT       = '=';
 const kXR_char XROOTD_MON_MAPPATH       = 'd';
 const kXR_char XROOTD_MON_MAPINFO       = 'i';
-const kXR_char XROOTD_MON_MAPMIGR       = 'm';
+const kXR_char XROOTD_MON_MAPMIGR       = 'm'; // Internal use only!
 const kXR_char XROOTD_MON_MAPPURG       = 'p';
 const kXR_char XROOTD_MON_MAPREDR       = 'r';
-const kXR_char XROOTD_MON_MAPSTAG       = 's';
+const kXR_char XROOTD_MON_MAPSTAG       = 's'; // Internal use only!
 const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
+const kXR_char XROOTD_MON_MAPXFER       = 'x';
 
 const kXR_char XROOTD_MON_FORCED        = 0x01;
 const kXR_char XROOTD_MON_BOUNDP        = 0x02;
+
+const long long XROOTD_MON_SIDMASK      = 0x0000ffffffffffffll;
 
 #endif

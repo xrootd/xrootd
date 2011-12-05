@@ -18,10 +18,6 @@
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
-  
-/******************************************************************************/
-/*                            X r d M o n i t o r                             */
-/******************************************************************************/
 
 #define XROOTD_MON_INFO     1
 #define XROOTD_MON_STAGE    2
@@ -32,11 +28,15 @@ class XrdFrmMonitor
 {
 public:
 
-static void              Defaults(char *dest1, int m1, char *dest2, int m2);
+static void              Defaults(char *dest1, int m1, char *dest2, int m2,
+                                  int   iTime);
 
-static int               Init();
+static void              Ident();
 
-static kXR_unt32         Map(const char code,const char *uname,const char *path);
+static int               Init(const char *iHost, const char *iProg,
+                              const char *iName);
+
+static kXR_unt32         Map(char code, const char *uname, const char *path);
 
 static char              monMIGR;
 static char              monPURGE;
@@ -60,5 +60,10 @@ static int                monMode2;
 static struct sockaddr    InetAddr2;
 static kXR_int32          startTime;
 static int                isEnabled;
+static char              *idRec;
+static int                idLen;
+static int                sidSize;
+static char              *sidName;
+static int                idTime;
 };
 #endif
