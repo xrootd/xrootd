@@ -6,6 +6,15 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Define the frm.all.monitor directive to enable migration, purging, and
+     staging monitoring. This was originally part of xrootd.monitor but that
+     just was odd. Note that the stage, purge, migr events are no longer
+     accepted on the xrootd.monitor directive.
+   * Collapse he staging (s) and migration (m) records into a single transfer
+     (x) record. While not compatible, the previous implementation was new
+     code and no one actually was capturing these records.
+   * Implement a server identification record (=) that unquely identifies each
+     server. The record can be sent periodically and can be used as a heartbeat.
    * Add -y option to xrdcp to limit number of extreme copy sources.
    * Uniformly pass the execution environment to all oss and cms client
      methods. This is largely for DPM support.
