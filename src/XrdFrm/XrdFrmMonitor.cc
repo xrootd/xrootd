@@ -40,7 +40,7 @@ char              *XrdFrmMonitor::Dest2      = 0;
 int                XrdFrmMonitor::monFD2     = -1;
 int                XrdFrmMonitor::monMode2   = 0;
 struct sockaddr    XrdFrmMonitor::InetAddr2;
-kXR_int32          XrdFrmMonitor::startTime  = htonl(time(0));
+kXR_int32          XrdFrmMonitor::startTime  = 0;
 int                XrdFrmMonitor::isEnabled  = 0;
 char              *XrdFrmMonitor::idRec      = 0;
 int                XrdFrmMonitor::idLen      = 0;
@@ -128,6 +128,7 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
    sidName = XrdOucUtils::Ident(mySid, iBuff, sizeof(iBuff), iHost, iProg,
                                 (iName ? iName : "anon"), 0);
    sidSize = strlen(sidName);
+   startTime = htonl(time(0));
 
 // There is nothing to do unless we have been enabled via Defaults()
 //
@@ -187,8 +188,9 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 kXR_unt32 XrdFrmMonitor::Map(char code, const char *uname, const char *path)
 {
    XrdXrootdMonMap     map;
-   char *colonP, *atP, uBuff[1024];
-   int                 size, montype;
+   const char *colonP, *atP;
+   char uBuff[1024];
+   int  size, montype;
 
 // Decode the user name as a.b:c@d
 //

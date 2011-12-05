@@ -187,7 +187,8 @@ void XrdXrootdMonitor::User::Enable()
   
 void XrdXrootdMonitor::User::Register(const char *Uname, const char *Hname)
 {
-   char *colonP, *atP, uBuff[1024];
+   const char *colonP, *atP;
+   char  uBuff[1024];
 
 // Decode the user name as a.b:c@d
 //
