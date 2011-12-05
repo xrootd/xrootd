@@ -119,6 +119,12 @@ namespace XrdClient
       //! should be sent back
       //------------------------------------------------------------------------
       virtual uint16_t Multiplex( Message *msg, void *channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Return the information whether a control connection needs to be
+      //! valid before establishing other connections
+      //------------------------------------------------------------------------
+      virtual bool NeedControlConnection() = 0;
   };
 }
 

@@ -77,6 +77,15 @@ namespace XrdClient
       virtual uint16_t Multiplex( Message *msg, void *channelData );
 
       //------------------------------------------------------------------------
+      //! Return the information whether a control connection needs to be
+      //! valid before establishing other connections
+      //------------------------------------------------------------------------
+      virtual bool NeedControlConnection()
+      {
+        return true;
+      }
+
+      //------------------------------------------------------------------------
       //! Marshal the outgoing message
       //------------------------------------------------------------------------
       static Status Marshall( Message *msg );

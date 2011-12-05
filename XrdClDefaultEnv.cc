@@ -17,7 +17,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   DefaultEnv::DefaultEnv()
   {
-    PutInt( "ConnectionTimeout", DefaultConnectionTimeout );
+    PutInt( "ConnectionWindow",  DefaultConnectionWindow  );
     PutInt( "ConnectionRetry",   DefaultConnectionRetry   );
     PutInt( "RequestTimeout",    DefaultRequestTimeout    );
     PutInt( "DataServerTimeout", DefaultDataServerTimeout );

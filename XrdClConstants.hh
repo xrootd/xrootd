@@ -25,7 +25,7 @@ namespace XrdClient
   // Environment settings
   //----------------------------------------------------------------------------
   const int DefaultStreamsPerChannel = 1;
-  const int DefaultConnectionTimeout = 120;
+  const int DefaultConnectionWindow  = 120;
   const int DefaultConnectionRetry   = 5;
   const int DefaultRequestTimeout    = 300;
   const int DefaultDataServerTimeout = 300;

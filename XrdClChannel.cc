@@ -193,163 +193,156 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Handle connection issue
   //----------------------------------------------------------------------------
-  Status Channel::HandleStreamFault( uint16_t streamNum )
+  Status Channel::HandleStreamFault( uint16_t sNum )
   {
+    //--------------------------------------------------------------------------
+    // Check if we need to reestablish the control connection
+    //--------------------------------------------------------------------------
+    if( sNum != 0 && pTransport->NeedControlConnection() )
+      HandleStreamFault( 0 );
+
+    //--------------------------------------------------------------------------
+    // Lock the channel and the stream so that nobody else writes to our socket
+    //--------------------------------------------------------------------------
+    pMutex.Lock();
+    pStreams[sNum]->Lock();
+
+    //--------------------------------------------------------------------------
+    // The connection might have been reestablished by another thread, in
+    // which case we do nothing
+    //--------------------------------------------------------------------------
+    if( pStreams[sNum]->GetSocket()->IsConnected() )
+    {
+      pMutex.UnLock();
+      pStreams[sNum]->UnLock();
+      return Status();
+    }
+
     //--------------------------------------------------------------------------
     // Query the environment
     //--------------------------------------------------------------------------
     Env *env = DefaultEnv::GetEnv();
     int retryCount = DefaultConnectionRetry;
     env->GetInt( "ConnectionRetry", retryCount );
-    int timeout = DefaultConnectionTimeout;
-    env->GetInt( "ConnectionTimeout", timeout );
+    int window = DefaultConnectionWindow;
+    env->GetInt( "ConnectionWindow", window );
 
     Log *log = Utils::GetDefaultLog();
     log->Debug( PostMasterMsg, "[%s #%d] Stream fault reported. "
                                "Attempting reconnection, retry %d times, "
-                               "wait %d seconds.",
-                               pUrl.GetHostId().c_str(), streamNum,
-                               retryCount, timeout );
+                               "connection window is %d seconds.",
+                               pUrl.GetHostId().c_str(), sNum,
+                               retryCount, window );
 
     Status sc;
-    bool connectionOk = true;
-
-    //--------------------------------------------------------------------------
-    // Lock the channel and grab the locks of all the streams
-    //--------------------------------------------------------------------------
-    pMutex.Lock();
-    for( int i = 0; i < pStreams.size(); ++i )
-      pStreams[i]->Lock();
+    bool   connectionOk = true;
 
     //--------------------------------------------------------------------------
     // Retry the connection
     //--------------------------------------------------------------------------
     for( int trialNo = 0; trialNo < retryCount; ++trialNo )
     {
-      //------------------------------------------------------------------------
-      // Make sure that all the streams are in good shape
-      //------------------------------------------------------------------------
       time_t beforeConn = ::time(0);
       connectionOk = true;
-      for( int i = 0; i < pStreams.size(); ++i )
+
+      //------------------------------------------------------------------------
+      // Cleanup and try to reconnect
+      //------------------------------------------------------------------------
+      pPoller->RemoveSocket( pStreams[sNum]->GetSocket() );
+      pStreams[sNum]->GetSocket()->Disconnect();
+
+      sc = pStreams[sNum]->GetSocket()->Connect( pUrl, window );
+      if( sc.status != stOK )
       {
-        if( !pStreams[i]->GetSocket()->IsConnected() )
-        {
-          //--------------------------------------------------------------------
-          // Cleanup and try to reconnect
-          //--------------------------------------------------------------------
-          pPoller->RemoveSocket( pStreams[i]->GetSocket() );
-          sc = pStreams[i]->GetSocket()->Connect( pUrl, timeout );
-          if( sc.status != stOK )
-          {
-            log->Debug( PostMasterMsg, "[%s #%d] Failed to connect",
-                                       pUrl.GetHostId().c_str(), i );
-            connectionOk = false;
-            break;
-          }
+        log->Debug( PostMasterMsg, "[%s #%d] Failed to connect",
+                                   pUrl.GetHostId().c_str(), sNum );
+        connectionOk = false;
+        ConnSleep( beforeConn, ::time(0), window,
+                   pUrl.GetHostId().c_str(), sNum );
+        continue;
+      }
 
-          log->Debug( PostMasterMsg, "[%s #%d] Connection successful: %s",
-                                     pUrl.GetHostId().c_str(), i,
-                                     pStreams[i]->GetSocket()->GetName().c_str() );
+      log->Debug( PostMasterMsg, "[%s #%d] Connection successful: %s",
+                                 pUrl.GetHostId().c_str(), sNum,
+                                 pStreams[sNum]->GetSocket()->GetName().c_str() );
 
-          //--------------------------------------------------------------------
-          // Do the handshake
-          //--------------------------------------------------------------------
-          sc = pTransport->HandShake( pStreams[i]->GetSocket(), pUrl, i, pData );
-          if( sc.status != stOK )
-          {
-            log->Error( PostMasterMsg, "[%s #%d] Failed to negotiate a link",
-                                       pUrl.GetHostId().c_str(), i );
-            pStreams[i]->GetSocket()->Disconnect();
-            connectionOk = false;
-            break;
-          }
-        }
+      //------------------------------------------------------------------------
+      // Do the handshake
+      //------------------------------------------------------------------------
+      sc = pTransport->HandShake( pStreams[sNum]->GetSocket(), pUrl,
+                                  sNum, pData );
+      if( sc.status != stOK )
+      {
+        log->Error( PostMasterMsg, "[%s #%d] Failed to negotiate a link",
+                                   pUrl.GetHostId().c_str(), sNum );
+        pStreams[sNum]->GetSocket()->Disconnect();
+        connectionOk = false;
+        ConnSleep( beforeConn, ::time(0), window, pUrl.GetHostId().c_str(),
+                   sNum );
+        continue;
       }
 
       //------------------------------------------------------------------------
-      // Sleep before next try if needed
+      // If we managed to get hear it means that we have successfully
+      // reestablished the connection
       //------------------------------------------------------------------------
-      if( !connectionOk )
-      {
-        if( trialNo != retryCount-1 )
-        {
-          int sleepTime = timeout - (::time(0) - beforeConn);
-          if( sleepTime < 0 ) sleepTime = 0;
-
-          log->Debug( PostMasterMsg, "[%s] Sleeping %d seconds before retry",
-                                     pUrl.GetHostId().c_str(), sleepTime );
-          ::sleep( sleepTime );
-        }
-      }
-      else
-        break;
+      break;
     }
 
     //--------------------------------------------------------------------------
-    // We were unable to connect
+    // Check if the connection have been established, and, if so, start
+    // listening for the socket events
     //--------------------------------------------------------------------------
     if( !connectionOk )
     {
-      for( int i = 0; i < pStreams.size(); ++i )
-        pStreams[i]->UnLock();
-      pMutex.UnLock();
+      sc.status = stFatal;
       return sc;
     }
 
-    //--------------------------------------------------------------------------
-    // If everything went OK then add the streams to the poller
-    //--------------------------------------------------------------------------
+    sc            = Status();
     bool pollerOk = true;
-    for( int i = 0; i < pStreams.size(); ++i )
+
+    //--------------------------------------------------------------------------
+    // If everything went OK then add the stream to the poller
+    //--------------------------------------------------------------------------
+    if( pPoller->AddSocket( pStreams[sNum]->GetSocket(), pStreams[sNum] ) )
     {
       //------------------------------------------------------------------------
-      // Successfully added to poller
+      // Enable read notifications
       //------------------------------------------------------------------------
-      if( pPoller->AddSocket( pStreams[i]->GetSocket(), pStreams[i] ) )
+      if( !pPoller->EnableReadNotification( pStreams[sNum]->GetSocket(),
+                                            true, 15 ) )
       {
-
-        //----------------------------------------------------------------------
-        // Enable read notifications
-        //----------------------------------------------------------------------
-        if( !pPoller->EnableReadNotification( pStreams[i]->GetSocket(),
-                                              true, 15 ) )
-        {
-          log->Error( PostMasterMsg, "[%s #%d] Unable to listen to read events "
-                                     "on the stream",
-                                     pUrl.GetHostId().c_str(), i );
-          sc = Status( stError, errPollerError );
-          pollerOk = false;
-          break;
-        }
-
-        //----------------------------------------------------------------------
-        // Enable write notifications
-        //----------------------------------------------------------------------
-        if( !pPoller->EnableWriteNotification( pStreams[i]->GetSocket(),
-                                              true, 15 ) )
-        {
-          log->Error( PostMasterMsg, "[%s #%d] Unable to listen to write events "
-                                     "on the stream",
-                                     pUrl.GetHostId().c_str(), i );
-          sc = Status( stError, errPollerError );
-          pollerOk = false;
-          break;
-        }
-      }
-
-      //----------------------------------------------------------------------
-      // Failed to add to the poller
-      //----------------------------------------------------------------------
-      else
-      {
-        log->Error( PostMasterMsg, "[%s #%d] Unable to register the stream "
-                                   " with the poller",
-                                   pUrl.GetHostId().c_str(), i );
-        sc =  Status( stError, errPollerError );
+        log->Error( PostMasterMsg, "[%s #%d] Unable to listen to read events "
+                                   "on the stream",
+                                   pUrl.GetHostId().c_str(), sNum );
+        sc = Status( stError, errPollerError );
         pollerOk = false;
-        break;
       }
+
+      //------------------------------------------------------------------------
+      // Enable write notifications
+      //------------------------------------------------------------------------
+      if( !pPoller->EnableWriteNotification( pStreams[sNum]->GetSocket(),
+                                             true, 15 ) )
+      {
+        log->Error( PostMasterMsg, "[%s #%d] Unable to listen to write events "
+                                   "on the stream",
+                                   pUrl.GetHostId().c_str(), sNum );
+        sc = Status( stError, errPollerError );
+        pollerOk = false;
+      }
+    }
+    //------------------------------------------------------------------------
+    // Failed to add to the poller
+    //------------------------------------------------------------------------
+    else
+    {
+      log->Error( PostMasterMsg, "[%s #%d] Unable to register the stream "
+                                 " with the poller",
+                                 pUrl.GetHostId().c_str(), sNum );
+      sc =  Status( stError, errPollerError );
+      pollerOk = false;
     }
 
     //--------------------------------------------------------------------------
@@ -357,17 +350,28 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     if( !pollerOk )
     {
-      for( int i = 0; i < pStreams.size(); ++i )
-      {
-        pPoller->RemoveSocket( pStreams[i]->GetSocket() );
-        pStreams[i]->GetSocket()->Disconnect();
-      }
+      pPoller->RemoveSocket( pStreams[sNum]->GetSocket() );
+      pStreams[sNum]->GetSocket()->Disconnect();
     }
 
-    for( int i = 0; i < pStreams.size(); ++i )
-      pStreams[i]->UnLock();
+    pStreams[sNum]->UnLock();
     pMutex.UnLock();
-
     return sc;
+  }
+
+  //----------------------------------------------------------------------------
+  // Print sleep info
+  //----------------------------------------------------------------------------
+  void Channel::ConnSleep( time_t start, time_t now, time_t window,
+                           const char *hostId, uint16_t streamNum )
+  {
+    time_t elapsed = now - start;
+    if( elapsed < window )
+    {
+      Log *log = Utils::GetDefaultLog();
+      log->Debug( PostMasterMsg, "[%s #%d] Sleeping %d seconds",
+                                 window-elapsed );
+      ::sleep( window - elapsed );
+    }
   }
 }

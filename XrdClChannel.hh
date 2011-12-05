@@ -155,9 +155,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Handle connections issue
       //------------------------------------------------------------------------
-      Status HandleStreamFault( uint16_t streamNum = 0 );
+      Status HandleStreamFault( uint16_t sNum = 0 );
 
     private:
+      void ConnSleep( time_t start, time_t now, time_t window,
+                      const char *hostId, uint16_t streamNum );
 
       URL                    pUrl;
       Poller                *pPoller;
