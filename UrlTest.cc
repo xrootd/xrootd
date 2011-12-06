@@ -69,7 +69,7 @@ void UrlTest::parsingTest()
   CPPUNIT_ASSERT( url2.GetUserName() == "user1" );
   CPPUNIT_ASSERT( url2.GetPassword() == "" );
   CPPUNIT_ASSERT( url2.GetHostName() == "host1" );
-  CPPUNIT_ASSERT( url2.GetPort() == -1 );
+  CPPUNIT_ASSERT( url2.GetPort() == 1094 );
   CPPUNIT_ASSERT( url2.GetPath() == "/path" );
   CPPUNIT_ASSERT( url2.GetPathWithParams() == "/path?param1=val1&param2=val2" );
   CPPUNIT_ASSERT( url1.GetParams().size() == 2 );
@@ -91,7 +91,7 @@ void UrlTest::parsingTest()
   CPPUNIT_ASSERT( url3.GetUserName() == "" );
   CPPUNIT_ASSERT( url3.GetPassword() == "" );
   CPPUNIT_ASSERT( url3.GetHostName() == "host1" );
-  CPPUNIT_ASSERT( url3.GetPort() == -1 );
+  CPPUNIT_ASSERT( url3.GetPort() == 1094 );
   CPPUNIT_ASSERT( url3.GetPath() == "" );
   CPPUNIT_ASSERT( url3.GetPathWithParams() == "" );
   CPPUNIT_ASSERT( url3.GetParams().size() == 0 );
