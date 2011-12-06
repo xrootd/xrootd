@@ -46,7 +46,7 @@ int                XrdXrootdMonitor::monMode2   = 0;
 struct sockaddr    XrdXrootdMonitor::InetAddr2;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
-kXR_int32          XrdXrootdMonitor::startTime  =  htonl(time(0));
+kXR_int32          XrdXrootdMonitor::startTime  = 0;
 int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::monRlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
@@ -467,6 +467,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 //
    Sched = sp;
    eDest = errp;
+   startTime = htonl(time(0));
 
 // Generate our server ID
 //
