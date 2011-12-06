@@ -59,13 +59,13 @@ namespace XrdClient
         ReadMessage();
         break;
       case ReadTimeOut:
-        log->Debug( PostMasterMsg, "ReadTimeOut" );
+        HandleReadTimeout();
         break;
       case ReadyToWrite:
         WriteMessage();
         break;
       case WriteTimeOut:
-        log->Debug( PostMasterMsg, "WriteTimeOut" );
+        HandleWriteTimeout();
         break;
     }
   }
@@ -108,27 +108,16 @@ namespace XrdClient
   void Stream::WriteMessage()
   {
     Log *log = Utils::GetDefaultLog();
+    XrdSysMutexHelper scopedLock( pMutex );
 
     //--------------------------------------------------------------------------
     // Pick up a message if we're not in process of writing something
     //--------------------------------------------------------------------------
-    if( !pCurrentOut )
+    if( !pCurrentOut && !pOutQueue.empty() )
     {
-      Lock();
-      if( !pOutQueue.empty() )
-      {
-        pCurrentOut = pOutQueue.front();
-        pCurrentOut->msg->SetCursor(0);
-        pOutQueue.pop_front();
-      }
-      else
-      {
-        log->Dump( PostMasterMsg, "%s Nothing to write, disable write "
-                                  "notifications", pSocket->GetName().c_str() );
-        pPoller->EnableWriteNotification( pSocket, false );
-        return;
-      }
-      UnLock();
+      pCurrentOut = pOutQueue.front();
+      pCurrentOut->msg->SetCursor(0);
+      pOutQueue.pop_front();
     }
 
     //--------------------------------------------------------------------------
@@ -166,9 +155,19 @@ namespace XrdClient
     // We have written the message successfully
     //--------------------------------------------------------------------------
     if( pCurrentOut->handler )
+    {
       pCurrentOut->handler->HandleStatus( pCurrentOut->msg, Status() );
+    }
+
     delete pCurrentOut;
     pCurrentOut = 0;
+
+    if( pOutQueue.empty() )
+    {
+      log->Dump( PostMasterMsg, "%s Nothing to write, disable write "
+                                "notifications", pSocket->GetName().c_str() );
+      pPoller->EnableWriteNotification( pSocket, false );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -204,5 +203,19 @@ namespace XrdClient
       pIncoming = 0;
       // handle stream error here
     }
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle read timeout
+  //----------------------------------------------------------------------------
+  void Stream::HandleReadTimeout()
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle write timeout
+  //----------------------------------------------------------------------------
+  void Stream::HandleWriteTimeout()
+  {
   }
 }

@@ -85,9 +85,10 @@ namespace XrdClient
       void ReadMessage();
 
       //------------------------------------------------------------------------
-      // Get a message from a socket
+      // Handle timeouts
       //------------------------------------------------------------------------
-//      void HandleStreamFault();
+      void HandleReadTimeout();
+      void HandleWriteTimeout();
 
       Channel                       *pChannel;
       uint16_t                       pStreamNum;

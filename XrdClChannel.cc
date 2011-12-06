@@ -68,7 +68,7 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatusHandler( XrdClient::Message *msg ): pMsg( msg ) {}
+      StatusHandler( XrdClient::Message *msg ): pMsg( msg ), pSem( 0 ) {}
 
       //------------------------------------------------------------------------
       // Handle the status information
@@ -78,7 +78,7 @@ namespace
       {
         if( pMsg == message )
           pStatus = status;
-        pCondVar.Broadcast();
+        pSem.Post();
       }
 
       //------------------------------------------------------------------------
@@ -86,12 +86,12 @@ namespace
       //------------------------------------------------------------------------
       XrdClient:: Status WaitForStatus()
       {
-        pCondVar.Wait();
+        pSem.Wait();
         return pStatus;
       }
       
     private:
-      XrdSysCondVar       pCondVar;
+      XrdSysSemaphore     pSem;
       XrdClient::Status   pStatus;
       XrdClient::Message *pMsg;
   };
@@ -213,8 +213,8 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     if( pStreams[sNum]->GetSocket()->IsConnected() )
     {
-      pMutex.UnLock();
       pStreams[sNum]->UnLock();
+      pMutex.UnLock();
       return Status();
     }
 
@@ -237,6 +237,7 @@ namespace XrdClient
     Status sc;
     bool   connectionOk = true;
 
+
     //--------------------------------------------------------------------------
     // Retry the connection
     //--------------------------------------------------------------------------
@@ -246,11 +247,8 @@ namespace XrdClient
       connectionOk = true;
 
       //------------------------------------------------------------------------
-      // Cleanup and try to reconnect
+      // Try to reconnect
       //------------------------------------------------------------------------
-      pPoller->RemoveSocket( pStreams[sNum]->GetSocket() );
-      pStreams[sNum]->GetSocket()->Disconnect();
-
       sc = pStreams[sNum]->GetSocket()->Connect( pUrl, window );
       if( sc.status != stOK )
       {
