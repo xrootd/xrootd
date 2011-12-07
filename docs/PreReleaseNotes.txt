@@ -66,4 +66,5 @@ Prerelease Notes
      file into read-only space.
 
 + **Miscellaneous**
+   * Cut close monitor records before cutting the disconnect record.
    * Make frm_purged and frm_xfrd use sparate log files.
