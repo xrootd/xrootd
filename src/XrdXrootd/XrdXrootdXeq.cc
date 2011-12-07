@@ -128,7 +128,7 @@ int XrdXrootdProtocol::do_Auth()
                                                  : "login as");
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
-       if (Monitor.Logins()) MonAuth();
+       if (Monitor.Logins() && Monitor.Auths()) MonAuth();
        if (Client->name) 
           eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
           else
