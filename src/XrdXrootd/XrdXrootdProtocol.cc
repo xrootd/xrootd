@@ -509,13 +509,18 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
        if (lp) return;  // Async close
       }
 
-// If we are monitoring logins then we are also monitoring disconnects
-//
-   if (Monitor.Logins()) Monitor.Agent->Disc(Monitor.Did, csec, Flags);
-
 // Release all appendages
 //
    Cleanup();
+
+// If we are monitoring logins then we are also monitoring disconnects. We do
+// this after cleanup so that close records can be generated before we cut a
+// disconnect record. This then requires we clear the monitor object here.
+// We and the destrcutor are the only ones who call cleanup and a deletion
+// will call the monitor clear method. So, we won't leak memeory.
+//
+   if (Monitor.Logins()) Monitor.Agent->Disc(Monitor.Did, csec, Flags);
+   Monitor.Clear();
 
 // Set fields to starting point (debugging mostly)
 //
@@ -619,10 +624,6 @@ void XrdXrootdProtocol::Cleanup()
    SI->statsMutex.Lock();
    SI->readCnt += numReads; SI->writeCnt += numWrites;
    SI->statsMutex.UnLock();
-
-// Handle Monitor
-//
-   Monitor.Clear();
 
 // Handle authentication protocol
 //
