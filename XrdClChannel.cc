@@ -226,6 +226,8 @@ namespace XrdClient
     env->GetInt( "ConnectionRetry", retryCount );
     int window = DefaultConnectionWindow;
     env->GetInt( "ConnectionWindow", window );
+    int timeoutResolution = DefaultTimeoutResolution;
+    env->GetInt( "TimeoutResolution", timeoutResolution );
 
     Log *log = Utils::GetDefaultLog();
     log->Debug( PostMasterMsg, "[%s #%d] Stream fault reported. "
@@ -309,7 +311,7 @@ namespace XrdClient
       // Enable read notifications
       //------------------------------------------------------------------------
       if( !pPoller->EnableReadNotification( pStreams[sNum]->GetSocket(),
-                                            true, 15 ) )
+                                            true, timeoutResolution ) )
       {
         log->Error( PostMasterMsg, "[%s #%d] Unable to listen to read events "
                                    "on the stream",
@@ -322,7 +324,7 @@ namespace XrdClient
       // Enable write notifications
       //------------------------------------------------------------------------
       if( !pPoller->EnableWriteNotification( pStreams[sNum]->GetSocket(),
-                                             true, 15 ) )
+                                             true, timeoutResolution ) )
       {
         log->Error( PostMasterMsg, "[%s #%d] Unable to listen to write events "
                                    "on the stream",
@@ -368,7 +370,7 @@ namespace XrdClient
     {
       Log *log = Utils::GetDefaultLog();
       log->Debug( PostMasterMsg, "[%s #%d] Sleeping %d seconds",
-                                 window-elapsed );
+                                 hostId, streamNum, window-elapsed );
       ::sleep( window - elapsed );
     }
   }

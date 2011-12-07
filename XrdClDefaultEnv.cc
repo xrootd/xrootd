@@ -23,6 +23,7 @@ namespace XrdClient
     PutInt( "DataServerTimeout", DefaultDataServerTimeout );
     PutInt( "ManagerTimeout",    DefaultManagerTimeout    );
     PutInt( "StreamsPerChannel", DefaultStreamsPerChannel );
+    PutInt( "TimeoutResolution", DefaultTimeoutResolution );
   }
 
   //----------------------------------------------------------------------------

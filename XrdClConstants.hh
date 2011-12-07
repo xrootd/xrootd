@@ -30,6 +30,7 @@ namespace XrdClient
   const int DefaultRequestTimeout    = 300;
   const int DefaultDataServerTimeout = 300;
   const int DefaultManagerTimeout    = 1200;
+  const int DefaultTimeoutResolution = 15;
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

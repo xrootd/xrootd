@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdClient
 {
@@ -77,6 +78,10 @@ namespace XrdClient
                            MessageStatusHandler *handler,
                            uint32_t              timeout )
   {
+    Env *env = DefaultEnv::GetEnv();
+    int timeoutResolution = DefaultTimeoutResolution;
+    env->GetInt( "TimeoutResolution", timeoutResolution );
+
     //--------------------------------------------------------------------------
     // Check if the stream is connected and if it may be reconnected
     //--------------------------------------------------------------------------
@@ -95,7 +100,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     Lock();
     if( pOutQueue.empty() )
-      pPoller->EnableWriteNotification( pSocket, true, 15 );
+      pPoller->EnableWriteNotification( pSocket, true, timeoutResolution );
 
     pOutQueue.push_back( new OutMessageHelper( msg, handler )  );
     UnLock();
