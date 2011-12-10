@@ -109,10 +109,20 @@ virtual void   Added(const char *path, int Pend=0) {}
 virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 
 // Forward() relays a meta-operation to all nodes in the cluster. It is only
-//           used on manager nodes. The 'cmd" specified what command is must
-//           be forwarded. If it starts with a '+' then a confirmation
-//           response is needed. Otherwise, a best-effort is all that is
-//           required and success can always be returned.
+//           used on manager nodes and is enabled by the ofs.forward directive.
+//           The 'cmd" specified what command is must be forwarded (see table).
+//           If it starts with a '+' then a response (2way) is needed.
+//           Otherwise, a best-effort is all that is all that is required and
+//           success can always be returned. The "Env" arguments provide
+//           associated environmental information. For instance, opaque data
+//           can be retrieved by Env->Env(<len>). The following is passed:
+
+//           cmd       arg1    arg2           cmd       arg1    arg2
+//           --------  ------  ------         --------  ------  ------
+//           [+]chmod  <path>  <mode %o>      [+]rmdir  <path>  0
+//           [+]mkdir  <path>  <mode %o>      [+]mv     <oldp>  <newp>
+//           [+]mkpath <path>  <mode %o>      [+]trunc  <path>  <size %lld>
+//           [+]rm     <path>  0
 
 // Return:   As explained under "return conventions".
 //
@@ -128,19 +138,22 @@ virtual int    isRemote() {return myPersona == XrdCmsClient::amRemote;}
 //          on a manager node. This can be the list of servers that have a
 //          file or the single server that the client should be sent to. The
 //          "flags" indicate what is required and how to process the request.
-//          SFS_O_LOCATE - return the list of servers that have the file.
-//                         SFS_O_NOWAIT  - return readily available information.
-//          o/w          - redirect to the best server for the file.
-//                         SFS_O_CREAT   - file will be created.
-//                         SFS_O_NOWAIT  - select server if file is online.
-//                         SFS_O_REPLICA - a replica of the file will be made.
-//                         SFS_O_STAT    - only stat() information wanted.
-//                         SFS_O_TRUNC   - file will be truncated.
+
+//          SFS_O_LOCATE  - return the list of servers that have the file.
+//                          Otherwise, redirect to the best server for the file.
+//          SFS_O_NOWAIT  - w/ SFS_O_LOCATE return readily available info.
+//                          Otherwise, select online files only.
+//          SFS_O_CREAT   - file will be created.
+//          SFS_O_NOWAIT  - select server if file is online.
+//          SFS_O_REPLICA - a replica of the file will be made.
+//          SFS_O_STAT    - only stat() information wanted.
+//          SFS_O_TRUNC   - file will be truncated.
+
 //          For any the the above, additional flags are passed:
-//                         SFS_O_META    - data will not change (inode op only)
-//                         SFS_O_RESET   - recaculate the location(s).
-//                         SFS_O_WRONLY  - file will be only written.
-//                         SFS_O_RDWR    - file may be read and written.
+//          SFS_O_META    - data will not change (inode operation only)
+//          SFS_O_RESET   - reset cached info and recaculate the location(s).
+//          SFS_O_WRONLY  - file will be only written    (o/w RDWR   or RDONLY).
+//          SFS_O_RDWR    - file may be read and written (o/w WRONLY or RDONLY).
 
 // Return:  As explained under "return conventions".
 //
@@ -155,7 +168,7 @@ virtual int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 // Return:    A list of managers or null if none exist.
 //
 virtual
-XrdOucTList  *Managers() {return 0;}
+XrdOucTList   *Managers() {return 0;}
 
 // Prepare() is called to start the preparation of a file for future processing.
 //           It is only used on a manager node.
