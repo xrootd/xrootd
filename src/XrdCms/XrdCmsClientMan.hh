@@ -50,7 +50,7 @@ void                 setNext(XrdCmsClientMan *np) {Next = np;}
 
 static void          setNetwork(XrdInet *nP) {Network = nP;}
 
-static void          setConfig(char *cfn) {ConfigFN = cfn;}
+static void          setConfig(const char *cfn) {ConfigFN = cfn;}
 
 int                  whatsUp(const char *user, const char *path);
 
@@ -69,7 +69,7 @@ void  setStatus();
 static XrdSysMutex   manMutex;
 static XrdNetBufferQ BuffQ;
 static XrdInet      *Network;
-static char         *ConfigFN;
+static const char   *ConfigFN;
 static const int     chkVal = 256;
 
 XrdSysSemaphore   syncResp;

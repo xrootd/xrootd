@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//         $Id$
-
-const char *XrdCmsParserCVSID = "$Id$";
   
 #include <stdio.h>
 #include <errno.h>
@@ -27,6 +23,8 @@ const char *XrdCmsParserCVSID = "$Id$";
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+
+#include "XrdSfs/XrdSfsInterface.hh"
 
 #include "XrdSys/XrdSysError.hh"
 
@@ -288,25 +286,25 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
 //
    switch(hdr.rrCode)
 
-   {case kYR_redirect:  Result = -EREMOTE;
+   {case kYR_redirect:  Result = SFS_REDIRECT;
              TRACE(Redirect, Mgr <<" redirects " <<User <<" to "
                    <<msg <<':' <<msgval <<' ' <<Path);
              break;
-    case kYR_wait:      Result = -EAGAIN;
+    case kYR_wait:      Result = SFS_STALL;
              TRACE(Redirect, Mgr <<" delays " <<User <<' ' <<msgval <<' ' <<Path);
              break;
-    case kYR_waitresp:  Result = -EINPROGRESS;
+    case kYR_waitresp:  Result = SFS_STARTED;
              TRACE(Redirect, Mgr <<" idles " <<User <<' ' <<msgval <<' ' <<Path);
              break;
-    case kYR_data:      Result = -EALREADY; msgval = msglen;
+    case kYR_data:      Result = SFS_DATA; msgval = msglen;
              TRACE(Redirect, Mgr <<" sent " <<User <<" '" <<msg <<"' " <<Path);
              break;
-    case kYR_error:     Result = -EINVAL;
+    case kYR_error:     Result = SFS_ERROR;
              if (msgval) msgval = -mapError(msgval);
              TRACE(Redirect, Mgr <<" gave " <<User <<" err " <<msgval
                              <<" '" <<msg <<"' " <<Path);
              break;
-    default: msgval=0;  Result = -EINVAL;
+    default: msgval=0;  Result = SFS_ERROR;
              msg = (char *)"Redirector protocol error";
              TRACE(Redirect, User <<" given error msg '"
                       <<msg <<"' due to " << Mgr <<' ' <<Path);

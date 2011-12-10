@@ -15,6 +15,8 @@
 #include "XrdCms/XrdCmsLogin.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdSfs/XrdSfsInterface.hh"
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -33,7 +35,7 @@ XrdInet      *XrdCmsClientMan::Network = 0;
 
 char          XrdCmsClientMan::doDebug   = 0;
 
-char         *XrdCmsClientMan::ConfigFN  = 0;
+const char   *XrdCmsClientMan::ConfigFN  = 0;
 
 XrdSysMutex   XrdCmsClientMan::manMutex;
 
@@ -106,9 +108,9 @@ int XrdCmsClientMan::delayResp(XrdOucErrInfo &Resp)
 //
    if (!(msgid = Resp.getErrInfo()))
       {Say.Emsg("Manager", Host, "supplied invalid waitr msgid");
-       Resp.setErrInfo(0, "redirector protocol error");
+       Resp.setErrInfo(EILSEQ, "redirector protocol error");
        syncResp.Post();
-       return -EINVAL;
+       return SFS_ERROR;
       }
 
 // Allocate a delayed response object
@@ -117,7 +119,7 @@ int XrdCmsClientMan::delayResp(XrdOucErrInfo &Resp)
       {Say.Emsg("Manager",ENOMEM,"allocate resp object for",Resp.getErrUser());
        Resp.setErrInfo(0, "0");
        syncResp.Post();
-       return -EAGAIN;
+       return SFS_STALL;
       }
 
 // Add this object to our delayed response queue. If the manager bounced then
@@ -133,7 +135,7 @@ int XrdCmsClientMan::delayResp(XrdOucErrInfo &Resp)
 //
    Resp.setErrInfo(0, "");
    syncResp.Post();
-   return -EINPROGRESS;
+   return SFS_STARTED;
 }
 
 /******************************************************************************/

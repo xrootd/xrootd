@@ -296,6 +296,8 @@ char *HostName;       //    ->Our hostname
 char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
 char *OssLib;         //    ->Oss Library
+char *CmsLib;         //    ->Cms Library
+char *CmsParms;       //    ->Cms Library Parameters
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */
@@ -368,6 +370,7 @@ const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);
 int           xclib(XrdOucStream &, XrdSysError &);
 int           xcrds(XrdOucStream &, XrdSysError &);
+int           xcmsl(XrdOucStream &, XrdSysError &);
 int           xforward(XrdOucStream &, XrdSysError &);
 int           xmaxd(XrdOucStream &, XrdSysError &);
 int           xnmsg(XrdOucStream &, XrdSysError &);

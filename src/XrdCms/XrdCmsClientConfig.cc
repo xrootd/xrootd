@@ -8,8 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-// Based on: XrdCmsClientConfig.cc,v 1.24 2007/07/31 02:24:52 abh
-
 #include <unistd.h>
 #include <ctype.h>
 #include <strings.h>
@@ -60,7 +58,8 @@ XrdCmsClientConfig::~XrdCmsClientConfig()
 /*                             C o n f i g u r e                              */
 /******************************************************************************/
   
-int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
+int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
+                                                   configHow  How)
 {
 /*
   Function: Establish configuration at start up time.
@@ -168,7 +167,7 @@ int XrdCmsClientConfig::Configure(char *cfn, configWhat What, configHow How)
 /*                            C o n f i g P r o c                             */
 /******************************************************************************/
   
-int XrdCmsClientConfig::ConfigProc(char *ConfigFN)
+int XrdCmsClientConfig::ConfigProc(const char *ConfigFN)
 {
   static int DoneOnce = 0;
   char *var;

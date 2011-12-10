@@ -8,16 +8,6 @@
 /*               DE-AC02-76-SFO0515 with the Deprtment of Energy              */
 /******************************************************************************/
 
-/*
-   The routines in this file handle ofs() initialization. They get the
-   configuration values either from configuration file or XrdOfsconfig.h (in that
-   order of precedence).
-
-   These routines are thread-safe if compiled with:
-   AIX: -D_THREAD_SAFE
-   SUN: -D_REENTRANT
-*/
-  
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
@@ -187,10 +177,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           else CksConfig->Manager(buff, 0);
       }
 
-// Initialize th Evr object if we are an actual server
+// Now configure the storage system
 //
-   if (!(Options & isManager) 
-   && !evrObject.Init(&Eroute, Balancer)) NoGo = 1;
+   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -198,6 +187,11 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {Eroute.Say("++++++ Configuring ", myRole, " role. . .");
        NoGo |= ConfigRedir(Eroute, EnvInfo);
       }
+
+// Initialize th Evr object if we are an actual server
+//
+   if (!(Options & isManager) 
+   && !evrObject.Init(&Eroute, Balancer)) NoGo = 1;
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
 //
@@ -210,10 +204,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           fwdMV.Reset();    fwdRM.Reset();    fwdRMDIR.Reset();
           fwdTRUNC.Reset();
          }
-
-// Now configure the storage system
-//
-   if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
 
 // Configure checksums if we are not a manager
 //
@@ -268,6 +258,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "%s"
                                   "%s%s%s"
                                   "       ofs.maxdelay   %d\n"
+                                  "%s%s%s%s%s"
                                   "%s%s%s"
                                   "       ofs.persist    %s hold %d%s%s%s"
                                   "       ofs.trace      %x",
@@ -276,6 +267,9 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
               (AuthLib                   ? "       ofs.authlib " : ""),
               (AuthLib ? AuthLib : ""), (AuthLib ? "\n" : ""),
                MaxDelay,
+              (CmsLib                    ? "       ofs.cmslib " : ""),
+              (CmsLib ? CmsLib : ""), (CmsParms?" " : ""),
+              (CmsParms? CmsParms : ""), (CmsLib ? "\n" : ""),
               (OssLib                    ? "       ofs.osslib " : ""),
               (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
                pval, poscHold, (poscLog ? " logdir " : ""),
@@ -441,17 +435,35 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
+   XrdSysPlugin *myLib;
+   XrdCmsClient *(*CmsPI)(XrdSysLogger *, int, int, XrdOss *);
+   XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)
                | (Options & isProxy  ? XrdCms::IsProxy  : 0)
                | (Options & isMeta   ? XrdCms::IsMeta   : 0);
+   int TRGopts = (Options & isProxy  ? XrdCms::IsProxy  : 0)
+               | (isRedir ? XrdCms::IsRedir : 0) | XrdCms::IsTarget;
+
+// If a cmslib was specified then create a plugin object (we will throw this
+// away without deletion because the library must stay open but we never want
+// to reference it again).
+//
+   if (CmsLib)
+      {if (!(myLib = new XrdSysPlugin(&Eroute, CmsLib))) return 1;
+       CmsPI = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
+                                  (myLib->getPlugin("XrdCmsGetClient"));
+       if (!CmsPI) return 1;
+      }
 
 // For manager roles, we simply do a standard config
 //
    if (isRedir) 
-      {Finder = (XrdCmsClient *)new XrdCmsFinderRMT(Eroute.logger(),
-                                                    RMTopts,myPort);
-       if (!Finder->Configure(ConfigFN, EnvInfo))
+      {if (CmsLib) Finder = CmsPI(myLogger, RMTopts, myPort, XrdOfsOss);
+          else     Finder = (XrdCmsClient *)new XrdCmsFinderRMT(myLogger,
+                                                                RMTopts,myPort);
+       if (!Finder) return 1;
+       if (!Finder->Configure(ConfigFN, CmsParms, EnvInfo))
           {delete Finder; Finder = 0; return 1;}
       }
 
@@ -467,10 +479,11 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
           }
-       Balancer = new XrdCmsFinderTRG(Eroute.logger(),
-                         (Options & isProxy ? XrdCms::IsProxy : 0) |
-                         (isRedir ? XrdCms::IsRedir : 0), myPort, 0);
-       if (!Balancer->Configure(ConfigFN, EnvInfo))
+       if (CmsLib) Balancer = CmsPI(myLogger, TRGopts, myPort, XrdOfsOss);
+          else     Balancer = (XrdCmsClient *)new XrdCmsFinderTRG(myLogger,
+                                                                TRGopts,myPort);
+       if (!Balancer) return 1;
+       if (!Balancer->Configure(ConfigFN, CmsParms, EnvInfo))
           {delete Balancer; Balancer = 0; return 1;}
        if (Options & isProxy) Balancer = 0; // No chatting for proxies
       }
@@ -495,6 +508,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("authlib",       xalib);
     TS_Xeq("ckslib",        xclib);
     TS_Xeq("cksrdsz",       xcrds);
+    TS_Xeq("cmslib",        xcmsl);
     TS_Xeq("forward",       xforward);
     TS_Xeq("maxdelay",      xmaxd);
     TS_Xeq("notify",        xnot);
@@ -575,6 +589,48 @@ int XrdOfs::xclib(XrdOucStream &Config, XrdSysError &Eroute)
 // Return the result
 //
    return CksConfig->ParseLib(Config);
+}
+  
+/******************************************************************************/
+/*                                 x c m s l                                  */
+/******************************************************************************/
+  
+/* Function: xcmsl
+
+   Purpose:  To parse the directive: cmslib <path> [<parms>]
+
+             <path>    the path of the cms library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xcmsl(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val, parms[2048];
+    int pl;
+
+// Get the path and parms
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "cmslib not specified"); return 1;}
+
+// Set the CmsLib pointer
+//
+   if (CmsLib) free(CmsLib);
+   CmsLib = strdup(val);
+
+// Combine the path and parameters
+//
+   *parms = 0;
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "cmslib parameters too long"); return 1;}
+
+// Record the parameters, if any
+//
+   if (CmsParms) free(CmsParms);
+   CmsParms = (*parms ? strdup(parms) : 0);
+   return 0;
 }
 
 /******************************************************************************/

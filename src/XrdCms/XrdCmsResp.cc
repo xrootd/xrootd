@@ -7,12 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//          $Id$
-
-// Based on: XrdOdcResp.cc,v 1.2 2007/04/16 17:45:42 abh
-
-const char *XrdCmsRespCVSID = "$Id$";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -185,16 +179,14 @@ void XrdCmsResp::ReplyXeq()
 // Translate the return code to what the caller's caller wanst to see. We
 // should only receive the indicated codes at this point.
 //
-         if (Result == -EREMOTE)    Result = SFS_REDIRECT;
-   else  if (Result == -EAGAIN)     Result = SFS_STALL;
-   else  if (Result == -EALREADY)   Result = SFS_DATA;
-   else {if (Result != -EINVAL)
-            {char buff[16];
-             sprintf(buff, "%d", Result);
-             Say.Emsg("Reply", "Invalid call back result code", buff);
-            }
-         Result = SFS_ERROR;
-        }
+  if (Result != SFS_REDIRECT && Result != SFS_STALL
+  &&  Result != SFS_DATA     && Result != SFS_ERROR)
+     {char buff[16];
+      sprintf(buff, "%d", Result);
+      Say.Emsg("Reply", "Invalid call back result code", buff);
+      setErrInfo(EINVAL,"Invalid call back response from redirector.");
+      Result = SFS_ERROR;
+     }
 
 // Before invoking the callback we must be assured that the waitresp response
 // has been sent to the client. We do this by waiting on a semaphore which is

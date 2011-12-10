@@ -33,7 +33,7 @@ class XrdCmsFinderRMT : public XrdCmsClient
 public:
         void   Added(const char *path, int Pend=0) {}
 
-        int    Configure(char *cfn, XrdOucEnv *EnvInfo);
+        int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,
                        const char *arg1=0,  const char *arg2=0,
@@ -94,7 +94,7 @@ class XrdCmsFinderTRG : public XrdCmsClient
 public:
         void   Added(const char *path, int Pend=0);
 
-        int    Configure(char *cfn, XrdOucEnv *EnvInfo);
+        int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
 
         int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,
@@ -133,9 +133,4 @@ int            isRedir;
 int            isProxy;
 int            Active;
 };
-
-namespace XrdCms
-{
-enum  {IsProxy = 1, IsRedir = 2, IsTarget = 4, IsMeta = 8};
-}
 #endif

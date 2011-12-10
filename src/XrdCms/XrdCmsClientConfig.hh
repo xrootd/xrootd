@@ -26,7 +26,7 @@ public:
 enum configHow  {configMeta   = 1, configNorm  = 2, configProxy  = 4};
 enum configWhat {configMan    = 1, configSuper = 2, configServer = 4};
 
-int           Configure(char *cfn, configWhat What, configHow How);
+int           Configure(const char *cfn, configWhat What, configHow How);
 
 int           ConWait;      // Seconds to wait for a manager connection
 int           RepWait;      // Seconds to wait for manager replies
@@ -60,7 +60,7 @@ private:
 int isMeta;   // We are  a meta manager
 int isMan;    // We are  a      manager
 
-int ConfigProc(char *cfn);
+int ConfigProc(const char *cfn);
 int ConfigXeq(char *var, XrdOucStream &Config);
 int xapath(XrdOucStream &Config);
 int xconw(XrdOucStream  &Config);

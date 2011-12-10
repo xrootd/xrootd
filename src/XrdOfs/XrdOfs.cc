@@ -108,7 +108,12 @@ XrdOfs::XrdOfs()
 
 // Establish defaults
 //
+   AuthLib       = 0;
+   AuthParm      = 0;
    Authorization = 0;
+   CmsLib        = 0;
+   CmsParms      = 0;
+   OssLib        = 0;
    Finder        = 0;
    Balancer      = 0;
    evsObject     = 0;
@@ -467,7 +472,7 @@ int XrdOfsFile::open(const char          *path,      // In
           {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
            if (retc == -EINPROGRESS)
               {XrdOfsFS->evrObject.Wait4Event(path,&error);
-               return XrdOfsFS->fsError(error, retc);
+               return XrdOfsFS->fsError(error, SFS_STARTED);
               }
            if (retc != -ENOTSUP)
               {if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
@@ -535,7 +540,7 @@ int XrdOfsFile::open(const char          *path,      // In
       {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
        if (retc == -EINPROGRESS)
           {XrdOfsFS->evrObject.Wait4Event(path,&error);
-           return XrdOfsFS->fsError(error, retc);
+           return XrdOfsFS->fsError(error, SFS_STARTED);
           }
        if (retc == -ETXTBSY) return XrdOfsFS->Stall(error, -1, path);
        if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
@@ -2009,12 +2014,12 @@ int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
 int XrdOfs::fsError(XrdOucErrInfo &myError, int rc)
 {
 
-// Translate the error code (update statistics w/o a lock for speed!)
+// Screen the error code (update statistics w/o a lock for speed!)
 //
-   if (rc == -EREMOTE)     {OfsStats.Data.numRedirect++; return SFS_REDIRECT;}
-   if (rc == -EINPROGRESS) {OfsStats.Data.numStarted++;  return SFS_STARTED; }
+   if (rc == SFS_REDIRECT) {OfsStats.Data.numRedirect++; return SFS_REDIRECT;}
+   if (rc == SFS_STARTED)  {OfsStats.Data.numStarted++;  return SFS_STARTED; }
    if (rc > 0)             {OfsStats.Data.numDelays++;   return rc;          }
-   if (rc == -EALREADY)    {OfsStats.Data.numReplies++;  return SFS_DATA;    }
+   if (rc == SFS_DATA)     {OfsStats.Data.numReplies++;  return SFS_DATA;    }
                            {OfsStats.Data.numErrors++;   return SFS_ERROR;   }
 }
 
