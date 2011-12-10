@@ -364,7 +364,7 @@ int           ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo);
 const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,
-                      const char *arg3=0, const char *arg4=0);
+                      XrdOucEnv  *Env1=0, XrdOucEnv  *Env2=0);
 int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);

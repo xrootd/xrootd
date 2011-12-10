@@ -1256,6 +1256,7 @@ int XrdOfs::chmod(const char             *path,    // In
 */
 {
    EPNAME("chmod");
+   static const int locFlags = SFS_O_RDWR|SFS_O_META;
    mode_t acc_mode = Mode & S_IAMB;
    const char *tident = einfo.getErrUser();
    XrdOucEnv chmod_Env(info,0,client);
@@ -1272,9 +1273,9 @@ int XrdOfs::chmod(const char             *path,    // In
       {if (fwdCHMOD.Cmd)
           {char buff[8];
            sprintf(buff, "%o", static_cast<int>(acc_mode));
-           if (Forward(retc, einfo, fwdCHMOD, path, buff, info)) return retc;
+           if (Forward(retc,einfo,fwdCHMOD,path,buff,&chmod_Env)) return retc;
           }
-          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR|SFS_O_META)))
+          else if ((retc = Finder->Locate(einfo, path, locFlags, &chmod_Env)))
                   return fsError(einfo, retc);
       }
 
@@ -1335,7 +1336,7 @@ int XrdOfs::exists(const char                *path,        // In
 // Find out where we should stat this file
 //
    if (Finder && Finder->isRemote() 
-   &&  (retc = Finder->Locate(einfo, path, SFS_O_RDONLY)))
+   &&  (retc = Finder->Locate(einfo, path, SFS_O_RDONLY, &stat_Env)))
       return fsError(einfo, retc);
 
 // Now try to find the file or directory
@@ -1447,7 +1448,8 @@ int XrdOfs::fsctl(const int               cmd,
        XrdOucEnv statls_Env(opq ? opq+1 : 0,0,client);
        AUTHORIZE(client,0,AOP_Stat,"statfs",Path,einfo);
        if (Finder && Finder->isRemote()
-       &&  (retc = Finder->Space(einfo, Path))) return fsError(einfo, retc);
+       &&  (retc = Finder->Space(einfo, Path, &statls_Env)))
+          return fsError(einfo, retc);
        bP = einfo.getMsgBuff(blen);
        if ((retc = XrdOfsOss->StatLS(statls_Env, Path, bP, blen)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "statls", Path);
@@ -1558,9 +1560,9 @@ int XrdOfs::mkdir(const char             *path,    // In
           {char buff[8];
            sprintf(buff, "%o", static_cast<int>(acc_mode));
            if (Forward(retc, einfo, (mkpath ? fwdMKPATH:fwdMKDIR),
-                       path, buff, info)) return retc;
+                       path, buff, &mkdir_Env)) return retc;
           }
-          else if ((retc = Finder->Locate(einfo,path,LocOpts)))
+          else if ((retc = Finder->Locate(einfo,path,LocOpts,&mkdir_Env)))
                   return fsError(einfo, retc);
       }
 
@@ -1634,6 +1636,7 @@ int XrdOfs::remove(const char              type,    // In
 */
 {
    EPNAME("remove");
+   static const int LocOpts = SFS_O_WRONLY|SFS_O_META;
    int retc, Opt;
    const char *tident = einfo.getErrUser();
    XrdOucEnv rem_Env(info,0,client);
@@ -1648,8 +1651,8 @@ int XrdOfs::remove(const char              type,    // In
    if (Finder && Finder->isRemote())
       {struct fwdOpt *fSpec = (type == 'd' ? &fwdRMDIR : &fwdRM);
        if (fSpec->Cmd)
-          {if (Forward(retc, einfo, *fSpec, path, 0, info)) return retc;}
-          else if ((retc = Finder->Locate(einfo,path,SFS_O_WRONLY|SFS_O_META)))
+          {if (Forward(retc, einfo, *fSpec, path, 0, &rem_Env)) return retc;}
+          else if ((retc = Finder->Locate(einfo, path, LocOpts, &rem_Env)))
                   return fsError(einfo, retc);
       }
 
@@ -1701,6 +1704,7 @@ int XrdOfs::rename(const char             *old_name,  // In
 */
 {
    EPNAME("rename");
+   static const int LocOpts = SFS_O_RDWR|SFS_O_META;
    int retc;
    const char *tident = einfo.getErrUser();
    XrdOucEnv old_Env(infoO,0,client);
@@ -1717,10 +1721,10 @@ int XrdOfs::rename(const char             *old_name,  // In
 //
    if (Finder && Finder->isRemote())
       {if (fwdMV.Cmd)
-          {if (Forward(retc, einfo, fwdMV, old_name, new_name, infoO, infoN))
+          {if (Forward(retc,einfo,fwdMV,old_name,new_name,&old_Env,&new_Env))
               return retc;
           }
-          else if ((retc = Finder->Locate(einfo,old_name,SFS_O_RDWR|SFS_O_META)))
+          else if ((retc = Finder->Locate(einfo, old_name, LocOpts, &old_Env)))
                   return fsError(einfo, retc);
       }
 
@@ -1873,9 +1877,9 @@ int XrdOfs::truncate(const char             *path,    // In
       {if (fwdTRUNC.Cmd)
           {char xSz[32];
            sprintf(xSz, "%lld", static_cast<long long>(Size));
-           if (Forward(retc, einfo, fwdTRUNC, path, xSz, info)) return retc;
+           if (Forward(retc,einfo,fwdTRUNC,path,xSz,&trunc_Env)) return retc;
           }
-          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR)))
+          else if ((retc = Finder->Locate(einfo,path,SFS_O_RDWR,&trunc_Env)))
                   return fsError(einfo, retc);
       }
 
@@ -1988,11 +1992,11 @@ const char *XrdOfs::Fname(const char *path)
   
 int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                     const char *arg1, const char *arg2,
-                    const char *arg3, const char *arg4)
+                    XrdOucEnv  *Env1, XrdOucEnv  *Env2)
 {
    int retc;
 
-   if ((retc = Finder->Forward(Resp, Fwd.Cmd, arg1, arg2, arg3, arg4)))
+   if ((retc = Finder->Forward(Resp, Fwd.Cmd, arg1, arg2, Env1, Env2)))
       {Result = fsError(Resp, retc);
        return 1;
       }
@@ -2004,6 +2008,7 @@ int XrdOfs::Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
 
    Resp.setErrInfo(Fwd.Port, Fwd.Host);
    Result = SFS_REDIRECT;
+   OfsStats.Data.numRedirect++;
    return 1;
 }
 

@@ -170,7 +170,7 @@ int XrdCmsFinderRMT::Configure(const char *cfn, char *Args, XrdOucEnv *envP)
 
 int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd, 
                              const char *arg1,    const char *arg2,
-                             const char *arg3,    const char *arg4)
+                             XrdOucEnv  *Env1,    XrdOucEnv  *Env2)
 {
    static XrdSysMutex fwdMutex;
    static struct timeval fwdClk = {time(0),0};
@@ -178,7 +178,7 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
 
    XrdCmsClientMan *Manp;
    XrdCmsRRData     Data;
-   int              iovcnt, is2way, doAll = 0;
+   int              iovcnt, is2way, doAll = 0, opQ1Len = 0, opQ2Len = 0;
    char             Work[xNum*12];
    struct iovec     xmsg[xNum];
 
@@ -204,8 +204,8 @@ int XrdCmsFinderRMT::Forward(XrdOucErrInfo &Resp, const char *cmd,
    Data.Path    = (char *)arg1;
    Data.Mode    = (char *)arg2;
    Data.Path2   = (char *)arg2;
-   Data.Opaque  = (char *)arg3;
-   Data.Opaque2 = (char *)arg4;
+   Data.Opaque  = (Env1 ? Env1->Env(opQ1Len) : 0);
+   Data.Opaque2 = (Env2 ? Env2->Env(opQ2Len) : 0);
 
 // Pack the arguments
 //

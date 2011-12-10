@@ -37,7 +37,7 @@ public:
 
         int    Forward(XrdOucErrInfo &Resp, const char *cmd,
                        const char *arg1=0,  const char *arg2=0,
-                       const char *arg3=0,  const char *arg4=0);
+                       XrdOucEnv  *Env1=0,  XrdOucEnv  *Env2=0);
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv *Info=0);
@@ -95,10 +95,6 @@ public:
         void   Added(const char *path, int Pend=0);
 
         int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
-
-        int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
-                       const char    *arg1=0, const char *arg2=0,
-                       const char    *arg3=0, const char *arg4=0) {return 0;}
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv *Info=0) {return 0;}

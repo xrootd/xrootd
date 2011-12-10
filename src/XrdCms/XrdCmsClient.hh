@@ -99,7 +99,7 @@ public:
 //         changed. It is only used on data server nodes. When Pend is true,
 //         the file is scheduled to be present in the future (e.g. copied in).
 //
-virtual void   Added(const char *path, int Pend=0) = 0;
+virtual void   Added(const char *path, int Pend=0) {}
 
 // Configue() is called to configure the client. If the client is obtained via
 //            a plug-in then Parms are whether parameters were specified after
@@ -118,7 +118,7 @@ virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 //
 virtual int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,
-                       const char    *arg3=0, const char *arg4=0) = 0;
+                       XrdOucEnv     *Env1=0, XrdOucEnv  *Env2=0) {return 0;}
 
 // isRemote() returns true of this client is configured for a manager node.
 //
@@ -163,12 +163,12 @@ XrdOucTList  *Managers() {return 0;}
 // Return:  As explained under "return conventions".
 //
 virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
-                       XrdOucEnv  *Info=0) = 0;
+                       XrdOucEnv  *Info=0) {return 0;}
 
 // Removed() is called when a file or directory has been deleted. It is only
 //           called on a data server node.
 //
-virtual void   Removed(const char *path) = 0;
+virtual void   Removed(const char *path) {}
 
 // Resume() and Suspend() server complimentary functions and, by default,
 //          persist across server restarts. A temporary suspend/resume may be
