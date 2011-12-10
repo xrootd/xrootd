@@ -33,6 +33,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Add missing initializer without which we will get a SEGV. This is a fix
+     for the just added monitoring code.
    * Replace non-reentrant versions of getpwxxx and getgrxxx with reentrant
      versions. This should prevent spurious uid/gid translations.
    * Handle the sessionID in a consistent and thread-safe manner. This should
