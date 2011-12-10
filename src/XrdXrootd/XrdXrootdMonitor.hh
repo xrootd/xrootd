@@ -140,7 +140,7 @@ inline kXR_unt32   MapPath(const char *Path)
 
 inline int         Ready()  {return XrdXrootdMonitor::monACTIVE;}
 
-       User() : Did(0), Iops(0), Fops(0), Len(0), Name(0) {}
+       User() : Agent(0), Did(0), Iops(0), Fops(0), Len(0), Name(0) {}
       ~User() {Clear();}
 };
 
