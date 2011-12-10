@@ -6,6 +6,10 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow the XrdCmsClient interface (a.k.a Finder) to be a plug-in.
+   * Add ofs.cmslib directive to specify the XrdCmsClient plug-in.
+   * Add new class, XrdOucCallBack, to simplify using callbacks in the
+     XrdCmsClient plug-in.
    * Define the frm.all.monitor directive to enable migration, purging, and
      staging monitoring. This was originally part of xrootd.monitor but that
      just was odd. Note that the stage, purge, migr events are no longer
@@ -68,5 +72,8 @@ Prerelease Notes
      file into read-only space.
 
 + **Miscellaneous**
+   * Make return codes consistent between synchronous & async XrdCmsClient
+     returns.
+   * Document the XrdCmsClient interface in the header file.
    * Cut close monitor records before cutting the disconnect record.
    * Make frm_purged and frm_xfrd use sparate log files.
