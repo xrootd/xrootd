@@ -37,6 +37,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Remove improper initialization that may cause a SEGV in the checksum
+     manager.
    * Add missing initializer without which we will get a SEGV. This is a fix
      for the just added monitoring code.
    * Replace non-reentrant versions of getpwxxx and getgrxxx with reentrant
