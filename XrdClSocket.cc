@@ -304,12 +304,17 @@ namespace XrdClient
     bool     useTimeout = (timeout!=-1);
     time_t   now        = 0;
     time_t   newNow     = 0;
+    short    hupEvents  = POLLHUP;
+
+#ifdef __linux__
+    hupEvents |= POLLRDHUP;
+#endif
 
     if( useTimeout )
       now = ::time(0);
 
     pollDesc.fd     = pSocket;
-    pollDesc.events = POLLERR | POLLHUP | POLLNVAL | POLLRDHUP;
+    pollDesc.events = POLLERR | POLLNVAL | hupEvents;
 
     if( readyForReading )
       pollDesc.events |= (POLLIN | POLLPRI);
@@ -360,7 +365,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // We've been hang up on
     //--------------------------------------------------------------------------
-    if( pollDesc.revents & (POLLHUP|POLLRDHUP) )
+    if( pollDesc.revents & hupEvents )
       return Status( stError, errSocketDisconnected );
 
     //--------------------------------------------------------------------------

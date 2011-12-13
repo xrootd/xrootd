@@ -150,20 +150,20 @@ namespace XrdClient
       // kXR_protocol
       //------------------------------------------------------------------------
       case kXR_protocol:
-        req->protocol.clientpv  = ::htonl( req->protocol.clientpv );
-        req->protocol.dlen      = ::htonl( req->protocol.dlen );
+        req->protocol.clientpv  = htonl( req->protocol.clientpv );
+        req->protocol.dlen      = htonl( req->protocol.dlen );
         break;
 
       //------------------------------------------------------------------------
       // kXR_login
       //------------------------------------------------------------------------
       case kXR_login:
-        req->login.pid  = ::htonl( req->login.pid );
-        req->login.dlen = ::htonl( req->login.dlen );
+        req->login.pid  = htonl( req->login.pid );
+        req->login.dlen = htonl( req->login.dlen );
         break;
     };
 
-    req->header.requestid = ::htons( req->header.requestid );
+    req->header.requestid = htons( req->header.requestid );
     return Status();
   }
 
@@ -187,8 +187,8 @@ namespace XrdClient
         case kXR_protocol:
           if( m->hdr.dlen != 8 )
             return Status( stError, errInvalidMessage );
-          m->body.protocol.pval  = ::ntohl( m->body.protocol.pval );
-          m->body.protocol.flags = ::ntohl( m->body.protocol.flags );
+          m->body.protocol.pval  = ntohl( m->body.protocol.pval );
+          m->body.protocol.flags = ntohl( m->body.protocol.flags );
           break;
       }
     }
@@ -196,7 +196,7 @@ namespace XrdClient
     // Unmarshall body of an error response
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_error )
-      m->body.error.errnum = ::ntohl( m->body.error.errnum );
+      m->body.error.errnum = ntohl( m->body.error.errnum );
 
     return Status();
   }
@@ -207,8 +207,8 @@ namespace XrdClient
   void XRootDTransport::UnMarshallHeader( Message *msg )
   {
     ServerResponseHeader *header = (ServerResponseHeader *)msg->GetBuffer();
-    header->status = ::ntohs( header->status );
-    header->dlen   = ::ntohl( header->dlen );  
+    header->status = ntohs( header->status );
+    header->dlen   = ntohl( header->dlen );
   }
 
   //----------------------------------------------------------------------------
@@ -250,11 +250,11 @@ namespace XrdClient
     ClientInitHandShake   *init  = (ClientInitHandShake *)req.GetBuffer();
     ClientProtocolRequest *proto = (ClientProtocolRequest *)req.GetBuffer(20);
 
-    init->fourth = ::htonl(4);
-    init->fifth  = ::htonl(2012);
+    init->fourth = htonl(4);
+    init->fifth  = htonl(2012);
 
-    proto->requestid = ::htons(kXR_protocol);
-    proto->clientpv  = ::htonl(kXR_PROTOCOLVERSION);
+    proto->requestid = htons(kXR_protocol);
+    proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
 
     uint32_t bytesProcessed;
 
@@ -308,8 +308,8 @@ namespace XrdClient
       return Status( stFatal, errHandShakeFailed );
     }
 
-    info->protocolVersion = ::ntohl(hs->protover);
-    info->serverFlags     = ::ntohl(hs->msgval) == kXR_DataServer ?
+    info->protocolVersion = ntohl(hs->protover);
+    info->serverFlags     = ntohl(hs->msgval) == kXR_DataServer ?
                             kXR_isServer:
                             kXR_isManager;
 
