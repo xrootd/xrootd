@@ -19,4 +19,4 @@ target_link_libraries(
   XrdCl )
 
 add_executable( text-runner TextRunner.cc PathProcessor.hh )
-target_link_libraries( text-runner dl cppunit XrdClTests )
+target_link_libraries( text-runner dl ${CPPUNIT_LIBRARIES} XrdClTests )
