@@ -181,7 +181,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
       {eDest->Emsg("Config", "checksum name not specified"); return 0;}
    if (int(strlen(val)) >= XrdCksData::NameSize)
       {eDest->Emsg("Config", "checksum name too long"); return 0;}
-   strcpy(name, val); *parms = 0;
+   strcpy(name, val);
 
 // Get the path and optional parameters
 //
@@ -210,7 +210,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
    if (csTab[i].Path) free(csTab[i].Path);
    csTab[i].Path = path;
    if (csTab[i].Parms) free(csTab[i].Parms);
-   csTab[i].Parms = (*parms ? strdup(parms) : 0);
+   csTab[i].Parms = (parms && *parms ? strdup(parms) : 0);
 
 // All done
 //
