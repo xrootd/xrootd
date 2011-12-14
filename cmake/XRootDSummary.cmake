@@ -2,6 +2,7 @@
 # Print the configuration summary
 #-------------------------------------------------------------------------------
 component_status( READLINE ENABLE_READLINE READLINE_FOUND )
+component_status( SENDFILE ENABLE_SENDFILE SENDFILE_FOUND )
 component_status( FUSE     BUILD_FUSE      FUSE_FOUND )
 component_status( CRYPTO   BUILD_CRYPTO    OPENSSL_FOUND )
 component_status( KRB5     BUILD_KRB5      KERBEROS5_FOUND )
@@ -15,6 +16,7 @@ message( STATUS "C++ Compiler:      " ${CMAKE_CXX_COMPILER} )
 message( STATUS "Build type:        " ${CMAKE_BUILD_TYPE} )
 message( STATUS "" )
 message( STATUS "Readline support:  " ${STATUS_READLINE} )
+message( STATUS "Sendfile support:  " ${STATUS_SENDFILE} )
 message( STATUS "Fuse support:      " ${STATUS_FUSE} )
 message( STATUS "Crypto support:    " ${STATUS_CRYPTO} )
 message( STATUS "Kerberos5 support: " ${STATUS_KRB5} )

@@ -20,6 +20,7 @@ define_default( ENABLE_FUSE     TRUE )
 define_default( ENABLE_CRYPTO   TRUE )
 define_default( ENABLE_KRB5     TRUE )
 define_default( ENABLE_READLINE TRUE )
+define_default( ENABLE_SENDFILE TRUE )
 
 if( Linux OR MacOSX )
   define_default( ENABLE_BONJOUR  TRUE )

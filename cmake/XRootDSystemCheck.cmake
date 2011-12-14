@@ -60,6 +60,11 @@ else()
   set( SOCKET_LIBRARY "" )
 endif()
 
+if( ENABLE_SENDFILE )
+  add_definitions( -DHAVE_SENDFILE )
+  set( SENDFILE_FOUND "enabled" )
+endif()
+
 #-------------------------------------------------------------------------------
 # Check for libcrypt
 #-------------------------------------------------------------------------------
