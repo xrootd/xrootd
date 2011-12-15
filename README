@@ -44,7 +44,6 @@ handling the perl libraries, therefore version 2.8 or newer is recommended.
                            (default: TRUE)
   * ENABLE_READLINE      - enable the lib readline support in the commandline
                            utilities (default: TRUE)
-  * ENABLE_SENDFILE      - enable the use of sendfile (default: TRUE)
   * OPENSSL_ROOT_DIR     - path to the root of the openssl installation if it
                            cannot be detected in a standard location
   * KERBEROS5_ROOT_DIR   - path to the root of the kerberos installation if it
