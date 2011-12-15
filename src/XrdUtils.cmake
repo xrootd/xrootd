@@ -131,7 +131,13 @@ add_library(
                                 Xrd/XrdTrace.hh
 )
 
-target_link_libraries( XrdUtils pthread dl ${SOCKET_LIBRARY} ${EXTRA_LIBS})
+target_link_libraries(
+  XrdUtils
+  pthread
+  dl
+  ${SOCKET_LIBRARY}
+  ${SENDFILE_LIBRARY}
+  ${EXTRA_LIBS} )
 
 set_target_properties(
   XrdUtils
