@@ -61,6 +61,21 @@ else()
 endif()
 
 #-------------------------------------------------------------------------------
+# Sendfile
+#-------------------------------------------------------------------------------
+check_function_exists( sendfile HAVE_SENDFILE )
+compiler_define_if_found( HAVE_SENDFILE HAVE_SENDFILE )
+set( SENDFILE_LIBRARY "" )
+if( NOT HAVE_SENDFILE )
+  check_library_exists( sendfile sendfile "" HAVE_SENDFILE_IN_SENDFILE )
+  compiler_define_if_found( HAVE_SENDFILE_IN_SENDFILE HAVE_SENDFILE )
+
+  if( HAVE_SENDFILE_IN_SENDFILE )
+    set( SENDFILE_LIBRARY "sendfile" )
+  endif()
+endif()
+
+#-------------------------------------------------------------------------------
 # Check for libcrypt
 #-------------------------------------------------------------------------------
 check_function_exists( crypt HAVE_CRYPT )
