@@ -144,7 +144,7 @@ cd %{name}
 mkdir build
 cd build
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
-make VERBOSE=1%{?_smp_mflags}
+make VERBOSE=1 %{?_smp_mflags}
 
 #-------------------------------------------------------------------------------
 # Installation
