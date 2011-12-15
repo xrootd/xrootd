@@ -37,6 +37,9 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
+     xrootd until now have disabled use of sendfile() with resulting poor
+     performance. This fix corrects this.
    * Remove improper initialization that may cause a SEGV in the checksum
      manager.
    * Add missing initializer without which we will get a SEGV. This is a fix
