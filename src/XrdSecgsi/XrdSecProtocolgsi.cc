@@ -36,6 +36,16 @@
 #include <XrdSecgsi/XrdSecProtocolgsi.hh>
 #include <XrdSecgsi/XrdSecgsiTrace.hh>
 
+
+/******************************************************************************/
+/*                 T r a c i n g  I n i t  O p t i o n s                      */
+/******************************************************************************/
+#ifndef NODEBUG
+#define POPTS(t,y)    {if (t) {t->Beg(epname); cerr <<y; t->End();}}
+#else
+#define POPTS(t,y)
+#endif
+
 /******************************************************************************/
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
@@ -105,7 +115,7 @@ String XrdSecProtocolgsi::SrvCert  = "/etc/grid-security/xrd/xrdcert.pem";
 String XrdSecProtocolgsi::SrvKey   = "/etc/grid-security/xrd/xrdkey.pem";
 String XrdSecProtocolgsi::UsrProxy;
 String XrdSecProtocolgsi::UsrCert  = "/.globus/usercert.pem";
-String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";;
+String XrdSecProtocolgsi::UsrKey   = "/.globus/userkey.pem";
 String XrdSecProtocolgsi::PxyValid = "12:00";
 int    XrdSecProtocolgsi::DepLength= 0;
 int    XrdSecProtocolgsi::DefBits  = 512;
@@ -316,20 +326,27 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
-   // Initiate error logging and tracing
-   eDest.logger(&Logger);
-   GSITrace    = new XrdOucTrace(&eDest);
+
+   // We must have the tracing object at this point
+   // (initialized in XrdSecProtocolgsiInit)
+   if (!gsiTrace) {
+      ErrF(erp,kGSErrInit,"tracing object (gsiTrace) not initialized! cannot continue");
+      return Parms;
+   }
    // Set debug mask ... also for auxilliary libs
    int trace = 0;
    if (Debug >= 3) {
       trace = cryptoTRACE_Dump;
+      GSITrace->What = TRACE_ALL;
+   } else if (Debug >= 2) {
+      trace = cryptoTRACE_Debug;
+      GSITrace->What = TRACE_Debug;
       GSITrace->What |= TRACE_Authen;
-      GSITrace->What |= TRACE_Debug;
    } else if (Debug >= 1) {
       trace = cryptoTRACE_Debug;
       GSITrace->What = TRACE_Debug;
    }
-   gsiTrace = GSITrace;
+
    // ... also for auxilliary libs
    XrdSutSetTrace(trace);
    XrdCryptoSetTrace(trace);
@@ -603,7 +620,8 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                xsrv = cryptF[i]->X509(SrvCert.c_str(), SrvKey.c_str());
             } else {
                PRINT("problems creating guard to load server certificate '"<<
-                     SrvCert<<"' (euid:"<<geteuid()<<", egid:"<<getegid()<<") <-> (st_uid:"<<st.st_uid<<", st_gid:"<<st.st_gid<<")" );
+                     SrvCert<<"' (euid:"<<geteuid()<<", egid:"<<getegid()<<
+                     ") <-> (st_uid:"<<st.st_uid<<", st_gid:"<<st.st_gid<<")" );
                continue;
             }
          }
@@ -830,8 +848,10 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          AuthzPxyWhat = opt.authzpxy / 10;
          AuthzPxyWhere = opt.authzpxy % 10;
          // Some notification
-         const char *capxy_what = (AuthzPxyWhat == 1) ? "'last proxy only'" : "'full proxy chain'";
-         const char *capxy_where = (AuthzPxyWhere == 1) ? "XrdSecEntity.creds" : "XrdSecEntity.endorsements";
+         const char *capxy_what = (AuthzPxyWhat == 1) ? "'last proxy only'"
+                                                      : "'full proxy chain'";
+         const char *capxy_where = (AuthzPxyWhere == 1) ? "XrdSecEntity.creds"
+                                                        : "XrdSecEntity.endorsements";
          DEBUG("Export proxy for authorization in '"<<capxy_where<<"': "<<capxy_what);
          if (hasauthzfun) {
             // Warn user about possible overwriting of Entity.creds or Entity.endorsements
@@ -973,13 +993,13 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          SrvAllowedNames = opt.srvnames;
       //
       // Notify
-      DEBUG("using certificate file:         "<<UsrCert);
-      DEBUG("using private key file:         "<<UsrKey);
-      DEBUG("proxy: file:                    "<<UsrProxy);
-      DEBUG("proxy: validity:                "<<PxyValid);
-      DEBUG("proxy: depth of signature path: "<<DepLength);
-      DEBUG("proxy: bits in key:             "<<DefBits);
-      DEBUG("server cert: allowed names:     "<<SrvAllowedNames);
+      TRACE(Authen, "using certificate file:         "<<UsrCert);
+      TRACE(Authen, "using private key file:         "<<UsrKey);
+      TRACE(Authen, "proxy: file:                    "<<UsrProxy);
+      TRACE(Authen, "proxy: validity:                "<<PxyValid);
+      TRACE(Authen, "proxy: depth of signature path: "<<DepLength);
+      TRACE(Authen, "proxy: bits in key:             "<<DefBits);
+      TRACE(Authen, "server cert: allowed names:     "<<SrvAllowedNames);
 
       // We are done
       Parms = (char *)"";
@@ -2108,6 +2128,84 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
 }
 
 /******************************************************************************/
+/*                        E n a b l e T r a c i n g                           */
+/******************************************************************************/
+
+XrdOucTrace *XrdSecProtocolgsi::EnableTracing()
+{
+   // Initiate error logging and tracing
+   EPNAME("EnableTracing");
+
+   eDest.logger(&Logger);
+   GSITrace = new XrdOucTrace(&eDest);
+   return GSITrace;
+}
+
+/******************************************************************************/
+/*                        E n a b l e T r a c i n g                           */
+/******************************************************************************/
+
+void gsiOptions::Print(XrdOucTrace *t)
+{
+   // Dump summary of GSI init options
+   EPNAME("InitOpts");
+
+   // For clients print only if really required (for servers we notified it
+   // always once for all)
+   if ((mode == 'c') && debug <= 0) return;
+   
+   POPTS(t, "*** ------------------------------------------------------------ ***");
+   POPTS(t, " Mode: "<< ((mode == 'c') ? "client" : "server"));
+   POPTS(t, " Debug: "<< debug);
+   POPTS(t, " CA dir: " << (certdir ? certdir : XrdSecProtocolgsi::CAdir));
+   POPTS(t, " CA verification level: "<< ca);
+   POPTS(t, " CRL dir: " << (crldir ? crldir : XrdSecProtocolgsi::CRLdir ));
+   POPTS(t, " CRL extension: " << (crlext ? crlext :  XrdSecProtocolgsi::DefCRLext));
+   POPTS(t, " CRL check level: "<< crl);
+   if (mode == 'c') {
+      POPTS(t, " Certificate: " << (cert ? cert : XrdSecProtocolgsi::UsrCert));
+      POPTS(t, " Key: " << (key ? key : XrdSecProtocolgsi::UsrKey));
+      POPTS(t, " Proxy file: " << XrdSecProtocolgsi::UsrProxy);
+      POPTS(t, " Proxy validity: " << (valid ? valid : XrdSecProtocolgsi::PxyValid));
+      POPTS(t, " Proxy dep length: " << deplen);
+      POPTS(t, " Proxy bits: " << bits);
+      POPTS(t, " Proxy sign option: "<< sigpxy);
+      POPTS(t, " Proxy delegation option: "<< dlgpxy);
+      POPTS(t, " Allowed server names: "<< (srvnames ? srvnames : "[*/]<target host name>[/*]"));
+   } else {
+      POPTS(t, " Certificate: " << (cert ? cert : XrdSecProtocolgsi::SrvCert));
+      POPTS(t, " Key: " << (key ? key : XrdSecProtocolgsi::SrvKey));
+      POPTS(t, " Proxy delegation option: "<< dlgpxy);
+      if (dlgpxy > 1)
+         POPTS(t, " Template for exported proxy: "<< (exppxy ? exppxy : gUsrPxyDef));
+      POPTS(t, " GRIDmap file: " << (gridmap ? gridmap : XrdSecProtocolgsi::GMAPFile));
+      POPTS(t, " GRIDmap option: "<< ogmap);
+      POPTS(t, " GRIDmap cache entries expiration (secs): "<< gmapto);
+      if (gmapfun) {
+         POPTS(t, " DN mapping function: " << gmapfun);
+         if (gmapfunparms) POPTS(t, " DN mapping function parms: " << gmapfunparms);
+      } else {
+         if (gmapfunparms) POPTS(t, " DN mapping function parms: ignored (no mapping function defined)");
+      }
+      if (authzfun) {
+         POPTS(t, " Authorization function: " << authzfun);
+         if (authzfunparms) POPTS(t, " Authorization function parms: " << authzfunparms);
+         POPTS(t, " Authorization cache entries expiration (secs): " << authzto);
+      } else {
+         if (authzfunparms) POPTS(t, " Authorization function parms: ignored (no authz function defined)");
+      }
+      POPTS(t, " Client proxy availability in XrdSecEntity.endorsement: "<< authzpxy);
+      POPTS(t, " VOMS option: "<< vomsat);
+      POPTS(t, " MonInfo option: "<< moninfo);
+   }
+   // Crypto options
+   POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
+   POPTS(t, " Ciphers: "<< (cipher ? cipher : XrdSecProtocolgsi::DefCipher));
+   POPTS(t, " MDigests: "<< (md ? md : XrdSecProtocolgsi::DefMD));
+   POPTS(t, "*** ------------------------------------------------------------ ***");
+}
+
+/******************************************************************************/
 /*              X r d S e c P r o t o c o l g s i I n i t                     */
 /******************************************************************************/
 
@@ -2121,9 +2219,14 @@ char *XrdSecProtocolgsiInit(const char mode,
    // For clients (mode == 'c') we use values in envs.
    // For servers (mode == 's') the command line options are passed through
    // parms.
+   EPNAME("ProtocolgsiInit");
+
    gsiOptions opts;
    char *rc = (char *)"";
    char *cenv = 0;
+
+   // Initiate error logging and tracing
+   gsiTrace = XrdSecProtocolgsi::EnableTracing();
 
    //
    // Clients first
@@ -2179,7 +2282,12 @@ char *XrdSecProtocolgsiInit(const char mode,
       // debug
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
-         if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
+         if (cenv[0] >= 49 && cenv[0] <= 51) {
+            opts.debug = atoi(cenv);
+         } else {
+            PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
+            opts.debug = 1;
+         }
 
       // directory with CA certificates
       cenv = (getenv("XrdSecGSICADIR") ? getenv("XrdSecGSICADIR")
@@ -2259,6 +2367,10 @@ char *XrdSecProtocolgsiInit(const char mode,
       //
       // Setup the object with the chosen options
       rc = XrdSecProtocolgsi::Init(opts,erp);
+
+      // Notify init options, if required or in case of init errors
+      if (!rc) opts.debug = 1;
+      opts.Print(gsiTrace);
 
       // Some cleanup
       SafeFree(opts.certdir);
@@ -2393,6 +2505,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                moninfo = 1;
             } else if (!strncmp(op, "-moninfo:",9)) {
                moninfo = atoi(op+9);
+            } else {
+               PRINT("ignoring unknown switch: "<<op);
             }
          }
       }
@@ -2438,10 +2552,17 @@ char *XrdSecProtocolgsiInit(const char mode,
          opts.authzfunparms = (char *)authzfunparms.c_str();
       if (exppxy.length() > 0)
          opts.exppxy = (char *)exppxy.c_str();
+
+      // Notify init options, if required
+      opts.Print(gsiTrace);
+
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolgsi::Init(opts,erp);
    }
+
+   // Notify init options, if required
+   opts.Print(gsiTrace);
    //
    // Setup the plug-in with the defaults
    return XrdSecProtocolgsi::Init(opts,erp);
@@ -5023,7 +5144,7 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
       }
    }
 
-   // Take into account specif requests, if any
+   // Take into account specific requests, if any
    if (SrvAllowedNames.length() > 0) {
       // The SrvAllowedNames string contains the allowed formats separated by a '|'.
       // The specifications can contain the <host> or <fqdn> placeholders which
