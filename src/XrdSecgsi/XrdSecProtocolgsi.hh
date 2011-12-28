@@ -126,10 +126,11 @@ typedef int (*XrdSecgsiAuthzKey_t)(XrdSecEntity &, char **);
 //
 // This a small class to set the relevant options in one go
 //
+class XrdOucTrace;
 class gsiOptions {
 public:
    short  debug;  // [cs] debug flag
-   short  mode;   // [cs] 'c' or 's'
+   char   mode;   // [cs] 'c' or 's'
    char  *clist;  // [s] list of crypto modules ["ssl" ]
    char  *certdir;// [cs] dir with CA info [/etc/grid-security/certificates]
    char  *crldir; // [cs] dir with CRL info [/etc/grid-security/certificates]
@@ -173,6 +174,7 @@ public:
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0; vomsat = 1; moninfo = 0;}
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
+   void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
 
 class XrdSecProtocolgsi;
@@ -239,6 +241,7 @@ typedef struct {
 
 class XrdSecProtocolgsi : public XrdSecProtocol
 {
+friend class gsiOptions;
 public:
         int                Authenticate  (XrdSecCredentials *cred,
                                           XrdSecParameters **parms,
@@ -271,6 +274,9 @@ public:
         int               getKey(char *kbuf=0, int klen=0);
         // Import a key
         int               setKey(char *kbuf, int klen);
+
+        // Enable tracing
+        static XrdOucTrace *EnableTracing();
 
 private:
 
