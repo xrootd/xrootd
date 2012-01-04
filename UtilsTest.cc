@@ -6,25 +6,28 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClAnyObject.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
-class UrlTest: public CppUnit::TestCase
+class UtilsTest: public CppUnit::TestCase
 {
   public:
-    CPPUNIT_TEST_SUITE( UrlTest );
-      CPPUNIT_TEST( parsingTest );
+    CPPUNIT_TEST_SUITE( UtilsTest );
+      CPPUNIT_TEST( urlTest );
+      CPPUNIT_TEST( anyTest );
     CPPUNIT_TEST_SUITE_END();
-    void parsingTest();
+    void urlTest();
+    void anyTest();
 };
 
-CPPUNIT_TEST_SUITE_REGISTRATION( UrlTest );
+CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
 
 //------------------------------------------------------------------------------
-// Parsing test
+// URL test
 //------------------------------------------------------------------------------
-void UrlTest::parsingTest()
+void UtilsTest::urlTest()
 {
   XrdClient::URL url1( "root://user1:passwd1@host1:123//path?param1=val1&param2=val2" );
   XrdClient::URL url2( "root://user1@host1//path?param1=val1&param2=val2" );
@@ -107,4 +110,34 @@ void UrlTest::parsingTest()
   CPPUNIT_ASSERT( urlInvalid6.IsValid() == false );
   CPPUNIT_ASSERT( urlInvalid7.IsValid() == false );
   CPPUNIT_ASSERT( urlInvalid8.IsValid() == false );
+}
+
+class A
+{
+  public:
+    double a;
+};
+
+class B
+{
+  public:
+    int b;
+};
+
+//------------------------------------------------------------------------------
+// Any test
+//------------------------------------------------------------------------------
+void UtilsTest::anyTest()
+{
+  A *a = new A;
+  A *a1 = 0;
+  B *b  = 0;
+  XrdClient::AnyObject any;
+
+  any.Set( a );
+  any.Get( b );
+  any.Get( a1 );
+
+  CPPUNIT_ASSERT( !b );
+  CPPUNIT_ASSERT( a );
 }

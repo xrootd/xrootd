@@ -6,7 +6,7 @@ add_library(
   XrdClTests MODULE
   Server.cc          Server.hh
   Utils.cc           Utils.hh
-  UrlTest.cc
+  UtilsTest.cc
   SocketTest.cc
   PollerTest.cc
   PostMasterTest.cc
