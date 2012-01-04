@@ -3,7 +3,7 @@ include_directories( ../ ${XROOTD_INCLUDES}  )
 link_directories( ${XROOTD_LIB_DIR} )
 
 add_library(
-  XrdClTests SHARED
+  XrdClTests MODULE
   Server.cc          Server.hh
   Utils.cc           Utils.hh
   UrlTest.cc
@@ -19,4 +19,4 @@ target_link_libraries(
   XrdCl )
 
 add_executable( text-runner TextRunner.cc PathProcessor.hh )
-target_link_libraries( text-runner dl ${CPPUNIT_LIBRARIES} XrdClTests )
+target_link_libraries( text-runner dl ${CPPUNIT_LIBRARIES} )

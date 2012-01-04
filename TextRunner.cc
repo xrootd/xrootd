@@ -7,6 +7,7 @@
 #include <cppunit/CompilerOutputter.h>
 #include <cppunit/ui/text/TestRunner.h>
 #include <cppunit/extensions/HelperMacros.h>
+#include <dlfcn.h>
 #include "PathProcessor.hh"
 
 //------------------------------------------------------------------------------
@@ -74,17 +75,31 @@ CppUnit::Test *findTest( CppUnit::Test *t, const std::string &test )
   return ret;
 }
 
-
 //------------------------------------------------------------------------------
 // Start the show
 //------------------------------------------------------------------------------
 int main( int argc, char **argv)
 {
   //----------------------------------------------------------------------------
+  // Load the test library
+  //----------------------------------------------------------------------------
+  if( argc < 2 )
+  {
+    std::cerr << "Usage: " << argv[0] << " libname.so testname" << std::endl;
+    return 1;
+  }
+  void *libHandle = dlopen( argv[1], RTLD_LAZY );
+  if( libHandle == 0 )
+  {
+    std::cerr << "Unable to load the test library: " << dlerror() << std::endl;
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
   // Print help
   //----------------------------------------------------------------------------
   CppUnit::Test *all = CppUnit::TestFactoryRegistry::getRegistry().makeTest();
-  if( argc == 1 )
+  if( argc == 2 )
   {
     std::cerr << "Select your tests:" << std::endl << std::endl;
     printTests( all );
@@ -96,7 +111,7 @@ int main( int argc, char **argv)
   // Build the test suite
   //----------------------------------------------------------------------------
   CppUnit::TestSuite *selected = new CppUnit::TestSuite( "Selected tests" );
-  for( int i = 1; i < argc; ++i )
+  for( int i = 2; i < argc; ++i )
   {
     CppUnit::Test *t = findTest( all, std::string( argv[i]) );
     if( !t )
@@ -122,5 +137,6 @@ int main( int argc, char **argv)
     new CppUnit::CompilerOutputter( &runner.result(), std::cerr ) );
 
   bool wasSuccessful = runner.run();
+  dlclose( libHandle );
   return wasSuccessful ? 0 : 1;
 }
