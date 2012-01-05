@@ -283,6 +283,7 @@ namespace XrdClient
     }
 
     pPollerThreadRunning = false;
+    log->Debug( PollerMsg, "Poller stopped" );
     return true;
   }
 
@@ -301,7 +302,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if the socket is already registered
     //--------------------------------------------------------------------------
-    if( !socket->IsConnected() )
+    if( socket->GetStatus() != Socket::Connected )
       return false;
 
     SocketMap::const_iterator it = pSocketMap.find( socket );
