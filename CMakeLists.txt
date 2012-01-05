@@ -31,11 +31,13 @@ add_library(
   XrdClStream.cc              XrdClStream.hh
   XrdClXRootDTransport.cc     XrdClXRootDTransport.hh
   XrdClInQueue.cc             XrdClInQueue.hh
+  XrdClTaskManager.cc         XrdClTaskManager.hh
 )
 
 target_link_libraries(
   XrdCl
   XrdUtils
+  pthread
   dl
   ${LIBEVENT_LIB}
   ${LIBEVENTPTHREADS_LIB})
