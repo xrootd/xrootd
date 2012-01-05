@@ -146,8 +146,12 @@ void SocketTest::TransferTest()
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT( serv.Setup( 9999, 1, new RandomHandlerFactory() ) );
   CPPUNIT_ASSERT( serv.Start() );
-  CPPUNIT_ASSERT( sock.Connect( URL( "localhost:9999" ) ).status == stOK );
-  CPPUNIT_ASSERT( sock.IsConnected() );
+
+  CPPUNIT_ASSERT( sock.GetStatus() == Socket::Uninitialized );
+  CPPUNIT_ASSERT( sock.Initialize().IsOK() );
+  CPPUNIT_ASSERT( sock.GetStatus() == Socket::Initialized );
+  CPPUNIT_ASSERT( sock.Connect( "localhost", 9999 ).IsOK() );
+  CPPUNIT_ASSERT( sock.GetStatus() == Socket::Connected );
 
   //----------------------------------------------------------------------------
   // Get the number of packets
@@ -205,7 +209,7 @@ void SocketTest::TransferTest()
   //----------------------------------------------------------------------------
   std::string socketName = sock.GetSockName();
 
-  sock.Disconnect();
+  sock.Close();
   CPPUNIT_ASSERT( serv.Stop() );
 
   std::pair<uint64_t, uint32_t> sent     = serv.GetSentStats( socketName );
