@@ -51,7 +51,7 @@ namespace XrdClient
 
     private:
       void                 *pPtr;
-      const std::type_info  *pTypeInfo;
+      const std::type_info *pTypeInfo;
   };
 }
 
