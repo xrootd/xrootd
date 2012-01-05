@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
@@ -16,47 +16,95 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <ctime>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 namespace XrdClient
 {
   //----------------------------------------------------------------------------
-  // Connect to the given URL
+  // Initialize
   //----------------------------------------------------------------------------
-  Status Socket::Connect( const URL &url, uint16_t timeout )
+  Status Socket::Initialize()
   {
-    //--------------------------------------------------------------------------
-    // Sanity checks
-    //--------------------------------------------------------------------------
-    if( pIsConnected )
+    if( pStatus != Uninitialized )
       return Status( stError, errInvalidOp );
 
-    if( !url.IsValid() )
-      return Status( stFatal, errInvalidAddr );
+    pSocket = ::socket( PF_INET, SOCK_STREAM, 0 );
+    if( pSocket < 0 )
+    {
+      pSocket = -1;
+      return Status( stError, errSocketError );
+    }
 
     //--------------------------------------------------------------------------
-    // Initialize the socket
+    // Make the socket non blocking and disable the Nagle algorithm since
+    // we will be using this for transmitting messages not handling streams
     //--------------------------------------------------------------------------
-    int sock = ::socket( PF_INET, SOCK_STREAM, 0 );
-    if( sock < 0 )
-      return Status( stError, errSocketError );
-    ScopedDescriptor scopedSock( sock );
+    int flags;
+    if( (flags = ::fcntl( pSocket, F_GETFL, 0 )) == -1 )
+      flags = 0;
+    if( ::fcntl( pSocket, F_SETFL, flags | O_NONBLOCK | O_NDELAY ) == -1 )
+    {
+      Close();
+      return Status( stError, errFcntl, errno );
+    }
+
+    pStatus = Initialized;
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Set the socket flags
+  //----------------------------------------------------------------------------
+  Status Socket::SetFlags( int flags )
+  {
+    if( pStatus == Uninitialized )
+      return Status( stError, errInvalidOp );
+
+    int st = ::fcntl( pSocket, F_SETFL, flags );
+    if( st == -1 )
+      return Status( stError, errSocketError, errno );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the socket flags
+  //----------------------------------------------------------------------------
+  Status Socket::GetFlags( int &flags )
+  {
+    if( pStatus == Uninitialized )
+      return Status( stError, errInvalidOp );
+
+    int st = ::fcntl( pSocket, F_GETFL, 0 );
+    if( st == -1 )
+      return Status( stError, errSocketError, errno );
+    flags = st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Connect to the given URL
+  //----------------------------------------------------------------------------
+  Status Socket::Connect( const std::string &host,
+                          uint16_t           port,
+                          uint16_t           timeout )
+  {
+    if( pStatus != Initialized )
+      return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
     // Set up the network connection structures
     //--------------------------------------------------------------------------
     sockaddr_in inetAddr;
-    if( XrdSysDNS::getHostAddr( url.GetHostName().c_str(),
-                                (sockaddr&)inetAddr ) == 0 )
+    if( XrdSysDNS::getHostAddr( host.c_str(), (sockaddr&)inetAddr ) == 0 )
       return Status( stError, errInvalidAddr );
 
-    inetAddr.sin_port = htons( (unsigned short) url.GetPort() );
+    inetAddr.sin_port = htons( (unsigned short) port );
 
     //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
-    int status = XrdNetConnect::Connect( sock, (sockaddr *)&inetAddr,
-                                         sizeof(inetAddr),
-                                         timeout );
+    int status = XrdNetConnect::Connect( pSocket, (sockaddr *)&inetAddr,
+                                         sizeof(inetAddr), timeout );
 
     if( status != 0 )
     {
@@ -66,36 +114,24 @@ namespace XrdClient
       else
         st.errorType = errSocketError;
       st.errNo = status;
+
+      Close();
       return st;
     }
 
-    //--------------------------------------------------------------------------
-    // Make the socket non blocking
-    //--------------------------------------------------------------------------
-    int flags;
-    if( (flags = ::fcntl( sock, F_GETFL, 0 )) == -1 )
-      flags = 0;
-    if( ::fcntl( sock, F_SETFL, flags | O_NONBLOCK ) == -1 )
-      return Status( stError, errFcntl, errno );
-
-    //--------------------------------------------------------------------------
-    // Connected
-    //--------------------------------------------------------------------------
-    pIsConnected = true;
-    pSocket      = scopedSock.Release();
-
+    pStatus = Connected;
     return Status();
   }
 
   //----------------------------------------------------------------------------
   // Disconnect
   //----------------------------------------------------------------------------
-  void Socket::Disconnect()
+  void Socket::Close()
   {
-    if( pIsConnected )
+    if( pStatus != Uninitialized )
     {
       close( pSocket );
-      pIsConnected = false;
+      pStatus      = Uninitialized;
       pSocket      = -1;
       pSockName    = "";
       pPeerName    = "";
@@ -112,7 +148,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
-    if( !pIsConnected )
+    if( pStatus != Connected )
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
@@ -158,7 +194,7 @@ namespace XrdClient
         //----------------------------------------------------------------------
         if( n == 0 )
         {
-          Disconnect();
+          Close();
           return Status( stError, errSocketDisconnected );
         }
 
@@ -167,13 +203,13 @@ namespace XrdClient
         //----------------------------------------------------------------------
         if( (n < 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK) )
         {
-          Disconnect();
+          Close();
           return Status( stError, errSocketError, errno );
         }
       }
       else
       {
-        Disconnect();
+        Close();
         return sc;
       }
 
@@ -207,7 +243,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
-    if( !pIsConnected )
+    if( pStatus != Connected )
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
@@ -252,13 +288,13 @@ namespace XrdClient
         //----------------------------------------------------------------------
         if( (n <= 0) && (errno != EAGAIN) && (errno != EWOULDBLOCK) )
         {
-          Disconnect();
+          Close();
           return Status( stError, errSocketError, errno );
         }
       }
       else
       {
-        Disconnect();
+        Close();
         return sc;
       }
 
@@ -293,7 +329,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if we're connected
     //--------------------------------------------------------------------------
-    if( !pIsConnected )
+    if( pStatus != Connected )
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
@@ -380,7 +416,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   std::string Socket::GetSockName() const
   {
-    if( !IsConnected() )
+    if( pStatus != Connected )
       return "";
 
     if( pSockName.length() )
@@ -402,7 +438,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   std::string Socket::GetPeerName() const
   {
-    if( !IsConnected() )
+    if( pStatus != Connected )
       return "";
 
     if( pPeerName.length() )
@@ -424,7 +460,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   std::string Socket::GetName() const
   {
-    if( !IsConnected() )
+    if( pStatus != Connected )
       return "<x><--><x>";
 
     if( pName.length() )

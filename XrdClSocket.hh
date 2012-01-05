@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
@@ -8,7 +8,7 @@
 #define __XRD_CL_SOCKET_HH__
 
 #include <stdint.h>
-#include "XrdCl/XrdClURL.hh"
+#include <string>
 #include "XrdCl/XrdClStatus.hh"
 
 namespace XrdClient
@@ -19,43 +19,69 @@ namespace XrdClient
   class Socket
   {
     public:
+      enum SocketStatus
+      {
+        Uninitialized = 0,
+        Initialized   = 1,
+        Connected     = 2
+      };
+
       //------------------------------------------------------------------------
       //! Constructor
       //!
       //! @param socket already connected socket if available, -1 otherwise
+      //! @param status status of a socket if available
       //------------------------------------------------------------------------
-      Socket( int socket = -1 ): pSocket(-1)
+      Socket( int socket = -1, SocketStatus status = Uninitialized ):
+        pSocket(-1), pStatus( status )
       {
-        if( pSocket != -1 )
-          pIsConnected = true;
-        else
-          pIsConnected = false;
+        if( pSocket != -1 && status == Uninitialized )
+          pStatus = Initialized;
       };
 
       //------------------------------------------------------------------------
       //! Desctuctor
       //------------------------------------------------------------------------
-      virtual ~Socket() { Disconnect(); };
+      virtual ~Socket() { Close(); };
+
+      //------------------------------------------------------------------------
+      //! Initialize the socket
+      //------------------------------------------------------------------------
+      Status Initialize();
+
+      //------------------------------------------------------------------------
+      //! Set the socket flags (man fcntl)
+      //------------------------------------------------------------------------
+      Status SetFlags( int flags );
+
+      //------------------------------------------------------------------------
+      //! Get the socket flags (man fcntl)
+      //------------------------------------------------------------------------
+      Status GetFlags( int &flags );
 
       //------------------------------------------------------------------------
       //! Connect to the given URL
       //!
-      //! @param url    the address of the host
-      //! @param timout timeout in seconds, 0 for no timeout
+      //! @param host   name of the host to connect to
+      //! @param port   port to connect to
+      //! @param timout timeout in seconds, 0 for no timeout handling (may be
+      //!               used for non blocking IO)
       //------------------------------------------------------------------------
-      Status Connect( const URL &url, uint16_t timout = 10 );
+      Status Connect( const std::string &host,
+                      uint16_t           port,
+                      uint16_t           timout = 10 );
 
       //------------------------------------------------------------------------
       //! Disconnect
       //------------------------------------------------------------------------
-      void Disconnect();
+      void Close();
 
       //------------------------------------------------------------------------
-      //! Check whether the socket is connected
+      //! Get the socket status
       //------------------------------------------------------------------------
-      bool IsConnected() const
+      SocketStatus GetStatus() const
       {
-        return pIsConnected;
+        return pStatus;
       }
 
       //------------------------------------------------------------------------
@@ -120,7 +146,7 @@ namespace XrdClient
                    uint32_t timeout );
 
       int                 pSocket;
-      bool                pIsConnected;
+      SocketStatus        pStatus;
       mutable std::string pSockName;     // mutable because it's for caching
       mutable std::string pPeerName;
       mutable std::string pName;
