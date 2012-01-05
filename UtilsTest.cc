@@ -7,6 +7,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -17,9 +18,11 @@ class UtilsTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE( UtilsTest );
       CPPUNIT_TEST( urlTest );
       CPPUNIT_TEST( anyTest );
+      CPPUNIT_TEST( taskManagerTest );
     CPPUNIT_TEST_SUITE_END();
     void urlTest();
     void anyTest();
+    void taskManagerTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
@@ -140,4 +143,68 @@ void UtilsTest::anyTest()
 
   CPPUNIT_ASSERT( !b );
   CPPUNIT_ASSERT( a );
+}
+
+//------------------------------------------------------------------------------
+// Some tasks that do something
+//------------------------------------------------------------------------------
+class TestTask1: public XrdClient::Task
+{
+  public:
+    TestTask1( std::vector<time_t> &runs ): pRuns( runs ) {}
+
+    virtual time_t Run( time_t now )
+    {
+      pRuns.push_back( now );
+      return 0;
+    }
+
+  private:
+    std::vector<time_t> &pRuns;
+};
+
+class TestTask2: public XrdClient::Task
+{
+  public:
+    TestTask2( std::vector<time_t> &runs ): pRuns( runs ) {}
+
+    virtual time_t Run( time_t now )
+    {
+      pRuns.push_back( now );
+      if( pRuns.size() >= 5 )
+        return 0;
+      return now+2;
+    }
+
+  private:
+    std::vector<time_t> &pRuns;
+};
+
+//------------------------------------------------------------------------------
+// Task Manager test
+//------------------------------------------------------------------------------
+void UtilsTest::taskManagerTest()
+{
+  using namespace XrdClient;
+
+  std::vector<time_t> runs1, runs2;
+  Task *tsk1 = new TestTask1( runs1 );
+  Task *tsk2 = new TestTask2( runs2 );
+
+  TaskManager taskMan;
+  CPPUNIT_ASSERT( taskMan.Start() );
+
+  time_t now = ::time(0);
+  taskMan.RegisterTask( tsk1, now+2 );
+  taskMan.RegisterTask( tsk2, now+1 );
+
+  ::sleep( 6 );
+  taskMan.UnregisterTask( tsk1 );
+  taskMan.UnregisterTask( tsk2 );
+
+  ::sleep( 2 );
+
+  CPPUNIT_ASSERT( runs1.size() == 1 );
+  CPPUNIT_ASSERT( runs2.size() == 3 );
+  CPPUNIT_ASSERT( taskMan.Stop() );
 }
