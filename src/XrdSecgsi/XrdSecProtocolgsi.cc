@@ -121,6 +121,8 @@ int    XrdSecProtocolgsi::DepLength= 0;
 int    XrdSecProtocolgsi::DefBits  = 512;
 int    XrdSecProtocolgsi::CACheck  = 1;
 int    XrdSecProtocolgsi::CRLCheck = 1;
+int    XrdSecProtocolgsi::CRLDownload = 0;
+int    XrdSecProtocolgsi::CRLRefresh = 86400;
 int    XrdSecProtocolgsi::GMAPOpt  = 1;
 bool   XrdSecProtocolgsi::GMAPuseDNname = 0;
 String XrdSecProtocolgsi::DefCrypto= "ssl";
@@ -408,10 +410,19 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    //    1   use if available
    //    2   require
    //    3   require not expired
+   //   12   require; try download if missing
+   //   13   require not expired; try download if missing
    //
+   const char *cocrl[] = { "do-not-care", "use-if-available", "require", "require-not-expired" };
+   const char *codwld[] = { "no", "yes"};
+   if (opt.crl >= 10) {
+      CRLDownload = 1;
+      opt.crl %= 10;
+   }
    if (opt.crl >= 0 && opt.crl <= 3)
       CRLCheck = opt.crl;
-   DEBUG("option CRLCheck: "<<CRLCheck);
+   DEBUG("option CRLCheck: "<<CRLCheck<<" ('"<<cocrl[CRLCheck]<<"'; download? "<<
+                              codwld[CRLDownload]<<")");
 
    //
    // Check existence of CRL directory
@@ -457,6 +468,12 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    // Default extension for CRL files
    if (opt.crlext)
       DefCRLext = opt.crlext;
+
+   //
+   // Refresh or expiration time for CRLs
+   if (opt.crlrefresh)
+      CRLRefresh = opt.crlrefresh;
+   DEBUG("CRL information refreshed every "<<CRLRefresh<<" secs");
 
    //
    // Server specific options
@@ -645,6 +662,16 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
             XrdSutBucket *xbck = xsrv->Export();
             if (!xbck) {
                PRINT("problems loading srv cert: cannot export into bucket");
+               continue;
+            }
+            // We must have the issuing CA certificate
+            int rcgetca = 0;
+            if ((rcgetca = GetCA(xsrv->IssuerHash(), cryptF[i])) != 0) {
+               if (rcgetca == -1) {
+                  PRINT("do not have certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
+               } else {
+                  PRINT("failed to initialized CRL for issuing CA '"<<xsrv->IssuerHash()<<"'");
+               }
                continue;
             }
             // Ok: save it into the cache
@@ -2162,6 +2189,7 @@ void gsiOptions::Print(XrdOucTrace *t)
    POPTS(t, " CRL dir: " << (crldir ? crldir : XrdSecProtocolgsi::CRLdir ));
    POPTS(t, " CRL extension: " << (crlext ? crlext :  XrdSecProtocolgsi::DefCRLext));
    POPTS(t, " CRL check level: "<< crl);
+   if (crl > 0) POPTS(t, " CRL refresh time: "<< crlrefresh);
    if (mode == 'c') {
       POPTS(t, " Certificate: " << (cert ? cert : XrdSecProtocolgsi::UsrCert));
       POPTS(t, " Key: " << (key ? key : XrdSecProtocolgsi::UsrKey));
@@ -2306,6 +2334,11 @@ char *XrdSecProtocolgsiInit(const char mode,
       if (cenv)
          opts.crlext = strdup(cenv);
 
+      // CRL refresh or expiration time
+      cenv = getenv("XrdSecGSICRLRefresh");
+      if (cenv)
+         opts.crlrefresh = atoi(cenv);
+
       // file with user cert
       cenv = (getenv("XrdSecGSIUSERCERT") ? getenv("XrdSecGSIUSERCERT")
                                           : getenv("X509_USER_CERT"));
@@ -2414,6 +2447,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-md:<list_of_supported_digests>]
       //              [-ca:<crl_verification_level>]
       //              [-crl:<crl_check_level>]
+      //              [-crlrefresh:<crl_refresh_time>]
       //              [-gridmap:<grid_map_file>]
       //              [-gmapfun:<grid_map_function>]
       //              [-gmapfunparms:<grid_map_function_init_parameters>]
@@ -2443,6 +2477,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       String exppxy = "";
       int ca = 1;
       int crl = 1;
+      int crlrefresh = 86400;
       int ogmap = 1;
       int gmapto = -1;
       int authzto = -1;
@@ -2475,6 +2510,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                ca = atoi(op+4);
             } else if (!strncmp(op, "-crl:",5)) {
                crl = atoi(op+5);
+            } else if (!strncmp(op, "-crlrefresh:",12)) {
+               crlrefresh = atoi(op+12);
             } else if (!strncmp(op, "-gmapopt:",9)) {
                ogmap = atoi(op+9);
             } else if (!strncmp(op, "-gridmap:",9)) {
@@ -2517,6 +2554,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.mode = 's';
       opts.ca = ca;
       opts.crl = crl;
+      opts.crlrefresh = crlrefresh;
       opts.ogmap = ogmap;
       opts.gmapto = gmapto;
       opts.authzto = authzto;
@@ -3838,6 +3876,7 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
       return -1;
    }
 
+#if 0
    // Some global statics
    String cadir;
    int from = 0;
@@ -3880,7 +3919,7 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
 
                   // Get CRL, if required
                   if (CRLCheck > 0)
-                     crl = LoadCRL(chain->Begin(), cryptF[i]);
+                     crl = LoadCRL(chain->Begin(), cryptF[i], CRLDownload);
                   // Apply requirements
                   if (CRLCheck < 2 || crl) {
                      if (CRLCheck < 3 ||
@@ -3926,6 +3965,7 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
       // Close dir
       closedir(dd);
    }
+#endif
 
    // Rehash cache
    ca->Rehash(1);
@@ -3936,10 +3976,12 @@ int XrdSecProtocolgsi::LoadCADir(int timestamp)
 
 //______________________________________________________________________________
 XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
-                                             XrdCryptoFactory *CF)
+                                             XrdCryptoFactory *CF, int dwld)
 {
    // Scan crldir for a valid CRL certificate associated to CA whose
-   // certificate is xca. If the CRL is found and is valid according
+   // certificate is xca. If 'dwld' is true try to download the CRL from
+   // the relevant URI, if any.
+   // If the CRL is found and is valid according
    // to the chosen option, return its content in a X509Crl object.
    // Return 0 in any other case
    EPNAME("LoadCRL");
@@ -4010,7 +4052,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
    }
 
    // If not required, we are done
-   if (CRLCheck < 2) {
+   if (CRLCheck < 2 || (dwld == 0)) {
       // Done
       return crl;
    }
@@ -4243,33 +4285,52 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
 }
 
 //______________________________________________________________________________
-int XrdSecProtocolgsi::GetCA(const char *cahash)
+int XrdSecProtocolgsi::GetCA(const char *cahash,
+                             XrdCryptoFactory *cf, gsiHSVars *hs)
 {
-   // Gets entry for CA with hash cahash for crypt factory cryptF[ic].
+   // Gets entry for CA with hash cahash for crypt factory cf.
    // If not found in cache, try loading from <CAdir>/<cahash>.0 .
+   // If 'hs' is defined, store pointers to chain and crl into 'hs'. 
    // Return 0 if ok, -1 if not available, -2 if CRL not ok
    EPNAME("GetCA");
 
    // We nust have got a CA hash
-   if (!cahash) {
+   if (!cahash || !cf) {
       DEBUG("Invalid input ");
       return -1;
    }
 
+   // Timestamp
+   int timestamp = (hs) ? hs->TimeStamp : time(0);
+
    // The tag
    String tag(cahash,20);
    tag += ':';
-   tag += sessionCF->ID();
-   DEBUG("Querying cache for tag: "<<tag);
+   tag += cf->ID();
+   DEBUG("Querying cache for tag: "<<tag<<" (timestamp:"<<timestamp<<
+         ", refresh fq:"<< CRLRefresh <<")");
 
    // Try first the cache
    XrdSutPFEntry *cent = cacheCA.Get(tag.c_str());
 
    // If found, we are done
    if (cent) {
-      hs->Chain = (X509Chain *)(cent->buf1.buf);
-      hs->Crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-      return 0;
+      if ((timestamp - cent->mtime) < CRLRefresh) {
+         if (hs) {
+            hs->Chain = (X509Chain *)(cent->buf1.buf);
+            hs->Crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
+         }
+         return 0;
+      } else {
+         PRINT("entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
+         // Entry needs refreshing
+         delete (X509Chain *)(cent->buf1.buf); cent->buf1.buf = 0;
+         delete (XrdCryptoX509Crl *)(cent->buf2.buf); cent->buf2.buf = 0;
+         if (!cacheCA.Remove(tag.c_str())) {
+            PRINT("problems removing entry from CA cache");
+            return -1;
+         }
+      }
    }
 
    // If not, prepare the file name
@@ -4277,30 +4338,29 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
    DEBUG("trying to load CA certificate from "<<fnam);
 
    // Create chain
-   hs->Chain = new X509Chain();
-   if (!hs->Chain ) {
+   X509Chain *chain = new X509Chain();
+   if (!chain ) {
       DEBUG("could not create new GSI chain");
       return -1;
    }
 
    // Get the parse function
-   XrdCryptoX509ParseFile_t ParseFile = sessionCF->X509ParseFile();
+   XrdCryptoX509ParseFile_t ParseFile = cf->X509ParseFile();
    if (ParseFile) {
-      int nci = (*ParseFile)(fnam.c_str(), hs->Chain);
+      int nci = (*ParseFile)(fnam.c_str(), chain);
       bool ok = 0, verified = 0;
       if (nci == 1) {
          // Verify the CA
-         verified = VerifyCA(CACheck, hs->Chain, sessionCF);
-
+         verified = VerifyCA(CACheck, chain, cf);
+         XrdCryptoX509Crl *crl = 0;
          if (verified) {
             // Get CRL, if required
             if (CRLCheck > 0)
-               hs->Crl = LoadCRL(hs->Chain->Begin(), sessionCF);
+               crl = LoadCRL(chain->Begin(), cf, CRLDownload);
             // Apply requirements
-            if (CRLCheck < 2 || hs->Crl) {
+            if (CRLCheck < 2 || crl) {
                if (CRLCheck < 3 ||
-                  (CRLCheck == 3 &&
-                  hs->Crl && !(hs->Crl->IsExpired(hs->TimeStamp)))) {
+                  (CRLCheck == 3 && crl && !(crl->IsExpired(timestamp)))) {
                   // Good CA
                   ok = 1;
                } else {
@@ -4315,15 +4375,20 @@ int XrdSecProtocolgsi::GetCA(const char *cahash)
             // Add to the cache
             cent = cacheCA.Add(tag.c_str());
             if (cent) {
-               cent->buf1.buf = (char *)(hs->Chain);
+               cent->buf1.buf = (char *)(chain);
                cent->buf1.len = 0;      // Just a flag
-               if (hs->Crl) {
-                  cent->buf2.buf = (char *)(hs->Crl);
+               if (crl) {
+                  cent->buf2.buf = (char *)(crl);
                   cent->buf2.len = 0;      // Just a flag
                }
-               cent->mtime = hs->TimeStamp;
+               cent->mtime = timestamp;
                cent->status = kPFE_ok;
                cent->cnt = 0;
+            }
+            // Fill output, if required
+            if (hs) {
+               hs->Chain = chain;
+               hs->Crl = crl;
             }
          } else {
             return -2;
@@ -4476,7 +4541,7 @@ int XrdSecProtocolgsi::ParseCAlist(String calist)
          // Check this hash
          if (cahash.length()) {
             // Get the CA chain
-            if (GetCA(cahash.c_str()) == 0)
+            if (GetCA(cahash.c_str(), sessionCF, hs) == 0)
                return 0;
          }
       }

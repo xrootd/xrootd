@@ -143,6 +143,7 @@ public:
    char  *md;     // [s] list of MDs [sha1:md5]
    int    crl;    // [cs] check level of CRL's [1] 
    int    ca;     // [cs] verification level of CA's [1] 
+   int    crlrefresh; // [cs] CRL refresh or expiration period in secs [1 day] 
    char  *proxy;  // [c] user proxy  [/tmp/x509up_u<uid>]
    char  *valid;  // [c] proxy validity  [12:00]
    int    deplen; // [c] depth of signature path for proxies [0] 
@@ -167,7 +168,7 @@ public:
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
-                  cipher = 0; md = 0; ca = 1 ; crl = 1;
+                  cipher = 0; md = 0; ca = 1 ; crl = 1; crlrefresh = 86400;
                   proxy = 0; valid = 0; deplen = 0; bits = 512;
                   gridmap = 0; gmapto = -1;
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
@@ -295,6 +296,8 @@ private:
    static int              DefBits;
    static int              CACheck;
    static int              CRLCheck;
+   static int              CRLDownload;
+   static int              CRLRefresh;
    static String           DefCrypto;
    static String           DefCipher;
    static String           DefMD;
@@ -383,14 +386,15 @@ private:
 
    // Load CA certificates
    static int     LoadCADir(int timestamp);
-   int            GetCA(const char *cahash);
+   static int     GetCA(const char *cahash,
+                        XrdCryptoFactory *cryptof, gsiHSVars *hs = 0);
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
    bool           ServerCertNameOK(const char *subject, String &e);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
-                                    XrdCryptoFactory *CF);
+                                    XrdCryptoFactory *CF, int dwld);
 
    // Updating proxies
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,

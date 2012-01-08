@@ -203,27 +203,25 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
       return -1;
    }
    XrdOucString u(uri), h(hash);
+   if (h == "") {
+      int isl = u.rfind('/');
+      if (isl != STR_NPOS) h.assign(u, isl + 1);
+   }
    if (h == "") h = "hashtmp";
 
    // Create local output file path
-   bool needsopenssl = 0;
-   XrdOucString outder(getenv("TMPDIR")), outpem;
-   if (outder.length() <= 0) outder = "/tmp";
-   if (!outder.endswith("/")) outder += "/";
-   outder += hash;
-   if (u.endswith(".pem")) {
-      outder += ".pem";
-   } else {
-      outder += "_crl.der";
-      needsopenssl = 1;
-   }
+   XrdOucString outtmp(getenv("TMPDIR")), outpem;
+   if (outtmp.length() <= 0) outtmp = "/tmp";
+   if (!outtmp.endswith("/")) outtmp += "/";
+   outtmp += h;
+   outtmp += ".crltmp";
 
    // Prepare 'wget' command
    XrdOucString cmd("wget ");
    cmd += uri;
    cmd += " -O ";
-   cmd += outder;
-
+   cmd += outtmp;
+   
    // Execute 'wget'
    DEBUG("executing ... "<<cmd);
    if (system(cmd.c_str()) == -1) {
@@ -231,17 +229,24 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
       return -1;
    }
    struct stat st;
-   if (stat(outder.c_str(), &st) != 0) {
+   if (stat(outtmp.c_str(), &st) != 0) {
       DEBUG("did not manage to get the CRL file from "<<uri);
       return -1;
    }
-   outpem = outder;
+   outpem = outtmp;
 
-   if (needsopenssl) {
+   // Find out the file type
+   int needsopenssl = GetFileType(outtmp.c_str());
+   if (needsopenssl < 0) {
+      DEBUG("did not manage to coorectly parse "<<outtmp);
+      return -1;
+   }
+
+   if (needsopenssl > 0) {
       // Put it in PEM format
-      outpem.replace("_crl.der", ".pem");
+      outpem.replace(".crltmp", ".pem");
       cmd = "openssl crl -inform DER -in ";
-      cmd += outder;
+      cmd += outtmp;
       cmd += " -out ";
       cmd += outpem;
       cmd += " -text";
@@ -249,13 +254,13 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
       // Execute 'openssl crl'
       DEBUG("executing ... "<<cmd);
       if (system(cmd.c_str()) == -1) {
-	DEBUG("system: problem executing: "<<cmd);
-	return -1;
+         DEBUG("system: problem executing: "<<cmd);
+         return -1;
       }
 
       // Cleanup the temporary files
-      if (unlink(outder.c_str()) != 0) {
-	DEBUG("problems removing "<<outder);
+      if (unlink(outtmp.c_str()) != 0) {
+         DEBUG("problems removing "<<outtmp);
       }
    }
 
@@ -277,6 +282,40 @@ int XrdCryptosslX509Crl::InitFromURI(const char *uri, const char *hash)
    //
    // Done
    return 0;
+}
+
+//_____________________________________________________________________________
+int XrdCryptosslX509Crl::GetFileType(const char *crlfn)
+{
+   // Try to understand if file 'crlfn' is in DER (binary) or PEM (ASCII)
+   // format (assume that is not ASCII is a DER).
+   // Return 1 if not-PEM, 0 if PEM, -1 if any error occured
+   EPNAME("GetFileType");
+
+   if (!crlfn || strlen(crlfn) <= 0) {
+      PRINT("file name undefined!");
+      return -1;
+   }
+
+   char line[1024] = {0};
+   FILE *f = fopen(crlfn, "r");
+   if (!f) {
+      PRINT("could not open file "<<crlfn<<" - errno: "<<(int)errno);
+      return -1;
+   }
+
+   int rc = 1;
+   while (fgets(line, 1024, f)) {
+      // Skip empty lines at beginning
+      if (line[0] == '\n') continue;
+      // Analyse line for '-----BEGIN X509 CRL-----'
+      if (strstr(line, "BEGIN X509 CRL")) rc = 0;
+      break;
+   }
+   // Close the files
+   fclose(f);
+   // Done
+   return rc;
 }
 
 //_____________________________________________________________________________
