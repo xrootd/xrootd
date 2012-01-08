@@ -74,6 +74,7 @@ private:
    int          nrevoked;   // Number of certificates revoked
    XrdSutCache  cache;      // cached infor about revoked certificates
 
+   int GetFileType(const char *crlfn); //Determine file type
    int LoadCache();         // Load the cache
    int Init(const char *crlf); // Init from file
    int InitFromURI(const char *uri, const char *hash); // Init from URI
