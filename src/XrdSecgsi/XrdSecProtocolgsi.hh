@@ -385,7 +385,6 @@ private:
    int            ParseCAlist(String calist);
 
    // Load CA certificates
-   static int     LoadCADir(int timestamp);
    static int     GetCA(const char *cahash,
                         XrdCryptoFactory *cryptof, gsiHSVars *hs = 0);
    static String  GetCApath(const char *cahash);
