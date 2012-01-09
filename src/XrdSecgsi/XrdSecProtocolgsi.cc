@@ -532,14 +532,12 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
          return Parms;
       }
       //
-      // Load CA info into cache
-      if (LoadCADir(timestamp) != 0) {
-         ErrF(erp,kGSErrError,"problems loading CA info into cache");
+      // Init CA info cache
+      if (cacheCA.Init(100) != 0) {
+         ErrF(erp,kGSErrError,"problems initializing CA info cache");
          PRINT(erp->getErrText());
          return Parms;
       }
-      if (QTRACE(Authen)) { cacheCA.Dump(); }
-
       //
       // List of supported / wanted ciphers
       if (opt.cipher)
@@ -3862,119 +3860,6 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
 }
 
 //______________________________________________________________________________
-int XrdSecProtocolgsi::LoadCADir(int timestamp)
-{
-   // Scan cadir for valid CA certificates and load them in memory
-   // in cache ca.
-   // Return 0 if ok, -1 if problems
-   EPNAME("LoadCADir");
-
-   // Init cache
-   XrdSutCache *ca = &(XrdSecProtocolgsi::cacheCA);
-   if (!ca || ca->Init(100) != 0) {
-      DEBUG("problems init cache for CA info");
-      return -1;
-   }
-
-#if 0
-   // Some global statics
-   String cadir;
-   int from = 0;
-   while ((from = CAdir.tokenize(cadir, from, ',')) != -1) {
-      if (cadir.length() <= 0) continue;
-
-      // Open directory
-      DIR *dd = opendir(cadir.c_str());
-      if (!dd) {
-         DEBUG("could not open directory: "<<cadir<<" (errno: "<<errno<<")");
-         continue;
-      }
-
-      // Read the content
-      int i = 0;
-      XrdCryptoX509ParseFile_t ParseFile = 0;
-      String enam(cadir.length()+100); 
-      struct dirent *dent = 0;
-      while ((dent = readdir(dd))) {
-         // Skip some obvious non-CA entries
-         if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) continue;
-         // entry name
-         enam = cadir + dent->d_name;
-         if (enam.endswith(".signing_policy") || enam.endswith(".namespaces") ||
-             enam.endswith(".info") || enam.endswith(".crl_url")) continue;
-         DEBUG("analysing entry "<<enam);
-         // Try to init a chain: for each crypto factory
-         for (i = 0; i < ncrypt; i++) {
-            X509Chain *chain = new X509Chain();
-            // Get the parse function
-            ParseFile = cryptF[i]->X509ParseFile();
-            int nci = (*ParseFile)(enam.c_str(), chain);
-            bool ok = 0;
-            XrdCryptoX509Crl *crl = 0;
-            // Check what we got
-            if (chain && nci == 1) {
-               // Verify the CA
-               bool verified = VerifyCA(CACheck, chain, cryptF[i]);
-               if (verified) {
-
-                  // Get CRL, if required
-                  if (CRLCheck > 0)
-                     crl = LoadCRL(chain->Begin(), cryptF[i], CRLDownload);
-                  // Apply requirements
-                  if (CRLCheck < 2 || crl) {
-                     if (CRLCheck < 3 ||
-                        (CRLCheck == 3 && crl && !(crl->IsExpired(timestamp)))) {
-                        // Good CA
-                        ok = 1;
-                     } else {
-                        DEBUG("CRL is expired (CRLCheck: "<<CRLCheck<<")");
-                     }
-                  } else {
-                     DEBUG("CRL is missing (CRLCheck: "<<CRLCheck<<")");
-                  }
-               }
-            }
-            //
-            if (ok) {
-               // Save the chain: create the tag first
-               String tag(chain->Begin()->SubjectHash());
-               tag += ':';
-               tag += cryptID[i];
-               // Add to the cache
-               XrdSutPFEntry *cent = ca->Add(tag.c_str());
-               if (cent) {
-                  cent->buf1.buf = (char *)chain;
-                  cent->buf1.len = 0;      // Just a flag
-                  if (crl) {
-                     cent->buf2.buf = (char *)crl;
-                     cent->buf2.len = 0;      // Just a flag
-                  }
-                  cent->mtime = timestamp;
-                  cent->status = kPFE_ok;
-                  cent->cnt = 0;
-               }
-            } else {
-               DEBUG("Entry "<<enam<<" does not contain a valid CA");
-               if (chain)
-                  chain->Cleanup();
-               SafeDelete(chain);
-               SafeDelete(crl);
-            }
-         }
-      }
-      // Close dir
-      closedir(dd);
-   }
-#endif
-
-   // Rehash cache
-   ca->Rehash(1);
-
-   // We are done
-   return 0;
-}
-
-//______________________________________________________________________________
 XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
                                              XrdCryptoFactory *CF, int dwld)
 {
@@ -4315,7 +4200,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 
    // If found, we are done
    if (cent) {
-      if ((timestamp - cent->mtime) < CRLRefresh) {
+      if ((CRLRefresh <= 0) || ((timestamp - cent->mtime) < CRLRefresh)) {
          if (hs) {
             hs->Chain = (X509Chain *)(cent->buf1.buf);
             hs->Crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
