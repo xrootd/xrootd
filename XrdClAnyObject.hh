@@ -33,7 +33,7 @@ namespace XrdClient
         if( !ptr )
           return;
         pPtr = ptr;
-        pTypeInfo = &typeid( pPtr );
+        pTypeInfo = &typeid( Type );
       }
 
       //------------------------------------------------------------------------
