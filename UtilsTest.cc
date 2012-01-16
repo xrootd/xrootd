@@ -142,7 +142,7 @@ void UtilsTest::anyTest()
   any.Get( a1 );
 
   CPPUNIT_ASSERT( !b );
-  CPPUNIT_ASSERT( a );
+  CPPUNIT_ASSERT( a1 );
 }
 
 //------------------------------------------------------------------------------
