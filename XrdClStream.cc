@@ -248,7 +248,9 @@ namespace XrdClient
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
 
-    //!!! Fail all the receivers
+    if( pStreamNum == 0 )
+      pIncomingQueue->FailAllHandlers( Status( stError, errStreamDisconnect ) );
+
     pStreamStatus = Disconnected;
   }
 
@@ -257,6 +259,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
+    if( pStreamNum == 0 )
+      pIncomingQueue->TimeoutHandlers( now );
   }
 
   //----------------------------------------------------------------------------
@@ -711,6 +715,12 @@ namespace XrdClient
     pStreamStatus = Error;
     pLastStreamError = error;
     pErrorTime = now;
+
+    // since the incoming queue is shared we handle it only in the "main"
+    // stream
+    if( pStreamNum == 0 )
+      pIncomingQueue->FailAllHandlers( Status( stError, error ) );
+
     //!!! fail all the requests
   }
 }
