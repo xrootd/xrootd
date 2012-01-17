@@ -296,19 +296,29 @@ namespace XrdClient
     Log *log = Utils::GetDefaultLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
-    log->Debug( PollerMsg, "%s Adding socket to the poller",
-                           socket->GetName().c_str() );
+    if( !socket )
+    {
+      log->Error( PollerMsg, "Invalid socket, impossible to poll" );
+      return false;
+    }
+
+    if( socket->GetStatus() != Socket::Connected &&
+        socket->GetStatus() != Socket::Connecting )
+    {
+      log->Error( PollerMsg, "Socket is not in a state valid for polling" );
+      return false;
+    }
+
+    log->Debug( PollerMsg, "Adding socket 0x%x to the poller", socket );
 
     //--------------------------------------------------------------------------
     // Check if the socket is already registered
     //--------------------------------------------------------------------------
-    if( socket->GetStatus() != Socket::Connected )
-      return false;
 
     SocketMap::const_iterator it = pSocketMap.find( socket );
     if( it != pSocketMap.end() )
     {
-      log->Warning( PollerMsg, "%s Already registered",
+      log->Warning( PollerMsg, "%s Already registered with this poller",
                                socket->GetName().c_str() );
       return false;
     }
@@ -361,7 +371,7 @@ namespace XrdClient
 
     if( helper->writeEnabled )
     {
-      if( ::event_del( helper->readEvent ) != 0 )
+      if( ::event_del( helper->writeEvent ) != 0 )
       {
         log->Error( PollerMsg, "%s Failed to unregister a write event",
                                 socket->GetName().c_str() );
@@ -389,6 +399,12 @@ namespace XrdClient
                                                uint16_t timeout )
   {
     Log *log = Utils::GetDefaultLog();
+
+    if( !socket )
+    {
+      log->Error( PollerMsg, "Invalid socket, read events unavailable" );
+      return false;
+    }
 
     //--------------------------------------------------------------------------
     // Check if the socket is registered
@@ -477,6 +493,12 @@ namespace XrdClient
                                                 uint16_t timeout )
   {
     Log *log = Utils::GetDefaultLog();
+
+    if( !socket )
+    {
+      log->Error( PollerMsg, "Invalid socket, write events unavailable" );
+      return false;
+    }
 
     //--------------------------------------------------------------------------
     // Check if the socket is registered
