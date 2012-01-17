@@ -142,15 +142,20 @@ void PostMasterTest::FunctionalTest()
 {
   using namespace XrdClient;
 
+  //----------------------------------------------------------------------------
+  // Initialize the stuff
+  //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
   env->PutInt( "DataServerTTL", 2 );
   env->PutInt( "TimeoutResolution", 1 );
-
 
   PostMaster postMaster;
   postMaster.Initialize();
   postMaster.Start();
 
+  //----------------------------------------------------------------------------
+  // Send a message and wait for the answer
+  //----------------------------------------------------------------------------
   Message   m1, *m2 = 0;
   XrdFilter f1( 1, 2 );
   URL       localhost( "root://localhost" );
@@ -176,6 +181,9 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
 
+  //----------------------------------------------------------------------------
+  // Wait until the connection TTL expires and send echo again
+  //----------------------------------------------------------------------------
   ::sleep( 4 );
 
   m2 = 0;
@@ -187,6 +195,19 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  //----------------------------------------------------------------------------
+  // Wait for an answer to a message that has not been sent - test the
+  // reception timeout
+  //----------------------------------------------------------------------------
+  env->PutInt( "DataServerTTL", 5 );
+  sc = postMaster.Receive( localhost, m2, &f1, 2 );
+  CPPUNIT_ASSERT( !sc.IsOK() );
+  CPPUNIT_ASSERT( sc.code == errSocketTimeout );
+
+  sc = postMaster.Receive( localhost, m2, &f1, 20 );
+  CPPUNIT_ASSERT( !sc.IsOK() );
+  CPPUNIT_ASSERT( sc.code == errStreamDisconnect );
 
   postMaster.Stop();
   postMaster.Finalize();
