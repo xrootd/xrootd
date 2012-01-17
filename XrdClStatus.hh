@@ -20,6 +20,13 @@ namespace XrdClient
   const uint16_t stFatal = 0x0003;  //!< Fatal error, it's still an error
 
   //----------------------------------------------------------------------------
+  // Additional info for the stOK status
+  //----------------------------------------------------------------------------
+  const uint16_t suDone            = 0;
+  const uint16_t suContinue        = 1;
+  const uint16_t suRetry           = 2;
+
+  //----------------------------------------------------------------------------
   // Generic errors
   //----------------------------------------------------------------------------
   const uint16_t errNone           = 0; //!< No error
@@ -38,6 +45,7 @@ namespace XrdClient
   const uint16_t errSocketTimeout      = 103;
   const uint16_t errSocketDisconnected = 104;
   const uint16_t errPollerError        = 105;
+  const uint16_t errSocketOptError     = 106;
 
   //----------------------------------------------------------------------------
   // Protocol related errors
@@ -55,15 +63,15 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    Status( uint16_t st = stOK, uint16_t err = errNone, int errN = 0 ):
-      status(st), errorType(err), errNo( errN ) {}
+    Status( uint16_t st = stOK, uint16_t cod = errNone, int errN = 0 ):
+      status(st), code(cod), errNo( errN ) {}
 
     bool IsError() { return status & stError; }
     bool IsFatal() { return status & stFatal; }
     bool IsOK()    { return status == stOK; }
 
     uint16_t status;     //!< Status of the execution
-    uint16_t errorType;  //!< Error type, if any
+    uint16_t code;       //!< Error type, or additional hints on what to do
     int      errNo;      //!< Errno, if any
   };
 }
