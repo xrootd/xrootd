@@ -9,6 +9,7 @@
 #include <XrdCl/XrdClMessage.hh>
 #include <XProtocol/XProtocol.hh>
 #include <XrdCl/XrdClXRootDTransport.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
 
 #include <pthread.h>
 
@@ -141,6 +142,11 @@ void PostMasterTest::FunctionalTest()
 {
   using namespace XrdClient;
 
+  Env *env = DefaultEnv::GetEnv();
+  env->PutInt( "DataServerTTL", 2 );
+  env->PutInt( "TimeoutResolution", 1 );
+
+
   PostMaster postMaster;
   postMaster.Initialize();
   postMaster.Start();
@@ -166,6 +172,18 @@ void PostMasterTest::FunctionalTest()
   sc = postMaster.Receive( localhost, m2, &f1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  ::sleep( 4 );
+
+  m2 = 0;
+  sc = postMaster.Send( localhost, &m1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+  sc = postMaster.Receive( localhost, m2, &f1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+  resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
