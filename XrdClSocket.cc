@@ -82,6 +82,36 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Get socket options
+  //----------------------------------------------------------------------------
+  Status Socket::GetSockOpt( int level, int optname, void *optval,
+                             socklen_t *optlen )
+  {
+    if( pStatus == Uninitialized )
+      return Status( stError, errInvalidOp );
+
+    if( ::getsockopt( pSocket, level, optname, optval, optlen ) != 0 )
+      return Status( stError, errSocketOptError, errno );
+
+    return Status();
+  }
+
+  //------------------------------------------------------------------------
+  // Set socket options
+  //------------------------------------------------------------------------
+  Status Socket::SetSockOpt( int level, int optname, const void *optval,
+                             socklen_t optlen )
+  {
+    if( pStatus == Uninitialized )
+      return Status( stError, errInvalidOp );
+
+    if( ::setsockopt( pSocket, level, optname, optval, optlen ) != 0 )
+      return Status( stError, errSocketOptError, errno );
+
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
   // Connect to the given URL
   //----------------------------------------------------------------------------
   Status Socket::Connect( const std::string &host,
@@ -109,10 +139,23 @@ namespace XrdClient
     if( status != 0 )
     {
       Status st( stError );
-      if( status == ETIMEDOUT )
-        st.errorType = errSocketTimeout;
+
+      //------------------------------------------------------------------------
+      // If we connect asynchronously this is not really an error
+      //------------------------------------------------------------------------
+      if( !timeout && status == EINPROGRESS )
+      {
+        pStatus = Connecting;
+        return Status();
+      }
+
+      //------------------------------------------------------------------------
+      // Errors
+      //------------------------------------------------------------------------
+      else if( status == ETIMEDOUT )
+        st.code = errSocketTimeout;
       else
-        st.errorType = errSocketError;
+        st.code = errSocketError;
       st.errNo = status;
 
       Close();

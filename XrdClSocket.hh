@@ -23,7 +23,8 @@ namespace XrdClient
       {
         Uninitialized = 0,
         Initialized   = 1,
-        Connected     = 2
+        Connected     = 2,
+        Connecting    = 3
       };
 
       //------------------------------------------------------------------------
@@ -60,6 +61,18 @@ namespace XrdClient
       Status GetFlags( int &flags );
 
       //------------------------------------------------------------------------
+      //! Get socket options
+      //------------------------------------------------------------------------
+      Status GetSockOpt( int level, int optname, void *optval,
+                         socklen_t *optlen );
+
+      //------------------------------------------------------------------------
+      //! Set socket options
+      //------------------------------------------------------------------------
+      Status SetSockOpt( int level, int optname, const void *optval,
+                         socklen_t optlen );
+
+      //------------------------------------------------------------------------
       //! Connect to the given URL
       //!
       //! @param host   name of the host to connect to
@@ -82,6 +95,14 @@ namespace XrdClient
       SocketStatus GetStatus() const
       {
         return pStatus;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set socket status - do not use unless you know what you're doing
+      //------------------------------------------------------------------------
+      void SetStatus( SocketStatus status )
+      {
+        pStatus = status;
       }
 
       //------------------------------------------------------------------------
