@@ -15,6 +15,8 @@
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClInQueue.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -31,13 +33,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url        address of the server to connect to
-      //! @param poller     poller object to be used for non-blocking IO
-      //! @param transport  protocol speciffic transport handler
+      //! @param url         address of the server to connect to
+      //! @param poller      poller object to be used for non-blocking IO
+      //! @param transport   protocol speciffic transport handler
+      //! @param taskManager async task handler to be used by the channel
       //------------------------------------------------------------------------
       Channel( const URL        &url,
                Poller           *poller,
-               TransportHandler *transport );
+               TransportHandler *transport,
+               TaskManager      *taskManager );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -104,69 +108,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       Status Receive( MessageHandler *handler, uint16_t timeout );
 
-      //------------------------------------------------------------------------
-      //! Lock the channel
-      //------------------------------------------------------------------------
-      void Lock()
-      {
-        pMutex.Lock();
-      }
-
-      //------------------------------------------------------------------------
-      //! Unlock the channel
-      //------------------------------------------------------------------------
-      void UnLock()
-      {
-        pMutex.UnLock();
-      }
-
-      //------------------------------------------------------------------------
-      //! Get channel data
-      //------------------------------------------------------------------------
-      const void *GetData() const
-      {
-        return pData;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get channel data
-      //------------------------------------------------------------------------
-      void *GetData()
-      {
-        return pData;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set channel data
-      //------------------------------------------------------------------------
-      void SetData( void *data )
-      {
-        pData = data;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the poller object
-      //------------------------------------------------------------------------
-      Poller *GetPoller()
-      {
-        return pPoller;
-      }
-
-      //------------------------------------------------------------------------
-      //! Handle connections issue
-      //------------------------------------------------------------------------
-      Status HandleStreamFault( uint16_t sNum = 0 );
-
     private:
-      void ConnSleep( time_t start, time_t now, time_t window,
-                      const char *hostId, uint16_t streamNum );
 
       URL                    pUrl;
       Poller                *pPoller;
       TransportHandler      *pTransport;
+      TaskManager           *pTaskManager;
       std::vector<Stream *>  pStreams;
       XrdSysMutex            pMutex;
-      void                  *pData;
+      AnyObject              pChannelData;
       InQueue                pIncoming;
   };
 }

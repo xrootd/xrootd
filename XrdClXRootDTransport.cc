@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
@@ -15,6 +15,8 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <iostream>
 
 namespace XrdClient
 {
@@ -42,7 +44,7 @@ namespace XrdClient
       {
         int status = ::read( sock, message->GetBufferAtCursor(), leftToBeRead );
         if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-          return Status( stError, errRetry );
+          return Status( stOK, suRetry );
 
         if( status <= 0 )
           return Status( stError, errSocketError, errno );
@@ -65,7 +67,7 @@ namespace XrdClient
     {
       int status = ::read( sock, message->GetBufferAtCursor(), leftToBeRead );
       if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-        return Status( stError, errRetry );
+        return Status( stOK, suRetry );
 
       if( status <= 0 )
         return Status( stError, errSocketError, errno );
@@ -80,60 +82,114 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Initialize channel
   //----------------------------------------------------------------------------
-  void XRootDTransport::InitializeChannel( void *&channelData )
+  void XRootDTransport::InitializeChannel( AnyObject &channelData )
   {
-    channelData = new XRootDChannelInfo();
+    channelData.Set( new XRootDChannelInfo() );
   }
 
   //----------------------------------------------------------------------------
   // Finalize channel
   //----------------------------------------------------------------------------
-  void XRootDTransport::FinalizeChannel( void *&channelData )
+  void XRootDTransport::FinalizeChannel( AnyObject &channelData )
   {
-    delete (XRootDChannelInfo*)channelData;
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    delete info;
   }
 
   //----------------------------------------------------------------------------
   // HandShake
   //----------------------------------------------------------------------------
-  Status XRootDTransport::HandShake( Socket    *socket,
-                                     const URL &url,
-                                     uint16_t   streamNumber,
-                                     void      *channelData )
+  Status XRootDTransport::HandShake( HandShakeData *handShakeData,
+                                     AnyObject     &channelData )
   {
     Log *log = Utils::GetDefaultLog();
-    log->Debug( XRootDTransportMsg, "[%s #%d] Attempting handshake",
-                                    url.GetHostId().c_str(), streamNumber );
 
-    XRootDChannelInfo *info = (XRootDChannelInfo *)channelData;
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
 
-    //--------------------------------------------------------------------------
-    // Send the initial handshake
-    //--------------------------------------------------------------------------
-    Status sc = InitialHS( socket, url, streamNumber, info );
-    if( sc.status != stOK )
-      return sc;
+    switch( handShakeData->step )
+    {
+      //------------------------------------------------------------------------
+      // First step - we need to create and initial handshake and send it out
+      //------------------------------------------------------------------------
+      case 0:
+      {
+        handShakeData->out = GenerateInitialHS( handShakeData, info );
+        return Status( stOK, suContinue );
+      }
 
-    //--------------------------------------------------------------------------
-    // Log in
-    //--------------------------------------------------------------------------
-    return LogIn( socket, url, streamNumber, info );
+      //------------------------------------------------------------------------
+      // Second step - we got the reply message to the initial handshake
+      //------------------------------------------------------------------------
+      case 1:
+        return ProcessServerHS( handShakeData, info );
+
+      //------------------------------------------------------------------------
+      // Third step - we got the response to the protocol request, we need
+      // to process it and send out a login request
+      //------------------------------------------------------------------------
+      case 2:
+      {
+        Status st =  ProcessProtocolResp( handShakeData, info );
+
+        if( !st.IsOK() )
+          return st;
+
+        handShakeData->out = GenerateLogIn( handShakeData, info );
+        return Status( stOK, suContinue );
+      }
+
+      //------------------------------------------------------------------------
+      // Fourth step - handle the log in response
+      //------------------------------------------------------------------------
+      case 3:
+        return ProcessLogInResp( handShakeData, info );
+    };
+
+    return Status( stOK, suDone );
   }
 
   //----------------------------------------------------------------------------
-  // Disconnect
+  // Check if the stream should be disconnected
   //----------------------------------------------------------------------------
-  Status XRootDTransport::Disconnect( Socket    *socket,
-                                      uint16_t   streamNumber,
-                                      void     *channelData )
+  bool XRootDTransport::IsStreamTTLElapsed( time_t     inactiveTime,
+                                            AnyObject &channelData )
   {
-    return Status();
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+
+    Env *env = DefaultEnv::GetEnv();
+
+    //--------------------------------------------------------------------------
+    // We're connected to a data server
+    //--------------------------------------------------------------------------
+    if( info->serverFlags & kXR_isServer )
+    {
+      int ttl = DefaultDataServerTTL;
+      env->GetInt( "DataServerTTL", ttl );
+      if( inactiveTime >= ttl ) return true;
+      return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // We're connected to a manager
+    //--------------------------------------------------------------------------
+    if( info->serverFlags & kXR_isManager )
+    {
+      int ttl = DefaultManagerTTL;
+      env->GetInt( "ManagerTTL", ttl );
+      if( inactiveTime >= ttl ) return true;
+      return false;
+    }
+
+    return false;
   }
 
   //----------------------------------------------------------------------------
   // Multiplex
   //----------------------------------------------------------------------------
-  uint16_t XRootDTransport::Multiplex( Message *msg, void *channelData )
+  uint16_t XRootDTransport::Multiplex( Message *msg, AnyObject &channelData )
   {
     return 0;
   }
@@ -223,88 +279,50 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
-  // Perform the initial handshake
+  // Generate the message to be sent as an initial handshake
   //----------------------------------------------------------------------------
-  Status XRootDTransport::InitialHS( Socket            *socket,
-                                     const URL         &url,
-                                     uint16_t           streamNumber,
-                                     XRootDChannelInfo *info )
+  Message *XRootDTransport::GenerateInitialHS( HandShakeData     *hsData,
+                                               XRootDChannelInfo *info )
   {
-    //--------------------------------------------------------------------------
-    // Configure
-    //--------------------------------------------------------------------------
-    Env *env = DefaultEnv::GetEnv();
     Log *log = Utils::GetDefaultLog();
+    log->Debug( XRootDTransportMsg, "[%s #%d] Sending out the initial "
+                                    "hand shake",
+                                     hsData->url->GetHostId().c_str(),
+                                     hsData->streamId );
 
-    int requestTimeout = DefaultRequestTimeout;
-    env->GetInt( "RequestTimeout", requestTimeout );
+    Message *msg = new Message();
 
-    //--------------------------------------------------------------------------
-    // Build the initial handshake message and piggy back the kXR_protocol
-    // request at the end
-    //--------------------------------------------------------------------------
-    Message req;
-    req.Allocate( 20+sizeof(ClientProtocolRequest) );
-    req.Zero();
+    msg->Allocate( 20+sizeof(ClientProtocolRequest) );
+    msg->Zero();
 
-    ClientInitHandShake   *init  = (ClientInitHandShake *)req.GetBuffer();
-    ClientProtocolRequest *proto = (ClientProtocolRequest *)req.GetBuffer(20);
-
+    ClientInitHandShake   *init  = (ClientInitHandShake *)msg->GetBuffer();
+    ClientProtocolRequest *proto = (ClientProtocolRequest *)msg->GetBuffer(20);
     init->fourth = htonl(4);
     init->fifth  = htonl(2012);
 
     proto->requestid = htons(kXR_protocol);
     proto->clientpv  = htonl(kXR_PROTOCOLVERSION);
+    return msg;
+  }
 
-    uint32_t bytesProcessed;
+  //----------------------------------------------------------------------------
+  // Process the server initial handshake response
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::ProcessServerHS( HandShakeData     *hsData,
+                                           XRootDChannelInfo *info )
+  {
+    Log *log = Utils::GetDefaultLog();
 
-    //--------------------------------------------------------------------------
-    // Write the data
-    //--------------------------------------------------------------------------
-    log->Debug( XRootDTransportMsg, "[%s #%d] Sending the hand shake",
-                                    url.GetHostId().c_str(), streamNumber );
-
-    socket->WriteRaw( req.GetBuffer(), req.GetSize(),
-                      requestTimeout, bytesProcessed );
-
-    if( bytesProcessed != req.GetSize() )
-    {
-      log->Error( XRootDTransportMsg, "[%s #%d] Unable to send the initial "
-                                      "hand shake",
-                                      url.GetHostId().c_str(), streamNumber );
-      return Status( stFatal, errHandShakeFailed );
-    }
-
-    //--------------------------------------------------------------------------
-    // Read the handshake
-    //--------------------------------------------------------------------------
-    Message resp(16);
-
-    log->Dump( XRootDTransportMsg, "[%s #%d] Waiting %d seconds for 16 bytes",
-                                   url.GetHostId().c_str(), streamNumber,
-                                   requestTimeout );
-
-    socket->ReadRaw( resp.GetBuffer(), 16, requestTimeout, bytesProcessed );
-
-    if( bytesProcessed != resp.GetSize() )
-    {
-      log->Error( XRootDTransportMsg, "[%s #%d] Unable to get the initial "
-                                      "hand shake",
-                                      url.GetHostId().c_str(), streamNumber );
-      return Status( stFatal, errHandShakeFailed );
-    }
-
-    //--------------------------------------------------------------------------
-    // Process the handshake
-    //--------------------------------------------------------------------------
-    ServerResponseHeader *respHdr = (ServerResponseHeader *)resp.GetBuffer();
-    ServerInitHandShake  *hs      = (ServerInitHandShake *)resp.GetBuffer(4);
+    Message *msg = hsData->in;
+    ServerResponseHeader *respHdr = (ServerResponseHeader *)msg->GetBuffer();
+    ServerInitHandShake  *hs      = (ServerInitHandShake *)msg->GetBuffer(4);
 
     if( respHdr->status != kXR_ok )
     {
-      log->Error( XRootDTransportMsg, "[%s #%d] Invalid hand shake response "
-                                      "came",
-                                      url.GetHostId().c_str(), streamNumber );
+      log->Error( XRootDTransportMsg,
+                  "[%s #%d] Invalid hand shake response",
+                  hsData->url->GetHostId().c_str(), hsData->streamId );
+
       return Status( stFatal, errHandShakeFailed );
     }
 
@@ -313,26 +331,37 @@ namespace XrdClient
                             kXR_isServer:
                             kXR_isManager;
 
-    //--------------------------------------------------------------------------
-    // Read and process the protocol response
-    //--------------------------------------------------------------------------
-    if( GetMessageBlock( &resp, socket, requestTimeout ).status != stOK )
+    log->Debug( XRootDTransportMsg,
+                "[%s #%d] Got the server hand shake response (%s, protocol "
+                "version %x)",
+                hsData->url->GetHostId().c_str(),
+                hsData->streamId,
+                ServerFlagsToStr( info->serverFlags ).c_str(),
+                info->protocolVersion );
+
+    return Status( stOK, suContinue );
+  }
+
+  //----------------------------------------------------------------------------
+  // Process the protocol response
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::ProcessProtocolResp( HandShakeData     *hsData,
+                                               XRootDChannelInfo *info )
+  {
+    Log *log = Utils::GetDefaultLog();
+
+    if( !UnMarshallBody( hsData->in, kXR_protocol ).IsOK() )
       return Status( stFatal, errHandShakeFailed );
 
-    if( UnMarshallBody( &resp, kXR_protocol ).status != stOK )
-      return Status( stFatal, errHandShakeFailed );
+    ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
-    ServerResponse *rsp = (ServerResponse*)resp.GetBuffer();
-    if( rsp->hdr.status == kXR_error )
+
+    if( rsp->hdr.status != kXR_ok )
     {
-      LogErrorResponse( resp );
-      return Status( stFatal, errHandShakeFailed );
-    }
-    else if( rsp->hdr.status != kXR_ok )
-    {
-      log->Error( XRootDTransportMsg, "[%s #%d] Got invalid response to "
-                                      "kXR_protocol",
-                                      url.GetHostId().c_str(), streamNumber );
+      log->Error( XRootDTransportMsg, "[%s #%d] kXR_protocol request failed",
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId );
+
       return Status( stFatal, errHandShakeFailed );
     }
 
@@ -340,149 +369,78 @@ namespace XrdClient
       info->serverFlags = rsp->body.protocol.flags;
 
     log->Debug( XRootDTransportMsg,
-                "[%s #%d] Hand shake successful (%s, protocol version %x)",
-                url.GetHostId().c_str(), streamNumber,
+                "[%s #%d] kXR_protocol successful (%s, protocol version %x)",
+                hsData->url->GetHostId().c_str(), hsData->streamId,
                 ServerFlagsToStr( info->serverFlags ).c_str(),
                 info->protocolVersion );
         
-    return Status();
+    return Status( stOK, suContinue );
   }
 
   //----------------------------------------------------------------------------
-  // Log in
+  // Generate the login message
   //----------------------------------------------------------------------------
-  Status XRootDTransport::LogIn( Socket            *socket,
-                                 const URL         &url,
-                                 uint16_t           streamNumber,
-                                 XRootDChannelInfo *info )
+  Message *XRootDTransport::GenerateLogIn( HandShakeData *hsData,
+                                           XRootDChannelInfo *info )
   {
-    //--------------------------------------------------------------------------
-    // Configure
-    //--------------------------------------------------------------------------
-    Env *env = DefaultEnv::GetEnv();
     Log *log = Utils::GetDefaultLog();
 
-    int requestTimeout = DefaultRequestTimeout;
-    env->GetInt( "RequestTimeout", requestTimeout );
+    Message *msg = new Message( sizeof( ClientLoginRequest ) );
+    ClientLoginRequest *loginReq = (ClientLoginRequest *)msg->GetBuffer();
 
-    //--------------------------------------------------------------------------
-    // Build the login request
-    //--------------------------------------------------------------------------
-    log->Debug( XRootDTransportMsg, "[%s #%d] Logging in",
-                                    url.GetHostId().c_str(), streamNumber );
-
-    Message m( sizeof( ClientLoginRequest ) );
-    ClientLoginRequest *loginReq = (ClientLoginRequest *)m.GetBuffer();
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
-    if( url.GetUserName().length() )
-      ::strncpy( (char*)loginReq->username, url.GetUserName().c_str(), 8 );
     loginReq->capver[0] = kXR_asyncap | kXR_ver003;
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = 0;
 
-    Marshall( &m );
-
-    //--------------------------------------------------------------------------
-    // Send the request
-    //--------------------------------------------------------------------------
-    uint32_t processedBytes;
-    Status sc = socket->WriteRaw( m.GetBuffer(), m.GetSize(),
-                                  requestTimeout, processedBytes );
-
-    if( processedBytes != m.GetSize() )
+    if( hsData->url->GetUserName().length() )
     {
-      log->Error( XRootDTransportMsg, "[%s #%d] Unable send the login request",
-                                      url.GetHostId().c_str(), streamNumber );
-      return Status( stFatal, errLoginFailed );
+      ::strncpy( (char*)loginReq->username,
+                 hsData->url->GetUserName().c_str(), 8 );
+
+      log->Debug( XRootDTransportMsg, "[%s #%d] Sending out kXR_login "
+                                      "request, username: %s",
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId, loginReq->username );
     }
-
-    //--------------------------------------------------------------------------
-    // Read the response
-    //--------------------------------------------------------------------------
-    if( GetMessageBlock( &m, socket, requestTimeout ).status != stOK )
-      return Status( stFatal, errLoginFailed );
-
-    if( UnMarshallBody( &m, kXR_login ).status != stOK )
-      return Status( stFatal, errLoginFailed );
-
-    ServerResponse *rsp = (ServerResponse*)m.GetBuffer();
-    if( rsp->hdr.status == kXR_error )
+    else
     {
-      LogErrorResponse( m );
-      return Status( stFatal, errHandShakeFailed );
+        log->Debug( XRootDTransportMsg, "[%s #%d] Sending out kXR_login "
+                                        "request",
+                                        hsData->url->GetHostId().c_str(),
+                                        hsData->streamId );
     }
-    else if( rsp->hdr.status != kXR_ok )
+    Marshall( msg );
+    return msg;
+  }
+
+  //----------------------------------------------------------------------------
+  // Process the protocol response
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::ProcessLogInResp( HandShakeData     *hsData,
+                                            XRootDChannelInfo *info )
+  {
+    Log *log = Utils::GetDefaultLog();
+
+    if( !UnMarshallBody( hsData->in, kXR_login ).IsOK() )
+      return Status( stFatal, errLoginFailed );
+
+    ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
+
+    if( rsp->hdr.status != kXR_ok )
     {
       log->Error( XRootDTransportMsg, "[%s #d] Got invalid login response",
-                                      url.GetHostId().c_str(), streamNumber );
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId );
       return Status( stFatal, errLoginFailed );
     }
 
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
 
     log->Debug( XRootDTransportMsg, "[%s #%d] Logged in",
-                                    url.GetHostId().c_str(), streamNumber );
-
-    return Status();
-  }
-
-  //----------------------------------------------------------------------------
-  // Get a message - blocking
-  //----------------------------------------------------------------------------
-  Status XRootDTransport::GetMessageBlock( Message *message,
-                                           Socket  *socket,
-                                           uint16_t timeout )
-  {
-    Log *log = Utils::GetDefaultLog();
-
-    //--------------------------------------------------------------------------
-    // Read the header
-    //--------------------------------------------------------------------------
-    uint32_t readBytes;
-    message->ReAllocate(8);
-
-    log->Dump( XRootDTransportMsg, "%s Waiting %d seconds for a message "
-                                   "header",
-                                   socket->GetName().c_str(), timeout );
-
-    time_t start = ::time(0);
-    Status sc = socket->ReadRaw( message->GetBuffer(), 8, timeout, readBytes );
-
-    if( readBytes != 8 )
-    {
-      log->Error( XRootDTransportMsg, "%s Error reading message header",
-                                      socket->GetName().c_str() );
-      return sc;
-    }
-
-    time_t elapsed = ::time(0)-start;
-    if( elapsed >= timeout )
-      return Status( stError, errSocketTimeout );
-
-    //--------------------------------------------------------------------------
-    // Read the body
-    //--------------------------------------------------------------------------
-    ServerResponseHeader *header = (ServerResponseHeader *)message->GetBuffer();
-    UnMarshallHeader( message );
-    message->ReAllocate( header->dlen+8 );
-    header = (ServerResponseHeader *)message->GetBuffer();
-
-    log->Dump( XRootDTransportMsg, "%s Waiting %d seconds for %d bytes of "
-                                   "message body",
-                                   socket->GetName().c_str(),
-                                   timeout-elapsed, header->dlen );
-
-    sc = socket->ReadRaw( message->GetBuffer(8), header->dlen,
-                          timeout, readBytes );
-
-    if( readBytes != header->dlen )
-    {
-      log->Error( XRootDTransportMsg, "%s Error reading message body",
-                                      socket->GetName().c_str() );
-      return sc;
-    }
-
+                                    hsData->url->GetHostId().c_str(),
+                                    hsData->streamId );
     return Status();
   }
 

@@ -47,34 +47,31 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
-      virtual void InitializeChannel( void *&channelData );
+      virtual void InitializeChannel( AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Finalize channel
       //------------------------------------------------------------------------
-      virtual void FinalizeChannel( void *&channelData );
+      virtual void FinalizeChannel( AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! HandShake
       //------------------------------------------------------------------------
-      virtual Status HandShake( Socket    *socket,
-                                const URL &url,
-                                uint16_t   streamNumber,
-                                void      *channelData );
+      virtual Status HandShake( HandShakeData *handShakeData,
+                                AnyObject     &channelData );
 
       //------------------------------------------------------------------------
-      //! Disconnect
+      //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
-      virtual Status Disconnect( Socket   *socket,
-                                 uint16_t  streamNumber,
-                                 void     *channelData );
+      virtual bool IsStreamTTLElapsed( time_t     time,
+                                       AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Return a stream number by which the message should be sent and/or
       //! alter the message to include the info by which stream the response
       //! should be sent back
       //------------------------------------------------------------------------
-      virtual uint16_t Multiplex( Message *msg, void *channelData );
+      virtual uint16_t Multiplex( Message *msg, AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Return the information whether a control connection needs to be
@@ -108,33 +105,39 @@ namespace XrdClient
     private:
 
       //------------------------------------------------------------------------
-      //! Perform the initial handshake
+      // Generate the message to be sent as an initial handshake
       //------------------------------------------------------------------------
-      Status InitialHS( Socket            *socket,
-                        const URL         &url,
-                        uint16_t           streamNumber,
-                        XRootDChannelInfo *info );
+      Message *GenerateInitialHS( HandShakeData     *hsData,
+                                  XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
-      //! Log in
+      // Process the server initial handshake response
       //------------------------------------------------------------------------
-      Status LogIn( Socket            *socket,
-                    const URL         &url,
-                    uint16_t           streamNumber,
-                    XRootDChannelInfo *info );
+      Status ProcessServerHS( HandShakeData     *hsData,
+                              XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
-      //! Get a string representation of the server flags
+      // Process the protocol response
+      //------------------------------------------------------------------------
+      Status ProcessProtocolResp( HandShakeData     *hsData,
+                                  XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Generate the login  message
+      //------------------------------------------------------------------------
+      Message *GenerateLogIn( HandShakeData     *hsData,
+                              XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Process the login response
+      //------------------------------------------------------------------------
+      Status ProcessLogInResp( HandShakeData     *hsData,
+                               XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Get a string representation of the server flags
       //------------------------------------------------------------------------
       static std::string ServerFlagsToStr( uint32_t flags );
-
-      //------------------------------------------------------------------------
-      //! Get a message - blocking
-      //------------------------------------------------------------------------
-      virtual Status GetMessageBlock( Message *message,
-                                      Socket  *socket,
-                                      uint16_t timeout );
-
   };
 }
 

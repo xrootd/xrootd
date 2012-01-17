@@ -16,8 +16,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   PostMaster::PostMaster()
   {
-    pPoller = new PollerLibEvent();
+    pPoller           = new PollerLibEvent();
     pTransportHandler = new XRootDTransport();
+    pTaskManager      = new TaskManager();
   }
 
   //----------------------------------------------------------------------------
@@ -27,6 +28,7 @@ namespace XrdClient
   {
     delete pPoller;
     delete pTransportHandler;
+    delete pTaskManager;
   }
 
   //----------------------------------------------------------------------------
@@ -50,7 +52,15 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Start()
   {
-    return pPoller->Start();
+    if( !pPoller->Start() )
+      return false;
+
+    if( !pTaskManager->Start() )
+    {
+      pPoller->Stop();
+      return false;
+    }
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -58,7 +68,11 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
-    return pPoller->Stop();
+    if( !pPoller->Stop() )
+      return false;
+    if( !pTaskManager->Stop() )
+      return false;
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -123,7 +137,7 @@ namespace XrdClient
     ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
     if( it == pChannelMap.end() )
     {
-      channel = new Channel( url, pPoller, pTransportHandler );
+      channel = new Channel( url, pPoller, pTransportHandler, pTaskManager );
       pChannelMap[url.GetHostId()] = channel;
     }
     else

@@ -14,6 +14,7 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClPoller.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClChannel.hh"
 
@@ -127,6 +128,7 @@ namespace XrdClient
 
       typedef std::map<std::string, Channel*> ChannelMap;
       Poller           *pPoller;
+      TaskManager      *pTaskManager;
       ChannelMap        pChannelMap;
       XrdSysMutex       pChannelMapMutex;
       TransportHandler *pTransportHandler; // to be removed when protocol

@@ -8,8 +8,11 @@
 #define __XRD_CL_POST_MASTER_INTERFACES_HH__
 
 #include <stdint.h>
+#include <ctime>
 
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClAnyObject.hh"
+#include "XrdCl/XrdClURL.hh"
 
 namespace XrdClient
 {
@@ -68,6 +71,22 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
+  //! Data structure that carries the handshake information
+  //----------------------------------------------------------------------------
+  struct HandShakeData
+  {
+    HandShakeData( const URL *addr, uint16_t stream ):
+      step(0), out(0), in(0), url(addr), streamId(stream), startTime( time(0) )
+    {}
+    uint16_t   step;
+    Message   *out;
+    Message   *in;
+    const URL *url;
+    uint16_t   streamId;
+    time_t     startTime;
+  };
+
+  //----------------------------------------------------------------------------
   //! Perform the handshake and the authentication for each physical stream
   //----------------------------------------------------------------------------
   class TransportHandler
@@ -91,34 +110,31 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Initialize channel
       //------------------------------------------------------------------------
-      virtual void InitializeChannel( void *&channelData ) = 0;
+      virtual void InitializeChannel( AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Finalize channel
       //------------------------------------------------------------------------
-      virtual void FinalizeChannel( void *&channelData ) = 0;
+      virtual void FinalizeChannel( AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! HandHake
       //------------------------------------------------------------------------
-      virtual Status HandShake( Socket    *socket,
-                                const URL &url, 
-                                uint16_t   streamNumber,
-                                void      *channelData ) = 0;
+      virtual Status HandShake( HandShakeData *handShakeData,
+                                AnyObject     &channelData ) = 0;
 
       //------------------------------------------------------------------------
-      //! Disconnect
+      //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
-      virtual Status Disconnect( Socket   *socket,
-                                 uint16_t  streamNumber,
-                                 void     *channelData )  = 0;
+      virtual bool IsStreamTTLElapsed( time_t     inactiveTime,
+                                       AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Return a stream number by which the message should be sent and/or
       //! alter the message to include the info by which stream the response
       //! should be sent back
       //------------------------------------------------------------------------
-      virtual uint16_t Multiplex( Message *msg, void *channelData ) = 0;
+      virtual uint16_t Multiplex( Message *msg, AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Return the information whether a control connection needs to be
