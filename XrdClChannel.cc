@@ -45,11 +45,28 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      // Wait for the arraival of the message
+      // Handle a fault
       //------------------------------------------------------------------------
-      XrdClient::Message *WaitForMessage()
+      virtual void HandleFault( XrdClient::Status status )
+      {
+        pStatus = status;
+        pSem.Post();
+      }
+
+      //------------------------------------------------------------------------
+      // Wait for a status of the message
+      //------------------------------------------------------------------------
+      XrdClient::Status WaitForStatus()
       {
         pSem.Wait();
+        return pStatus;
+      }
+
+      //------------------------------------------------------------------------
+      // Wait for the arraival of the message
+      //------------------------------------------------------------------------
+      XrdClient::Message *GetMessage()
+      {
         return pMsg;
       }
 
@@ -57,6 +74,7 @@ namespace
       XrdSysSemaphore           pSem;
       XrdClient::MessageFilter *pFilter;
       XrdClient::Message       *pMsg;
+      XrdClient::Status         pStatus;
   };
 
   //----------------------------------------------------------------------------
@@ -187,8 +205,11 @@ namespace XrdClient
     Status sc = Receive( &fh, timeout );
     if( !sc.IsOK() )
       return sc;
-    msg = fh.WaitForMessage();
-    return Status();
+
+    sc = fh.WaitForStatus();
+    if( sc.IsOK() )
+      msg = fh.GetMessage();
+    return sc;
   }
 
   //----------------------------------------------------------------------------
@@ -196,7 +217,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status Channel::Receive( MessageHandler *handler, uint16_t timeout )
   {
-    pIncoming.AddMessageHandler( handler );
+    time_t tm = ::time(0) + timeout;
+    pIncoming.AddMessageHandler( handler, tm );
     return Status();
   }
 }

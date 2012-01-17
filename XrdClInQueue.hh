@@ -9,6 +9,8 @@
 
 #include <XrdSys/XrdSysPthread.hh>
 #include <list>
+#include <utility>
+#include "XrdCl/XrdClStatus.hh"
 
 namespace XrdClient
 {
@@ -28,18 +30,33 @@ namespace XrdClient
 
       //------------------------------------------------------------------------
       //! Add a listener that should be notified about incomming messages
+      //!
+      //! @param handler message handler
+      //! @param expires time when the message handler expires
       //------------------------------------------------------------------------
-      void AddMessageHandler( MessageHandler *handler );
+      void AddMessageHandler( MessageHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Remove a listener
       //------------------------------------------------------------------------
       void RemoveMessageHandler( MessageHandler *handler );
 
+      //------------------------------------------------------------------------
+      //! Fail and remove all the message handlers with a given status code
+      //------------------------------------------------------------------------
+      void FailAllHandlers( Status status );
+
+      //------------------------------------------------------------------------
+      //! Timeout handlers
+      //------------------------------------------------------------------------
+      void TimeoutHandlers( time_t now = 0 );
+
     private:
-      std::list<Message *>        pMessages;
-      std::list<MessageHandler *> pHandlers;
-      XrdSysMutex                 pMutex;
+      typedef std::pair<MessageHandler *, time_t> HandlerAndExpire;
+      typedef std::list<HandlerAndExpire> HandlerList;
+      std::list<Message *> pMessages;
+      HandlerList          pHandlers;
+      XrdSysMutex          pMutex;
   };
 }
 

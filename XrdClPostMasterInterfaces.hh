@@ -48,13 +48,21 @@ namespace XrdClient
       };
 
       //------------------------------------------------------------------------
-      //! Examine the message
+      //! Examine an incomming message, and decide on the action to be taken
       //!
-      //! @param msg the message
-      //! @return    action type that needs to be take wrt the message and
-      //!            the handler
+      //! @param msg    the message, may be zero if receive failed
+      //! @return       action type that needs to be take wrt the message and
+      //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t HandleMessage( Message *msg ) = 0;
+      virtual uint8_t HandleMessage( Message *msg  ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Handle an event other that a message arrival - may be timeout
+      //! or stream failure
+      //!
+      //! @param status info about the fault that occured
+      //------------------------------------------------------------------------
+      virtual void HandleFault( Status status ) = 0;
   };
 
   //----------------------------------------------------------------------------

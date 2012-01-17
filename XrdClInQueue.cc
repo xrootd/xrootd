@@ -16,11 +16,11 @@ namespace XrdClient
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    std::list<MessageHandler*>::iterator it;
-    uint8_t                              action = 0;
+    HandlerList::iterator it;
+    uint8_t               action = 0;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
     {
-      action = (*it)->HandleMessage( msg );
+      action = it->first->HandleMessage( msg );
 
       if( action & MessageHandler::RemoveHandler )
       {
@@ -41,7 +41,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Add a listener that should be notified about incomming messages
   //----------------------------------------------------------------------------
-  void InQueue::AddMessageHandler( MessageHandler *handler )
+  void InQueue::AddMessageHandler( MessageHandler *handler, time_t expires )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -62,7 +62,7 @@ namespace XrdClient
     }
 
     if( !(action & MessageHandler::RemoveHandler) )
-      pHandlers.push_back( handler );
+      pHandlers.push_back( HandlerAndExpire( handler, expires ) );
   }
 
   //----------------------------------------------------------------------------
@@ -71,9 +71,43 @@ namespace XrdClient
   void InQueue::RemoveMessageHandler( MessageHandler *handler )
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    std::list<MessageHandler *>::iterator it;
+    HandlerList::iterator it;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
-      if( *it == handler )
+      if( it->first == handler )
         pHandlers.erase( it );
+  }
+
+  //----------------------------------------------------------------------------
+  // Fail and remove all the message handlers with a given status code
+  //----------------------------------------------------------------------------
+  void InQueue::FailAllHandlers( Status status )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    HandlerList::iterator it;
+    for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
+      it->first->HandleFault( status );
+     pHandlers.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  // Timeout handlers
+  //----------------------------------------------------------------------------
+  void InQueue::TimeoutHandlers( time_t now )
+  {
+    if( !now )
+      now = ::time(0);
+
+    XrdSysMutexHelper scopedLock( pMutex );
+    HandlerList::iterator it = pHandlers.begin();
+    while( it != pHandlers.end() )
+    {
+      if( it->second <= now )
+      {
+        it->first->HandleFault( Status( stError, errSocketTimeout ) );
+        it = pHandlers.erase( it );
+      }
+      else
+        ++it;
+    }
   }
 }
