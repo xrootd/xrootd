@@ -20,10 +20,11 @@ namespace XrdClient
     PutInt( "ConnectionWindow",  DefaultConnectionWindow  );
     PutInt( "ConnectionRetry",   DefaultConnectionRetry   );
     PutInt( "RequestTimeout",    DefaultRequestTimeout    );
-    PutInt( "DataServerTimeout", DefaultDataServerTimeout );
-    PutInt( "ManagerTimeout",    DefaultManagerTimeout    );
+    PutInt( "DataServerTTL",     DefaultDataServerTTL     );
+    PutInt( "ManagerTTL",        DefaultManagerTTL        );
     PutInt( "StreamsPerChannel", DefaultStreamsPerChannel );
     PutInt( "TimeoutResolution", DefaultTimeoutResolution );
+    PutInt( "StreamErrorWindow", DefaultStreamErrorWindow );
   }
 
   //----------------------------------------------------------------------------
