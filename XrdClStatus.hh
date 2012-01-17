@@ -46,6 +46,7 @@ namespace XrdClient
   const uint16_t errSocketDisconnected = 104;
   const uint16_t errPollerError        = 105;
   const uint16_t errSocketOptError     = 106;
+  const uint16_t errStreamDisconnect   = 107;
 
   //----------------------------------------------------------------------------
   // Protocol related errors
