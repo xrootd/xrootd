@@ -231,10 +231,24 @@ namespace XrdClient
   {
     Log *log = Utils::GetDefaultLog();
     XrdSysMutexHelper scopedLock( pMutex );
+
+    //--------------------------------------------------------------------------
+    // We need to check here (in a locked section) if the queue is empty,
+    // if it's not, then somebody has requested message sending, so we cancel
+    // the disconnection
+    //--------------------------------------------------------------------------
+    if( !pOutQueue.empty() )
+      return;
+
+    //--------------------------------------------------------------------------
+    // We don't seem to have anything to send so we disconnect
+    //--------------------------------------------------------------------------
     log->Debug( PostMasterMsg, "[%s #%d] Connection TTL elapsed, disconnecting.",
                                pUrl->GetHostId().c_str(), pStreamNum );
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+
+    //!!! Fail all the receivers
     pStreamStatus = Disconnected;
   }
 
@@ -584,7 +598,6 @@ namespace XrdClient
     Tick( now );
     if( pTransport->IsStreamTTLElapsed( now-pLastActivity, *pChannelData ) )
       Disconnect();
-
   }
 }
 
