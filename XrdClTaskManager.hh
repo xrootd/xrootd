@@ -23,14 +23,6 @@ namespace XrdClient
   {
     public:
       //------------------------------------------------------------------------
-      //! Destructor
-      //!
-      //! The manager takes the ownershit over a task so we need to be able
-      //! to properly destroy it
-      //------------------------------------------------------------------------
-      virtual ~Task() {};
-
-      //------------------------------------------------------------------------
       //! Perform the task
       //!
       //! @param now current timestamp

@@ -185,12 +185,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       for( listIt = toRun.begin(); listIt != toRun.end(); ++listIt )
       {
-        log->Debug( TaskMgrMsg, "Running task: 0x%x", *listIt );
+        log->Dump( TaskMgrMsg, "Running task: 0x%x", *listIt );
         time_t schedule = (*listIt)->Run( now );
         if( schedule )
         {
-          log->Debug( TaskMgrMsg, "Will rerun task 0x%x at %d",
-                                  *listIt, schedule );
+          log->Dump( TaskMgrMsg, "Will rerun task 0x%x at %d",
+                                 *listIt, schedule );
           pMutex.Lock();
           pTasks.insert( TaskHelper( *listIt, schedule ) );
           pMutex.UnLock();
