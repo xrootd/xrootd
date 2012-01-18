@@ -453,11 +453,11 @@ namespace XrdClient
     if( pCurrentOut->handler )
       pCurrentOut->handler->HandleStatus( pCurrentOut->msg, Status() );
 
+    scopedLock.Lock( &pMutex );
+    queue.pop_front();
     delete pCurrentOut;
     pCurrentOut = 0;
 
-    scopedLock.Lock( &pMutex );
-    queue.pop_front();
     if( queue.empty() )
     {
       log->Dump( PostMasterMsg, "[%s #%d] Nothing to write, disable write "
@@ -485,6 +485,8 @@ namespace XrdClient
       pIncoming = 0;
       Status st = pTransport->HandShake( pHandShakeData, *pChannelData );
       ++pHandShakeData->step;
+      delete pHandShakeData->in;
+      pHandShakeData->in = 0;
 
       if( !st.IsOK() )
       {
@@ -666,6 +668,9 @@ namespace XrdClient
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+    pCurrentOut = 0;
+    delete pIncoming;
+    pIncoming = 0;
 
     //--------------------------------------------------------------------------
     // Check if we are in the connection stage and should retry establishing
