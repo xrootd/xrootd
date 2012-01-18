@@ -125,7 +125,7 @@ namespace XrdClient
                     Poller           *poller,
                     TransportHandler *transport,
                     TaskManager      *taskManager ):
-    pUrl( url ),
+    pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager )
@@ -147,7 +147,7 @@ namespace XrdClient
     pStreams.resize( numStreams );
     for( int i = 0; i < numStreams; ++i )
     {
-      pStreams[i] = new Stream( &url, i );
+      pStreams[i] = new Stream( &pUrl, i );
       pStreams[i]->SetTransport( transport );
       pStreams[i]->SetPoller( poller );
       pStreams[i]->SetIncomingQueue( &pIncoming );
