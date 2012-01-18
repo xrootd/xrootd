@@ -161,6 +161,7 @@ void PostMasterTest::FunctionalTest()
   URL       localhost( "root://localhost" );
 
   m1.Allocate( sizeof( ClientPingRequest ) );
+  m1.Zero();
 
   ClientPingRequest *request = (ClientPingRequest *)m1.GetBuffer();
   request->streamid[0] = 1;
@@ -212,10 +213,16 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   // Send out some stuff to a location where nothing listens
   //----------------------------------------------------------------------------
+  env->PutInt( "ConnectionWindow", 5 );
+  env->PutInt( "ConnectionRetry", 3 );
   URL localhost1( "root://localhost:10101" );
   sc = postMaster.Send( localhost1, &m1, 3 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errSocketTimeout );
+
+  sc = postMaster.Send( localhost1, &m1, 1200 );
+  CPPUNIT_ASSERT( !sc.IsOK() );
+  CPPUNIT_ASSERT( sc.code == errConnectionError );
 
   postMaster.Stop();
   postMaster.Finalize();
