@@ -142,7 +142,8 @@ namespace XrdClient
     pMutex.Lock();
     if( pOutQueue.empty() )
     {
-      if(!pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ))
+      if( pStreamStatus == Connected &&
+          !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ))
       {
         HandleStreamFault( errPollerError );
         return Status( stError, errPollerError );
@@ -336,7 +337,7 @@ namespace XrdClient
         log->Error( PostMasterMsg, "[%s #%d] Unable to connect: %s",
                                    pUrl->GetHostId().c_str(), pStreamNum,
                                    strerror( errorCode ) );
-        HandleStreamFault( errSocketError );
+        HandleStreamFault( errConnectionError );
         return;
       }
 
@@ -612,7 +613,13 @@ namespace XrdClient
     time_t now = ::time(0);
     Tick( now );
     if( now >= pConnectionInitTime+pConnectionWindow )
-      HandleStreamFault( errSocketTimeout );
+    {
+      std::list<OutMessageHelper *>::iterator it;
+      for( it = pOutQueueConnect.begin(); it != pOutQueueConnect.end(); ++it )
+        delete (*it);
+      pOutQueueConnect.clear();
+      HandleStreamFault( errConnectionError );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -744,6 +751,10 @@ namespace XrdClient
       return;
     }
 
+    log->Error( PostMasterMsg, "[%s #%d] Too many reconnect attempts, "
+                               "giving up.",
+                               pUrl->GetHostId().c_str(), pStreamNum );
+
     //--------------------------------------------------------------------------
     // We cannot really do anything - declare and error and fail all the
     // requests
@@ -752,11 +763,24 @@ namespace XrdClient
     pLastStreamError = error;
     pErrorTime = now;
 
+    //--------------------------------------------------------------------------
     // since the incoming queue is shared we handle it only in the "main"
     // stream
+    //--------------------------------------------------------------------------
     if( pStreamNum == 0 )
-      pIncomingQueue->FailAllHandlers( Status( stError, error ) );
+      pIncomingQueue->FailAllHandlers( Status( stFatal, error ) );
 
-    //!!! fail all the requests
+    //--------------------------------------------------------------------------
+    // Fail all the outgoing handlers
+    //--------------------------------------------------------------------------
+    std::list<OutMessageHelper *>::iterator it;
+    for( it = pOutQueue.begin(); it != pOutQueue.end(); ++it )
+    {
+      if( (*it)->handler )
+        (*it)->handler->HandleStatus( (*it)->msg,
+                                      Status( stFatal, error ) );
+      delete (*it);
+    }
+    pOutQueue.clear();
   }
 }
