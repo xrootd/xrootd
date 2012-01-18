@@ -44,6 +44,14 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PostMaster::Finalize()
   {
+    //--------------------------------------------------------------------------
+    // Clean up the channels
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    ChannelMap::iterator it;
+    for( it = pChannelMap.begin(); it != pChannelMap.end(); ++it )
+      delete it->second;
+    pChannelMap.clear();
     return pPoller->Finalize();
   }
 

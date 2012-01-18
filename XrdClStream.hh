@@ -114,7 +114,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Disconnect the stream
       //------------------------------------------------------------------------
-      void Disconnect();
+      void Disconnect( bool force = false );
 
       //------------------------------------------------------------------------
       //! Handle a clock event generated either by socket timeout, or by
@@ -165,6 +165,11 @@ namespace XrdClient
       // Handle stream fault
       //------------------------------------------------------------------------
       void HandleStreamFault( uint16_t error = 0);
+
+      //------------------------------------------------------------------------
+      // Fail outgoing handlers
+      //------------------------------------------------------------------------
+      void FailOutgoingHandlers( Status status );
 
       const URL                     *pUrl;
       uint16_t                       pStreamNum;

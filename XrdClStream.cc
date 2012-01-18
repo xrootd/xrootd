@@ -80,6 +80,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Stream::~Stream()
   {
+    Disconnect();
     delete pSocket;
   }
 
@@ -233,7 +234,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Disconnect the stream
   //----------------------------------------------------------------------------
-  void Stream::Disconnect()
+  void Stream::Disconnect( bool force )
   {
     Log *log = Utils::GetDefaultLog();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -243,19 +244,21 @@ namespace XrdClient
     // if it's not, then somebody has requested message sending, so we cancel
     // the disconnection
     //--------------------------------------------------------------------------
-    if( !pOutQueue.empty() )
+    if( !force && !pOutQueue.empty() )
       return;
 
     //--------------------------------------------------------------------------
     // We don't seem to have anything to send so we disconnect
     //--------------------------------------------------------------------------
-    log->Debug( PostMasterMsg, "[%s #%d] Connection TTL elapsed, disconnecting.",
+    log->Debug( PostMasterMsg, "[%s #%d] Disconnecting.",
                                pUrl->GetHostId().c_str(), pStreamNum );
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
 
     if( pStreamNum == 0 )
       pIncomingQueue->FailAllHandlers( Status( stError, errStreamDisconnect ) );
+
+    FailOutgoingHandlers( Status( stError, errStreamDisconnect ) );
 
     pStreamStatus = Disconnected;
   }
@@ -770,15 +773,19 @@ namespace XrdClient
     if( pStreamNum == 0 )
       pIncomingQueue->FailAllHandlers( Status( stFatal, error ) );
 
-    //--------------------------------------------------------------------------
-    // Fail all the outgoing handlers
-    //--------------------------------------------------------------------------
+    FailOutgoingHandlers( Status( stFatal, error ) );
+  }
+
+  //----------------------------------------------------------------------------
+  // Fail outgoing handlers
+  //----------------------------------------------------------------------------
+  void Stream::FailOutgoingHandlers( Status status )
+  {
     std::list<OutMessageHelper *>::iterator it;
     for( it = pOutQueue.begin(); it != pOutQueue.end(); ++it )
     {
       if( (*it)->handler )
-        (*it)->handler->HandleStatus( (*it)->msg,
-                                      Status( stFatal, error ) );
+        (*it)->handler->HandleStatus( (*it)->msg, status );
       delete (*it);
     }
     pOutQueue.clear();
