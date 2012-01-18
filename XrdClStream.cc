@@ -23,10 +23,13 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct OutMessageHelper
   {
-    OutMessageHelper( Message *message, MessageStatusHandler *hndlr ):
-      msg( message ), handler( hndlr )  {}
+    OutMessageHelper( Message              *message,
+                      MessageStatusHandler *hndlr = 0,
+                      time_t                expir = 0 ):
+      msg( message ), handler( hndlr ), expires( expir )  {}
     Message              *msg;
     MessageStatusHandler *handler;
+    time_t                expires;
   };
 
   //----------------------------------------------------------------------------
@@ -146,7 +149,9 @@ namespace XrdClient
       }
     }
 
-    pOutQueue.push_back( new OutMessageHelper( msg, handler )  );
+    pOutQueue.push_back( new OutMessageHelper( msg,
+                                               handler,
+                                               ::time(0)+timeout )  );
     pMutex.UnLock();
     return Status();
   }
@@ -259,8 +264,34 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
+    //--------------------------------------------------------------------------
+    // Timout the handlers for the incoming messages
+    //--------------------------------------------------------------------------
     if( pStreamNum == 0 )
       pIncomingQueue->TimeoutHandlers( now );
+
+    //--------------------------------------------------------------------------
+    // Timeout the handlers for the outgoing messages
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+    std::list<OutMessageHelper *>::iterator it = pOutQueue.begin();
+    while( it != pOutQueue.end() )
+    {
+      //------------------------------------------------------------------------
+      // We timeout all the handlers but we don't stop the current
+      // transmission in order not to invalidate the stream
+      //------------------------------------------------------------------------
+      if( *it && *it != pCurrentOut && (*it)->expires <= now )
+      {
+        if( (*it)->handler )
+          (*it)->handler->HandleStatus( (*it)->msg,
+                                        Status( stError, errSocketTimeout ) );
+        delete (*it);
+        it = pOutQueue.erase( it );
+      }
+      else
+        ++it;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -334,7 +365,7 @@ namespace XrdClient
         //----------------------------------------------------------------------
         if( pHandShakeData->out )
         {
-          pOutQueueConnect.push_back( new OutMessageHelper( pHandShakeData->out, 0 ) );
+          pOutQueueConnect.push_back( new OutMessageHelper( pHandShakeData->out ) );
           pHandShakeData->out = 0;
         }
 
