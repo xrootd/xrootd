@@ -209,6 +209,14 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errStreamDisconnect );
 
+  //----------------------------------------------------------------------------
+  // Send out some stuff to a location where nothing listens
+  //----------------------------------------------------------------------------
+  URL localhost1( "root://localhost:10101" );
+  sc = postMaster.Send( localhost1, &m1, 3 );
+  CPPUNIT_ASSERT( !sc.IsOK() );
+  CPPUNIT_ASSERT( sc.code == errSocketTimeout );
+
   postMaster.Stop();
   postMaster.Finalize();
 }
