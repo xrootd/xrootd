@@ -147,7 +147,9 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
   env->PutInt( "DataServerTTL", 2 );
+  env->PutInt( "ManagerTTL", 2 );
   env->PutInt( "TimeoutResolution", 1 );
+  env->PutInt( "ConnectionWindow", 15 );
 
   PostMaster postMaster;
   postMaster.Initialize();
@@ -190,6 +192,7 @@ void PostMasterTest::FunctionalTest()
   m2 = 0;
   sc = postMaster.Send( localhost, &m1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
+
   sc = postMaster.Receive( localhost, m2, &f1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   resp = (ServerResponse *)m2->GetBuffer();
@@ -202,6 +205,7 @@ void PostMasterTest::FunctionalTest()
   // reception timeout
   //----------------------------------------------------------------------------
   env->PutInt( "DataServerTTL", 5 );
+  env->PutInt( "ManagerTTL", 5 );
   sc = postMaster.Receive( localhost, m2, &f1, 2 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errSocketTimeout );
