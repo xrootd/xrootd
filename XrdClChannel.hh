@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <ctime>
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -108,6 +109,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       Status Receive( MessageHandler *handler, uint16_t timeout );
 
+      //------------------------------------------------------------------------
+      //! Handle a time event
+      //------------------------------------------------------------------------
+      void Tick( time_t now );
+
     private:
 
       URL                    pUrl;
@@ -118,6 +124,7 @@ namespace XrdClient
       XrdSysMutex            pMutex;
       AnyObject              pChannelData;
       InQueue                pIncoming;
+      Task                  *pTickGenerator;
   };
 }
 

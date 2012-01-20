@@ -634,7 +634,6 @@ namespace XrdClient
   void Stream::HandleConnectingTimeout()
   {
     time_t now = ::time(0);
-    Tick( now );
     if( now >= pConnectionInitTime+pConnectionWindow )
     {
       std::list<OutMessageHelper *>::iterator it;
@@ -651,7 +650,6 @@ namespace XrdClient
   void Stream::HandleReadTimeout()
   {
     time_t now = ::time(0);
-    Tick( now );
     if( pTransport->IsStreamTTLElapsed( now-pLastActivity, *pChannelData ) )
       Disconnect();
   }
@@ -662,7 +660,6 @@ namespace XrdClient
   void Stream::HandleWriteTimeout()
   {
     time_t now = ::time(0);
-    Tick( now );
     if( pTransport->IsStreamTTLElapsed( now-pLastActivity, *pChannelData ) )
       Disconnect();
   }
@@ -679,37 +676,20 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StreamConnectorTask( XrdClient::Stream *stream,
-                           time_t connectTime,
-                           uint16_t timeoutResolution ):
-        pStream( stream ), pConnectTime( connectTime ),
-        pTimeoutResolution( timeoutResolution ) {}
+      StreamConnectorTask( XrdClient::Stream *stream ):
+        pStream( stream ) {}
 
       //------------------------------------------------------------------------
       // Run the task
       //------------------------------------------------------------------------
       time_t Run( time_t now )
       {
-        pStream->Tick( now );
-        if( now >= pConnectTime )
-        {
-          pStream->Connect();
-          return 0;
-        }
-
-        //----------------------------------------------------------------------
-        // Calculate when to run next
-        //----------------------------------------------------------------------
-        if( pConnectTime < now+pTimeoutResolution )
-          return pConnectTime;
-        else
-          return now+pTimeoutResolution;
+        pStream->Connect();
+        return 0;
       }
 
     private:
       XrdClient::Stream *pStream;
-      time_t             pConnectTime;
-      uint16_t           pTimeoutResolution;
   };
 }
 
@@ -742,10 +722,7 @@ namespace XrdClient
     {
       pStreamStatus = Connecting;
       time_t  newConnectTime = pConnectionInitTime + pConnectionWindow;
-      int64_t timeToConnect = newConnectTime - now;
-      time_t  scheduleTime   = newConnectTime;
-      if( newConnectTime > now+pTimeoutResolution )
-        scheduleTime = now+pTimeoutResolution;
+      int64_t timeToConnect  = newConnectTime - now;
 
       //------------------------------------------------------------------------
       // We may attempt the reconnection process immediately
@@ -767,10 +744,8 @@ namespace XrdClient
                                   pUrl->GetHostId().c_str(), pStreamNum,
                                   timeToConnect );
 
-        Task *task = new ::StreamConnectorTask( this,
-                                                newConnectTime,
-                                                pTimeoutResolution );
-        pTaskManager->RegisterTask( task, scheduleTime );
+        Task *task = new ::StreamConnectorTask( this );
+        pTaskManager->RegisterTask( task, newConnectTime );
       }
       return;
     }

@@ -113,6 +113,33 @@ namespace
       XrdClient::Status   pStatus;
       XrdClient::Message *pMsg;
   };
+
+  class TickGeneratorTask: public XrdClient::Task
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      TickGeneratorTask( XrdClient::Channel *channel ):
+        pChannel( channel ) {}
+
+      //------------------------------------------------------------------------
+      // Run the task
+      //------------------------------------------------------------------------
+      time_t Run( time_t now )
+      {
+        using namespace XrdClient;
+        pChannel->Tick( now );
+
+        Env *env = DefaultEnv::GetEnv();
+        int timeoutResolution = DefaultTimeoutResolution;
+        env->GetInt( "TimeoutResolution", timeoutResolution );
+        return now+timeoutResolution;
+      }
+
+    private:
+      XrdClient::Channel *pChannel;
+  };
 }
 
 namespace XrdClient
@@ -128,13 +155,17 @@ namespace XrdClient
     pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
-    pTaskManager( taskManager )
+    pTaskManager( taskManager ),
+    pTickGenerator( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
     Log *log = Utils::GetDefaultLog();
 
     int  numStreams = DefaultStreamsPerChannel;
     env->GetInt( "StreamsPerChannel", numStreams );
+
+    int  timeoutResolution = DefaultTimeoutResolution;
+    env->GetInt( "TimeoutResolution", timeoutResolution );
 
     log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
                                 url.GetHostId().c_str(), numStreams );
@@ -154,6 +185,12 @@ namespace XrdClient
       pStreams[i]->SetTaskManager( taskManager );
       pStreams[i]->SetChannelData( &pChannelData );
     }
+
+    //--------------------------------------------------------------------------
+    // Register the task generating timout events
+    //--------------------------------------------------------------------------
+    pTickGenerator = new TickGeneratorTask( this );
+    pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
   }
 
   //----------------------------------------------------------------------------
@@ -161,6 +198,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Channel::~Channel()
   {
+    pTaskManager->UnregisterTask( pTickGenerator );
+    delete pTickGenerator;
     for( int i = 0; i < pStreams.size(); ++i )
       delete pStreams[i];
     pTransport->FinalizeChannel( pChannelData );
@@ -220,5 +259,15 @@ namespace XrdClient
     time_t tm = ::time(0) + timeout;
     pIncoming.AddMessageHandler( handler, tm );
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle a time event
+  //----------------------------------------------------------------------------
+  void Channel::Tick( time_t now )
+  {
+    std::vector<Stream *>::iterator it;
+    for( it = pStreams.begin(); it != pStreams.end(); ++it )
+      (*it)->Tick( now );
   }
 }
