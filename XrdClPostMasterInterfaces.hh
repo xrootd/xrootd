@@ -84,14 +84,17 @@ namespace XrdClient
   struct HandShakeData
   {
     HandShakeData( const URL *addr, uint16_t stream ):
-      step(0), out(0), in(0), url(addr), streamId(stream), startTime( time(0) )
+      step(0), out(0), in(0), url(addr), streamId(stream), startTime( time(0) ),
+      serverAddr(0)
     {}
-    uint16_t   step;
-    Message   *out;
-    Message   *in;
-    const URL *url;
-    uint16_t   streamId;
-    time_t     startTime;
+    uint16_t     step;
+    Message     *out;
+    Message     *in;
+    const URL   *url;
+    uint16_t     streamId;
+    time_t       startTime;
+    const void  *serverAddr; //! in the form of sockaddr
+    std::string  clientName;
   };
 
   //----------------------------------------------------------------------------
@@ -149,6 +152,11 @@ namespace XrdClient
       //! valid before establishing other connections
       //------------------------------------------------------------------------
       virtual bool NeedControlConnection() = 0;
+
+      //------------------------------------------------------------------------
+      //! The stream has been disconnected, do the cleanups
+      //------------------------------------------------------------------------
+      virtual void Disconnect( AnyObject &channelData, uint16_t streamId ) = 0;
   };
 }
 

@@ -164,7 +164,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       // Handle stream fault
       //------------------------------------------------------------------------
-      void HandleStreamFault( uint16_t error = 0);
+      void HandleStreamFault( Status status = Status() );
 
       //------------------------------------------------------------------------
       // Fail outgoing handlers

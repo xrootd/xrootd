@@ -26,10 +26,18 @@ namespace XrdClient
     OutMessageHelper( Message              *message,
                       MessageStatusHandler *hndlr = 0,
                       time_t                expir = 0 ):
-      msg( message ), handler( hndlr ), expires( expir )  {}
+      msg( message ), handler( hndlr ), expires( expir ),
+      ownMessage( false )  {}
+    ~OutMessageHelper()
+    {
+      if( ownMessage )
+          delete msg;
+    }
+
     Message              *msg;
     MessageStatusHandler *handler;
     time_t                expires;
+    bool                  ownMessage;
   };
 
   //----------------------------------------------------------------------------
@@ -146,8 +154,9 @@ namespace XrdClient
       if( pStreamStatus == Connected &&
           !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ))
       {
-        HandleStreamFault( errPollerError );
-        return Status( stError, errPollerError );
+        Status st( stFatal, errPollerError );
+        HandleStreamFault( st );
+        return st;
       }
     }
 
@@ -218,14 +227,16 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     if( !pPoller->AddSocket( pSocket, this ) )
     {
-      HandleStreamFault( errPollerError );
-      return Status( stError, errPollerError );
+      Status st( stFatal, errPollerError );
+      HandleStreamFault( st );
+      return st;
     }
 
     if( !pPoller->EnableWriteNotification( pSocket, pTimeoutResolution ) )
     {
-      HandleStreamFault( errPollerError );
-      return Status( stError, errPollerError );
+      Status st( stFatal, errPollerError );
+      HandleStreamFault( st );
+      return st;
     }
 
     return Status();
@@ -261,6 +272,7 @@ namespace XrdClient
     FailOutgoingHandlers( Status( stError, errStreamDisconnect ) );
 
     pStreamStatus = Disconnected;
+    pTransport->Disconnect( *pChannelData, pStreamNum );
   }
 
   //----------------------------------------------------------------------------
@@ -328,7 +340,7 @@ namespace XrdClient
                                    "connect operation: %s",
                                    pUrl->GetHostId().c_str(), pStreamNum,
                                    strerror( errno ) );
-        HandleStreamFault( errSocketOptError );
+        HandleStreamFault( Status( stFatal, errSocketOptError ) );
         return;
       }
 
@@ -340,12 +352,14 @@ namespace XrdClient
         log->Error( PostMasterMsg, "[%s #%d] Unable to connect: %s",
                                    pUrl->GetHostId().c_str(), pStreamNum,
                                    strerror( errorCode ) );
-        HandleStreamFault( errConnectionError );
+        HandleStreamFault( Status( stError, errConnectionError ) );
         return;
       }
 
       pSocket->SetStatus( Socket::Connected );
       pHandShakeData = new HandShakeData( pUrl, pStreamNum );
+      pHandShakeData->serverAddr = pSocket->GetServerAddress();
+      pHandShakeData->clientName = pSocket->GetSockName();
 
       //------------------------------------------------------------------------
       // Call the protocol handshake method for the first time
@@ -360,7 +374,7 @@ namespace XrdClient
         {
           log->Error( PostMasterMsg, "[%s #%d] Connection negotiation failed",
                                       pUrl->GetHostId().c_str(), pStreamNum );
-          HandleStreamFault( st.code );
+          HandleStreamFault( st );
           return;
         }
 
@@ -369,7 +383,9 @@ namespace XrdClient
         //----------------------------------------------------------------------
         if( pHandShakeData->out )
         {
-          pOutQueueConnect.push_back( new OutMessageHelper( pHandShakeData->out ) );
+          OutMessageHelper *hlpr = new OutMessageHelper( pHandShakeData->out );
+          hlpr->ownMessage = true;
+          pOutQueueConnect.push_back( hlpr );
           pHandShakeData->out = 0;
         }
 
@@ -379,7 +395,7 @@ namespace XrdClient
 
       if( !pPoller->EnableReadNotification( pSocket, true, pTimeoutResolution ) )
       {
-        HandleStreamFault( errPollerError );
+        HandleStreamFault( Status( stFatal, errPollerError ) );
         return;
       }
 
@@ -392,6 +408,7 @@ namespace XrdClient
       {
         pConnectionCount = 0;
         pStreamStatus    = Connected;
+        delete pHandShakeData;
       }
     }
 
@@ -403,7 +420,7 @@ namespace XrdClient
 
     if( !st.IsOK() )
     {
-      HandleStreamFault( st.code );
+      HandleStreamFault( st );
       return;
     }
   }
@@ -417,7 +434,7 @@ namespace XrdClient
     Status st = WriteMessage( pOutQueue );
     if( !st.IsOK() )
     {
-      HandleStreamFault( st.code );
+      HandleStreamFault( st );
       return;
     }
   }
@@ -444,7 +461,7 @@ namespace XrdClient
       else
       {
         if( !pPoller->EnableWriteNotification( pSocket, false ) )
-          return Status( stError, errPollerError );
+          return Status( stFatal, errPollerError );
         return Status();
       }
     }
@@ -500,7 +517,7 @@ namespace XrdClient
                                  pUrl->GetHostId().c_str(), pStreamNum );
 
       if( !pPoller->EnableWriteNotification( pSocket, false ) )
-        return Status( stError, errPollerError );
+        return Status( stFatal, errPollerError );
     }
     return Status();
   }
@@ -525,7 +542,7 @@ namespace XrdClient
 
       if( !st.IsOK() )
       {
-        HandleStreamFault( st.code );
+        HandleStreamFault( st );
         return;
       }
 
@@ -534,13 +551,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       if( pHandShakeData->out )
       {
-          pOutQueueConnect.push_back( new OutMessageHelper( pHandShakeData->out, 0 ) );
-          pHandShakeData->out = 0;
-          if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-          {
-            HandleStreamFault( errPollerError );
-            return;
-          }
+        OutMessageHelper *hlpr = new OutMessageHelper( pHandShakeData->out );
+        hlpr->ownMessage = true;
+        pOutQueueConnect.push_back( hlpr );
+        pHandShakeData->out = 0;
+        if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
+        {
+          HandleStreamFault( Status( stFatal, errPollerError ) );
+          return;
+        }
       }
 
       //------------------------------------------------------------------------
@@ -550,9 +569,10 @@ namespace XrdClient
       {
         pStreamStatus = Connected;
         pConnectionCount = 0;
+        delete pHandShakeData;
         if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
         {
-          HandleStreamFault( errPollerError );
+          HandleStreamFault( Status( stFatal, errPollerError ) );
           return;
         }
       }
@@ -560,7 +580,7 @@ namespace XrdClient
 
     if( !st.IsOK() )
     {
-      HandleStreamFault( st.code );
+      HandleStreamFault( st );
       return;
     }
   }
@@ -579,7 +599,7 @@ namespace XrdClient
 
     if( !st.IsOK() )
     {
-      HandleStreamFault( st.code );
+      HandleStreamFault( st );
       return;
     }
   }
@@ -621,7 +641,7 @@ namespace XrdClient
       for( it = pOutQueueConnect.begin(); it != pOutQueueConnect.end(); ++it )
         delete (*it);
       pOutQueueConnect.clear();
-      HandleStreamFault( errConnectionError );
+      HandleStreamFault( Status( stError, errConnectionError ) );
     }
   }
 
@@ -698,7 +718,7 @@ namespace XrdClient
   //------------------------------------------------------------------------
   // Handle stream fault
   //------------------------------------------------------------------------
-  void Stream::HandleStreamFault( uint16_t error )
+  void Stream::HandleStreamFault( Status status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = Utils::GetDefaultLog();
@@ -712,12 +732,13 @@ namespace XrdClient
     pCurrentOut = 0;
     delete pIncoming;
     pIncoming = 0;
+    pTransport->Disconnect( *pChannelData, pStreamNum );
 
     //--------------------------------------------------------------------------
     // Check if we are in the connection stage and should retry establishing
     // the connection
     //--------------------------------------------------------------------------
-    if( pConnectionCount < pConnectionRetry )
+    if( !status.IsFatal() && (pConnectionCount < pConnectionRetry) )
     {
       pStreamStatus = Connecting;
       time_t  newConnectTime = pConnectionInitTime + pConnectionWindow;
@@ -754,7 +775,7 @@ namespace XrdClient
       return;
     }
 
-    log->Error( PostMasterMsg, "[%s #%d] Too many reconnect attempts, "
+    log->Error( PostMasterMsg, "[%s #%d] Fatal errors have occured, "
                                "giving up.",
                                pUrl->GetHostId().c_str(), pStreamNum );
 
@@ -763,7 +784,7 @@ namespace XrdClient
     // requests
     //--------------------------------------------------------------------------
     pStreamStatus = Error;
-    pLastStreamError = error;
+    pLastStreamError = status.code;
     pErrorTime = now;
 
     //--------------------------------------------------------------------------
@@ -771,9 +792,9 @@ namespace XrdClient
     // stream
     //--------------------------------------------------------------------------
     if( pStreamNum == 0 )
-      pIncomingQueue->FailAllHandlers( Status( stFatal, error ) );
+      pIncomingQueue->FailAllHandlers( status );
 
-    FailOutgoingHandlers( Status( stFatal, error ) );
+    FailOutgoingHandlers( status );
   }
 
   //----------------------------------------------------------------------------

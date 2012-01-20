@@ -161,9 +161,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Channel::~Channel()
   {
-    pTransport->FinalizeChannel( pChannelData );
     for( int i = 0; i < pStreams.size(); ++i )
       delete pStreams[i];
+    pTransport->FinalizeChannel( pChannelData );
   }
 
   //----------------------------------------------------------------------------

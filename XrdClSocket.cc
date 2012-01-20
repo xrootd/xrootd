@@ -9,8 +9,6 @@
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetConnect.hh"
 
-#include <iostream>
-
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,6 +16,7 @@
 #include <ctime>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <cstdlib>
 
 namespace XrdClient
 {
@@ -124,17 +123,17 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Set up the network connection structures
     //--------------------------------------------------------------------------
-    sockaddr_in inetAddr;
-    if( XrdSysDNS::getHostAddr( host.c_str(), (sockaddr&)inetAddr ) == 0 )
+    pServerAddr = (sockaddr*)malloc( sizeof(sockaddr_in) );
+    if( XrdSysDNS::getHostAddr( host.c_str(), *pServerAddr ) == 0 )
       return Status( stError, errInvalidAddr );
 
-    inetAddr.sin_port = htons( (unsigned short) port );
+    ((sockaddr_in*)pServerAddr)->sin_port = htons( (unsigned short) port );
 
     //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
-    int status = XrdNetConnect::Connect( pSocket, (sockaddr *)&inetAddr,
-                                         sizeof(inetAddr), timeout );
+    int status = XrdNetConnect::Connect( pSocket, pServerAddr,
+                                         sizeof(sockaddr_in), timeout );
 
     if( status != 0 )
     {
@@ -174,11 +173,13 @@ namespace XrdClient
     if( pStatus != Uninitialized )
     {
       close( pSocket );
+      free( pServerAddr );
       pStatus      = Uninitialized;
       pSocket      = -1;
       pSockName    = "";
       pPeerName    = "";
       pName        = "";
+      pServerAddr  = 0;
     }
   }
 

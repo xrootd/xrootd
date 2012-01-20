@@ -11,15 +11,34 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdSys/XrdSysPlatform.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <unistd.h>
-
-#include <iostream>
+#include <dlfcn.h>
 
 namespace XrdClient
 {
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  XRootDTransport::XRootDTransport():
+    pSecLibHandle(0),
+    pAuthHandler(0)
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  XRootDTransport::~XRootDTransport()
+  {
+    if( pSecLibHandle )
+      dlclose( pSecLibHandle );
+  }
+
   //----------------------------------------------------------------------------
   // Read a message
   //----------------------------------------------------------------------------
@@ -103,49 +122,98 @@ namespace XrdClient
   Status XRootDTransport::HandShake( HandShakeData *handShakeData,
                                      AnyObject     &channelData )
   {
-    Log *log = Utils::GetDefaultLog();
-
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    if( info->stream.size() <= handShakeData->streamId )
+      info->stream.resize( handShakeData->streamId+1 );
+    XRootDStreamInfo &sInfo = info->stream[handShakeData->streamId];
 
-    switch( handShakeData->step )
+    //--------------------------------------------------------------------------
+    // First step - we need to create and initial handshake and send it out
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::Disconnected ||
+        sInfo.status == XRootDStreamInfo::Broken )
     {
-      //------------------------------------------------------------------------
-      // First step - we need to create and initial handshake and send it out
-      //------------------------------------------------------------------------
-      case 0:
+      handShakeData->out = GenerateInitialHS( handShakeData, info );
+      sInfo.status = XRootDStreamInfo::HandShakeSent;
+      return Status( stOK, suContinue );
+    }
+
+    //--------------------------------------------------------------------------
+    // Second step - we got the reply message to the initial handshake
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::HandShakeSent )
+    {
+      Status st = ProcessServerHS( handShakeData, info );
+      if( st.IsOK() )
+        sInfo.status = XRootDStreamInfo::HandShakeReceived;
+      else
+        sInfo.status = XRootDStreamInfo::Broken;
+      return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Third step - we got the response to the protocol request, we need
+    // to process it and send out a login request
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::HandShakeReceived )
+    {
+      Status st =  ProcessProtocolResp( handShakeData, info );
+
+      if( !st.IsOK() )
       {
-        handShakeData->out = GenerateInitialHS( handShakeData, info );
-        return Status( stOK, suContinue );
+        sInfo.status = XRootDStreamInfo::Broken;
+        return st;
       }
 
-      //------------------------------------------------------------------------
-      // Second step - we got the reply message to the initial handshake
-      //------------------------------------------------------------------------
-      case 1:
-        return ProcessServerHS( handShakeData, info );
+      handShakeData->out = GenerateLogIn( handShakeData, info );
+      sInfo.status = XRootDStreamInfo::LoginSent;
+      return Status( stOK, suContinue );
+    }
 
-      //------------------------------------------------------------------------
-      // Third step - we got the response to the protocol request, we need
-      // to process it and send out a login request
-      //------------------------------------------------------------------------
-      case 2:
+    //--------------------------------------------------------------------------
+    // Fourth step - handle the log in response and proceed with the
+    // authentication if required by the server
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::LoginSent )
+    {
+      Status st = ProcessLogInResp( handShakeData, info );
+
+      if( !st.IsOK() )
       {
-        Status st =  ProcessProtocolResp( handShakeData, info );
-
-        if( !st.IsOK() )
-          return st;
-
-        handShakeData->out = GenerateLogIn( handShakeData, info );
-        return Status( stOK, suContinue );
+        sInfo.status = XRootDStreamInfo::Broken;
+        return st;
       }
 
-      //------------------------------------------------------------------------
-      // Fourth step - handle the log in response
-      //------------------------------------------------------------------------
-      case 3:
-        return ProcessLogInResp( handShakeData, info );
-    };
+      if( st.IsOK() && st.code == suDone )
+      {
+        sInfo.status = XRootDStreamInfo::Connected;
+        return st;
+      }
+
+      st = DoAuthentication( handShakeData, info );
+      if( !st.IsOK() )
+        sInfo.status = XRootDStreamInfo::Broken;
+      else
+        sInfo.status = XRootDStreamInfo::AuthSent;
+      return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Fifth step and later - proceed with the authentication
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::AuthSent )
+    {
+      Status st = DoAuthentication( handShakeData, info );
+
+      if( !st.IsOK() )
+        sInfo.status = XRootDStreamInfo::Broken;
+
+      if( st.IsOK() && st.code == suDone )
+        sInfo.status = XRootDStreamInfo::Connected;
+
+      return st;
+    }
 
     return Status( stOK, suDone );
   }
@@ -217,6 +285,13 @@ namespace XrdClient
         req->login.pid  = htonl( req->login.pid );
         req->login.dlen = htonl( req->login.dlen );
         break;
+
+      //------------------------------------------------------------------------
+      // kXR_login
+      //------------------------------------------------------------------------
+      case kXR_auth:
+        req->auth.dlen = htonl( req->login.dlen );
+        break;
     };
 
     req->header.requestid = htons( req->header.requestid );
@@ -276,6 +351,20 @@ namespace XrdClient
     ServerResponseBody_Error *err = (ServerResponseBody_Error *)msg.GetBuffer(8);
     log->Error( XRootDTransportMsg, "Server responded with an error [%d]: %s",
                                     err->errnum, err->errmsg );
+  }
+
+  //----------------------------------------------------------------------------
+  // The stream has been disconnected, do the cleanups
+  //----------------------------------------------------------------------------
+  void XRootDTransport::Disconnect( AnyObject &channelData, uint16_t streamId )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    if( !info->stream.empty() )
+    {
+      XRootDStreamInfo &sInfo = info->stream[streamId];
+      sInfo.status = XRootDStreamInfo::Disconnected;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -436,12 +525,302 @@ namespace XrdClient
       return Status( stFatal, errLoginFailed );
     }
 
-    memcpy( info->sessionId, rsp->body.login.sessid, 16 );
-
     log->Debug( XRootDTransportMsg, "[%s #%d] Logged in",
                                     hsData->url->GetHostId().c_str(),
                                     hsData->streamId );
+
+    memcpy( info->sessionId, rsp->body.login.sessid, 16 );
+
+    //--------------------------------------------------------------------------
+    // We have an authentication info to process
+    //--------------------------------------------------------------------------
+    if( rsp->hdr.dlen > 16 )
+    {
+      size_t len = rsp->hdr.dlen-16;
+      info->authBuffer = new char[len+1];
+      info->authBuffer[len] = 0;
+      memcpy( info->authBuffer, rsp->body.login.sec, len );
+      log->Debug( XRootDTransportMsg, "[%s #%d] Authentication is required: %s",
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId,
+                                      info->authBuffer );
+
+      return Status( stOK, suContinue );
+    }
+
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Do the authentication
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::DoAuthentication( HandShakeData     *hsData,
+                                            XRootDChannelInfo *info )
+  {
+    //--------------------------------------------------------------------------
+    // Prepare
+    //--------------------------------------------------------------------------
+    Log               *log   = Utils::GetDefaultLog();
+    XRootDStreamInfo  &sInfo = info->stream[hsData->streamId];
+    XrdSecCredentials *credentials = 0;
+    std::string        protocolName;
+
+    //--------------------------------------------------------------------------
+    // We're doing this for the first time
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::LoginSent )
+    {
+      log->Debug( XRootDTransportMsg, "[%s #%d] Sending authentication data",
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId );
+
+      //------------------------------------------------------------------------
+      // Initialize some structs
+      //------------------------------------------------------------------------
+      info->authEnv = new XrdOucEnv();
+      info->authEnv->Put( "sockname", hsData->clientName.c_str() );
+
+      size_t authBuffLen = strlen( info->authBuffer );
+      char *pars = (char *)malloc( authBuffLen );
+      memcpy( pars, info->authBuffer, authBuffLen );
+      info->authParams = new XrdSecParameters( pars, authBuffLen );
+      sInfo.status = XRootDStreamInfo::AuthSent;
+
+      //------------------------------------------------------------------------
+      // Find a protocol that gives us valid credentials
+      //------------------------------------------------------------------------
+      Status st = GetCredentials( credentials, hsData, info );
+      if( !st.IsOK() )
+      {
+        CleanUpAuthentication( info );
+        return st;
+      }
+      protocolName = info->authProtocol->Entity.prot;
+    }
+
+    //--------------------------------------------------------------------------
+    // We've been here already
+    //--------------------------------------------------------------------------
+    else
+    {
+      ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
+      protocolName = info->authProtocol->Entity.prot;
+
+      //------------------------------------------------------------------------
+      // We're required to send out more authentication data
+      //------------------------------------------------------------------------
+      if( rsp->hdr.status == kXR_authmore )
+      {
+        log->Debug( XRootDTransportMsg, "[%s #%d] Sending more authentication "
+                                        "data for %s",
+                                        hsData->url->GetHostId().c_str(),
+                                        hsData->streamId,
+                                        protocolName.c_str() );
+
+        uint32_t          len      = rsp->hdr.dlen;
+        char             *secTokenData = (char*)malloc( len );
+        memcpy( secTokenData, rsp->body.authmore.data, len );
+        XrdSecParameters *secToken     = new XrdSecParameters( secTokenData, len );
+        XrdOucErrInfo     ei( "", info->authEnv);
+        credentials = info->authProtocol->getCredentials( secToken, &ei );
+        delete secToken;
+
+        //----------------------------------------------------------------------
+        // The protocol handler refuses to give us the data
+        //----------------------------------------------------------------------
+        if( !credentials )
+        {
+          log->Debug( XRootDTransportMsg, "[%s #%d] Auth protocol handler for "
+                                          "%s refuses to give us more "
+                                          "credentials %s",
+                                          hsData->url->GetHostId().c_str(),
+                                          hsData->streamId,
+                                          protocolName.c_str(),
+                                          ei.getErrText() );
+          CleanUpAuthentication( info );
+          return Status( stFatal, errAuthFailed );
+        }
+      }
+
+      //------------------------------------------------------------------------
+      // We have either succeeded or failed, in either case we need to clean up
+      //------------------------------------------------------------------------
+      else
+      {
+        CleanUpAuthentication( info );
+
+        //----------------------------------------------------------------------
+        // Success
+        //----------------------------------------------------------------------
+        if( rsp->hdr.status == kXR_ok )
+        {
+          log->Debug( XRootDTransportMsg, "[%s #%d] Authenticated with %s.",
+                                          hsData->url->GetHostId().c_str(),
+                                          hsData->streamId,
+                                          protocolName.c_str() );
+          return Status();
+        }
+
+        //----------------------------------------------------------------------
+        // Failure
+        //----------------------------------------------------------------------
+        else if( rsp->hdr.status == kXR_error )
+        {
+          log->Error( XRootDTransportMsg, "[%s #%d] Authentication with %s "
+                                          "failed: %s",
+                                          hsData->url->GetHostId().c_str(),
+                                          hsData->streamId,
+                                          protocolName.c_str(),
+                                          rsp->body.error.errmsg );
+
+          return Status( stError, errAuthFailed );
+        }
+
+        //----------------------------------------------------------------------
+        // God knows what
+        //----------------------------------------------------------------------
+        log->Error( XRootDTransportMsg, "[%s #%d] Authentication with %s "
+                                        "failed: unexpected answer",
+                                        hsData->url->GetHostId().c_str(),
+                                        hsData->streamId,
+                                        protocolName.c_str() );
+        return Status( stError, errAuthFailed );
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Generate the client request
+    //--------------------------------------------------------------------------
+    Message *msg = new Message( sizeof(ClientAuthRequest)+credentials->size );
+    msg->Zero();
+    ClientRequest *req       = (ClientRequest*)msg->GetBuffer();
+    char          *reqBuffer = msg->GetBuffer(sizeof(ClientAuthRequest));
+
+    req->header.requestid = kXR_auth;
+    req->auth.dlen        = credentials->size;
+    memcpy( req->auth.credtype, protocolName.c_str(),
+            protocolName.length() > 4 ? 4 : protocolName.length() );
+
+    memcpy( reqBuffer, credentials->buffer, credentials->size );
+    hsData->out = msg;
+    Marshall( msg );
+    delete credentials;
+    return Status( stOK, suContinue );
+  }
+
+  //------------------------------------------------------------------------
+  // Get the initial credentials using one of the protocols
+  //------------------------------------------------------------------------
+  Status XRootDTransport::GetCredentials( XrdSecCredentials *&credentials,
+                                          HandShakeData      *hsData,
+                                          XRootDChannelInfo  *info )
+  {
+    //--------------------------------------------------------------------------
+    // Set up the auth handler
+    //--------------------------------------------------------------------------
+    Log             *log   = Utils::GetDefaultLog();
+    XrdOucErrInfo    ei( "", info->authEnv);
+    XrdSecGetProt_t  authHandler = GetAuthHandler();
+    if( !authHandler )
+      return Status( stFatal, errAuthFailed );
+
+    //--------------------------------------------------------------------------
+    // Loop over the possible protocols to find one that gives us valid
+    // credentials
+    //--------------------------------------------------------------------------
+    while(1)
+    {
+      //------------------------------------------------------------------------
+      // Get the protocol
+      //------------------------------------------------------------------------
+      info->authProtocol = (*authHandler)( hsData->url->GetHostName().c_str(),
+                                           *((sockaddr*)hsData->serverAddr),
+                                           *info->authParams,
+                                           0 );
+      if( !info->authProtocol )
+      {
+        log->Error( XRootDTransportMsg, "[%s #%d] No protocols left to try",
+                                        hsData->url->GetHostId().c_str(),
+                                        hsData->streamId );
+        return Status( stFatal, errAuthFailed );
+      }
+
+      std::string protocolName = info->authProtocol->Entity.prot;
+      log->Debug( XRootDTransportMsg, "[%s #%d] Trying to authenticate using %s",
+                                      hsData->url->GetHostId().c_str(),
+                                      hsData->streamId,
+                                      protocolName.c_str() );
+
+      //------------------------------------------------------------------------
+      // Get the credentials from the current protocol
+      //------------------------------------------------------------------------
+      credentials = info->authProtocol->getCredentials( 0, &ei );
+      if( !credentials )
+      {
+        log->Debug( XRootDTransportMsg, "[%s #%d] Cannot get credentials for "
+                                        "protocol %s: %s",
+                                        hsData->url->GetHostId().c_str(),
+                                        hsData->streamId,
+                                        protocolName.c_str(),
+                                        ei.getErrText() );
+        info->authProtocol->Delete();
+        continue;
+      }
+      return Status( stOK, suContinue );
+    }
+  }
+
+  //------------------------------------------------------------------------
+  // Clean up the data structures created for the authentication process
+  //------------------------------------------------------------------------
+  Status XRootDTransport::CleanUpAuthentication( XRootDChannelInfo *info )
+  {
+    if( info->authProtocol )
+      info->authProtocol->Delete();
+    delete info->authParams;
+    delete info->authEnv;
+    info->authProtocol = 0;
+    info->authParams   = 0;
+    info->authEnv      = 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the authentication function handle
+  //----------------------------------------------------------------------------
+  XRootDTransport::XrdSecGetProt_t XRootDTransport::GetAuthHandler()
+  {
+    Log *log = Utils::GetDefaultLog();
+
+    if( pAuthHandler )
+      return pAuthHandler;
+
+    //--------------------------------------------------------------------------
+    // dlopen the library
+    //--------------------------------------------------------------------------
+    std::string libName = "libXrdSec"; libName += LT_MODULE_EXT;
+    pSecLibHandle = ::dlopen( libName.c_str(), RTLD_NOW );
+    if( !pSecLibHandle )
+    {
+      log->Error( XRootDTransportMsg, "Unable to load the authentication "
+                                      "library %s: %s",
+                                      libName.c_str(), ::dlerror() );
+      return 0;
+    }
+
+    //--------------------------------------------------------------------------
+    // Get the authentication function handle
+    //--------------------------------------------------------------------------
+    pAuthHandler = (XrdSecGetProt_t)dlsym( pSecLibHandle, "XrdSecGetProtocol" );
+    if( !pAuthHandler )
+    {
+      log->Error( XRootDTransportMsg, "Unable to get the XrdSecGetProtocol "
+                                      "symbol from library %s: %s",
+                                      libName.c_str(), ::dlerror() );
+      ::dlclose( pSecLibHandle );
+      pSecLibHandle = 0;
+      return 0;
+    }
+    return pAuthHandler;
   }
 
   //----------------------------------------------------------------------------

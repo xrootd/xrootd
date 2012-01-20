@@ -9,6 +9,8 @@
 
 #include <stdint.h>
 #include <string>
+#include <sys/socket.h>
+
 #include "XrdCl/XrdClStatus.hh"
 
 namespace XrdClient
@@ -34,7 +36,7 @@ namespace XrdClient
       //! @param status status of a socket if available
       //------------------------------------------------------------------------
       Socket( int socket = -1, SocketStatus status = Uninitialized ):
-        pSocket(-1), pStatus( status )
+        pSocket(-1), pStatus( status ), pServerAddr( 0 )
       {
         if( pSocket != -1 && status == Uninitialized )
           pStatus = Initialized;
@@ -43,7 +45,10 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Desctuctor
       //------------------------------------------------------------------------
-      virtual ~Socket() { Close(); };
+      virtual ~Socket()
+      {
+        Close();
+      };
 
       //------------------------------------------------------------------------
       //! Initialize the socket
@@ -150,6 +155,14 @@ namespace XrdClient
       //------------------------------------------------------------------------
       std::string GetName() const;
 
+      //------------------------------------------------------------------------
+      // Get the server address
+      //------------------------------------------------------------------------
+      const sockaddr *GetServerAddress() const
+      {
+        return pServerAddr;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Poll the socket to see whether it is ready for IO
@@ -166,11 +179,12 @@ namespace XrdClient
       Status Poll( bool readyForReading, bool readyForWriting,
                    uint32_t timeout );
 
-      int                 pSocket;
-      SocketStatus        pStatus;
-      mutable std::string pSockName;     // mutable because it's for caching
-      mutable std::string pPeerName;
-      mutable std::string pName;
+      int                  pSocket;
+      SocketStatus         pStatus;
+      sockaddr            *pServerAddr;
+      mutable std::string  pSockName;     // mutable because it's for caching
+      mutable std::string  pPeerName;
+      mutable std::string  pName;
   };
 }
 

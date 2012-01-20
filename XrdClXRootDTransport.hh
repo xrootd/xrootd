@@ -9,18 +9,80 @@
 
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XProtocol/XProtocol.hh"
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 namespace XrdClient
 {
+  //----------------------------------------------------------------------------
+  //! Information holder for XRootDStreams
+  //----------------------------------------------------------------------------
+  struct XRootDStreamInfo
+  {
+    //--------------------------------------------------------------------------
+    // Define the stream status for the link negotiation purposes
+    //--------------------------------------------------------------------------
+    enum StreamStatus
+    {
+      Disconnected,
+      Broken,
+      HandShakeSent,
+      HandShakeReceived,
+      LoginSent,
+      AuthSent,
+      Connected
+    };
+
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDStreamInfo(): status( Disconnected )
+    {
+    }
+
+    StreamStatus status;
+  };
+
   //----------------------------------------------------------------------------
   //! Information holder for xrootd channels
   //----------------------------------------------------------------------------
   struct XRootDChannelInfo
   {
-    XRootDChannelInfo(): serverFlags(0), protocolVersion(0) {}
-    uint32_t serverFlags;
-    uint32_t protocolVersion;
-    uint8_t  sessionId[16];
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDChannelInfo():
+      serverFlags(0),
+      protocolVersion(0),
+      authBuffer(0),
+      authProtocol(0),
+      authParams(0),
+      authEnv(0)
+    {
+      memset( sessionId, 0, 16 );
+    }
+
+    //--------------------------------------------------------------------------
+    // Destructor
+    //--------------------------------------------------------------------------
+    ~XRootDChannelInfo()
+    {
+      delete [] authBuffer;
+    }
+
+    typedef std::vector<XRootDStreamInfo> StreamInfoVector;
+
+    //--------------------------------------------------------------------------
+    // Data
+    //--------------------------------------------------------------------------
+    uint32_t          serverFlags;
+    uint32_t          protocolVersion;
+    uint8_t           sessionId[16];
+    char             *authBuffer;
+    XrdSecProtocol   *authProtocol;
+    XrdSecParameters *authParams;
+    XrdOucEnv        *authEnv;
+    StreamInfoVector  stream;
   };
 
   //----------------------------------------------------------------------------
@@ -29,6 +91,16 @@ namespace XrdClient
   class XRootDTransport: public TransportHandler
   {
     public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      XRootDTransport();
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~XRootDTransport();
+
       //------------------------------------------------------------------------
       //! Read a message from the socket, the socket is non blocking, so if
       //! there is not enough data the function should retutn errRetry in which
@@ -102,6 +174,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       static void LogErrorResponse( const Message &msg );
 
+      //------------------------------------------------------------------------
+      //! The stream has been disconnected, do the cleanups
+      //------------------------------------------------------------------------
+      virtual void Disconnect( AnyObject &channelData, uint16_t streamId );
+
     private:
 
       //------------------------------------------------------------------------
@@ -135,9 +212,40 @@ namespace XrdClient
                                XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
+      // Do the authentication
+      //------------------------------------------------------------------------
+      Status DoAuthentication( HandShakeData     *hsData,
+                               XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Get the initial credentials using one of the protocols
+      //------------------------------------------------------------------------
+      Status GetCredentials( XrdSecCredentials *&credentials,
+                             HandShakeData      *hsData,
+                             XRootDChannelInfo  *info );
+
+      //------------------------------------------------------------------------
+      // Clean up the data structures created for the authentication process
+      //------------------------------------------------------------------------
+      Status CleanUpAuthentication( XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Get the authentication function handle
+      //------------------------------------------------------------------------
+      typedef XrdSecProtocol *(*XrdSecGetProt_t)( const char             *,
+                                                  const sockaddr         &,
+                                                  const XrdSecParameters &,
+                                                  XrdOucErrInfo          * );
+
+      XrdSecGetProt_t GetAuthHandler();
+
+      //------------------------------------------------------------------------
       // Get a string representation of the server flags
       //------------------------------------------------------------------------
       static std::string ServerFlagsToStr( uint32_t flags );
+
+      void            *pSecLibHandle;
+      XrdSecGetProt_t  pAuthHandler;
   };
 }
 
