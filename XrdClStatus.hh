@@ -69,7 +69,7 @@ namespace XrdClient
       status(st), code(cod), errNo( errN ) {}
 
     bool IsError() { return status & stError; }
-    bool IsFatal() { return status & stFatal; }
+    bool IsFatal() { return (status&0x0002) & stFatal; }
     bool IsOK()    { return status == stOK; }
 
     uint16_t status;     //!< Status of the execution
