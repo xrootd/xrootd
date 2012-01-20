@@ -281,7 +281,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Write raw bytes to the socket
   //----------------------------------------------------------------------------
-  Status Socket::WriteRaw( void *buffer, uint32_t size, uint16_t timeout,
+  Status Socket::WriteRaw( void *buffer, uint32_t size, int32_t timeout,
                            uint32_t &bytesWritten )
   {
     //--------------------------------------------------------------------------
@@ -368,7 +368,7 @@ namespace XrdClient
   // Poll the descriptor
   //----------------------------------------------------------------------------
   Status Socket::Poll( bool readyForReading, bool readyForWriting,
-                       uint32_t timeout )
+                       int32_t timeout )
   {
     //--------------------------------------------------------------------------
     // Check if we're connected

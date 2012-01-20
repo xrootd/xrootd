@@ -126,10 +126,10 @@ namespace XrdClient
       //!
       //! @param buffer       data to be written
       //! @param size         size of the data buffer
-      //! @param timeout       timeout value in seconds, -1 to wait indefinitely
+      //! @param timeout      timeout value in seconds, -1 to wait indefinitely
       //! @param bytesWritten the amount of data actually written
       //------------------------------------------------------------------------
-      Status WriteRaw( void *buffer, uint32_t size, uint16_t timeout,
+      Status WriteRaw( void *buffer, uint32_t size, int32_t timeout,
                        uint32_t &bytesWritten );
 
       //------------------------------------------------------------------------
@@ -177,7 +177,7 @@ namespace XrdClient
       //!         errInvalidOp          - when called on a non connected socket
       //------------------------------------------------------------------------
       Status Poll( bool readyForReading, bool readyForWriting,
-                   uint32_t timeout );
+                   int32_t timeout );
 
       int                  pSocket;
       SocketStatus         pStatus;
