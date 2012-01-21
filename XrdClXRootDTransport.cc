@@ -111,9 +111,6 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void XRootDTransport::FinalizeChannel( AnyObject &channelData )
   {
-    XRootDChannelInfo *info = 0;
-    channelData.Get( info );
-    delete info;
   }
 
   //----------------------------------------------------------------------------
