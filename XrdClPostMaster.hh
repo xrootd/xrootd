@@ -123,6 +123,20 @@ namespace XrdClient
       Status Receive( const URL      &url,
                       MessageHandler *handler,
                       uint16_t        timeout );
+
+      //------------------------------------------------------------------------
+      //! Query the transport handler for a given URL
+      //!
+      //! @param url    the channel to be queried
+      //! @param query  the query as defined in the TransportQuery struct or
+      //!               others that may be recognized by the protocol transport
+      //! @param result the result of the query
+      //! @return       status of the query
+      //------------------------------------------------------------------------
+      Status QueryTransport( const URL &url,
+                             uint16_t   query,
+                             AnyObject &result );
+
     private:
       Channel *GetChannel( const URL &url );
 

@@ -136,6 +136,18 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Query the transport handler
+  //----------------------------------------------------------------------------
+  Status PostMaster::QueryTransport( const URL &url,
+                                     uint16_t   query,
+                                     AnyObject &result )
+  {
+    Channel *channel = GetChannel( url );
+    return channel->QueryTransport( query, result );
+  }
+
+
+  //----------------------------------------------------------------------------
   // Get the channel
   //----------------------------------------------------------------------------
   Channel *PostMaster::GetChannel( const URL &url )

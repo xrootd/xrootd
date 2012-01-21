@@ -98,6 +98,15 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
+  //! Transport query definitions
+  //! The transports may support other queries, with ids > 1000
+  //----------------------------------------------------------------------------
+  struct TransportQuery
+  {
+    static const uint16_t Name = 1; //! returns const char *
+  };
+
+  //----------------------------------------------------------------------------
   //! Perform the handshake and the authentication for each physical stream
   //----------------------------------------------------------------------------
   class TransportHandler
@@ -157,6 +166,13 @@ namespace XrdClient
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
       virtual void Disconnect( AnyObject &channelData, uint16_t streamId ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Query the channel
+      //------------------------------------------------------------------------
+      virtual Status Query( uint16_t   query,
+                            AnyObject &result,
+                            AnyObject &channelData ) = 0;
   };
 }
 

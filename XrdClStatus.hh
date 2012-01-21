@@ -55,7 +55,8 @@ namespace XrdClient
   const uint16_t errInvalidMessage     = 201;
   const uint16_t errHandShakeFailed    = 202;
   const uint16_t errLoginFailed        = 203;
-  const uint16_t errAuthFailed         = 203;
+  const uint16_t errAuthFailed         = 204;
+  const uint16_t errQueryNotSupported  = 205;
 
   //----------------------------------------------------------------------------
   // XRootD related errors

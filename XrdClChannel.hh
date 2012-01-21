@@ -110,6 +110,16 @@ namespace XrdClient
       Status Receive( MessageHandler *handler, uint16_t timeout );
 
       //------------------------------------------------------------------------
+      //! Query the transport handler
+      //!
+      //! @param query  the query as defined in the TransportQuery struct or
+      //!               others that may be recognized by the protocol transport
+      //! @param result the result of the query
+      //! @return       status of the query
+      //------------------------------------------------------------------------
+      Status QueryTransport( uint16_t query, AnyObject &result );
+
+      //------------------------------------------------------------------------
       //! Handle a time event
       //------------------------------------------------------------------------
       void Tick( time_t now );

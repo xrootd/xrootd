@@ -270,4 +270,12 @@ namespace XrdClient
     for( it = pStreams.begin(); it != pStreams.end(); ++it )
       (*it)->Tick( now );
   }
+
+  //----------------------------------------------------------------------------
+  // Query the transport handler
+  //----------------------------------------------------------------------------
+  Status Channel::QueryTransport( uint16_t query, AnyObject &result )
+  {
+    return pTransport->Query( query, result, pChannelData );
+  }
 }

@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClSIDManager.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 
@@ -21,6 +22,81 @@
 
 namespace XrdClient
 {
+  //----------------------------------------------------------------------------
+  //! Information holder for XRootDStreams
+  //----------------------------------------------------------------------------
+  struct XRootDStreamInfo
+  {
+    //--------------------------------------------------------------------------
+    // Define the stream status for the link negotiation purposes
+    //--------------------------------------------------------------------------
+    enum StreamStatus
+    {
+      Disconnected,
+      Broken,
+      HandShakeSent,
+      HandShakeReceived,
+      LoginSent,
+      AuthSent,
+      Connected
+    };
+
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDStreamInfo(): status( Disconnected )
+    {
+    }
+
+    StreamStatus status;
+  };
+
+  //----------------------------------------------------------------------------
+  //! Information holder for xrootd channels
+  //----------------------------------------------------------------------------
+  struct XRootDChannelInfo
+  {
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    XRootDChannelInfo():
+      serverFlags(0),
+      protocolVersion(0),
+      sidManager(0),
+      authBuffer(0),
+      authProtocol(0),
+      authParams(0),
+      authEnv(0)
+    {
+      sidManager = new SIDManager();
+      memset( sessionId, 0, 16 );
+    }
+
+    //--------------------------------------------------------------------------
+    // Destructor
+    //--------------------------------------------------------------------------
+    ~XRootDChannelInfo()
+    {
+      delete    sidManager;
+      delete [] authBuffer;
+    }
+
+    typedef std::vector<XRootDStreamInfo> StreamInfoVector;
+
+    //--------------------------------------------------------------------------
+    // Data
+    //--------------------------------------------------------------------------
+    uint32_t          serverFlags;
+    uint32_t          protocolVersion;
+    uint8_t           sessionId[16];
+    SIDManager       *sidManager;
+    char             *authBuffer;
+    XrdSecProtocol   *authProtocol;
+    XrdSecParameters *authParams;
+    XrdOucEnv        *authEnv;
+    StreamInfoVector  stream;
+  };
+
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
@@ -362,6 +438,35 @@ namespace XrdClient
       XRootDStreamInfo &sInfo = info->stream[streamId];
       sInfo.status = XRootDStreamInfo::Disconnected;
     }
+  }
+
+  //------------------------------------------------------------------------
+  // Query the channel
+  //------------------------------------------------------------------------
+  Status XRootDTransport::Query( uint16_t   query,
+                                 AnyObject &result,
+                                 AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+
+    switch( query )
+    {
+      //------------------------------------------------------------------------
+      // Protocol name
+      //------------------------------------------------------------------------
+      case TransportQuery::Name:
+        result.Set( (const char*)"XRootD", false );
+        return Status();
+
+      //------------------------------------------------------------------------
+      // SID Manager object
+      //------------------------------------------------------------------------
+      case XRootDQuery::SIDManager:
+        result.Set( info->sidManager, false );
+        return Status();
+    };
+    return Status( stError, errQueryNotSupported );
   }
 
   //----------------------------------------------------------------------------

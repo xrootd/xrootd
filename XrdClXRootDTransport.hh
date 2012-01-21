@@ -14,75 +14,14 @@
 
 namespace XrdClient
 {
+  struct XRootDChannelInfo;
+
   //----------------------------------------------------------------------------
-  //! Information holder for XRootDStreams
+  //! XRootD related protocol queries
   //----------------------------------------------------------------------------
-  struct XRootDStreamInfo
+  struct XRootDQuery
   {
-    //--------------------------------------------------------------------------
-    // Define the stream status for the link negotiation purposes
-    //--------------------------------------------------------------------------
-    enum StreamStatus
-    {
-      Disconnected,
-      Broken,
-      HandShakeSent,
-      HandShakeReceived,
-      LoginSent,
-      AuthSent,
-      Connected
-    };
-
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    XRootDStreamInfo(): status( Disconnected )
-    {
-    }
-
-    StreamStatus status;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Information holder for xrootd channels
-  //----------------------------------------------------------------------------
-  struct XRootDChannelInfo
-  {
-    //--------------------------------------------------------------------------
-    // Constructor
-    //--------------------------------------------------------------------------
-    XRootDChannelInfo():
-      serverFlags(0),
-      protocolVersion(0),
-      authBuffer(0),
-      authProtocol(0),
-      authParams(0),
-      authEnv(0)
-    {
-      memset( sessionId, 0, 16 );
-    }
-
-    //--------------------------------------------------------------------------
-    // Destructor
-    //--------------------------------------------------------------------------
-    ~XRootDChannelInfo()
-    {
-      delete [] authBuffer;
-    }
-
-    typedef std::vector<XRootDStreamInfo> StreamInfoVector;
-
-    //--------------------------------------------------------------------------
-    // Data
-    //--------------------------------------------------------------------------
-    uint32_t          serverFlags;
-    uint32_t          protocolVersion;
-    uint8_t           sessionId[16];
-    char             *authBuffer;
-    XrdSecProtocol   *authProtocol;
-    XrdSecParameters *authParams;
-    XrdOucEnv        *authEnv;
-    StreamInfoVector  stream;
+    static const uint16_t SIDManager = 1001; //! returns a SIDManager object
   };
 
   //----------------------------------------------------------------------------
@@ -179,6 +118,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       virtual void Disconnect( AnyObject &channelData, uint16_t streamId );
 
+      //------------------------------------------------------------------------
+      //! Query the channel
+      //------------------------------------------------------------------------
+      virtual Status Query( uint16_t   query,
+                            AnyObject &result,
+                            AnyObject &channelData );
     private:
 
       //------------------------------------------------------------------------
