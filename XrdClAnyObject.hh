@@ -23,24 +23,28 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AnyObject(): pHolder(0), pTypeInfo(0) {};
+      AnyObject(): pHolder(0), pTypeInfo(0), pOwn( true ) {};
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       ~AnyObject()
       {
-        if( pHolder )
+        if( pHolder && pOwn )
           pHolder->Delete();
         delete pHolder;
       }
 
       //------------------------------------------------------------------------
-      //! Grab an object - the ownership of the object is taken as well, ie.
+      //! Grab an object
+      //! By default the ownership of the object is taken as well, ie.
       //! the object will be deleted when the AnyObject holding it is deleted.
       //! To release an object grab a zero pointer, ie. (int *)0
+      //!
+      //! @param object object pointer
+      //! @param own    take the ownership or not
       //------------------------------------------------------------------------
-      template <class Type> void Set( Type object )
+      template <class Type> void Set( Type object, bool own = true )
       {
         if( !object )
         {
@@ -51,7 +55,8 @@ namespace XrdClient
         }
 
         delete pHolder;
-        pHolder = new ConcreteHolder<Type>( object );
+        pHolder   = new ConcreteHolder<Type>( object );
+        pOwn      = own;
         pTypeInfo = &typeid( Type );
       }
 
@@ -66,6 +71,14 @@ namespace XrdClient
           return;
         }
         object = static_cast<Type>( pHolder->Get() );
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if we own the object being stored
+      //------------------------------------------------------------------------
+      bool HasOwnership() const
+      {
+        return pOwn;
       }
 
     private:
@@ -86,7 +99,7 @@ namespace XrdClient
       class ConcreteHolder: public Holder
       {
         public:
-          ConcreteHolder( Type object ): pObject( object ) {}
+          ConcreteHolder( Type object  ): pObject( object ) {}
           virtual void Delete()
           {
             delete pObject;
@@ -103,6 +116,7 @@ namespace XrdClient
 
       Holder               *pHolder;
       const std::type_info *pTypeInfo;
+      bool                  pOwn;
   };
 }
 
