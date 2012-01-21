@@ -111,6 +111,7 @@ namespace XrdClient
       pthread_t   pRunnerThread;
       bool        pRunning;
       XrdSysMutex pMutex;
+      XrdSysMutex pOpMutex;
   };
 }
 

@@ -37,7 +37,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool TaskManager::Start()
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    XrdSysMutexHelper scopedLock( pOpMutex );
     Log *log = Utils::GetDefaultLog();
     log->Debug( TaskMgrMsg, "Starting the task manager..." );
 
@@ -64,7 +64,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool TaskManager::Stop()
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    XrdSysMutexHelper scopedLock( pOpMutex );
     Log *log = Utils::GetDefaultLog();
     log->Debug( TaskMgrMsg, "Stopping the task manager..." );
     if( !pRunning )
