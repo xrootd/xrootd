@@ -32,6 +32,7 @@ add_library(
   XrdClXRootDTransport.cc     XrdClXRootDTransport.hh
   XrdClInQueue.cc             XrdClInQueue.hh
   XrdClTaskManager.cc         XrdClTaskManager.hh
+  XrdClSIDManager.cc          XrdClSIDManager.hh
 )
 
 target_link_libraries(

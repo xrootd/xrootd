@@ -50,12 +50,17 @@ namespace XrdClient
   const uint16_t errConnectionError    = 108;
 
   //----------------------------------------------------------------------------
-  // Protocol related errors
+  // Post Master related errors
   //----------------------------------------------------------------------------
   const uint16_t errInvalidMessage     = 201;
   const uint16_t errHandShakeFailed    = 202;
   const uint16_t errLoginFailed        = 203;
   const uint16_t errAuthFailed         = 203;
+
+  //----------------------------------------------------------------------------
+  // XRootD related errors
+  //----------------------------------------------------------------------------
+  const uint16_t errNoMoreFreeSIDs     = 301;
 
   //----------------------------------------------------------------------------
   //! Proceure execution status
