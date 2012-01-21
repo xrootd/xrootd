@@ -17,14 +17,14 @@ class UtilsTest: public CppUnit::TestCase
 {
   public:
     CPPUNIT_TEST_SUITE( UtilsTest );
-      CPPUNIT_TEST( urlTest );
-      CPPUNIT_TEST( anyTest );
-      CPPUNIT_TEST( taskManagerTest );
+      CPPUNIT_TEST( URLTest );
+      CPPUNIT_TEST( AnyTest );
+      CPPUNIT_TEST( TaskManagerTest );
       CPPUNIT_TEST( SIDManagerTest );
     CPPUNIT_TEST_SUITE_END();
-    void urlTest();
-    void anyTest();
-    void taskManagerTest();
+    void URLTest();
+    void AnyTest();
+    void TaskManagerTest();
     void SIDManagerTest();
 };
 
@@ -33,7 +33,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
 //------------------------------------------------------------------------------
 // URL test
 //------------------------------------------------------------------------------
-void UtilsTest::urlTest()
+void UtilsTest::URLTest()
 {
   XrdClient::URL url1( "root://user1:passwd1@host1:123//path?param1=val1&param2=val2" );
   XrdClient::URL url2( "root://user1@host1//path?param1=val1&param2=val2" );
@@ -133,7 +133,7 @@ class B
 //------------------------------------------------------------------------------
 // Any test
 //------------------------------------------------------------------------------
-void UtilsTest::anyTest()
+void UtilsTest::AnyTest()
 {
   A *a = new A;
   A *a1 = 0;
@@ -186,7 +186,7 @@ class TestTask2: public XrdClient::Task
 //------------------------------------------------------------------------------
 // Task Manager test
 //------------------------------------------------------------------------------
-void UtilsTest::taskManagerTest()
+void UtilsTest::TaskManagerTest()
 {
   using namespace XrdClient;
 
