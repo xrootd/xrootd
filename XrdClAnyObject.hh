@@ -13,7 +13,7 @@
 namespace XrdClient
 {
   //----------------------------------------------------------------------------
-  //! Simple implementation of a type safe any object
+  //! Simple implementation of a type safe holder for any object pointer
   //! It would have been a better idea to use boost::any here but we don't
   //! want to depend on boost
   //----------------------------------------------------------------------------
@@ -23,34 +23,85 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AnyObject(): pPtr(0) {};
+      AnyObject(): pHolder(0), pTypeInfo(0) {};
 
       //------------------------------------------------------------------------
-      //! Grab an object
+      //! Destructor
       //------------------------------------------------------------------------
-      template <class Type> void Set( Type ptr )
+      ~AnyObject()
       {
-        if( !ptr )
+        if( pHolder )
+          pHolder->Delete();
+        delete pHolder;
+      }
+
+      //------------------------------------------------------------------------
+      //! Grab an object - the ownership of the object is taken as well, ie.
+      //! the object will be deleted when the AnyObject holding it is deleted.
+      //! To release an object grab a zero pointer, ie. (int *)0
+      //------------------------------------------------------------------------
+      template <class Type> void Set( Type object )
+      {
+        if( !object )
+        {
+          delete pHolder;
+          pHolder   = 0;
+          pTypeInfo = 0;
           return;
-        pPtr = ptr;
+        }
+
+        delete pHolder;
+        pHolder = new ConcreteHolder<Type>( object );
         pTypeInfo = &typeid( Type );
       }
 
       //------------------------------------------------------------------------
       //! Retrieve the object being held
       //------------------------------------------------------------------------
-      template <class Type> void Get( Type &ptr )
+      template <class Type> void Get( Type &object )
       {
-        if( !pPtr || (strcmp( pTypeInfo->name(), typeid( Type ).name() )) )
+        if( !pHolder || (strcmp( pTypeInfo->name(), typeid( Type ).name() )) )
         {
-          ptr = 0;
+          object = 0;
           return;
         }
-        ptr = static_cast<Type>( pPtr );
+        object = static_cast<Type>( pHolder->Get() );
       }
 
     private:
-      void                 *pPtr;
+      //------------------------------------------------------------------------
+      // Abstract holder object
+      //------------------------------------------------------------------------
+      class Holder
+      {
+        public:
+          virtual void Delete() = 0;
+          virtual void *Get()   = 0;
+      };
+
+      //------------------------------------------------------------------------
+      // Concrete holder
+      //------------------------------------------------------------------------
+      template<class Type>
+      class ConcreteHolder: public Holder
+      {
+        public:
+          ConcreteHolder( Type object ): pObject( object ) {}
+          virtual void Delete()
+          {
+            delete pObject;
+          }
+
+          virtual void *Get()
+          {
+            return (void *)pObject;
+          }
+
+        private:
+          Type pObject;
+      };
+
+      Holder               *pHolder;
       const std::type_info *pTypeInfo;
   };
 }
