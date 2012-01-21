@@ -10,6 +10,7 @@
 #include <XProtocol/XProtocol.hh>
 #include <XrdCl/XrdClXRootDTransport.hh>
 #include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdCl/XrdClSIDManager.hh>
 
 #include <pthread.h>
 
@@ -227,6 +228,28 @@ void PostMasterTest::FunctionalTest()
   sc = postMaster.Send( localhost1, &m1, 1200 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errConnectionError );
+
+  //----------------------------------------------------------------------------
+  // Test the transport queries
+  //----------------------------------------------------------------------------
+  AnyObject nameObj, sidMgrObj;
+  Status st1, st2;
+  const char *name   = 0;
+  SIDManager *sidMgr = 0;
+
+  st1 = postMaster.QueryTransport( localhost, TransportQuery::Name, nameObj );
+  st2 = postMaster.QueryTransport( localhost, XRootDQuery::SIDManager,
+                                   sidMgrObj );
+
+  CPPUNIT_ASSERT( st1.IsOK() );
+  CPPUNIT_ASSERT( st2.IsOK() );
+
+  nameObj.Get( name );
+  sidMgrObj.Get( sidMgr );
+
+  CPPUNIT_ASSERT( name );
+  CPPUNIT_ASSERT( !::strcmp( name, "XRootD" ) );
+  CPPUNIT_ASSERT( sidMgr );
 
   postMaster.Stop();
   postMaster.Finalize();
