@@ -8,6 +8,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClTaskManager.hh"
+#include "XrdCl/XrdClSIDManager.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -19,10 +20,12 @@ class UtilsTest: public CppUnit::TestCase
       CPPUNIT_TEST( urlTest );
       CPPUNIT_TEST( anyTest );
       CPPUNIT_TEST( taskManagerTest );
+      CPPUNIT_TEST( SIDManagerTest );
     CPPUNIT_TEST_SUITE_END();
     void urlTest();
     void anyTest();
     void taskManagerTest();
+    void SIDManagerTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
@@ -207,4 +210,26 @@ void UtilsTest::taskManagerTest()
   CPPUNIT_ASSERT( runs1.size() == 1 );
   CPPUNIT_ASSERT( runs2.size() == 3 );
   CPPUNIT_ASSERT( taskMan.Stop() );
+}
+
+//------------------------------------------------------------------------------
+// SID Manager test
+//------------------------------------------------------------------------------
+void UtilsTest::SIDManagerTest()
+{
+  using namespace XrdClient;
+  SIDManager manager;
+
+  uint8_t sid1[2];
+  uint8_t sid2[2];
+  uint8_t sid3[2];
+
+  CPPUNIT_ASSERT( manager.AllocateSID( sid1 ).IsOK() );
+  CPPUNIT_ASSERT( manager.AllocateSID( sid2 ).IsOK() );
+  manager.ReleaseSID( sid2 );
+  CPPUNIT_ASSERT( manager.AllocateSID( sid3 ).IsOK() );
+
+  CPPUNIT_ASSERT( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
+  CPPUNIT_ASSERT( sid2[0] == sid3[0] );
+  CPPUNIT_ASSERT( sid1[1] == sid3[1] );
 }
