@@ -140,33 +140,42 @@ void UtilsTest::AnyTest()
 {
   bool destructorCalled1 = false;
   bool destructorCalled2 = false;
+  bool destructorCalled3 = false;
   A *a1 = new A( destructorCalled1 );
   A *a2 = new A( destructorCalled2 );
-  A *a3 = 0;
+  A *a3 = new A( destructorCalled3 );
+  A *a4 = 0;
   B *b  = 0;
 
   XrdClient::AnyObject *any1 = new XrdClient::AnyObject();
   XrdClient::AnyObject *any2 = new XrdClient::AnyObject();
   XrdClient::AnyObject *any3 = new XrdClient::AnyObject();
+  XrdClient::AnyObject *any4 = new XrdClient::AnyObject();
 
   any1->Set( a1 );
-  any2->Set( a2 );
   any1->Get( b );
-  any1->Get( a3 );
-
+  any1->Get( a4 );
   CPPUNIT_ASSERT( !b );
-  CPPUNIT_ASSERT( a1 );
+  CPPUNIT_ASSERT( a4 );
+  CPPUNIT_ASSERT( any1->HasOwnership() );
 
   delete any1;
   CPPUNIT_ASSERT( destructorCalled1 );
 
+  any2->Set( a2 );
   any2->Set( (int*)0 );
   delete any2;
   CPPUNIT_ASSERT( !destructorCalled2 );
   delete a2;
 
-  // test destruction of an empty object
+  any3->Set( a3, false );
+  CPPUNIT_ASSERT( !any3->HasOwnership() );
   delete any3;
+  CPPUNIT_ASSERT( !destructorCalled3 );
+  delete a3;
+
+  // test destruction of an empty object
+  delete any4;
 }
 
 //------------------------------------------------------------------------------
