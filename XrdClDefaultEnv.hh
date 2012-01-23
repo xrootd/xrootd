@@ -13,6 +13,7 @@
 namespace XrdClient
 {
   class PostMaster;
+  class Log;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -38,6 +39,11 @@ namespace XrdClient
       static PostMaster *GetPostMaster();
 
       //------------------------------------------------------------------------
+      //! Get default log
+      //------------------------------------------------------------------------
+      static Log *GetLog();
+
+      //------------------------------------------------------------------------
       //! Free the globals, called by a static finalizer, no need to call
       //! by hand
       //------------------------------------------------------------------------
@@ -48,6 +54,7 @@ namespace XrdClient
       static Env         *sEnv;
       static XrdSysMutex  sPostMasterMutex;
       static PostMaster  *sPostMaster;
+      static Log         *sLog;
   };
 }
 

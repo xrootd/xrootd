@@ -9,7 +9,6 @@
 #include "XrdCl/XrdClChannel.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
@@ -172,7 +171,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status Stream::CheckConnection()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     time_t now = ::time(0);
 
     XrdSysMutexHelper scopedLock( pMutex );
@@ -192,7 +191,7 @@ namespace XrdClient
   Status Stream::Connect()
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     pConnectionInitTime = ::time(0);
     ++pConnectionCount;
@@ -247,7 +246,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::Disconnect( bool force )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
     //--------------------------------------------------------------------------
@@ -315,7 +314,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::ConnectingReadyToWrite()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // We got a write event while being in the 'Connecting' state, if the
@@ -430,7 +429,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::ConnectedReadyToWrite()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     Status st = WriteMessage( pOutQueue );
     if( !st.IsOK() )
     {
@@ -444,7 +443,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status Stream::WriteMessage( std::list<OutMessageHelper *> &queue )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // Pick up a message if we're not in process of writing something
@@ -609,7 +608,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status Stream::ReadMessage()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( !pIncoming )
       pIncoming = new Message();
@@ -701,7 +700,7 @@ namespace XrdClient
   void Stream::HandleStreamFault( Status status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    Log    *log = Utils::GetDefaultLog();
+    Log    *log = DefaultEnv::GetLog();
     time_t  now = ::time(0);
 
     log->Error( PostMasterMsg, "[%s #%d] Stream fault. Cleaning up.",

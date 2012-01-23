@@ -8,7 +8,6 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClSocket.hh"
-#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClSIDManager.hh"
@@ -420,7 +419,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void XRootDTransport::LogErrorResponse( const Message &msg )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     ServerResponseBody_Error *err = (ServerResponseBody_Error *)msg.GetBuffer(8);
     log->Error( XRootDTransportMsg, "Server responded with an error [%d]: %s",
                                     err->errnum, err->errmsg );
@@ -475,7 +474,7 @@ namespace XrdClient
   Message *XRootDTransport::GenerateInitialHS( HandShakeData     *hsData,
                                                XRootDChannelInfo *info )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDTransportMsg, "[%s #%d] Sending out the initial "
                                     "hand shake",
                                      hsData->url->GetHostId().c_str(),
@@ -502,7 +501,7 @@ namespace XrdClient
   Status XRootDTransport::ProcessServerHS( HandShakeData     *hsData,
                                            XRootDChannelInfo *info )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     Message *msg = hsData->in;
     ServerResponseHeader *respHdr = (ServerResponseHeader *)msg->GetBuffer();
@@ -539,7 +538,7 @@ namespace XrdClient
   Status XRootDTransport::ProcessProtocolResp( HandShakeData     *hsData,
                                                XRootDChannelInfo *info )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( !UnMarshallBody( hsData->in, kXR_protocol ).IsOK() )
       return Status( stFatal, errHandShakeFailed );
@@ -574,7 +573,7 @@ namespace XrdClient
   Message *XRootDTransport::GenerateLogIn( HandShakeData *hsData,
                                            XRootDChannelInfo *info )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     Message *msg = new Message( sizeof( ClientLoginRequest ) );
     ClientLoginRequest *loginReq = (ClientLoginRequest *)msg->GetBuffer();
@@ -612,7 +611,7 @@ namespace XrdClient
   Status XRootDTransport::ProcessLogInResp( HandShakeData     *hsData,
                                             XRootDChannelInfo *info )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( !UnMarshallBody( hsData->in, kXR_login ).IsOK() )
       return Status( stFatal, errLoginFailed );
@@ -662,7 +661,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Prepare
     //--------------------------------------------------------------------------
-    Log               *log   = Utils::GetDefaultLog();
+    Log               *log   = DefaultEnv::GetLog();
     XRootDStreamInfo  &sInfo = info->stream[hsData->streamId];
     XrdSecCredentials *credentials = 0;
     std::string        protocolName;
@@ -820,7 +819,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Set up the auth handler
     //--------------------------------------------------------------------------
-    Log             *log   = Utils::GetDefaultLog();
+    Log             *log   = DefaultEnv::GetLog();
     XrdOucErrInfo    ei( "", info->authEnv);
     XrdSecGetProt_t  authHandler = GetAuthHandler();
     if( !authHandler )
@@ -891,7 +890,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   XRootDTransport::XrdSecGetProt_t XRootDTransport::GetAuthHandler()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( pAuthHandler )
       return pAuthHandler;

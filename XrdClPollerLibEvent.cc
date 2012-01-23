@@ -6,7 +6,7 @@
 
 #include "XrdCl/XrdClPollerLibEvent.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClSocket.hh"
 
@@ -60,7 +60,7 @@ extern "C"
   static void HandleLogMessage( int severity, const char *msg )
   {
     using namespace XrdClient;
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     switch( severity )
     {
       case _EVENT_LOG_DEBUG:
@@ -116,7 +116,7 @@ extern "C"
     if( what & EV_TIMEOUT ) ev |= SocketHandler::ReadTimeOut;
     if( what & EV_READ    ) ev |= SocketHandler::ReadyToRead;
 
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( PollerMsg, "%s Got read event: %s",
                            helper->socket->GetName().c_str(),
                            SocketHandler::EventTypeToString( ev ).c_str() );
@@ -137,7 +137,7 @@ extern "C"
     if( what & EV_TIMEOUT ) ev |= SocketHandler::WriteTimeOut;
     if( what & EV_WRITE   ) ev |= SocketHandler::ReadyToWrite;
 
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( PollerMsg, "%s Got write event %s",
                            helper->socket->GetName().c_str(),
                            SocketHandler::EventTypeToString( ev ).c_str() );
@@ -153,7 +153,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   bool PollerLibEvent::Initialize()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // Print some debing info
@@ -235,7 +235,7 @@ namespace XrdClient
   //------------------------------------------------------------------------
   bool PollerLibEvent::Start()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Starting the poller..." );
     if( pPollerThreadRunning )
     {
@@ -259,7 +259,7 @@ namespace XrdClient
   //------------------------------------------------------------------------
   bool PollerLibEvent::Stop()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Stopping the poller..." );
     if( !pPollerThreadRunning )
     {
@@ -293,7 +293,7 @@ namespace XrdClient
   bool PollerLibEvent::AddSocket( Socket        *socket,
                                   SocketHandler *handler )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
     if( !socket )
@@ -338,7 +338,7 @@ namespace XrdClient
   //------------------------------------------------------------------------
   bool PollerLibEvent::RemoveSocket( Socket *socket )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // Find the right event
@@ -398,7 +398,7 @@ namespace XrdClient
                                                bool     enable,
                                                uint16_t timeout )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( !socket )
     {
@@ -492,7 +492,7 @@ namespace XrdClient
                                                 bool     enable,
                                                 uint16_t timeout )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( !socket )
     {
@@ -586,7 +586,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   int PollerLibEvent::RunEventLoop()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Running the event loop..." );
 
     //--------------------------------------------------------------------------

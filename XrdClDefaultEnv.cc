@@ -7,6 +7,10 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUtils.hh"
+
+#include <map>
 
 namespace XrdClient
 {
@@ -14,6 +18,7 @@ namespace XrdClient
   Env         *DefaultEnv::sEnv             = 0;
   XrdSysMutex  DefaultEnv::sPostMasterMutex;
   PostMaster  *DefaultEnv::sPostMaster      = 0;
+  Log         *DefaultEnv::sLog             = 0;
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -56,11 +61,34 @@ namespace XrdClient
       if( sPostMaster )
         return sPostMaster;
       sPostMaster = new PostMaster();
+
       if( !sPostMaster->Initialize() )
       {
+        delete sPostMaster;
+        sPostMaster = 0;
+        return 0;
+      }
+
+      if( !sPostMaster->Start() )
+      {
+        sPostMaster->Finalize();
+        delete sPostMaster;
+        sPostMaster = 0;
+        return 0;
       }
     }
     return sPostMaster;
+  }
+
+  Log *DefaultEnv::GetLog()
+  {
+    //--------------------------------------------------------------------------
+    // This is actually thread safe because it is first called from
+    // a static initializer in a thread safe context
+    //--------------------------------------------------------------------------
+    if( unlikely( !sLog ) )
+      sLog = new Log();
+    return sLog;
   }
 
   //----------------------------------------------------------------------------
@@ -81,6 +109,9 @@ namespace XrdClient
       delete sPostMaster;
       sPostMaster = 0;
     }
+
+    delete sLog;
+    sLog = 0;
   }
 }
 
@@ -89,9 +120,96 @@ namespace XrdClient
 //------------------------------------------------------------------------------
 namespace
 {
-  static struct EnvFinalizer
+  //----------------------------------------------------------------------------
+  // Translate a string into a topic mask
+  //----------------------------------------------------------------------------
+  struct MaskTranslator
   {
-    ~EnvFinalizer()
+    //--------------------------------------------------------------------------
+    // Initialize the translation array
+    //--------------------------------------------------------------------------
+    MaskTranslator()
+    {
+      masks["AppMsg"]     = XrdClient::AppMsg;
+      masks["UtilityMsg"] = XrdClient::UtilityMsg;
+      masks["FileMsg"]    = XrdClient::FileMsg;
+    }
+
+    //--------------------------------------------------------------------------
+    // Translate the mask
+    //--------------------------------------------------------------------------
+    uint64_t translateMask( const std::string mask )
+    {
+      if( mask == "" || mask == "All" )
+        return 0xffffffffffffffff;
+
+      if( mask == "None" )
+        return 0;
+
+      std::vector<std::string>           topics;
+      std::vector<std::string>::iterator it;
+      XrdClient::Utils::splitString( topics, mask, "|" );
+
+      uint64_t resultMask = 0;
+      std::map<std::string, uint64_t>::iterator maskIt;
+      for( it = topics.begin(); it != topics.end(); ++it )
+      {
+        maskIt = masks.find( *it );
+        if( maskIt != masks.end() )
+          resultMask |= maskIt->second;
+      }
+
+      return resultMask;
+    }
+
+    std::map<std::string, uint64_t> masks;
+  };
+
+  static struct EnvInitializer
+  {
+    //--------------------------------------------------------------------------
+    // Initializer
+    //--------------------------------------------------------------------------
+    EnvInitializer()
+    {
+      using namespace XrdClient;
+      Log *log = DefaultEnv::GetLog();
+
+      //------------------------------------------------------------------------
+      // Check if the log level has been defined in the environment
+      //------------------------------------------------------------------------
+      char *level = getenv( "XRD_LOGLEVEL" );
+      if( level )
+        log->SetLevel( level );
+
+      //------------------------------------------------------------------------
+      // Check if we need to log to a file
+      //------------------------------------------------------------------------
+      char *file = getenv( "XRD_LOGFILE" );
+      if( file )
+      {
+        LogOutFile *out = new LogOutFile();
+        if( out->Open( file ) )
+          log->SetOutput( out );
+        else
+          delete out;
+      }
+
+      //------------------------------------------------------------------------
+      // Initialize the topic mask
+      //------------------------------------------------------------------------
+      char *logMask = getenv( "XRD_LOGMASK" );
+      if( logMask )
+      {
+        MaskTranslator translator;
+        log->SetMask( translator.translateMask( logMask ) );
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Finalizer
+    //--------------------------------------------------------------------------
+    ~EnvInitializer()
     {
       XrdClient::DefaultEnv::Release();
     }

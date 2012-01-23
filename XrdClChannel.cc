@@ -10,7 +10,6 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
 
 #include <ctime>
 
@@ -159,7 +158,7 @@ namespace XrdClient
     pTickGenerator( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     int  numStreams = DefaultStreamsPerChannel;
     env->GetInt( "StreamsPerChannel", numStreams );
@@ -226,7 +225,7 @@ namespace XrdClient
                         int32_t               timeout )
 
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     uint16_t stream = pTransport->Multiplex( msg, pChannelData );
     log->Dump( PostMasterMsg, "[%s #%d] Sending message %x",
                               pUrl.GetHostId().c_str(), stream, msg );

@@ -5,7 +5,6 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -21,7 +20,7 @@
 int main( int argc, char **argv )
 {
   using namespace XrdClient;
-  Log *log = Utils::GetDefaultLog();
+  Log *log = DefaultEnv::GetLog();
 
   //----------------------------------------------------------------------------
   // Parse commandline

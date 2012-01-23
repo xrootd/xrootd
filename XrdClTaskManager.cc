@@ -6,7 +6,7 @@
 
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 
 #include <iostream>
@@ -38,7 +38,7 @@ namespace XrdClient
   bool TaskManager::Start()
   {
     XrdSysMutexHelper scopedLock( pOpMutex );
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( TaskMgrMsg, "Starting the task manager..." );
 
     if( pRunning )
@@ -65,7 +65,7 @@ namespace XrdClient
   bool TaskManager::Stop()
   {
     XrdSysMutexHelper scopedLock( pOpMutex );
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( TaskMgrMsg, "Stopping the task manager..." );
     if( !pRunning )
     {
@@ -99,7 +99,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void TaskManager::RegisterTask( Task *task, time_t time )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( TaskMgrMsg, "Registering task: 0x%x to be run at: %d",
                             task, time );
 
@@ -112,7 +112,7 @@ namespace XrdClient
   //--------------------------------------------------------------------------
   void TaskManager::UnregisterTask( Task *task )
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
     log->Debug( TaskMgrMsg, "Requesting unregistration of: 0x%x", task );
     XrdSysMutexHelper scopedLock( pMutex );
     pToBeUnregistered.push_back( task );
@@ -123,7 +123,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void TaskManager::RunTasks()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
     // We want the thread to be cancelable only when we sleep between tasks

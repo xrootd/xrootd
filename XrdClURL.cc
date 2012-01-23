@@ -5,12 +5,13 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClLog.hh"
-#include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 
 #include <cstdlib>
+#include <vector>
 
 namespace XrdClient
 {
@@ -29,7 +30,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void URL::ParseUrl()
   {
-    Log *log = Utils::GetDefaultLog();
+    Log *log = DefaultEnv::GetLog();
 
     if( pUrl.length() == 0 )
     {
