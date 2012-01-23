@@ -8,14 +8,16 @@
 #define __XRD_CL_DEFAULT_ENV_HH__
 
 #include "XrdSys/XrdSysPthread.hh"
-
 #include "XrdCl/XrdClEnv.hh"
 
 namespace XrdClient
 {
+  class PostMaster;
+
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
-  //! defaults for the variables used in the client.
+  //! defaults for the variables used by the client. And holding other
+  //! global stuff.
   //----------------------------------------------------------------------------
   class DefaultEnv: public Env
   {
@@ -30,9 +32,22 @@ namespace XrdClient
       //------------------------------------------------------------------------
       static Env *GetEnv();
 
+      //------------------------------------------------------------------------
+      //! Get default post master
+      //------------------------------------------------------------------------
+      static PostMaster *GetPostMaster();
+
+      //------------------------------------------------------------------------
+      //! Free the globals, called by a static finalizer, no need to call
+      //! by hand
+      //------------------------------------------------------------------------
+      static void Release();
+
     private:
-      static XrdSysMutex  sMutex;
+      static XrdSysMutex  sEnvMutex;
       static Env         *sEnv;
+      static XrdSysMutex  sPostMasterMutex;
+      static PostMaster  *sPostMaster;
   };
 }
 
