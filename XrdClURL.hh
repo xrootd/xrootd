@@ -24,10 +24,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url an url in format:
-      //!            user:password\@host:port/path?param1=x&param2=y
+      //! @param url  an url in format:
+      //!             user:password\@host:port/path?param1=x&param2=y
+      //! @param port a port specification, if needs to be suppled externally
       //------------------------------------------------------------------------
-      URL( const std::string &url );
+      URL( const std::string &url, int port = 1094 );
 
       //------------------------------------------------------------------------
       //! Is the url valide

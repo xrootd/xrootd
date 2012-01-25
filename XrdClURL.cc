@@ -12,14 +12,15 @@
 
 #include <cstdlib>
 #include <vector>
+#include <sstream>
 
 namespace XrdClient
 {
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  URL::URL( const std::string &url ):
-    pIsValid( false ), pUrl( url ), pPort( 1094 )
+  URL::URL( const std::string &url, int port  ):
+    pIsValid( false ), pUrl( url ), pPort( port )
   {
     ParseUrl();
   }
@@ -70,7 +71,6 @@ namespace XrdClient
 
     std::string userHost = pUrl.substr( currentStart, pos-currentStart );
     currentStart = pos+1;
-    pHostId = userHost;
 
     //--------------------------------------------------------------------------
     // Do we have username and password?
@@ -147,6 +147,15 @@ namespace XrdClient
       else
         pPath = pPathWithParams;
     }
+
+    //--------------------------------------------------------------------------
+    // Create the host id
+    //--------------------------------------------------------------------------
+    std::ostringstream o;
+    if( pUserName.length() )
+      o << pUserName << "@";
+    o << pHostName << ":" << pPort;
+    pHostId = o.str();
 
     //--------------------------------------------------------------------------
     // Check validity
