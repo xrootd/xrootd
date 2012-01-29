@@ -47,7 +47,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      //! Get the host part of the URL (user:password@host:port)
+      //! Get the host part of the URL (user:password\@host:port)
       //------------------------------------------------------------------------
       const std::string &GetHostId() const
       {

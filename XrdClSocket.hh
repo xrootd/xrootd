@@ -21,12 +21,15 @@ namespace XrdClient
   class Socket
   {
     public:
+      //------------------------------------------------------------------------
+      //! Status of the socket
+      //------------------------------------------------------------------------
       enum SocketStatus
       {
-        Uninitialized = 0,
-        Initialized   = 1,
-        Connected     = 2,
-        Connecting    = 3
+        Uninitialized = 0,      //!< The socket hasn't been initialized
+        Initialized   = 1,      //!< The socket is initialized but not connected
+        Connected     = 2,      //!< The socket is connected
+        Connecting    = 3       //!< The connection process is in progress
       };
 
       //------------------------------------------------------------------------
@@ -156,7 +159,7 @@ namespace XrdClient
       std::string GetName() const;
 
       //------------------------------------------------------------------------
-      // Get the server address
+      //! Get the server address
       //------------------------------------------------------------------------
       const sockaddr *GetServerAddress() const
       {

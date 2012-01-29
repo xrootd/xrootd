@@ -17,6 +17,9 @@ namespace XrdClient
   class SIDManager;
   class URL;
 
+  //----------------------------------------------------------------------------
+  //! Handle/Process/Forward XRootD messages
+  //----------------------------------------------------------------------------
   class XRootDMsgHandler: public MessageHandler,
                           public MessageStatusHandler
   {

@@ -395,7 +395,7 @@ namespace XrdClient
   // Notify the handler about read events
   //----------------------------------------------------------------------------
   bool PollerLibEvent::EnableReadNotification( Socket  *socket,
-                                               bool     enable,
+                                               bool     notify,
                                                uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
@@ -423,7 +423,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Enable read notifications
     //--------------------------------------------------------------------------
-    if( enable )
+    if( notify )
     {
       if( helper->readEnabled )
         return true;
@@ -489,7 +489,7 @@ namespace XrdClient
   // Notify the handler about write events
   //----------------------------------------------------------------------------
   bool PollerLibEvent::EnableWriteNotification( Socket  *socket,
-                                                bool     enable,
+                                                bool     notify,
                                                 uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
@@ -517,7 +517,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Enable write notifications
     //--------------------------------------------------------------------------
-    if( enable )
+    if( notify )
     {
       if( helper->writeEnabled )
         return true;

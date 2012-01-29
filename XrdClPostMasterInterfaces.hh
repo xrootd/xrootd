@@ -40,11 +40,15 @@ namespace XrdClient
   class MessageHandler
   {
     public:
+      //------------------------------------------------------------------------
+      //! Actions to be taken after a message is processed by the handler
+      //------------------------------------------------------------------------
       enum Action
       {
-        Take          = 0x01,
-        Ignore        = 0x02,
-        RemoveHandler = 0x04,
+        Take          = 0x01,     //!< Take ownership over the message
+        Ignore        = 0x02,     //!< Ignore the message
+        RemoveHandler = 0x04,     //!< Remove the handler from the notification
+                                  //!< list
       };
 
       //------------------------------------------------------------------------
@@ -83,18 +87,21 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct HandShakeData
   {
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
     HandShakeData( const URL *addr, uint16_t stream ):
       step(0), out(0), in(0), url(addr), streamId(stream), startTime( time(0) ),
       serverAddr(0)
     {}
-    uint16_t     step;
-    Message     *out;
-    Message     *in;
-    const URL   *url;
-    uint16_t     streamId;
-    time_t       startTime;
-    const void  *serverAddr; //! in the form of sockaddr
-    std::string  clientName;
+    uint16_t     step;           //!< Handshake step
+    Message     *out;            //!< Message to be sent out
+    Message     *in;             //!< Message that has been received
+    const URL   *url;            //!< Destination URL
+    uint16_t     streamId;       //!< Stream number
+    time_t       startTime;      //!< Timestamp of when the handshake started
+    const void  *serverAddr;     //!< Server address in the form of sockaddr
+    std::string  clientName;     //!< Client name (an IPv6 representation)
   };
 
   //----------------------------------------------------------------------------
@@ -103,7 +110,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct TransportQuery
   {
-    static const uint16_t Name = 1; //! returns const char *
+    static const uint16_t Name = 1; //!< Transport name, returns const char *
   };
 
   //----------------------------------------------------------------------------

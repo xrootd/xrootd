@@ -11,6 +11,9 @@
 
 namespace XrdClient
 {
+  //----------------------------------------------------------------------------
+  //! The message representation used throughout the system
+  //----------------------------------------------------------------------------
   class Message: public Buffer
   {
     public:

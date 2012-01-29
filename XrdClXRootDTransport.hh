@@ -21,11 +21,11 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct XRootDQuery
   {
-    static const uint16_t SIDManager = 1001; //! returns a SIDManager object
+    static const uint16_t SIDManager = 1001; //!< returns a SIDManager object
   };
 
   //----------------------------------------------------------------------------
-  // XRootD transport handler
+  //! XRootD transport handler
   //----------------------------------------------------------------------------
   class XRootDTransport: public TransportHandler
   {

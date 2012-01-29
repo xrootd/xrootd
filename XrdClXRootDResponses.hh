@@ -28,10 +28,10 @@ namespace XrdClient
       //------------------------------------------------------------------------
       enum LocationType
       {
-        ManagerOnline,   //! manager node where the file is online
-        ManagerPending,  //! manager node where the file is pending to be online
-        ServerOnline,    //! server node where the file is online
-        ServerPending    //! server node where the file is pending to be online
+        ManagerOnline,   //!< manager node where the file is online
+        ManagerPending,  //!< manager node where the file is pending to be online
+        ServerOnline,    //!< server node where the file is online
+        ServerPending    //!< server node where the file is pending to be online
       };
 
       //------------------------------------------------------------------------
@@ -39,12 +39,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       enum AccessType
       {
-        Read,            //! read access is allowed
-        ReadWrite        //! write access is allowed
+        Read,            //!< read access is allowed
+        ReadWrite        //!< write access is allowed
       };
 
       //------------------------------------------------------------------------
-      // Locations
+      //! Location
       //------------------------------------------------------------------------
       class Location
       {
@@ -77,7 +77,7 @@ namespace XrdClient
           }
 
           //--------------------------------------------------------------------
-          // Get access type
+          //! Get access type
           //--------------------------------------------------------------------
           AccessType GetAccessType() const
           {
@@ -90,8 +90,19 @@ namespace XrdClient
           AccessType   pAccess;
       };
 
+      //------------------------------------------------------------------------
+      //! List of locations
+      //------------------------------------------------------------------------
       typedef std::vector<Location>        LocationList;
+
+      //------------------------------------------------------------------------
+      //! Iterator over locations
+      //------------------------------------------------------------------------
       typedef LocationList::iterator       LocationIterator;
+
+      //------------------------------------------------------------------------
+      //! Iterator over locations
+      //------------------------------------------------------------------------
       typedef LocationList::const_iterator LocationConstIterator;
 
       //------------------------------------------------------------------------
@@ -200,7 +211,7 @@ namespace XrdClient
   typedef Buffer BinaryDataInfo;
 
   //----------------------------------------------------------------------------
-  // Protocol response
+  //! Protocol response
   //----------------------------------------------------------------------------
   class ProtocolInfo
   {
@@ -210,11 +221,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       enum HostTypes
       {
-        IsManager = kXR_isManager,   //! Manager
-        IsServer  = kXR_isServer,    //! Data server
-        AttrMeta  = kXR_attrMeta,    //! Meta attribute
-        AttrProxy = kXR_attrProxy,   //! Proxy attribute
-        AttrSuper = kXR_attrSuper,   //! Supervisor attribute
+        IsManager = kXR_isManager,   //!< Manager
+        IsServer  = kXR_isServer,    //!< Data server
+        AttrMeta  = kXR_attrMeta,    //!< Meta attribute
+        AttrProxy = kXR_attrProxy,   //!< Proxy attribute
+        AttrSuper = kXR_attrSuper,   //!< Supervisor attribute
       };
 
       //------------------------------------------------------------------------
@@ -263,9 +274,9 @@ namespace XrdClient
       //------------------------------------------------------------------------
       enum StatType
       {
-        Invalid,            //! Invalid stat info
-        Object,             //! File/directory related stats
-        VFS,                //! Virtual file system related stats
+        Invalid,            //!< Invalid stat info
+        Object,             //!< File/directory related stats
+        VFS,                //!< Virtual file system related stats
       };
 
       //------------------------------------------------------------------------
@@ -273,14 +284,14 @@ namespace XrdClient
       //------------------------------------------------------------------------
       enum Flags
       {
-        XBitSet      = kXR_xset,      //! Executable/searchable bit set
-        IsDir        = kXR_isDir,     //! This is a directory
-        Other        = kXR_other,     //! Neither a file nor a directory
-        Offline      = kXR_offline,   //! File is not online (ie. on disk)
-        POSCPending  = kXR_poscpend,  //! File opened with POST flag, not yet
-                                      //! successfuly closed
-        Readable     = kXR_readable,  //! Read access is alowed
-        Writable     = kXR_writable,  //! Write access is allowed
+        XBitSet      = kXR_xset,      //!< Executable/searchable bit set
+        IsDir        = kXR_isDir,     //!< This is a directory
+        Other        = kXR_other,     //!< Neither a file nor a directory
+        Offline      = kXR_offline,   //!< File is not online (ie. on disk)
+        POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
+                                      //!< successfuly closed
+        Readable     = kXR_readable,  //!< Read access is alowed
+        Writable     = kXR_writable,  //!< Write access is allowed
       };
 
       //------------------------------------------------------------------------
@@ -345,7 +356,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // Get percentage of the partition utilization represented by FreeRW
+      //! Get percentage of the partition utilization represented by FreeRW
       //------------------------------------------------------------------------
       uint8_t GetUtilizationRW() const
       {
@@ -369,7 +380,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // Get percentage of the partition utilization represented by FreeStaging
+      //! Get percentage of the partition utilization represented by FreeStaging
       //------------------------------------------------------------------------
       uint8_t GetUtilizationStaging() const
       {

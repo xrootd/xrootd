@@ -162,6 +162,9 @@ namespace XrdClient
         return GetBuffer( pCursor );
       }
 
+      //------------------------------------------------------------------------
+      //! Get the buffer pointer at the append cursor
+      //------------------------------------------------------------------------
       const char *GetBufferAtCursor() const
       {
         return GetBuffer( pCursor );

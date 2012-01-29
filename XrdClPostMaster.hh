@@ -67,12 +67,12 @@ namespace XrdClient
       //! Send a message synchronously - synchronously means that
       //! it will block until the message is written to a socket
       //!
-      //! @param url    recipient of the message
-      //! @param msg    message to be sent
-      //! @param timout timout after which a failure should be reported if
-      //!               sending was unsuccessful
-      //! @return       success if the message has been pushed through the wire,
-      //!               failure otherwise
+      //! @param url     recipient of the message
+      //! @param msg     message to be sent
+      //! @param timeout timout after which a failure should be reported if
+      //!                sending was unsuccessful
+      //! @return        success if the message has been pushed through the wire,
+      //!                failure otherwise
       //------------------------------------------------------------------------
       Status Send( const URL &url, Message *msg, uint16_t timeout );
 
@@ -115,10 +115,10 @@ namespace XrdClient
       //! Listen to incomming messages, the listener is notified when a new
       //! message arrives and when the timeout passes
       //!
-      //! @param url      sender of the message
-      //! @param listener handler to be notified about new messages
-      //! @param timeout  timout
-      //! @return         success when the listener has been inserted correctly
+      //! @param url     sender of the message
+      //! @param handler handler to be notified about new messages
+      //! @param timeout timout
+      //! @return        success when the listener has been inserted correctly
       //------------------------------------------------------------------------
       Status Receive( const URL      &url,
                       MessageHandler *handler,

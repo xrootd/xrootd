@@ -38,7 +38,7 @@ namespace XrdClient
       virtual void Initialize( Poller * ) {}
 
       //------------------------------------------------------------------------
-      // Finalizer
+      //! Finalizer
       //------------------------------------------------------------------------
       virtual void Finalize() {};
 
@@ -107,7 +107,7 @@ namespace XrdClient
       //! Notify the handler about read events
       //!
       //! @param socket  the socket
-      //! @param enable  specify if the handler should be notified
+      //! @param notify  specify if the handler should be notified
       //! @param timeout if no read event occured after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
@@ -118,12 +118,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Notify the handler about write events
       //! @param socket  the socket
-      //! @param enable  specify if the handler should be notified
+      //! @param notify  specify if the handler should be notified
       //! @param timeout if no write event occured after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,
-                                            bool     enable,
+                                            bool     notify,
                                             uint16_t timeout = 60 ) = 0;
 
       //------------------------------------------------------------------------

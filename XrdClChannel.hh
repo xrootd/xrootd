@@ -61,11 +61,11 @@ namespace XrdClient
       //! Send a message synchronously - synchronously means that
       //! it will block until the message is written to a socket
       //!
-      //! @param msg    message to be sent
-      //! @param timout timout after which a failure should be reported if
-      //!               sending was unsuccessful
-      //! @return       success if the message has been pushed through the wire,
-      //!               failure otherwise
+      //! @param msg     message to be sent
+      //! @param timeout timout after which a failure should be reported if
+      //!                sending was unsuccessful
+      //! @return        success if the message has been pushed through the wire,
+      //!                failure otherwise
       //------------------------------------------------------------------------
       Status Send( Message *msg, int32_t timeout );
 
@@ -74,12 +74,12 @@ namespace XrdClient
       //! send queue and a listener is called when the message is successuly
       //! pushed through the wire or when the timeout elapses
       //!
-      //! @param msg           message to be sent
-      //! @param timeout       timeout after which a failure is reported to the
-      //!                      listener
-      //! @param statusHandler handler to be notified about the status
-      //! @return              success if the message was successfuly inserted
-      //!                      into the send quees, failure otherwise
+      //! @param msg     message to be sent
+      //! @param timeout timeout after which a failure is reported to the
+      //!                listener
+      //! @param handler handler to be notified about the status
+      //! @return        success if the message was successfuly inserted
+      //!                into the send quees, failure otherwise
       //------------------------------------------------------------------------
       Status Send( Message              *msg,
                    MessageStatusHandler *handler,

@@ -31,12 +31,15 @@ namespace XrdClient
   class Stream: public SocketHandler
   {
     public:
+      //------------------------------------------------------------------------
+      //! Status of the stream
+      //------------------------------------------------------------------------
       enum StreamStatus
       {
-        Disconnected    = 0,
-        Connected       = 1,
-        Connecting      = 2,
-        Error           = 3
+        Disconnected    = 0,    //!< Not connected
+        Connected       = 1,    //!< Connected
+        Connecting      = 2,    //!< In the process of being connected
+        Error           = 3     //!< Broken
       };
 
       //------------------------------------------------------------------------

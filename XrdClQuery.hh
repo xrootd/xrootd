@@ -25,18 +25,21 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct QueryCode
   {
+    //--------------------------------------------------------------------------
+    //! XRootD query request codes
+    //--------------------------------------------------------------------------
     enum Code
     {
-      Config         = kXR_Qconfig,    //! Query server configuration
-      ChecksumCancel = kXR_Qckscan,    //! Query file checksum cancelation
-      Checksum       = kXR_Qcksum,     //! Query file checksum
-      Opaque         = kXR_Qopaque,    //! Implementation dependent
-      OpaqueFile     = kXR_Qopaquf,    //! Implementation dependent
-      Prepare        = kXR_QPrep,      //! Query prepare status
-      Space          = kXR_Qspace,     //! Query logical space stats
-      Stats          = kXR_QStats,     //! Query server stats
-      Visa           = kXR_Qvisa,      //! Query file visa attributes
-      XAttr          = kXR_Qxattr      //! Query file extended attributes
+      Config         = kXR_Qconfig,    //!< Query server configuration
+      ChecksumCancel = kXR_Qckscan,    //!< Query file checksum cancelation
+      Checksum       = kXR_Qcksum,     //!< Query file checksum
+      Opaque         = kXR_Qopaque,    //!< Implementation dependent
+      OpaqueFile     = kXR_Qopaquf,    //!< Implementation dependent
+      Prepare        = kXR_QPrep,      //!< Query prepare status
+      Space          = kXR_Qspace,     //!< Query logical space stats
+      Stats          = kXR_QStats,     //!< Query server stats
+      Visa           = kXR_Qvisa,      //!< Query file visa attributes
+      XAttr          = kXR_Qxattr      //!< Query file extended attributes
     };
   };
 
@@ -45,14 +48,17 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct OpenFlags
   {
+    //--------------------------------------------------------------------------
+    //! Open flags, may be or'd when appropriate
+    //--------------------------------------------------------------------------
     enum Flags
     {
-      NoWait  = kXR_nowait,      //! Provide a location as soon as one becomes
-                                 //! known. This means that not all locations
-                                 //! are necessarily returned. If the file
-                                 //! does not exist a wait is still imposed.
-      Refresh = kXR_refresh,     //! Refresh the cached information on file's
-                                 //! location. Voids NoWait.
+      NoWait  = kXR_nowait,      //!< Provide a location as soon as one becomes
+                                 //!< known. This means that not all locations
+                                 //!< are necessarily returned. If the file
+                                 //!< does not exist a wait is still imposed.
+      Refresh = kXR_refresh,     //!< Refresh the cached information on file's
+                                 //!< location. Voids NoWait.
     };
   };
 
@@ -62,7 +68,7 @@ namespace XrdClient
   class Query
   {
     public:
-      typedef std::vector<LocationInfo> LocationList;
+      typedef std::vector<LocationInfo> LocationList; //!< Location list
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -84,11 +90,11 @@ namespace XrdClient
       //! @param path    path to the file to be located
       //! @param flags   some of the OpenFlags::Flags
       //! @param handler a handler to be notified when the response arrives,
-      //!                 the response parameter will hold a Buffer object
+      //!                the response parameter will hold a Buffer object
       //!                if the procedure is successfull
       //! @param timeout a timeout value, if 0 the environment default will
       //!                be used
-      //! @return status of the query
+      //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Locate( const std::string &path,
                            uint16_t           flags,
@@ -98,12 +104,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Locate a file - sync
       //!
-      //! @param path    path to the file to be located
-      //! @param flags   some of the OpenFlags::Flags
-      //! @param handler the response (to be deleted by the user
-      //! @param timeout a timeout value, if 0 the environment default will
-      //!                be used
-      //! @return status of the query
+      //! @param path     path to the file to be located
+      //! @param flags    some of the OpenFlags::Flags
+      //! @param response the response (to be deleted by the user
+      //! @param timeout  a timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Locate( const std::string  &path,
                            uint16_t            flags,
@@ -118,7 +124,7 @@ namespace XrdClient
       //! @param handler a handler to be notified when the response arrives,
       //! @param timeout a timeout value, if 0 the environment default will
       //!                be used
-      //! @return status of the query
+      //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Mv( const std::string &source,
                        const std::string &dest,
@@ -132,7 +138,7 @@ namespace XrdClient
       //! @param dest    the new name
       //! @param timeout a timeout value, if 0 the environment default will
       //!                be used
-      //! @return status of the query
+      //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Mv( const std::string &source,
                        const std::string &dest,
@@ -148,6 +154,7 @@ namespace XrdClient
       //!                  if the procedure is successfull
       //! @param timeout   a timeout value, if 0 the environment default will
       //!                  be used
+      //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ServerQuery( QueryCode::Code  queryCode,
                                 const Buffer    &arg,
@@ -162,6 +169,7 @@ namespace XrdClient
       //! @param response  the response (to be deletedy by the user)
       //! @param timeout   a timeout value, if 0 the environment default will
       //!                  be used
+      //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ServerQuery( QueryCode::Code   queryCode,
                                 const Buffer     &arg,

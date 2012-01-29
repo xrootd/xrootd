@@ -69,24 +69,24 @@ namespace XrdClient
       //! Notify the handler about read events
       //!
       //! @param socket  the socket
-      //! @param enable  specify if the handler should be notified
+      //! @param notify  specify if the handler should be notified
       //! @param timeout if no read event occured after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableReadNotification( Socket  *socket,
-                                           bool     enable,
+                                           bool     notify,
                                            uint16_t timeout = 60 );
 
       //------------------------------------------------------------------------
       //! Notify the handler about write events
       //!
       //! @param socket  the socket
-      //! @param enable  specify if the handler should be notified
+      //! @param notify  specify if the handler should be notified
       //! @param timeout if no write event occured after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,
-                                            bool     enable,
+                                            bool     notify,
                                             uint16_t timeout = 60);
 
       //------------------------------------------------------------------------

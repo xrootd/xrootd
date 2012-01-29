@@ -79,9 +79,9 @@ namespace XrdClient
     Status( uint16_t st = stOK, uint16_t cod = errNone, uint32_t errN = 0 ):
       status(st), code(cod), errNo( errN ) {}
 
-    bool IsError() { return status & stError; }
-    bool IsFatal() { return (status&0x0002) & stFatal; }
-    bool IsOK()    { return status == stOK; }
+    bool IsError() { return status & stError; }           //!< Error
+    bool IsFatal() { return (status&0x0002) & stFatal; }  //!< Fatal error
+    bool IsOK()    { return status == stOK; }             //!< We're fine
 
     uint16_t status;     //!< Status of the execution
     uint16_t code;       //!< Error type, or additional hints on what to do
