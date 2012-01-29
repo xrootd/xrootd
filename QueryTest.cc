@@ -24,6 +24,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( TruncateRmTest );
       CPPUNIT_TEST( MkdirRmdirTest );
       CPPUNIT_TEST( ChmodTest );
+      CPPUNIT_TEST( PingTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -31,6 +32,7 @@ class QueryTest: public CppUnit::TestCase
     void TruncateRmTest();
     void MkdirRmdirTest();
     void ChmodTest();
+    void PingTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -94,9 +96,6 @@ void QueryTest::MvTest()
   std::string filePath1 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
   std::string filePath2 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat2";
 
-  //----------------------------------------------------------------------------
-  // Query the server for all of the file locations
-  //----------------------------------------------------------------------------
   Query query( url );
 
   XRootDStatus st = query.Mv( filePath1, filePath2 );
@@ -128,9 +127,6 @@ void QueryTest::ServerQueryTest()
 
   std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
 
-  //----------------------------------------------------------------------------
-  // Query the server for all of the file locations
-  //----------------------------------------------------------------------------
   Query query( url );
   Buffer *response = 0;
   Buffer  arg;
@@ -165,9 +161,6 @@ void QueryTest::TruncateRmTest()
 
   std::string filePath = dataPath + "/testfile";
 
-  //----------------------------------------------------------------------------
-  // Query the server for all of the file locations
-  //----------------------------------------------------------------------------
   Query query( url );
 
   XRootDStatus st = query.Truncate( filePath, 10000000 );
@@ -200,9 +193,6 @@ void QueryTest::MkdirRmdirTest()
   std::string dirPath1 = dataPath + "/testdir";
   std::string dirPath2 = dataPath + "/testdir/asdads";
 
-  //----------------------------------------------------------------------------
-  // Query the server for all of the file locations
-  //----------------------------------------------------------------------------
   Query query( url );
 
   XRootDStatus st = query.MkDir( dirPath2, MkDirFlags::MakePath,
@@ -237,9 +227,6 @@ void QueryTest::ChmodTest()
 
   std::string dirPath = dataPath + "/testdir";
 
-  //----------------------------------------------------------------------------
-  // Query the server for all of the file locations
-  //----------------------------------------------------------------------------
   Query query( url );
 
   XRootDStatus st = query.MkDir( dirPath, MkDirFlags::MakePath,
@@ -250,5 +237,27 @@ void QueryTest::ChmodTest()
                     AccessMode::GR | AccessMode::GX );
   CPPUNIT_ASSERT( st.IsOK() );
   st = query.RmDir( dirPath );
+  CPPUNIT_ASSERT( st.IsOK() );
+}
+
+//------------------------------------------------------------------------------
+// Locate test
+//------------------------------------------------------------------------------
+void QueryTest::PingTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  Query query( url );
+  XRootDStatus st = query.Ping();
   CPPUNIT_ASSERT( st.IsOK() );
 }
