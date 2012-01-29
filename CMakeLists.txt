@@ -6,10 +6,12 @@ add_library(
   XrdClTests MODULE
   Server.cc          Server.hh
   Utils.cc           Utils.hh
+  TestEnv.cc         TestEnv.hh
   UtilsTest.cc
   SocketTest.cc
   PollerTest.cc
   PostMasterTest.cc
+  QueryTest.cc
 )
 
 target_link_libraries(
