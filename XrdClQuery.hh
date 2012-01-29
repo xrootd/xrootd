@@ -329,7 +329,7 @@ namespace XrdClient
                           uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! Change access mode on a directory or a file - async
+      //! Change access mode on a directory or a file - sync
       //!
       //! @param path     file/directory path
       //! @param mode     access mode, or'd AccessMode::Mode
@@ -340,6 +340,26 @@ namespace XrdClient
       XRootDStatus ChMod( const std::string &path,
                            uint16_t           mode,
                            uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Check if the server is alive - async
+      //!
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Ping( ResponseHandler *handler,
+                          uint16_t        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Check if the server is alive - sync
+      //!
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Ping( uint16_t timeout = 0 );
 
     private:
 

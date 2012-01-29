@@ -508,6 +508,47 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Check if the server is alive - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Ping( ResponseHandler *handler,
+                             uint16_t        timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_ping request",
+                         pUrl->GetHostId().c_str() );
+    Message *msg = new Message( sizeof( ClientPingRequest ) );
+    ClientPingRequest *req = (ClientPingRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid  = kXR_ping;
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if the server is alive - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Ping( uint16_t timeout  )
+  {
+    SyncResponseHandler handler;
+    Status st = Ping( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,
