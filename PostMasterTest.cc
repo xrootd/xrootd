@@ -83,7 +83,7 @@ void *TestThreadFunc( void *arg )
   request->streamid[0] = a->index;
   request->requestid   = kXR_ping;
   request->dlen        = 0;
-  XRootDTransport::Marshall( &m );
+  XRootDTransport::MarshallRequest( &m );
   Status sc;
 
   for( int i = 0; i < 100; ++i )
@@ -171,7 +171,7 @@ void PostMasterTest::FunctionalTest()
   request->streamid[1] = 2;
   request->requestid   = kXR_ping;
   request->dlen        = 0;
-  XRootDTransport::Marshall( &m1 );
+  XRootDTransport::MarshallRequest( &m1 );
 
   Status sc;
 
