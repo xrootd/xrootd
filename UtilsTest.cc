@@ -38,6 +38,9 @@ void UtilsTest::URLTest()
   XrdClient::URL url1( "root://user1:passwd1@host1:123//path?param1=val1&param2=val2" );
   XrdClient::URL url2( "root://user1@host1//path?param1=val1&param2=val2" );
   XrdClient::URL url3( "root://host1" );
+  XrdClient::URL url4( "root://user1:passwd1@[::192.168.1.1]:123//path?param1=val1&param2=val2" );
+  XrdClient::URL url5( "root://user1@[::192.168.1.1]:123//path?param1=val1&param2=val2" );
+  XrdClient::URL url6( "root://[::192.168.1.1]" );
   XrdClient::URL urlInvalid1( "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2" );
   XrdClient::URL urlInvalid2( "root://user1:passwd1host1:123//path?param1=val1&param2=val2" );
   XrdClient::URL urlInvalid3( "root:////path?param1=val1&param2=val2" );
@@ -104,6 +107,63 @@ void UtilsTest::URLTest()
   CPPUNIT_ASSERT( url3.GetPath() == "" );
   CPPUNIT_ASSERT( url3.GetPathWithParams() == "" );
   CPPUNIT_ASSERT( url3.GetParams().size() == 0 );
+
+  //----------------------------------------------------------------------------
+  // Full url - IPv6
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( url4.IsValid() == true );
+  CPPUNIT_ASSERT( url4.GetProtocol() == "root" );
+  CPPUNIT_ASSERT( url4.GetUserName() == "user1" );
+  CPPUNIT_ASSERT( url4.GetPassword() == "passwd1" );
+  CPPUNIT_ASSERT( url4.GetHostName() == "::192.168.1.1" );
+  CPPUNIT_ASSERT( url4.GetPort() == 123 );
+  CPPUNIT_ASSERT( url4.GetPathWithParams() == "/path?param1=val1&param2=val2" );
+  CPPUNIT_ASSERT( url4.GetPath() == "/path" );
+  CPPUNIT_ASSERT( url4.GetParams().size() == 2 );
+
+  it = url4.GetParams().find( "param1" );
+  CPPUNIT_ASSERT( it != url4.GetParams().end() );
+  CPPUNIT_ASSERT( it->second == "val1" );
+  it = url4.GetParams().find( "param2" );
+  CPPUNIT_ASSERT( it != url4.GetParams().end() );
+  CPPUNIT_ASSERT( it->second == "val2" );
+  it = url4.GetParams().find( "param3" );
+  CPPUNIT_ASSERT( it == url4.GetParams().end() );
+
+  //----------------------------------------------------------------------------
+  // No password, no port
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( url5.IsValid() == true );
+  CPPUNIT_ASSERT( url5.GetProtocol() == "root" );
+  CPPUNIT_ASSERT( url5.GetUserName() == "user1" );
+  CPPUNIT_ASSERT( url5.GetPassword() == "" );
+  CPPUNIT_ASSERT( url5.GetHostName() == "::192.168.1.1" );
+  CPPUNIT_ASSERT( url5.GetPort() == 123 );
+  CPPUNIT_ASSERT( url5.GetPath() == "/path" );
+  CPPUNIT_ASSERT( url5.GetPathWithParams() == "/path?param1=val1&param2=val2" );
+  CPPUNIT_ASSERT( url5.GetParams().size() == 2 );
+
+  it = url5.GetParams().find( "param1" );
+  CPPUNIT_ASSERT( it != url5.GetParams().end() );
+  CPPUNIT_ASSERT( it->second == "val1" );
+  it = url5.GetParams().find( "param2" );
+  CPPUNIT_ASSERT( it != url2.GetParams().end() );
+  CPPUNIT_ASSERT( it->second == "val2" );
+  it = url5.GetParams().find( "param3" );
+  CPPUNIT_ASSERT( it == url5.GetParams().end() );
+
+  //----------------------------------------------------------------------------
+  // Just the host and the protocol
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( url6.IsValid() == true );
+  CPPUNIT_ASSERT( url6.GetProtocol() == "root" );
+  CPPUNIT_ASSERT( url6.GetUserName() == "" );
+  CPPUNIT_ASSERT( url6.GetPassword() == "" );
+  CPPUNIT_ASSERT( url6.GetHostName() == "::192.168.1.1" );
+  CPPUNIT_ASSERT( url6.GetPort() == 1094 );
+  CPPUNIT_ASSERT( url6.GetPath() == "" );
+  CPPUNIT_ASSERT( url6.GetPathWithParams() == "" );
+  CPPUNIT_ASSERT( url6.GetParams().size() == 0 );
 
   //----------------------------------------------------------------------------
   // Bunch od invalid ones
