@@ -23,12 +23,14 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( ServerQueryTest );
       CPPUNIT_TEST( TruncateRmTest );
       CPPUNIT_TEST( MkdirRmdirTest );
+      CPPUNIT_TEST( ChmodTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
     void ServerQueryTest();
     void TruncateRmTest();
     void MkdirRmdirTest();
+    void ChmodTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -209,5 +211,44 @@ void QueryTest::MkdirRmdirTest()
   st = query.RmDir( dirPath2 );
   CPPUNIT_ASSERT( st.IsOK() );
   st = query.RmDir( dirPath1 );
+  CPPUNIT_ASSERT( st.IsOK() );
+}
+
+//------------------------------------------------------------------------------
+// Chmod test
+//------------------------------------------------------------------------------
+void QueryTest::ChmodTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string dirPath = dataPath + "/testdir";
+
+  //----------------------------------------------------------------------------
+  // Query the server for all of the file locations
+  //----------------------------------------------------------------------------
+  Query query( url );
+
+  XRootDStatus st = query.MkDir( dirPath, MkDirFlags::MakePath,
+                          AccessMode::UR | AccessMode::UW | AccessMode::UX );
+  CPPUNIT_ASSERT( st.IsOK() );
+  st = query.ChMod( dirPath,
+                    AccessMode::UR | AccessMode::UW | AccessMode::UX |
+                    AccessMode::GR | AccessMode::GX );
+  CPPUNIT_ASSERT( st.IsOK() );
+  st = query.RmDir( dirPath );
   CPPUNIT_ASSERT( st.IsOK() );
 }
