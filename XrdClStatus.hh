@@ -36,6 +36,8 @@ namespace XrdClient
                                         //!< given circumstances
   const uint16_t errFcntl          = 4; //!< failed manipulate file descriptor
   const uint16_t errPoll           = 5; //!< error while polling descriptors
+  const uint16_t errConfig         = 6; //!< System misconfigured
+  const uint16_t errInternal       = 7; //!< Internal error
 
   //----------------------------------------------------------------------------
   // Socket related errors
@@ -62,6 +64,9 @@ namespace XrdClient
   // XRootD related errors
   //----------------------------------------------------------------------------
   const uint16_t errNoMoreFreeSIDs     = 301;
+  const uint16_t errInvalidRedirectURL = 302;
+  const uint16_t errInvalidResponse    = 303;
+  const uint16_t errErrorResponse      = 304;
 
   //----------------------------------------------------------------------------
   //! Proceure execution status
@@ -71,7 +76,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    Status( uint16_t st = stOK, uint16_t cod = errNone, int errN = 0 ):
+    Status( uint16_t st = stOK, uint16_t cod = errNone, uint32_t errN = 0 ):
       status(st), code(cod), errNo( errN ) {}
 
     bool IsError() { return status & stError; }
@@ -80,7 +85,7 @@ namespace XrdClient
 
     uint16_t status;     //!< Status of the execution
     uint16_t code;       //!< Error type, or additional hints on what to do
-    int      errNo;      //!< Errno, if any
+    uint32_t errNo;      //!< Errno, if any
   };
 }
 

@@ -21,6 +21,8 @@ namespace XrdClient
   const uint64_t PostMasterMsg      = 0x0000000000000010;
   const uint64_t XRootDTransportMsg = 0x0000000000000020;
   const uint64_t TaskMgrMsg         = 0x0000000000000040;
+  const uint64_t XRootDMsg          = 0x0000000000000080;
+  const uint64_t QueryMsg           = 0x0000000000000100;
 
   //----------------------------------------------------------------------------
   // Environment settings

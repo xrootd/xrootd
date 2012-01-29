@@ -33,6 +33,11 @@ add_library(
   XrdClInQueue.cc             XrdClInQueue.hh
   XrdClTaskManager.cc         XrdClTaskManager.hh
   XrdClSIDManager.cc          XrdClSIDManager.hh
+  XrdClQuery.cc               XrdClQuery.hh
+  XrdClXRootDMsgHandler.cc    XrdClXRootDMsgHandler.hh
+                              XrdClBuffer.hh
+                              XrdClMessage.hh
+  XrdClXRootDResponses.cc     XrdClXRootDResponses.hh
 )
 
 target_link_libraries(

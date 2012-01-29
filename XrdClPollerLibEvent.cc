@@ -263,7 +263,7 @@ namespace XrdClient
     log->Debug( PollerMsg, "Stopping the poller..." );
     if( !pPollerThreadRunning )
     {
-      log->Error( PollerMsg, "The poller is not running" );
+      log->Dump( PollerMsg, "The poller is not running" );
       return false;
     }
 

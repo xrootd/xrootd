@@ -96,12 +96,18 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Marshal the outgoing message
       //------------------------------------------------------------------------
-      static Status Marshall( Message *msg );
+      static Status MarshallRequest( Message *msg );
+
+      //------------------------------------------------------------------------
+      //! Unmarshal the request - sometimes the requests need to be rewritten,
+      //! so we need to unmarshall them
+      //------------------------------------------------------------------------
+      static Status UnMarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
       //! Unmarshal the body of the incomming message
       //------------------------------------------------------------------------
-      static Status UnMarshallBody( Message *msg, XRequestTypes reqType );
+      static Status UnMarshallBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
       //! Unmarshal the header incomming message

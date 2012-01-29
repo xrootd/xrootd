@@ -137,6 +137,14 @@ namespace XrdClient
                              uint16_t   query,
                              AnyObject &result );
 
+      //------------------------------------------------------------------------
+      //! Get the task manager object user by the post master
+      //------------------------------------------------------------------------
+      TaskManager *GetTaskManager()
+      {
+        return pTaskManager;
+      }
+
     private:
       Channel *GetChannel( const URL &url );
 

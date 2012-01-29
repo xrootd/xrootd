@@ -337,7 +337,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Marshall
   //----------------------------------------------------------------------------
-  Status XRootDTransport::Marshall( Message *msg )
+  Status XRootDTransport::MarshallRequest( Message *msg )
   {
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     switch( req->header.requestid )
@@ -346,39 +346,53 @@ namespace XrdClient
       // kXR_protocol
       //------------------------------------------------------------------------
       case kXR_protocol:
-        req->protocol.clientpv  = htonl( req->protocol.clientpv );
-        req->protocol.dlen      = htonl( req->protocol.dlen );
+        req->protocol.clientpv = htonl( req->protocol.clientpv );
         break;
 
       //------------------------------------------------------------------------
       // kXR_login
       //------------------------------------------------------------------------
       case kXR_login:
-        req->login.pid  = htonl( req->login.pid );
-        req->login.dlen = htonl( req->login.dlen );
+        req->login.pid = htonl( req->login.pid );
         break;
 
       //------------------------------------------------------------------------
-      // kXR_login
+      // kXR_locate
       //------------------------------------------------------------------------
-      case kXR_auth:
-        req->auth.dlen = htonl( req->login.dlen );
-        break;
+      case kXR_locate:
+        req->locate.options = htons( req->locate.options );
+
+      //------------------------------------------------------------------------
+      // kXR_query
+      //------------------------------------------------------------------------
+      case kXR_query:
+        req->query.infotype = htons( req->query.infotype );
     };
 
     req->header.requestid = htons( req->header.requestid );
+    req->header.dlen      = htonl( req->header.dlen );
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Unmarshal the request - sometimes the requests need to be rewritten,
+  // so we need to unmarshall them
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::UnMarshallRequest( Message *msg )
+  {
+    // We rely on the marshaling process to be symetric!
+    return MarshallRequest( msg );
   }
 
   //----------------------------------------------------------------------------
   // Unmarshall the body of the incomming message
   //----------------------------------------------------------------------------
-  Status XRootDTransport::UnMarshallBody( Message *msg, XRequestTypes reqType )
+  Status XRootDTransport::UnMarshallBody( Message *msg, uint16_t reqType )
   {
     ServerResponse *m = (ServerResponse *)msg->GetBuffer();
 
     //--------------------------------------------------------------------------
-    // Unmarshall the body of a successful response
+    // kXR_ok
     //--------------------------------------------------------------------------
     if( m->hdr.status == kXR_ok )
     {
@@ -396,10 +410,34 @@ namespace XrdClient
       }
     }
     //--------------------------------------------------------------------------
-    // Unmarshall body of an error response
+    // kXR_error
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_error )
       m->body.error.errnum = ntohl( m->body.error.errnum );
+
+    //--------------------------------------------------------------------------
+    // kXR_wait
+    //--------------------------------------------------------------------------
+    else if( m->hdr.status == kXR_wait )
+      m->body.wait.seconds = htonl( m->body.wait.seconds );
+
+    //--------------------------------------------------------------------------
+    // kXR_redirect
+    //--------------------------------------------------------------------------
+    else if( m->hdr.status == kXR_redirect )
+      m->body.redirect.port = htonl( m->body.redirect.port );
+
+    //--------------------------------------------------------------------------
+    // kXR_waitresp
+    //--------------------------------------------------------------------------
+    else if( m->hdr.status == kXR_waitresp )
+      m->body.waitresp.seconds = htonl( m->body.waitresp.seconds );
+
+    //--------------------------------------------------------------------------
+    // kXR_attn
+    //--------------------------------------------------------------------------
+    else if( m->hdr.status == kXR_attn )
+      m->body.attn.actnum = htonl( m->body.attn.actnum );
 
     return Status();
   }
@@ -601,7 +639,7 @@ namespace XrdClient
                                         hsData->url->GetHostId().c_str(),
                                         hsData->streamId );
     }
-    Marshall( msg );
+    MarshallRequest( msg );
     return msg;
   }
 
@@ -804,7 +842,7 @@ namespace XrdClient
 
     memcpy( reqBuffer, credentials->buffer, credentials->size );
     hsData->out = msg;
-    Marshall( msg );
+    MarshallRequest( msg );
     delete credentials;
     return Status( stOK, suContinue );
   }

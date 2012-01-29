@@ -198,7 +198,6 @@ namespace XrdClient
   Channel::~Channel()
   {
     pTaskManager->UnregisterTask( pTickGenerator );
-    delete pTickGenerator;
     for( int i = 0; i < pStreams.size(); ++i )
       delete pStreams[i];
     pTransport->FinalizeChannel( pChannelData );

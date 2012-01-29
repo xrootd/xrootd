@@ -104,8 +104,8 @@ namespace XrdClient
 
     if( sPostMaster )
     {
-      sPostMaster->Finalize();
       sPostMaster->Stop();
+      sPostMaster->Finalize();
       delete sPostMaster;
       sPostMaster = 0;
     }

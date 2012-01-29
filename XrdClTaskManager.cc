@@ -33,6 +33,16 @@ namespace XrdClient
   TaskManager::TaskManager(): pResolution(1), pRunning(false) {}
 
   //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  TaskManager::~TaskManager()
+  {
+    TaskSet::iterator  it, itE;
+    for( it = pTasks.begin(); it != pTasks.end(); ++it )
+      delete it->task;
+  }
+
+  //----------------------------------------------------------------------------
   // Start the manager
   //----------------------------------------------------------------------------
   bool TaskManager::Start()
