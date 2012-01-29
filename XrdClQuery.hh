@@ -262,7 +262,7 @@ namespace XrdClient
       //!
       //! @param path     path to the directory
       //! @param flags    or'd MkDirFlags
-      //! @param mode     access mode, or'd AccessMode
+      //! @param mode     access mode, or'd AccessMode::Mode
       //! @param handler  handler to be notified when the response arrives
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
@@ -312,6 +312,34 @@ namespace XrdClient
       //------------------------------------------------------------------------
       XRootDStatus RmDir( const std::string &path,
                           uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Change access mode on a directory or a file - async
+      //!
+      //! @param path     file/directory path
+      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ChMod( const std::string &path,
+                          uint16_t           mode,
+                          ResponseHandler   *handler,
+                          uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Change access mode on a directory or a file - async
+      //!
+      //! @param path     file/directory path
+      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus ChMod( const std::string &path,
+                           uint16_t           mode,
+                           uint16_t           timeout = 0 );
 
     private:
 

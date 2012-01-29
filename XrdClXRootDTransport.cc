@@ -383,6 +383,13 @@ namespace XrdClient
       case kXR_mkdir:
         req->mkdir.mode = htons( req->mkdir.mode );
         break;
+
+      //------------------------------------------------------------------------
+      // kXR_chmod
+      //------------------------------------------------------------------------
+      case kXR_chmod:
+        req->chmod.mode = htons( req->chmod.mode );
+        break;
     };
 
     req->header.requestid = htons( req->header.requestid );

@@ -460,6 +460,54 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Change access mode on a directory or a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::ChMod( const std::string &path,
+                             uint16_t           mode,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_chmod request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientChmodRequest )+path.length() );
+    ClientChmodRequest *req = (ClientChmodRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid  = kXR_chmod;
+    req->mode       = mode;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Change access mode on a directory or a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::ChMod( const std::string &path,
+                             uint16_t           mode,
+                             uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = ChMod( path, mode, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,
