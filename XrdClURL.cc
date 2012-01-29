@@ -46,9 +46,8 @@ namespace XrdClient
     bool hasProtocol = false;
     bool hasUserName = false;
     bool hasPassword = false;
-    bool hasHostName = false;
-    bool hasPort     = false;
     bool hasPath     = false;
+    bool isIPv6      = false;
 
     //--------------------------------------------------------------------------
     // Extract the protocol
@@ -96,25 +95,44 @@ namespace XrdClient
       hostPort = userHost;
 
     //--------------------------------------------------------------------------
-    // Deal with host and port
+    // Deal with hostname - IPv6 encoded address RFC 2732
     //--------------------------------------------------------------------------
-    pos = hostPort.find( ":" );
-    if( pos != std::string::npos )
+    if( hostPort.length() >= 3 && hostPort[0] == '[' )
     {
-      pHostName = hostPort.substr( 0, pos );
-      std::string strPort = hostPort.substr( pos+1, hostPort.length() );
-      if( strPort.length() != 0 )
+      pos = hostPort.find( "]" );
+      if( pos != std::string::npos )
       {
-        char *result;
-        pPort = ::strtol( strPort.c_str(), &result, 0 );
-        if( *result != 0 )
-          pPort = -1;
+        pHostName = hostPort.substr( 1, pos-1 );
+        hostPort.erase( 0, pos+2 );
+        isIPv6 = true;
       }
-      hasPort = true;
     }
     else
-      pHostName = hostPort;
-    hasHostName = true;
+    {
+      pos = hostPort.find( ":" );
+      if( pos != std::string::npos )
+      {
+        pHostName = hostPort.substr( 0, pos );
+        hostPort.erase( 0, pos+1 );
+      }
+      else
+      {
+        pHostName = hostPort;
+        hostPort  = "";
+      }
+
+    }
+
+    //--------------------------------------------------------------------------
+    // Deal with port number
+    //--------------------------------------------------------------------------
+    if( !hostPort.empty() )
+    {
+      char *result;
+      pPort = ::strtol( hostPort.c_str(), &result, 0 );
+      if( *result != 0 )
+        pPort = -1;
+    }
 
     //--------------------------------------------------------------------------
     // Deal with the path
@@ -154,17 +172,12 @@ namespace XrdClient
     std::ostringstream o;
     if( pUserName.length() )
       o << pUserName << "@";
-    o << pHostName << ":" << pPort;
-    pHostId = o.str();
 
-    //--------------------------------------------------------------------------
-    // Check validity
-    //--------------------------------------------------------------------------
-    if( hasProtocol && pProtocol.length() == 0 ) return;
-    if( hasUserName && pUserName.length() == 0 ) return;
-    if( hasPassword && pPassword.length() == 0 ) return;
-    if( hasHostName && pHostName.length() == 0 ) return;
-    if( hasPort     && pPort == -1 ) return;
+    if( isIPv6 )
+      o << "[" << pHostName << "]:" << pPort;
+    else
+      o << pHostName << ":" << pPort;
+    pHostId = o.str();
 
     //--------------------------------------------------------------------------
     // Dump the url
@@ -182,6 +195,14 @@ namespace XrdClient
                pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str(),
                pPathWithParams.c_str() );
 
+    //--------------------------------------------------------------------------
+    // Check validity
+    //--------------------------------------------------------------------------
+    if( hasProtocol && pProtocol.length() == 0 ) return;
+    if( hasUserName && pUserName.length() == 0 ) return;
+    if( hasPassword && pPassword.length() == 0 ) return;
+    if( pHostName.length() == 0 ) return;
+    if( pPort == -1 ) return;
 
     pIsValid = true;
 
