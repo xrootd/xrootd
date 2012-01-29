@@ -21,10 +21,14 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( LocateTest );
       CPPUNIT_TEST( MvTest );
       CPPUNIT_TEST( ServerQueryTest );
+      CPPUNIT_TEST( TruncateRmTest );
+      CPPUNIT_TEST( MkdirRmdirTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
     void ServerQueryTest();
+    void TruncateRmTest();
+    void MkdirRmdirTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -65,7 +69,7 @@ void QueryTest::LocateTest()
 }
 
 //------------------------------------------------------------------------------
-// Locate test
+// Mv test
 //------------------------------------------------------------------------------
 void QueryTest::MvTest()
 {
@@ -134,4 +138,76 @@ void QueryTest::ServerQueryTest()
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() != 0 );
   delete response;
+}
+
+//------------------------------------------------------------------------------
+// Truncate/Rm test
+//------------------------------------------------------------------------------
+void QueryTest::TruncateRmTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/testfile";
+
+  //----------------------------------------------------------------------------
+  // Query the server for all of the file locations
+  //----------------------------------------------------------------------------
+  Query query( url );
+
+  XRootDStatus st = query.Truncate( filePath, 10000000 );
+  CPPUNIT_ASSERT( st.IsOK() );
+  st = query.Rm( filePath );
+  CPPUNIT_ASSERT( st.IsOK() );
+}
+
+//------------------------------------------------------------------------------
+// Mkdir/Rmdir test
+//------------------------------------------------------------------------------
+void QueryTest::MkdirRmdirTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string dirPath1 = dataPath + "/testdir";
+  std::string dirPath2 = dataPath + "/testdir/asdads";
+
+  //----------------------------------------------------------------------------
+  // Query the server for all of the file locations
+  //----------------------------------------------------------------------------
+  Query query( url );
+
+  XRootDStatus st = query.MkDir( dirPath2, MkDirFlags::MakePath,
+                          AccessMode::UR | AccessMode::UW | AccessMode::UX );
+  CPPUNIT_ASSERT( st.IsOK() );
+  st = query.RmDir( dirPath2 );
+  CPPUNIT_ASSERT( st.IsOK() );
+  st = query.RmDir( dirPath1 );
+  CPPUNIT_ASSERT( st.IsOK() );
 }
