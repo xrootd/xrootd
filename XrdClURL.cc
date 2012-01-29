@@ -47,7 +47,6 @@ namespace XrdClient
     bool hasUserName = false;
     bool hasPassword = false;
     bool hasPath     = false;
-    bool isIPv6      = false;
 
     //--------------------------------------------------------------------------
     // Extract the protocol
@@ -102,9 +101,18 @@ namespace XrdClient
       pos = hostPort.find( "]" );
       if( pos != std::string::npos )
       {
-        pHostName = hostPort.substr( 1, pos-1 );
+        pHostName = hostPort.substr( 0, pos+1 );
         hostPort.erase( 0, pos+2 );
-        isIPv6 = true;
+
+        //----------------------------------------------------------------------
+        // Check if we're IPv6 encoded IPv4
+        //----------------------------------------------------------------------
+        pos = pHostName.find( "." );
+        if( pos != std::string::npos )
+        {
+          pHostName.erase( 0, 3 );
+          pHostName.erase( pHostName.length()-1, 1 );
+        }
       }
     }
     else
@@ -172,11 +180,7 @@ namespace XrdClient
     std::ostringstream o;
     if( pUserName.length() )
       o << pUserName << "@";
-
-    if( isIPv6 )
-      o << "[" << pHostName << "]:" << pPort;
-    else
-      o << pHostName << ":" << pPort;
+    o << pHostName << ":" << pPort;
     pHostId = o.str();
 
     //--------------------------------------------------------------------------
