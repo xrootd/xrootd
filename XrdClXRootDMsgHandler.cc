@@ -360,9 +360,13 @@ namespace XrdClient
     switch( req->header.requestid )
     {
       //------------------------------------------------------------------------
-      // kXR_mv
+      // kXR_mv, kXR_truncate, kXR_rm, kXR_mkdir, kXR_rmdir
       //------------------------------------------------------------------------
       case kXR_mv:
+      case kXR_truncate:
+      case kXR_rm:
+      case kXR_mkdir:
+      case kXR_rmdir:
         return 0;
 
       //------------------------------------------------------------------------

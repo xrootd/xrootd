@@ -63,6 +63,35 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
+  //! Access mode
+  //----------------------------------------------------------------------------
+  struct AccessMode
+  {
+    enum Mode
+    {
+      UR = kXR_ur,         //!< owner readable
+      UW = kXR_uw,         //!< owner writable
+      UX = kXR_ux,         //!< owner executable/browsable
+      GR = kXR_gr,         //!< group readable
+      GW = kXR_gw,         //!< group writable
+      GX = kXR_gx,         //!< group executable/browsable
+      OR = kXR_or,         //!< world readable
+      OW = kXR_ow,         //!< world writeable
+      OX = kXR_ox,         //!< world executable/browsable
+    };
+  };
+
+  //----------------------------------------------------------------------------
+  //! MkDir flags
+  //----------------------------------------------------------------------------
+  struct MkDirFlags
+  {
+    static const uint8_t None     = 0;  //!< Nothing special
+    static const uint8_t MakePath = 1;  //!< create the entire directory tree if
+                                        //!< it doesn't exist
+  };
+
+  //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
   //----------------------------------------------------------------------------
   class Query
@@ -89,10 +118,10 @@ namespace XrdClient
       //!
       //! @param path    path to the file to be located
       //! @param flags   some of the OpenFlags::Flags
-      //! @param handler a handler to be notified when the response arrives,
+      //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a Buffer object
       //!                if the procedure is successfull
-      //! @param timeout a timeout value, if 0 the environment default will
+      //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
@@ -107,7 +136,7 @@ namespace XrdClient
       //! @param path     path to the file to be located
       //! @param flags    some of the OpenFlags::Flags
       //! @param response the response (to be deleted by the user
-      //! @param timeout  a timeout value, if 0 the environment default will
+      //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
@@ -121,8 +150,8 @@ namespace XrdClient
       //!
       //! @param source  the file or directory to be moved
       //! @param dest    the new name
-      //! @param handler a handler to be notified when the response arrives,
-      //! @param timeout a timeout value, if 0 the environment default will
+      //! @param handler handler to be notified when the response arrives,
+      //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
@@ -136,7 +165,7 @@ namespace XrdClient
       //!
       //! @param source  the file or directory to be moved
       //! @param dest    the new name
-      //! @param timeout a timeout value, if 0 the environment default will
+      //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
@@ -149,10 +178,10 @@ namespace XrdClient
       //!
       //! @param queryCode the query code as specified in the QueryCode struct
       //! @param arg       query argument
-      //! @param handler   a handler to be notified when the response arrives,
+      //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
       //!                  if the procedure is successfull
-      //! @param timeout   a timeout value, if 0 the environment default will
+      //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
       //------------------------------------------------------------------------
@@ -167,7 +196,7 @@ namespace XrdClient
       //! @param queryCode the query code as specified in the QueryCode struct
       //! @param arg       query argument
       //! @param response  the response (to be deletedy by the user)
-      //! @param timeout   a timeout value, if 0 the environment default will
+      //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
       //------------------------------------------------------------------------
@@ -175,6 +204,114 @@ namespace XrdClient
                                 const Buffer     &arg,
                                 Buffer          *&response,
                                 uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Truncate a file - async
+      //!
+      //! @param path     path to the file to be truncated
+      //! @param size     file size
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Truncate( const std::string &path,
+                             uint64_t           size,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Truncate a file - sync
+      //!
+      //! @param path     path to the file to be truncated
+      //! @param size     file size
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Truncate( const std::string &path,
+                             uint64_t           size,
+                             uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Remove a file - async
+      //!
+      //! @param path     path to the file to be removed
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Rm( const std::string &path,
+                       ResponseHandler   *handler,
+                       uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Remove a file - sync
+      //!
+      //! @param path     path to the file to be removed
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Rm( const std::string &path,
+                       uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Create a directory - async
+      //!
+      //! @param path     path to the directory
+      //! @param flags    or'd MkDirFlags
+      //! @param mode     access mode, or'd AccessMode
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus MkDir( const std::string &path,
+                          uint8_t            flags,
+                          uint16_t           mode,
+                          ResponseHandler   *handler,
+                          uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Create a directory - sync
+      //!
+      //! @param path     path to the directory
+      //! @param flags    or'd MkDirFlags
+      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus MkDir( const std::string &path,
+                          uint8_t            flags,
+                          uint16_t           mode,
+                          uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Remove a directory - async
+      //!
+      //! @param path     path to the directory to be removed
+      //! @param handler  handler to be notified when the response arrives
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RmDir( const std::string &path,
+                          ResponseHandler   *handler,
+                          uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Remove a directory - sync
+      //!
+      //! @param path     path to the directory to be removed
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus RmDir( const std::string &path,
+                          uint16_t           timeout = 0 );
 
     private:
 

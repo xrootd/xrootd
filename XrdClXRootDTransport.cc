@@ -361,12 +361,28 @@ namespace XrdClient
       //------------------------------------------------------------------------
       case kXR_locate:
         req->locate.options = htons( req->locate.options );
+        break;
 
       //------------------------------------------------------------------------
       // kXR_query
       //------------------------------------------------------------------------
       case kXR_query:
         req->query.infotype = htons( req->query.infotype );
+        break;
+
+      //------------------------------------------------------------------------
+      // kXR_truncate
+      //------------------------------------------------------------------------
+      case kXR_truncate:
+        req->truncate.offset = htonll( req->truncate.offset );
+        break;
+
+      //------------------------------------------------------------------------
+      // kXR_mkdir
+      //------------------------------------------------------------------------
+      case kXR_mkdir:
+        req->mkdir.mode = htons( req->mkdir.mode );
+        break;
     };
 
     req->header.requestid = htons( req->header.requestid );

@@ -272,6 +272,194 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Truncate a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Truncate( const std::string &path,
+                                uint64_t           size,
+                                ResponseHandler   *handler,
+                                uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientTruncateRequest )+path.length() );
+    ClientTruncateRequest *req = (ClientTruncateRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid = kXR_truncate;
+    req->offset    = size;
+    req->dlen      = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Truncate a file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Truncate( const std::string &path,
+                                uint64_t           size,
+                                uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Truncate( path, size, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Rm( const std::string &path,
+                          ResponseHandler   *handler,
+                          uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_rm request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientRmRequest )+path.length() );
+    ClientRmRequest *req = (ClientRmRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid = kXR_rm;
+    req->dlen      = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Rm( const std::string &path,
+                          uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Rm( path, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Create a directory - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::MkDir( const std::string &path,
+                             uint8_t            flags,
+                             uint16_t           mode,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_mkdir request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientMkdirRequest )+path.length() );
+    ClientMkdirRequest *req = (ClientMkdirRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid  = kXR_mkdir;
+    req->options[0] = flags;
+    req->mode       = mode;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Create a directory - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::MkDir( const std::string &path,
+                             uint8_t            flags,
+                             uint16_t           mode,
+                             uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = MkDir( path, flags, mode, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a directory - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::RmDir( const std::string &path,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_rmdir request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientRmdirRequest )+path.length() );
+    ClientRmdirRequest *req = (ClientRmdirRequest*)msg->GetBuffer();
+    msg->Zero();
+    req->requestid  = kXR_rmdir;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a directory - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::RmDir( const std::string &path,
+                             uint16_t           timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = RmDir( path, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,
