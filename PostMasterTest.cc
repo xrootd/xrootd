@@ -22,10 +22,12 @@ class PostMasterTest: public CppUnit::TestCase
   public:
     CPPUNIT_TEST_SUITE( PostMasterTest );
       CPPUNIT_TEST( FunctionalTest );
+      CPPUNIT_TEST( PingIPv6 );
       CPPUNIT_TEST( ThreadingTest );
     CPPUNIT_TEST_SUITE_END();
     void FunctionalTest();
     void ThreadingTest();
+    void PingIPv6();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
@@ -251,6 +253,74 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( !::strcmp( name, "XRootD" ) );
   CPPUNIT_ASSERT( sidMgr );
 
+  postMaster.Stop();
+  postMaster.Finalize();
+}
+
+
+//------------------------------------------------------------------------------
+// Test the functionality of a poller
+//------------------------------------------------------------------------------
+void PostMasterTest::PingIPv6()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Initialize the stuff
+  //----------------------------------------------------------------------------
+  PostMaster postMaster;
+  postMaster.Initialize();
+  postMaster.Start();
+
+  //----------------------------------------------------------------------------
+  // Build the message
+  //----------------------------------------------------------------------------
+  Message   m1, *m2 = 0;
+  XrdFilter f1( 1, 2 );
+  URL       localhost1( "root://[::1]" );
+  URL       localhost2( "root://[::127.0.0.1]" );
+
+  m1.Allocate( sizeof( ClientPingRequest ) );
+  m1.Zero();
+
+  ClientPingRequest *request = (ClientPingRequest *)m1.GetBuffer();
+  request->streamid[0] = 1;
+  request->streamid[1] = 2;
+  request->requestid   = kXR_ping;
+  request->dlen        = 0;
+  XRootDTransport::MarshallRequest( &m1 );
+
+  Status sc;
+
+  //----------------------------------------------------------------------------
+  // Send the message - localhost1
+  //----------------------------------------------------------------------------
+  sc = postMaster.Send( localhost1, &m1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+
+  sc = postMaster.Receive( localhost1, m2, &f1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+  ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  //----------------------------------------------------------------------------
+  // Send the message - localhost2
+  //----------------------------------------------------------------------------
+  sc = postMaster.Send( localhost2, &m1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+
+  sc = postMaster.Receive( localhost2, m2, &f1, 1200 );
+  CPPUNIT_ASSERT( sc.IsOK() );
+  resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  //----------------------------------------------------------------------------
+  // Clean up
+  //----------------------------------------------------------------------------
   postMaster.Stop();
   postMaster.Finalize();
 }
