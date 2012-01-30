@@ -91,7 +91,7 @@ namespace XrdClient
     std::auto_ptr<Message> msgPtr( msg );
 
     //--------------------------------------------------------------------------
-    // Check if we're interested in this message
+    // Process the message
     //--------------------------------------------------------------------------
     XRootDTransport::UnMarshallBody( msg, req->header.requestid );
     switch( rsp->hdr.status )
