@@ -386,7 +386,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // kXR_query
+      // kXR_stat
       //------------------------------------------------------------------------
       case kXR_stat:
       {
@@ -395,6 +395,21 @@ namespace XrdClient
                              pUrl->GetHostId().c_str(), pRequest );
 
         StatInfo *data = new StatInfo( rsp->body.buffer.data );
+        obj->Set( data );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_protocol
+      //------------------------------------------------------------------------
+      case kXR_protocol:
+      {
+        AnyObject *obj = new AnyObject();
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as ProtocolInfo",
+                             pUrl->GetHostId().c_str(), pRequest );
+
+        ProtocolInfo *data = new ProtocolInfo( rsp->body.protocol.pval,
+                                               rsp->body.protocol.flags );
         obj->Set( data );
         return obj;
       }

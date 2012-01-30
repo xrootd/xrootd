@@ -402,6 +402,30 @@ namespace XrdClient
                          StatInfo          *&response,
                          uint16_t            timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Obtain server protocol information - async
+      //!
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a ProtocolInfo object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Protocol( ResponseHandler *handler,
+                             uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain server protocol information - sync
+      //!
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Protocol( ProtocolInfo *&response,
+                             uint16_t       timeout = 0 );
+
     private:
 
       //------------------------------------------------------------------------

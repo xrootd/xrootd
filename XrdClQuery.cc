@@ -610,6 +610,61 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Obtain server protocol information - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Protocol( ResponseHandler *handler,
+                                uint16_t         timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_protocol",
+                         pUrl->GetHostId().c_str() );
+    Message *msg = new Message( sizeof( ClientProtocolRequest ) );
+    ClientProtocolRequest *req = (ClientProtocolRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid = kXR_protocol;
+    req->clientpv  = kXR_PROTOCOLVERSION;
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain server protocol information - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Protocol( ProtocolInfo *&response,
+                                uint16_t       timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Protocol( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+
+    if( ret.IsOK() )
+    {
+      if( !resp.get() )
+        return XRootDStatus( stError, errInternal );
+      resp->Get( response );
+      if( !response )
+        return XRootDStatus( stError, errInternal );
+    }
+
+    resp->Set( (int *)0 );
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,
