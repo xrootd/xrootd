@@ -49,7 +49,40 @@ namespace XrdClient
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
 
     //--------------------------------------------------------------------------
-    // Check if the message belongs to us
+    // We got an async message
+    //--------------------------------------------------------------------------
+    if( rsp->hdr.status == kXR_attn )
+    {
+      //------------------------------------------------------------------------
+      // We only care about async responses
+      //------------------------------------------------------------------------
+      if( rsp->body.attn.actnum != htonl(kXR_asynresp) )
+        return Ignore;
+
+      //------------------------------------------------------------------------
+      // Check if the message has the stream ID that we're interested in
+      //------------------------------------------------------------------------
+      ServerResponse *embRsp = (ServerResponse*)msg->GetBuffer(16);
+      if( embRsp->hdr.streamid[0] != req->header.streamid[0] ||
+          embRsp->hdr.streamid[1] != req->header.streamid[1] )
+        return Ignore;
+
+      //------------------------------------------------------------------------
+      // OK, it looks like we care
+      //------------------------------------------------------------------------
+      log->Dump( XRootDMsg, "[%s] Got an async response to message 0x%x, "
+                            "processing it",
+                            pUrl->GetHostId().c_str(), pRequest );
+      Message *embededMsg = new Message( rsp->hdr.dlen-8 );
+      embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
+      // we need to unmarshall the header by hand
+      XRootDTransport::UnMarshallHeader( embededMsg );
+      delete msg;
+      return HandleMessage( embededMsg );
+    }
+
+    //--------------------------------------------------------------------------
+    // The message is not async, check if it belongs to us
     //--------------------------------------------------------------------------
     if( rsp->hdr.streamid[0] != req->header.streamid[0] ||
         rsp->hdr.streamid[1] != req->header.streamid[1] )
@@ -197,40 +230,6 @@ namespace XrdClient
 
         // FIXME: we have to think of taking into account the new timeout value
         return Take;
-      }
-
-      //------------------------------------------------------------------------
-      // kXR_attn - async response to our query
-      //------------------------------------------------------------------------
-      case kXR_attn:
-      {
-        log->Dump( XRootDMsg, "[%s] Got kXR_attn response to message 0x%x, "
-                             "with action code of %d",
-                             pUrl->GetHostId().c_str(), pRequest,
-                             rsp->body.attn.actnum );
-
-        //----------------------------------------------------------------------
-        // We actually got an async response
-        //----------------------------------------------------------------------
-        if( rsp->body.attn.actnum == kXR_asynresp )
-        {
-          log->Dump( XRootDMsg, "[%s] Got an async response to message 0x%x, "
-                               "processing it",
-                               pUrl->GetHostId().c_str(), pRequest );
-          Message *embededMsg = new Message( rsp->hdr.dlen-8 );
-          embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
-          // we need to unmarshall the header by hand
-          XRootDTransport::UnMarshallHeader( embededMsg );
-          return HandleMessage( embededMsg );
-        }
-        else
-        {
-          log->Error( XRootDMsg, "[%s] Got an unknown async response to message "
-                                "0x%x",
-                                pUrl->GetHostId().c_str(), pRequest );
-          HandleResponse();
-          return Take | RemoveHandler;
-        }
       }
 
       //------------------------------------------------------------------------
