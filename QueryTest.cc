@@ -26,6 +26,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( ChmodTest );
       CPPUNIT_TEST( PingTest );
       CPPUNIT_TEST( StatTest );
+      CPPUNIT_TEST( ProtocolTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -35,6 +36,7 @@ class QueryTest: public CppUnit::TestCase
     void ChmodTest();
     void PingTest();
     void StatTest();
+    void ProtocolTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -294,5 +296,27 @@ void QueryTest::StatTest()
   CPPUNIT_ASSERT( response->TestFlags( StatInfo::Readable ) );
   CPPUNIT_ASSERT( response->TestFlags( StatInfo::Writable ) );
   CPPUNIT_ASSERT( !response->TestFlags( StatInfo::IsDir ) );
+  delete response;
+}
+
+//------------------------------------------------------------------------------
+// Protocol test
+//------------------------------------------------------------------------------
+void QueryTest::ProtocolTest()
+{
+  using namespace XrdClient;
+
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  Query query( url );
+  ProtocolInfo *response = 0;
+  XRootDStatus st = query.Protocol( response );
+  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT( response );
   delete response;
 }
