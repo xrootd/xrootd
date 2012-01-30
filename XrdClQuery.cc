@@ -549,6 +549,67 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Obtain status information for a path - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Stat( const std::string &path,
+                            uint8_t            flags,
+                            ResponseHandler   *handler,
+                            uint16_t           timeout )
+  {
+    Log    *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+    Message *msg = new Message( sizeof( ClientStatRequest )+path.length() );
+    ClientStatRequest *req = (ClientStatRequest*)msg->GetBuffer();
+    msg->Zero();
+
+    req->requestid  = kXR_stat;
+    req->options    = flags;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain status information for a path - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::Stat( const std::string  &path,
+                            uint16_t            flags,
+                            StatInfo          *&response,
+                            uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Stat( path, flags, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    handler.WaitForResponse();
+
+    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
+    XRootDStatus *status = handler.GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+
+    if( ret.IsOK() )
+    {
+      if( !resp.get() )
+        return XRootDStatus( stError, errInternal );
+      resp->Get( response );
+      if( !response )
+        return XRootDStatus( stError, errInternal );
+    }
+
+    resp->Set( (int *)0 );
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,

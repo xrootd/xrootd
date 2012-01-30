@@ -388,12 +388,26 @@ namespace XrdClient
       //------------------------------------------------------------------------
       // kXR_query
       //------------------------------------------------------------------------
+      case kXR_stat:
+      {
+        AnyObject *obj = new AnyObject();
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
+                             pUrl->GetHostId().c_str(), pRequest );
+
+        StatInfo *data = new StatInfo( rsp->body.buffer.data );
+        obj->Set( data );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_query
+      //------------------------------------------------------------------------
       case kXR_query:
       default:
       {
         AnyObject *obj = new AnyObject();
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as BinaryData",
-                             pUrl->GetHostId().c_str(), pRequest );
+                              pUrl->GetHostId().c_str(), pRequest );
 
         BinaryDataInfo *data = new BinaryDataInfo();
         data->Allocate( rsp->hdr.dlen );

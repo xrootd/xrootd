@@ -92,6 +92,15 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
+  //! Stat flags
+  //----------------------------------------------------------------------------
+  struct StatFlags
+  {
+    static const uint8_t Object = 0;  //!< Do a file/directory stat
+    static const uint8_t VFS    = 1;  //!< Stat virtual filesystem
+  };
+
+  //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
   //----------------------------------------------------------------------------
   class Query
@@ -135,7 +144,7 @@ namespace XrdClient
       //!
       //! @param path     path to the file to be located
       //! @param flags    some of the OpenFlags::Flags
-      //! @param response the response (to be deleted by the user
+      //! @param response the response (to be deleted by the user)
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
@@ -338,8 +347,8 @@ namespace XrdClient
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ChMod( const std::string &path,
-                           uint16_t           mode,
-                           uint16_t           timeout = 0 );
+                          uint16_t           mode,
+                          uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Check if the server is alive - async
@@ -350,7 +359,7 @@ namespace XrdClient
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Ping( ResponseHandler *handler,
-                          uint16_t        timeout = 0 );
+                         uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Check if the server is alive - sync
@@ -360,6 +369,38 @@ namespace XrdClient
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Ping( uint16_t timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain status information for a path - async
+      //!
+      //! @param path    file/directory path
+      //! @param flags   StatFlags
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a StatInfo object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Stat( const std::string &path,
+                         uint8_t            flags,
+                         ResponseHandler   *handler,
+                         uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain status information for a path - sync
+      //!
+      //! @param path     file/directory path
+      //! @param mode     StatFlags
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Stat( const std::string  &path,
+                         uint16_t            flags,
+                         StatInfo          *&response,
+                         uint16_t            timeout = 0 );
 
     private:
 

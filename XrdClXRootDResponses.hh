@@ -297,7 +297,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StatInfo( const std::string &info );
+      StatInfo( const char *data );
+
+      //------------------------------------------------------------------------
+      //! Get type
+      //------------------------------------------------------------------------
+      const StatType GetType() const
+      {
+        return pType;
+      }
 
       //------------------------------------------------------------------------
       //! Get id
@@ -392,7 +400,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       // Parse the stat info returned by the server
       //------------------------------------------------------------------------
-      void ParseResponse( std::string srvResponse );
+      void ParseServerResponse( const char *data  );
+      void ProcessObjectStat( std::vector<std::string> &chunks  );
+      void ProcessVFSStat( std::vector<std::string> &chunks  );
+
+      StatType   pType;
 
       //------------------------------------------------------------------------
       // Normal stat
@@ -407,10 +419,10 @@ namespace XrdClient
       //------------------------------------------------------------------------
       uint64_t    pNodesRW;
       uint64_t    pFreeRW;
-      uint8_t     pUtilizationRW;
+      uint32_t    pUtilizationRW;
       uint64_t    pNodesStaging;
       uint64_t    pFreeStaging;
-      uint8_t     pUtilizationStaging;
+      uint32_t    pUtilizationStaging;
   };
 
   //----------------------------------------------------------------------------
