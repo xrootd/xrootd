@@ -100,7 +100,7 @@ namespace XrdClient
         urlInfoBuff[rsp->hdr.dlen-4] = 0;
         memcpy( urlInfoBuff, rsp->body.redirect.host, rsp->hdr.dlen-4 );
         std::string urlInfo = urlInfoBuff;
-        delete urlInfoBuff;
+        delete [] urlInfoBuff;
         log->Dump( XRootDMsg, "[%s] Got kXR_redirect response to "
                              "message 0x%x: %s, port %d",
                              pUrl->GetHostId().c_str(), pRequest,
