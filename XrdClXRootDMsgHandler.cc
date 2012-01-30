@@ -307,12 +307,21 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::HandleResponse()
   {
+    //--------------------------------------------------------------------------
+    // Process the response and notify the listener
+    //--------------------------------------------------------------------------
     XRootDStatus *status   = ProcessStatus();
     AnyObject    *response = 0;
 
     if( status->IsOK() )
       response = ParseResponse();
     pResponseHandler->HandleResponse( status, response );
+
+    //--------------------------------------------------------------------------
+    // Release the stream id
+    //--------------------------------------------------------------------------
+    ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
+    pSidMgr->ReleaseSID( req->header.streamid );
 
     //--------------------------------------------------------------------------
     // As much as I hate to say this, we cannot do more, so we commit
