@@ -84,6 +84,22 @@ namespace XrdClient
             return pAccess;
           }
 
+          //--------------------------------------------------------------------
+          //! Check whether the location is a server
+          //--------------------------------------------------------------------
+          bool IsServer() const
+          {
+            return pType == ServerOnline || pType == ServerPending;
+          }
+
+          //--------------------------------------------------------------------
+          //! Check whether the location is a manager
+          //--------------------------------------------------------------------
+          bool IsManager() const
+          {
+            return pType == ManagerOnline || pType == ManagerPending;
+          }
+
         private:
           std::string  pAddress;
           LocationType pType;
@@ -108,7 +124,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocationInfo( const char *data );
+      LocationInfo( const char *data = "" );
 
       //------------------------------------------------------------------------
       //! Get number of locations
@@ -148,6 +164,14 @@ namespace XrdClient
       LocationConstIterator End() const
       {
         return pLocations.end();
+      }
+
+      //------------------------------------------------------------------------
+      //! Add a location
+      //------------------------------------------------------------------------
+      void Add( const Location &location )
+      {
+        pLocations.push_back( location );
       }
 
     private:

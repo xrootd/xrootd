@@ -14,6 +14,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
@@ -70,6 +71,151 @@ namespace
       XrdClient::XRootDStatus *pStatus;
       XrdClient::AnyObject    *pResponse;
       XrdSysSemaphore          pSem;
+  };
+
+  //----------------------------------------------------------------------------
+  // Deep locate handler
+  //----------------------------------------------------------------------------
+  class DeepLocateHandler: public XrdClient::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      DeepLocateHandler( XrdClient::ResponseHandler *handler,
+                         const std::string          &path,
+                         uint16_t                    flags ):
+        pFirstTime( true ),
+        pOutstanding( 1 ),
+        pHandler( handler ),
+        pPath( path ),
+        pFlags( flags )
+      {
+        pLocations = new XrdClient::LocationInfo();
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponse( XrdClient::XRootDStatus *status,
+                                   XrdClient::AnyObject    *response )
+      {
+        using namespace XrdClient;
+        Log *log = DefaultEnv::GetLog();
+        --pOutstanding;
+
+        //----------------------------------------------------------------------
+        // We've got an error, react accordingly
+        //----------------------------------------------------------------------
+        if( !status->IsOK() )
+        {
+          log->Dump( QueryMsg, "[DeepLocate] Got error response" );
+
+          //--------------------------------------------------------------------
+          // We have faile with the first request
+          //--------------------------------------------------------------------
+          if( pFirstTime )
+          {
+            log->Debug( QueryMsg, "[DeepLocate] Failed to get the initial "
+                                  "location list" );
+            pHandler->HandleResponse( status, response );
+            return;
+          }
+
+          //--------------------------------------------------------------------
+          // We have no more outstanding requests, so let give to the client
+          // what we have
+          //--------------------------------------------------------------------
+          if( !pOutstanding )
+          {
+            log->Debug( QueryMsg, "[DeepLocate] No outstanding requests, "
+                                  "give out what we've got" );
+            HandleResponse();
+          }
+
+          return;
+        }
+        pFirstTime = false;
+
+        //----------------------------------------------------------------------
+        // Extract the answer
+        //----------------------------------------------------------------------
+        LocationInfo *info = 0;
+        response->Get( info );
+        LocationInfo::LocationIterator it;
+
+        log->Dump( QueryMsg, "[DeepLocate] Got %d locations",
+                             info->GetSize() );
+
+        for( it = info->Begin(); it != info->End(); ++it )
+        {
+          //--------------------------------------------------------------------
+          // Add the location to the list
+          //--------------------------------------------------------------------
+          if( it->IsServer() )
+          {
+            pLocations->Add( *it );
+            continue;
+          }
+
+          //--------------------------------------------------------------------
+          // Ask the manager for the location of servers
+          //--------------------------------------------------------------------
+          if( it->IsManager() )
+          {
+            Query q( it->GetAddress() );
+            //!! FIXME timeout
+            if( q.Locate( pPath, pFlags, this, 300 ).IsOK() )
+              ++pOutstanding;
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // Clean up and check if we have anything else to do
+        //----------------------------------------------------------------------
+        delete response;
+        delete status;
+        if( !pOutstanding )
+          HandleResponse();
+      }
+
+      //------------------------------------------------------------------------
+      // Build the response for the client
+      //------------------------------------------------------------------------
+      void HandleResponse()
+      {
+        using namespace XrdClient;
+
+        //----------------------------------------------------------------------
+        // Nothing found
+        //----------------------------------------------------------------------
+        if( !pLocations->GetSize() )
+        {
+          delete pLocations;
+          pHandler->HandleResponse( new XRootDStatus( stError, errErrorResponse,
+                                                  kXR_NotFound,
+                                                  "No valid location found" ),
+                                    0 );
+        }
+        //----------------------------------------------------------------------
+        // We return an answer
+        //----------------------------------------------------------------------
+        else
+        {
+          AnyObject *obj = new AnyObject();
+          obj->Set( pLocations );
+          pHandler->HandleResponse( new XRootDStatus(), obj );
+        }
+        delete this;
+      }
+
+    private:
+      bool                        pFirstTime;
+      uint16_t                    pOutstanding;
+      XrdClient::ResponseHandler *pHandler;
+      XrdClient::LocationInfo    *pLocations;
+      std::string                 pPath;
+      uint16_t                    pFlags;
   };
 
   //----------------------------------------------------------------------------
@@ -188,6 +334,33 @@ namespace XrdClient
   {
     SyncResponseHandler handler;
     Status st = Locate( path, flags, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
+  // Locate a file, recursively locate all disk servers - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::DeepLocate( const std::string &path,
+                                  uint16_t           flags,
+                                  ResponseHandler   *handler,
+                                  uint16_t           timeout )
+  {
+    return Locate( path, flags, new DeepLocateHandler( handler, path, flags ), timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Locate a file, recursively locate all disk servers - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::DeepLocate( const std::string  &path,
+                                  uint16_t            flags,
+                                  LocationInfo      *&response,
+                                  uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = DeepLocate( path, flags, &handler, timeout );
     if( !st.IsOK() )
       return st;
 

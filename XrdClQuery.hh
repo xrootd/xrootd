@@ -155,6 +155,38 @@ namespace XrdClient
                            uint16_t            timeout  = 0 );
 
       //------------------------------------------------------------------------
+      //! Locate a file, recursively locate all disk servers - async
+      //!
+      //! @param path    path to the file to be located
+      //! @param flags   some of the OpenFlags::Flags
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a Buffer object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DeepLocate( const std::string &path,
+                               uint16_t           flags,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Locate a file, recursively locate all disk servers - sync
+      //!
+      //! @param path     path to the file to be located
+      //! @param flags    some of the OpenFlags::Flags
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DeepLocate( const std::string  &path,
+                               uint16_t            flags,
+                               LocationInfo      *&response,
+                               uint16_t            timeout  = 0 );
+
+      //------------------------------------------------------------------------
       //! Move a directory or a file - async
       //!
       //! @param source  the file or directory to be moved
