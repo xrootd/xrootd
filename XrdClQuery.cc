@@ -71,6 +71,59 @@ namespace
       XrdClient::AnyObject    *pResponse;
       XrdSysSemaphore          pSem;
   };
+
+  //----------------------------------------------------------------------------
+  // Wait and return the status of the query
+  //----------------------------------------------------------------------------
+  XrdClient::XRootDStatus WaitForStatus( SyncResponseHandler *handler )
+  {
+    handler->WaitForResponse();
+    XrdClient::XRootDStatus *status = handler->GetStatus();
+    XrdClient::XRootDStatus ret( *status );
+    delete status;
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Wait for the response
+  //----------------------------------------------------------------------------
+  template<class Type>
+  XrdClient::XRootDStatus WaitForResponse( SyncResponseHandler  *handler,
+                                           Type                *&response )
+  {
+    using namespace XrdClient;
+    handler->WaitForResponse();
+
+    std::auto_ptr<AnyObject> resp( handler->GetResponse() );
+    XRootDStatus *status = handler->GetStatus();
+    XRootDStatus ret( *status );
+    delete status;
+
+    if( ret.IsOK() )
+    {
+      if( !resp.get() )
+        return XRootDStatus( stError, errInternal );
+      resp->Get( response );
+      if( !response )
+        return XRootDStatus( stError, errInternal );
+    }
+
+    resp->Set( (int *)0 );
+    return ret;
+  }
+
+  //----------------------------------------------------------------------------
+  // Create a message
+  //----------------------------------------------------------------------------
+  template<class Type>
+  void CreateRequest( XrdClient::Message *&msg, Type *&req,
+                      uint32_t payloadSize = 0 )
+  {
+    using namespace XrdClient;
+    msg = new Message( sizeof(Type)+payloadSize );
+    req = (Type*)msg->GetBuffer();
+    msg->Zero();
+  }
 }
 
 namespace XrdClient
@@ -104,12 +157,13 @@ namespace XrdClient
                               ResponseHandler   *handler,
                               uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_locate request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientLocateRequest )+path.length() );
-    ClientLocateRequest *req = (ClientLocateRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message             *msg;
+    ClientLocateRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_locate;
     req->options   = flags;
@@ -137,24 +191,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-
-    if( ret.IsOK() )
-    {
-      if( !resp.get() )
-        return XRootDStatus( stError, errInternal );
-      resp->Get( response );
-      if( !response )
-        return XRootDStatus( stError, errInternal );
-    }
-
-    resp->Set( (int *)0 );
-    return ret;
+    return WaitForResponse( &handler, response );
   }
 
   //----------------------------------------------------------------------------
@@ -170,10 +207,9 @@ namespace XrdClient
                          pUrl->GetHostId().c_str(),
                          source.c_str(), dest.c_str() );
 
-    int size = sizeof( ClientMvRequest )+source.length()+dest.length()+1;
-    Message *msg = new Message( size );
-    ClientMvRequest *req = (ClientMvRequest*)msg->GetBuffer();
-    msg->Zero();
+    Message         *msg;
+    ClientMvRequest *req;
+    CreateRequest( msg, req, source.length()+dest.length()+1 );
 
     req->requestid = kXR_mv;
     req->dlen      = source.length()+dest.length()+1;
@@ -200,12 +236,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -216,19 +247,18 @@ namespace XrdClient
                                    ResponseHandler *handler,
                                    uint16_t         timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_query request [%d]",
                          pUrl->GetHostId().c_str(), queryCode );
 
-    int headerSize = sizeof( ClientQueryRequest );
-    Message *msg = new Message( headerSize+arg.GetSize() );
-    ClientQueryRequest *req = (ClientQueryRequest*)msg->GetBuffer();
-    msg->Zero();
+    Message            *msg;
+    ClientQueryRequest *req;
+    CreateRequest( msg, req, arg.GetSize() );
 
     req->requestid = kXR_query;
     req->infotype  = queryCode;
     req->dlen      = arg.GetSize();
-    memcpy( msg->GetBuffer(headerSize), arg.GetBuffer(), arg.GetSize() );
+    msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
 
     Status st = SendMessage( msg, handler, timeout );
 
@@ -251,24 +281,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-
-    if( ret.IsOK() )
-    {
-      if( !resp.get() )
-        return XRootDStatus( stError, errInternal );
-      resp->Get( response );
-      if( !response )
-        return XRootDStatus( stError, errInternal );
-    }
-
-    resp->Set( (int *)0 );
-    return ret;
+    return WaitForResponse( &handler, response );
   }
 
   //----------------------------------------------------------------------------
@@ -282,9 +295,10 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientTruncateRequest )+path.length() );
-    ClientTruncateRequest *req = (ClientTruncateRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message               *msg;
+    ClientTruncateRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_truncate;
     req->offset    = size;
@@ -311,12 +325,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -329,9 +338,10 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_rm request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientRmRequest )+path.length() );
-    ClientRmRequest *req = (ClientRmRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message         *msg;
+    ClientRmRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_rm;
     req->dlen      = path.length();
@@ -356,12 +366,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -373,12 +378,13 @@ namespace XrdClient
                              ResponseHandler   *handler,
                              uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_mkdir request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientMkdirRequest )+path.length() );
-    ClientMkdirRequest *req = (ClientMkdirRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message            *msg;
+    ClientMkdirRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_mkdir;
     req->options[0] = flags;
@@ -407,12 +413,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -425,9 +426,11 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_rmdir request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientRmdirRequest )+path.length() );
-    ClientRmdirRequest *req = (ClientRmdirRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message            *msg;
+    ClientRmdirRequest *req;
+    CreateRequest( msg, req, path.length() );
+
     req->requestid  = kXR_rmdir;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
@@ -451,12 +454,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -470,9 +468,10 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_chmod request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientChmodRequest )+path.length() );
-    ClientChmodRequest *req = (ClientChmodRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message            *msg;
+    ClientChmodRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_chmod;
     req->mode       = mode;
@@ -499,12 +498,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -516,9 +510,10 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_ping request",
                          pUrl->GetHostId().c_str() );
-    Message *msg = new Message( sizeof( ClientPingRequest ) );
-    ClientPingRequest *req = (ClientPingRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message           *msg;
+    ClientPingRequest *req;
+    CreateRequest( msg, req );
 
     req->requestid  = kXR_ping;
 
@@ -540,12 +535,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-    return ret;
+    return WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
@@ -556,12 +546,13 @@ namespace XrdClient
                             ResponseHandler   *handler,
                             uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
+    Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for path %s",
                          pUrl->GetHostId().c_str(), path.c_str() );
-    Message *msg = new Message( sizeof( ClientStatRequest )+path.length() );
-    ClientStatRequest *req = (ClientStatRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message           *msg;
+    ClientStatRequest *req;
+    CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_stat;
     req->options    = flags;
@@ -589,24 +580,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-
-    if( ret.IsOK() )
-    {
-      if( !resp.get() )
-        return XRootDStatus( stError, errInternal );
-      resp->Get( response );
-      if( !response )
-        return XRootDStatus( stError, errInternal );
-    }
-
-    resp->Set( (int *)0 );
-    return ret;
+    return WaitForResponse( &handler, response );
   }
 
   //----------------------------------------------------------------------------
@@ -618,9 +592,10 @@ namespace XrdClient
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_protocol",
                          pUrl->GetHostId().c_str() );
-    Message *msg = new Message( sizeof( ClientProtocolRequest ) );
-    ClientProtocolRequest *req = (ClientProtocolRequest*)msg->GetBuffer();
-    msg->Zero();
+
+    Message               *msg;
+    ClientProtocolRequest *req;
+    CreateRequest( msg, req );
 
     req->requestid = kXR_protocol;
     req->clientpv  = kXR_PROTOCOLVERSION;
@@ -644,24 +619,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    handler.WaitForResponse();
-
-    std::auto_ptr<AnyObject> resp( handler.GetResponse() );
-    XRootDStatus *status = handler.GetStatus();
-    XRootDStatus ret( *status );
-    delete status;
-
-    if( ret.IsOK() )
-    {
-      if( !resp.get() )
-        return XRootDStatus( stError, errInternal );
-      resp->Get( response );
-      if( !response )
-        return XRootDStatus( stError, errInternal );
-    }
-
-    resp->Set( (int *)0 );
-    return ret;
+    return WaitForResponse( &handler, response );
   }
 
   //----------------------------------------------------------------------------
