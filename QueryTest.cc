@@ -27,6 +27,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( PingTest );
       CPPUNIT_TEST( StatTest );
       CPPUNIT_TEST( ProtocolTest );
+      CPPUNIT_TEST( DeepLocateTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -37,6 +38,7 @@ class QueryTest: public CppUnit::TestCase
     void PingTest();
     void StatTest();
     void ProtocolTest();
+    void DeepLocateTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -74,6 +76,7 @@ void QueryTest::LocateTest()
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
+  delete locations;
 }
 
 //------------------------------------------------------------------------------
@@ -319,4 +322,43 @@ void QueryTest::ProtocolTest()
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
   delete response;
+}
+
+//------------------------------------------------------------------------------
+// Deep locate test
+//------------------------------------------------------------------------------
+void QueryTest::DeepLocateTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
+
+  //----------------------------------------------------------------------------
+  // Query the server for all of the file locations
+  //----------------------------------------------------------------------------
+  Query query( url );
+
+  LocationInfo *locations = 0;
+  XRootDStatus st = query.DeepLocate( filePath, OpenFlags::Refresh, locations );
+  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT( locations );
+  CPPUNIT_ASSERT( locations->GetSize() != 0 );
+  LocationInfo::LocationIterator it = locations->Begin();
+  for( ; it != locations->End(); ++it )
+    CPPUNIT_ASSERT( it->IsServer() );
+  delete locations;
 }
