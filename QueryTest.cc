@@ -25,6 +25,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( MkdirRmdirTest );
       CPPUNIT_TEST( ChmodTest );
       CPPUNIT_TEST( PingTest );
+      CPPUNIT_TEST( StatTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -33,6 +34,7 @@ class QueryTest: public CppUnit::TestCase
     void MkdirRmdirTest();
     void ChmodTest();
     void PingTest();
+    void StatTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -260,4 +262,37 @@ void QueryTest::PingTest()
   Query query( url );
   XRootDStatus st = query.Ping();
   CPPUNIT_ASSERT( st.IsOK() );
+}
+
+//------------------------------------------------------------------------------
+// Stat test
+//------------------------------------------------------------------------------
+void QueryTest::StatTest()
+{
+  using namespace XrdClient;
+
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
+
+  Query query( url );
+  StatInfo *response = 0;
+  XRootDStatus st = query.Stat( filePath, StatFlags::Object, response );
+  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT( response );
+  CPPUNIT_ASSERT( response->GetType() == StatInfo::Object );
+  CPPUNIT_ASSERT( response->GetSize() == 1048576000 );
+  CPPUNIT_ASSERT( response->TestFlags( StatInfo::Readable ) );
+  CPPUNIT_ASSERT( response->TestFlags( StatInfo::Writable ) );
+  CPPUNIT_ASSERT( !response->TestFlags( StatInfo::IsDir ) );
+  delete response;
 }
