@@ -170,6 +170,14 @@ namespace XrdClient
       message->AdvanceCursor( status );
     }
 
+    Log *log = DefaultEnv::GetLog();
+    ServerResponse *rsp = (ServerResponse *)message->GetBuffer();
+    log->Dump( XRootDTransportMsg, "%s Read message 0x%x, size: %d, stream "
+                                   "[%d, %d]",
+                                   socket->GetName().c_str(), message,
+                                   message->GetSize(),
+                                  rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
+
     return Status();
   }
 
