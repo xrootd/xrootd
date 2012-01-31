@@ -250,11 +250,11 @@ namespace
       if( !resp.get() )
         return XRootDStatus( stError, errInternal );
       resp->Get( response );
+      resp->Set( (int *)0 );
       if( !response )
         return XRootDStatus( stError, errInternal );
     }
 
-    resp->Set( (int *)0 );
     return ret;
   }
 
