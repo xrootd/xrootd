@@ -22,6 +22,74 @@
 using namespace XrdClient;
 
 //------------------------------------------------------------------------------
+// Build a path
+//------------------------------------------------------------------------------
+XRootDStatus BuildPath( std::string &newPath, Env *env,
+                        const std::string &path )
+{
+  if( path.empty() )
+    return XRootDStatus( stError, errInvalidArgs );
+
+  if( path[0] == '/' )
+  {
+    newPath = path;
+    return XRootDStatus();
+  }
+
+  std::string cwd = "/";
+  env->GetString( "CWD", cwd );
+  newPath  = cwd;
+  newPath += "/";
+  newPath += path;
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Change current working directory
+//------------------------------------------------------------------------------
+XRootDStatus DoCD( Query *query, Env *env,
+                   const std::list<std::string> &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log *log = DefaultEnv::GetLog();
+  if( args.size() != 1 )
+  {
+    log->Error( AppMsg, "Invalid arguments. Expected a path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string newPath;
+  if( !BuildPath( newPath, env, args.front() ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid arguments. Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if the path exist and is not a directory
+  //----------------------------------------------------------------------------
+  StatInfo *info;
+  XRootDStatus st = query->Stat( newPath, StatFlags::Object, info );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to stat the path: %s", st.ToStr().c_str() );
+    return st;
+  }
+
+  if( !info->TestFlags( StatInfo::IsDir ) )
+  {
+    log->Error( AppMsg, "%s is not a directory.", newPath.c_str() );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  env->PutString( "CWD", newPath );
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -39,6 +107,10 @@ XRootDStatus PrintHelp( Query *query, Env *env,
   std::cout << "     Modify file permissions. Permission example:";
   std::cout << std::endl;
   std::cout << "     rwx r-x --x ---" << std::endl << std::endl;
+
+  std::cout << "   cd <path>" << std::endl;
+  std::cout << "     Change the current working directory";
+  std::cout << std::endl << std::endl;
 
   std::cout << "   ls [dirname]" << std::endl;
   std::cout << "     Get directory listing." << std::endl << std::endl;
@@ -122,6 +194,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   Env *env = new Env();
   env->PutString( "CWD", "/" );
   QueryExecutor *executor = new QueryExecutor( url, env );
+  executor->AddCommand( "cd",          DoCD      );
   executor->AddCommand( "chmod",       PrintHelp );
   executor->AddCommand( "ls",          PrintHelp );
   executor->AddCommand( "help",        PrintHelp );
@@ -206,7 +279,7 @@ std::string BuildPrompt( Env *env, const URL &url )
 //------------------------------------------------------------------------------
 // Execute interactive
 //------------------------------------------------------------------------------
-int ExecuteInteractive( const URL &url)
+int ExecuteInteractive( const URL &url )
 {
   //----------------------------------------------------------------------------
   // Set up the environment
@@ -234,6 +307,7 @@ int ExecuteInteractive( const URL &url)
       free( linebuf );
       continue;
     }
+    Status xs = XRootDStatus();
     ex->Execute( linebuf );
     add_history( linebuf );
     free( linebuf );
