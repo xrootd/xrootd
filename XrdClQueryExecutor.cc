@@ -46,7 +46,7 @@ namespace XrdClient
                           name.c_str() );
       return false;
     }
-    pCommands[name] = command;
+    pCommands.insert( std::make_pair( name, command ) );
     return true;
   }
 
