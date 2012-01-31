@@ -92,6 +92,18 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
+  //! DirList flags
+  //----------------------------------------------------------------------------
+  struct DirListFlags
+  {
+    static const uint8_t None   = 0;  //!< Nothing special
+    static const uint8_t Stat   = 1;  //!< Stat each entry
+    static const uint8_t Locate = 2;  //!< Locate all servers hosting the
+                                      //!< directory and send the dirlist
+                                      //!< request to all of them
+  };
+
+  //----------------------------------------------------------------------------
   //! Stat flags
   //----------------------------------------------------------------------------
   struct StatFlags
@@ -457,6 +469,38 @@ namespace XrdClient
       //------------------------------------------------------------------------
       XRootDStatus Protocol( ProtocolInfo *&response,
                              uint16_t       timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List entries of a directory - async
+      //!
+      //! @param path    directory path
+      //! @param flags   DirListFlags
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a DirectoryList
+      //!                object if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DirList( const std::string &path,
+                            uint8_t            flags,
+                            ResponseHandler   *handler,
+                            uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! List entries of a directory - sync
+      //!
+      //! @param path     directory path
+      //! @param mode     DirListFlags
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus DirList( const std::string  &path,
+                            uint8_t            flags,
+                            DirectoryList    *&response,
+                            uint16_t            timeout = 0 );
 
     private:
 

@@ -796,6 +796,50 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // List entries of a directory - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::DirList( const std::string &path,
+                               uint8_t            flags,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_dirlist request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+
+    Message           *msg;
+    ClientStatRequest *req;
+    CreateRequest( msg, req, path.length() );
+
+    req->requestid  = kXR_dirlist;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // List entries of a directory - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::DirList( const std::string  &path,
+                               uint8_t            flags,
+                               DirectoryList    *&response,
+                               uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = DirList( path, flags, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message and wait for a response
   //----------------------------------------------------------------------------
   Status Query::SendMessage( Message         *msg,

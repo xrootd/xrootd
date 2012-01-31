@@ -121,14 +121,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 
-      Message         *pRequest;
-      Message         *pResponse;
-      ResponseHandler *pResponseHandler;
-      URL             *pUrl;
-      PostMaster      *pPostMaster;
-      SIDManager      *pSidMgr;
-      Status           pStatus;
-      uint16_t         pTimeout;
+      Message                *pRequest;
+      Message                *pResponse;
+      std::vector<Message *>  pPartialResps;
+      ResponseHandler        *pResponseHandler;
+      URL                    *pUrl;
+      PostMaster             *pPostMaster;
+      SIDManager             *pSidMgr;
+      Status                  pStatus;
+      uint16_t                pTimeout;
   };
 }
 

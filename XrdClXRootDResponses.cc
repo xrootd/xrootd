@@ -203,4 +203,26 @@ namespace XrdClient
 
     pType = VFS;
   }
+
+  //----------------------------------------------------------------------------
+  // DirectoryList constructor
+  //----------------------------------------------------------------------------
+  DirectoryList::DirectoryList( const std::string &hostId, const char *data )
+  {
+    ParseServerResponse( hostId, data );
+  }
+
+  //----------------------------------------------------------------------------
+  // Parse the directory list
+  //----------------------------------------------------------------------------
+  void DirectoryList::ParseServerResponse( const std::string &hostId,
+                                           const char *data )
+  {
+    std::vector<std::string>           entries;
+    std::vector<std::string>::iterator it;
+    Utils::splitString( entries, data, "\n" );
+
+    for( it = entries.begin(); it != entries.end(); ++it )
+      Add( ListEntry( hostId, *it ) );
+  }
 }

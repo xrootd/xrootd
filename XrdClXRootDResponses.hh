@@ -535,6 +535,11 @@ namespace XrdClient
       };
 
       //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      DirectoryList( const std::string &hostID, const char *data );
+
+      //------------------------------------------------------------------------
       //! Directory listing
       //------------------------------------------------------------------------
       typedef std::vector<ListEntry>  DirList;
@@ -589,7 +594,16 @@ namespace XrdClient
         return pDirList.end();
       }
 
+      //------------------------------------------------------------------------
+      //! Get the size of the listing
+      //------------------------------------------------------------------------
+      uint32_t GetSize() const
+      {
+        return pDirList.size();
+      }
+
     private:
+      void ParseServerResponse( const std::string &hostId, const char *data );
       DirList pDirList;
   };
 

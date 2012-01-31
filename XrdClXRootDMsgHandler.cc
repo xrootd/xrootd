@@ -233,11 +233,28 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
+      // We've got a partial answer. Wait for more
+      //------------------------------------------------------------------------
+      case kXR_oksofar:
+      {
+        log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
+                              "0x%x",
+                              pUrl->GetHostId().c_str(), pRequest );
+        pPartialResps.push_back( msgPtr.release() );
+        return Take;
+      }
+
+      //------------------------------------------------------------------------
       // Default - unrecognized/unsupported response, declare an error
       //------------------------------------------------------------------------
       default:
       {
-        pStatus = Status( stError, errInvalidResponse );
+        log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
+                             "message 0x%x",
+                             pUrl->GetHostId().c_str(),
+                             rsp->hdr.status,
+                             pRequest );
+        pStatus   = Status( stError, errInvalidResponse );
         HandleResponse();
         return Take | RemoveHandler;
       }
@@ -338,7 +355,9 @@ namespace XrdClient
   XRootDStatus *XRootDMsgHandler::ProcessStatus()
   {
     XRootDStatus   *st  = new XRootDStatus( pStatus );
-    ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
+    ServerResponse *rsp = 0;
+    if( pResponse )
+      (ServerResponse *)pResponse->GetBuffer();
     if( !pStatus.IsOK() && pStatus.code == errErrorResponse && rsp )
       st->SetErrorMessage( rsp->body.error.errmsg );
     return st;
@@ -361,6 +380,42 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     if( rsp->hdr.status != kXR_ok )
       return 0;
+
+    char     *buffer = 0;
+    uint32_t  length = 0;
+    Buffer    buff;
+
+    //--------------------------------------------------------------------------
+    // We don't have any partial answers so pass what we have
+    //--------------------------------------------------------------------------
+    if( pPartialResps.empty() )
+    {
+      buffer = rsp->body.buffer.data;
+      length = rsp->hdr.dlen;
+    }
+    //--------------------------------------------------------------------------
+    // Partial answers, we need to glue them together before parsing,
+    // we first calculate the total size and then concatenate all the buffers
+    //--------------------------------------------------------------------------
+    else
+    {
+      for( uint32_t i = 0; i < pPartialResps.size(); ++i )
+      {
+        ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
+        length += part->hdr.dlen;
+      }
+      length += rsp->hdr.dlen;
+      buff.Allocate( length );
+      uint32_t offset = 0;
+      for( uint32_t i = 0; i < pPartialResps.size(); ++i )
+      {
+        ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
+        buff.Append( part->body.buffer.data, part->hdr.dlen, offset );
+        offset += part->hdr.dlen;
+      }
+      buff.Append( rsp->body.buffer.data, rsp->hdr.dlen, offset );
+      buffer = buff.GetBuffer();
+    }
 
     //--------------------------------------------------------------------------
     // Right, but what was the question?
@@ -388,7 +443,7 @@ namespace XrdClient
         AnyObject *obj = new AnyObject();
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as LocateInfo",
                              pUrl->GetHostId().c_str(), pRequest );
-        LocationInfo *data = new LocationInfo( rsp->body.buffer.data );
+        LocationInfo *data = new LocationInfo( buffer );
         obj->Set( data );
         return obj;
       }
@@ -402,7 +457,7 @@ namespace XrdClient
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
                              pUrl->GetHostId().c_str(), pRequest );
 
-        StatInfo *data = new StatInfo( rsp->body.buffer.data );
+        StatInfo *data = new StatInfo( buffer );
         obj->Set( data );
         return obj;
       }
@@ -423,6 +478,21 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
+      // kXR_dirlist
+      //------------------------------------------------------------------------
+      case kXR_dirlist:
+      {
+        AnyObject *obj = new AnyObject();
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
+                              "DirectoryList",
+                              pUrl->GetHostId().c_str(), pRequest );
+
+        DirectoryList *data = new DirectoryList( pUrl->GetHostId(), buffer );
+        obj->Set( data );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
       // kXR_query
       //------------------------------------------------------------------------
       case kXR_query:
@@ -433,8 +503,8 @@ namespace XrdClient
                               pUrl->GetHostId().c_str(), pRequest );
 
         BinaryDataInfo *data = new BinaryDataInfo();
-        data->Allocate( rsp->hdr.dlen );
-        data->Append( rsp->body.buffer.data, rsp->hdr.dlen );
+        data->Allocate( length );
+        data->Append( buffer, length );
         obj->Set( data );
         return obj;
       }
