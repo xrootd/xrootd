@@ -21,7 +21,7 @@ add_library(
   XrdClDefaultEnv.cc          XrdClDefaultEnv.hh
   XrdClFile.cc                XrdClFile.hh
   XrdClURL.cc                 XrdClURL.hh
-                              XrdClStatus.hh
+  XrdClStatus.cc              XrdClStatus.hh
   XrdClSocket.cc              XrdClSocket.hh
                               XrdClPoller.hh
   XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
@@ -55,13 +55,16 @@ set_target_properties(
   SOVERSION ${XRD_CL_SOVERSION} )
 
 #-------------------------------------------------------------------------------
-# xrdcp
+# xrdquery
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcp
-  XrdClCp.cc )
+  xrdquery
+  XrdClQueryCommandline.cc
+  XrdClQueryExecutor.cc         XrdClQueryExecutor.hh )
 
 target_link_libraries(
-  xrdcp
-  XrdCl )
+  xrdquery
+  XrdCl
+  ${READLINE_LIBRARY}
+  ${NCURSES_LIBRARY} )
 
