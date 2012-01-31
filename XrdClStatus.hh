@@ -39,6 +39,8 @@ namespace XrdClient
   const uint16_t errPoll           = 5; //!< error while polling descriptors
   const uint16_t errConfig         = 6; //!< System misconfigured
   const uint16_t errInternal       = 7; //!< Internal error
+  const uint16_t errUnknownCommand = 8;
+  const uint16_t errInvalidArgs    = 9;
 
   //----------------------------------------------------------------------------
   // Socket related errors
@@ -67,7 +69,6 @@ namespace XrdClient
   const uint16_t errNoMoreFreeSIDs     = 301;
   const uint16_t errInvalidRedirectURL = 302;
   const uint16_t errInvalidResponse    = 303;
-  const uint16_t errUnknownCommand     = 304;
 
   const uint16_t errErrorResponse      = 400;
 

@@ -23,6 +23,8 @@ namespace
     { errPoll,               "Poll error"           },
     { errConfig,             "Configuration error"  },
     { errInternal,           "Internal error"       },
+    { errUnknownCommand,     "Command not found"    },
+    { errInvalidArgs,        "Invalid arguments"    },
     { errInvalidAddr,        "Invalid address"      },
     { errSocketError,        "Socket error"         },
     { errSocketTimeout,      "Socket timeout"       },
@@ -39,7 +41,6 @@ namespace
     { errNoMoreFreeSIDs,     "No more free SIDs"    },
     { errInvalidRedirectURL, "Invalid redirect URL" },
     { errInvalidResponse,    "Invalid response"     },
-    { errUnknownCommand,     "Command not found"    },
     { errErrorResponse,      "Error response"       },
     { 0, 0 } };
 
