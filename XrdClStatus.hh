@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <errno.h>
+#include <sstream>
 
 namespace XrdClient
 {
@@ -66,7 +67,9 @@ namespace XrdClient
   const uint16_t errNoMoreFreeSIDs     = 301;
   const uint16_t errInvalidRedirectURL = 302;
   const uint16_t errInvalidResponse    = 303;
-  const uint16_t errErrorResponse      = 304;
+  const uint16_t errUnknownCommand     = 304;
+
+  const uint16_t errErrorResponse      = 400;
 
   //----------------------------------------------------------------------------
   //! Proceure execution status
@@ -79,9 +82,24 @@ namespace XrdClient
     Status( uint16_t st = stOK, uint16_t cod = errNone, uint32_t errN = 0 ):
       status(st), code(cod), errNo( errN ) {}
 
-    bool IsError() { return status & stError; }           //!< Error
-    bool IsFatal() { return (status&0x0002) & stFatal; }  //!< Fatal error
-    bool IsOK()    { return status == stOK; }             //!< We're fine
+    bool IsError() const { return status & stError; }           //!< Error
+    bool IsFatal() const { return (status&0x0002) & stFatal; }  //!< Fatal error
+    bool IsOK()    const { return status == stOK; }             //!< We're fine
+
+    //--------------------------------------------------------------------------
+    //! Get the status code that may be returned to the shell
+    //--------------------------------------------------------------------------
+    int GetShellCode() const
+    {
+      if( IsOK() )
+        return 0;
+      return (code/100)+50;
+    }
+
+    //--------------------------------------------------------------------------
+    //! Create a string representation
+    //--------------------------------------------------------------------------
+    std::string ToString() const;
 
     uint16_t status;     //!< Status of the execution
     uint16_t code;       //!< Error type, or additional hints on what to do

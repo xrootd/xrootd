@@ -220,6 +220,22 @@ namespace XrdClient
         pMessage = message;
       }
 
+      //------------------------------------------------------------------------
+      //! Convert to string
+      //------------------------------------------------------------------------
+      std::string ToStr() const
+      {
+
+        if( code == errErrorResponse )
+        {
+          std::ostringstream o;
+          o << "[ERROR] Server responded with an error: [" << code << "] ";
+          o << pMessage << std::endl;
+          return o.str();
+        }
+        return ToString();
+      }
+
     private:
       std::string pMessage;
   };
