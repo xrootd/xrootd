@@ -28,6 +28,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( StatTest );
       CPPUNIT_TEST( ProtocolTest );
       CPPUNIT_TEST( DeepLocateTest );
+      CPPUNIT_TEST( DirListTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -39,6 +40,7 @@ class QueryTest: public CppUnit::TestCase
     void StatTest();
     void ProtocolTest();
     void DeepLocateTest();
+    void DirListTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
@@ -361,4 +363,40 @@ void QueryTest::DeepLocateTest()
   for( ; it != locations->End(); ++it )
     CPPUNIT_ASSERT( it->IsServer() );
   delete locations;
+}
+
+//------------------------------------------------------------------------------
+// Dir list
+//------------------------------------------------------------------------------
+void QueryTest::DirListTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string lsPath = dataPath + "/bigdir";
+
+  //----------------------------------------------------------------------------
+  // Query the server for all of the file locations
+  //----------------------------------------------------------------------------
+  Query query( url );
+
+  DirectoryList *list = 0;
+  XRootDStatus st = query.DirList( lsPath, DirListFlags::None, list );
+  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT( list );
+  CPPUNIT_ASSERT( list->GetSize() == 10000 );
+  delete list;
 }
