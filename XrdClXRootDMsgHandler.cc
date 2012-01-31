@@ -114,7 +114,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       case kXR_error:
       {
-        log->Info( XRootDMsg, "[%s] Got a kXR_error response to request 0x%x: "
+        log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request 0x%x: "
                              "[%d] %s",
                              pUrl->GetHostId().c_str(), pRequest,
                              rsp->body.error.errnum, rsp->body.error.errmsg );
