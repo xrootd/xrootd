@@ -359,7 +359,7 @@ void QueryTest::DeepLocateTest()
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
-  LocationInfo::LocationIterator it = locations->Begin();
+  LocationInfo::Iterator it = locations->Begin();
   for( ; it != locations->End(); ++it )
     CPPUNIT_ASSERT( it->IsServer() );
   delete locations;
