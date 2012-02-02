@@ -573,6 +573,115 @@ XRootDStatus DoChMod( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Locate a path
+//------------------------------------------------------------------------------
+XRootDStatus DoLocate( Query *query, Env *env,
+                      const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc > 4 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string path;
+  uint16_t    flags        = OpenFlags::None;
+  bool        hasPath      = false;
+  bool        doDeepLocate = false;
+  for( int i = 1; i < argc; ++i )
+  {
+    if( args[i] == "-n" )
+      flags |= OpenFlags::NoWait;
+    else if( args[i] == "-r" )
+      flags |= OpenFlags::Refresh;
+    else if( args[i] == "-d" )
+      doDeepLocate = true;
+    else if( !hasPath )
+    {
+      path = args[i];
+      hasPath = true;
+    }
+    else
+    {
+      log->Error( AppMsg, "Invalid argument: %s.", args[i].c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, path ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  LocationInfo *info = 0;
+  XRootDStatus  st;
+  if( doDeepLocate )
+    st = query->DeepLocate( fullPath, flags, info );
+  else
+    st = query->Locate( fullPath, flags, info );
+
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable locate %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Print the result
+  //----------------------------------------------------------------------------
+  LocationInfo::Iterator it;
+  for( it = info->Begin(); it != info->End(); ++it )
+  {
+    std::cout << it->GetAddress() << " ";
+    switch( it->GetType() )
+    {
+      case LocationInfo::ManagerOnline:
+        std::cout << "Manager ";
+        break;
+      case LocationInfo::ManagerPending:
+        std::cout << "ManagerPending ";
+        break;
+      case LocationInfo::ServerOnline:
+        std::cout << "Server ";
+        break;
+      case LocationInfo::ServerPending:
+        std::cout << "ServerPending ";
+        break;
+      default:
+        std::cout << "Unknown ";
+    };
+
+    switch( it->GetAccessType() )
+    {
+      case LocationInfo::Read:
+        std::cout << "Read";
+        break;
+      case LocationInfo::ReadWrite:
+        std::cout << "ReadWrite ";
+        break;
+      default:
+        std::cout << "Unknown ";
+    };
+    std::cout << std::endl;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -683,8 +792,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "help",        PrintHelp    );
   executor->AddCommand( "stat",        PrintHelp    );
   executor->AddCommand( "statvfs",     PrintHelp    );
-  executor->AddCommand( "locate",      PrintHelp    );
-  executor->AddCommand( "deep-locate", PrintHelp    );
+  executor->AddCommand( "locate",      DoLocate     );
   executor->AddCommand( "mv",          DoMv         );
   executor->AddCommand( "mkdir",       DoMkDir      );
   executor->AddCommand( "rm",          DoRm         );

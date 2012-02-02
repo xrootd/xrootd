@@ -152,7 +152,7 @@ namespace
         //----------------------------------------------------------------------
         LocationInfo *info = 0;
         response->Get( info );
-        LocationInfo::LocationIterator it;
+        LocationInfo::Iterator it;
 
         log->Dump( QueryMsg, "[DeepLocate] Got %d locations",
                              info->GetSize() );

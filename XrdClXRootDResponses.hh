@@ -114,12 +114,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Iterator over locations
       //------------------------------------------------------------------------
-      typedef LocationList::iterator       LocationIterator;
+      typedef LocationList::iterator       Iterator;
 
       //------------------------------------------------------------------------
       //! Iterator over locations
       //------------------------------------------------------------------------
-      typedef LocationList::const_iterator LocationConstIterator;
+      typedef LocationList::const_iterator ConstIterator;
 
       //------------------------------------------------------------------------
       //! Constructor
@@ -145,7 +145,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the location begin iterator
       //------------------------------------------------------------------------
-      LocationIterator Begin()
+      Iterator Begin()
       {
         return pLocations.begin();
       }
@@ -153,7 +153,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the location begin iterator
       //------------------------------------------------------------------------
-      LocationConstIterator Begin() const
+      ConstIterator Begin() const
       {
         return pLocations.begin();
       }
@@ -161,7 +161,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the location end iterator
       //------------------------------------------------------------------------
-      LocationIterator End()
+      Iterator End()
       {
         return pLocations.end();
       }
@@ -169,7 +169,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the location end iterator
       //------------------------------------------------------------------------
-      LocationConstIterator End() const
+      ConstIterator End() const
       {
         return pLocations.end();
       }
