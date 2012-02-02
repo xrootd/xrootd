@@ -38,6 +38,7 @@ add_library(
                               XrdClBuffer.hh
                               XrdClMessage.hh
   XrdClXRootDResponses.cc     XrdClXRootDResponses.hh
+                              XrdClRequestSync.hh
 )
 
 target_link_libraries(

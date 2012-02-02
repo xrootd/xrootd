@@ -26,6 +26,7 @@ namespace XrdClient
   const uint16_t suDone            = 0;
   const uint16_t suContinue        = 1;
   const uint16_t suRetry           = 2;
+  const uint16_t suPartial         = 3;
 
   //----------------------------------------------------------------------------
   // Generic errors
@@ -69,6 +70,7 @@ namespace XrdClient
   const uint16_t errNoMoreFreeSIDs     = 301;
   const uint16_t errInvalidRedirectURL = 302;
   const uint16_t errInvalidResponse    = 303;
+  const uint16_t errNotFound           = 304;
 
   const uint16_t errErrorResponse      = 400;
 

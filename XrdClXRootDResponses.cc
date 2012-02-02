@@ -18,7 +18,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   LocationInfo::LocationInfo( const char *data )
   {
-    ParseServerResponse( data );
+    if( data )
+      ParseServerResponse( data );
   }
 
   //----------------------------------------------------------------------------
@@ -26,9 +27,6 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void LocationInfo::ParseServerResponse( const char *data )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Info( XRootDMsg, "Got location info: %s", data );
-
     //--------------------------------------------------------------------------
     // Split the locations
     //--------------------------------------------------------------------------
@@ -207,9 +205,25 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // DirectoryList constructor
   //----------------------------------------------------------------------------
-  DirectoryList::DirectoryList( const std::string &hostId, const char *data )
+  DirectoryList::DirectoryList( const std::string &hostId,
+                                const std::string &parent,
+                                const char        *data )
   {
-    ParseServerResponse( hostId, data );
+    pParent = parent;
+    if( pParent[pParent.length()-1] != '/' )
+      pParent += "/";
+
+    if( data )
+      ParseServerResponse( hostId, data );
+  }
+
+  //----------------------------------------------------------------------------
+  // Destructor
+  //----------------------------------------------------------------------------
+  DirectoryList::~DirectoryList()
+  {
+    for( Iterator it = pDirList.begin(); it != pDirList.end(); ++it )
+      delete *it;
   }
 
   //----------------------------------------------------------------------------
@@ -223,6 +237,6 @@ namespace XrdClient
     Utils::splitString( entries, data, "\n" );
 
     for( it = entries.begin(); it != entries.end(); ++it )
-      Add( ListEntry( hostId, *it ) );
+      Add( new ListEntry( hostId, *it ) );
   }
 }

@@ -46,7 +46,7 @@ namespace XrdClient
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
-        pUrl( new URL( url->GetHostId() ) ),
+        pUrl( *url ),
         pPostMaster( postMaster ),
         pSidMgr( sidMgr ),
         pTimeout( timeout )
@@ -58,9 +58,11 @@ namespace XrdClient
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
-        delete pUrl;
         delete pRequest;
         delete pResponse;
+        std::vector<Message *>::iterator it;
+        for( it = pPartialResps.begin(); it != pPartialResps.end(); ++it )
+          delete *it;
       }
 
       //------------------------------------------------------------------------
@@ -125,7 +127,7 @@ namespace XrdClient
       Message                *pResponse;
       std::vector<Message *>  pPartialResps;
       ResponseHandler        *pResponseHandler;
-      URL                    *pUrl;
+      URL                     pUrl;
       PostMaster             *pPostMaster;
       SIDManager             *pSidMgr;
       Status                  pStatus;

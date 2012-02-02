@@ -53,6 +53,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     enum Flags
     {
+      None    = 0,               //!< Nothing
       NoWait  = kXR_nowait,      //!< Provide a location as soon as one becomes
                                  //!< known. This means that not all locations
                                  //!< are necessarily returned. If the file
@@ -474,7 +475,6 @@ namespace XrdClient
       //! List entries of a directory - async
       //!
       //! @param path    directory path
-      //! @param flags   DirListFlags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a DirectoryList
       //!                object if the procedure is successfull
@@ -483,7 +483,6 @@ namespace XrdClient
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus DirList( const std::string &path,
-                            uint8_t            flags,
                             ResponseHandler   *handler,
                             uint16_t           timeout = 0 );
 

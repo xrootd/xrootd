@@ -15,6 +15,7 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClRequestSync.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
@@ -112,13 +113,14 @@ namespace
           log->Dump( QueryMsg, "[DeepLocate] Got error response" );
 
           //--------------------------------------------------------------------
-          // We have faile with the first request
+          // We have failed with the first request
           //--------------------------------------------------------------------
           if( pFirstTime )
           {
             log->Debug( QueryMsg, "[DeepLocate] Failed to get the initial "
                                   "location list" );
             pHandler->HandleResponse( status, response );
+            delete status;
             return;
           }
 
@@ -132,7 +134,7 @@ namespace
                                   "give out what we've got" );
             HandleResponse();
           }
-
+          delete status;
           return;
         }
         pFirstTime = false;
@@ -193,8 +195,8 @@ namespace
         {
           delete pLocations;
           pHandler->HandleResponse( new XRootDStatus( stError, errErrorResponse,
-                                                  kXR_NotFound,
-                                                  "No valid location found" ),
+                                                 kXR_NotFound,
+                                                 "No valid location found" ),
                                     0 );
         }
         //----------------------------------------------------------------------
@@ -216,6 +218,55 @@ namespace
       XrdClient::LocationInfo    *pLocations;
       std::string                 pPath;
       uint16_t                    pFlags;
+  };
+
+  //----------------------------------------------------------------------------
+  // Handle stat results for a dirlist request
+  //----------------------------------------------------------------------------
+  class DirListStatHandler: public XrdClient::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      DirListStatHandler( XrdClient::DirectoryList *list,
+                          uint32_t                  index,
+                          XrdClient::RequestSync   *sync ):
+        pList( list ),
+        pIndex( index ),
+        pSync( sync )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Check if we were successful and if so put the StatInfo object
+      // in the appropriate entry info
+      //------------------------------------------------------------------------
+      virtual void HandleResponse( XrdClient::XRootDStatus *status,
+                                   XrdClient::AnyObject    *response )
+      {
+        if( !status->IsOK() )
+        {
+          delete status;
+          pSync->TaskDone( false );
+          delete this;
+          return;
+        }
+
+        XrdClient::StatInfo *info = 0;
+        response->Get( info );
+        response->Set( (char*) 0 );
+        pList->At( pIndex )->SetStatInfo( info );
+        delete status;
+        delete response;
+        pSync->TaskDone();
+        delete this;
+      }
+
+    private:
+      XrdClient::DirectoryList *pList;
+      uint32_t                  pIndex;
+      XrdClient::RequestSync   *pSync;
   };
 
   //----------------------------------------------------------------------------
@@ -799,7 +850,6 @@ namespace XrdClient
   // List entries of a directory - async
   //----------------------------------------------------------------------------
   XRootDStatus Query::DirList( const std::string &path,
-                               uint8_t            flags,
                                ResponseHandler   *handler,
                                uint16_t           timeout )
   {
@@ -829,14 +879,112 @@ namespace XrdClient
   XRootDStatus Query::DirList( const std::string  &path,
                                uint8_t            flags,
                                DirectoryList    *&response,
-                               uint16_t            timeout )
+                               uint16_t           timeout )
   {
+    //--------------------------------------------------------------------------
+    // We do the deep locate and ask all the returned servers for the list
+    //--------------------------------------------------------------------------
+    if( flags & DirListFlags::Locate )
+    {
+      //------------------------------------------------------------------------
+      // Locate all the disk servers holding the directory
+      //------------------------------------------------------------------------
+      LocationInfo *locations;
+      std::string locatePath = path; //locatePath += "*";
+      XRootDStatus st = DeepLocate( locatePath, OpenFlags::None, locations );
+
+      if( !st.IsOK() )
+        return st;
+
+      if( locations->GetSize() == 0 )
+      {
+        delete locations;
+        return XRootDStatus( stError, errNotFound );
+      }
+
+      //------------------------------------------------------------------------
+      // Ask each server for a directory list
+      //------------------------------------------------------------------------
+      flags &= ~DirListFlags::Locate;
+      Query         *query;
+      DirectoryList *currentResp = 0;
+      bool           errors = false;
+
+      response = new DirectoryList( "", path, 0 );
+
+      for( uint32_t i = 0; i < locations->GetSize(); ++i )
+      {
+        query = new Query( locations->At(i).GetAddress() );
+        st = query->DirList( path, flags, currentResp, timeout );
+        if( !st.IsOK() )
+        {
+          errors = true;
+          delete query;
+          continue;
+        }
+
+        if( st.code == suPartial )
+          errors = true;
+
+        DirectoryList::Iterator it;
+        Log *log = DefaultEnv::GetLog();
+
+        for( it = currentResp->Begin(); it != currentResp->End(); ++it )
+        {
+          response->Add( *it );
+          *it = 0;
+        }
+
+        delete query;
+        delete currentResp;
+        query       = 0;
+        currentResp = 0;
+      }
+      delete locations;
+
+      if( errors )
+        return XRootDStatus( stOK, suPartial );
+      return XRootDStatus();
+    };
+
+    //--------------------------------------------------------------------------
+    // We just ask the current server
+    //--------------------------------------------------------------------------
     SyncResponseHandler handler;
-    Status st = DirList( path, flags, &handler, timeout );
+    XRootDStatus st = DirList( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
-    return WaitForResponse( &handler, response );
+    st = WaitForResponse( &handler, response );
+    if( !st.IsOK() )
+      return st;
+
+    //--------------------------------------------------------------------------
+    // Do the stats on all the entries if necessary
+    //--------------------------------------------------------------------------
+    if( !(flags && DirListFlags::Stat) )
+      return st;
+
+    uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
+    RequestSync sync( response->GetSize(), quota );
+    for( uint32_t i = 0; i < response->GetSize(); ++i )
+    {
+      std::string fullPath = response->GetParentName()+response->At(i)->GetName();
+      ResponseHandler *handler = new DirListStatHandler( response, i, &sync );
+      st = Stat( fullPath, StatFlags::Object, handler, timeout );
+      if( !st.IsOK() )
+      {
+        sync.TaskDone( false );
+        delete handler;
+      }
+      sync.WaitForQuota();
+    }
+    sync.WaitForAll();
+
+    if( sync.FailureCount() )
+      return XRootDStatus( stOK, suPartial );
+
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------

@@ -34,6 +34,7 @@ namespace
     { errStreamDisconnect,   "Stream disconnect"    },
     { errConnectionError,    "Conection error"      },
     { errInvalidMessage,     "Invalid message"      },
+    { errNotFound,           "Resource not found"   },
     { errHandShakeFailed,    "Hand shake failed"    },
     { errLoginFailed,        "Login failed"         },
     { errAuthFailed,         "Auth failed"          },

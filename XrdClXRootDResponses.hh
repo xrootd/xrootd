@@ -124,7 +124,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocationInfo( const char *data = "" );
+      LocationInfo( const char *data = 0 );
 
       //------------------------------------------------------------------------
       //! Get number of locations
@@ -132,6 +132,14 @@ namespace XrdClient
       uint32_t GetSize() const
       {
         return pLocations.size();
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the location at index
+      //------------------------------------------------------------------------
+      Location &At( uint32_t index )
+      {
+        return pLocations[index];
       }
 
       //------------------------------------------------------------------------
@@ -473,10 +481,10 @@ namespace XrdClient
           //! Constructor
           //--------------------------------------------------------------------
           ListEntry( const std::string &hostAddress,
-                     const std::string &fileName,
+                     const std::string &name,
                      StatInfo          *statInfo = 0):
             pHostAddress( hostAddress ),
-            pFileName( fileName ),
+            pName( name ),
             pStatInfo( statInfo )
           {}
 
@@ -499,9 +507,9 @@ namespace XrdClient
           //--------------------------------------------------------------------
           //! Get file name
           //--------------------------------------------------------------------
-          const std::string &GetFileName() const
+          const std::string &GetName() const
           {
-            return pFileName;
+            return pName;
           }
 
           //--------------------------------------------------------------------
@@ -530,42 +538,57 @@ namespace XrdClient
 
         private:
           std::string  pHostAddress;
-          std::string  pFileName;
+          std::string  pName;
           StatInfo    *pStatInfo;
       };
 
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      DirectoryList( const std::string &hostID, const char *data );
+      DirectoryList( const std::string &hostID,
+                     const std::string &parent,
+                     const char        *data );
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~DirectoryList();
 
       //------------------------------------------------------------------------
       //! Directory listing
       //------------------------------------------------------------------------
-      typedef std::vector<ListEntry>  DirList;
+      typedef std::vector<ListEntry*>  DirList;
 
       //------------------------------------------------------------------------
       //! Directory listing iterator
       //------------------------------------------------------------------------
-      typedef DirList::iterator       DirListIterator;
+      typedef DirList::iterator       Iterator;
 
       //------------------------------------------------------------------------
       //! Directory listing const iterator
       //------------------------------------------------------------------------
-      typedef DirList::const_iterator DirListConstIterator;
+      typedef DirList::const_iterator ConstIterator;
 
       //------------------------------------------------------------------------
-      //! Add an entry to the list
+      //! Add an entry to the list - takes ownership
       //------------------------------------------------------------------------
-      void Add( const ListEntry &entry )
+      void Add( ListEntry *entry )
       {
         pDirList.push_back( entry );
       }
 
       //------------------------------------------------------------------------
+      //! Get an entry at given index
+      //------------------------------------------------------------------------
+      ListEntry *At( uint32_t index )
+      {
+        return pDirList[index];
+      }
+
+      //------------------------------------------------------------------------
       //! Get the begin iterator
       //------------------------------------------------------------------------
-      DirListIterator Begin()
+      Iterator Begin()
       {
         return pDirList.begin();
       }
@@ -573,7 +596,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the begin iterator
       //------------------------------------------------------------------------
-      DirListConstIterator Begin() const
+      ConstIterator Begin() const
       {
         return pDirList.end();
       }
@@ -581,7 +604,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the end iterator
       //------------------------------------------------------------------------
-      DirListIterator End()
+      Iterator End()
       {
         return pDirList.end();
       }
@@ -589,7 +612,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Get the end iterator
       //------------------------------------------------------------------------
-      DirListConstIterator End() const
+      ConstIterator End() const
       {
         return pDirList.end();
       }
@@ -602,9 +625,18 @@ namespace XrdClient
         return pDirList.size();
       }
 
+      //------------------------------------------------------------------------
+      //! Get parent directory name
+      //------------------------------------------------------------------------
+      const std::string &GetParentName() const
+      {
+        return pParent;
+      }
+
     private:
       void ParseServerResponse( const std::string &hostId, const char *data );
-      DirList pDirList;
+      DirList     pDirList;
+      std::string pParent;
   };
 
   //----------------------------------------------------------------------------
