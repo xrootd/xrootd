@@ -169,6 +169,7 @@ XRootDStatus DoCD( Query *query, Env *env,
   }
 
   env->PutString( "CWD", newPath );
+  delete info;
   return XRootDStatus();
 }
 
@@ -278,7 +279,7 @@ XRootDStatus DoLS( Query *query, Env *env,
     std::cout << "root://" << (*it)->GetHostAddress() << "/";
     std::cout << list->GetParentName() << (*it)->GetName() << std::endl;
   }
-
+  delete list;
   return XRootDStatus();
 }
 
@@ -673,6 +674,7 @@ XRootDStatus DoLocate( Query *query, Env *env,
     std::cout << std::endl;
   }
 
+  delete info;
   return XRootDStatus();
 }
 
@@ -744,6 +746,7 @@ XRootDStatus DoStat( Query *query, Env *env,
   std::cout << "Flags: " << info->GetFlags() << " (" << flags << ")";
   std::cout << std::endl;
 
+  delete info;
   return XRootDStatus();
 }
 
@@ -804,6 +807,7 @@ XRootDStatus DoStatVFS( Query *query, Env *env,
   std::cout << "Utilization of staging space (%): ";
   std::cout << info->GetUtilizationStaging() << std::endl;
 
+  delete info;
   return XRootDStatus();
 }
 
