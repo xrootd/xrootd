@@ -180,6 +180,19 @@ namespace XrdClient
         pBuffer[str.length()] = 0;
       }
 
+      //------------------------------------------------------------------------
+      //! Convert the buffer to a string
+      //------------------------------------------------------------------------
+      std::string ToString() const
+      {
+        char *bf = new char[pSize+1];
+        bf[pSize] = 0;
+        memcpy( bf, pBuffer, pSize );
+        std::string tmp = bf;
+        delete [] bf;
+        return tmp;
+      }
+
     private:
       char     *pBuffer;
       uint32_t  pSize;
