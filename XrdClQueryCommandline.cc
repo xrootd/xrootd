@@ -183,28 +183,29 @@ XRootDStatus DoLS( Query *query, Env *env,
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  uint32_t    argc = args.size();
-  uint8_t     flags = DirListFlags::Locate;
-  bool        stats = false;
+  uint32_t    argc     = args.size();
+  uint8_t     flags    = DirListFlags::Locate;
+  bool        stats    = false;
+  bool        showUrls = false;
   std::string path;
 
-  if( argc > 3 )
+  if( argc > 5 )
   {
     log->Error( AppMsg, "Too many arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  QueryExecutor::CommandParams::const_iterator argIt = args.begin();
-  ++argIt;
-  for( ; argIt != args.end(); ++argIt )
+  for( int i = 1; i < args.size(); ++i )
   {
-    if( *argIt == "-l" )
+    if( args[i] == "-l" )
     {
       stats = true;
       flags |= DirListFlags::Stat;
     }
+    else if( args[i] == "-u" )
+      showUrls = true;
     else
-      path = *argIt;
+      path = args[i];
   }
 
   std::string newPath;
@@ -276,7 +277,8 @@ XRootDStatus DoLS( Query *query, Env *env,
         std::cout << std::setw(12) << info->GetSize() << " ";
       }
     }
-    std::cout << "root://" << (*it)->GetHostAddress() << "/";
+    if( showUrls )
+      std::cout << "root://" << (*it)->GetHostAddress() << "/";
     std::cout << list->GetParentName() << (*it)->GetName() << std::endl;
   }
   delete list;
