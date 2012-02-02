@@ -808,6 +808,83 @@ XRootDStatus DoStatVFS( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Query the server
+//------------------------------------------------------------------------------
+XRootDStatus DoQuery( Query *query, Env *env,
+                      const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  QueryCode::Code qCode;
+  if( args[1] == "Config" )
+    qCode = QueryCode::Config;
+  else if( args[1] == "ChecksumCancel" )
+    qCode = QueryCode::ChecksumCancel;
+  else if( args[1] == "Checksum" )
+    qCode = QueryCode::Checksum;
+  else if( args[1] == "Opaque" )
+    qCode = QueryCode::Opaque;
+  else if( args[1] == "OpaqueFile" )
+    qCode = QueryCode::OpaqueFile;
+  else if( args[1] == "Prepare" )
+    qCode = QueryCode::Prepare;
+  else if( args[1] == "Space" )
+    qCode = QueryCode::Space;
+  else if( args[1] == "Stats" )
+    qCode = QueryCode::Stats;
+  else if( args[1] == "XAttr" )
+    qCode = QueryCode::XAttr;
+  else
+    return XRootDStatus( stError, errInvalidArgs );
+
+  std::string strArg = args[2];
+  if( qCode == QueryCode::ChecksumCancel ||
+      qCode == QueryCode::Checksum       ||
+      qCode == QueryCode::XAttr )
+  {
+    if( !BuildPath( strArg, env, args[2] ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  Buffer *response = 0;
+  Buffer  arg( strArg.size() );
+  arg.FromString( strArg );
+  XRootDStatus st = query->ServerQuery( qCode, arg, response );
+
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable run query %s %s: %s",
+                        args[1].c_str(), strArg.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Print the result
+  //----------------------------------------------------------------------------
+  std::cout << response->ToString() << std::endl;
+  delete response;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -923,7 +1000,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "mkdir",       DoMkDir      );
   executor->AddCommand( "rm",          DoRm         );
   executor->AddCommand( "rmdir",       DoRmDir      );
-  executor->AddCommand( "query",       PrintHelp    );
+  executor->AddCommand( "query",       DoQuery      );
   executor->AddCommand( "truncate",    DoTruncate   );
   return executor;
 }
