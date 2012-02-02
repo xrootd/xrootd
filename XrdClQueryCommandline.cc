@@ -44,6 +44,41 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   newPath += "/";
   newPath += path;
 
+  //----------------------------------------------------------------------------
+  // Collapse the dots
+  //----------------------------------------------------------------------------
+  std::list<std::string> pathComponents;
+  std::list<std::string>::iterator it;
+  XrdClient::Utils::splitString( pathComponents, newPath, "/" );
+  newPath = "/";
+  for( it = pathComponents.begin(); it != pathComponents.end(); )
+  {
+    if( *it == "." )
+    {
+      it = pathComponents.erase( it );
+      continue;
+    }
+
+    if( *it == ".." )
+    {
+      if( it == pathComponents.begin() )
+        return XRootDStatus( stError, errInvalidArgs );
+      std::list<std::string>::iterator it1 = it;
+      --it1;
+      it = pathComponents.erase( it1 );
+      it = pathComponents.erase( it );
+      continue;
+    }
+    ++it;
+  }
+
+  newPath = "/";
+  for( it = pathComponents.begin(); it != pathComponents.end(); ++it )
+  {
+    newPath += *it;
+    newPath += "/";
+  }
+
   return XRootDStatus();
 }
 
