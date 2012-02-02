@@ -394,9 +394,10 @@ void QueryTest::DirListTest()
   Query query( url );
 
   DirectoryList *list = 0;
-  XRootDStatus st = query.DirList( lsPath, DirListFlags::None, list );
+  XRootDStatus st = query.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( list );
-  CPPUNIT_ASSERT( list->GetSize() == 10000 );
+  CPPUNIT_ASSERT( list->GetSize() == 40000 );
+
   delete list;
 }
