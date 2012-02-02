@@ -388,6 +388,53 @@ XRootDStatus DoRmDir( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Move a file or directory
+//------------------------------------------------------------------------------
+XRootDStatus DoMv( Query *query, Env *env,
+                   const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath1;
+  if( !BuildPath( fullPath1, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid source path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath2;
+  if( !BuildPath( fullPath2, env, args[2] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid destination path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  XRootDStatus st = query->Mv( fullPath1, fullPath2 );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable move %s to %s: %s",
+                        fullPath1.c_str(), fullPath2.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -500,7 +547,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "statvfs",     PrintHelp );
   executor->AddCommand( "locate",      PrintHelp );
   executor->AddCommand( "deep-locate", PrintHelp );
-  executor->AddCommand( "mv",          PrintHelp );
+  executor->AddCommand( "mv",          DoMv      );
   executor->AddCommand( "mkdir",       DoMkDir   );
   executor->AddCommand( "rm",          PrintHelp );
   executor->AddCommand( "rmdir",       DoRmDir   );
