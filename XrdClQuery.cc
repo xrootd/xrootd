@@ -890,7 +890,7 @@ namespace XrdClient
       // Locate all the disk servers holding the directory
       //------------------------------------------------------------------------
       LocationInfo *locations;
-      std::string locatePath = path; //locatePath += "*";
+      std::string locatePath = "*"; locatePath += path;
       XRootDStatus st = DeepLocate( locatePath, OpenFlags::None, locations );
 
       if( !st.IsOK() )
