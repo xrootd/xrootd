@@ -10,7 +10,7 @@
 #include "XrdCl/XrdClQuery.hh"
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include <list>
+#include <vector>
 #include <string>
 #include <map>
 
@@ -23,10 +23,15 @@ namespace XrdClient
   {
     public:
       //------------------------------------------------------------------------
+      //! Definition of command argument list
+      //------------------------------------------------------------------------
+      typedef std::vector<std::string> CommandParams;
+
+      //------------------------------------------------------------------------
       //! Definition of a command
       //------------------------------------------------------------------------
       typedef XRootDStatus (*Command)( Query *query, Env *env,
-                                       const std::list<std::string> &args );
+                                       const CommandParams &args );
 
       //------------------------------------------------------------------------
       //! Constructor

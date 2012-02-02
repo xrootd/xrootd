@@ -83,25 +83,70 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Convert mode string to uint16_t
+//------------------------------------------------------------------------------
+XRootDStatus ConvertMode( uint16_t &mode, const std::string &modeStr )
+{
+  if( modeStr.length() != 9 )
+    return XRootDStatus( stError, errInvalidArgs );
+
+  mode = 0;
+  for( int i = 0; i < 3; ++i )
+  {
+    if( modeStr[i] == 'r' )
+      mode |= Access::UR;
+    else if( modeStr[i] == 'w' )
+      mode |= Access::UW;
+    else if( modeStr[i] == 'x' )
+      mode |= Access::UX;
+    else if( modeStr[i] != '-' )
+      return XRootDStatus( stError, errInvalidArgs );
+  }
+  for( int i = 3; i < 6; ++i )
+  {
+    if( modeStr[i] == 'r' )
+      mode |= Access::GR;
+    else if( modeStr[i] == 'w' )
+      mode |= Access::GW;
+    else if( modeStr[i] == 'x' )
+      mode |= Access::GX;
+    else if( modeStr[i] != '-' )
+      return XRootDStatus( stError, errInvalidArgs );
+  }
+  for( int i = 6; i < 9; ++i )
+  {
+    if( modeStr[i] == 'r' )
+      mode |= Access::OR;
+    else if( modeStr[i] == 'w' )
+      mode |= Access::OW;
+    else if( modeStr[i] == 'x' )
+      mode |= Access::OX;
+    else if( modeStr[i] != '-' )
+      return XRootDStatus( stError, errInvalidArgs );
+  }
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Change current working directory
 //------------------------------------------------------------------------------
 XRootDStatus DoCD( Query *query, Env *env,
-                   const std::list<std::string> &args )
+                   const QueryExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
-  if( args.size() != 1 )
+  if( args.size() != 2 )
   {
     log->Error( AppMsg, "Invalid arguments. Expected a path." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
   std::string newPath;
-  if( !BuildPath( newPath, env, args.front() ).IsOK() )
+  if( !BuildPath( newPath, env, args[1] ).IsOK() )
   {
-    log->Error( AppMsg, "Invalid arguments. Invalid path." );
+    log->Error( AppMsg, "Invalid path." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
@@ -130,7 +175,7 @@ XRootDStatus DoCD( Query *query, Env *env,
 // List a directory
 //------------------------------------------------------------------------------
 XRootDStatus DoLS( Query *query, Env *env,
-                   const std::list<std::string> &args )
+                   const QueryExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -141,14 +186,15 @@ XRootDStatus DoLS( Query *query, Env *env,
   bool        stats = false;
   std::string path;
 
-  if( argc > 2 )
+  if( argc > 3 )
   {
-    log->Error( AppMsg, "Invalid arguments." );
+    log->Error( AppMsg, "Too many arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  std::list<std::string>::const_iterator argIt;
-  for( argIt = args.begin(); argIt != args.end(); ++argIt )
+  QueryExecutor::CommandParams::const_iterator argIt = args.begin();
+  ++argIt;
+  for( ; argIt != args.end(); ++argIt )
   {
     if( *argIt == "-l" )
     {
@@ -239,12 +285,73 @@ XRootDStatus DoLS( Query *query, Env *env,
   return XRootDStatus();
 }
 
+//------------------------------------------------------------------------------
+// Create a directory
+//------------------------------------------------------------------------------
+XRootDStatus DoMkDir( Query *query, Env *env,
+                      const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc < 2 || argc > 4 )
+  {
+    log->Error( AppMsg, "Too few arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  uint8_t      flags   = MkDirFlags::None;
+  uint16_t     mode    = 0;
+  std::string  modeStr = "rwxr-x---";
+  std::string  path    = "";
+
+  for( int i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-p" )
+      flags |= MkDirFlags::MakePath;
+    else if( !args[i].compare( 0, 2, "-m" ) )
+      modeStr = args[i].substr( 2, 9 );
+    else
+      path = args[i];
+  }
+
+  XRootDStatus st = ConvertMode( mode, modeStr );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Invalid mode string." );
+    return st;
+  }
+
+  std::string newPath;
+  if( !BuildPath( newPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  st = query->MkDir( newPath, flags, mode );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable create directory %s: %s",
+                        newPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
 
 //------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
-                        const std::list<std::string> &args )
+                        const QueryExecutor::CommandParams &args )
 {
   std::cout << "Usage:" << std::endl;
   std::cout << "   xrdquery host[:port]              - interactive mode";
@@ -254,10 +361,10 @@ XRootDStatus PrintHelp( Query *query, Env *env,
 
   std::cout << "Available commands:" << std::endl << std::endl;
 
-  std::cout << "   chmod <path> <user> <group> <other>" << std::endl;
+  std::cout << "   chmod <path> <user><group><other>" << std::endl;
   std::cout << "     Modify file permissions. Permission example:";
   std::cout << std::endl;
-  std::cout << "     rwx r-x --x ---" << std::endl << std::endl;
+  std::cout << "     rwxr-x--x" << std::endl << std::endl;
 
   std::cout << "   cd <path>" << std::endl;
   std::cout << "     Change the current working directory";
@@ -292,7 +399,7 @@ XRootDStatus PrintHelp( Query *query, Env *env,
   std::cout << "     Move path1 to path2 locally on the same server.";
   std::cout << std::endl << std::endl;
 
-  std::cout << "   mkdir <dirname> [MakePath] [<user> <group> <other>]";
+  std::cout << "   mkdir <dirname> [-p] [-m<user><group><other>]";
   std::cout << std::endl;
   std::cout << "     Creates a directory/tree of directories.";
   std::cout << std::endl << std::endl;
@@ -354,7 +461,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "locate",      PrintHelp );
   executor->AddCommand( "deep-locate", PrintHelp );
   executor->AddCommand( "mv",          PrintHelp );
-  executor->AddCommand( "mkdir",       PrintHelp );
+  executor->AddCommand( "mkdir",       DoMkDir   );
   executor->AddCommand( "rm",          PrintHelp );
   executor->AddCommand( "rmdir",       PrintHelp );
   executor->AddCommand( "query",       PrintHelp );
@@ -501,23 +608,24 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
+  XrdClient::QueryExecutor::CommandParams params;
   if( argc == 1 )
   {
-    PrintHelp( 0, 0, std::list<std::string>() );
+    PrintHelp( 0, 0, params );
     return 1;
   }
 
   if( !strcmp( argv[1], "--help" ) ||
       !strcmp( argv[1], "-h" ) )
   {
-    PrintHelp( 0, 0, std::list<std::string>() );
+    PrintHelp( 0, 0, params );
     return 0;
   }
 
   URL url( argv[1] );
   if( !url.IsValid() )
   {
-    PrintHelp( 0, 0, std::list<std::string>() );
+    PrintHelp( 0, 0, params );
     return 1;
   }
 

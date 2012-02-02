@@ -61,7 +61,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Split the commandline string
     //--------------------------------------------------------------------------
-    std::list<std::string> args;
+    CommandParams args;
     Utils::splitString( args, commandline, " " );
     if( args.empty() )
     {
@@ -73,7 +73,6 @@ namespace XrdClient
     // Extract the command name
     //--------------------------------------------------------------------------
     std::string commandName = args.front();
-    args.pop_front();
     CommandMap::iterator it = pCommands.find( commandName );
     if( it == pCommands.end() )
     {
