@@ -96,6 +96,14 @@ namespace
       }
 
       //------------------------------------------------------------------------
+      // Destructor
+      //------------------------------------------------------------------------
+      ~DeepLocateHandler()
+      {
+        delete pLocations;
+      }
+
+      //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
       virtual void HandleResponse( XrdClient::XRootDStatus *status,
@@ -120,7 +128,7 @@ namespace
             log->Debug( QueryMsg, "[DeepLocate] Failed to get the initial "
                                   "location list" );
             pHandler->HandleResponse( status, response );
-            delete status;
+            delete this;
             return;
           }
 
@@ -193,7 +201,6 @@ namespace
         //----------------------------------------------------------------------
         if( !pLocations->GetSize() )
         {
-          delete pLocations;
           pHandler->HandleResponse( new XRootDStatus( stError, errErrorResponse,
                                                  kXR_NotFound,
                                                  "No valid location found" ),
@@ -206,6 +213,7 @@ namespace
         {
           AnyObject *obj = new AnyObject();
           obj->Set( pLocations );
+          pLocations = 0;
           pHandler->HandleResponse( new XRootDStatus(), obj );
         }
         delete this;

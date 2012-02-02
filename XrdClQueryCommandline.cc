@@ -13,6 +13,8 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
+#include <ctime>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -90,6 +92,120 @@ XRootDStatus DoCD( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// List a directory
+//------------------------------------------------------------------------------
+XRootDStatus DoLS( Query *query, Env *env,
+                   const std::list<std::string> &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log *log = DefaultEnv::GetLog();
+  uint32_t    argc = args.size();
+  uint8_t     flags = DirListFlags::Locate;
+  bool        stats = false;
+  std::string path;
+
+  if( argc > 2 )
+  {
+    log->Error( AppMsg, "Invalid arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::list<std::string>::const_iterator argIt;
+  for( argIt = args.begin(); argIt != args.end(); ++argIt )
+  {
+    if( *argIt == "-l" )
+    {
+      stats = true;
+      flags |= DirListFlags::Stat;
+    }
+    else
+      path = *argIt;
+  }
+
+  std::string newPath;
+  if( path.empty() )
+    env->GetString( "CWD", newPath );
+  else
+  {
+    if( !BuildPath( newPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid arguments. Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+  }
+
+  log->Debug( AppMsg, "Attempting to list: %s", newPath.c_str() );
+
+  //----------------------------------------------------------------------------
+  // Ask for the list
+  //----------------------------------------------------------------------------
+  DirectoryList *list;
+  XRootDStatus st = query->DirList( newPath, flags, list );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to list the path: %s", st.ToStr().c_str() );
+    return st;
+  }
+
+  if( st.code == suPartial )
+    log->Info( AppMsg, "Some of the requests failed. The result may be "
+                       "incomplete" );
+
+  //----------------------------------------------------------------------------
+  // Print the results
+  //----------------------------------------------------------------------------
+  DirectoryList::Iterator it;
+  for( it = list->Begin(); it != list->End(); ++it )
+  {
+    if( stats )
+    {
+      StatInfo *info = (*it)->GetStatInfo();
+      if( !info )
+      {
+        std::cout << "---- 0000-00-00 00:00:00            ? ";
+      }
+      else
+      {
+        if( info->TestFlags( StatInfo::IsDir ) )
+          std::cout << "d";
+        else
+          std::cout << "-";
+
+        if( info->TestFlags( StatInfo::IsReadable ) )
+          std::cout << "r";
+        else
+          std::cout << "-";
+
+        if( info->TestFlags( StatInfo::IsWritable ) )
+          std::cout << "w";
+        else
+          std::cout << "-";
+
+        if( info->TestFlags( StatInfo::XBitSet ) )
+          std::cout << "x";
+        else
+          std::cout << "-";
+
+        char ts[256];
+        time_t modTime = info->GetModTime();
+        tm *t = gmtime( &modTime );
+        strftime( ts, 255, "%F %T", t );
+        std::cout << " " << ts;
+
+        std::cout << std::setw(12) << info->GetSize() << " ";
+      }
+    }
+    std::cout << "root://" << (*it)->GetHostAddress() << "/";
+    std::cout << list->GetParentName() << (*it)->GetName() << std::endl;
+  }
+
+  return XRootDStatus();
+}
+
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -112,7 +228,7 @@ XRootDStatus PrintHelp( Query *query, Env *env,
   std::cout << "     Change the current working directory";
   std::cout << std::endl << std::endl;
 
-  std::cout << "   ls [dirname]" << std::endl;
+  std::cout << "   ls [-l] [dirname]" << std::endl;
   std::cout << "     Get directory listing." << std::endl << std::endl;
 
   std::cout << "   exit" << std::endl;
@@ -196,7 +312,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   QueryExecutor *executor = new QueryExecutor( url, env );
   executor->AddCommand( "cd",          DoCD      );
   executor->AddCommand( "chmod",       PrintHelp );
-  executor->AddCommand( "ls",          PrintHelp );
+  executor->AddCommand( "ls",          DoLS      );
   executor->AddCommand( "help",        PrintHelp );
   executor->AddCommand( "stat",        PrintHelp );
   executor->AddCommand( "statvfs",     PrintHelp );

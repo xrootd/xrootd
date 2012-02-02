@@ -356,9 +356,12 @@ namespace XrdClient
     XRootDStatus   *st  = new XRootDStatus( pStatus );
     ServerResponse *rsp = 0;
     if( pResponse )
-      (ServerResponse *)pResponse->GetBuffer();
+      rsp = (ServerResponse *)pResponse->GetBuffer();
     if( !pStatus.IsOK() && pStatus.code == errErrorResponse && rsp )
+    {
+      st->errNo = rsp->body.error.errnum;
       st->SetErrorMessage( rsp->body.error.errmsg );
+    }
     return st;
   }
 
@@ -440,8 +443,9 @@ namespace XrdClient
       case kXR_locate:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as LocateInfo",
-                             pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
+                             "LocateInfo: %s",
+                             pUrl.GetHostId().c_str(), pRequest, buffer );
         LocationInfo *data = new LocationInfo( buffer );
         obj->Set( data );
         return obj;

@@ -237,7 +237,7 @@ namespace XrdClient
         if( code == errErrorResponse )
         {
           std::ostringstream o;
-          o << "[ERROR] Server responded with an error: [" << code << "] ";
+          o << "[ERROR] Server responded with an error: [" << errNo << "] ";
           o << pMessage << std::endl;
           return o.str();
         }
@@ -333,8 +333,8 @@ namespace XrdClient
         Offline      = kXR_offline,   //!< File is not online (ie. on disk)
         POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
                                       //!< successfuly closed
-        Readable     = kXR_readable,  //!< Read access is alowed
-        Writable     = kXR_writable,  //!< Write access is allowed
+        IsReadable   = kXR_readable,  //!< Read access is alowed
+        IsWritable   = kXR_writable,  //!< Write access is allowed
       };
 
       //------------------------------------------------------------------------
