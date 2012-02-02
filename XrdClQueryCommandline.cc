@@ -78,6 +78,8 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
     newPath += *it;
     newPath += "/";
   }
+  if( newPath.length() > 1 )
+    newPath.erase( newPath.length()-1, 1 );
 
   return XRootDStatus();
 }
@@ -435,6 +437,94 @@ XRootDStatus DoMv( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Remove a file
+//------------------------------------------------------------------------------
+XRootDStatus DoRm( Query *query, Env *env,
+                   const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  XRootDStatus st = query->Rm( fullPath );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable remove %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Truncate a file
+//------------------------------------------------------------------------------
+XRootDStatus DoTruncate( Query *query, Env *env,
+                         const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  char *result;
+  uint64_t size = ::strtoll( args[2].c_str(), &result, 0 );
+  if( *result != 0 )
+  {
+    log->Error( AppMsg, "Size parameter needs to be an integer" );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  XRootDStatus st = query->Truncate( fullPath, size );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable truncate %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -539,20 +629,20 @@ QueryExecutor *CreateExecutor( const URL &url )
   Env *env = new Env();
   env->PutString( "CWD", "/" );
   QueryExecutor *executor = new QueryExecutor( url, env );
-  executor->AddCommand( "cd",          DoCD      );
-  executor->AddCommand( "chmod",       PrintHelp );
-  executor->AddCommand( "ls",          DoLS      );
-  executor->AddCommand( "help",        PrintHelp );
-  executor->AddCommand( "stat",        PrintHelp );
-  executor->AddCommand( "statvfs",     PrintHelp );
-  executor->AddCommand( "locate",      PrintHelp );
-  executor->AddCommand( "deep-locate", PrintHelp );
-  executor->AddCommand( "mv",          DoMv      );
-  executor->AddCommand( "mkdir",       DoMkDir   );
-  executor->AddCommand( "rm",          PrintHelp );
-  executor->AddCommand( "rmdir",       DoRmDir   );
-  executor->AddCommand( "query",       PrintHelp );
-  executor->AddCommand( "truncate",    PrintHelp );
+  executor->AddCommand( "cd",          DoCD         );
+  executor->AddCommand( "chmod",       PrintHelp    );
+  executor->AddCommand( "ls",          DoLS         );
+  executor->AddCommand( "help",        PrintHelp    );
+  executor->AddCommand( "stat",        PrintHelp    );
+  executor->AddCommand( "statvfs",     PrintHelp    );
+  executor->AddCommand( "locate",      PrintHelp    );
+  executor->AddCommand( "deep-locate", PrintHelp    );
+  executor->AddCommand( "mv",          DoMv         );
+  executor->AddCommand( "mkdir",       DoMkDir      );
+  executor->AddCommand( "rm",          DoRm         );
+  executor->AddCommand( "rmdir",       DoRmDir      );
+  executor->AddCommand( "query",       PrintHelp    );
+  executor->AddCommand( "truncate",    DoTruncate   );
   return executor;
 }
 
