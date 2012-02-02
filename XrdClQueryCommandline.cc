@@ -326,7 +326,7 @@ XRootDStatus DoMkDir( Query *query, Env *env,
   }
 
   std::string newPath;
-  if( !BuildPath( newPath, env, args[1] ).IsOK() )
+  if( !BuildPath( newPath, env, path ).IsOK() )
   {
     log->Error( AppMsg, "Invalid path." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -340,6 +340,46 @@ XRootDStatus DoMkDir( Query *query, Env *env,
   {
     log->Error( AppMsg, "Unable create directory %s: %s",
                         newPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Remove a directory
+//------------------------------------------------------------------------------
+XRootDStatus DoRmDir( Query *query, Env *env,
+                      const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  XRootDStatus st = query->RmDir( fullPath );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable remove directory %s: %s",
+                        fullPath.c_str(),
                         st.ToStr().c_str() );
     return st;
   }
@@ -463,7 +503,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "mv",          PrintHelp );
   executor->AddCommand( "mkdir",       DoMkDir   );
   executor->AddCommand( "rm",          PrintHelp );
-  executor->AddCommand( "rmdir",       PrintHelp );
+  executor->AddCommand( "rmdir",       DoRmDir   );
   executor->AddCommand( "query",       PrintHelp );
   executor->AddCommand( "truncate",    PrintHelp );
   return executor;
