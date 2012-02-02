@@ -26,6 +26,7 @@ class QueryTest: public CppUnit::TestCase
       CPPUNIT_TEST( ChmodTest );
       CPPUNIT_TEST( PingTest );
       CPPUNIT_TEST( StatTest );
+      CPPUNIT_TEST( StatVFSTest );
       CPPUNIT_TEST( ProtocolTest );
       CPPUNIT_TEST( DeepLocateTest );
       CPPUNIT_TEST( DirListTest );
@@ -38,6 +39,7 @@ class QueryTest: public CppUnit::TestCase
     void ChmodTest();
     void PingTest();
     void StatTest();
+    void StatVFSTest();
     void ProtocolTest();
     void DeepLocateTest();
     void DirListTest();
@@ -293,14 +295,39 @@ void QueryTest::StatTest()
 
   Query query( url );
   StatInfo *response = 0;
-  XRootDStatus st = query.Stat( filePath, StatFlags::Object, response );
+  XRootDStatus st = query.Stat( filePath, response );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
-  CPPUNIT_ASSERT( response->GetType() == StatInfo::Object );
   CPPUNIT_ASSERT( response->GetSize() == 1048576000 );
   CPPUNIT_ASSERT( response->TestFlags( StatInfo::IsReadable ) );
   CPPUNIT_ASSERT( response->TestFlags( StatInfo::IsWritable ) );
   CPPUNIT_ASSERT( !response->TestFlags( StatInfo::IsDir ) );
+  delete response;
+}
+
+//------------------------------------------------------------------------------
+// Stat VFS test
+//------------------------------------------------------------------------------
+void QueryTest::StatVFSTest()
+{
+  using namespace XrdClient;
+
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  Query query( url );
+  StatInfoVFS *response = 0;
+  XRootDStatus st = query.StatVFS( dataPath, response );
+  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT( response );
   delete response;
 }
 
