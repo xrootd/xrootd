@@ -525,6 +525,54 @@ XRootDStatus DoTruncate( Query *query, Env *env,
 }
 
 //------------------------------------------------------------------------------
+// Change the access rights to a file
+//------------------------------------------------------------------------------
+XRootDStatus DoChMod( Query *query, Env *env,
+                      const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 3 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  uint16_t mode;
+  XRootDStatus st = ConvertMode( mode, args[2] );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Invalid mode string." );
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  st = query->ChMod( fullPath, mode );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable change mode of %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( Query *query, Env *env,
@@ -630,7 +678,7 @@ QueryExecutor *CreateExecutor( const URL &url )
   env->PutString( "CWD", "/" );
   QueryExecutor *executor = new QueryExecutor( url, env );
   executor->AddCommand( "cd",          DoCD         );
-  executor->AddCommand( "chmod",       PrintHelp    );
+  executor->AddCommand( "chmod",       DoChMod      );
   executor->AddCommand( "ls",          DoLS         );
   executor->AddCommand( "help",        PrintHelp    );
   executor->AddCommand( "stat",        PrintHelp    );
