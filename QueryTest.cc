@@ -205,7 +205,7 @@ void QueryTest::MkdirRmdirTest()
   Query query( url );
 
   XRootDStatus st = query.MkDir( dirPath2, MkDirFlags::MakePath,
-                          AccessMode::UR | AccessMode::UW | AccessMode::UX );
+                          Access::UR | Access::UW | Access::UX );
   CPPUNIT_ASSERT( st.IsOK() );
   st = query.RmDir( dirPath2 );
   CPPUNIT_ASSERT( st.IsOK() );
@@ -239,11 +239,11 @@ void QueryTest::ChmodTest()
   Query query( url );
 
   XRootDStatus st = query.MkDir( dirPath, MkDirFlags::MakePath,
-                          AccessMode::UR | AccessMode::UW | AccessMode::UX );
+                          Access::UR | Access::UW | Access::UX );
   CPPUNIT_ASSERT( st.IsOK() );
   st = query.ChMod( dirPath,
-                    AccessMode::UR | AccessMode::UW | AccessMode::UX |
-                    AccessMode::GR | AccessMode::GX );
+                    Access::UR | Access::UW | Access::UX |
+                    Access::GR | Access::GX );
   CPPUNIT_ASSERT( st.IsOK() );
   st = query.RmDir( dirPath );
   CPPUNIT_ASSERT( st.IsOK() );
@@ -298,8 +298,8 @@ void QueryTest::StatTest()
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetType() == StatInfo::Object );
   CPPUNIT_ASSERT( response->GetSize() == 1048576000 );
-  CPPUNIT_ASSERT( response->TestFlags( StatInfo::Readable ) );
-  CPPUNIT_ASSERT( response->TestFlags( StatInfo::Writable ) );
+  CPPUNIT_ASSERT( response->TestFlags( StatInfo::IsReadable ) );
+  CPPUNIT_ASSERT( response->TestFlags( StatInfo::IsWritable ) );
   CPPUNIT_ASSERT( !response->TestFlags( StatInfo::IsDir ) );
   delete response;
 }
