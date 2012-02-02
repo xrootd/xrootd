@@ -419,7 +419,6 @@ namespace XrdClient
       //! Obtain status information for a path - async
       //!
       //! @param path    file/directory path
-      //! @param flags   StatFlags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
       //!                if the procedure is successfull
@@ -428,7 +427,6 @@ namespace XrdClient
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Stat( const std::string &path,
-                         uint8_t            flags,
                          ResponseHandler   *handler,
                          uint16_t           timeout = 0 );
 
@@ -436,16 +434,42 @@ namespace XrdClient
       //! Obtain status information for a path - sync
       //!
       //! @param path     file/directory path
-      //! @param mode     StatFlags
       //! @param response the response (to be deleted by the user)
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Stat( const std::string  &path,
-                         uint16_t            flags,
                          StatInfo          *&response,
                          uint16_t            timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain status information for a Virtual File System - async
+      //!
+      //! @param path    file/directory path
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a StatInfoVFS object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus StatVFS( const std::string &path,
+                            ResponseHandler   *handler,
+                            uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain status information for a Virtual File System - sync
+      //!
+      //! @param path     file/directory path
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus StatVFS( const std::string  &path,
+                            StatInfoVFS       *&response,
+                            uint16_t            timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Obtain server protocol information - async

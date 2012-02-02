@@ -14,7 +14,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <iomanip>
-#include <ctime>
 
 #ifdef HAVE_READLINE
 #include <readline/readline.h>
@@ -156,7 +155,7 @@ XRootDStatus DoCD( Query *query, Env *env,
   // Check if the path exist and is not a directory
   //----------------------------------------------------------------------------
   StatInfo *info;
-  XRootDStatus st = query->Stat( newPath, StatFlags::Object, info );
+  XRootDStatus st = query->Stat( newPath, info );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to stat the path: %s", st.ToStr().c_str() );
@@ -271,11 +270,7 @@ XRootDStatus DoLS( Query *query, Env *env,
         else
           std::cout << "-";
 
-        char ts[256];
-        time_t modTime = info->GetModTime();
-        tm *t = gmtime( &modTime );
-        strftime( ts, 255, "%F %T", t );
-        std::cout << " " << ts;
+        std::cout << " " << info->GetModTimeAsString();
 
         std::cout << std::setw(12) << info->GetSize() << " ";
       }
@@ -576,7 +571,7 @@ XRootDStatus DoChMod( Query *query, Env *env,
 // Locate a path
 //------------------------------------------------------------------------------
 XRootDStatus DoLocate( Query *query, Env *env,
-                      const QueryExecutor::CommandParams &args )
+                       const QueryExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -677,6 +672,137 @@ XRootDStatus DoLocate( Query *query, Env *env,
     };
     std::cout << std::endl;
   }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Stat a path
+//------------------------------------------------------------------------------
+XRootDStatus DoStat( Query *query, Env *env,
+                     const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  StatInfo *info = 0;
+  XRootDStatus st = query->Stat( fullPath, info );
+
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable stat %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Print the result
+  //----------------------------------------------------------------------------
+  std::string flags;
+
+  if( info->TestFlags( StatInfo::XBitSet ) )
+    flags += "XBitSet|";
+  if( info->TestFlags( StatInfo::IsDir ) )
+    flags += "IsDir|";
+  if( info->TestFlags( StatInfo::Other ) )
+    flags += "Other|";
+  if( info->TestFlags( StatInfo::Offline ) )
+    flags += "Offline|";
+  if( info->TestFlags( StatInfo::POSCPending ) )
+    flags += "POSCPending|";
+  if( info->TestFlags( StatInfo::IsReadable ) )
+    flags += "IsReadable|";
+  if( info->TestFlags( StatInfo::IsWritable ) )
+    flags += "IsWritable|";
+
+  if( !flags.empty() )
+    flags.erase( flags.length()-1, 1 );
+
+  std::cout << "Path:  " << fullPath << std::endl;
+  std::cout << "Id:    " << info->GetId() << std::endl;
+  std::cout << "Size:  " << info->GetSize() << std::endl;
+  std::cout << "Flags: " << info->GetFlags() << " (" << flags << ")";
+  std::cout << std::endl;
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Stat a VFS
+//------------------------------------------------------------------------------
+XRootDStatus DoStatVFS( Query *query, Env *env,
+                        const QueryExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string fullPath;
+  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the query
+  //----------------------------------------------------------------------------
+  StatInfoVFS *info = 0;
+  XRootDStatus st = query->StatVFS( fullPath, info );
+
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable stat VFS at %s: %s",
+                        fullPath.c_str(),
+                        st.ToStr().c_str() );
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Print the result
+  //----------------------------------------------------------------------------
+  std::cout << "Path:                             ";
+  std::cout << fullPath << std::endl;
+  std::cout << "Nodes with RW space:              ";
+  std::cout << info->GetNodesRW() << std::endl;
+  std::cout << "Size of RW space (MB):            ";
+  std::cout << info->GetFreeRW() << std::endl;
+  std::cout << "Utilization of RW space (%):      ";
+  std::cout << info->GetUtilizationRW() << std::endl;
+  std::cout << "Nodes with staging space:         ";
+  std::cout << info->GetNodesStaging() << std::endl;
+  std::cout << "Size of staging space (MB):       ";
+  std::cout << info->GetFreeStaging() << std::endl;
+  std::cout << "Utilization of staging space (%): ";
+  std::cout << info->GetUtilizationStaging() << std::endl;
 
   return XRootDStatus();
 }
@@ -790,8 +916,8 @@ QueryExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "chmod",       DoChMod      );
   executor->AddCommand( "ls",          DoLS         );
   executor->AddCommand( "help",        PrintHelp    );
-  executor->AddCommand( "stat",        PrintHelp    );
-  executor->AddCommand( "statvfs",     PrintHelp    );
+  executor->AddCommand( "stat",        DoStat       );
+  executor->AddCommand( "statvfs",     DoStatVFS    );
   executor->AddCommand( "locate",      DoLocate     );
   executor->AddCommand( "mv",          DoMv         );
   executor->AddCommand( "mkdir",       DoMkDir      );

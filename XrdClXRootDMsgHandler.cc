@@ -457,11 +457,30 @@ namespace XrdClient
       case kXR_stat:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
-                             pUrl.GetHostId().c_str(), pRequest );
+        //----------------------------------------------------------------------
+        // Virtual File System stat (kXR_vfs)
+        //----------------------------------------------------------------------
+        if( req->stat.options & kXR_vfs )
+        {
+          log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
+                                "StatInfoVFS",
+                                pUrl.GetHostId().c_str(), pRequest );
 
-        StatInfo *data = new StatInfo( buffer );
-        obj->Set( data );
+          StatInfoVFS *data = new StatInfoVFS( buffer );
+          obj->Set( data );
+        }
+        //----------------------------------------------------------------------
+        // Normal stat
+        //----------------------------------------------------------------------
+        else
+        {
+          log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
+                                pUrl.GetHostId().c_str(), pRequest );
+
+          StatInfo *data = new StatInfo( buffer );
+          obj->Set( data );
+        }
+
         return obj;
       }
 

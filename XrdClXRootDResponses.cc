@@ -93,16 +93,9 @@ namespace XrdClient
   // StatInfo constructor
   //----------------------------------------------------------------------------
   StatInfo::StatInfo( const char *data ):
-    pType( Invalid ),
     pSize( 0 ),
     pFlags( 0 ),
-    pModTime( 0 ),
-    pNodesRW( 0 ),
-    pFreeRW( 0 ),
-    pUtilizationRW( 0 ),
-    pNodesStaging( 0 ),
-    pFreeStaging( 0 ),
-    pUtilizationStaging( 0 )
+    pModTime( 0 )
   {
     ParseServerResponse( data );
   }
@@ -114,17 +107,10 @@ namespace XrdClient
   {
     std::vector<std::string> chunks;
     Utils::splitString( chunks, data, " " );
-    if( chunks.size() == 4 )
-      ProcessObjectStat( chunks );
-    else if( chunks.size() == 6 )
-      ProcessVFSStat( chunks );
-  }
 
-  //----------------------------------------------------------------------------
-  // Process object stat
-  //----------------------------------------------------------------------------
-  void StatInfo::ProcessObjectStat( std::vector<std::string> &chunks  )
-  {
+    if( chunks.size() < 4 )
+      return;
+
     pId = chunks[0];
 
     char *result;
@@ -148,14 +134,33 @@ namespace XrdClient
       pModTime = 0;
       return;
     }
-    pType = Object;
   }
 
   //----------------------------------------------------------------------------
-  // Process VFS stat
+  // StatInfo constructor
   //----------------------------------------------------------------------------
-  void StatInfo::ProcessVFSStat( std::vector<std::string> &chunks  )
+  StatInfoVFS::StatInfoVFS( const char *data ):
+    pNodesRW( 0 ),
+    pFreeRW( 0 ),
+    pUtilizationRW( 0 ),
+    pNodesStaging( 0 ),
+    pFreeStaging( 0 ),
+    pUtilizationStaging( 0 )
   {
+    ParseServerResponse( data );
+  }
+
+  //----------------------------------------------------------------------------
+  // Parse the stat info returned by the server
+  //----------------------------------------------------------------------------
+  void StatInfoVFS::ParseServerResponse( const char *data )
+  {
+    std::vector<std::string> chunks;
+    Utils::splitString( chunks, data, " " );
+
+    if( chunks.size() < 6 )
+      return;
+
     char *result;
     pNodesRW = ::strtoll( chunks[0].c_str(), &result, 0 );
     if( *result != 0 )
@@ -198,8 +203,6 @@ namespace XrdClient
       pUtilizationStaging = 0;
       return;
     }
-
-    pType = VFS;
   }
 
   //----------------------------------------------------------------------------

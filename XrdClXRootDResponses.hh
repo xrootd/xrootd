@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <list>
+#include <ctime>
 
 namespace XrdClient
 {
@@ -307,21 +308,11 @@ namespace XrdClient
   };
 
   //----------------------------------------------------------------------------
-  //! Stat info
+  //! Object stat info
   //----------------------------------------------------------------------------
   class StatInfo
   {
     public:
-      //------------------------------------------------------------------------
-      //! Possible statistics types represented by this object
-      //------------------------------------------------------------------------
-      enum StatType
-      {
-        Invalid,            //!< Invalid stat info
-        Object,             //!< File/directory related stats
-        VFS,                //!< Virtual file system related stats
-      };
-
       //------------------------------------------------------------------------
       //! Flags
       //------------------------------------------------------------------------
@@ -341,14 +332,6 @@ namespace XrdClient
       //! Constructor
       //------------------------------------------------------------------------
       StatInfo( const char *data );
-
-      //------------------------------------------------------------------------
-      //! Get type
-      //------------------------------------------------------------------------
-      const StatType GetType() const
-      {
-        return pType;
-      }
 
       //------------------------------------------------------------------------
       //! Get id
@@ -389,6 +372,46 @@ namespace XrdClient
       {
         return pModTime;
       }
+
+      //------------------------------------------------------------------------
+      //! Get modification time
+      //------------------------------------------------------------------------
+      std::string GetModTimeAsString() const
+      {
+        char ts[256];
+        time_t modTime = pModTime;
+        tm *t = gmtime( &modTime );
+        strftime( ts, 255, "%F %T", t );
+        return ts;
+      }
+
+
+    private:
+
+      //------------------------------------------------------------------------
+      // Parse the stat info returned by the server
+      //------------------------------------------------------------------------
+      void ParseServerResponse( const char *data  );
+
+      //------------------------------------------------------------------------
+      // Normal stat
+      //------------------------------------------------------------------------
+      std::string pId;
+      uint64_t    pSize;
+      uint32_t    pFlags;
+      uint64_t    pModTime;
+  };
+
+  //----------------------------------------------------------------------------
+  //! VFS stat info
+  //----------------------------------------------------------------------------
+  class StatInfoVFS
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      StatInfoVFS( const char *data );
 
       //------------------------------------------------------------------------
       //! Get number of nodes that can provide read/write space
@@ -444,18 +467,6 @@ namespace XrdClient
       // Parse the stat info returned by the server
       //------------------------------------------------------------------------
       void ParseServerResponse( const char *data  );
-      void ProcessObjectStat( std::vector<std::string> &chunks  );
-      void ProcessVFSStat( std::vector<std::string> &chunks  );
-
-      StatType   pType;
-
-      //------------------------------------------------------------------------
-      // Normal stat
-      //------------------------------------------------------------------------
-      std::string pId;
-      uint64_t    pSize;
-      uint32_t    pFlags;
-      uint64_t    pModTime;
 
       //------------------------------------------------------------------------
       // kXR_vfs stat

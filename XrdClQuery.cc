@@ -774,7 +774,6 @@ namespace XrdClient
   // Obtain status information for a path - async
   //----------------------------------------------------------------------------
   XRootDStatus Query::Stat( const std::string &path,
-                            uint8_t            flags,
                             ResponseHandler   *handler,
                             uint16_t           timeout )
   {
@@ -787,7 +786,7 @@ namespace XrdClient
     CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_stat;
-    req->options    = flags;
+    req->options    = 0;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
@@ -803,12 +802,54 @@ namespace XrdClient
   // Obtain status information for a path - sync
   //----------------------------------------------------------------------------
   XRootDStatus Query::Stat( const std::string  &path,
-                            uint16_t            flags,
                             StatInfo          *&response,
                             uint16_t            timeout )
   {
     SyncResponseHandler handler;
-    Status st = Stat( path, flags, &handler, timeout );
+    Status st = Stat( path, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain status information for a path - async
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::StatVFS( const std::string &path,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_stat + VFS request for path %s",
+                         pUrl->GetHostId().c_str(), path.c_str() );
+
+    Message           *msg;
+    ClientStatRequest *req;
+    CreateRequest( msg, req, path.length() );
+
+    req->requestid  = kXR_stat;
+    req->options    = kXR_vfs;
+    req->dlen       = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    Status st = SendMessage( msg, handler, timeout );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain status information for a path - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus Query::StatVFS( const std::string  &path,
+                               StatInfoVFS       *&response,
+                               uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = StatVFS( path, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -979,7 +1020,7 @@ namespace XrdClient
     {
       std::string fullPath = response->GetParentName()+response->At(i)->GetName();
       ResponseHandler *handler = new DirListStatHandler( response, i, &sync );
-      st = Stat( fullPath, StatFlags::Object, handler, timeout );
+      st = Stat( fullPath, handler, timeout );
       if( !st.IsOK() )
       {
         sync.TaskDone( false );
