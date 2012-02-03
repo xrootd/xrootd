@@ -1021,7 +1021,7 @@ void rl_bind_key( char, uint16_t )
 {
 }
 
-uint16_t rl_abort = 0;
+uint16_t rl_insert = 0;
 
 int read_history( const char * )
 {
@@ -1056,7 +1056,7 @@ int ExecuteInteractive( const URL &url )
   //----------------------------------------------------------------------------
   std::string historyFile = getenv( "HOME" );
   historyFile += "/.xrdquery.history";
-  rl_bind_key( '\t', rl_abort );
+  rl_bind_key( '\t', rl_insert );
   read_history( historyFile.c_str() );
   QueryExecutor *ex = CreateExecutor( url );
 
