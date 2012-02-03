@@ -832,26 +832,29 @@ XRootDStatus DoQuery( Query *query, Env *env,
   }
 
   QueryCode::Code qCode;
-  if( args[1] == "Config" )
+  if( args[1] == "config" )
     qCode = QueryCode::Config;
-  else if( args[1] == "ChecksumCancel" )
+  else if( args[1] == "checksumcancel" )
     qCode = QueryCode::ChecksumCancel;
-  else if( args[1] == "Checksum" )
+  else if( args[1] == "checksum" )
     qCode = QueryCode::Checksum;
-  else if( args[1] == "Opaque" )
+  else if( args[1] == "opaque" )
     qCode = QueryCode::Opaque;
-  else if( args[1] == "OpaqueFile" )
+  else if( args[1] == "opaqueFile" )
     qCode = QueryCode::OpaqueFile;
-  else if( args[1] == "Prepare" )
+  else if( args[1] == "prepare" )
     qCode = QueryCode::Prepare;
-  else if( args[1] == "Space" )
+  else if( args[1] == "space" )
     qCode = QueryCode::Space;
-  else if( args[1] == "Stats" )
+  else if( args[1] == "stats" )
     qCode = QueryCode::Stats;
-  else if( args[1] == "XAttr" )
+  else if( args[1] == "xattr" )
     qCode = QueryCode::XAttr;
   else
+  {
+    log->Error( AppMsg, "Invalid query code." );
     return XRootDStatus( stError, errInvalidArgs );
+  }
 
   std::string strArg = args[2];
   if( qCode == QueryCode::ChecksumCancel ||
@@ -937,14 +940,14 @@ XRootDStatus PrintHelp( Query *, Env *,
   printf( "   query <code> <parms>\n"                                       );
   printf( "     Obtain server information. Query codes:\n\n"                );
 
-  printf( "     Config         <what>   Server configuration\n"             );
-  printf( "     ChecksumCancel <path>   File checksum cancelation\n"        );
-  printf( "     Checksum       <path>   File checksum\n"                    );
-  printf( "     Opaque         <arg>    Implementation dependent\n"         );
-  printf( "     OpaqueFile     <arg>    Implementation dependent\n"         );
-  printf( "     Space          <space>  Logical space stats\n"              );
-  printf( "     Stats          <what>   Server stats\n"                     );
-  printf( "     XAttr          <path>   Extended attributes\n\n"            );
+  printf( "     config         <what>   Server configuration\n"             );
+  printf( "     checksumcancel <path>   File checksum cancelation\n"        );
+  printf( "     checksum       <path>   File checksum\n"                    );
+  printf( "     opaque         <arg>    Implementation dependent\n"         );
+  printf( "     opaquefile     <arg>    Implementation dependent\n"         );
+  printf( "     space          <space>  Logical space stats\n"              );
+  printf( "     stats          <what>   Server stats\n"                     );
+  printf( "     xattr          <path>   Extended attributes\n\n"            );
 
   printf( "   rm <filename>\n"                                              );
   printf( "     Remove a file.\n\n"                                         );
