@@ -512,7 +512,8 @@ namespace XrdClient
         char *path = new char[req->dirlist.dlen+1];
         path[req->dirlist.dlen] = 0;
         memcpy( path, pRequest->GetBuffer(24), req->dirlist.dlen );
-        DirectoryList *data = new DirectoryList( pUrl.GetHostId(), path, buffer );
+        DirectoryList *data = new DirectoryList( pUrl.GetHostId(), path,
+                                                 length ? buffer : 0 );
         delete [] path;
         obj->Set( data );
         return obj;
