@@ -72,7 +72,7 @@ namespace XrdClient
     CommandParams::iterator parIt;
     int i = 0;
     for( parIt = args.begin(); parIt != args.end(); ++parIt, ++i )
-      log->Dump( AppMsg, "  Param #%02d: %s", i, parIt->c_str() );
+      log->Dump( AppMsg, "  Param #%02d: '%s'", i, parIt->c_str() );
 
     //--------------------------------------------------------------------------
     // Extract the command name

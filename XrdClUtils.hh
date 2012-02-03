@@ -37,11 +37,9 @@ namespace XrdClient
           if( end != std::string::npos )
             length = end - start;
           else
-            length = std::string::npos;
+            length = input.length() - start;
 
-
-
-          if( length && length != std::string::npos )
+          if( length )
             result.push_back( input.substr( start, length ) );
 
           start = end + delimiter.size();
