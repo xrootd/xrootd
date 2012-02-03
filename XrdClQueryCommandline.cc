@@ -865,7 +865,6 @@ XRootDStatus DoQuery( Query *query, Env *env,
     }
   }
 
-
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
@@ -896,93 +895,65 @@ XRootDStatus DoQuery( Query *query, Env *env,
 XRootDStatus PrintHelp( Query *query, Env *env,
                         const QueryExecutor::CommandParams &args )
 {
-  std::cout << "Usage:" << std::endl;
-  std::cout << "   xrdquery host[:port]              - interactive mode";
-  std::cout << std::endl;
-  std::cout << "   xrdquery host[:port] command args - batch mode";
-  std::cout << std::endl << std::endl;
+  printf( "Usage:\n"                                                        );
+  printf( "   xrdquery host[:port]              - interactive mode\n"       );
+  printf( "   xrdquery host[:port] command args - batch mode\n\n"           );
 
-  std::cout << "Available commands:" << std::endl << std::endl;
+  printf( "Available commands:\n\n"                                         );
 
-  std::cout << "   chmod <path> <user><group><other>" << std::endl;
-  std::cout << "     Modify file permissions. Permission example:";
-  std::cout << std::endl;
-  std::cout << "     rwxr-x--x" << std::endl << std::endl;
+  printf( "   exit\n"                                                       );
+  printf( "     Exits from the program.\n\n"                                );
 
-  std::cout << "   cd <path>" << std::endl;
-  std::cout << "     Change the current working directory";
-  std::cout << std::endl << std::endl;
+  printf( "   help\n"                                                       );
+  printf( "     This help screen.\n\n"                                      );
 
-  std::cout << "   ls [-l] [dirname]" << std::endl;
-  std::cout << "     Get directory listing." << std::endl << std::endl;
+  printf( "   cd <path>\n"                                                  );
+  printf( "     Change the current working directory\n\n"                   );
 
-  std::cout << "   exit" << std::endl;
-  std::cout << "     Exits from the program." << std::endl << std::endl;
+  printf( "   chmod <path> <user><group><other>\n"                          );
+  printf( "     Modify permissions. Permission string example:\n"           );
+  printf( "     rwxr-x--x\n\n"                                              );
 
-  std::cout << "   help" << std::endl;
-  std::cout << "     This help screen." << std::endl << std::endl;
+  printf( "   ls [-l] [-u] [dirname]\n"                                     );
+  printf( "     Get directory listing.\n"                                   );
+  printf( "     -l stat every entry and pring long listing\n"               );
+  printf( "     -u print paths as URLs\n\n"                                 );
 
-  std::cout << "   stat <path>" << std::endl;
-  std::cout << "     Get info about the file or directory." << std::endl;
-  std::cout << std::endl;
+  printf( "   locate [-n] [-r] [-d] <path>\n"                               );
+  printf( "     Get the locations of the path.\n\n"                         );
 
-  std::cout << "   statvfs [path]" << std::endl;
-  std::cout << "     Get info about a virtual file system." << std::endl;
-  std::cout << std::endl;
+  printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"              );
+  printf( "     Creates a directory/tree of directories.\n\n"               );
 
-  std::cout << "   locate <path> [NoWait|Refresh]" << std::endl;
-  std::cout << "     Get the locations of the path." << std::endl;
-  std::cout << std::endl;
+  printf( "   mv <path1> <path2>\n"                                         );
+  printf( "     Move path1 to path2 locally on the same server.\n\n"        );
 
-  std::cout << "   deep-locate <path> [NoWait|Refresh]" << std::endl;
-  std::cout << "     Find file servers hosting the path." << std::endl;
-  std::cout << std::endl;
+  printf( "   stat <path>\n"                                                );
+  printf( "     Get info about the file or directory.\n\n"                  );
 
-  std::cout << "   mv <path1> <path2>" << std::endl;
-  std::cout << "     Move path1 to path2 locally on the same server.";
-  std::cout << std::endl << std::endl;
+  printf( "   statvfs <path>\n"                                             );
+  printf( "     Get info about a virtual file system.\n\n"                  );
 
-  std::cout << "   mkdir <dirname> [-p] [-m<user><group><other>]";
-  std::cout << std::endl;
-  std::cout << "     Creates a directory/tree of directories.";
-  std::cout << std::endl << std::endl;
+  printf( "   query <code> <parms>\n"                                       );
+  printf( "     Obtain server information. Query codes:\n\n"                );
 
-  std::cout << "   rm <filename>" << std::endl;
-  std::cout << "     Remove a file." << std::endl << std::endl;
+  printf( "     Config         <what>   Server configuration\n"             );
+  printf( "     ChecksumCancel <path>   File checksum cancelation\n"        );
+  printf( "     Checksum       <path>   File checksum\n"                    );
+  printf( "     Opaque         <arg>    Implementation dependent\n"         );
+  printf( "     OpaqueFile     <arg>    Implementation dependent\n"         );
+  printf( "     Space          <space>  Logical space stats\n"              );
+  printf( "     Stats          <what>   Server stats\n"                     );
+  printf( "     XAttr          <path>   Extended attributes\n\n"            );
 
-  std::cout << "   rmdir <dirname>" << std::endl;
-  std::cout << "     Remove a directory." << std::endl << std::endl;
+  printf( "   rm <filename>\n"                                              );
+  printf( "     Remove a file.\n\n"                                         );
 
-  std::cout << "   query <code> <parms>";
-  std::cout << "Obtain server information. Query codes:" << std::endl;
+  printf( "   rmdir <dirname>\n"                                            );
+  printf( "     Remove a directory.\n\n"                                    );
 
-  std::cout << "     Config <what>              ";
-  std::cout << "Query server configuration"     << std::endl;
-
-  std::cout << "     ChecksumCancel <path>      ";
-  std::cout << "File checksum cancelation"      << std::endl;
-
-  std::cout << "     Checksum <path>            ";
-  std::cout << "Query file checksum"            << std::endl;
-
-  std::cout << "     Opaque <arg>               ";
-  std::cout << "Implementation dependent"       << std::endl;
-
-  std::cout << "     OpaqueFile <arg>           ";
-  std::cout << "Implementation dependent"       << std::endl;
-
-  std::cout << "     Space <spacename>          ";
-  std::cout << "Query logical space stats"      << std::endl;
-
-  std::cout << "     Stats <what>               ";
-  std::cout << "Query server stats"             << std::endl;
-
-  std::cout << "     XAttr <path>               ";
-  std::cout << "Query file extended attributes" << std::endl;
-  std::cout << std::endl;
-
-  std::cout << "   truncate <filename> <length> " << std::endl;
-  std::cout << "     Truncate a file." << std::endl << std::endl;
+  printf( "   truncate <filename> <length>\n"                               );
+  printf( "     Truncate a file.\n\n"                                       );
 
   return XRootDStatus();
 }
