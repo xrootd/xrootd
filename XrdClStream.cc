@@ -55,8 +55,8 @@ namespace XrdClient
     pStreamStatus( Disconnected ),
     pChannelData( 0 ),
     pLastStreamError( 0 ),
-    pLastActivity( 0 ),
     pErrorTime( 0 ),
+    pLastActivity( 0 ),
     pHandShakeData( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 )
@@ -94,7 +94,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Handle a socket event
   //----------------------------------------------------------------------------
-  void Stream::Event( uint8_t type, Socket *socket )
+  void Stream::Event( uint8_t type, Socket * )
   {
     switch( type )
     {
@@ -171,7 +171,6 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status Stream::CheckConnection()
   {
-    Log *log = DefaultEnv::GetLog();
     time_t now = ::time(0);
 
     XrdSysMutexHelper scopedLock( pMutex );
@@ -429,7 +428,6 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   void Stream::ConnectedReadyToWrite()
   {
-    Log *log = DefaultEnv::GetLog();
     Status st = WriteMessage( pOutQueue );
     if( !st.IsOK() )
     {
@@ -681,7 +679,7 @@ namespace
       //------------------------------------------------------------------------
       // Run the task
       //------------------------------------------------------------------------
-      time_t Run( time_t now )
+      time_t Run( time_t )
       {
         pStream->Connect();
         return 0;

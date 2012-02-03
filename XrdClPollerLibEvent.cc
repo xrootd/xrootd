@@ -99,14 +99,14 @@ extern "C"
   //----------------------------------------------------------------------------
   // Dummy callback
   //----------------------------------------------------------------------------
-  static void DummyCallback( evutil_socket_t fd, short what, void *arg )
+  static void DummyCallback( evutil_socket_t, short, void * )
   {
   }
 
   //----------------------------------------------------------------------------
   // Read event callback
   //----------------------------------------------------------------------------
-  static void ReadEventCallback( evutil_socket_t fd, short what, void *arg )
+  static void ReadEventCallback( evutil_socket_t, short what, void *arg )
   {
     using namespace XrdClient;
 
@@ -127,7 +127,7 @@ extern "C"
   //----------------------------------------------------------------------------
   // Write event callback
   //----------------------------------------------------------------------------
-  static void WriteEventCallback( evutil_socket_t fd, short what, void *arg )
+  static void WriteEventCallback( evutil_socket_t, short what, void *arg )
   {
     using namespace XrdClient;
 

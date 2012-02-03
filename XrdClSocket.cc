@@ -78,6 +78,7 @@ namespace XrdClient
     if( st == -1 )
       return Status( stError, errSocketError, errno );
     flags = st;
+    return Status();
   }
 
   //----------------------------------------------------------------------------

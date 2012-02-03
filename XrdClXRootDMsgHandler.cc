@@ -56,7 +56,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       // We only care about async responses
       //------------------------------------------------------------------------
-      if( rsp->body.attn.actnum != htonl(kXR_asynresp) )
+      if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
         return Ignore;
 
       //------------------------------------------------------------------------
@@ -305,7 +305,7 @@ namespace XrdClient
   // We're here when we got a time event. We needed to re-issue the request
   // in some time in the future, and that moment has arrived
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::WaitDone( time_t now )
+  void XRootDMsgHandler::WaitDone( time_t )
   {
     Log *log = DefaultEnv::GetLog();
     Status st = pPostMaster->Send( pUrl, pRequest, this, 300 );
@@ -581,7 +581,6 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RewriteRequestWait()
   {
-    Log *log = DefaultEnv::GetLog();
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
 
     XRootDTransport::UnMarshallRequest( pRequest );

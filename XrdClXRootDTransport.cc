@@ -148,7 +148,6 @@ namespace XrdClient
       }
       UnMarshallHeader( message );
       message->ReAllocate( *(uint32_t*)(message->GetBuffer(4)) + 8 );
-      ServerResponse *resp = (ServerResponse *)message->GetBuffer();
     }
 
     //--------------------------------------------------------------------------
@@ -192,7 +191,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Finalize channel
   //----------------------------------------------------------------------------
-  void XRootDTransport::FinalizeChannel( AnyObject &channelData )
+  void XRootDTransport::FinalizeChannel( AnyObject & )
   {
   }
 
@@ -337,7 +336,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Multiplex
   //----------------------------------------------------------------------------
-  uint16_t XRootDTransport::Multiplex( Message *msg, AnyObject &channelData )
+  uint16_t XRootDTransport::Multiplex( Message *, AnyObject & )
   {
     return 0;
   }
@@ -541,7 +540,7 @@ namespace XrdClient
   // Generate the message to be sent as an initial handshake
   //----------------------------------------------------------------------------
   Message *XRootDTransport::GenerateInitialHS( HandShakeData     *hsData,
-                                               XRootDChannelInfo *info )
+                                               XRootDChannelInfo * )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( XRootDTransportMsg, "[%s #%d] Sending out the initial "
@@ -640,7 +639,7 @@ namespace XrdClient
   // Generate the login message
   //----------------------------------------------------------------------------
   Message *XRootDTransport::GenerateLogIn( HandShakeData *hsData,
-                                           XRootDChannelInfo *info )
+                                           XRootDChannelInfo * )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -952,6 +951,7 @@ namespace XrdClient
     info->authProtocol = 0;
     info->authParams   = 0;
     info->authEnv      = 0;
+    return Status();
   }
 
   //----------------------------------------------------------------------------

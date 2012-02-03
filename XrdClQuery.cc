@@ -976,7 +976,6 @@ namespace XrdClient
           errors = true;
 
         DirectoryList::Iterator it;
-        Log *log = DefaultEnv::GetLog();
 
         for( it = currentResp->Begin(); it != currentResp->End(); ++it )
         {

@@ -39,7 +39,7 @@ namespace XrdClient
       //! @param status status of a socket if available
       //------------------------------------------------------------------------
       Socket( int socket = -1, SocketStatus status = Uninitialized ):
-        pSocket(-1), pStatus( status ), pServerAddr( 0 )
+        pSocket(socket), pStatus( status ), pServerAddr( 0 )
       {
         if( pSocket != -1 && status == Uninitialized )
           pStatus = Initialized;

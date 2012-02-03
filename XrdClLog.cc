@@ -31,6 +31,7 @@ namespace XrdClient
       return false;
     }
     pFileDes = fd;
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -77,7 +78,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Print an error message
   //----------------------------------------------------------------------------
-  void Log::Say( LogLevel level, uint64_t type, const char *format, va_list list )
+  void Log::Say( LogLevel level, uint64_t, const char *format, va_list list )
   {
     //--------------------------------------------------------------------------
     // Build the user message

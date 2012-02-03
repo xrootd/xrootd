@@ -195,7 +195,7 @@ XRootDStatus DoLS( Query *query, Env *env,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  for( int i = 1; i < args.size(); ++i )
+  for( uint32_t i = 1; i < args.size(); ++i )
   {
     if( args[i] == "-l" )
     {
@@ -308,7 +308,7 @@ XRootDStatus DoMkDir( Query *query, Env *env,
   std::string  modeStr = "rwxr-x---";
   std::string  path    = "";
 
-  for( int i = 1; i < args.size(); ++i )
+  for( uint32_t i = 1; i < args.size(); ++i )
   {
     if( args[i] == "-p" )
       flags |= MkDirFlags::MakePath;
@@ -592,7 +592,7 @@ XRootDStatus DoLocate( Query *query, Env *env,
   uint16_t    flags        = OpenFlags::None;
   bool        hasPath      = false;
   bool        doDeepLocate = false;
-  for( int i = 1; i < argc; ++i )
+  for( uint32_t i = 1; i < argc; ++i )
   {
     if( args[i] == "-n" )
       flags |= OpenFlags::NoWait;
@@ -892,8 +892,8 @@ XRootDStatus DoQuery( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
-XRootDStatus PrintHelp( Query *query, Env *env,
-                        const QueryExecutor::CommandParams &args )
+XRootDStatus PrintHelp( Query *, Env *,
+                        const QueryExecutor::CommandParams & )
 {
   printf( "Usage:\n"                                                        );
   printf( "   xrdquery host[:port]              - interactive mode\n"       );
@@ -987,7 +987,6 @@ QueryExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 int ExecuteCommand( QueryExecutor *ex, const std::string &commandline )
 {
-  Log *log = DefaultEnv::GetLog();
   XRootDStatus st = ex->Execute( commandline );
   return st.GetShellCode();
 }
@@ -1075,7 +1074,6 @@ int ExecuteInteractive( const URL &url )
       free( linebuf );
       continue;
     }
-    Status xs = XRootDStatus();
     ex->Execute( linebuf );
     add_history( linebuf );
     free( linebuf );

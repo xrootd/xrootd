@@ -47,7 +47,7 @@ namespace XrdClient
       {
         Take          = 0x01,     //!< Take ownership over the message
         Ignore        = 0x02,     //!< Ignore the message
-        RemoveHandler = 0x04,     //!< Remove the handler from the notification
+        RemoveHandler = 0x04      //!< Remove the handler from the notification
                                   //!< list
       };
 

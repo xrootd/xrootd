@@ -19,7 +19,7 @@ add_library(
                               XrdClConstants.hh
   XrdClEnv.cc                 XrdClEnv.hh
   XrdClDefaultEnv.cc          XrdClDefaultEnv.hh
-  XrdClFile.cc                XrdClFile.hh
+#  XrdClFile.cc                XrdClFile.hh
   XrdClURL.cc                 XrdClURL.hh
   XrdClStatus.cc              XrdClStatus.hh
   XrdClSocket.cc              XrdClSocket.hh

@@ -25,7 +25,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       FilterHandler( XrdClient::MessageFilter *filter ):
-        pFilter( filter ), pMsg( 0 ), pSem( 0 )
+        pSem( 0 ), pFilter( filter ), pMsg( 0 )
       {
       }
 
@@ -85,7 +85,7 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatusHandler( XrdClient::Message *msg ): pMsg( msg ), pSem( 0 ) {}
+      StatusHandler( XrdClient::Message *msg ): pSem( 0 ), pMsg( msg ) {}
 
       //------------------------------------------------------------------------
       // Handle the status information
@@ -198,7 +198,7 @@ namespace XrdClient
   Channel::~Channel()
   {
     pTaskManager->UnregisterTask( pTickGenerator );
-    for( int i = 0; i < pStreams.size(); ++i )
+    for( uint32_t i = 0; i < pStreams.size(); ++i )
       delete pStreams[i];
     pTransport->FinalizeChannel( pChannelData );
   }

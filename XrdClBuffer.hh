@@ -132,7 +132,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Append data at the position pointed to by the append cursor
       //------------------------------------------------------------------------
-      bool Append( const char *buffer, uint32_t size )
+      void Append( const char *buffer, uint32_t size )
       {
         uint32_t remaining = pSize-pCursor;
         if( remaining < size )
@@ -145,7 +145,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Append data at the given offset
       //------------------------------------------------------------------------
-      bool Append( const char *buffer, uint32_t size, uint32_t offset )
+      void Append( const char *buffer, uint32_t size, uint32_t offset )
       {
         uint32_t remaining = pSize-offset;
         if( remaining < size )
