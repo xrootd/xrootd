@@ -109,6 +109,7 @@ void *TestThreadFunc( void *arg )
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
     CPPUNIT_ASSERT( m->GetSize() == 8 );
   }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
