@@ -6,6 +6,10 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement ultralow overhead redirect monitoring.
+     WARNING: ofs plugin writers will need to recompile their plugin interface
+              to be fully compatible with this commit due to additional
+              information passed to the ofs object "new" methods.
    * Allow the XrdCmsClient interface (a.k.a Finder) to be a plug-in.
    * Add ofs.cmslib directive to specify the XrdCmsClient plug-in.
    * Add new class, XrdOucCallBack, to simplify using callbacks in the
