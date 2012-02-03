@@ -14,6 +14,8 @@
 
 #include <pthread.h>
 
+#include "TestEnv.hh"
+
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
@@ -72,8 +74,12 @@ void *TestThreadFunc( void *arg )
 {
   using namespace XrdClient;
 
+  std::string address;
+  Env *testEnv = TestEnv::GetEnv();
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+
   ArgHelper *a = (ArgHelper*)arg;
-  URL        localhost( "root://localhost" );
+  URL        host( address );
   XrdFilter  f( a->index, 0 );
 
   //----------------------------------------------------------------------------
@@ -91,7 +97,7 @@ void *TestThreadFunc( void *arg )
   for( int i = 0; i < 100; ++i )
   {
     request->streamid[1] = i;
-    sc = a->pm->Send( localhost, &m, 1200 );
+    sc = a->pm->Send( host, &m, 1200 );
     CPPUNIT_ASSERT( sc.IsOK() );
   }
 
@@ -102,7 +108,7 @@ void *TestThreadFunc( void *arg )
   {
     Message *m;
     f.streamId[1] = i;
-    sc = a->pm->Receive( localhost, m, &f, 1200 );
+    sc = a->pm->Receive( host, m, &f, 1200 );
     CPPUNIT_ASSERT( sc.IsOK() );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
@@ -150,6 +156,7 @@ void PostMasterTest::FunctionalTest()
   // Initialize the stuff
   //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
+  Env *testEnv = TestEnv::GetEnv();
   env->PutInt( "DataServerTTL", 2 );
   env->PutInt( "ManagerTTL", 2 );
   env->PutInt( "TimeoutResolution", 1 );
@@ -159,12 +166,15 @@ void PostMasterTest::FunctionalTest()
   postMaster.Initialize();
   postMaster.Start();
 
+  std::string address;
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+
   //----------------------------------------------------------------------------
   // Send a message and wait for the answer
   //----------------------------------------------------------------------------
   Message   m1, *m2 = 0;
   XrdFilter f1( 1, 2 );
-  URL       localhost( "root://localhost" );
+  URL       host( address );
 
   m1.Allocate( sizeof( ClientPingRequest ) );
   m1.Zero();
@@ -178,10 +188,10 @@ void PostMasterTest::FunctionalTest()
 
   Status sc;
 
-  sc = postMaster.Send( localhost, &m1, 1200 );
+  sc = postMaster.Send( host, &m1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
-  sc = postMaster.Receive( localhost, m2, &f1, 1200 );
+  sc = postMaster.Receive( host, m2, &f1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
@@ -194,10 +204,10 @@ void PostMasterTest::FunctionalTest()
   ::sleep( 4 );
 
   m2 = 0;
-  sc = postMaster.Send( localhost, &m1, 1200 );
+  sc = postMaster.Send( host, &m1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
-  sc = postMaster.Receive( localhost, m2, &f1, 1200 );
+  sc = postMaster.Receive( host, m2, &f1, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
@@ -210,11 +220,11 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   env->PutInt( "DataServerTTL", 5 );
   env->PutInt( "ManagerTTL", 5 );
-  sc = postMaster.Receive( localhost, m2, &f1, 2 );
+  sc = postMaster.Receive( host, m2, &f1, 2 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errSocketTimeout );
 
-  sc = postMaster.Receive( localhost, m2, &f1, 20 );
+  sc = postMaster.Receive( host, m2, &f1, 20 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errStreamDisconnect );
 
@@ -240,8 +250,8 @@ void PostMasterTest::FunctionalTest()
   const char *name   = 0;
   SIDManager *sidMgr = 0;
 
-  st1 = postMaster.QueryTransport( localhost, TransportQuery::Name, nameObj );
-  st2 = postMaster.QueryTransport( localhost, XRootDQuery::SIDManager,
+  st1 = postMaster.QueryTransport( host, TransportQuery::Name, nameObj );
+  st2 = postMaster.QueryTransport( host, XRootDQuery::SIDManager,
                                    sidMgrObj );
 
   CPPUNIT_ASSERT( st1.IsOK() );
@@ -265,7 +275,7 @@ void PostMasterTest::FunctionalTest()
 void PostMasterTest::PingIPv6()
 {
   using namespace XrdClient;
-
+#if 0
   //----------------------------------------------------------------------------
   // Initialize the stuff
   //----------------------------------------------------------------------------
@@ -324,4 +334,5 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   postMaster.Stop();
   postMaster.Finalize();
+#endif
 }
