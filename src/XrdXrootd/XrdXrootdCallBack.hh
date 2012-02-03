@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$
-
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -24,13 +22,16 @@ class XrdXrootdCallBack : public XrdOucEICB
 public:
 
         void        Done(int           &Result,   //I/O: Function result
-                         XrdOucErrInfo *eInfo);   // In: Error information
+                         XrdOucErrInfo *eInfo,    // In: Error information
+                         const char    *Path=0);  // In: Path related to call
 
         const char *Func() {return Opname;}
 
+        const char  Oper() {return Opcode;}
+
         int         Same(unsigned long long arg1, unsigned long long arg2);
 
-        void        sendError(int rc, XrdOucErrInfo *eInfo);
+        void        sendError(int rc, XrdOucErrInfo *eInfo, const char *Path);
 
         void        sendResp(XrdOucErrInfo *eInfo,
                              XResponseType  xrt,       int  *Data=0,
@@ -42,7 +43,8 @@ static  void        setVals(XrdSysError    *erp,
                             int             port)
                            {eDest=erp; SI=SIp; Sched=schp; Port=port;}
 
-                    XrdXrootdCallBack(const char *opn) : Opname(opn) {}
+                    XrdXrootdCallBack(const char *opn, const char opc)
+                                     : Opname(opn), Opcode(opc) {}
 
                    ~XrdXrootdCallBack() {}
 private:
@@ -50,6 +52,7 @@ static XrdSysError        *eDest;
 static XrdXrootdStats     *SI;
 static XrdScheduler       *Sched;
        const char         *Opname;
+       const char          Opcode;
 static int                 Port;
 };
 #endif

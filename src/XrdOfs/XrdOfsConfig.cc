@@ -465,6 +465,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
        if (!Finder) return 1;
        if (!Finder->Configure(ConfigFN, CmsParms, EnvInfo))
           {delete Finder; Finder = 0; return 1;}
+       if (EnvInfo) EnvInfo->PutPtr("XRDCMSMANLIST", Finder->Managers());
       }
 
 // For server roles find the port number and create the object. We used to pass

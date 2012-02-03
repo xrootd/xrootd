@@ -8,10 +8,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdBwmHandleCVSID = "$Id$";
-
 #include <stdio.h>
 #include <string.h>
 
@@ -53,7 +49,7 @@ XrdBwmHandleCB *Alloc()
                    return mP;
                   }
 
-void  Done(int &Results, XrdOucErrInfo *eInfo)
+void  Done(int &Results, XrdOucErrInfo *eInfo, const char *Path=0)
                   {xMutex.Lock();
                    Next = Free;
                    Free = this;

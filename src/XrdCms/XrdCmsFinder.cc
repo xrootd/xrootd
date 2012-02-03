@@ -89,6 +89,7 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
      isMeta      = whoami & IsMeta;
      isProxy     = whoami & IsProxy;
      isTarget    = whoami & IsTarget;
+     savePath    = 0;
      Say.logger(lp);
 }
  
@@ -150,6 +151,11 @@ int XrdCmsFinderRMT::Configure(const char *cfn, char *Args, XrdOucEnv *envP)
    if (isProxy)
            {SMode = config.SModeP; StartManagers(config.PanList);}
       else {SMode = config.SMode;  StartManagers(config.ManList);}
+
+// If we are tracing or if redirect monitoring is enabled, we will need
+// to save path information.
+//
+   if (QTRACE(Redirect) || getenv("XRDMONRDR")) savePath = 1;
 
 // If we are a plain manager but have a meta manager then we must start
 // a responder (that we will hide) to pass through the port number.
@@ -563,8 +569,8 @@ int XrdCmsFinderRMT::send2Man(XrdOucErrInfo &Resp, const char *path,
 // Insert the message number into the header
 //
    ((CmsRRHdr *)(xmsg[0].iov_base))->streamid = mp->ID();
-   if (QTRACE(Redirect)) Resp.setErrInfo(0,path);
-      else Resp.setErrInfo(0, "");
+   if (savePath) Resp.setErrData(path);
+      else Resp.setErrData(0);
 
 // Send message and simply wait for the reply (msg object is locked via Alloc)
 //

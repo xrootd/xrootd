@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
 
 #include <strings.h>
 #include "XrdOuc/XrdOucHash.hh"
@@ -43,7 +41,8 @@ class theClient : XrdOucEICB
 {
 public:
 
-void Done(int &Result, XrdOucErrInfo *eInfo) {EvrP->Work4Event(this);}
+void Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0)
+         {EvrP->Work4Event(this);}
 
 int  Same(unsigned long long arg1, unsigned long long arg2) {return 0;}
 

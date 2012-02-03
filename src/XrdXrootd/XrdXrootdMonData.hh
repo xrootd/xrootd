@@ -40,6 +40,23 @@ struct XrdXrootdMonBuff
         XrdXrootdMonTrace  info[sizeof(XrdXrootdMonTrace)]; //This is really [n]
        };
 
+struct XrdXrootdMonRedir
+      {union   {kXR_int32 Window;
+       struct  {kXR_char  Type;
+                kXR_char  Dent;
+                kXR_int16 Port;
+               }          rdr;     } arg0;
+       union   {kXR_unt32 dictid;
+                kXR_int32 Window;  } arg1;
+      };
+
+struct XrdXrootdMonBurr
+       {XrdXrootdMonHeader hdr;
+        union {kXR_int64   sID;
+               kXR_char    sXX[8]; };
+        XrdXrootdMonRedir  info[sizeof(XrdXrootdMonRedir)]; //This is really [n]
+       };
+
 struct XrdXrootdMonMap
        {XrdXrootdMonHeader hdr;
         kXR_unt32          dictid;
@@ -51,7 +68,9 @@ const kXR_char XROOTD_MON_CLOSE         = 0xc0;
 const kXR_char XROOTD_MON_DISC          = 0xd0;
 const kXR_char XROOTD_MON_OPEN          = 0x80;
 const kXR_char XROOTD_MON_READV         = 0x90;
+const kXR_char XROOTD_MON_REDHOST       = 0xf0; // No   Modifier
 const kXR_char XROOTD_MON_WINDOW        = 0xe0;
+
 
 const kXR_char XROOTD_MON_MAPIDNT       = '=';
 const kXR_char XROOTD_MON_MAPPATH       = 'd';
@@ -64,9 +83,35 @@ const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
 
+// The following bits are insert in the low order 4 bits of the MON_REDIRECT
+// entry code to indicate the actual operation that was requestded.
+//
+const kXR_char XROOTD_MON_REDSID        = 0xf0; // Server Identification
+const kXR_char XROOTD_MON_REDTIME       = 0x00; // Timing mark
+
+const kXR_char XROOTD_MON_REDIRECT      = 0x80; // With Modifier below!
+const kXR_char XROOTD_MON_REDLOCAL      = 0x90; // With Modifier below!
+
+const kXR_char XROOTD_MON_CHMOD         = 0x01; // Modifiers for the above
+const kXR_char XROOTD_MON_LOCATE        = 0x02;
+const kXR_char XROOTD_MON_OPENDIR       = 0x03;
+const kXR_char XROOTD_MON_OPENC         = 0x04;
+const kXR_char XROOTD_MON_OPENR         = 0x05;
+const kXR_char XROOTD_MON_OPENW         = 0x06;
+const kXR_char XROOTD_MON_MKDIR         = 0x07;
+const kXR_char XROOTD_MON_MV            = 0x08;
+const kXR_char XROOTD_MON_PREP          = 0x09;
+const kXR_char XROOTD_MON_QUERY         = 0x0a;
+const kXR_char XROOTD_MON_RM            = 0x0b;
+const kXR_char XROOTD_MON_RMDIR         = 0x0c;
+const kXR_char XROOTD_MON_STAT          = 0x0d;
+const kXR_char XROOTD_MON_TRUNC         = 0x0e;
+
 const kXR_char XROOTD_MON_FORCED        = 0x01;
 const kXR_char XROOTD_MON_BOUNDP        = 0x02;
 
-const long long XROOTD_MON_SIDMASK      = 0x0000ffffffffffffll;
+const int      XROOTD_MON_SRCMASK       = 0x000000f;
+const int      XROOTD_MON_TRGMASK       = 0x7fffff0;
+const int      XROOTD_MON_NEWSTID       = 0x8000000;
 
 #endif

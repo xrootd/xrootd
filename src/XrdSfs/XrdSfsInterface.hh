@@ -142,9 +142,9 @@ public:
 
 // The following two methods allocate a directory or file object
 //
-virtual XrdSfsDirectory *newDir(char *user=0)  = 0;
+virtual XrdSfsDirectory *newDir(char *user=0, int MonID=0)  = 0;
 
-virtual XrdSfsFile      *newFile(char *user=0) = 0;
+virtual XrdSfsFile      *newFile(char *user=0, int MonID=0) = 0;
 
 // The following are filesystem related methods
 //
@@ -315,7 +315,8 @@ virtual int            truncate(XrdSfsFileOffset fileOffset) = 0;
 
 virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 
-                       XrdSfsFile(const char *user=0) {error.setErrUser(user);}
+                       XrdSfsFile(const char *user=0, int MonID=0)
+                                 : error(user, MonID) {}
 virtual               ~XrdSfsFile() {}
 
 }; // class XrdSfsFile
@@ -339,7 +340,8 @@ virtual int         close() = 0;
 
 virtual const char *FName() = 0;
 
-                    XrdSfsDirectory(const char *user=0) {error.setErrUser(user);}
+                    XrdSfsDirectory(const char *user=0, int MonID=0)
+                                   : error(user, MonID) {}
 virtual            ~XrdSfsDirectory() {}
 
 }; // class XrdSfsDirectory

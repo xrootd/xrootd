@@ -20,6 +20,7 @@
 
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -47,9 +48,15 @@ struct sockaddr    XrdXrootdMonitor::InetAddr2;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
-int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::monRlen    = 0;
+XrdXrootdMonitor::MonRdrBuff
+                   XrdXrootdMonitor::rdrMon[XrdXrootdMonitor::rdrMax];
+XrdXrootdMonitor::MonRdrBuff
+                  *XrdXrootdMonitor::rdrMP      = 0;
+XrdSysMutex        XrdXrootdMonitor::rdrMutex;
+int                XrdXrootdMonitor::monBlen    = 0;
 int                XrdXrootdMonitor::lastEnt    = 0;
+int                XrdXrootdMonitor::lastRnt    = 0;
 int                XrdXrootdMonitor::isEnabled  = 0;
 int                XrdXrootdMonitor::numMonitor = 0;
 int                XrdXrootdMonitor::autoFlash  = 0;
@@ -57,6 +64,9 @@ int                XrdXrootdMonitor::autoFlush  = 600;
 int                XrdXrootdMonitor::FlushTime  = 0;
 int                XrdXrootdMonitor::monIdent   = 3600;
 kXR_int32          XrdXrootdMonitor::currWindow = 0;
+int                XrdXrootdMonitor::rdrTOD     = 0;
+int                XrdXrootdMonitor::rdrWin     = 0;
+int                XrdXrootdMonitor::rdrNum     = 3;
 kXR_int32          XrdXrootdMonitor::sizeWindow = 60;
 long long          XrdXrootdMonitor::mySID      = 0;
 char               XrdXrootdMonitor::sidName[16]= {0};
@@ -75,6 +85,20 @@ char               XrdXrootdMonitor::monACTIVE  = 0;
   
 extern          XrdOucTrace       *XrdXrootdTrace;
 
+/******************************************************************************/
+/*                         L o c a l   D e f i n e s                          */
+/******************************************************************************/
+
+#define setTMark(TM_mb, TM_en, TM_tm) \
+           TM_mb->info[TM_en].arg0.val    = mySID; \
+           TM_mb->info[TM_en].arg0.id[0]  = XROOTD_MON_WINDOW; \
+           TM_mb->info[TM_en].arg1.Window = \
+           TM_mb->info[TM_en].arg2.Window = static_cast<kXR_int32>(ntohl(TM_tm));
+
+#define setTMurk(TM_mb, TM_en, TM_tm) \
+           TM_mb->info[TM_en].arg0.Window = rdrWin; \
+           TM_mb->info[TM_en].arg1.Window = static_cast<kXR_int32>(TM_tm);
+  
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
@@ -221,20 +245,14 @@ XrdXrootdMonitor::XrdXrootdMonitor()
 
 // Initialize the local window
 //
-   windowMutex.Lock();
    localWindow = currWindow;
-   windowMutex.UnLock();
 
 // Allocate a monitor buffer
 //
    if (!(monBuff = (XrdXrootdMonBuff *)memalign(getpagesize(), monBlen)))
       eDest->Emsg("Monitor", "Unable to allocate monitor buffer.");
       else {nextEnt = 1;
-            monBuff->info[0].arg0.rTot[0] = 0;
-            monBuff->info[0].arg0.id[0]   = XROOTD_MON_WINDOW;
-            monBuff->info[0].arg1.Window  =
-            monBuff->info[0].arg2.Window  =
-                     static_cast<kXR_int32>(ntohl(localWindow));
+            setTMark(monBuff, 0, localWindow);
            }
 }
 
@@ -290,7 +308,7 @@ XrdXrootdMonitor *XrdXrootdMonitor::Alloc(int force)
    if (mp && isEnabled < 0)
       {windowMutex.Lock();
        lastVal = numMonitor; numMonitor++;
-       if (!lastVal) startClock();
+       if (!lastVal && !monREDR) startClock();
        windowMutex.UnLock();
       }
 
@@ -358,6 +376,8 @@ void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec, char Flags)
 /*                              D e f a u l t s                               */
 /******************************************************************************/
 
+// This version must be called after the subsequent version!
+
 void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 {
    int mmode;
@@ -399,6 +419,11 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
           else monUSER = 2;
       }
 
+// If we are monitoring redirections then set an envar saying how often idents
+// should be sent (this also tips off other layers to handle such monitoring)
+//
+   if (monREDR) XrdOucEnv::Export("XRDMONRDR", monIdent);
+
 // Do final check
 //
    if (Dest1 == 0 && Dest2 == 0) isEnabled = 0;
@@ -407,7 +432,7 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 /******************************************************************************/
 
 void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
-                                int flush, int flash, int idt)
+                                int flush, int flash, int idt, int rnm)
 {
 
 // Set default window size and flush time
@@ -416,20 +441,25 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    autoFlush  = (flush <= 0 ? 600 : flush);
    autoFlash  = (flash <= 0 ?   0 : flash);
    monIdent   = (idt   <  0 ?   0 : idt);
+   rdrNum     = (rnm   <= 0 || rnm > rdrMax ? 3 : rnm);
+   rdrWin     = (sizeWindow > 16777215 ? 16777215 : sizeWindow);
+   rdrWin     = htonl(rdrWin);
 
 // Set default monitor buffer size
 //
-   if (msz <= 0) msz = 8192;
+   if (msz <= 0) msz = 16384;
       else if (msz < 1024) msz = 1024;
               else msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
-   monBlen =  (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
 
 // Set default monitor redirect buffer size
 //
    if (rsz <= 0) monRlen = 32768;
       else if (rsz < 2048) monRlen = 2048;
+   lastRnt = (rsz-(sizeof(XrdXrootdMonHeader) + 16))/sizeof(XrdXrootdMonRedir);
+   monRlen =  (lastRnt*sizeof(XrdXrootdMonRedir))+sizeof(XrdXrootdMonHeader)+16;
+   lastRnt--;
 }
   
 /******************************************************************************/
@@ -449,6 +479,22 @@ void XrdXrootdMonitor::Dup(XrdXrootdMonTrace *mrec)
 }
 
 /******************************************************************************/
+/* Private:                        F e t c h                                  */
+/******************************************************************************/
+  
+XrdXrootdMonitor::MonRdrBuff *XrdXrootdMonitor::Fetch()
+{
+   MonRdrBuff *bP;
+
+// Get the next available stream and promote another one
+//
+   rdrMutex.Lock();
+   if ((bP = rdrMP)) rdrMP = rdrMP->Next;
+   rdrMutex.UnLock();
+   return bP;
+}
+
+/******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
@@ -460,19 +506,20 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    XrdXrootdMonMap *mP;
    XrdNet     myNetwork(errp, 0);
    XrdNetPeer monDest;
-   long long  xxSid;
-   char      *etext, iBuff[1024], *sName;
+   char      *etext, iBuff[1024], *sName, *cP;
+   int        i, Now = time(0);
 
 // Set static variables
 //
    Sched = sp;
    eDest = errp;
-   startTime = htonl(time(0));
+   startTime = htonl(Now);
 
 // Generate our server ID
 //
-   sName = XrdOucUtils::Ident(xxSid, iBuff, sizeof(iBuff),
+   sName = XrdOucUtils::Ident(mySID, iBuff, sizeof(iBuff),
                               iHost, iProg, iName, Port);
+   cP = (char *)&mySID; *cP = 0; *(cP+1) = 0;
    sidSize = strlen(sName);
    if (sidSize >= (int)sizeof(sidName)) sName[sizeof(sidName)-1] = 0;
    strcpy(sidName, sName);
@@ -514,7 +561,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 
 // Turn on the monitoring clock if we need it running all the time
 //
-   if (isEnabled > 0) startClock();
+   if (isEnabled > 0 || monREDR) startClock();
 
 // Create identification record
 //
@@ -529,6 +576,28 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 // Now schedule the first identification record
 //
    if (Sched && monIdent) Sched->Schedule((XrdJob *)&MonIdent);
+
+// If we are not monitoring redirections, we are done!
+//
+   if (!monREDR) return 1;
+
+// Allocate as many redirection monitors as requested
+//
+   for (i = 0; i < rdrNum; i++)
+       {rdrMon[i].Buff = (XrdXrootdMonBurr *)memalign(getpagesize(),monRlen);
+        if (!rdrMon[i].Buff)
+           {eDest->Emsg("Monitor", "Unable to allocate monitor rdr buffer.");
+            return 0;
+           }
+        rdrMon[i].Buff->sID    = mySID;
+        rdrMon[i].Buff->sXX[0] = XROOTD_MON_REDSID;
+        rdrMon[i].Next = (i ? &rdrMon[i-1] : &rdrMon[0]);
+        rdrMon[i].nextEnt = 0;
+        rdrMon[i].flushIt = Now + autoFlush;
+        rdrMon[i].lastTOD = 0;
+       }
+   rdrMon[0].Next = &rdrMon[i-1];
+   rdrMP = &rdrMon[0];
 
 // All done
 //
@@ -604,17 +673,87 @@ void XrdXrootdMonitor::Open(kXR_unt32 dictid, off_t fsize)
 }
 
 /******************************************************************************/
+/*                              R e d i r e c t                               */
+/******************************************************************************/
+  
+int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
+                               char      opC, const char *Path)
+{
+   XrdXrootdMonRedir *mtP;
+   MonRdrBuff        *mP = Fetch();
+   int n, slots, hLen, pLen;
+   char *dest;
+
+// Take care of the server's name which might actually be a path
+//
+   if (*hName == '/') {Path = hName; hName = ""; hLen = 0;}
+      else {hLen = strlen(hName);
+            if (hLen >  256) hLen =  256;
+           }
+
+// Take care of the path
+//
+   pLen = strlen(Path);
+   if (pLen > 1024) pLen = 1024;
+
+// Compute number of entries needed here
+//
+   n = (hLen + 1 + pLen + 1);    // "<host>:<path>\0"
+   slots = n / sizeof(XrdXrootdMonRedir);
+   if (n % sizeof(XrdXrootdMonRedir)) slots++;
+   pLen = slots * sizeof(XrdXrootdMonRedir) - (hLen+1);
+
+// Obtain a lock on this buffer
+//
+   if (!mP) return 0;
+   mP->Mutex.Lock();
+
+// If we don't have enough slots, flush this buffer. Note that we account for
+// the ending timing mark here (an extra slot).
+//
+   if (mP->nextEnt + slots + 2 >= lastRnt) Flush(mP);
+
+// Check if we need a timing mark
+//
+   if (mP->lastTOD != rdrTOD)
+      {mP->lastTOD = rdrTOD;
+       setTMurk(mP->Buff, mP->nextEnt, mP->lastTOD);
+       mP->nextEnt++;
+      }
+
+// Fill out the buffer
+//
+   mtP = &(mP->Buff->info[mP->nextEnt]);
+   mtP->arg0.rdr.Type = XROOTD_MON_REDIRECT | opC;
+   mtP->arg0.rdr.Dent = static_cast<char>(slots);
+   mtP->arg0.rdr.Port = htons(static_cast<short>(Port));
+   mtP->arg1.dictid   = mID;
+   dest = (char *)(mtP+1);
+   strcpy(dest, hName); dest += hLen; *dest++ = ':';
+   strncpy(dest, Path, pLen);
+
+// Adjust pointer and return
+//
+   mP->nextEnt = mP->nextEnt + (slots+1);
+   mP->Mutex.UnLock();
+   return 0;
+}
+
+/******************************************************************************/
 /*                                  T i c k                                   */
 /******************************************************************************/
   
 time_t XrdXrootdMonitor::Tick()
 {
-   time_t Now;
-   windowMutex.Lock();
-   Now = time(0);
+   time_t Now = time(0);
+   int    nextFlush;
+
+// We can safely set the window as we are the only ones doing so and memory
+// access is atomic as long as it sits within a cache line (which it does).
+//
    currWindow = static_cast<kXR_int32>(Now);
-   if (isEnabled < 0 && !numMonitor) Now = 0;
-   windowMutex.UnLock();
+   rdrTOD     = htonl(currWindow);
+   nextFlush  = currWindow + autoFlush;
 
 // Check to see if we should flush the alternate monitor
 //
@@ -622,13 +761,32 @@ time_t XrdXrootdMonitor::Tick()
       {XrdXrootdMonitorLock::Lock();
        if (currWindow >= FlushTime)
           {if (altMon->nextEnt > 1) altMon->Flush();
-              else FlushTime = currWindow + autoFlush;
+              else FlushTime = nextFlush;
           }
        XrdXrootdMonitorLock::UnLock();
       }
 
-// All done
+// Now check to see if we need to flush redirect buffers
 //
+   if (monREDR)
+      {int n = rdrNum;
+       while(n--)
+            {rdrMon[n].Mutex.Lock();
+             if (rdrMon[n].nextEnt == 0) rdrMon[n].flushIt = nextFlush;
+                else if (rdrMon[n].flushIt <= currWindow) Flush(&rdrMon[n]);
+             rdrMon[n].Mutex.UnLock();
+            }
+      }
+
+// All done. Stop the clock if there is no reason for it to be running. The
+// clock always runs if we are monitoring redirects or all clients. Otherwise,
+// the clock only runs if we have a one or more client-specific monitors.
+//
+   if (!monREDR && isEnabled < 0)
+      {windowMutex.Lock();
+       if (!numMonitor) Now = 0;
+       windowMutex.UnLock();
+      }
    return Now;
 }
 
@@ -707,12 +865,10 @@ void XrdXrootdMonitor::Flush()
 //
    if (nextEnt <= 1) return;
 
-// Get the current window marker. Since it might be updated while
-// we are getting it, get a mutex to make sure it's fully updated
+// Get the current window marker. No need for locks as simple memory accesses
+// are sufficiently synchrnozed for our purposes.
 //
-   windowMutex.Lock();
    localWindow = currWindow;
-   windowMutex.UnLock();
 
 // Fill in the header and in the process we will have the current time
 //
@@ -721,27 +877,48 @@ void XrdXrootdMonitor::Flush()
 
 // Punt on the right ending time. We are trying to keep same-sized windows
 // This was corrected by Matevz Tadel, as before we were using real time which
-// could have been far into the future due to simple inactivity.
+// could have been far into the future due to simple inactivity. So, Place the
+// computed ending timing mark.
 //
    now = lastWindow + sizeWindow;
+   setTMark(monBuff, nextEnt, now);
 
-// Place the ending timing mark, send off the buffer and reinitialize it
+// Send off the buffer and reinitialize it
 //
-   monBuff->info[nextEnt].arg0.rTot[0] = 0;
-   monBuff->info[nextEnt].arg0.id[0]   = XROOTD_MON_WINDOW;
-   monBuff->info[nextEnt].arg1.Window  =
-   monBuff->info[nextEnt].arg2.Window  = htonl(now);
-
    if (this != altMon) Send(XROOTD_MON_IO, (void *)monBuff, size);
       else {Send(XROOTD_MON_FILE, (void *)monBuff, size);
             FlushTime = localWindow + autoFlush;
            }
-
-   monBuff->info[0].arg0.rTot[0] = 0;
-   monBuff->info[0].arg0.id[0]   = XROOTD_MON_WINDOW;
-   monBuff->info[0].arg1.Window  =
-   monBuff->info[0].arg2.Window  = htonl(localWindow);
+   setTMark(monBuff, 0, localWindow);
    nextEnt = 1;
+}
+
+/******************************************************************************/
+
+void XrdXrootdMonitor::Flush(XrdXrootdMonitor::MonRdrBuff *mP)
+{
+   int size;
+
+// Reset flush time but do not flush an empty buffer. We use the current time
+// to make sure a record atleast sits in the buffer a full flush period.
+//
+   mP->flushIt = static_cast<int>(time(0)) + autoFlush;
+   if (mP->nextEnt <= 1) return;
+
+// Set ending timing mark and force a new one on the next fill
+//
+   setTMurk(mP->Buff, mP->nextEnt, rdrTOD);
+   mP->lastTOD = 0;
+
+// Fill in the header and in the process we will have the current time
+//
+   size = (mP->nextEnt+1)*sizeof(XrdXrootdMonRedir)+sizeof(XrdXrootdMonHeader)+8;
+   fillHeader(&(mP->Buff->hdr), XROOTD_MON_MAPREDR, size);
+
+// Send off the buffer and reinitialize it
+//
+   Send(XROOTD_MON_REDR, (void *)(mP->Buff), size);
+   mP->nextEnt = 0;
 }
 
 /******************************************************************************/
@@ -752,12 +929,10 @@ void XrdXrootdMonitor::Mark()
 {
    kXR_int32 localWindow;
 
-// Get the current window marker. Since it might be updated while
-// we are getting it, get a mutex to make sure it's fully updated
+// Get the current window marker. Since simple memory accesses are sufficiently
+// synchronized, no need to lock this.
 //
-   windowMutex.Lock();
    localWindow = currWindow;
-   windowMutex.UnLock();
 
 // Using an update provided by Matevz Tadel, UCSD, if this is an I/O buffer
 // mark then we will also flush the I/O buffer if all the following hold:
@@ -842,10 +1017,11 @@ void XrdXrootdMonitor::startClock()
    static XrdXrootdMonitor_Tick MonTick;
           time_t Now;
 
-// Start the clock (caller must have windowMutex locked, if necessary
+// Start the clock, Caller must have windowMutex locked, if necessary.
 //
    Now = time(0);
    currWindow = static_cast<kXR_int32>(Now);
+   rdrTOD     = htonl(currWindow);
    MonTick.Set(Sched, sizeWindow);
    FlushTime = autoFlush + currWindow;
    if (Sched) Sched->Schedule((XrdJob *)&MonTick, Now+sizeWindow);

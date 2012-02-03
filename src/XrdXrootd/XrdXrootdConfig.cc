@@ -293,7 +293,17 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        char buff[512];
        do {k = xp->Opts();
            sprintf(buff, " to %s:%d", Route[k].Host, Route[k].Port);
-           eDest.Say("Config redirecting ", xp->Path(), buff);
+           eDest.Say("Config redirect static ", xp->Path(), buff);
+           xp = xp->Next();
+          } while(xp);
+      }
+
+   if ((xp = RQList.Next()))
+      {int k;
+       char buff[512];
+       do {k = xp->Opts();
+           sprintf(buff, " to %s:%d", Route[k].Host, Route[k].Port);
+           eDest.Say("Config redirect enoent ", xp->Path(), buff);
            xp = xp->Next();
           } while(xp);
       }
@@ -312,9 +322,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Check if monitoring should be enabled
 //
-   if (!isRedir 
-   &&  !XrdXrootdMonitor::Init(Sched,&eDest,pi->myName,pi->myProg,myInst,Port))
-      return 0;
+   if ((!isRedir || (RQList.Next() != 0 && XrdXrootdMonitor::Redirect())))
+      {if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
+                                   myInst, Port)) return 0;
+      }
 
 // Add all jobs that we can run to the admin object
 //
@@ -737,19 +748,21 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 
 /* Function: xmon
 
-   Purpose:  Parse directive: monitor [all] [auth] [mbuff <sz>] [rbuff <sz>]
-                                      [flush [io] <sec>] [ident <sec>]
-                                      [window <sec>] dest [Events] <host:port>
+   Purpose:  Parse directive: monitor [all] [auth]  [flush [io] <sec>]
+                                      [ident <sec>] [mbuff <sz>] [rbuff <sz>]
+                                      [rnums <cnt>] [window <sec>]
+                                      dest [Events] <host:port>
 
    Events: [files] [info] [io] [iov] [redir] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
-         mbuff  <sz>        size of message buffer for event trace monitoring.
-         rbuff  <sz>        size of message buffer for redirection monitoring.
          flush  [io] <sec>  time (seconds, M, H) between auto flushes. When
                             io is given applies only to i/o events.
          ident  <sec>       time (seconds, M, H) between identification records.
+         mbuff  <sz>        size of message buffer for event trace monitoring.
+         rbuff  <sz>        size of message buffer for redirection monitoring.
+         rnums  <cnt.       bumber of redirections monitoring streams.
          window <sec>       time (seconds, M, H) between timing marks.
          dest               specified routing information. Up to two dests
                             may be specified.
@@ -772,6 +785,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
     long long tempval;
     int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0;
     int    monIdent = 3600, xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
+    int    monRnums = 0;
 
     while((val = Config.GetWord()))
 
@@ -805,6 +819,14 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                     }
                  if (XrdOuca2x::a2tm(eDest,"monitor ident",val,
                                            &monIdent,0)) return 1;
+                }
+          else if (!strcmp("rnums", val))
+                {if (!(val = Config.GetWord()))
+                    {eDest.Emsg("Config", "monitor rnums value not specified");
+                     return 1;
+                    }
+                 if (XrdOuca2x::a2i(eDest,"monitor rnums",val, &monRnums,1,
+                                    XrdXrootdMonitor::rdrMax)) return 1;
                 }
           else if (!strcmp("window", val))
                 {if (!(val = Config.GetWord()))
@@ -863,7 +885,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval,
-                              monFlush, monFlash, monIdent);
+                              monFlush, monFlash, monIdent, monRnums);
    if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
    if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
@@ -1069,6 +1091,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
 
 void XrdXrootdProtocol::xred_set(RD_func func, const char *rHost, int rPort)
 {
+
 // Reset static redirection
 //
    if (Route[func].Host) free(Route[func].Host);

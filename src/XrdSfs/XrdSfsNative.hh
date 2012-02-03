@@ -39,7 +39,8 @@ public:
 
 const   char       *FName() {return (const char *)fname;}
 
-                    XrdSfsNativeDirectory(char *user=0) : XrdSfsDirectory(user)
+                    XrdSfsNativeDirectory(char *user=0, int monid=0)
+                                : XrdSfsDirectory(user, monid)
                                 {ateof = 0; fname = 0;
                                  dh    = (DIR *)0;
                                  d_pnt = &dirent_full.d_entry;
@@ -112,7 +113,8 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz) {return cxrsz = 0;}
 
-                       XrdSfsNativeFile(char *user=0) : XrdSfsFile(user)
+                       XrdSfsNativeFile(char *user=0, int monid=0)
+                                       : XrdSfsFile(user, monid)
                                           {oh = -1; fname = 0;}
                       ~XrdSfsNativeFile() {if (oh) close();}
 private:
@@ -132,11 +134,11 @@ public:
 
 // Object Allocation Functions
 //
-        XrdSfsDirectory *newDir(char *user=0)
-                        {return (XrdSfsDirectory *)new XrdSfsNativeDirectory(user);}
+        XrdSfsDirectory *newDir(char *user=0, int monid=0)
+                        {return (XrdSfsDirectory *)new XrdSfsNativeDirectory(user,monid);}
 
-        XrdSfsFile      *newFile(char *user=0)
-                        {return      (XrdSfsFile *)new XrdSfsNativeFile(user);}
+        XrdSfsFile      *newFile(char *user=0,int monid=0)
+                        {return      (XrdSfsFile *)new XrdSfsNativeFile(user,monid);}
 
 // Other Functions
 //

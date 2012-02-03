@@ -42,6 +42,8 @@ public:
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv *Info=0);
 
+XrdOucTList   *Managers() {return myManList;}
+
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
                        XrdOucEnv *Info=0);
 
@@ -54,7 +56,7 @@ public:
                XrdCmsFinderRMT(XrdSysLogger *lp, int whoami=0, int Port=0);
               ~XrdCmsFinderRMT();
 
-static const int MaxMan = 16;
+static const int MaxMan = 15;
 
 private:
 int              Decode(char **resp);
@@ -66,6 +68,7 @@ int              StartManagers(XrdOucTList *);
 
 XrdCmsClientMan *myManTable[MaxMan];
 XrdCmsClientMan *myManagers;
+XrdOucTList     *myManList;
 int              myManCount;
 XrdSysMutex      myData;
 char            *CMSPath;
@@ -81,6 +84,7 @@ int              isTarget;
 int              myPort;
 unsigned char    SMode;
 unsigned char    sendID;
+unsigned char    savePath;
 };
 
 /******************************************************************************/

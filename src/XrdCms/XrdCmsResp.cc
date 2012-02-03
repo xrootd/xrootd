@@ -65,10 +65,17 @@ XrdCmsResp *XrdCmsResp::Alloc(XrdOucErrInfo *erp, int msgid)
 
 // Initialize it. We also replace the callback object pointer with a pointer
 // to the synchronization semaphore as we have taken over the object and must
-// provide a callback synchronization path for the caller.
+// provide a callback synchronization path for the caller. The OucEI object
+// must be setup with pointers to stable areas and we will relocate any data
+// to allow for a message to be sent back without overwriting the data (usually
+// the path related to this request). We do this manually as the assignment
+// operator does a bit more and a bit less than what we really need to do here.
 //
    strlcpy(rp->UserID, erp->getErrUser(), sizeof(rp->UserID));
-   rp->setErrInfo(0, erp->getErrText());
+   rp->setErrUser(rp->UserID);
+   rp->setErrData(erp->getErrData(), XrdOucEI::Path_Offset);
+   rp->setErrInfo(0, "");
+   rp->setErrMid(erp->getErrMid());
    rp->ErrCB = erp->getErrCB(rp->ErrCBarg);
    erp->setErrCB((XrdOucEICB *)&rp->SyncCB);
    rp->myID   = msgid;
@@ -202,7 +209,7 @@ void XrdCmsResp::ReplyXeq()
 
 // Invoke the callback
 //
-   theCB->Done(Result, (XrdOucErrInfo *)this);
+   theCB->Done(Result, (XrdOucErrInfo *)this, getErrData());
 }
 
 /******************************************************************************/

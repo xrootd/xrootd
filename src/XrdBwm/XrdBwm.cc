@@ -111,7 +111,7 @@ XrdBwm::XrdBwm()
 /*                X r d B w m F i l e   C o n s t r u c t o r                 */
 /******************************************************************************/
 
-XrdBwmFile::XrdBwmFile(const char *user) : XrdSfsFile(user)
+XrdBwmFile::XrdBwmFile(const char *user, int monid) : XrdSfsFile(user, monid)
 {
    oh = XrdBwm::dummyHandle;
    tident = (user ? user : "");

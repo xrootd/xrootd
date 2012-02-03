@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$
-
-const char *XrdXrootdCallBackCVSID = "$Id$";
-
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -24,6 +20,7 @@ const char *XrdXrootdCallBackCVSID = "$Id$";
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
+#include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdReqID.hh"
@@ -37,7 +34,8 @@ class XrdXrootdCBJob : XrdJob
 {
 public:
 
-static XrdXrootdCBJob *Alloc(XrdXrootdCallBack *cbF, XrdOucErrInfo *erp, int rval);
+static XrdXrootdCBJob *Alloc(XrdXrootdCallBack *cbF, XrdOucErrInfo *erp,
+                             const char *Path,       int rval);
 
        void            DoIt();
 
@@ -49,9 +47,12 @@ inline void            Recycle(){myMutex.Lock();
 
                        XrdXrootdCBJob(XrdXrootdCallBack *cbp,
                                       XrdOucErrInfo     *erp,
+                                      const char        *path,
                                       int                rval)
                                      : XrdJob("async response"),
-                                       cbFunc(cbp), eInfo(erp), Result(rval) {}
+                                       cbFunc(cbp), eInfo(erp), Path(path),
+                                       Result(rval) {}
+
                       ~XrdXrootdCBJob() {}
 
 private:
@@ -62,6 +63,7 @@ static XrdXrootdCBJob     *FreeJob;
 XrdXrootdCBJob            *Next;
 XrdXrootdCallBack         *cbFunc;
 XrdOucErrInfo             *eInfo;
+const char                *Path;
 int                        Result;
 };
 
@@ -88,6 +90,7 @@ extern XrdOucTrace       *XrdXrootdTrace;
   
 XrdXrootdCBJob *XrdXrootdCBJob::Alloc(XrdXrootdCallBack *cbF,
                                       XrdOucErrInfo     *erp,
+                                      const char        *Path,
                                       int                rval)
 {
    XrdXrootdCBJob *cbj;
@@ -95,9 +98,10 @@ XrdXrootdCBJob *XrdXrootdCBJob::Alloc(XrdXrootdCallBack *cbF,
 // Obtain a call back object by trying to avoid new()
 //
    myMutex.Lock();
-   if (!(cbj = FreeJob)) cbj = new XrdXrootdCBJob(cbF, erp, rval);
+   if (!(cbj = FreeJob)) cbj = new XrdXrootdCBJob(cbF, erp, Path, rval);
       else {cbj->cbFunc = cbF, cbj->eInfo = erp; 
-            cbj->Result = rval;FreeJob = cbj->Next;
+            cbj->Result = rval;cbj->Path  = Path;
+            FreeJob = cbj->Next;
            }
    myMutex.UnLock();
 
@@ -123,7 +127,7 @@ void XrdXrootdCBJob::DoIt()
           else {if (*(cbFunc->Func()) == 'x') DoStatx(eInfo);
                 cbFunc->sendResp(eInfo, kXR_ok, 0, eInfo->getErrText());
                }
-      } else cbFunc->sendError(Result, eInfo);
+      } else cbFunc->sendError(Result, eInfo, Path);
 
 // Tell the requestor that the callback has completed
 //
@@ -174,14 +178,15 @@ void XrdXrootdCBJob::DoStatx(XrdOucErrInfo *einfo)
 /******************************************************************************/
   
 void XrdXrootdCallBack::Done(int           &Result,   //I/O: Function result
-                             XrdOucErrInfo *eInfo)    // In: Error information
+                             XrdOucErrInfo *eInfo,    // In: Error information
+                             const char    *Path)     // In: Path related
 {
    XrdXrootdCBJob *cbj;
 
 // Sending an async response may take a long time. So, we schedule the task
 // to run asynchronously from the forces that got us here.
 //
-   if (!(cbj = XrdXrootdCBJob::Alloc(this, eInfo, Result)))
+   if (!(cbj = XrdXrootdCBJob::Alloc(this, eInfo, Path, Result)))
       {eDest->Emsg("Done",ENOMEM,"get call back job; user",eInfo->getErrUser());
        if (eInfo->getErrCB()) eInfo->getErrCB()->Done(Result, eInfo);
           else delete eInfo;
@@ -209,7 +214,8 @@ int XrdXrootdCallBack::Same(unsigned long long arg1, unsigned long long arg2)
 /******************************************************************************/
   
 void XrdXrootdCallBack::sendError(int            rc,
-                                  XrdOucErrInfo *eInfo)
+                                  XrdOucErrInfo *eInfo,
+                                  const char    *Path)
 {
    const char *TraceID = "fsError";
    static int Xserr = kXR_ServerError;
@@ -235,8 +241,11 @@ void XrdXrootdCallBack::sendError(int            rc,
    if (rc == SFS_REDIRECT)
       {SI->redirCnt++;
        if (ecode <= 0) ecode = (ecode ? -ecode : Port);
-       TRACE(REDIR, User <<" async redir to " << eMsg <<':' <<ecode);
+       TRACE(REDIR, User <<" async redir to " << eMsg <<':' <<ecode <<' '
+                         <<(Path ? Path : ""));
        sendResp(eInfo, kXR_redirect, &ecode, eMsg);
+       if (XrdXrootdMonitor::Redirect() && Path)
+           XrdXrootdMonitor::Redirect(eInfo->getErrMid(),eMsg,ecode,Opcode,Path);
        return;
       }
 

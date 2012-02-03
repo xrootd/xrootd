@@ -161,7 +161,7 @@ XrdOfs::XrdOfs()
 /*                X r d O f s F i l e   C o n s t r u c t o r                 */
 /******************************************************************************/
 
-XrdOfsFile::XrdOfsFile(const char *user) : XrdSfsFile(user)
+XrdOfsFile::XrdOfsFile(const char *user, int monid) : XrdSfsFile(user, monid)
 {
    oh = XrdOfs::dummyHandle; 
    dorawio = 0;

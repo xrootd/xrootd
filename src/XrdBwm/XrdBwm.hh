@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <string.h>
 #include <dirent.h>
 #include <sys/types.h>
@@ -46,8 +44,8 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return "";}
 
-                    XrdBwmDirectory(const char *user) 
-                                   : XrdSfsDirectory(user),
+                    XrdBwmDirectory(const char *user, int monid)
+                                   : XrdSfsDirectory(user, monid),
                                      tident(user ? user : "") {}
 
 virtual            ~XrdBwmDirectory() {}
@@ -105,7 +103,7 @@ public:
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdBwmFile(const char *user);
+                       XrdBwmFile(const char *user, int monid);
 
 virtual               ~XrdBwmFile() {if (oh) close();}
 
@@ -134,11 +132,11 @@ public:
 
 // Object allocation
 //
-        XrdSfsDirectory *newDir(char *user=0)
-                        {return (XrdSfsDirectory *)new XrdBwmDirectory(user);}
+        XrdSfsDirectory *newDir(char *user=0, int monid=0)
+                        {return (XrdSfsDirectory *)new XrdBwmDirectory(user,monid);}
 
-        XrdSfsFile      *newFile(char *user=0)
-                        {return      (XrdSfsFile *)new XrdBwmFile(user);}
+        XrdSfsFile      *newFile(char *user=0, int monid=0)
+                        {return      (XrdSfsFile *)new XrdBwmFile(user,monid);}
 
 // Other functions
 //

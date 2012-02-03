@@ -63,11 +63,14 @@ static int   Allowed(XrdOucErrInfo *eInfo) {return eInfo->getErrCB() != 0;}
                        original XrdOucErrInfo object.
              eText   - The character string that would have been returned in the
                        original XrdOucErrInfo object.
+             Path    - Optional path related to the reply. It is passed to the
+                       callback effector and is used for tracing & monitoring.
 
    Returns:  True  - if a callback was initiated.
              False - callback failed; likely Init() was not successfully called.
 */
-       int   Reply(int retVal, int eValue, const char *eText);
+       int   Reply(int retVal, int eValue, const char *eText,
+                                           const char *Path=0);
 
              XrdOucCallBack() : Next(0), cbSync(0), cbArg(0), cbObj(0) {}
             ~XrdOucCallBack() {if (cbObj) Cancel();}

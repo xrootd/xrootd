@@ -149,7 +149,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
 static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
-       int   fsError(int rc, XrdOucErrInfo &myError, const char *Path=0);
+       int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);

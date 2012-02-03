@@ -58,7 +58,8 @@ int XrdOucCallBack::Init(XrdOucErrInfo *eInfo)
 /*                                 R e p l y                                  */
 /******************************************************************************/
   
-int XrdOucCallBack::Reply(int retVal, int eValue, const char *eText)
+int XrdOucCallBack::Reply(int retVal, int eValue, const char *eText,
+                                                  const char *Path)
 {
    XrdOucErrInfo cbInfo(UserID, this, cbArg);
    XrdOucEICB *objCB;
@@ -76,7 +77,7 @@ int XrdOucCallBack::Reply(int retVal, int eValue, const char *eText)
 // Send the reply using the constructed ErrInfo object and then wait until we
 // know that the response was actually sent to allow this object to be deleted.
 //
-   objCB->Done(retVal, &cbInfo);
+   objCB->Done(retVal, &cbInfo, Path);
    cbSync.Wait();
 
 // All done

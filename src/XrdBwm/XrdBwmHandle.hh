@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <stdlib.h>
 
 #include "XrdBwm/XrdBwmPolicy.hh"
@@ -72,7 +70,8 @@ class  theEICB : public XrdOucEICB
 {
 public:
 
-         void Done(int &Result, XrdOucErrInfo *eInfo) {mySem.Post();}
+         void Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0)
+                  {mySem.Post();}
 
          int  Same(unsigned long long arg1, unsigned long long arg2) 
                   {return arg1 == arg2;}

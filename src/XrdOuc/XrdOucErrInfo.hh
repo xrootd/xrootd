@@ -23,6 +23,7 @@
 struct XrdOucEI      // Err information structure
 { 
  static const size_t Max_Error_Len = 2048;
+ static const int    Path_Offset   = 1024;
 
 const      char *user;
            int   code;
@@ -99,18 +100,42 @@ inline XrdOucEnv          *setEnv(XrdOucEnv *newEnv)
                                   return oldEnv;
                                  }
 
+inline const char         *getErrData()
+                                 {return (dOff < 0 ? 0 : ErrInfo.message+dOff);}
+
+inline void                setErrData(const char *Data, int Offs=0)
+                                 {if (!Data) dOff = -1;
+                                     else {strlcpy(ErrInfo.message+Offs, Data,
+                                                   sizeof(ErrInfo.message)-Offs);
+                                           dOff = Offs;
+                                          }
+                                 }
+
+inline int                 getErrMid() {return mID;}
+
+inline void                setErrMid(int  mid) {mID = mid;}
+
          XrdOucErrInfo &operator =(const XrdOucErrInfo &rhs)
                         {ErrInfo = rhs.ErrInfo;
                          ErrCB   = rhs.ErrCB;
                          ErrCBarg= rhs.ErrCBarg;
+                         mID     = rhs.mID;
+                         dOff    = -1;
                          return *this;
                         }
 
-         XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,unsigned long long ca=0)
-                    : ErrInfo(user), ErrCB(cb), ErrCBarg(ca){}
+         XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,
+                       unsigned long long ca=0, int mid=0)
+                    : ErrInfo(user), ErrCB(cb), ErrCBarg(ca), mID(mid), 
+                      dOff(-1), Reserved0(0), Reserved1(0) {}
 
          XrdOucErrInfo(const char *user,XrdOucEnv *envp)
-                    : ErrInfo(user), ErrCB(0), ErrEnv(envp) {}
+                    : ErrInfo(user), ErrCB(0), ErrEnv(envp), mID(0),
+                      dOff(-1), Reserved0(0), Reserved1(0) {}
+
+         XrdOucErrInfo(const char *user, int MonID)
+                    : ErrInfo(user), ErrCB(0), ErrCBarg(0), mID(MonID),
+                      dOff(-1), Reserved0(0), Reserved1(0) {}
 
 virtual ~XrdOucErrInfo() {}
 
@@ -122,6 +147,10 @@ union {
 unsigned long long  ErrCBarg;
 XrdOucEnv          *ErrEnv;
       };
+int                 mID;
+short               dOff;
+short               Reserved0;
+void               *Reserved1;
 };
 
 /******************************************************************************/
@@ -141,10 +170,13 @@ public:
 //                 that method must be invoked by this callback function after
 //                 the actual callback message is sent. This allows the callback
 //                 requestor to do post-processing and be asynchronous.
+//        Path   - Optionally, the path related to thid request. It is used
+//                 for tracing and detailed monitoring purposes.
 //
 //
 virtual void        Done(int           &Result,   //I/O: Function result
-                         XrdOucErrInfo *eInfo)=0; // In: Error Info
+                         XrdOucErrInfo *eInfo,    // In: Error Info
+                         const char    *Path=0)=0;// In: Relevant path
 
 // Same() is invoked to determine if two arguments refer to the same user.
 //        True is returned if so, false, otherwise.

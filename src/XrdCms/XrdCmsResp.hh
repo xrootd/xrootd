@@ -9,10 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//          $Id$
-
-// Based on: XrdCmsResp.hh,v 1.1 2006/09/26 07:49:15 abh
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -27,7 +23,8 @@ class XrdCmsRespCB : XrdOucEICB
 {
 public:
 
-void Done(int &Result, XrdOucErrInfo *eInfo) {respSync.Post();}
+void Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0)
+         {respSync.Post();}
 
 void Init() {while(respSync.CondWait()) {}}
 
@@ -56,7 +53,8 @@ friend class XrdCmsRespQ;
 
 static XrdCmsResp *Alloc(XrdOucErrInfo *erp, int msgid);
 
-       void        Done(int &Result, XrdOucErrInfo *eInfo) {Recycle();}
+       void        Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0)
+                        {Recycle();}
 
 inline int         ID() {return myID;}
 
@@ -90,7 +88,7 @@ static int                    RepDelay;
 
 XrdCms::CmsRRHdr    myRRHdr;
 XrdNetBuffer       *myBuff;
-char                theMan[64];
+char                theMan[128];
 
 XrdCmsRespCB        SyncCB;
 XrdCmsResp         *next;

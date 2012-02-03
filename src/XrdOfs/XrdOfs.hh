@@ -52,7 +52,8 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
 
-                    XrdOfsDirectory(const char *user) : XrdSfsDirectory(user)
+                    XrdOfsDirectory(const char *user, int MonID)
+                          : XrdSfsDirectory(user, MonID)
                           {dp     = 0;
                            tident = (user ? user : "");
                            fname=0; atEOF=0;
@@ -77,21 +78,21 @@ class XrdOfsFile : public XrdSfsFile
 {
 public:
 
-        int          open(const char                *fileName,
-                                XrdSfsFileOpenMode   openMode,
-                                mode_t               createMode,
-                          const XrdSecEntity        *client,
-                          const char                *opaque = 0);
+        int            open(const char                *fileName,
+                                  XrdSfsFileOpenMode   openMode,
+                                  mode_t               createMode,
+                            const XrdSecEntity        *client,
+                            const char                *opaque = 0);
 
-        int          close();
+        int            close();
 
-virtual int          fctl(const int               cmd,
-                          const char             *args,
-                                XrdOucErrInfo    &out_error);
+virtual int            fctl(const int               cmd,
+                            const char             *args,
+                                  XrdOucErrInfo    &out_error);
 
-        const char  *FName() {return (oh ? oh->Name() : "?");}
+        const char    *FName() {return (oh ? oh->Name() : "?");}
 
-        int          getMmap(void **Addr, off_t &Size);
+        int            getMmap(void **Addr, off_t &Size);
 
         int            read(XrdSfsFileOffset   fileOffset,   // Preread only
                             XrdSfsXferSize     amount);
@@ -118,7 +119,7 @@ virtual int          fctl(const int               cmd,
 
         int            getCXinfo(char cxtype[4], int &cxrsz);
 
-                       XrdOfsFile(const char *user);
+                       XrdOfsFile(const char *user, int MonID);
 
 virtual               ~XrdOfsFile() {viaDel = 1; if (oh) close();}
 
@@ -153,11 +154,11 @@ public:
 
 // Object allocation
 //
-        XrdSfsDirectory *newDir(char *user=0)
-                        {return (XrdSfsDirectory *)new XrdOfsDirectory(user);}
+        XrdSfsDirectory *newDir(char *user=0, int MonID=0)
+                        {return (XrdSfsDirectory *)new XrdOfsDirectory(user,MonID);}
 
-        XrdSfsFile      *newFile(char *user=0)
-                        {return      (XrdSfsFile *)new XrdOfsFile(user);}
+        XrdSfsFile      *newFile(char *user=0,int MonID=0)
+                        {return      (XrdSfsFile *)new XrdOfsFile(user, MonID);}
 
 // Other functions
 //

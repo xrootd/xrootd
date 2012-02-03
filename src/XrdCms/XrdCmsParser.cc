@@ -269,9 +269,13 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
    static const int mvsz = static_cast<int>(sizeof(kXR_unt32));
    kXR_unt32    uval;
    int          Result, msgval, msglen;
-   const char  *Path = eInfo->getErrText(), *User = eInfo->getErrUser();
+   const char  *Path = eInfo->getErrData(), *User = eInfo->getErrUser();
    const char  *Mgr  = (Man ? Man : "?");
    char        *msg;
+
+// Path may be null here, fix it
+//
+   if (!Path) Path = "";
 
 // Responses are always in the form of <int><string>
 //
