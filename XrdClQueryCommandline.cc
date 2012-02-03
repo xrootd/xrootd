@@ -1017,7 +1017,7 @@ void add_history( const char * )
 {
 }
 
-void rl_bind_key( char c, uint16_t action )
+void rl_bind_key( char, uint16_t )
 {
 }
 
