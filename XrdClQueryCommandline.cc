@@ -989,9 +989,6 @@ int ExecuteCommand( QueryExecutor *ex, const std::string &commandline )
 {
   Log *log = DefaultEnv::GetLog();
   XRootDStatus st = ex->Execute( commandline );
-  if( !st.IsOK() )
-    log->Error( AppMsg, "Error executing %s: %s", commandline.c_str(),
-                        st.ToStr().c_str() );
   return st.GetShellCode();
 }
 
