@@ -153,11 +153,22 @@ static XrdXrootdMonitor *altMon;
 
                          XrdXrootdMonitor();
 
-struct MonRdrBuff;
 static const int         rdrMax = 8;
 
 private:
                         ~XrdXrootdMonitor(); 
+
+static
+struct MonRdrBuff
+      {MonRdrBuff        *Next;
+       XrdXrootdMonBurr  *Buff;
+       int                nextEnt;
+       int                flushIt;
+       kXR_int32          lastTOD;
+       XrdSysMutex        Mutex;
+      }                   rdrMon[rdrMax];
+static MonRdrBuff        *rdrMP;
+static XrdSysMutex        rdrMutex;
 
 inline void              Add_io(kXR_unt32 duid, kXR_int32 blen, kXR_int64 offs)
                                {if (lastWindow != currWindow) Mark();
@@ -180,18 +191,6 @@ static kXR_unt32         Map(char  code, XrdXrootdMonitor::User &uInfo,
 static int               Send(int mmode, void *buff, int size);
 static void              startClock();
 static void              unAlloc(XrdXrootdMonitor *monp);
-
-static
-struct MonRdrBuff
-      {MonRdrBuff        *Next;
-       XrdXrootdMonBurr  *Buff;
-       int                nextEnt;
-       int                flushIt;
-       kXR_int32          lastTOD;
-       XrdSysMutex        Mutex;
-      }                   rdrMon[rdrMax];
-static MonRdrBuff        *rdrMP;
-static XrdSysMutex        rdrMutex;
 
 static XrdScheduler      *Sched;
 static XrdSysError       *eDest;
