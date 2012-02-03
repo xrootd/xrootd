@@ -390,6 +390,7 @@ private:
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
    bool           ServerCertNameOK(const char *subject, String &e);
+   static XrdSutPFEntry *GetSrvCertEnt(XrdCryptoFactory *cf, int timestamp, String &cal);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
