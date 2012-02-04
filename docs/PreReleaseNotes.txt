@@ -69,6 +69,7 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Print leading zeroes in an adler32 checksum.
    * Prevent double user map record when monitoring when auth is configured
      but not actually monitored.
    * Take timezone changes into account when waiting for midnight. This solves
