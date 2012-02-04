@@ -31,6 +31,8 @@ XrdOucCacheIO *Base() {return ioObj;}
 
 XrdOucCacheIO *Detach();
 
+long long      FSize() {return (ioObj ? ioObj->FSize() : 0);}
+
 const char    *Path() {return ioObj->Path();}
 
 void           Preread();

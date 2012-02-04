@@ -143,7 +143,7 @@ static char         allTrunc;
 static char         cfgDone;   // Configuration completed
 
          XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
-                       DirFlags(0) {}
+                       DirFlags(0), cPath(0), cParm(0) {}
 virtual ~XrdPssSys() {}
 
 private:
@@ -153,13 +153,17 @@ char              *N2NLib;   // -> Name2Name Library Path
 char              *N2NParms; // -> Name2Name Object Parameters
 XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
+char              *cPath;    // -> Cache path
+char              *cParm;    // -> Cache parameters
 
 int    buildHdr();
 int    Configure(const char *);
 int    ConfigProc(const char *ConfigFN);
 int    ConfigXeq(char*, XrdOucStream&);
 int    ConfigN2N();
+int    getCache();
 int    xcach(XrdSysError *Eroute, XrdOucStream &Config);
+int    xcacl(XrdSysError *Eroute, XrdOucStream &Config);
 char  *xcapr(XrdSysError *Eroute, XrdOucStream &Config, char *pBuff);
 int    xconf(XrdSysError *Eroute, XrdOucStream &Config);
 int    xdef( XrdSysError *Eroute, XrdOucStream &Config);

@@ -27,6 +27,7 @@
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdOucCache;
 class XrdOucEnv;
 class XrdPosixCallBack;
 class XrdPosixFile;
@@ -129,6 +130,8 @@ static void    setEnv(const char *var, const char *val);
 
 static void    setEnv(const char *var, long val);
 
+static void    setCache(XrdOucCache *cP);
+
 static int     Debug;
 
 /* There must be one instance of this object per executable image. Typically,
@@ -162,6 +165,7 @@ static int                   mapMode(mode_t Mode);
 static XrdSysMutex    myMutex;
 static XrdPosixFile **myFiles;
 static XrdPosixDir  **myDirs;
+static XrdOucCache   *myCache;
 static int            lastFD;
 static int            highFD;
 static int            baseFD;

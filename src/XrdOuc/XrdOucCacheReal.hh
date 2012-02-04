@@ -10,13 +10,13 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-#include "XrdOuc/XrdOucCache.hh"
+#include "XrdOuc/XrdOucCacheDram.hh"
 #include "XrdOuc/XrdOucCacheSlot.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 /* This class defines an actual implementation of an XrdOucCache object. */
 
-class XrdOucCacheReal : public XrdOucCache
+class XrdOucCacheReal : public XrdOucCacheDram
 {
 friend class XrdOucCacheData;
 public:

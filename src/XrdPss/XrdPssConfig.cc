@@ -38,6 +38,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -151,6 +152,7 @@ int XrdPssSys::Configure(const char *cfn)
    if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1);
    myHost = getenv("XRDHOST");
    myName = XrdOucUtils::InstName(1);
+   ConfigFN = cfn;
 
 // Set the default values for the client
 //
@@ -210,6 +212,10 @@ int XrdPssSys::Configure(const char *cfn)
 // Tell xrootd to disable async I/O as it just will slow everything down.
 //
    XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
+
+// Initialize an alternate cache if one is present
+//
+   if (cPath && !getCache()) return 1;
 
 // Allocate an Xroot proxy object (only one needed here). Tell it to not
 // shadow open files with real file descriptors (we will be honest). This can
@@ -361,7 +367,9 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 
    // Process items. for either a local or a remote configuration
    //
-   TS_Xeq("memcache",      xcach);
+   TS_Xeq("memcache",      xcach);  // Backward compatibility
+   TS_Xeq("cache",         xcach);
+   TS_Xeq("cachelib",      xcacl);
    TS_Xeq("config",        xconf);
    TS_Xeq("origin",        xorig);
    TS_Xeq("setopt",        xsopt);
@@ -388,6 +396,35 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    eDest.Say("Config warning: ignoring unknown directive '",var,"'.");
    Config.Echo();
    return 0;
+}
+  
+/******************************************************************************/
+/*                              g e t C a c h e                               */
+/******************************************************************************/
+
+int XrdPssSys::getCache()
+{
+   XrdSysPlugin    *myLib;
+   XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
+   XrdOucCache     *theCache;
+
+// Create a pluin object (we will throw this away without deletion because
+// the library must stay open but we never want to reference it again).
+//
+   if (!(myLib = new XrdSysPlugin(&eDest, cPath))) return 0;
+
+// Now get the entry point of the object creator
+//
+   ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
+                    (myLib->getPlugin("XrdOucGetCache"));
+   if (!ep) return 0;
+
+// Get the Object now
+//
+   theCache = ep(eDest.logger(), ConfigFN, cParm);
+   if (theCache) XrdPosixXrootd::setCache(theCache);
+      else eDest.Emsg("Config", "Unable to get cache object from", cPath);
+   return theCache != 0;
 }
   
 /******************************************************************************/
@@ -428,7 +465,7 @@ int XrdPssSys::xcach(XrdSysError *Eroute, XrdOucStream &Config)
 // If we have no parameters, then we just use the defaults
 //
    if (!(val = Config.GetWord()))
-      {XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=1"); return 0;}
+      {XrdOucEnv::Export("XRDPOSIX_CACHE", "mode=s&optwr=0"); return 0;}
    *pBuff = 0;
 
 do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
@@ -487,6 +524,46 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
    return 0;
 }
   
+/******************************************************************************/
+/*                                 x c a c l                                  */
+/******************************************************************************/
+
+/* Function: xcacl
+
+   Purpose:  To parse the directive: cachelib <path> [<parms>]
+
+             <path>    the path of the cache library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xcacl(XrdSysError *Eroute, XrdOucStream &Config)
+{
+    char *val, parms[2048];
+
+// Get the path and parms
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute->Emsg("Config", "cachelib not specified"); return 1;}
+
+// Save the path
+//
+   if (cPath) free(cPath);
+   cPath = strdup(val);
+
+// Get the parameters
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute->Emsg("Config", "cachelib parameters too long"); return 1;}
+   if (cParm) free(cParm);
+   cParm = (*parms ? strdup(parms) : 0);
+
+// All done
+//
+   return 0;
+}
+
 /******************************************************************************/
 /*                                 x c a p r                                  */
 /******************************************************************************/

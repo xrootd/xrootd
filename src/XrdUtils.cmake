@@ -45,8 +45,9 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdOuc/XrdOuca2x.cc           XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucArgs.cc          XrdOuc/XrdOucArgs.hh
-  XrdOuc/XrdOucCache.cc         XrdOuc/XrdOucCache.hh
+                                XrdOuc/XrdOucCache.hh
   XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
+  XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
   XrdOuc/XrdOucCacheReal.cc     XrdOuc/XrdOucCacheReal.hh
                                 XrdOuc/XrdOucCacheSlot.hh
   XrdOuc/XrdOucCallBack.cc      XrdOuc/XrdOucCallBack.hh
