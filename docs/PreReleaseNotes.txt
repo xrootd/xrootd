@@ -6,6 +6,11 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Retool the XrdOucCache object so that cache implementations can be
+     implemented as plugins.
+   * Add FSize method to the XrdOucCacheIO object to ease implementation
+     of disk caches containing partial files.
+   * Add the pss.cachelib directive to specify a cache plugin.
    * Implement ultralow overhead redirect monitoring.
      WARNING: ofs plugin writers will need to recompile their plugin interface
               to be fully compatible with this commit due to additional
