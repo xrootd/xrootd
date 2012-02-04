@@ -168,7 +168,7 @@ void print_summary(const char* src, const char* dst, unsigned long long bytesrea
 #endif
 #endif
    if (adlerchk) {
-      COUT(("[xrdcp] # adler32                  : %x\n", adler));
+      COUT(("[xrdcp] # adler32                  : %08x\n", adler));
    }
    COUT(("[xrdcp] #################################################################\n"));
 }
@@ -206,8 +206,10 @@ void print_chksum(const char* src, unsigned long long bytesread, unsigned adler)
 #endif
 #endif
     if (adlerchk)
-       cout << "adler32: " << hex << adler << " " << xsrc << bytesread << endl;
-
+      {char buff[16];
+       sprintf(buff, "%08x", adler);
+       cout << "adler32: " << buff << " " << xsrc << bytesread << endl;
+      }
   }
 }
 
