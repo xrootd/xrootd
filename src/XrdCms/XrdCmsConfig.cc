@@ -2560,7 +2560,7 @@ int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *val;
-    int i, alinger = -1, arecalc = -1, minfP = 0, hwmP = 0;
+    int i, alinger = -1, arecalc = -1, minfP = -1, hwmP = -1;
     long long minf = -1, hwm = -1;
 
     while((val = CFile.GetWord()))
@@ -2588,7 +2588,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
         if (val[i-1] == '%')
            {val[i-1] = '\0';
             if (XrdOuca2x::a2i(*eDest,"space % minfree",val,&minfP,1,99)) return 1;
-            val = CFile.GetWord(); minf  = 10240LL<<20LL; hwm  = 11264LL<<20LL;
+            val = CFile.GetWord();
            }
        }
 
@@ -2599,6 +2599,9 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
             val = CFile.GetWord();
            }
        }
+
+    if (minfP >= 0 && minf < 0)
+       {eDest->Emsg("Config", "absolute min value not specified"); return 1;}
 
     if (val && isdigit(*val))
        {i = strlen(val);
@@ -2617,18 +2620,21 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
            }
        }
 
+    if (hwmP >= 0 && hwm < 0)
+       {eDest->Emsg("Config", "absolute high watermark value not specified"); return 1;}
+
     if (val) {eDest->Emsg("Config", "invalid space parameter -", val); return 1;}
     
-    if (alinger < 0 && arecalc < 0 && minf < 0 && minfP)
+    if (alinger < 0 && arecalc < 0 && minf < 0)
        {eDest->Emsg("Config", "no space values specified"); return 1;}
 
     if (alinger >= 0) DiskLinger = alinger;
     if (arecalc >= 0) DiskAsk    = arecalc;
 
-    if (minfP)
+    if (minfP > 0)
        {if (hwmP < minfP) hwmP = minfP + 1;
         DiskMinP = minfP; DiskHWMP = hwmP;
-       }
+       } else DiskMinP = DiskHWMP = 0;
 
     if (minf >= 0)
        {if (hwm < minf) hwm = minf+1073741824;     // Minimum + 1GB
