@@ -69,6 +69,8 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Make sure to honor absolute cms.space values when percentage not
+     specified.
    * Print leading zeroes in an adler32 checksum.
    * Prevent double user map record when monitoring when auth is configured
      but not actually monitored.
