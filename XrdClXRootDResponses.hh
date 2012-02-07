@@ -485,6 +485,9 @@ namespace XrdClient
   class DirectoryList
   {
     public:
+      //------------------------------------------------------------------------
+      //! Directory entry
+      //------------------------------------------------------------------------
       class ListEntry
       {
         public:
@@ -554,7 +557,7 @@ namespace XrdClient
       };
 
       //------------------------------------------------------------------------
-      // Constructor
+      //! Constructor
       //------------------------------------------------------------------------
       DirectoryList( const std::string &hostID,
                      const std::string &parent,

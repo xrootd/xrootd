@@ -85,6 +85,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   struct Access
   {
+    //--------------------------------------------------------------------------
+    //! Access mode
+    //--------------------------------------------------------------------------
     enum Mode
     {
       UR = kXR_ur,         //!< owner readable
@@ -531,7 +534,7 @@ namespace XrdClient
       //! List entries of a directory - sync
       //!
       //! @param path     directory path
-      //! @param mode     DirListFlags
+      //! @param flags    DirListFlags
       //! @param response the response (to be deleted by the user)
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
@@ -540,7 +543,7 @@ namespace XrdClient
       XRootDStatus DirList( const std::string  &path,
                             uint8_t            flags,
                             DirectoryList    *&response,
-                            uint16_t            timeout = 0 );
+                            uint16_t           timeout = 0 );
 
     private:
 

@@ -11,6 +11,9 @@
 
 namespace XrdClient
 {
+  //----------------------------------------------------------------------------
+  //! A helper running a fixed number of requests at a given time
+  //----------------------------------------------------------------------------
   class RequestSync
   {
     public:
