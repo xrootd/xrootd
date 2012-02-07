@@ -3782,29 +3782,6 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
       return crl;
    }
 
-   // Get the signing certificate
-   bool verify = 1;
-   XrdCryptoX509 *xcasig = xca;
-   while (xcasig && strcmp(xcasig->Issuer(), xcasig->Subject())) {
-      String crldir;
-      int from = 0;
-      while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
-         if (crldir.length() <= 0) continue;
-         String casigfile = crldir + xcasig->IssuerHash();
-         // Try to get the certificate
-         if ((xcasig = CF->X509(casigfile.c_str()))) break;
-      }
-   }
-   if (!xcasig) {
-      verify = 0;
-      if (CACheck == 2) {
-         DEBUG("CA certificate to verify the signature could not be loaded - exit");
-         return crl;
-      } else if (CACheck == 1) {
-         DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
-      }
-   }
-
    // Get the CA hash
    String cahash = xca->SubjectHash();
    // Drop the extension (".0")
@@ -3813,6 +3790,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
    // The dir
    String crlext = XrdSecProtocolgsi::DefCRLext;
 
+   XrdCryptoX509 *xcasig = 0;
    String crldir;
    int from = 0;
    while ((from = CRLdir.tokenize(crldir, from, ',')) != -1) {
@@ -3823,21 +3801,32 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
       DEBUG("target file: "<<crlfile);
       // Try to init a crl
       if ((crl = CF->X509Crl(crlfile.c_str()))) {
-         if (verify) {
-            // Verify issuer
-            if (!(strcmp(crl->Issuer(),xcasig->Subject()))) {
-               // Verify signature
-               if (crl->Verify(xcasig)) {
-                  // Ok, we are done
-                  return crl;
-               }
+         // Signing certificate file
+         String casigfile = crldir + crl->IssuerHash();
+         DEBUG("CA signing certificate file = "<<casigfile);
+         // Try to get signing certificate
+         if (!(xcasig = CF->X509(casigfile.c_str()))) {
+            if (CRLCheck >= 2) {
+               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+               SafeDelete(crl);
+            } else {
+               DEBUG("CA certificate to verify the signature could not be loaded - verification  skipped");
             }
-         } else {
-            // Ok, we are done
+            // We are done anyhow
             return crl;
+         } else {
+            // Verify signature
+            if (crl->Verify(xcasig)) {
+               // Ok, we are done
+               SafeDelete(xcasig);
+               return crl;
+            } else {
+               PRINT("CA signature verification failed!");
+            }
          }
       }
       SafeDelete(crl);
+      SafeDelete(xcasig);
    }
 
    // If not required, we are done
@@ -3853,19 +3842,24 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
 
    // Try to retrieve it from the URI in the CA certificate, if any
    if ((crl = CF->X509Crl(xca))) {
-      if (verify) {
-         // Verify issuer
-         if (!(strcmp(crl->Issuer(),xcasig->Subject()))) {
-            // Verify signature
-            if (crl->Verify(xcasig)) {
-               // Ok, we are done
-               return crl;
-            }
-         }
+      // Signing certificate file
+      String casigfile = crldir + crl->IssuerHash();
+      DEBUG("CA signing certificate file = "<<casigfile);
+      // Try to get signing certificate
+      if (!(xcasig = CF->X509(casigfile.c_str()))) {
+         PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
       } else {
-         // Ok, we are done
-         return crl;
+         // Verify signature
+         if (crl->Verify(xcasig)) {
+            // Ok, we are done
+            SafeDelete(xcasig);
+            return crl;
+         } else {
+            PRINT("CA signature verification failed!");
+         }
       }
+      SafeDelete(crl);
+      SafeDelete(xcasig);
    }
 
    // Finally try the ".crl_url" file
@@ -3885,19 +3879,24 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
       while ((fgets(line, sizeof(line), furl))) {
          if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = 0;
          if ((crl = CF->X509Crl(line, 1))) {
-            if (verify) {
-               // Verify issuer
-               if (!(strcmp(crl->Issuer(),xcasig->Subject()))) {
-                  // Verify signature
-                  if (crl->Verify(xcasig)) {
-                     // Ok, we are done
-                     return crl;
-                  }
-               }
+            // Signing certificate file
+            String casigfile = crldir + crl->IssuerHash();
+            DEBUG("CA signing certificate file = "<<casigfile);
+            // Try to get signing certificate
+            if (!(xcasig = CF->X509(casigfile.c_str()))) {
+               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
             } else {
-               // Ok, we are done
-               return crl;
+               // Verify signature
+               if (crl->Verify(xcasig)) {
+                  // Ok, we are done
+                  SafeDelete(xcasig);
+                  return crl;
+               } else {
+                  PRINT("CA signature verification failed!");
+               }
             }
+            SafeDelete(crl);
+            SafeDelete(xcasig);
          }
       }
    }
@@ -3926,20 +3925,25 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
          // Try to init a crl
          crl = CF->X509Crl(crlfile.c_str());
          if (!crl) continue;
-         if (verify) {
-            // Verify issuer
-            if (strcmp(crl->Issuer(),xca->Subject())) {
-               SafeDelete(crl);
-               continue;
-            }
+
+         // Signing certificate file
+         String casigfile = crldir + crl->IssuerHash();
+         DEBUG("CA signing certificate file = "<<casigfile);
+         // Try to get signing certificate
+         if (!(xcasig = CF->X509(casigfile.c_str()))) {
+            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+         } else {
             // Verify signature
-            if (!(crl->Verify(xca))) {
-               SafeDelete(crl);
-               continue;
+            if (crl->Verify(xcasig)) {
+               // Ok, we are done
+               SafeDelete(xcasig);
+               break;
+            } else {
+               PRINT("CA signature verification failed!");
             }
          }
-         // Ok
-         break;
+         SafeDelete(xcasig);
+         SafeDelete(crl);
       }
       // Close dir
       closedir(dd);
