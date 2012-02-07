@@ -35,7 +35,7 @@ namespace XrdClient
       //!
       //! @param url     url of the file to be opened
       //! @param flags   OpenFlags::Flags
-      //! @param mode    Access::Mode
+      //! @param mode    Access::Mode for new files, 0 otherwise
       //! @param handler handler to be notified about the status of the operation
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
@@ -52,14 +52,14 @@ namespace XrdClient
       //!
       //! @param url     url of the file to be opened
       //! @param flags   OpenFlags::Flags
-      //! @param mode    Access::Mode
+      //! @param mode    Access::Mode for new files, 0 otherwise
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Open( const std::string &url,
                          uint16_t           flags,
-                         uint16_t           mode,
+                         uint16_t           mode    = 0,
                          uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
