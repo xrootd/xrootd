@@ -53,13 +53,30 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     enum Flags
     {
-      None    = 0,               //!< Nothing
-      NoWait  = kXR_nowait,      //!< Provide a location as soon as one becomes
-                                 //!< known. This means that not all locations
-                                 //!< are necessarily returned. If the file
-                                 //!< does not exist a wait is still imposed.
-      Refresh = kXR_refresh,     //!< Refresh the cached information on file's
+      None     = 0,              //!< Nothing
+      Delete   = kXR_delete,     //!< Open a new file, deleting any axisting
+                                 //!< file
+      Force    = kXR_force,      //!< Ignore file usage rules
+      MakePath = kXR_mkpath,     //!< Create directory path if it does not
+                                 //!< already exist
+      New      = kXR_new,        //!< Open the file only if it does not already
+                                 //!< exist
+      NoWait   = kXR_nowait,     //!< Open the file only if it does not cause
+                                 //!< a wait. For locate: provide a location as
+                                 //!< soon as one becomes known. This means
+                                 //!< that not all locations are necessarily
+                                 //!< returned. If the file does not exist a
+                                 //!< wait is still imposed.
+      Append   = kXR_open_apnd,  //!< Open only for appending
+      Read     = kXR_open_read,  //!< Open only for reading
+      Update   = kXR_open_updt,  //!< Open for reading and writing
+      POSC     = kXR_posc,       //!< Enable Persist On Successful Close
+                                 //!< processing
+      Refresh  = kXR_refresh,    //!< Refresh the cached information on file's
                                  //!< location. Voids NoWait.
+      Replica  = kXR_replica,    //!< The file is being opened for replica
+                                 //!< creation
+      SeqIO    = kXR_seqio       //!< File will be read or written sequentially
     };
   };
 

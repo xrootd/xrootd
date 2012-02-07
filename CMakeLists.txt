@@ -19,7 +19,6 @@ add_library(
                               XrdClConstants.hh
   XrdClEnv.cc                 XrdClEnv.hh
   XrdClDefaultEnv.cc          XrdClDefaultEnv.hh
-#  XrdClFile.cc                XrdClFile.hh
   XrdClURL.cc                 XrdClURL.hh
   XrdClStatus.cc              XrdClStatus.hh
   XrdClSocket.cc              XrdClSocket.hh
@@ -39,6 +38,7 @@ add_library(
                               XrdClMessage.hh
   XrdClXRootDResponses.cc     XrdClXRootDResponses.hh
                               XrdClRequestSync.hh
+  XrdClFile.cc                XrdClFile.hh
 )
 
 target_link_libraries(

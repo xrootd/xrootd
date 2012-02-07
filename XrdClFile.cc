@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
@@ -12,51 +12,80 @@
 namespace XrdClient
 {
   //----------------------------------------------------------------------------
-  // Open the file pointed to by the given URL
+  // Open the file pointed to by the given URL - async
   //----------------------------------------------------------------------------
-  bool File::Open( const std::string &url, uint16_t mode )
+  XRootDStatus File::Open( const std::string &/*url*/,
+                           uint16_t           /*flags*/,
+                           uint16_t           /*mode*/,
+                           ResponseHandler   */*handler*/,
+                           uint16_t           /*timeout*/ )
   {
-    return true;
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Open the file pointed to by the given URL - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Open( const std::string &/*url*/,
+                           uint16_t           /*flags*/,
+                           uint16_t           /*mode*/,
+                           uint16_t           /*timeout*/ )
+  {
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Close the file
   //----------------------------------------------------------------------------
-  bool File::Close()
+  XRootDStatus File::Close()
   {
-    return true;
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
-  // Synchronously read data at given offset
+  // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  bool File::Read( uint64_t offset, uint32_t size, void *buffer )
+  XRootDStatus File::Read( uint64_t         /*offset*/,
+                           uint32_t         /*size*/,
+                           void            */*buffer*/,
+                           ResponseHandler */*handler*/,
+                           uint16_t         /*timeout*/ )
   {
-    return true;
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
-  // Send a data read request and call the given callback when the data
-  // is available
+  // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  bool File::Read( uint64_t offset, uint32_t size, ReadCallback *callBack )
+  XRootDStatus File::Read( uint64_t  /*offset*/,
+                           uint32_t  /*size*/,
+                           void     */*buffer*/,
+                           uint16_t  /*timeout*/ )
   {
-    return true;
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
-  // Synchronously write data at given offset
+  // Write a data chank at a given offset - async
   //----------------------------------------------------------------------------
-  bool File::Write( uint64_t offset, uint32_t size, void *buffer )
+  XRootDStatus File::Write( uint64_t         /*offset*/,
+                            uint32_t         /*size*/,
+                            void            */*buffer*/,
+                            ResponseHandler */*handler*/,
+                            uint16_t         /*timeout*/ )
   {
-    return true;
+    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
-  // Send a data write request and call the given callback when the
-  // confirmation has been received.
+  // Write a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  bool File::Write( uint64_t offset, uint32_t size, WriteCallback *callBack )
+  XRootDStatus File::Write( uint64_t  /*offset*/,
+                            uint32_t  /*size*/,
+                            void     */*buffer*/,
+                            uint16_t  /*timeout*/ )
   {
+    return XRootDStatus();
   }
+
 }
