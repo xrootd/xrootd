@@ -12,6 +12,7 @@ add_library(
   PollerTest.cc
   PostMasterTest.cc
   QueryTest.cc
+  FileTest.cc
 )
 
 target_link_libraries(
