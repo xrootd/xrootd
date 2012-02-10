@@ -13,15 +13,23 @@
 #include <sys/types.h>
 #include "XrdClient/XrdClientAdmin.hh"
 #include "XrdClient/XrdClient.hh"
+#include <stdint.h>
 
 class XrdSysDir;
 void PrintLastServerError(XrdClient *cli);
 bool PedanticOpen4Write(XrdClient *cli, kXR_unt16 mode, kXR_unt16 options);
 
+//------------------------------------------------------------------------------
+// Check if the opaque data provides the file size information and add it
+// if needed
+//------------------------------------------------------------------------------
+XrdOucString AddSizeHint( const char *dst, off_t size );
+
 class XrdCpWorkLst {
 
    vecString fWorkList;
    int fWorkIt;
+   uint64_t pSourceSize;  // set if the source URL refers to a file
 
    XrdClientAdmin *xrda_src, *xrda_dst;
 
@@ -32,6 +40,7 @@ class XrdCpWorkLst {
    
    XrdCpWorkLst();
    ~XrdCpWorkLst();
+
 
    // Sets the source path for the file copy
    int SetSrc(XrdClient **srccli, XrdOucString url,
