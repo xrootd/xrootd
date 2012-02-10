@@ -30,7 +30,7 @@ const char *XrdcpCVSID = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sstream>
+
 #ifndef WIN32
 #include <sys/time.h>
 #include <unistd.h>
@@ -212,34 +212,6 @@ void print_chksum(const char* src, unsigned long long bytesread, unsigned adler)
       }
   }
 }
-
-//------------------------------------------------------------------------------
-// Check if the opaque data provide the file size information and add it
-// if needed
-//------------------------------------------------------------------------------
-XrdOucString AddSizeHint( const char *dst, off_t size )
-{
-  // to be removed when we have no more <3.0.4 servers
-  // needed because of a bug fixed by 787446f38296698d2881ed45d3009336bde0834d
-  if( !EnvGetLong( NAME_XRDCP_SIZE_HINT ) )
-    return dst;
-
-  XrdOucString dest = dst;
-  std::stringstream s;
-  if( dest.find( "?oss.asize=" ) == STR_NPOS &&
-      dest.find( "&oss.asize=" ) == STR_NPOS )
-  {
-    s << dst;
-    if( dest.find( "?" ) == STR_NPOS )
-      s << "?";
-    else
-      s << "&";
-    s << "oss.asize=" << size;
-    dest = s.str().c_str();
-  }
-  return dest;
-}
-
 
 // The body of a thread which reads from the global
 //  XrdClient and keeps the queue filled

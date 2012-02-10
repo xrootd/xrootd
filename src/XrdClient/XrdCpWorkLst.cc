@@ -10,14 +10,15 @@
 
 //   $Id$
 
-const char *XrdCpWorkLstCVSID = "$Id$";
 
+#include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdCpWorkLst.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysDir.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include <sys/stat.h>
 #include <errno.h>
+#include <sstream>
 #ifndef WIN32
 #include <unistd.h>
 #else
@@ -66,13 +67,39 @@ bool PedanticOpen4Write(XrdClient *cli, kXR_unt16 mode, kXR_unt16 options) {
    return true;
 }
 
+//------------------------------------------------------------------------------
+// Check if the opaque data provides the file size information and add it
+// if needed
+//------------------------------------------------------------------------------
+XrdOucString AddSizeHint( const char *dst, off_t size )
+{
+  // to be removed when we have no more <3.0.4 servers
+  // needed because of a bug fixed by 787446f38296698d2881ed45d3009336bde0834d
+  if( !EnvGetLong( NAME_XRDCP_SIZE_HINT ) )
+    return dst;
 
+  XrdOucString dest = dst;
+  std::stringstream s;
+  if( dest.find( "?oss.asize=" ) == STR_NPOS &&
+      dest.find( "&oss.asize=" ) == STR_NPOS )
+  {
+    s << dst;
+    if( dest.find( "?" ) == STR_NPOS )
+      s << "?";
+    else
+      s << "&";
+    s << "oss.asize=" << size;
+    dest = s.str().c_str();
+  }
+  return dest;
+}
 
 
 XrdCpWorkLst::XrdCpWorkLst() {
    fWorkList.Clear();
    xrda_src = 0;
    xrda_dst = 0;
+   pSourceSize = 0;
 }
 
 XrdCpWorkLst::~XrdCpWorkLst() {
@@ -100,10 +127,18 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
       if (!*srccli)
 	 (*srccli) = new XrdClient(fullurl.c_str());
 
+      //------------------------------------------------------------------------
+      // We're opening a remote file as a source, let's push it to the
+      // working list and remember the size so that it could be hinted to
+      // the destination server later
+      //------------------------------------------------------------------------
       if ((*srccli)->Open(0, kXR_async) &&
           ((*srccli)->LastServerResp()->status == kXR_ok)) {
 	 // If the file has been succesfully opened, we use this url
 	 fWorkList.Push_back(fSrc);
+         XrdClientStatInfo stat;
+         (*srccli)->Stat(&stat);
+         pSourceSize = stat.size;
       }
       else 
 	 if ( do_recurse && 
@@ -147,9 +182,16 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
 
       // We must see if it's a dir
       XrdSysDir d(url.c_str());
+
       if (!d.isValid()) {
          if (d.lastError() == ENOTDIR)
+         {
             fWorkList.Push_back(fSrc);
+            struct stat statStruct;
+            if( stat( fSrc.c_str(), &statStruct ) )
+              return errno;
+            pSourceSize = statStruct.st_size;
+         }
          else
             return d.lastError();
       } else {
@@ -201,6 +243,8 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 	    fullurl += "?";
 	    fullurl += urlopaquedata;
 	 }
+
+         fullurl = AddSizeHint( fullurl.c_str(), pSourceSize );
 
 	 // let's see if url can be opened as a file (file-to-file copy)
 	 *xrddest = new XrdClient(fullurl.c_str());
