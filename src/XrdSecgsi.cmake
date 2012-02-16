@@ -4,8 +4,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SEC_GSI_VERSION            0.0.1 )
-set( XRD_SEC_GSI_SOVERSION          0 )
+set( XRD_SEC_GSI_VERSION            1.0.0 )
+set( XRD_SEC_GSI_SOVERSION          1 )
 
 set( XRD_SEC_GSI_GMAPLDAP_VERSION   0.0.1 )
 set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 0 )
