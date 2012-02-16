@@ -378,6 +378,9 @@ exit 0
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Thu Feb 16 2012 Lukasz Janyst <ljanyst@cern.ch> 3.1.1-0.rc1
+- bump the version to 3.1.1-0.rc1
+
 * Fri Oct 21 2011 Lukasz Janyst <ljanyst@cern.ch> 3.1.0-1
 - bump the version to 3.1.0
 
