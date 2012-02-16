@@ -4,7 +4,7 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_UTILS_VERSION   0.0.1 )
+set( XRD_UTILS_VERSION   0.1.0 )
 set( XRD_UTILS_SOVERSION 0 )
 set( XRD_MAIN_VERSION    0.0.1 )
 set( XRD_MAIN_SOVERSION  0 )
