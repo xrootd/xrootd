@@ -144,25 +144,26 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r)
    // Bio for exporting the pub key
    BIO *bcpy = BIO_new(BIO_s_mem());
    if (bcpy) {
-      // Write kref public key to BIO
-      if (PEM_write_bio_PUBKEY(bcpy, r.fEVP)) {
-         bool ok = (publiconly) ? 1 :
-                   // Write kref private key to BIO
-                   (PEM_write_bio_PrivateKey(bcpy,r.fEVP,0,0,0,0,0) != 0);
-         if (ok) {
+      bool ok;
+      if (publiconly) {
+        // Write kref public key to BIO
+        ok = (PEM_write_bio_PUBKEY(bcpy, r.fEVP) != 0);
+      } else {
+        // Write kref private key to BIO
+        ok = (PEM_write_bio_PrivateKey(bcpy,r.fEVP,0,0,0,0,0) != 0);
+      }
+      if (ok) {
+         if (publiconly) {
             // Read public key from BIO
             if ((fEVP = PEM_read_bio_PUBKEY(bcpy, 0, 0, 0))) {
-               // Update status
                status = kPublic;
-               ok = (publiconly) ? 1 :
-                    // Read private key from BIO
-                    (PEM_read_bio_PrivateKey(bcpy,&fEVP,0,0) != 0);
-               if (ok) {
-                  // Check consistency
-                  if (!publiconly && RSA_check_key(fEVP->pkey.rsa) != 0) {
-                     // Update status
-                     status = kComplete;
-                  }
+            }
+          } else {
+            if ((fEVP = PEM_read_bio_PrivateKey(bcpy,0,0,0))) {
+               // Check consistency
+               if (RSA_check_key(fEVP->pkey.rsa) != 0) {
+                  // Update status
+                  status = kComplete;
                }
             }
          }

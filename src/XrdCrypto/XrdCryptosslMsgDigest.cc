@@ -34,6 +34,17 @@ XrdCryptosslMsgDigest::XrdCryptosslMsgDigest(const char *dgst) :
 }
 
 //_____________________________________________________________________________
+XrdCryptosslMsgDigest::~XrdCryptosslMsgDigest()
+{
+   // Destructor.
+
+   if (valid) {
+      unsigned char mdval[EVP_MAX_MD_SIZE];
+      EVP_DigestFinal(&mdctx, mdval, 0);
+   }
+}
+
+//_____________________________________________________________________________
 bool XrdCryptosslMsgDigest::IsSupported(const char *dgst)
 {
    // Check if the specified MD is supported
@@ -80,7 +91,11 @@ int XrdCryptosslMsgDigest::Init(const char *dgst)
 int XrdCryptosslMsgDigest::Reset(const char *dgst)
 {
    // Re-Init the message digest calculation
-
+   if (valid) {
+      unsigned char mdval[EVP_MAX_MD_SIZE];
+      EVP_DigestFinal(&mdctx, mdval, 0);
+      SetBuffer(0,0);
+   }
    valid = 0;
    Init(dgst);
    if (!valid)

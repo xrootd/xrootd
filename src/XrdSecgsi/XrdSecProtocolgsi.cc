@@ -2056,6 +2056,7 @@ void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
             if (vo.length() > 0) ent.vorg = strdup(vo.c_str());
          }
          if (grp.length() > 0 && (!ent.grps || grp.length() > strlen(ent.grps))) {
+            SafeFree(ent.grps);
             ent.grps = strdup(grp.c_str());
          }
          if (role.length() > 0 && role != "NULL" && !ent.role) {
@@ -3228,13 +3229,6 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Get options, if any
    if (br->UnmarshalBucket(kXRS_clnt_opts, hs->Options) == 0)
       br->Deactivate(kXRS_clnt_opts);
-
-   //
-   // Deserialize main buffer
-   if (!((*bm) = new XrdSutBuffer(bckm->buffer,bckm->size))) {
-      cmsg = "error deserializing main buffer";
-      return -1;
-   }
 
    // We are done
    return 0;
@@ -5078,6 +5072,13 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       }
    }
 
+   if (cent) {
+      // Reset the entry
+      SafeDelete(cent->buf1.buf); // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+      cent->buf2.buf = 0;
+      SafeDelete(cent->buf3.buf);
+      cent->Reset();
+   }
    cent = 0;
 
    //
@@ -5111,22 +5112,26 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       // Must be of EEC type
       if (xsrv->type != XrdCryptoX509::kEEC) {
          PRINT("problems loading srv cert: not EEC but: "<<xsrv->Type());
+         SafeDelete(xsrv);
          return cent;
       }
       // Must be valid
       if (!(xsrv->IsValid())) {
          PRINT("problems loading srv cert: invalid");
+         SafeDelete(xsrv);
          return cent;
       }
       // PKI must have been successfully initialized
       if (!xsrv->PKI() || xsrv->PKI()->status != XrdCryptoRSA::kComplete) {
          PRINT("problems loading srv cert: invalid PKI");
+         SafeDelete(xsrv);
          return cent;
       }
       // Must be exportable
       XrdSutBucket *xbck = xsrv->Export();
       if (!xbck) {
          PRINT("problems loading srv cert: cannot export into bucket");
+         SafeDelete(xsrv);
          return cent;
       }
       // We must have the issuing CA certificate
@@ -5137,6 +5142,8 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
          } else {
             PRINT("failed to initialized CRL for issuing CA '"<<xsrv->IssuerHash()<<"'");
          }
+         SafeDelete(xsrv);
+         SafeDelete(xbck);
          return cent;
       }
       // Ok: save it into the cache
@@ -5146,12 +5153,12 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
          cent->status = kPFE_ok;
          cent->cnt = 0;
          cent->mtime = xsrv->NotAfter(); // expiration time
-         // Save pointer to certificate
+         // Save pointer to certificate (destroys also xsrv->PKI())
          SafeDelete(cent->buf1.buf);
          cent->buf1.buf = (char *)xsrv;
          cent->buf1.len = 0;  // just a flag
          // Save pointer to key
-         SafeDelete(cent->buf2.buf);
+         cent->buf2.buf = 0;
          cent->buf2.buf = (char *)(xsrv->PKI());
          cent->buf2.len = 0;  // just a flag
          // Save pointer to bucket

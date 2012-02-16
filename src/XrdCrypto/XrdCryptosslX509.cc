@@ -341,7 +341,9 @@ const char *XrdCryptosslX509::Subject()
       }
 
       // Extract subject name
-      subject = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+      char *xname = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
+      subject = xname;
+      OPENSSL_free(xname);
    }
 
    // return what we have
@@ -364,7 +366,9 @@ const char *XrdCryptosslX509::Issuer()
       }
 
       // Extract issuer name
-      issuer = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+      char *xname = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
+      issuer = xname;
+      OPENSSL_free(xname);
    }
 
    // return what we have
@@ -577,6 +581,8 @@ bool XrdCryptosslX509::IsCA()
       DEBUG("CA certificate"); 
    }
 
+   BASIC_CONSTRAINTS_free(bc);
+
    // We are done
    return isca;
 }
@@ -656,6 +662,7 @@ bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
 
    // Ok: we can verify
    int rc = X509_verify(cert, rk);
+   EVP_PKEY_free(rk);
    if (rc <= 0) {
       if (rc == 0) {
          // Signatures are not OK

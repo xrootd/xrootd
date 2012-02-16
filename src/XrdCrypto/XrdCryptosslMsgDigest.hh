@@ -36,7 +36,7 @@ private:
 
 public:
    XrdCryptosslMsgDigest(const char *dgst);
-   virtual ~XrdCryptosslMsgDigest() { }
+   virtual ~XrdCryptosslMsgDigest();
 
    // Validity
    bool IsValid() { return valid; }

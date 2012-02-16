@@ -443,7 +443,9 @@ const char *XrdCryptosslX509Crl::Issuer()
       }
 
       // Extract issuer name
-      issuer = X509_NAME_oneline(X509_CRL_get_issuer(crl), 0, 0);
+      char *xname = X509_NAME_oneline(X509_CRL_get_issuer(crl), 0, 0);
+      issuer = xname;
+      OPENSSL_free(xname);
    }
 
    // return what we have
