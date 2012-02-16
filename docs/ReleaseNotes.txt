@@ -11,6 +11,12 @@ Version 3.1.1
 
 + **New Features**
    * Compile on Solaris 11
+   * Add support for sending DN with monitoring information
+   * Add possibility to switch off automatic download of CRL from the web;
+     default is OFF; to enable it multiply by 10 the relevant CRL options
+     (i.e. 12 and 13 are like 2 and 3 but trying download if the file is not
+      found).
+   * Add refresh frequency time for CRL's; default 1 day .
 
 + **Major bug fixes**
    * Fix various client threading issues.
@@ -38,6 +44,11 @@ Version 3.1.1
    * Make sure that monitor write length is really negative.
    * Add the oss.asize hint to the destination URL in all possible cases.
    * Properly print adler32 checksum in xrdcp.
+   * When the server certificate is expired, try to renew from the same path
+     before failing.
+   * Get the signing certificate for the CRL from its issuer hash, which can be
+     different from the CA hash.
+   * Add check for the format of the downloaded CRLs: DER or PEM
 
 + **Miscellaneous**
    * Relax requirements on the permission mode of the x509 key files
@@ -45,6 +56,9 @@ Version 3.1.1
    * Stop doing XrdFfsPosix_statall() if task queue is long.
    * Get rid of compiler warnings
    * Improve some log messages
+   * At server startup, only initialize the CA (and CRL, if required) for the
+     authority issuing the server certificate; additional CA's are initialized
+     only if needed.
 
 -------------
 Version 3.1.0
