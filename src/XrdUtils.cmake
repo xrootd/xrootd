@@ -37,6 +37,7 @@ add_library(
                                 XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
+                                XrdSys/XrdSysPwd.hh
 
   #-----------------------------------------------------------------------------
   # XrdOuc
