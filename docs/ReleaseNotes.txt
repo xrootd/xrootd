@@ -6,6 +6,47 @@ Release Notes
 =============
 
 -------------
+Version 3.1.1
+-------------
+
++ **New Features**
+   * Compile on Solaris 11
+
++ **Major bug fixes**
+   * Fix various client threading issues.
+   * [bug #87880] Properly unpack the incomming vector read data.
+   * Rework the handshake when making a parallel connection. Previous method
+     caused a deadlock when parallel connections were requested (e.g. xrdcp).
+   * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
+     xrootd until now have disabled use of sendfile() with resulting poor
+     performance. This fix corrects this.
+   * Don't force libXrdPss.so to be loaded for proxy managers.
+   * Fix various CMake issues: disable library inheritance, fix underlinking
+     problems, make sure libcom_err is present when building kerberos.
+   * Replace non-reentrant versions of getpwxxx and getgrxxx with reentrant
+     versions. This should prevent spurious uid/gid translations.
+   * Fix RedHat bug #673069: Missing header files required by DPM
+   * Don't ignore errors returned by kXR_close
+
++ **Minor bug fixes**
+   * Add 'k' to the option list. It was wrongly deleted in the last option
+     refalgamization.
+   * Fix a typo in the specfile causing problems with multithreaded
+     compilation.
+   * Initialize xattr variable name so that xrdadler32 can fetch previous
+     checksum. The error caused xrdadler32 to always recompute the checksum.
+   * Make sure that monitor write length is really negative.
+   * Add the oss.asize hint to the destination URL in all possible cases.
+   * Properly print adler32 checksum in xrdcp.
+
++ **Miscellaneous**
+   * Relax requirements on the permission mode of the x509 key files
+   * Disable client redirections reports to the console.
+   * Stop doing XrdFfsPosix_statall() if task queue is long.
+   * Get rid of compiler warnings
+   * Improve some log messages
+
+-------------
 Version 3.1.0
 -------------
 
