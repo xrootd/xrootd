@@ -411,7 +411,11 @@ namespace XrdClient
   Status XRootDTransport::UnMarshallRequest( Message *msg )
   {
     // We rely on the marshaling process to be symetric!
-    return MarshallRequest( msg );
+    ClientRequest *req = (ClientRequest*)msg->GetBuffer();
+    req->header.requestid = htons( req->header.requestid );
+    Status st = MarshallRequest( msg );
+    req->header.requestid = htons( req->header.requestid );
+    return st;
   }
 
   //----------------------------------------------------------------------------
