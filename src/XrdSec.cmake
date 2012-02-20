@@ -114,7 +114,6 @@ add_executable(
 target_link_libraries(
   xrdsssadmin
   XrdSecsss
-  XrdCryptoLite
   XrdUtils )
 
 #-------------------------------------------------------------------------------
