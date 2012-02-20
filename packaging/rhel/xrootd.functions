@@ -20,9 +20,6 @@ function setupInstallation()
 
   chown $XROOTD_USER:$XROOTD_GROUP -R /var/spool/xrootd
   chown $XROOTD_USER:$XROOTD_GROUP -R /var/log/xrootd
-  chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
-  chown $XROOTD_USER:$XROOTD_GROUP -R /etc/xrootd
-  chown $XROOTD_USER:$XROOTD_GROUP /etc/sysconfig/xrootd
 }
 
 #-------------------------------------------------------------------------------
