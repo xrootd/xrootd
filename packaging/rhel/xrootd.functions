@@ -96,6 +96,8 @@ function checkSanity()
     chown $XROOTD_USER:$XROOTD_GROUP -R /var/spool/xrootd
   fi
 
+  mkdir -p /var/run/xrootd
+  chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
   checkDirectory /var/run/xrootd $XROOTD_USER $XROOTD_GROUP
   if test $? -ne 0; then
     chown $XROOTD_USER:$XROOTD_GROUP -R /var/run/xrootd
