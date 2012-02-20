@@ -8,6 +8,13 @@
 #include "TestEnv.hh"
 #include "Utils.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClSIDManager.hh"
+#include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClXRootDMsgHandler.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -16,12 +23,80 @@ class FileTest: public CppUnit::TestCase
 {
   public:
     CPPUNIT_TEST_SUITE( FileTest );
+      CPPUNIT_TEST( RedirectReturnTest );
       CPPUNIT_TEST( ReadTest );
     CPPUNIT_TEST_SUITE_END();
+    void RedirectReturnTest();
     void ReadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
+
+//------------------------------------------------------------------------------
+// Redirect return test
+//------------------------------------------------------------------------------
+void FileTest::RedirectReturnTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string path = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+  std::string fileUrl = address + "/" + path;
+
+  //----------------------------------------------------------------------------
+  // Get the SID manager
+  //----------------------------------------------------------------------------
+  PostMaster *postMaster = DefaultEnv::GetPostMaster();
+  AnyObject   sidMgrObj;
+  SIDManager *sidMgr    = 0;
+  Status      st;
+  st = postMaster->QueryTransport( url, XRootDQuery::SIDManager, sidMgrObj );
+
+  CPPUNIT_ASSERT( st.IsOK() );
+  sidMgrObj.Get( sidMgr );
+
+  //----------------------------------------------------------------------------
+  // Build the open request
+  //----------------------------------------------------------------------------
+  Message           *msg;
+  ClientOpenRequest *req;
+  MessageUtils::CreateRequest( msg, req, path.length() );
+  req->requestid = kXR_open;
+  req->options   = kXR_open_read | kXR_retstat;
+  req->dlen      = path.length();
+  msg->Append( path.c_str(), path.length(), 24 );
+
+  XRootDTransport::MarshallRequest( msg );
+
+  SyncResponseHandler *handler = new SyncResponseHandler();
+
+  XRootDMsgHandler *msgHandler;
+  msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
+  msgHandler->SetTimeout( 300 );
+  msgHandler->SetRedirectAsAnswer( true );
+
+  st = postMaster->Send( url, msg, msgHandler, 300 );
+  URL *response = 0;
+  CPPUNIT_ASSERT( st.IsOK() );
+  XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
+  CPPUNIT_ASSERT( st1.IsOK() );
+  CPPUNIT_ASSERT( st1.code == suXRDRedirect );
+  CPPUNIT_ASSERT( response );
+  delete response;
+}
 
 //------------------------------------------------------------------------------
 // Read test
