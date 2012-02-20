@@ -981,9 +981,10 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Create the message handler and send the thing into the wild
     //--------------------------------------------------------------------------
-    XRootDMsgHandler *msgHandler = new XRootDMsgHandler( msg, handler, pUrl,
-                                                         pPostMaster, sidMgr,
-                                                         timeout );
+    XRootDMsgHandler *msgHandler = new XRootDMsgHandler(
+                                         msg, handler, *url, sidMgr );
+    msgHandler->SetTimeout( timeout );
+
     st = pPostMaster->Send( *pUrl, msg, msgHandler, 300 );
     if( !st.IsOK() )
     {

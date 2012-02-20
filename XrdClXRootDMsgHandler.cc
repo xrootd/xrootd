@@ -520,6 +520,28 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
+      // kXR_open - if we got the statistics, otherwise return 0
+      //------------------------------------------------------------------------
+      case kXR_open:
+      {
+        if( !(req->open.options & kXR_retstat) )
+        {
+          log->Dump( XRootDMsg, "[%s] No StatInfo in response to 0x%x %d",
+                                pUrl.GetHostId().c_str(), pRequest, req->open.options );
+
+          return 0;
+        }
+
+        AnyObject *obj = new AnyObject();
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
+                              pUrl.GetHostId().c_str(), pRequest );
+
+        StatInfo *data = new StatInfo( buffer );
+        obj->Set( data );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
       // kXR_query
       //------------------------------------------------------------------------
       case kXR_query:

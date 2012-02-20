@@ -397,6 +397,14 @@ namespace XrdClient
       case kXR_chmod:
         req->chmod.mode = htons( req->chmod.mode );
         break;
+
+      //------------------------------------------------------------------------
+      // kXR_open
+      //------------------------------------------------------------------------
+      case kXR_open:
+        req->open.mode    = htons( req->open.mode );
+        req->open.options = htons( req->open.options );
+        break;
     };
 
     req->header.requestid = htons( req->header.requestid );

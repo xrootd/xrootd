@@ -9,6 +9,7 @@
 
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
 
 namespace XrdClient
@@ -31,26 +32,21 @@ namespace XrdClient
       //! @param respHandler response handler to be called then the final
       //!                    final response arrives
       //! @param url         the url the message has been sent to
-      //! @param postMaster  the post master object to be used to handle
-      //!                    redirections
       //! @param sidMgr      the sid manager used to allocate SID for the initial
       //!                    message
-      //! @param timeout     timeout
       //------------------------------------------------------------------------
       XRootDMsgHandler( Message         *msg,
                         ResponseHandler *respHandler,
                         URL             *url,
-                        PostMaster      *postMaster,
-                        SIDManager      *sidMgr,
-                        uint16_t         timeout ):
+                        SIDManager      *sidMgr ):
         pRequest( msg ),
         pResponse( 0 ),
         pResponseHandler( respHandler ),
         pUrl( *url ),
-        pPostMaster( postMaster ),
         pSidMgr( sidMgr ),
-        pTimeout( timeout )
+        pTimeout( 300 )
       {
+        pPostMaster = DefaultEnv::GetPostMaster();
       }
 
       //------------------------------------------------------------------------
@@ -94,6 +90,14 @@ namespace XrdClient
       //! @param  now current timestamp
       //------------------------------------------------------------------------
       void WaitDone( time_t now );
+
+      //------------------------------------------------------------------------
+      //! Set timeout
+      //------------------------------------------------------------------------
+      void SetTimeout( uint16_t timeout )
+      {
+        pTimeout = timeout;
+      }
 
     private:
       //------------------------------------------------------------------------
