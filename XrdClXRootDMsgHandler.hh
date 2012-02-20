@@ -44,7 +44,8 @@ namespace XrdClient
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pSidMgr( sidMgr ),
-        pTimeout( 300 )
+        pTimeout( 300 ),
+        pRedirectAsAnswer( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
       }
@@ -99,6 +100,15 @@ namespace XrdClient
         pTimeout = timeout;
       }
 
+      //------------------------------------------------------------------------
+      //! Treat the kXR_redirect response as a valid answer to the message
+      //! and notify the handler with the URL as a response
+      //------------------------------------------------------------------------
+      void SetRedirectAsAnswer( bool redirectAsAnswer )
+      {
+        pRedirectAsAnswer = redirectAsAnswer;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Unpack the message and call the response handler
@@ -136,6 +146,7 @@ namespace XrdClient
       SIDManager             *pSidMgr;
       Status                  pStatus;
       uint16_t                pTimeout;
+      bool                    pRedirectAsAnswer;
   };
 }
 

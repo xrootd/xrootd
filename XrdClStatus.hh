@@ -28,6 +28,8 @@ namespace XrdClient
   const uint16_t suRetry           = 2;
   const uint16_t suPartial         = 3;
 
+  const uint16_t suXRDRedirect     = 101;
+
   //----------------------------------------------------------------------------
   // Generic errors
   //----------------------------------------------------------------------------

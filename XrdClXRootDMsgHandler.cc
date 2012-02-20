@@ -154,6 +154,17 @@ namespace XrdClient
         }
 
         //----------------------------------------------------------------------
+        // Check if we need to return the URL as a response
+        //----------------------------------------------------------------------
+        if( pRedirectAsAnswer )
+        {
+          pStatus = Status( stOK, suXRDRedirect );
+          pResponse = msgPtr.release();
+          HandleResponse();
+          return Take | RemoveHandler;
+        }
+
+        //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
         Status st = RewriteRequestRedirect();
@@ -378,7 +389,28 @@ namespace XrdClient
     XRootDTransport::UnMarshallRequest( pRequest );
 
     //--------------------------------------------------------------------------
-    // We only handle the kXR_ok responses
+    // Handle redirect as an answer
+    //--------------------------------------------------------------------------
+    if( rsp->hdr.status == kXR_redirect )
+    {
+      if( !pRedirectAsAnswer )
+      {
+        log->Error( XRootDMsg, "Internal Error: trying to pass redirect as an "
+                               "answer even though this has never been "
+                               "requested" );
+        return 0;
+      }
+      log->Dump( XRootDMsg, "Returning the redirection url as a response to "
+                            "0x%x",
+                             pRequest );
+      AnyObject *obj = new AnyObject();
+      URL       *url = new URL( pUrl );
+      obj->Set( url );
+      return obj;
+    }
+
+    //--------------------------------------------------------------------------
+    // We only handle the kXR_ok responses further down
     //--------------------------------------------------------------------------
     if( rsp->hdr.status != kXR_ok )
       return 0;
