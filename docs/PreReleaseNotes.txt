@@ -46,6 +46,8 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Reinsert buffer size calculation that was mistakenly deleted.
+     This eventually causes a SEGV when detailed monitoring is enabled.  
    * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
      xrootd until now have disabled use of sendfile() with resulting poor
      performance. This fix corrects this.
@@ -69,6 +71,7 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Make sure the sendfile interrupt counter is initialized to zero.
    * Make sure to honor absolute cms.space values when percentage not
      specified.
    * Print leading zeroes in an adler32 checksum.
