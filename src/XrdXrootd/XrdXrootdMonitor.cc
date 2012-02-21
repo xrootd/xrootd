@@ -243,8 +243,9 @@ XrdXrootdMonitor::XrdXrootdMonitor()
 {
    kXR_int32 localWindow;
 
-// Initialize the local window
+// Initialize last window to force a mark as well as the local window
 //
+   lastWindow  = 0;
    localWindow = currWindow;
 
 // Allocate a monitor buffer
@@ -451,6 +452,7 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
       else if (msz < 1024) msz = 1024;
               else msz = msz/sizeof(XrdXrootdMonTrace)*sizeof(XrdXrootdMonTrace);
    lastEnt = (msz-sizeof(XrdXrootdMonHeader))/sizeof(XrdXrootdMonTrace);
+   monBlen = (lastEnt*sizeof(XrdXrootdMonTrace))+sizeof(XrdXrootdMonHeader);
    lastEnt--;
 
 // Set default monitor redirect buffer size
