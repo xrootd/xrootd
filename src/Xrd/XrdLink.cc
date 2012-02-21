@@ -152,6 +152,7 @@ void XrdLink::Reset()
   conTime  = time(0);
   stallCnt = stallCntTot = 0;
   tardyCnt = tardyCntTot = 0;
+  SfIntr   = 0;
   InUse    = 1;
   Poller   = 0; 
   PollEnt  = 0;
