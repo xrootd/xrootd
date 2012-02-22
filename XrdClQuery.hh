@@ -145,10 +145,8 @@ namespace XrdClient
       //! Constructor
       //!
       //! @param url URL    of the entry-point server to be contacted
-      //! @param postMaster post master to be used, if unspecified the default
-      //!                   is used
       //------------------------------------------------------------------------
-      Query( const URL &url, PostMaster *postMaster = 0 );
+      Query( const URL &url );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -546,16 +544,7 @@ namespace XrdClient
                             uint16_t           timeout = 0 );
 
     private:
-
-      //------------------------------------------------------------------------
-      // Send a message and wait for a response
-      //------------------------------------------------------------------------
-      Status SendMessage( Message         *msg,
-                          ResponseHandler *response,
-                          uint16_t         timeout );
-
-      PostMaster *pPostMaster;
-      URL        *pUrl;
+      URL *pUrl;
   };
 }
 

@@ -9,12 +9,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCl/XrdClAnyObject.hh"
-#include "XrdCl/XrdClSIDManager.hh"
-#include "XrdCl/XrdClPostMaster.hh"
-#include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessage.hh"
-#include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClRequestSync.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -232,13 +227,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Query::Query( const URL &url, PostMaster *postMaster )
+  Query::Query( const URL &url )
   {
-    if( postMaster )
-      pPostMaster = postMaster;
-    else
-      pPostMaster = DefaultEnv::GetPostMaster();
-
     pUrl = new URL( url.GetURL() );
   }
 
@@ -271,7 +261,7 @@ namespace XrdClient
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -344,7 +334,7 @@ namespace XrdClient
     msg->Append( source.c_str(), source.length(), 24 );
     *msg->GetBuffer(24+source.length()) = ' ';
     msg->Append( dest.c_str(), dest.length(), 25+source.length() );
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -388,7 +378,7 @@ namespace XrdClient
     req->dlen      = arg.GetSize();
     msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -433,7 +423,7 @@ namespace XrdClient
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -475,7 +465,7 @@ namespace XrdClient
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -520,7 +510,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -563,7 +553,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -606,7 +596,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -645,7 +635,7 @@ namespace XrdClient
 
     req->requestid  = kXR_ping;
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -686,7 +676,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -729,7 +719,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -769,7 +759,7 @@ namespace XrdClient
     req->requestid = kXR_protocol;
     req->clientpv  = kXR_PROTOCOLVERSION;
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -810,7 +800,7 @@ namespace XrdClient
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
-    Status st = SendMessage( msg, handler, timeout );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
 
     if( !st.IsOK() )
       return st;
@@ -929,70 +919,5 @@ namespace XrdClient
       return XRootDStatus( stOK, suPartial );
 
     return XRootDStatus();
-  }
-
-  //----------------------------------------------------------------------------
-  // Send a message and wait for a response
-  //----------------------------------------------------------------------------
-  Status Query::SendMessage( Message         *msg,
-                             ResponseHandler *handler,
-                             uint16_t         timeout )
-  {
-    //--------------------------------------------------------------------------
-    // Get the stuff needed to send the message
-    //--------------------------------------------------------------------------
-    Log    *log = DefaultEnv::GetLog();
-    Status  st;
-
-    if( !pPostMaster )
-    {
-      log->Error( QueryMsg, "No post master object to handle the message" );
-      return Status( stFatal, errConfig );
-    }
-
-    AnyObject   sidMgrObj;
-    SIDManager *sidMgr    = 0;
-    st = pPostMaster->QueryTransport( *pUrl, XRootDQuery::SIDManager,
-                                      sidMgrObj );
-
-    if( !st.IsOK() )
-    {
-      log->Error( QueryMsg, "[%s] Unable to get stream id manager",
-                            pUrl->GetHostId().c_str() );
-      return st;
-    }
-    sidMgrObj.Get( sidMgr );
-
-    ClientLocateRequest *req = (ClientLocateRequest*)msg->GetBuffer();
-
-    //--------------------------------------------------------------------------
-    // Allocate the SID and marshall the message
-    //--------------------------------------------------------------------------
-    st = sidMgr->AllocateSID( req->streamid );
-    if( !st.IsOK() )
-    {
-      log->Error( QueryMsg, "[%s] Unable to allocate stream id",
-                            pUrl->GetHostId().c_str() );
-      return st;
-    }
-
-    XRootDTransport::MarshallRequest( msg );
-
-    //--------------------------------------------------------------------------
-    // Create the message handler and send the thing into the wild
-    //--------------------------------------------------------------------------
-    XRootDMsgHandler *msgHandler;
-    msgHandler = new XRootDMsgHandler( msg, handler, pUrl, sidMgr );
-    msgHandler->SetTimeout( timeout );
-
-    st = pPostMaster->Send( *pUrl, msg, msgHandler, 300 );
-    if( !st.IsOK() )
-    {
-      log->Error( QueryMsg, "[%s] Unable to send the message 0x%x",
-                            pUrl->GetHostId().c_str(), &msg );
-      delete msgHandler;
-      return st;
-    }
-    return Status();
   }
 }

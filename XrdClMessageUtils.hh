@@ -8,6 +8,7 @@
 #define __XRD_CL_MESSAGE_UTILS_HH__
 
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
@@ -70,7 +71,7 @@ namespace XrdClient
   {
     public:
       //------------------------------------------------------------------------
-      // Wait and return the status of the query
+      //! Wait and return the status of the query
       //------------------------------------------------------------------------
       static XRootDStatus WaitForStatus( SyncResponseHandler *handler )
       {
@@ -82,7 +83,7 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // Wait for the response
+      //! Wait for the response
       //------------------------------------------------------------------------
       template<class Type>
       static XrdClient::XRootDStatus WaitForResponse(
@@ -110,17 +111,26 @@ namespace XrdClient
       }
 
       //------------------------------------------------------------------------
-      // Create a message
+      //! Create a message
       //------------------------------------------------------------------------
       template<class Type>
-      static void CreateRequest( XrdClient::Message *&msg, Type *&req,
-                                 uint32_t payloadSize = 0 )
+      static void CreateRequest( Message  *&msg,
+                                 Type     *&req,
+                                 uint32_t  payloadSize = 0 )
       {
-        using namespace XrdClient;
         msg = new Message( sizeof(Type)+payloadSize );
         req = (Type*)msg->GetBuffer();
         msg->Zero();
       }
+
+      //------------------------------------------------------------------------
+      //! Send message
+      //------------------------------------------------------------------------
+      static Status SendMessage( const URL       &url,
+                                 Message         *msg,
+                                 ResponseHandler *handler,
+                                 uint16_t         timeout );
+
   };
 }
 
