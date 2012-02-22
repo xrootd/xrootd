@@ -178,6 +178,7 @@ namespace XrdClient
         //----------------------------------------------------------------------
         // Send the request to the new location
         //----------------------------------------------------------------------
+        pRedirections->push_back( pUrl );
         st = pPostMaster->Send( pUrl, pRequest, this, 300 );
 
         if( !st.IsOK() )
@@ -342,7 +343,7 @@ namespace XrdClient
 
     if( status->IsOK() )
       response = ParseResponse();
-    pResponseHandler->HandleResponse( status, response );
+    pResponseHandler->HandleResponse( status, response, pRedirections );
 
     //--------------------------------------------------------------------------
     // Release the stream id

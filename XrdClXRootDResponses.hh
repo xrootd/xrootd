@@ -9,6 +9,7 @@
 
 #include "XrdCl/XrdClBuffer.hh"
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XProtocol/XProtocol.hh"
 #include <string>
@@ -660,6 +661,28 @@ namespace XrdClient
   {
     public:
       //------------------------------------------------------------------------
+      //! List of URLs
+      //------------------------------------------------------------------------
+      typedef std::vector<URL> URLList;
+
+      //------------------------------------------------------------------------
+      //! Called when a response to associated request arrives or an error
+      //! occurs
+      //!
+      //! @param status   status of the request
+      //! @param response an object associated with the response
+      //!                 (request dependent)
+      //! @param urlList  list of hosts the request was redirected to
+      //------------------------------------------------------------------------
+      virtual void HandleResponse( XRootDStatus *status,
+                                   AnyObject    *response,
+                                   URLList      *urlList )
+      {
+        delete urlList;
+        HandleResponse( status, response );
+      }
+
+      //------------------------------------------------------------------------
       //! Called when a response to associated request arrives or an error
       //! occurs
       //!
@@ -667,8 +690,8 @@ namespace XrdClient
       //! @param response an object associated with the response
       //!                 (request dependent)
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response ) = 0;
+      virtual void HandleResponse( XRootDStatus */*status*/,
+                                   AnyObject    */*response*/ ) {}
   };
 }
 

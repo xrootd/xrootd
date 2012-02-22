@@ -37,7 +37,7 @@ namespace XrdClient
       //------------------------------------------------------------------------
       XRootDMsgHandler( Message         *msg,
                         ResponseHandler *respHandler,
-                        URL             *url,
+                        const URL       *url,
                         SIDManager      *sidMgr ):
         pRequest( msg ),
         pResponse( 0 ),
@@ -47,7 +47,9 @@ namespace XrdClient
         pTimeout( 300 ),
         pRedirectAsAnswer( false )
       {
-        pPostMaster = DefaultEnv::GetPostMaster();
+        pPostMaster   = DefaultEnv::GetPostMaster();
+        pRedirections = new ResponseHandler::URLList;
+        pRedirections->push_back( *url );
       }
 
       //------------------------------------------------------------------------
@@ -137,16 +139,17 @@ namespace XrdClient
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 
-      Message                *pRequest;
-      Message                *pResponse;
-      std::vector<Message *>  pPartialResps;
-      ResponseHandler        *pResponseHandler;
-      URL                     pUrl;
-      PostMaster             *pPostMaster;
-      SIDManager             *pSidMgr;
-      Status                  pStatus;
-      uint16_t                pTimeout;
-      bool                    pRedirectAsAnswer;
+      Message                  *pRequest;
+      Message                  *pResponse;
+      std::vector<Message *>    pPartialResps;
+      ResponseHandler          *pResponseHandler;
+      URL                       pUrl;
+      PostMaster               *pPostMaster;
+      SIDManager               *pSidMgr;
+      Status                    pStatus;
+      uint16_t                  pTimeout;
+      bool                      pRedirectAsAnswer;
+      ResponseHandler::URLList *pRedirections;
   };
 }
 
