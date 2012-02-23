@@ -160,7 +160,7 @@ namespace XrdClient
     pFileUrl = new URL( url );
     if( !pFileUrl->IsValid() )
     {
-      log->Error( QueryMsg, "Trying to open invalid url: %s",
+      log->Error( FileMsg, "Trying to open invalid url: %s",
                              url.c_str() );
       pStatus    = XRootDStatus( stError, errInvalidArgs );
       pFileState = Error;
@@ -170,7 +170,7 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
-    log->Dump( QueryMsg, "[%s] Sending a kXR_open request for path %s",
+    log->Dump( FileMsg, "[%s] Sending a kXR_open request for path %s",
                          pFileUrl->GetHostId().c_str(),
                          pFileUrl->GetPathWithParams().c_str() );
 
@@ -224,7 +224,7 @@ namespace XrdClient
     // Close the file
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_close request for file handle "
+    log->Dump( FileMsg, "[%s] Sending a kXR_close request for file handle "
                          "0x%x",
                          pFileUrl->GetHostId().c_str(),
                          *((uint32_t*)pFileHandle) );
@@ -275,7 +275,7 @@ namespace XrdClient
     if( !pStatus.IsOK() )
     {
       pFileState = Error;
-      log->Debug( QueryMsg, "[%s] Error opening file %s: %s",
+      log->Debug( FileMsg, "[%s] Error opening file %s: %s",
                             pDataServer->GetHostId().c_str(),
                             pFileUrl->GetPath().c_str(),
                             pStatus.ToStr().c_str() );
@@ -289,7 +289,7 @@ namespace XrdClient
       pFileHandle = new uint8_t[4];
       openInfo->GetFileHandle( pFileHandle );
       pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
-      log->Debug( QueryMsg, "[%s] File %s successfully opened with id 0x%x",
+      log->Debug( FileMsg, "[%s] File %s successfully opened with id 0x%x",
                             pDataServer->GetHostId().c_str(),
                             pFileUrl->GetPath().c_str(),
                             *((uint32_t*)pFileHandle) );
