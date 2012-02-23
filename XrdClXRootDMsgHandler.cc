@@ -565,9 +565,8 @@ namespace XrdClient
 
         if( req->open.options & kXR_retstat )
         {
-          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to 0x%x %d",
-                                pUrl.GetHostId().c_str(), pRequest,
-                                req->open.options );
+          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to 0x%x",
+                                pUrl.GetHostId().c_str(), pRequest );
           statInfo = new StatInfo( buffer+12 );
         }
 
