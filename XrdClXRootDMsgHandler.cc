@@ -557,19 +557,21 @@ namespace XrdClient
       //------------------------------------------------------------------------
       case kXR_open:
       {
-        if( !(req->open.options & kXR_retstat) )
-        {
-          log->Dump( XRootDMsg, "[%s] No StatInfo in response to 0x%x %d",
-                                pUrl.GetHostId().c_str(), pRequest, req->open.options );
-
-          return 0;
-        }
-
-        AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as OpenInfo",
                               pUrl.GetHostId().c_str(), pRequest );
 
-        StatInfo *data = new StatInfo( buffer );
+        AnyObject *obj      = new AnyObject();
+        StatInfo  *statInfo = 0;
+
+        if( req->open.options & kXR_retstat )
+        {
+          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to 0x%x %d",
+                                pUrl.GetHostId().c_str(), pRequest,
+                                req->open.options );
+          statInfo = new StatInfo( buffer+12 );
+        }
+
+        OpenInfo *data = new OpenInfo( (uint8_t*)buffer, statInfo );
         obj->Set( data );
         return obj;
       }
