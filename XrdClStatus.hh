@@ -44,6 +44,7 @@ namespace XrdClient
   const uint16_t errInternal       = 7; //!< Internal error
   const uint16_t errUnknownCommand = 8;
   const uint16_t errInvalidArgs    = 9;
+  const uint16_t errInProgress     = 10;
 
   //----------------------------------------------------------------------------
   // Socket related errors

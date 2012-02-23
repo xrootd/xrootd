@@ -36,9 +36,11 @@ add_library(
   XrdClXRootDMsgHandler.cc    XrdClXRootDMsgHandler.hh
                               XrdClBuffer.hh
                               XrdClMessage.hh
+  XrdClMessageUtils.cc        XrdClMessageUtils.hh
   XrdClXRootDResponses.cc     XrdClXRootDResponses.hh
                               XrdClRequestSync.hh
   XrdClFile.cc                XrdClFile.hh
+  XrdClFileStateHandler.cc    XrdClFileStateHandler.hh
 )
 
 target_link_libraries(

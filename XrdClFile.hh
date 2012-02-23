@@ -14,6 +14,8 @@
 
 namespace XrdClient
 {
+  class FileStateHandler;
+
   //----------------------------------------------------------------------------
   //! A file
   //----------------------------------------------------------------------------
@@ -23,12 +25,12 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      File() {}
+      File();
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      virtual ~File() { Close(); }
+      virtual ~File();
 
       //------------------------------------------------------------------------
       //! Open the file pointed to by the given URL - async
@@ -37,6 +39,8 @@ namespace XrdClient
       //! @param flags   OpenFlags::Flags
       //! @param mode    Access::Mode for new files, 0 otherwise
       //! @param handler handler to be notified about the status of the operation
+      //!                if successfull, the response will contain an OpenInfo
+      //!                object
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
@@ -63,9 +67,24 @@ namespace XrdClient
                          uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! Close the file
+      //! Close the file - async
+      //!
+      //! @param handler handler to be notified about the status of the operation
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Close();
+      XRootDStatus Close( ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Close the file - sync
+      //!
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Close( uint16_t timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
@@ -138,6 +157,7 @@ namespace XrdClient
                           uint16_t  timeout = 0 );
 
     private:
+      FileStateHandler *pStateHandler;
   };
 }
 

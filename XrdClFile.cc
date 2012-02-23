@@ -8,38 +8,80 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileStateHandler.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
 
 namespace XrdClient
 {
   //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  File::File()
+  {
+    pStateHandler = new FileStateHandler();
+  }
+
+  //------------------------------------------------------------------------
+  // Destructor
+  //------------------------------------------------------------------------
+  File::~File()
+  {
+    Close();
+    delete pStateHandler;
+  }
+
+  //----------------------------------------------------------------------------
   // Open the file pointed to by the given URL - async
   //----------------------------------------------------------------------------
-  XRootDStatus File::Open( const std::string &/*url*/,
-                           uint16_t           /*flags*/,
-                           uint16_t           /*mode*/,
-                           ResponseHandler   */*handler*/,
-                           uint16_t           /*timeout*/ )
+  XRootDStatus File::Open( const std::string &url,
+                           uint16_t           flags,
+                           uint16_t           mode,
+                           ResponseHandler   *handler,
+                           uint16_t           timeout )
   {
-    return XRootDStatus();
+    return pStateHandler->Open( url, flags, mode, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Open the file pointed to by the given URL - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Open( const std::string &/*url*/,
-                           uint16_t           /*flags*/,
-                           uint16_t           /*mode*/,
-                           uint16_t           /*timeout*/ )
+  XRootDStatus File::Open( const std::string &url,
+                           uint16_t           flags,
+                           uint16_t           mode,
+                           uint16_t           timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Open( url, flags, mode, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    StatInfo *response = 0;
+    XRootDStatus stat = MessageUtils::WaitForResponse( &handler, response );
+    delete response;
+    return st;
   }
+
+  //----------------------------------------------------------------------------
+  // Close the file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Close( ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    return pStateHandler->Close( handler, timeout );
+  }
+
 
   //----------------------------------------------------------------------------
   // Close the file
   //----------------------------------------------------------------------------
-  XRootDStatus File::Close()
+  XRootDStatus File::Close( uint16_t timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Close( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------
