@@ -9,8 +9,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//        $Id$
 
 #include <errno.h>
 #ifdef WIN32
@@ -393,10 +391,7 @@ static pthread_t    ID(void)              {return pthread_self();}
 
 static int          Kill(pthread_t tid)   {return pthread_cancel(tid);}
 
-static unsigned long Num(void)
-                       {if (!initDone) doInit();
-                        return (unsigned long)pthread_getspecific(threadNumkey);
-                       }
+static unsigned long Num(void);
 
 static int          Run(pthread_t *, void *(*proc)(void *), void *arg, 
                         int opts=0, const char *desc = 0);
@@ -417,10 +412,7 @@ static int          Wait(pthread_t tid);
                    ~XrdSysThread() {}
 
 private:
-static void          doInit(void);
 static XrdSysError  *eDest;
-static pthread_key_t threadNumkey;
 static size_t        stackSize;
-static int           initDone;
 };
 #endif

@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-
-//        $Id$
-
-const char *XrdSysPthreadCVSID = "$Id$";
  
 #include <errno.h>
 #include <pthread.h>
@@ -24,6 +20,9 @@ const char *XrdSysPthreadCVSID = "$Id$";
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <sys/types.h>
+#if   defined(__linux__)
+#include <sys/syscall.h>
+#endif
 
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -33,29 +32,24 @@ const char *XrdSysPthreadCVSID = "$Id$";
 
 struct XrdSysThreadArgs
        {
-        pthread_key_t numKey;
         XrdSysError  *eDest;
         const char   *tDesc;
         void         *(*proc)(void *);
         void         *arg;
 
-        XrdSysThreadArgs(pthread_key_t nk, XrdSysError *ed, const char *td,
+        XrdSysThreadArgs(XrdSysError *ed, const char *td,
                          void *(*p)(void *), void *a)
-                        {numKey=nk; eDest=ed; tDesc=td, proc=p; arg=a;}
+                        : eDest(ed), tDesc(td), proc(p), arg(a) {}
        ~XrdSysThreadArgs() {}
        };
 
 /******************************************************************************/
 /*                           G l o b a l   D a t a                            */
 /******************************************************************************/
-  
-pthread_key_t XrdSysThread::threadNumkey;
 
 XrdSysError  *XrdSysThread::eDest     = 0;
 
 size_t        XrdSysThread::stackSize = 0;
-
-int           XrdSysThread::initDone  = 0;
 
 /******************************************************************************/
 /*             T h r e a d   I n t e r f a c e   P r o g r a m s              */
@@ -66,22 +60,8 @@ extern "C"
 void *XrdSysThread_Xeq(void *myargs)
 {
    XrdSysThreadArgs *ap = (XrdSysThreadArgs *)myargs;
-   unsigned long myNum;
    void *retc;
 
-#if   defined(__linux__)
-   myNum = static_cast<unsigned int>(getpid());
-#elif defined(__solaris__)
-   myNum = static_cast<unsigned int>(pthread_self());
-#elif defined(__macos__)
-   myNum = static_cast<unsigned int>(pthread_mach_thread_np(pthread_self()));
-#else
-   static XrdSysMutex   numMutex;
-   static unsigned long threadNum = 1;
-   numMutex.Lock(); threadNum++; myNum = threadNum; numMutex.UnLock();
-#endif
-
-   pthread_setspecific(ap->numKey, reinterpret_cast<const void *>(myNum));
    if (ap->eDest && ap->tDesc)
       ap->eDest->Emsg("Xeq", ap->tDesc, "thread started");
    retc = ap->proc(ap->arg);
@@ -243,20 +223,20 @@ void XrdSysSemaphore::Wait()
 /*                        T h r e a d   M e t h o d s                         */
 /******************************************************************************/
 /******************************************************************************/
-/*                                d o I n i t                                 */
+/*                                   N u m                                    */
 /******************************************************************************/
-  
-void XrdSysThread::doInit()
-{
-   static XrdSysMutex initMutex;
 
-   initMutex.Lock();
-   if (!initDone)
-      {pthread_key_create(&threadNumkey, 0);
-       pthread_setspecific(threadNumkey, (const void *)1);
-       initDone = 1;
-      }
-   initMutex.UnLock();
+unsigned long XrdSysThread::Num()
+{
+#if   defined(__linux__)
+   return static_cast<unsigned long>(syscall(SYS_gettid));
+#elif defined(__solaris__)
+   return static_cast<unsigned long>(pthread_self());
+#elif defined(__macos__)
+   return static_cast<unsigned long>(pthread_mach_thread_np(pthread_self()));
+#else
+   return static_cast<unsigned long>(getpid());
+#endif
 }
   
 /******************************************************************************/
@@ -269,8 +249,7 @@ int XrdSysThread::Run(pthread_t *tid, void *(*proc)(void *), void *arg,
    pthread_attr_t tattr;
    XrdSysThreadArgs *myargs;
 
-   if (!initDone) doInit();
-   myargs = new XrdSysThreadArgs(threadNumkey, eDest, tDesc, proc, arg);
+   myargs = new XrdSysThreadArgs(eDest, tDesc, proc, arg);
 
    pthread_attr_init(&tattr);
    if (  opts & XRDSYSTHREAD_BIND)
