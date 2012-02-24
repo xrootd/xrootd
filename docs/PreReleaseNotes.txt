@@ -71,6 +71,9 @@ Prerelease Notes
      largely affects xrdcp and some clients on slow links.
 
 + **Minor bug fixes**
+   * Correct debug message frequency that caused people to think some file
+     system partitions were being ignored.
+   * Correct pthread Num() to return thread-specific numbers.
    * Make sure the sendfile interrupt counter is initialized to zero.
    * Make sure to honor absolute cms.space values when percentage not
      specified.
