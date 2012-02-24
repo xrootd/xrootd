@@ -608,7 +608,7 @@ void *XrdOssCache::Scan(int cscanint)
    XrdOssCache_Group  *fsgp;
    const struct timespec naptime = {cscanint, 0};
    long long frsz, llT; // llT is a dummy temporary
-   int retc, dbgMsg, dbgNoMsg;
+   int retc, dbgMsg, dbgNoMsg, dbgDoMsg;
 
 // Try to prevent floodingthe log with scan messages
 //
@@ -620,6 +620,8 @@ void *XrdOssCache::Scan(int cscanint)
 //
    while(1)
         {if (cscanint > 0) nanosleep(&naptime, 0);
+         dbgDoMsg = !dbgNoMsg--;
+         if (dbgDoMsg) dbgNoMsg = dbgMsg;
 
         // Get the cache context lock
         //
@@ -642,10 +644,8 @@ void *XrdOssCache::Scan(int cscanint)
                          else {fsdp->frsz = frsz;
                                fsdp->stat &= ~(XrdOssFSData_REFRESH |
                                                XrdOssFSData_ADJUSTED);
-                               if (!dbgNoMsg--)
-                                  {DEBUG("New free=" <<fsdp->frsz <<" path=" <<fsdp->path);
-                                   dbgNoMsg = dbgMsg;
-                                  }
+                               if (dbgDoMsg)
+                                  {DEBUG("New free=" <<fsdp->frsz <<" path=" <<fsdp->path);}
                                }
                      } else fsdp->stat |= XrdOssFSData_REFRESH;
                  if (!retc)
