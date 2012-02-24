@@ -46,6 +46,9 @@ Prerelease Notes
      path (as opposed to a control path) in the monitoring record.
 
 + **Major bug fixes**
+   * Provide compatability for sprintf() implementations that check output
+     buffer length. This currently only affects gentoo and Ubuntu Linux.
+     We place it in the "major" section as it causes run-time errors there.
    * Reinsert buffer size calculation that was mistakenly deleted.
      This eventually causes a SEGV when detailed monitoring is enabled.  
    * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
