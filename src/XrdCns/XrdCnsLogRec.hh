@@ -133,7 +133,8 @@ inline int           setLfn2(const char *lfn)
 
 inline void          setMode(mode_t    Mode) {char Save = *Rec.Data.SorT;
                                               Rec.Hdr.Mode = Mode;
-                                              sprintf(Rec.Data.Mode, "%03o",
+                                              snprintf(Rec.Data.Mode,
+                                              sizeof(Rec.Data.Mode),  "%03o",
                                               511 & static_cast<int>(Mode));
                                               *Rec.Data.SorT = Save;
                                              }
@@ -142,7 +143,8 @@ inline void          setMount(char mCode) {Rec.Data.Mount = mCode;}
 
 inline void          setSize(long long Size) {char Save = Rec.Data.Mount;
                                               Rec.Hdr.Size = Size;
-                                              sprintf(Rec.Data.SorT, "%12lld",
+                                              snprintf(Rec.Data.SorT,
+                                              sizeof(Rec.Data.SorT), "%12lld",
                                               (Size > 0 ? Size & 0x7fffffffffLL
                                                         : Size));
                                               Rec.Data.Mount = Save;
@@ -151,7 +153,8 @@ inline void          setSize(long long Size) {char Save = Rec.Data.Mount;
 inline void          setSpace(char sCode) {Rec.Data.Space = sCode;}
 
 inline void          setTime(long TOD=time(0)){char Save = Rec.Data.Mount;
-                                               sprintf(Rec.Data.SorT, "%12ld",
+                                               snprintf(Rec.Data.SorT,
+                                               sizeof(Rec.Data.SorT), "%12ld",
                                                        TOD-tBase);
                                                Rec.Data.Mount = Save;
                                               }
