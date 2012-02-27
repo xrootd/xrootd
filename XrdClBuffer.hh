@@ -193,6 +193,28 @@ namespace XrdClient
         return tmp;
       }
 
+      //------------------------------------------------------------------------
+      //! Grab a buffer allocated outside
+      //------------------------------------------------------------------------
+      void Grab( char *buffer, uint32_t size )
+      {
+        Free();
+        pBuffer = buffer;
+        pSize   = size;
+      }
+
+      //------------------------------------------------------------------------
+      //! Release the buffer
+      //------------------------------------------------------------------------
+      char *Release()
+      {
+        char *buffer = pBuffer;
+        pBuffer = 0;
+        pSize   = 0;
+        pCursor = 0;
+        return buffer;
+      }
+
     private:
       char     *pBuffer;
       uint32_t  pSize;
