@@ -59,7 +59,8 @@ namespace
         // Notify the state handler and the client and say bye bye
         //----------------------------------------------------------------------
         pStateHandler->SetOpenStatus( status, openInfo, urlList );
-        pUserHandler->HandleResponse( status, response, urlList );
+        delete response;
+        pUserHandler->HandleResponse( status, 0, urlList );
         delete this;
       }
 
@@ -178,6 +179,7 @@ namespace XrdClient
   FileStateHandler::FileStateHandler():
     pFileState( Closed ),
     pStatInfo( 0 ),
+    pFileUrl( 0 ),
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
     pFileHandle( 0 )
@@ -190,6 +192,7 @@ namespace XrdClient
   FileStateHandler::~FileStateHandler()
   {
     delete pStatInfo;
+    delete pFileUrl;
     delete pDataServer;
     delete pLoadBalancer;
     delete [] pFileHandle;

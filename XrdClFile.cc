@@ -55,10 +55,7 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    StatInfo *response = 0;
-    XRootDStatus stat = MessageUtils::WaitForResponse( &handler, response );
-    delete response;
-    return st;
+    return MessageUtils::WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------

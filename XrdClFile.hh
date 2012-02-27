@@ -39,8 +39,6 @@ namespace XrdClient
       //! @param flags   OpenFlags::Flags
       //! @param mode    Access::Mode for new files, 0 otherwise
       //! @param handler handler to be notified about the status of the operation
-      //!                if successfull, the response will contain an OpenInfo
-      //!                object
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
