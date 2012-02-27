@@ -212,13 +212,13 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if we can proceed
     //--------------------------------------------------------------------------
-    if( pFileState == Opened || pFileState == Error )
+    if( pFileState == Error )
       return pStatus;
 
     if( pFileState == OpenInProgress )
       return XRootDStatus( stError, errInProgress );
 
-    if( pFileState == CloseInProgress )
+    if( pFileState == CloseInProgress || pFileState == Opened )
       return XRootDStatus( stError, errInvalidOp );
 
     pStatus = OpenInProgress;
@@ -279,13 +279,13 @@ namespace XrdClient
     //--------------------------------------------------------------------------
     // Check if we can proceed
     //--------------------------------------------------------------------------
-    if( pFileState == Closed || pFileState == Error )
+    if( pFileState == Error )
       return pStatus;
 
     if( pFileState == CloseInProgress )
       return XRootDStatus( stError, errInProgress );
 
-    if( pFileState == OpenInProgress )
+    if( pFileState == OpenInProgress || pFileState == Closed )
       return XRootDStatus( stError, errInvalidOp );
 
     pStatus = CloseInProgress;
@@ -317,7 +317,6 @@ namespace XrdClient
       return st;
     }
     return st;
-    return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
@@ -357,8 +356,7 @@ namespace XrdClient
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req );
 
-    req->requestid  = kXR_stat;
-    req->options    = 0;
+    req->requestid = kXR_stat;
     memcpy( req->fhandle, pFileHandle, 4 );
 
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
