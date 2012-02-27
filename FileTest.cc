@@ -25,9 +25,11 @@ class FileTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE( FileTest );
       CPPUNIT_TEST( RedirectReturnTest );
       CPPUNIT_TEST( ReadTest );
+      CPPUNIT_TEST( WriteTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
+    void WriteTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
@@ -119,8 +121,9 @@ void FileTest::ReadTest()
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
+  std::string filePath = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
   std::string fileUrl = address + "/";
-  fileUrl += dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
+  fileUrl += filePath;
 
   //----------------------------------------------------------------------------
   // Fetch some data and checksum
@@ -164,4 +167,82 @@ void FileTest::ReadTest()
   CPPUNIT_ASSERT( crc == 1304813676 );
   delete [] buffer1;
   delete [] buffer2;
+
+  CPPUNIT_ASSERT( f.Close().IsOK() );
+}
+
+
+//------------------------------------------------------------------------------
+// Read test
+//------------------------------------------------------------------------------
+void FileTest::WriteTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/testFile.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Fetch some data and checksum
+  //----------------------------------------------------------------------------
+  const uint32_t MB = 1024*1024;
+  char *buffer1 = new char[4*MB];
+  char *buffer2 = new char[4*MB];
+  File f1, f2;
+
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
+  CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer2, 4*MB ) == 4*MB );
+  uint32_t crc1 = Utils::ComputeCRC32( buffer1, 4*MB );
+  crc1 = Utils::UpdateCRC32( crc1, buffer2, 4*MB );
+
+  //----------------------------------------------------------------------------
+  // Write the data
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW ).IsOK() );
+  CPPUNIT_ASSERT( f1.Write( 0, 4*MB, buffer1 ).IsOK() );
+  CPPUNIT_ASSERT( f1.Write( 4*MB, 4*MB, buffer2 ).IsOK() );
+  CPPUNIT_ASSERT( f1.Sync().IsOK() );
+  CPPUNIT_ASSERT( f1.Close().IsOK() );
+
+  //----------------------------------------------------------------------------
+  // Read the data and verify the checksums
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  CPPUNIT_ASSERT( f2.Read( 0, 4*MB, buffer1 ).IsOK() );
+  CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer2 ).IsOK() );
+  uint32_t crc2 = Utils::ComputeCRC32( buffer1, 4*MB );
+  crc2 = Utils::UpdateCRC32( crc2, buffer2, 4*MB );
+  CPPUNIT_ASSERT( f2.Close().IsOK() );
+
+  CPPUNIT_ASSERT( crc1 == crc2 );
+
+  //----------------------------------------------------------------------------
+  // Truncate test
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f1.Open( fileUrl, OpenFlags::Delete | OpenFlags::Update,
+                           Access::UR | Access::UW ).IsOK() );
+  CPPUNIT_ASSERT( f1.Truncate( 20*MB ).IsOK() );
+  CPPUNIT_ASSERT( f1.Close().IsOK() );
+  Query query( url );
+  StatInfo *response = 0;
+  CPPUNIT_ASSERT( query.Stat( filePath, response ).IsOK() );
+  CPPUNIT_ASSERT( response );
+  CPPUNIT_ASSERT( response->GetSize() == 20*MB );
+  CPPUNIT_ASSERT( query.Rm( filePath ).IsOK() );
 }
