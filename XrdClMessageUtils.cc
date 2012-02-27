@@ -23,7 +23,9 @@ namespace XrdClient
                                     Message         *msg,
                                     ResponseHandler *handler,
                                     uint16_t         timeout,
-                                    bool             followRedirects )
+                                    bool             followRedirects,
+                                    char            *userBuffer,
+                                    uint32_t         userBufferSize )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -67,6 +69,7 @@ namespace XrdClient
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
     msgHandler->SetTimeout( timeout );
     msgHandler->SetRedirectAsAnswer( !followRedirects );
+    msgHandler->SetUserBuffer( userBuffer, userBufferSize );
 
     st = postMaster->Send( url, msg, msgHandler, 300 );
     if( !st.IsOK() )

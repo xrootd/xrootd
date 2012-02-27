@@ -405,6 +405,13 @@ namespace XrdClient
         req->open.mode    = htons( req->open.mode );
         req->open.options = htons( req->open.options );
         break;
+
+      //------------------------------------------------------------------------
+      // kXR_read
+      //------------------------------------------------------------------------
+      case kXR_read:
+        req->read.offset = htonll( req->read.offset );
+        req->read.rlen   = htonl( req->read.rlen );
     };
 
     req->header.requestid = htons( req->header.requestid );

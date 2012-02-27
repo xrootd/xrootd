@@ -130,7 +130,9 @@ namespace XrdClient
                                  Message         *msg,
                                  ResponseHandler *handler,
                                  uint16_t         timeout,
-                                 bool             followRedirects = true );
+                                 bool             followRedirects = true,
+                                 char            *userBuffer      = 0,
+                                 uint32_t         userBufferSize  = 0 );
 
   };
 }

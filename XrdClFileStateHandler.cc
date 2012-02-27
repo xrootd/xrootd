@@ -371,12 +371,34 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  XRootDStatus FileStateHandler::Read( uint64_t         /*offset*/,
-                                       uint32_t         /*size*/,
-                                       void            */*buffer*/,
-                                       ResponseHandler */*handler*/,
-                                       uint16_t         /*timeout*/ )
+  XRootDStatus FileStateHandler::Read( uint64_t         offset,
+                                       uint32_t         size,
+                                       void            *buffer,
+                                       ResponseHandler *handler,
+                                       uint16_t         timeout )
   {
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_read request of %d bytes at %ld "
+                         "offset for file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         size, offset, *((uint32_t*)pFileHandle) );
+
+    Message           *msg;
+    ClientReadRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_read;
+    req->offset     = offset;
+    req->rlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false, (char*)buffer, size );
+
+    if( !st.IsOK() )
+      return st;
+
     return XRootDStatus();
   }
 

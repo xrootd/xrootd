@@ -113,24 +113,29 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Read( uint64_t         /*offset*/,
-                           uint32_t         /*size*/,
-                           void            */*buffer*/,
-                           ResponseHandler */*handler*/,
-                           uint16_t         /*timeout*/ )
+  XRootDStatus File::Read( uint64_t         offset,
+                           uint32_t         size,
+                           void            *buffer,
+                           ResponseHandler *handler,
+                           uint16_t         timeout )
   {
-    return XRootDStatus();
+    return pStateHandler->Read( offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Read( uint64_t  /*offset*/,
-                           uint32_t  /*size*/,
-                           void     */*buffer*/,
-                           uint16_t  /*timeout*/ )
+  XRootDStatus File::Read( uint64_t  offset,
+                           uint32_t  size,
+                           void     *buffer,
+                           uint16_t  timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Read( offset, size, buffer, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForStatus( &handler );
   }
 
   //----------------------------------------------------------------------------

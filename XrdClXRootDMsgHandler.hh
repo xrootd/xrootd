@@ -45,7 +45,9 @@ namespace XrdClient
         pUrl( *url ),
         pSidMgr( sidMgr ),
         pTimeout( 300 ),
-        pRedirectAsAnswer( false )
+        pRedirectAsAnswer( false ),
+        pUserBuffer( 0 ),
+        pUserBufferSize( 0 )
       {
         pPostMaster   = DefaultEnv::GetPostMaster();
         pRedirections = new ResponseHandler::URLList;
@@ -111,6 +113,16 @@ namespace XrdClient
         pRedirectAsAnswer = redirectAsAnswer;
       }
 
+      //------------------------------------------------------------------------
+      //! Set user buffer that will be used as a destination for read and
+      //! readv requests
+      //------------------------------------------------------------------------
+      void SetUserBuffer( char *buffer, uint32_t size )
+      {
+        pUserBuffer     = buffer;
+        pUserBufferSize = size;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Unpack the message and call the response handler
@@ -150,6 +162,8 @@ namespace XrdClient
       uint16_t                  pTimeout;
       bool                      pRedirectAsAnswer;
       ResponseHandler::URLList *pRedirections;
+      char                     *pUserBuffer;
+      uint32_t                  pUserBufferSize;
   };
 }
 

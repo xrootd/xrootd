@@ -427,20 +427,61 @@ namespace XrdClient
     {
       buffer = rsp->body.buffer.data;
       length = rsp->hdr.dlen;
+
+      //------------------------------------------------------------------------
+      // We need to copy the response to the user supplied buffer
+      //------------------------------------------------------------------------
+      if( pUserBuffer )
+      {
+        if( pUserBufferSize < length )
+        {
+          log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
+                                 "supplied buffer is to small: %d bytes; got "
+                                 "%d bytes of response data",
+                                 pUrl.GetHostId().c_str(), pRequest,
+                                 pUserBufferSize, length );
+          return 0;
+        }
+        memcpy( pUserBuffer, buffer, length );
+      }
     }
     //--------------------------------------------------------------------------
-    // Partial answers, we need to glue them together before parsing,
-    // we first calculate the total size and then concatenate all the buffers
+    // Partial answers, we need to glue them together before parsing
     //--------------------------------------------------------------------------
     else
     {
+      //------------------------------------------------------------------------
+      // Calculate the total size of the response
+      //------------------------------------------------------------------------
       for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       {
         ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
         length += part->hdr.dlen;
       }
       length += rsp->hdr.dlen;
-      buff.Allocate( length );
+
+      //------------------------------------------------------------------------
+      // Check if we have enough space in the user supplied buffer if we need
+      // to copy it there
+      //------------------------------------------------------------------------
+      if( pUserBuffer && pUserBufferSize < length )
+      {
+        log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
+                               "supplied buffer is to small: %d bytes; got "
+                               "%d bytes of response data",
+                               pUrl.GetHostId().c_str(), pRequest,
+                               pUserBufferSize, length );
+        return 0;
+      }
+
+      //------------------------------------------------------------------------
+      // Allocate the buffer
+      //------------------------------------------------------------------------
+      if( pUserBuffer )
+        buff.Grab( pUserBuffer, pUserBufferSize );
+      else
+        buff.Allocate( length );
+
       uint32_t offset = 0;
       for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       {
@@ -450,6 +491,12 @@ namespace XrdClient
       }
       buff.Append( rsp->body.buffer.data, rsp->hdr.dlen, offset );
       buffer = buff.GetBuffer();
+
+      //------------------------------------------------------------------------
+      // If the buffer was given by the user we won't manage it's memory
+      //------------------------------------------------------------------------
+      if( pUserBuffer )
+        buff.Release();
     }
 
     //--------------------------------------------------------------------------
@@ -459,7 +506,7 @@ namespace XrdClient
     {
       //------------------------------------------------------------------------
       // kXR_mv, kXR_truncate, kXR_rm, kXR_mkdir, kXR_rmdir, kXR_chmod,
-      // kXR_ping
+      // kXR_ping, kXR_close, kXR_read
       //------------------------------------------------------------------------
       case kXR_mv:
       case kXR_truncate:
@@ -468,6 +515,8 @@ namespace XrdClient
       case kXR_rmdir:
       case kXR_chmod:
       case kXR_ping:
+      case kXR_close:
+      case kXR_read:
         return 0;
 
       //------------------------------------------------------------------------

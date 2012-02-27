@@ -116,7 +116,7 @@ namespace XrdClient
 
 
       //------------------------------------------------------------------------
-      //! Read a data chunk at a given offset - sync
+      //! Read a data chunk at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be read
