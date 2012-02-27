@@ -158,4 +158,39 @@ namespace XrdClient
     return XRootDStatus();
   }
 
+  //----------------------------------------------------------------------------
+  // Commit all pending disk writes - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Sync( ResponseHandler */*handler*/,
+                           uint16_t         /*timeout*/ )
+  {
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Commit all pending disk writes - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Sync( uint16_t /*timeout*/ )
+  {
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Truncate the file to a particular size - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Truncate( uint64_t         /*size*/,
+                               ResponseHandler */*handler*/,
+                               uint16_t         /*timeout*/ )
+  {
+    return XRootDStatus();
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Truncate the file to a particular size - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Truncate( uint64_t /*size*/, uint16_t /*timeout*/ )
+  {
+    return XRootDStatus();
+  }
 }
