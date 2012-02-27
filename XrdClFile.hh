@@ -87,6 +87,35 @@ namespace XrdClient
       XRootDStatus Close( uint16_t timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Obtain status information for this file - async
+      //!
+      //! @param force   do not use the cached information, force re-stating
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a StatInfo object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Stat( bool             force,
+                         ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Obtain status information for this file - sync
+      //!
+      //! @param force   do not use the cached information, force re-stating
+      //! @param response the response (to be deleted by the user)
+      //! @param timeout  timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Stat( bool       force,
+                         StatInfo *&response,
+                         uint16_t   timeout = 0 );
+
+
+      //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
       //!
       //! @param offset  offset from the beginning of the file

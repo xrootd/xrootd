@@ -129,7 +129,8 @@ namespace XrdClient
       static Status SendMessage( const URL       &url,
                                  Message         *msg,
                                  ResponseHandler *handler,
-                                 uint16_t         timeout );
+                                 uint16_t         timeout,
+                                 bool             followRedirects = true );
 
   };
 }

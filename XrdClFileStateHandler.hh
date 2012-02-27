@@ -12,6 +12,8 @@
 
 namespace XrdClient
 {
+  class Message;
+
   //----------------------------------------------------------------------------
   //! Handle the statefull operations
   //----------------------------------------------------------------------------
@@ -69,6 +71,44 @@ namespace XrdClient
                           uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Obtain status information for this file - async
+      //!
+      //! @param force   do not use the cached information, force re-stating
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a StatInfo object
+      //!                if the procedure is successfull
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                be used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Stat( bool             force,
+                         ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+
+      //------------------------------------------------------------------------
+      //! Read a data chunk at a given offset - sync
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be read
+      //! @param buffer  a pointer to a buffer big enough to hold the data
+      //!                or 0 if the buffer should be allocated by the system
+      //! @param handler handler to be notified when the response arrives,
+      //!                the response parameter will hold a buffer object if
+      //!                the procedure was successful, if a prealocated
+      //!                buffer was specified then the buffer object will
+      //!                "wrap" this buffer
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Read( uint64_t         offset,
+                         uint32_t         size,
+                         void            *buffer,
+                         ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void SetOpenStatus( const XRootDStatus             *status,
@@ -79,6 +119,28 @@ namespace XrdClient
       //! Process the results of the closing operation
       //------------------------------------------------------------------------
       void SetCloseStatus( const XRootDStatus *status );
+
+      //------------------------------------------------------------------------
+      //! Handle an error while sending a stateful message
+      //------------------------------------------------------------------------
+      void HandleStateError( XRootDStatus    *status,
+                             Message         *message,
+                             ResponseHandler *userHandler );
+
+      //------------------------------------------------------------------------
+      //! Handle stateful redirect
+      //------------------------------------------------------------------------
+      void HandleRedirection( URL             *targetUrl,
+                              Message         *message,
+                              ResponseHandler *userHandler );
+
+      //------------------------------------------------------------------------
+      //! Handle stateful response
+      //------------------------------------------------------------------------
+      void HandleResponse( XRootDStatus             *status,
+                           Message                  *message,
+                           AnyObject                *response,
+                           ResponseHandler::URLList *urlList );
 
     private:
       XrdSysMutex   pMutex;

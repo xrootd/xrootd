@@ -22,7 +22,8 @@ namespace XrdClient
   Status MessageUtils::SendMessage( const URL       &url,
                                     Message         *msg,
                                     ResponseHandler *handler,
-                                    uint16_t         timeout )
+                                    uint16_t         timeout,
+                                    bool             followRedirects )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -65,6 +66,7 @@ namespace XrdClient
     XRootDMsgHandler *msgHandler;
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
     msgHandler->SetTimeout( timeout );
+    msgHandler->SetRedirectAsAnswer( !followRedirects );
 
     st = postMaster->Send( url, msg, msgHandler, 300 );
     if( !st.IsOK() )

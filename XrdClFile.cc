@@ -85,6 +85,32 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Obtain status information for this file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Stat( bool             force,
+                           ResponseHandler *handler,
+                           uint16_t         timeout )
+  {
+    return pStateHandler->Stat( force, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Obtain status information for this file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Stat( bool       force,
+                           StatInfo *&response,
+                           uint16_t   timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Stat( force, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+
+  //----------------------------------------------------------------------------
   // Read a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
   XRootDStatus File::Read( uint64_t         /*offset*/,

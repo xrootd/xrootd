@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 
 namespace
 {
@@ -78,7 +79,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       CloseHandler( XrdClient::FileStateHandler *stateHandler,
-                   XrdClient::ResponseHandler  *userHandler ):
+                    XrdClient::ResponseHandler  *userHandler ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler )
       {
@@ -101,6 +102,72 @@ namespace
       XrdClient::ResponseHandler  *pUserHandler;
   };
 
+  //----------------------------------------------------------------------------
+  // Stateful message handler
+  //----------------------------------------------------------------------------
+  class StatefulHandler: public XrdClient::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      StatefulHandler( XrdClient::FileStateHandler *stateHandler,
+                       XrdClient::ResponseHandler  *userHandler,
+                       XrdClient::Message          *message ):
+        pStateHandler( stateHandler ),
+        pUserHandler( userHandler ),
+        pMessage( message )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponse( XrdClient::XRootDStatus *status,
+                                   XrdClient::AnyObject    *response,
+                                   URLList                 *urlList )
+      {
+        using namespace XrdClient;
+        std::auto_ptr<StatefulHandler> self( this );
+        std::auto_ptr<XRootDStatus>    statusPtr( status );
+        std::auto_ptr<AnyObject>       responsePtr( response );
+        std::auto_ptr<URLList>         urlListPtr( urlList );
+
+        //----------------------------------------------------------------------
+        // Houston we have a problem...
+        //----------------------------------------------------------------------
+        if( !status->IsOK() )
+        {
+          pStateHandler->HandleStateError( status, pMessage, pUserHandler );
+//          return;
+        }
+
+        //----------------------------------------------------------------------
+        // We have been sent out elsewhere
+        //----------------------------------------------------------------------
+        if( status->IsOK() && status->code == suXRDRedirect )
+        {
+          URL *target = 0;
+          response->Get( target );
+          pStateHandler->HandleRedirection( target, pMessage, pUserHandler );
+          return;
+        }
+
+        //----------------------------------------------------------------------
+        // We're clear
+        //----------------------------------------------------------------------
+        statusPtr.release();
+        responsePtr.release();
+        urlListPtr.release();
+        pStateHandler->HandleResponse( status, pMessage, response, urlList );
+        pUserHandler->HandleResponse( status, response, urlList );
+      }
+
+    private:
+      XrdClient::FileStateHandler *pStateHandler;
+      XrdClient::ResponseHandler  *pUserHandler;
+      XrdClient::Message          *pMessage;
+  };
 }
 
 namespace XrdClient
@@ -250,9 +317,72 @@ namespace XrdClient
     return XRootDStatus();
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Stat the file
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Stat( bool             force,
+                                       ResponseHandler *handler,
+                                       uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
+    //--------------------------------------------------------------------------
+    // Return the cached info
+    //--------------------------------------------------------------------------
+    if( !force )
+    {
+      AnyObject *obj = new AnyObject();
+      obj->Set( new StatInfo( *pStatInfo ) );
+      handler->HandleResponse( new XRootDStatus(),
+                               obj,
+                               new ResponseHandler::URLList() );
+      return XRootDStatus();
+    }
+
+    //--------------------------------------------------------------------------
+    // Issue a new stat request
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         *((uint32_t*)pFileHandle) );
+
+    Message           *msg;
+    ClientStatRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid  = kXR_stat;
+    req->options    = 0;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Read a data chunk at a given offset - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Read( uint64_t         /*offset*/,
+                                       uint32_t         /*size*/,
+                                       void            */*buffer*/,
+                                       ResponseHandler */*handler*/,
+                                       uint16_t         /*timeout*/ )
+  {
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
   // Process the results of the opening operation
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void FileStateHandler::SetOpenStatus(
                            const XRootDStatus             *status,
                            const OpenInfo                 *openInfo,
@@ -303,5 +433,51 @@ namespace XrdClient
   {
     pStatus    = *status;
     pFileState = Closed;
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle an error while sending a stateful message
+  //----------------------------------------------------------------------------
+  void FileStateHandler::HandleStateError( XRootDStatus    */*status*/,
+                                           Message         */*message*/,
+                                           ResponseHandler */*userHandler*/ )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle stateful redirect
+  //----------------------------------------------------------------------------
+  void FileStateHandler::HandleRedirection( URL             */*targetUrl*/,
+                                            Message         */*message*/,
+                                            ResponseHandler */*userHandler*/ )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Handle stateful response
+  //----------------------------------------------------------------------------
+  void FileStateHandler::HandleResponse( XRootDStatus             *status,
+                                         Message                  *message,
+                                         AnyObject                *response,
+                                         ResponseHandler::URLList */*urlList*/ )
+  {
+    XRootDTransport::UnMarshallRequest( message );
+    ClientRequest *req = (ClientRequest*)message->GetBuffer();
+
+    if( !status->IsOK() )
+      return;
+
+    switch( req->header.requestid )
+    {
+      //------------------------------------------------------------------------
+      // Cache the stat response
+      //------------------------------------------------------------------------
+      case kXR_stat:
+      {
+        StatInfo *info = 0;
+        response->Get( info );
+        pStatInfo = new StatInfo( *info );
+      }
+    };
   }
 }
