@@ -129,12 +129,39 @@ void FileTest::ReadTest()
   char *buffer1 = new char[4*MB];
   char *buffer2 = new char[4*MB];
   File f;
+  StatInfo *stat;
+
+  //----------------------------------------------------------------------------
+  // Open the file
+  //----------------------------------------------------------------------------
   CPPUNIT_ASSERT( f.Open( fileUrl, OpenFlags::Read ).IsOK() );
+
+  //----------------------------------------------------------------------------
+  // Stat1
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f.Stat( false, stat ).IsOK() );
+  CPPUNIT_ASSERT( stat );
+  CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
+  CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
+  delete stat;
+
+  //----------------------------------------------------------------------------
+  // Stat2
+  //----------------------------------------------------------------------------
+//  CPPUNIT_ASSERT( f.Stat( true, stat ).IsOK() );
+//  CPPUNIT_ASSERT( stat );
+//  CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
+//  CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
+//  delete stat;
+
+  //----------------------------------------------------------------------------
+  // Read test
+  //----------------------------------------------------------------------------
   CPPUNIT_ASSERT( f.Read( 10*MB, 4*MB, buffer1 ).IsOK() );
   CPPUNIT_ASSERT( f.Read( 20*MB, 4*MB, buffer2 ).IsOK() );
   uint32_t crc = Utils::ComputeCRC32( buffer1, 4*MB );
   crc = Utils::UpdateCRC32( crc, buffer2, 4*MB );
-  CPPUNIT_ASSERT( crc == 450018373 );
+  CPPUNIT_ASSERT( crc == 1304813676 );
   delete [] buffer1;
   delete [] buffer2;
 }
