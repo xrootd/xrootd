@@ -207,8 +207,10 @@ void FileTest::WriteTest()
   const uint32_t MB = 1024*1024;
   char *buffer1 = new char[4*MB];
   char *buffer2 = new char[4*MB];
-  uint32_t bytesProcessed1 = 0;
-  uint32_t bytesProcessed2 = 0;
+  char *buffer3 = new char[4*MB];
+  char *buffer4 = new char[4*MB];
+  uint32_t bytesRead1 = 0;
+  uint32_t bytesRead2 = 0;
   File f1, f2;
 
   CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
@@ -229,15 +231,18 @@ void FileTest::WriteTest()
   //----------------------------------------------------------------------------
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
+  StatInfo *stat = 0;
   CPPUNIT_ASSERT( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  CPPUNIT_ASSERT( f2.Read( 0, 4*MB, buffer1, bytesProcessed1 ).IsOK() );
-  CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer2, bytesProcessed2 ).IsOK() );
-  CPPUNIT_ASSERT( bytesProcessed1 == 4*MB );
-  CPPUNIT_ASSERT( bytesProcessed2 == 4*MB );
-  uint32_t crc2 = Utils::ComputeCRC32( buffer1, 4*MB );
-  crc2 = Utils::UpdateCRC32( crc2, buffer2, 4*MB );
+  CPPUNIT_ASSERT( f2.Stat( false, stat ).IsOK() );
+  CPPUNIT_ASSERT( stat );
+  CPPUNIT_ASSERT( stat->GetSize() == 8*MB );
+  CPPUNIT_ASSERT( f2.Read( 0, 4*MB, buffer3, bytesRead1 ).IsOK() );
+  CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer4, bytesRead2 ).IsOK() );
+  CPPUNIT_ASSERT( bytesRead1 == 4*MB );
+  CPPUNIT_ASSERT( bytesRead2 == 4*MB );
+  uint32_t crc2 = Utils::ComputeCRC32( buffer3, 4*MB );
+  crc2 = Utils::UpdateCRC32( crc2, buffer4, 4*MB );
   CPPUNIT_ASSERT( f2.Close().IsOK() );
-
   CPPUNIT_ASSERT( crc1 == crc2 );
 
   //----------------------------------------------------------------------------
@@ -253,4 +258,8 @@ void FileTest::WriteTest()
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() == 20*MB );
   CPPUNIT_ASSERT( query.Rm( filePath ).IsOK() );
+  delete [] buffer1;
+  delete [] buffer2;
+  delete [] buffer3;
+  delete [] buffer4;
 }
