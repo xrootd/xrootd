@@ -175,36 +175,48 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Commit all pending disk writes - async
   //----------------------------------------------------------------------------
-  XRootDStatus File::Sync( ResponseHandler */*handler*/,
-                           uint16_t         /*timeout*/ )
+  XRootDStatus File::Sync( ResponseHandler *handler,
+                           uint16_t         timeout )
   {
-    return XRootDStatus();
+    return pStateHandler->Sync( handler, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Commit all pending disk writes - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Sync( uint16_t /*timeout*/ )
+  XRootDStatus File::Sync( uint16_t timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Sync( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
   }
 
   //----------------------------------------------------------------------------
   // Truncate the file to a particular size - async
   //----------------------------------------------------------------------------
-  XRootDStatus File::Truncate( uint64_t         /*size*/,
-                               ResponseHandler */*handler*/,
-                               uint16_t         /*timeout*/ )
+  XRootDStatus File::Truncate( uint64_t         size,
+                               ResponseHandler *handler,
+                               uint16_t         timeout )
   {
-    return XRootDStatus();
+    return pStateHandler->Truncate( size, handler, timeout );
   }
 
 
   //----------------------------------------------------------------------------
   // Truncate the file to a particular size - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Truncate( uint64_t /*size*/, uint16_t /*timeout*/ )
+  XRootDStatus File::Truncate( uint64_t size, uint16_t timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Truncate( size, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
   }
 }

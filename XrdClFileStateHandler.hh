@@ -125,6 +125,31 @@ namespace XrdClient
                           ResponseHandler *handler,
                           uint16_t         timeout = 0 );
 
+
+      //------------------------------------------------------------------------
+      //! Commit all pending disk writes - async
+      //!
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Sync( ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Truncate the file to a particular size - async
+      //!
+      //! @param size    desired size of the file
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Truncate( uint64_t         size,
+                             ResponseHandler *handler,
+                             uint16_t         timeout = 0 );
+
       //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------

@@ -231,7 +231,6 @@ namespace XrdClient
       //------------------------------------------------------------------------
       XRootDStatus Truncate( uint64_t size, uint16_t timeout = 0 );
 
-
     private:
       FileStateHandler *pStateHandler;
   };

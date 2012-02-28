@@ -506,7 +506,7 @@ namespace XrdClient
     {
       //------------------------------------------------------------------------
       // kXR_mv, kXR_truncate, kXR_rm, kXR_mkdir, kXR_rmdir, kXR_chmod,
-      // kXR_ping, kXR_close, kXR_write
+      // kXR_ping, kXR_close, kXR_write, kXR_sync
       //------------------------------------------------------------------------
       case kXR_mv:
       case kXR_truncate:
@@ -517,6 +517,7 @@ namespace XrdClient
       case kXR_ping:
       case kXR_close:
       case kXR_write:
+      case kXR_sync:
         return 0;
 
       //------------------------------------------------------------------------

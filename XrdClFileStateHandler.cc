@@ -450,6 +450,75 @@ namespace XrdClient
   }
 
   //----------------------------------------------------------------------------
+  // Commit all pending disk writes - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Sync( ResponseHandler *handler,
+                                       uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_sync request for file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         *((uint32_t*)pFileHandle) );
+
+    Message           *msg;
+    ClientSyncRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_sync;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Truncate the file to a particular size - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Truncate( uint64_t         size,
+                                           ResponseHandler *handler,
+                                           uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request of size: %ld for "
+                         "file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         size, *((uint32_t*)pFileHandle) );
+
+    Message               *msg;
+    ClientTruncateRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_truncate;
+    memcpy( req->fhandle, pFileHandle, 4 );
+    req->offset = size;
+
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
   // Process the results of the opening operation
   //----------------------------------------------------------------------------
   void FileStateHandler::SetOpenStatus(
