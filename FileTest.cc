@@ -153,11 +153,11 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Stat2
   //----------------------------------------------------------------------------
-//  CPPUNIT_ASSERT( f.Stat( true, stat ).IsOK() );
-//  CPPUNIT_ASSERT( stat );
-//  CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
-//  CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
-//  delete stat;
+  CPPUNIT_ASSERT( f.Stat( true, stat ).IsOK() );
+  CPPUNIT_ASSERT( stat );
+  CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
+  CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
+  delete stat;
 
   //----------------------------------------------------------------------------
   // Read test
