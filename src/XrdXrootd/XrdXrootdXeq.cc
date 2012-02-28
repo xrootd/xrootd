@@ -2007,6 +2007,28 @@ int XrdXrootdProtocol::do_Stat()
    struct stat buf;
    XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID(), Monitor.Did);
 
+// Update misc stats count
+//
+   SI->Bump(SI->miscCnt);
+
+// The stat request may refer to an open file handle. So, screen this out.
+//
+   if (!argp || !Request.header.dlen)
+      {XrdXrootdFile *fp;
+       XrdXrootdFHandle fh(Request.stat.fhandle);
+       if (Request.stat.options & kXR_vfs)
+          {Response.Send(kXR_ArgMissing, "Required argument not present");
+           return 0;
+          }
+       if (!FTab || !(fp = FTab->Get(fh.handle)))
+          return Response.Send(kXR_FileNotOpen,
+                              "stat does not refer to an open file");
+       rc = fp->XrdSfsp->stat(&buf);
+       TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
+       if (SFS_OK == rc) return Response.Send(xxBuff, StatGen(buf, xxBuff));
+       return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+      }
+
 // Check for static routing
 //
    if (Route[RD_stat].Port) 

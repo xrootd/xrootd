@@ -407,10 +407,15 @@ int XrdXrootdProtocol::Process2()
                }
       }
 
+// Construct request ID as the following functions are async eligible
+//
+   ReqID.setID(Request.header.streamid);
+
 // Process items that don't need arguments but may have them
 //
    switch(Request.header.requestid)
-         {case kXR_endsess:   return do_Endsess();
+         {case kXR_stat:      return do_Stat();
+          case kXR_endsess:   return do_Endsess();
           default:            break;
          }
 
@@ -420,10 +425,6 @@ int XrdXrootdProtocol::Process2()
       {Response.Send(kXR_ArgMissing, "Required argument not present");
        return 0;
       }
-
-// Construct request ID as the following functions are async eligible
-//
-   ReqID.setID(Request.header.streamid);
 
 // Process items that keep own statistics
 //
@@ -453,7 +454,6 @@ int XrdXrootdProtocol::Process2()
           case kXR_rm:        return do_Rm();
           case kXR_rmdir:     return do_Rmdir();
           case kXR_set:       return do_Set();
-          case kXR_stat:      return do_Stat();
           case kXR_statx:     return do_Statx();
           case kXR_truncate:  return do_Truncate();
           default:            break;
