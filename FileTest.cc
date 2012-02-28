@@ -131,6 +131,8 @@ void FileTest::ReadTest()
   const uint32_t MB = 1024*1024;
   char *buffer1 = new char[4*MB];
   char *buffer2 = new char[4*MB];
+  uint32_t bytesRead1 = 0;
+  uint32_t bytesRead2 = 0;
   File f;
   StatInfo *stat;
 
@@ -160,8 +162,10 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Read test
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Read( 10*MB, 4*MB, buffer1 ).IsOK() );
-  CPPUNIT_ASSERT( f.Read( 20*MB, 4*MB, buffer2 ).IsOK() );
+  CPPUNIT_ASSERT( f.Read( 10*MB, 4*MB, buffer1, bytesRead1 ).IsOK() );
+  CPPUNIT_ASSERT( f.Read( 20*MB, 4*MB, buffer2, bytesRead2 ).IsOK() );
+  CPPUNIT_ASSERT( bytesRead1 == 4*MB );
+  CPPUNIT_ASSERT( bytesRead2 == 4*MB );
   uint32_t crc = Utils::ComputeCRC32( buffer1, 4*MB );
   crc = Utils::UpdateCRC32( crc, buffer2, 4*MB );
   CPPUNIT_ASSERT( crc == 1304813676 );
@@ -203,6 +207,8 @@ void FileTest::WriteTest()
   const uint32_t MB = 1024*1024;
   char *buffer1 = new char[4*MB];
   char *buffer2 = new char[4*MB];
+  uint32_t bytesProcessed1 = 0;
+  uint32_t bytesProcessed2 = 0;
   File f1, f2;
 
   CPPUNIT_ASSERT( Utils::GetRandomBytes( buffer1, 4*MB ) == 4*MB );
@@ -224,8 +230,10 @@ void FileTest::WriteTest()
   // Read the data and verify the checksums
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT( f2.Open( fileUrl, OpenFlags::Read ).IsOK() );
-  CPPUNIT_ASSERT( f2.Read( 0, 4*MB, buffer1 ).IsOK() );
-  CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer2 ).IsOK() );
+  CPPUNIT_ASSERT( f2.Read( 0, 4*MB, buffer1, bytesProcessed1 ).IsOK() );
+  CPPUNIT_ASSERT( f2.Read( 4*MB, 4*MB, buffer2, bytesProcessed2 ).IsOK() );
+  CPPUNIT_ASSERT( bytesProcessed1 == 4*MB );
+  CPPUNIT_ASSERT( bytesProcessed2 == 4*MB );
   uint32_t crc2 = Utils::ComputeCRC32( buffer1, 4*MB );
   crc2 = Utils::UpdateCRC32( crc2, buffer2, 4*MB );
   CPPUNIT_ASSERT( f2.Close().IsOK() );
