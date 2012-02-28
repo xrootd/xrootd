@@ -412,6 +412,14 @@ namespace XrdClient
       case kXR_read:
         req->read.offset = htonll( req->read.offset );
         req->read.rlen   = htonl( req->read.rlen );
+        break;
+
+      //------------------------------------------------------------------------
+      // kXR_write
+      //------------------------------------------------------------------------
+      case kXR_write:
+        req->write.offset = htonll( req->write.offset );
+        break;
     };
 
     req->header.requestid = htons( req->header.requestid );

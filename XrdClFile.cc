@@ -135,32 +135,41 @@ namespace XrdClient
 
     uint32_t *bytesR = 0;
     XRootDStatus status = MessageUtils::WaitForResponse( &handler, bytesR );
-    bytesRead = *bytesR;
-    delete bytesR;
+    if( status.IsOK() )
+    {
+      bytesRead = *bytesR;
+      delete bytesR;
+    }
     return status;
   }
 
   //----------------------------------------------------------------------------
   // Write a data chank at a given offset - async
   //----------------------------------------------------------------------------
-  XRootDStatus File::Write( uint64_t         /*offset*/,
-                            uint32_t         /*size*/,
-                            void            */*buffer*/,
-                            ResponseHandler */*handler*/,
-                            uint16_t         /*timeout*/ )
+  XRootDStatus File::Write( uint64_t         offset,
+                            uint32_t         size,
+                            void            *buffer,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
   {
-    return XRootDStatus();
+    return pStateHandler->Write( offset, size, buffer, handler, timeout );
   }
 
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Write( uint64_t  /*offset*/,
-                            uint32_t  /*size*/,
-                            void     */*buffer*/,
-                            uint16_t  /*timeout*/ )
+  XRootDStatus File::Write( uint64_t  offset,
+                            uint32_t  size,
+                            void     *buffer,
+                            uint16_t  timeout )
   {
-    return XRootDStatus();
+    SyncResponseHandler handler;
+    Status st = Write( offset, size, buffer, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    XRootDStatus status = MessageUtils::WaitForStatus( &handler );
+    return status;
   }
 
   //----------------------------------------------------------------------------

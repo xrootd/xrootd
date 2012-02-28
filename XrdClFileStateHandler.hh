@@ -109,6 +109,23 @@ namespace XrdClient
                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Write a data chank at a given offset - async
+      //!
+      //! @param offset  offset from the beginning of the file
+      //! @param size    number of bytes to be written
+      //! @param buffer  a pointer to the buffer holding the data to be written
+      //! @param handler handler to be notified when the response arrives
+      //! @param timeout timeout value, if 0 the environment default will be
+      //!                used
+      //! @return        status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Write( uint64_t         offset,
+                          uint32_t         size,
+                          void            *buffer,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Process the results of the opening operation
       //------------------------------------------------------------------------
       void SetOpenStatus( const XRootDStatus             *status,

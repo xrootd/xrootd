@@ -378,6 +378,12 @@ namespace XrdClient
                                        ResponseHandler *handler,
                                        uint16_t         timeout )
   {
+
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_read request of %d bytes at %ld "
                          "offset for file handle 0x%x",
@@ -396,6 +402,46 @@ namespace XrdClient
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
     Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
                                            timeout, false, (char*)buffer, size );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Write a data chank at a given offset - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Write( uint64_t         offset,
+                                        uint32_t         size,
+                                        void            *buffer,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_write request of %d bytes at %ld "
+                         "offset for file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         size, offset, *((uint32_t*)pFileHandle) );
+
+    Message            *msg;
+    ClientWriteRequest *req;
+    MessageUtils::CreateRequest( msg, req, size );
+
+    req->requestid  = kXR_write;
+    req->offset     = offset;
+    req->dlen       = size;
+    memcpy( req->fhandle, pFileHandle, 4 );
+    msg->Append( (char*)buffer, size, 24 );
+
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false );
 
     if( !st.IsOK() )
       return st;

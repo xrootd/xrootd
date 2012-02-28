@@ -138,14 +138,14 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Read a data chunk at a given offset - sync
       //!
-      //! @param offset  offset from the beginning of the file
-      //! @param size    number of bytes to be read
-      //! @param buffer  a pointer to a buffer big enough to hold the data
-      //!                or 0 if the buffer should be allocated by the system
+      //! @param offset    offset from the beginning of the file
+      //! @param size      number of bytes to be read
+      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //!                  or 0 if the buffer should be allocated by the system
       //! @param bytesRead number of bytes actually read
-      //! @param timeout timeout value, if 0 the environment default will be
-      //!                used
-      //! @return        status of the operation
+      //! @param timeout   timeout value, if 0 the environment default will be
+      //!                  used
+      //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Read( uint64_t  offset,
                          uint32_t  size,
@@ -175,10 +175,11 @@ namespace XrdClient
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
-      //! @param buffer  a pointer to the buffer holding the data to be written
-      //! @param timeout timeout value, if 0 the environment default will be
-      //!                used
-      //! @return        status of the operation
+      //! @param buffer  a pointer to the buffer holding the data to be
+      //!                written
+      //! @param timeout timeout value, if 0 the environment default will
+      //!                 be used
+      //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Write( uint64_t  offset,
                           uint32_t  size,
