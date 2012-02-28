@@ -352,12 +352,16 @@ namespace XrdClient
                          pDataServer->GetHostId().c_str(),
                          *((uint32_t*)pFileHandle) );
 
+    // stating a file handle doesn't work (fixed in 3.2.0) so we need to
+    // stat the path
     Message           *msg;
     ClientStatRequest *req;
-    MessageUtils::CreateRequest( msg, req );
+    std::string        path = pFileUrl->GetPath();
+    MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid = kXR_stat;
-    memcpy( req->fhandle, pFileHandle, 4 );
+    req->dlen = path.length();
+    msg->Append( path.c_str(), req->dlen, 24 );
 
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
     Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
