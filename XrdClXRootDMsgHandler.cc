@@ -516,7 +516,6 @@ namespace XrdClient
       case kXR_chmod:
       case kXR_ping:
       case kXR_close:
-      case kXR_read:
         return 0;
 
       //------------------------------------------------------------------------
@@ -621,6 +620,20 @@ namespace XrdClient
 
         OpenInfo *data = new OpenInfo( (uint8_t*)buffer, statInfo );
         obj->Set( data );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_read - we need to pass the length of the buffer to the user code
+      //------------------------------------------------------------------------
+      case kXR_read:
+      {
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as int*",
+                              pUrl.GetHostId().c_str(), pRequest );
+        AnyObject *obj = new AnyObject();
+        uint32_t  *len = new uint32_t;
+        *len = length;
+        obj->Set( len );
         return obj;
       }
 

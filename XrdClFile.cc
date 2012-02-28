@@ -125,6 +125,7 @@ namespace XrdClient
   XRootDStatus File::Read( uint64_t  offset,
                            uint32_t  size,
                            void     *buffer,
+                           uint32_t &bytesRead,
                            uint16_t  timeout )
   {
     SyncResponseHandler handler;
@@ -132,7 +133,11 @@ namespace XrdClient
     if( !st.IsOK() )
       return st;
 
-    return MessageUtils::WaitForStatus( &handler );
+    uint32_t *bytesR = 0;
+    XRootDStatus status = MessageUtils::WaitForResponse( &handler, bytesR );
+    bytesRead = *bytesR;
+    delete bytesR;
+    return status;
   }
 
   //----------------------------------------------------------------------------

@@ -142,6 +142,7 @@ namespace XrdClient
       //! @param size    number of bytes to be read
       //! @param buffer  a pointer to a buffer big enough to hold the data
       //!                or 0 if the buffer should be allocated by the system
+      //! @param bytesRead number of bytes actually read
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
@@ -149,6 +150,7 @@ namespace XrdClient
       XRootDStatus Read( uint64_t  offset,
                          uint32_t  size,
                          void     *buffer,
+                         uint32_t &bytesRead,
                          uint16_t  timeout = 0 );
 
       //------------------------------------------------------------------------
