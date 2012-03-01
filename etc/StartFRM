@@ -71,22 +71,21 @@ xPID () {
        }
 
 Xeq () {
-       if [ $DOSU -eq 1 ]; then
-          $TEST /bin/su $XRDUSER -c "$* &"
-       else
-          $TEST $* &
-       fi
+       $TEST $* &
        if [ $? -ne 0 ]; then
-          EXITRC=1
+           EXITRC=1
        fi
-       }
-  
+    }
+ 
 #******************************************************************************#
 #*                                  M a i n                                   *#
 #******************************************************************************#
   
 # Pick up options
 #
+
+XRDPARMS=$*
+
 while test -n "$1"; do
      if [ "$1" = "-d" ]; then
         set -x
@@ -122,16 +121,18 @@ else
      exit 1
 fi
 
-# See if we should su to the right user for the frm component
-#
-SFXMSG=
-  if [ "$XRDUSER" = "$MYNAME" ]; then
-     DOSU=0
-elif [ "$MYNAME" = "root" ]; then
-     DOSU=1
-else
-     Emsg "$MYNAME cannot start $XRDUSER subsystems!"
-     exit 4
+# See if we should su to the right user for the frm component. On Solaris 
+# /bin/su doesn't forward the current environment variables and one has to 
+# su to the XRDUSER and run the Start script again.
+
+PROGRAM=$XRDCFG/$PROGRAM
+if [ $MYNAME = root ]; then
+    if [ $XRDUSER != root ]; then
+        $TEST export LD_LIBRARY_PATH
+        $TEST exec su $XRDUSER -c "$PROGRAM $XRDPARMS"
+    fi
+elif [ $MYNAME != $XRDUSER ]; then
+    Emsg "$MYNAME cannot start $XRDUSER FRM subsystems!"
 fi
 
 # Now set the LD_LIBRARY_PATH variable
