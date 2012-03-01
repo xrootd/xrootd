@@ -382,7 +382,6 @@ namespace XrdClient
                                        ResponseHandler *handler,
                                        uint16_t         timeout )
   {
-
     XrdSysMutexHelper scopedLock( pMutex );
 
     if( pFileState != Opened )
@@ -515,6 +514,64 @@ namespace XrdClient
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
     Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
                                            timeout, false );
+
+    if( !st.IsOK() )
+      return st;
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Read scattered data chunks in one operation - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::VectorRead( const ChunkList &chunks,
+                                             void            *buffer,
+                                             ResponseHandler *handler,
+                                             uint16_t         timeout )
+  {
+    //--------------------------------------------------------------------------
+    // Sanity check
+    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( QueryMsg, "[%s] Sending a kXR_readv request of %d chunks "
+                         "for file handle 0x%x",
+                         pDataServer->GetHostId().c_str(),
+                         chunks.size(), *((uint32_t*)pFileHandle) );
+
+    //--------------------------------------------------------------------------
+    // Build the message
+    //--------------------------------------------------------------------------
+    Message            *msg;
+    ClientReadVRequest *req;
+    MessageUtils::CreateRequest( msg, req, sizeof(readahead_list)*chunks.size() );
+
+    req->requestid = kXR_readv;
+    req->dlen      = sizeof(readahead_list)*chunks.size();
+
+    uint32_t size  = 0;
+    //--------------------------------------------------------------------------
+    // Copy the chunk info
+    //--------------------------------------------------------------------------
+    readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
+    for( size_t i = 0; i < chunks.size(); ++i )
+    {
+      dataChunk[i].rlen   = chunks[i].length;
+      dataChunk[i].offset = chunks[i].offset;
+      memcpy( dataChunk[i].fhandle, pFileHandle, 4 );
+      size       += chunks[i].length;
+    }
+
+    //--------------------------------------------------------------------------
+    // Send the message
+    //--------------------------------------------------------------------------
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
+                                           timeout, false, (char*)buffer, size );
 
     if( !st.IsOK() )
       return st;

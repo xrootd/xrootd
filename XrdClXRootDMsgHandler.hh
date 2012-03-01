@@ -151,6 +151,15 @@ namespace XrdClient
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 
+      //------------------------------------------------------------------------
+      // Unpack vector read
+      //------------------------------------------------------------------------
+      Status UnpackVectorRead( VectorReadInfo *vReadInfo,
+                               char           *targetBuffer,
+                               uint32_t        targetBufferSize,
+                               char           *sourceBuffer,
+                               uint32_t        sourceBufferSize );
+
       Message                  *pRequest;
       Message                  *pResponse;
       std::vector<Message *>    pPartialResps;

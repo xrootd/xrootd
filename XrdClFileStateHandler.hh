@@ -8,6 +8,7 @@
 #define __XRD_CL_FILE_STATE_HANDLER_HH__
 
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClQuery.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdClient
@@ -149,6 +150,21 @@ namespace XrdClient
       XRootDStatus Truncate( uint64_t         size,
                              ResponseHandler *handler,
                              uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Read scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorRead( const ChunkList &chunks,
+                               void            *buffer,
+                               ResponseHandler *handler,
+                               uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Process the results of the opening operation

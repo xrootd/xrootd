@@ -14,6 +14,9 @@
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 
+
+#include <arpa/inet.h>              // for network unmarshalling stuff
+#include "XrdSys/XrdSysPlatform.hh" // same as above
 #include <memory>
 
 namespace
@@ -416,9 +419,9 @@ namespace XrdClient
     if( rsp->hdr.status != kXR_ok )
       return 0;
 
-    char     *buffer = 0;
-    uint32_t  length = 0;
     Buffer    buff;
+    uint32_t  length = 0;
+    char     *buffer = 0;
 
     //--------------------------------------------------------------------------
     // We don't have any partial answers so pass what we have
@@ -427,32 +430,12 @@ namespace XrdClient
     {
       buffer = rsp->body.buffer.data;
       length = rsp->hdr.dlen;
-
-      //------------------------------------------------------------------------
-      // We need to copy the response to the user supplied buffer
-      //------------------------------------------------------------------------
-      if( pUserBuffer )
-      {
-        if( pUserBufferSize < length )
-        {
-          log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
-                                 "supplied buffer is to small: %d bytes; got "
-                                 "%d bytes of response data",
-                                 pUrl.GetHostId().c_str(), pRequest,
-                                 pUserBufferSize, length );
-          return 0;
-        }
-        memcpy( pUserBuffer, buffer, length );
-      }
     }
     //--------------------------------------------------------------------------
     // Partial answers, we need to glue them together before parsing
     //--------------------------------------------------------------------------
     else
     {
-      //------------------------------------------------------------------------
-      // Calculate the total size of the response
-      //------------------------------------------------------------------------
       for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       {
         ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
@@ -460,28 +443,7 @@ namespace XrdClient
       }
       length += rsp->hdr.dlen;
 
-      //------------------------------------------------------------------------
-      // Check if we have enough space in the user supplied buffer if we need
-      // to copy it there
-      //------------------------------------------------------------------------
-      if( pUserBuffer && pUserBufferSize < length )
-      {
-        log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
-                               "supplied buffer is to small: %d bytes; got "
-                               "%d bytes of response data",
-                               pUrl.GetHostId().c_str(), pRequest,
-                               pUserBufferSize, length );
-        return 0;
-      }
-
-      //------------------------------------------------------------------------
-      // Allocate the buffer
-      //------------------------------------------------------------------------
-      if( pUserBuffer )
-        buff.Grab( pUserBuffer, pUserBufferSize );
-      else
-        buff.Allocate( length );
-
+      buff.Allocate( length );
       uint32_t offset = 0;
       for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       {
@@ -491,12 +453,6 @@ namespace XrdClient
       }
       buff.Append( rsp->body.buffer.data, rsp->hdr.dlen, offset );
       buffer = buff.GetBuffer();
-
-      //------------------------------------------------------------------------
-      // If the buffer was given by the user we won't manage it's memory
-      //------------------------------------------------------------------------
-      if( pUserBuffer )
-        buff.Release();
     }
 
     //--------------------------------------------------------------------------
@@ -632,10 +588,39 @@ namespace XrdClient
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as int*",
                               pUrl.GetHostId().c_str(), pRequest );
+
+        if( pUserBufferSize < length )
+        {
+          log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
+                                 "supplied buffer is to small: %d bytes; got "
+                                 "%d bytes of response data",
+                                 pUrl.GetHostId().c_str(), pRequest,
+                                 pUserBufferSize, length );
+          return 0;
+        }
+        memcpy( pUserBuffer, buffer, length );
+
         AnyObject *obj = new AnyObject();
         uint32_t  *len = new uint32_t;
         *len = length;
         obj->Set( len );
+        return obj;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_readv - we need to pass the length of the buffer to the user code
+      //------------------------------------------------------------------------
+      case kXR_readv:
+      {
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
+                              "VectorReadInfo",
+                              pUrl.GetHostId().c_str(), pRequest );
+
+        VectorReadInfo *info = new VectorReadInfo();
+        UnpackVectorRead( info, pUserBuffer, pUserBufferSize, buffer, length );
+
+        AnyObject *obj = new AnyObject();
+        obj->Set( info );
         return obj;
       }
 
@@ -720,6 +705,52 @@ namespace XrdClient
     }
 
     XRootDTransport::MarshallRequest( pRequest );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Unpack vector read - crazy stuff
+  //----------------------------------------------------------------------------
+  Status XRootDMsgHandler::UnpackVectorRead( VectorReadInfo *vReadInfo,
+                                             char           *targetBuffer,
+                                             uint32_t        targetBufferSize,
+                                             char           *sourceBuffer,
+                                             uint32_t        sourceBufferSize )
+  {
+    Log *log = DefaultEnv::GetLog();
+    int64_t   len          = sourceBufferSize;
+    uint32_t  offset       = 0;
+    char     *cursorSource = sourceBuffer;
+    char     *cursorTarget = targetBuffer;
+    uint32_t  size         = 0;
+
+    while( 1 )
+    {
+      if( offset > len-16 )
+        break;
+
+      readahead_list *chunk = (readahead_list*)(cursorSource);
+      chunk->rlen   = ntohl( chunk->rlen );
+      chunk->offset = ntohll( chunk->offset );
+      size += chunk->rlen;
+      vReadInfo->GetChunks().push_back( Chunk( chunk->offset, chunk->rlen ) );
+
+      if( size > targetBufferSize )
+      {
+        log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
+                               "supplied buffer is to small: %d bytes; got "
+                               "%d bytes of response data",
+                               pUrl.GetHostId().c_str(), pRequest,
+                               targetBufferSize, size );
+        return Status( stError, errInvalidResponse );;
+      }
+
+      memcpy( cursorTarget, cursorSource+16, chunk->rlen );
+      cursorTarget += chunk->rlen;
+      offset += 16 + chunk->rlen;
+      cursorSource = sourceBuffer+offset;
+    }
+    vReadInfo->SetSize( size );
     return Status();
   }
 }

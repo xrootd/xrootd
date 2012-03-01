@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 namespace XrdClient
 {
@@ -141,7 +142,6 @@ namespace XrdClient
       //! @param offset    offset from the beginning of the file
       //! @param size      number of bytes to be read
       //! @param buffer    a pointer to a buffer big enough to hold the data
-      //!                  or 0 if the buffer should be allocated by the system
       //! @param bytesRead number of bytes actually read
       //! @param timeout   timeout value, if 0 the environment default will be
       //!                  used
@@ -231,6 +231,35 @@ namespace XrdClient
       //------------------------------------------------------------------------
       XRootDStatus Truncate( uint64_t size, uint16_t timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Read scattered data chunks in one operation - async
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //! @param handler   handler to be notified when the response arrives
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorRead( const ChunkList &chunks,
+                               void            *buffer,
+                               ResponseHandler *handler,
+                               uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Read scattered data chunks in one operation - sync
+      //!
+      //! @param chunks    list of the chunks to be read
+      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //! @param vReadInfo buffer size and chunk information
+      //! @param timeout   timeout value, if 0 then the environment default
+      //!                  will be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus VectorRead( const ChunkList  &chunks,
+                               void             *buffer,
+                               VectorReadInfo  *&vReadInfo,
+                               uint16_t          timeout = 0 );
     private:
       FileStateHandler *pStateHandler;
   };

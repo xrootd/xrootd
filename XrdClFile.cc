@@ -219,4 +219,31 @@ namespace XrdClient
     XRootDStatus status = MessageUtils::WaitForStatus( &handler );
     return status;
   }
+
+  //----------------------------------------------------------------------------
+  // Read scattered data chunks in one operation - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::VectorRead( const ChunkList &chunks,
+                                 void            *buffer,
+                                 ResponseHandler *handler,
+                                 uint16_t         timeout )
+  {
+    return pStateHandler->VectorRead( chunks, buffer, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Read scattered data chunks in one operation - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::VectorRead( const ChunkList  &chunks,
+                                 void             *buffer,
+                                 VectorReadInfo  *&vReadInfo,
+                                 uint16_t          timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = VectorRead( chunks, buffer, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, vReadInfo );
+  }
 }
