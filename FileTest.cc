@@ -26,10 +26,12 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( RedirectReturnTest );
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
+      CPPUNIT_TEST( VectorReadTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
+    void VectorReadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
@@ -262,4 +264,59 @@ void FileTest::WriteTest()
   delete [] buffer2;
   delete [] buffer3;
   delete [] buffer4;
+}
+
+
+//------------------------------------------------------------------------------
+// Vector read test
+//------------------------------------------------------------------------------
+void FileTest::VectorReadTest()
+{
+  using namespace XrdClient;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  std::string filePath = dataPath + "/a048e67f-4397-4bb8-85eb-8d7e40d90763.dat";
+  std::string fileUrl = address + "/";
+  fileUrl += filePath;
+
+  //----------------------------------------------------------------------------
+  // Fetch some data and checksum
+  //----------------------------------------------------------------------------
+  const uint32_t MB = 1024*1024;
+  char *buffer = new char[4*MB];
+  File f;
+
+  //----------------------------------------------------------------------------
+  // Build the chunk list
+  //----------------------------------------------------------------------------
+  ChunkList chunkList;
+  for( int i = 0; i < 4; ++i )
+    chunkList.push_back( Chunk( (i+1)*10*MB, 1*MB ) );
+
+  //----------------------------------------------------------------------------
+  // Open the file
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( f.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  VectorReadInfo *info = 0;
+  CPPUNIT_ASSERT( f.VectorRead( chunkList, buffer, info ).IsOK() );
+  CPPUNIT_ASSERT( info->GetSize() == 4*MB );
+  delete info;
+  uint32_t crc = Utils::ComputeCRC32( buffer, 4*MB );
+  CPPUNIT_ASSERT( crc == 1844167763 );
+  CPPUNIT_ASSERT( f.Close().IsOK() );
+
+  delete [] buffer;
 }
