@@ -33,6 +33,8 @@ Version 3.1.1
      versions. This should prevent spurious uid/gid translations.
    * Fix RedHat bug #673069: Missing header files required by DPM
    * Don't ignore errors returned by kXR_close
+   * Init scripts: don't change the ownership of the sysconfig files
+     preventing the xrootd user from executing arbitrary code as root
 
 + **Minor bug fixes**
    * Add 'k' to the option list. It was wrongly deleted in the last option
@@ -49,6 +51,9 @@ Version 3.1.1
    * Get the signing certificate for the CRL from its issuer hash, which can be
      different from the CA hash.
    * Add check for the format of the downloaded CRLs: DER or PEM
+   * Solaris init script: switch to xrootd user when invoked as root
+   * RHEL init scripts: always create /var/run/xrootd to handle /var/run
+     being mounted as tmpfs
 
 + **Miscellaneous**
    * Relax requirements on the permission mode of the x509 key files
