@@ -41,6 +41,9 @@ add_library(
                               XrdClRequestSync.hh
   XrdClFile.cc                XrdClFile.hh
   XrdClFileStateHandler.cc    XrdClFileStateHandler.hh
+  XrdClCopyProcess.cc         XrdClCopyProcess.hh
+  XrdClClassicCopyJob.cc      XrdClClassicCopyJob.hh
+  XrdClThirdPartyCopyJob.cc   XrdClThirdPartyCopyJob.hh
 )
 
 target_link_libraries(
