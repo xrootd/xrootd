@@ -298,6 +298,7 @@ exit 0
 %{_includedir}/%{name}/XrdSys
 %{_includedir}/%{name}/Xrd
 %{_includedir}/%{name}/XProtocol
+%{_includedir}/%{name}/XrdCks
 
 %files client
 %defattr(-,root,root,-)
@@ -391,7 +392,6 @@ exit 0
 %{_includedir}/%{name}/XrdPss
 %{_includedir}/%{name}/XrdFrc
 %{_includedir}/%{name}/XrdSfs
-%{_includedir}/%{name}/XrdCks
 
 %files client-admin-perl
 %defattr(-,root,root,-)

@@ -130,6 +130,19 @@ add_library(
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
   Xrd/XrdStats.cc               Xrd/XrdStats.hh
                                 Xrd/XrdTrace.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdCks
+  #-----------------------------------------------------------------------------
+  XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
+  XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
+  XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
+  XrdCks/XrdCksManager.cc          XrdCks/XrdCksManager.hh
+                                   XrdCks/XrdCksCalcadler32.hh
+                                   XrdCks/XrdCksCalc.hh
+                                   XrdCks/XrdCksData.hh
+                                   XrdCks/XrdCks.hh
+                                   XrdCks/XrdCksXAttr.hh
 )
 
 target_link_libraries(
@@ -248,3 +261,9 @@ if( BUILD_BONJOUR )
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdOuc )
 endif()
 
+install(
+  DIRECTORY      XrdCks/
+  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCks
+  FILES_MATCHING
+  PATTERN "*.hh"
+  PATTERN "*.icc" )

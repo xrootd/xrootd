@@ -90,19 +90,6 @@ add_library(
                                   XrdCms/XrdCmsTypes.hh
                                   XrdCms/XrdCmsXmi.hh
   XrdCms/XrdCmsXmiReq.cc          XrdCms/XrdCmsXmiReq.hh
-
-  #-----------------------------------------------------------------------------
-  # XrdCks
-  #-----------------------------------------------------------------------------
-  XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
-  XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
-  XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
-  XrdCks/XrdCksManager.cc          XrdCks/XrdCksManager.hh
-                                   XrdCks/XrdCksCalcadler32.hh
-                                   XrdCks/XrdCksCalc.hh
-                                   XrdCks/XrdCksData.hh
-                                   XrdCks/XrdCks.hh
-                                   XrdCks/XrdCksXAttr.hh
 )
 
 # OSS
@@ -179,10 +166,3 @@ install(
   XrdCms/XrdCmsXmi.hh
   XrdCms/XrdCmsXmiReq.hh
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCms )
-
-install(
-  DIRECTORY      XrdCks/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCks
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )
