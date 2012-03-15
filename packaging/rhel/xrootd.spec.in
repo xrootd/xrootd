@@ -12,9 +12,9 @@ Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
 Release:   __RELEASE__%{?dist}%{?_with_xrootd_user:.xu}
-Summary:   An eXtended Root Daemon (xrootd)
+Summary:   An extended root daemon (xrootd)
 Group:     System Environment/Daemons
-License:   Stanford (modified BSD with advert clause)
+License:   BSD
 URL:       http://xrootd.org/
 
 # git clone http://xrootd.org/repo/xrootd.git xrootd
@@ -28,7 +28,7 @@ BuildRequires: readline-devel openssl-devel fuse-devel
 BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 
 # Perl packaging changed on SLC6 - we require perl-devel to build
-%if 0%{?rhel} >= 6
+%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 15
 BuildRequires: perl-devel
 %endif
 
@@ -356,7 +356,7 @@ exit 0
 %{_libdir}/libXrdPss*.so*
 %{_libdir}/libXrdOfs*.so*
 %{_libdir}/libXrdServer.so*
-%doc %{_mandir}/man8
+%doc %{_mandir}/man8/*
 
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 
