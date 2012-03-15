@@ -116,7 +116,8 @@ enum XLoginCapVer {
 enum XLoginVersion {
    kXR_ver000 = 0,  // Old clients predating history
    kXR_ver001 = 1,  // Generally implemented 2005 protocol
-   kXR_ver002 = 2   // Same as 1 but adds asyncresp recognition
+   kXR_ver002 = 2,  // Same as 1 but adds asyncresp recognition
+   kXR_ver003 = 3   // The 2011-2012 rewritten client
 };
 
 enum XStatRequestOption {
@@ -359,6 +360,7 @@ struct ClientOpenRequest {
    kXR_char  reserved[12];
    kXR_int32  dlen;
 };
+
 struct ClientPingRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
@@ -558,6 +560,11 @@ struct ServerResponseBody_Protocol {
    kXR_int32 flags;
 };
 
+struct ServerResponseBody_Login {
+   kXR_char  sessid[16];
+   kXR_char  sec[4096]; // Should be sufficient for every use
+};
+
 struct ServerResponseBody_Redirect {
    kXR_int32 port;
    char host[4096]; // Should be sufficient for every use
@@ -571,6 +578,10 @@ struct ServerResponseBody_Error {
 struct ServerResponseBody_Wait {
    kXR_int32 seconds;
    char infomsg[4096]; // Should be sufficient for every use
+};
+
+struct ServerResponseBody_Waitresp {
+   kXR_int32 seconds;
 };
 
 struct ServerResponseBody_Attn {
@@ -600,6 +611,31 @@ struct ServerResponseBody_Attn_asyncdi {
    kXR_int32 actnum;
    kXR_int32 wsec;
    kXR_int32 msec;
+};
+
+struct ServerResponseBody_Authmore {
+   char data[4096];
+};
+
+struct ServerResponseBody_Buffer {
+   char data[4096];
+};
+
+struct ServerResponse
+{
+  ServerResponseHeader hdr;
+  union
+  {
+    ServerResponseBody_Error    error;
+    ServerResponseBody_Authmore authmore;
+    ServerResponseBody_Wait     wait;
+    ServerResponseBody_Waitresp waitresp;
+    ServerResponseBody_Redirect redirect;
+    ServerResponseBody_Attn     attn;
+    ServerResponseBody_Protocol protocol;
+    ServerResponseBody_Login    login;
+    ServerResponseBody_Buffer   buffer;
+  } body;
 };
 
 void ServerResponseHeader2NetFmt(struct ServerResponseHeader *srh);
