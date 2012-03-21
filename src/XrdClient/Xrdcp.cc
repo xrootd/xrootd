@@ -1033,6 +1033,11 @@ int doCp_xrd2loc(const char *src, const char *dst) {
          pthread_cancel(myTIDVec[i]);
          pthread_join(myTIDVec[i], &thret);	 
       }
+      if( !cpnfo.XrdCli->Close() )
+      {
+        PrintLastServerError(cpnfo.XrdCli);
+        retvalue = 1;
+      }
       delete cpnfo.XrdCli;
       cpnfo.XrdCli = 0;
 
