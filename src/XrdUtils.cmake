@@ -8,8 +8,6 @@ set( XRD_UTILS_VERSION   0.0.1 )
 set( XRD_UTILS_SOVERSION 0 )
 set( XRD_MAIN_VERSION    0.0.1 )
 set( XRD_MAIN_SOVERSION  0 )
-set( XRD_BONJOUR_VERSION    0.0.1 )
-set( XRD_BONJOUR_SOVERSION  0 )
 
 #-------------------------------------------------------------------------------
 # The XrdSys library
@@ -196,8 +194,7 @@ install(
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdOuc
   FILES_MATCHING
   PATTERN "*.hh"
-  PATTERN "*.icc"
-  PATTERN "*Bonjour*.hh" EXCLUDE )
+  PATTERN "*.icc" )
 
 install(
   DIRECTORY      XrdNet/
@@ -219,14 +216,6 @@ install(
   FILES_MATCHING
   PATTERN "*.hh"
   PATTERN "*.icc" )
-
-if( BUILD_BONJOUR )
-  install(
-    FILES
-    XrdOuc/XrdOucBonjour.hh
-    ${BONJOUR_FACTORY_HEADER}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdOuc )
-endif()
 
 install(
   DIRECTORY      XrdCks/
