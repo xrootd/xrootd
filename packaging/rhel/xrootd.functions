@@ -258,6 +258,21 @@ function handleDaemons()
   else
     INSTANCES=$@
   fi
+
+  #-----------------------------------------------------------------------------
+  # Backwards compatibility for the frm daemons sharing the log file
+  # To be removed in 3.3.0
+  #-----------------------------------------------------------------------------
+  if test x"${CONFIG_NAME}" = x"PURD" -o x"${CONFIG_NAME}" = x"XFRD"; then
+    if test x"${INSTANCES}" = x -a x"${FRMD_INSTANCES}" != x; then
+      echo "WARNING!!! FRMD_INSTANCES directive is deprecated and"   1>&2
+      echo "WARNING!!! will be dropped in the 3.3.0 release. Please" 1>&2
+      echo "WARNING!!! see the release notes for details."           1>&2
+      INSTANCES=${FRMD_INSTANCES}
+    fi
+  fi
+  # end of backwards compatibility code
+
   INSTANCES=`echo $INSTANCES | tr '[[:upper:]]' '[[:lower:]]'`
 
   #-----------------------------------------------------------------------------
@@ -267,6 +282,23 @@ function handleDaemons()
   for INSTANCE in $INSTANCES; do
     INSTANCE_UPPER=`echo $INSTANCE | tr '[[:lower:]]' '[[:upper:]]'`
     eval OPTS=\$${CONFIG_NAME}_${INSTANCE_UPPER}_OPTIONS
+
+    #---------------------------------------------------------------------------
+    # Backwards compatibility for the frm daemons sharing the log file
+    # To be removed in 3.3.0
+    #---------------------------------------------------------------------------
+    if test x"${CONFIG_NAME}" = x"PURD" -o x"${CONFIG_NAME}" = x"XFRD"; then
+      eval OPTS_OLD=\$FRMD_${INSTANCE_UPPER}_OPTIONS
+      if test x"$OPTS" = x -a x"${OPTS_OLD}" != x; then
+        echo "WARNING!!! FRMD_${INSTANCE_UPPER}_OPTIONS directive is" 1>&2
+        echo "WARNING!!! deprecated and will be dropped in the 3.3.0" 1>&2
+        echo "WARNING!!! release. Please see the release notes for"   1>&2
+        echo "WARNING!!! details."                                    1>&2
+        OPTS=${OPTS_OLD}
+      fi
+    fi
+    # end of backwards compatibility code
+
     if test x"$OPTS" = x; then
       continue
     fi
