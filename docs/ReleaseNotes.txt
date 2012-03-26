@@ -6,6 +6,147 @@ Release Notes
 =============
 
 -------------
+Version 3.2.0
+-------------
++ **New Features**
+   * Retool the XrdOucCache object so that cache implementations can be
+     implemented as plugins.
+   * Add FSize method to the XrdOucCacheIO object to ease implementation
+     of disk caches containing partial files.
+   * Add the pss.cachelib directive to specify a cache plugin.
+   * Implement ultralow overhead redirect monitoring.
+     WARNING: ofs plugin writers will need to recompile their plugin interface
+              to be fully compatible with this commit due to additional
+              information passed to the ofs object "new" methods.
+   * Allow the XrdCmsClient interface (a.k.a Finder) to be a plug-in.
+   * Add ofs.cmslib directive to specify the XrdCmsClient plug-in.
+   * Add new class, XrdOucCallBack, to simplify using callbacks in the
+     XrdCmsClient plug-in.
+   * Define the frm.all.monitor directive to enable migration, purging, and
+     staging monitoring. This was originally part of xrootd.monitor but that
+     just was odd. Note that the stage, purge, migr events are no longer
+     accepted on the xrootd.monitor directive.
+   * Collapse he staging (s) and migration (m) records into a single transfer
+     (x) record. While not compatible, the previous implementation was new
+     code and no one actually was capturing these records.
+   * Implement a server identification record (=) that unquely identifies each
+     server. The record can be sent periodically and can be used as a heartbeat.
+   * Add -y option to xrdcp to limit number of extreme copy sources.
+   * Uniformly pass the execution environment to all oss and cms client
+     methods. This is largely for DPM support.
+     WARNING: While this update is binary backwad compatible to existing oss
+              plug-ins it is not source compatible. Plug-in writers will need
+              to modify their oss methods to successfully compile.
+   * Allow an automatic redirect when a file operation ends with ENOENT.
+     Allow redirects for chsum and trunc operations.
+     Both of the above are controlled via the xrootd.redirect directive.
+   * Report the timezone when connecting to a [meta]manager.
+   * Allow configuration of staging, migration, and purging events.
+   * Allow transfer script to inject information into the monitoring stream.
+   * Report number of attempted login, authentication failures, successful
+     authenticated and unauthenticated logins in the summary statistics.
+   * Indicate whether a disconnect was forced and whether it was a parallel
+     path (as opposed to a control path) in the monitoring record.
+
++ **Major bug fixes**
+   * Provide compatability for sprintf() implementations that check output
+     buffer length. This currently only affects gentoo and Ubuntu Linux.
+     We place it in the "major" section as it causes run-time errors there.
+   * Reinsert buffer size calculation that was mistakenly deleted.
+     This eventually causes a SEGV when detailed monitoring is enabled.  
+   * Remove improper initialization that may cause a SEGV in the checksum
+     manager.
+   * Add missing initializer without which we will get a SEGV. This is a fix
+     for the just added monitoring code.
+   * Remove regressions that prevent a proxy cluster from being fully
+     configured.
+
++ **Minor bug fixes**
+   * Correct debug message frequency that caused people to think some file
+     system partitions were being ignored.
+   * Correct pthread Num() to return thread-specific numbers.
+   * Make sure the sendfile interrupt counter is initialized to zero.
+   * Make sure to honor absolute cms.space values when percentage not
+     specified.
+   * Prevent double user map record when monitoring when auth is configured
+     but not actually monitored.
+   * Take timezone changes into account when waiting for midnight. This solves
+     the log rolling problem when changing between DST and standard time.
+   * Make sure to cut close records for open files during a forced disconnect
+     when monitoring file information.
+   * Do not create meta-files or update extended attributes when placing a
+     file into read-only space.
+
++ **Miscellaneous**
+   * Complete implementation of the fstat() version of stat().
+   * Consistently pass the enviroment to the cms client enterface.
+   * Make return codes consistent between synchronous & async XrdCmsClient
+     returns.
+   * Document the XrdCmsClient interface in the header file.
+   * Cut close monitor records before cutting the disconnect record.
+   * Make frm_purged and frm_xfrd use sparate log files.
+
+-------------
+Version 3.1.1
+-------------
+
++ **New Features**
+   * Compile on Solaris 11
+   * Add support for sending DN with monitoring information
+   * Add possibility to switch off automatic download of CRL from the web;
+     default is OFF; to enable it multiply by 10 the relevant CRL options
+     (i.e. 12 and 13 are like 2 and 3 but trying download if the file is not
+      found).
+   * Add refresh frequency time for CRL's; default 1 day .
+
++ **Major bug fixes**
+   * Fix various client threading issues.
+   * [bug #87880] Properly unpack the incomming vector read data.
+   * Rework the handshake when making a parallel connection. Previous method
+     caused a deadlock when parallel connections were requested (e.g. xrdcp).
+   * Add HAVE_SENDFILE definition to cmake config. All post-cmake version of
+     xrootd until now have disabled use of sendfile() with resulting poor
+     performance. This fix corrects this.
+   * Don't force libXrdPss.so to be loaded for proxy managers.
+   * Fix various CMake issues: disable library inheritance, fix underlinking
+     problems, make sure libcom_err is present when building kerberos.
+   * Replace non-reentrant versions of getpwxxx and getgrxxx with reentrant
+     versions. This should prevent spurious uid/gid translations.
+   * Fix RedHat bug #673069: Missing header files required by DPM
+   * Don't ignore errors returned by kXR_close
+   * Init scripts: don't change the ownership of the sysconfig files
+     preventing the xrootd user from executing arbitrary code as root
+
++ **Minor bug fixes**
+   * Add 'k' to the option list. It was wrongly deleted in the last option
+     refalgamization.
+   * Fix a typo in the specfile causing problems with multithreaded
+     compilation.
+   * Initialize xattr variable name so that xrdadler32 can fetch previous
+     checksum. The error caused xrdadler32 to always recompute the checksum.
+   * Make sure that monitor write length is really negative.
+   * Add the oss.asize hint to the destination URL in all possible cases.
+   * Properly print adler32 checksum in xrdcp.
+   * When the server certificate is expired, try to renew from the same path
+     before failing.
+   * Get the signing certificate for the CRL from its issuer hash, which can be
+     different from the CA hash.
+   * Add check for the format of the downloaded CRLs: DER or PEM
+   * Solaris init script: switch to xrootd user when invoked as root
+   * RHEL init scripts: always create /var/run/xrootd to handle /var/run
+     being mounted as tmpfs
+
++ **Miscellaneous**
+   * Relax requirements on the permission mode of the x509 key files
+   * Disable client redirections reports to the console.
+   * Stop doing XrdFfsPosix_statall() if task queue is long.
+   * Get rid of compiler warnings
+   * Improve some log messages
+   * At server startup, only initialize the CA (and CRL, if required) for the
+     authority issuing the server certificate; additional CA's are initialized
+     only if needed.
+
+-------------
 Version 3.1.0
 -------------
 
