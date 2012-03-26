@@ -78,6 +78,7 @@ Version 3.2.0
      file into read-only space.
 
 + **Miscellaneous**
+   * Bonjour code dropped
    * Complete implementation of the fstat() version of stat().
    * Consistently pass the enviroment to the cms client enterface.
    * Make return codes consistent between synchronous & async XrdCmsClient
