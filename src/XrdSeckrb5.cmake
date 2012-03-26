@@ -4,8 +4,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SEC_KRB5_VERSION   0.0.1 )
-set( XRD_SEC_KRB5_SOVERSION 0 )
+set( XRD_SEC_KRB5_VERSION   1.0.0 )
+set( XRD_SEC_KRB5_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdSeckrb5 library

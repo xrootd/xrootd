@@ -6,12 +6,12 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_SEC_VERSION        0.0.1 )
 set( XRD_SEC_SOVERSION      0 )
-set( XRD_SEC_PWD_VERSION    0.0.1 )
-set( XRD_SEC_PWD_SOVERSION  0 )
-set( XRD_SEC_SSS_VERSION    0.0.1 )
-set( XRD_SEC_SSS_SOVERSION  0 )
-set( XRD_SEC_UNIX_VERSION   0.0.1 )
-set( XRD_SEC_UNIX_SOVERSION 0 )
+set( XRD_SEC_PWD_VERSION    1.0.0 )
+set( XRD_SEC_PWD_SOVERSION  1 )
+set( XRD_SEC_SSS_VERSION    1.0.0 )
+set( XRD_SEC_SSS_SOVERSION  1 )
+set( XRD_SEC_UNIX_VERSION   1.0.0 )
+set( XRD_SEC_UNIX_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdSec library

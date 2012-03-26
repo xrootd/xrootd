@@ -4,10 +4,10 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_PSS_VERSION   0.0.1 )
-set( XRD_PSS_SOVERSION 0 )
-set( XRD_BWM_VERSION   0.0.1 )
-set( XRD_BWM_SOVERSION 0 )
+set( XRD_PSS_VERSION   1.0.0 )
+set( XRD_PSS_SOVERSION 1 )
+set( XRD_BWM_VERSION   1.0.0 )
+set( XRD_BWM_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdPss lib
