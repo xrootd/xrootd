@@ -77,6 +77,7 @@ int XrdOucCallBack::Reply(int retVal, int eValue, const char *eText,
 // Send the reply using the constructed ErrInfo object and then wait until we
 // know that the response was actually sent to allow this object to be deleted.
 //
+   cbInfo.setErrInfo(eValue, (eText ? eText : ""));
    objCB->Done(retVal, &cbInfo, Path);
    cbSync.Wait();
 
