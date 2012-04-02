@@ -38,7 +38,12 @@ void PrintLastServerError(XrdClient *cli) {
 
 }
 
+const char *ServerError(XrdClient *cli) {
+  struct ServerResponseBody_Error *e;
 
+  if ( cli && (e = cli->LastServerError()) ) return e->errmsg;
+  return "Copy failed for unknown reasons!";
+}
 
 bool PedanticOpen4Write(XrdClient *cli, kXR_unt16 mode, kXR_unt16 options) {
    // To be really pedantic we must disable the parallel open
@@ -100,6 +105,7 @@ XrdCpWorkLst::XrdCpWorkLst() {
    xrda_src = 0;
    xrda_dst = 0;
    pSourceSize = 0;
+   srcPathLen = 0;
 }
 
 XrdCpWorkLst::~XrdCpWorkLst() {
@@ -109,7 +115,7 @@ XrdCpWorkLst::~XrdCpWorkLst() {
 // Sets the source path for the file copy
 // i.e. expand the given url to the list of the files it involves
 int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
-	      XrdOucString urlopaquedata, bool do_recurse) {
+	      XrdOucString urlopaquedata, bool do_recurse, int newCP) {
 
    XrdOucString fullurl(url);
 
@@ -166,7 +172,7 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
 	 }
 	 else {
 	    // It was not opened, nor it was a dir.
-  	    PrintLastServerError(*srccli);
+  	  if (!newCP) PrintLastServerError(*srccli);
 	    return 1;
 	    //fWorkList.Push_back(fSrc);
 	 }
@@ -196,6 +202,7 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
             return d.lastError();
       } else {
          fSrcIsDir = TRUE;
+         srcPathLen = strlen(url.c_str())+1;
          BuildWorkList_loc(&d, url);
       }
    }
@@ -209,7 +216,7 @@ int XrdCpWorkLst::SetSrc(XrdClient **srccli, XrdOucString url,
 // It will delete and set to 0 xrddest if it's not a file
 int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 	       const char *urlopaquedata,
-	       kXR_unt16 xrdopenflags) {
+	       kXR_unt16 xrdopenflags, int newCP) {
    int retval = 0;
 
    // Special case: if url terminates with "/" then it's a dir
@@ -288,14 +295,13 @@ int XrdCpWorkLst::SetDest(XrdClient **xrddest, const char *url,
 	       retval = 0;
 	    }
 	    else {
-	       PrintLastServerError(*xrddest);
+	       if (!newCP) PrintLastServerError(*xrddest);
 	       retval = 1;
 	    }
 	    
 	    // If the file has not been opened for writing,
 	    // there is no need to keep this instance alive.
-	    delete *xrddest;
-	    *xrddest = 0;
+     if (!newCP) {delete *xrddest; *xrddest = 0;}
 	    
 	    return retval;
 	 }
@@ -423,7 +429,9 @@ bool XrdCpWorkLst::GetCpJob(XrdOucString &src, XrdOucString &dest) {
 
       // If the dest is a directory name, we must concatenate
       // the actual filename, i.e. the token in src following the last /
-      int slpos = src.rfind('/');
+      // when the source is not local recursive. Otherwise, we need to
+      // concatenate the relative path after the specified path.
+      int slpos = (srcPathLen ? srcPathLen : src.rfind('/'));
 
       if (slpos != STR_NPOS)
          dest += XrdOucString(src, slpos);
