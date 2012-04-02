@@ -73,6 +73,8 @@ char           dname[MAXNAMLEN];
 /******************************************************************************/
 /*                            X r d O f s F i l e                             */
 /******************************************************************************/
+
+class XrdOfsTPC;
   
 class XrdOfsFile : public XrdSfsFile
 {
@@ -131,6 +133,7 @@ private:
 void           GenFWEvent();
 
 XrdOfsHandle  *oh;
+XrdOfsTPC     *myTPC;
 int            dorawio;
 char           viaDel;
 };
@@ -263,7 +266,8 @@ enum {Authorize = 0x0001,    // Authorization wanted
       isSuper   = 0x00C0,    // Role supervisor
       isMeta    = 0x0100,    // Role meta + above
       haveRole  = 0x01F0,    // A role is present
-      Forwarding= 0x1000     // Fowarding wanted
+      Forwarding= 0x1000,    // Fowarding wanted
+      ThirdPC   = 0x2000     // This party copy wanted
      };                      // These are set in Options below
 
 int   Options;               // Various options
@@ -379,6 +383,8 @@ int           xnot(XrdOucStream &, XrdSysError &);
 int           xolib(XrdOucStream &, XrdSysError &);
 int           xpers(XrdOucStream &, XrdSysError &);
 int           xrole(XrdOucStream &, XrdSysError &);
+int           xtpc(XrdOucStream &, XrdSysError &);
+int           xtpcal(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
 };
 #endif

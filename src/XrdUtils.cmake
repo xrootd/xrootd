@@ -66,6 +66,7 @@ add_library(
   XrdOuc/XrdOucString.cc        XrdOuc/XrdOucString.hh
   XrdOuc/XrdOucSxeq.cc          XrdOuc/XrdOucSxeq.hh
   XrdOuc/XrdOucTokenizer.cc     XrdOuc/XrdOucTokenizer.hh
+  XrdOuc/XrdOucTPC.cc           XrdOuc/XrdOucTPC.hh
   XrdOuc/XrdOucTrace.cc         XrdOuc/XrdOucTrace.hh
   XrdOuc/XrdOucUtils.cc         XrdOuc/XrdOucUtils.hh
                                 XrdOuc/XrdOucChain.hh

@@ -700,13 +700,19 @@ int XrdXrootdProtocol::do_Login()
           else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
                               : Response.Send());
                 Status = XRD_LOGGEDIN; SI->Bump(SI->LoginUA);
-                if (pp) {Entity.tident = Link->ID; Client = &Entity;}
                }
       }
       else {rc = (sendSID ? Response.Send((void *)&sessID, sizeof(sessID))
                           : Response.Send());
             Status = XRD_LOGGEDIN; SI->Bump(SI->LoginUA);
            }
+
+// We always allow at least host-based authentication. This may be over-ridden
+// should strong authentication be enabled. Allocation of the protocol object
+// already supplied the protocol name and the hst name. We supply the tident.
+//
+   Entity.tident = Link->ID;
+   Client = &Entity;
 
 // Allocate a monitoring object, if needed for this connection
 //
@@ -1341,6 +1347,11 @@ int XrdXrootdProtocol::do_Qconf()
            }
    else if (!strcmp("readv_iov_max", val)) 
            {n = sprintf(bp, "%d\n", maxRvecsz);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("tpc", val))
+           {char *tpcval = getenv("XRDTPC");
+            n = sprintf(bp, "%s\n", (tpcval ? tpcval : "tpc"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_port", val) && WANPort)
@@ -2098,6 +2109,7 @@ int XrdXrootdProtocol::do_Statx()
   
 int XrdXrootdProtocol::do_Sync()
 {
+   static XrdXrootdCallBack syncCB("sync", 0);
    int rc;
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.sync.fhandle);
@@ -2111,12 +2123,15 @@ int XrdXrootdProtocol::do_Sync()
    if (!FTab || !(fp = FTab->Get(fh.handle)))
       return Response.Send(kXR_FileNotOpen,"sync does not refer to an open file");
 
+// The sync is elegible for a defered response, indicate we're ok with that
+//
+   fp->XrdSfsp->error.setErrCB(&syncCB, ReqID.getID());
+
 // Sync the file
 //
    rc = fp->XrdSfsp->sync();
    TRACEP(FS, "sync rc=" <<rc <<" fh=" <<fh.handle);
-   if (SFS_OK != rc)
-      return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+   if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0);
 
 // Respond that all went well
 //

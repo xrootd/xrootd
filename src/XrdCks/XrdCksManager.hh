@@ -38,6 +38,8 @@ virtual char       *List(const char *Pfn, char *Buff, int Blen, char Sep=' ');
 
 virtual const char *Name(int seqNum=0);
 
+virtual XrdCksCalc *Object(const char *name);
+
 virtual int         Size( const char  *Name=0);
 
 virtual int         Set(  const char *Pfn, XrdCksData &Cks, int myTime=0);

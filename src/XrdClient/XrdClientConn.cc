@@ -610,7 +610,7 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 				}
 				else {
 			    
-				    memcpy(answMoreData,
+				    if (answMoreData) memcpy(answMoreData,
 					   &fREQWaitRespData->respdata,
 					   LastServerResp.dlen);
 			    
@@ -623,7 +623,8 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 			    free( fREQWaitRespData);
 			    fREQWaitRespData = 0;
 
-			    abortcmd = false;
+			 // abortcmd = false; Don't set abort categorically false, check for error!
+       abortcmd = (LastServerResp.status == kXR_error);
 
 			}
 

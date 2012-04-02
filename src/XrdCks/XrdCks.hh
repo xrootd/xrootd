@@ -13,6 +13,7 @@
 #include "XrdCks/XrdCksData.hh"
 
 class XrdCks;
+class XrdCksCalc;
 class XrdOucStream;
 class XrdSysError;
 class XrdSysPlugin;
@@ -92,6 +93,16 @@ char      *List(const char *Pfn, char *Buff, int Blen, char Sep=' ') = 0;
 */
 virtual const
 char      *Name(int seqNum=0) = 0;
+
+/* Object() returns a new XrdCksCalc object that can calculate the checksum
+           corresponding to the specified name or the default object if name
+           is a null pointer. The object can be used to compute checksums on
+           the fly. You must use the object's Recycle() method to delete it.
+           Success: A pointer to the object is returned.
+           Failure: Zero if no corresponding object exists.
+*/
+virtual
+XrdCksCalc *Object(const char *name) {return 0;}
 
 /* Size()  returns the binary length of the checksum with the corresponding
            name. If no name is given, the default name is used.

@@ -26,6 +26,7 @@
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOfs/XrdOfsStats.hh"
+#include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
@@ -134,7 +135,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Determine whether we should initialize authorization
 //
-   if (Options & Authorize) NoGo |= setupAuth(Eroute);
+   if (Options & Authorize)
+      {if (setupAuth(Eroute)) NoGo = 1;
+          else XrdOfsTPC::Init(Authorization);
+      }
 
 // Check if redirection wanted
 //
@@ -177,9 +181,15 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           else CksConfig->Manager(buff, 0);
       }
 
+// Configure third party copy but only if we are not a manager or a proxy
+//
+   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
+      if (!XrdOfsTPC::Start()) NoGo = 1;
+
 // Now configure the storage system
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
+      else XrdOfsTPC::Init(XrdOfsOss);
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -517,6 +527,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("osslib",        xolib);
     TS_Xeq("persist",       xpers);
     TS_Xeq("role",          xrole);
+    TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
 
     // Get the actual value for simple directives
@@ -1212,6 +1223,137 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
     return 0;
 }
 
+/******************************************************************************/
+/*                                  x t p c                                   */
+/******************************************************************************/
+  
+/* Function: xtpc
+
+   Purpose:  To parse the directive: tpc [logok] [ttl <dflt> [<max>]] [xfr <n>]
+                                         [allow <parms>]
+                                         [require {all|client|dest} <auth>[+]]
+                                         [restrict <path>]
+                                         [pgm <path> [parms]]
+
+             parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
+
+             <dflt>  the default seconds a tpc authorization may be valid.
+             <max>   the maximum seconds a tpc authorization may be valid.
+             logok   log successful authorizations.
+             allow   only allow destinations that match the specified
+                     authentication specification.
+             <n>     maximum number of simultaneous transfers.
+             <auth>  require that the client, destination, or both (i.e. all)
+                     use the specified authentication protocol. Additional
+                     require statements may be specified to add additional
+                     valid authentication mechanisms. If the <auth> is suffixed
+                     by a plus, then the request must also be encrypted using
+                     the authentication's session key.
+             pgm     specifies the transfer command with optional paramaters.
+                     It must be the last parameter on the line.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   char *val, pgm[1024];
+   int  reqType, vlogOK = -1, vttlD = -1, vttlM = -1, vxfr = -1;
+   *pgm = 0;
+
+   while((val =  Config.GetWord()))
+        {if (!strcmp(val, "allow"))
+            {if (!xtpcal(Config, Eroute)) return 1;
+             continue;
+            }
+         if (!strcmp(val, "logok")) {vlogOK = 1; continue;}
+         if (!strcmp(val, "pgm"))
+            {if (!Config.GetRest(pgm, sizeof(pgm)))
+                {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
+             if (!*pgm)
+                {Eroute.Emsg("Config", "tpc program not specified"); return 1;}
+             break;
+            }
+         if (!strcmp(val, "require"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc require parameter not specified"); return 1;}
+                  if (!strcmp(val, "all"))    reqType = XrdOfsTPC::reqALL;
+             else if (!strcmp(val, "client")) reqType = XrdOfsTPC::reqORG;
+             else if (!strcmp(val, "dest"))   reqType = XrdOfsTPC::reqDST;
+             else {Eroute.Emsg("Config", "invalid tpc require type -", val); return 1;}
+             break;
+             if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc require auth not specified"); return 1;}
+             XrdOfsTPC::Require(val, reqType);
+             continue;
+            }
+         if (!strcmp(val, "restrict"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc restrict path not specified"); return 1;}
+             if (*val != '/')
+                {Eroute.Emsg("Config","tpc restrict path not absolute");  return 1;}
+             if (!XrdOfsTPC::Restrict(val)) return 1;
+             continue;
+            }
+         if (!strcmp(val, "ttl"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc ttl value not specified"); return 1;}
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl default",val,&vttlD,1))
+                 return 1;
+             if (!(val = Config.GetWord())) break;
+             if (!(isdigit(*val))) {Config.RetToken(); continue;}
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl maximum",val,&vttlM,1))
+                 return 1;
+             continue;
+            }
+         if (!strcmp(val, "xfr"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc xfr value not specified"); return 1;}
+             if (XrdOuca2x::a2i(Eroute,"tpc xfr",val,&vxfr,1)) return 1;
+             continue;
+            }
+         Eroute.Say("Config warning: ignoring invalid tpc option '",val,"'.");
+        }
+
+   if (*pgm) XrdOfsTPC::Init(pgm);
+   XrdOfsTPC::Init(vttlD, vttlM, vlogOK, vxfr);
+   Options |= ThirdPC;
+   return 0;
+}
+
+/******************************************************************************/
+/*                                x t p c a l                                 */
+/******************************************************************************/
+
+int XrdOfs::xtpcal(XrdOucStream &Config, XrdSysError &Eroute)
+{
+   struct tpcalopts {const char *opname; char *opval;} tpopts[] =
+         {{"dn", 0}, {"group", 0}, {"host", 0}, {"vo", 0}};
+   int i, spec = 0, numopts = sizeof(tpopts)/sizeof(struct tpcalopts);
+   char *val;
+
+   while((val =  Config.GetWord()))
+        {for (i = 0; i < numopts && strcmp(tpopts[i].opname, val); i++) {}
+         if (i > numopts) {Config.RetToken(); break;}
+            {Eroute.Emsg("Config", "invalid tpc allow parameter -", val);
+             return 0;
+            }
+         if (!(val = Config.GetWord()))
+            {Eroute.Emsg("Config","tpc allow",tpopts[i].opname,"value not specified");
+             return 0;
+            }
+         if (tpopts[i].opval) free(tpopts[i].opval);
+         tpopts[i].opval = strdup(val);
+         spec = 1;
+        }
+
+   if (!spec) {Eroute.Emsg("Config","tpc allow parms not specified"); return 1;}
+
+   XrdOfsTPC::Allow(tpopts[0].opval, tpopts[1].opval,
+                    tpopts[2].opval, tpopts[3].opval);
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/

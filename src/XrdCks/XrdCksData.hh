@@ -11,7 +11,7 @@
 /******************************************************************************/
 
 #include <string.h>
-  
+
 class XrdCksData
 {
 public:
@@ -26,6 +26,20 @@ short     Rsvd1;                // Reserved field
 char      Rsvd2;                // Reserved field
 char      Length;               // Length, in bytes, of the checksum value
 char      Value[ValuSize];      // The binary checksum value
+
+inline
+int       operator==(const XrdCksData &oth)
+                    {return (!strncmp(Name, oth.Name, NameSize)
+                         &&  Length == oth.Length
+                         &&  !memcmp(Value, oth.Value, Length));
+                    }
+
+inline
+int       operator!=(const XrdCksData &oth)
+                    {return (strncmp(Name, oth.Name, NameSize)
+                         ||  Length != oth.Length
+                         ||  memcmp(Value, oth.Value, Length));
+                    }
 
 int       Get(char *Buff, int Blen)
              {const char *hv = "0123456789abcdef";
@@ -43,6 +57,12 @@ int       Set(const char *csName)
              {if (strlen(csName) >= sizeof(Name)) return 0;
               strncpy(Name, csName, sizeof(Name));
               return 1;
+             }
+
+int       Set(const void *csVal, int csLen)
+             {if (csLen > ValuSize || csLen < 1) return 0;
+              memcpy(Value, csVal, csLen);
+              Length = csLen;
              }
 
 int       Set(const char *csVal, int csLen)

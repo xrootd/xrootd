@@ -54,11 +54,33 @@ target_link_libraries(
   pthread
   ${EXTRA_LIBS} )
 
+
+#-------------------------------------------------------------------------------
+# xrdCp
+#-------------------------------------------------------------------------------
+
+add_executable(
+  xrdcpy
+  XrdApps/XrdCpy.cc
+  XrdApps/XrdCpConfig.cc               XrdApps/XrdCpConfig.hh
+  XrdApps/XrdCpFile.cc                 XrdApps/XrdCpFile.hh
+  XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
+  XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
+  XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
+
+target_link_libraries(
+  xrdcpy
+  XrdClient
+  XrdServer
+  XrdUtils
+  dl
+  pthread )
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcpy
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
 install(

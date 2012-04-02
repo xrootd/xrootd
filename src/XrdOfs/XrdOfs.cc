@@ -35,6 +35,7 @@
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
+#include "XrdOfs/XrdOfsTPC.hh"
 
 #include "XrdCms/XrdCmsClient.hh"
 
@@ -52,6 +53,7 @@
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucTPC.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
@@ -166,6 +168,7 @@ XrdOfsFile::XrdOfsFile(const char *user, int monid) : XrdSfsFile(user, monid)
    oh = XrdOfs::dummyHandle; 
    dorawio = 0;
    viaDel  = 0;
+   myTPC   = 0;
    tident = (user ? user : "");
 }
 
@@ -391,6 +394,7 @@ int XrdOfsFile::open(const char          *path,      // In
          } oP(path);
 
    mode_t theMode = Mode & S_IAMB;
+   const char *tpcKey;
    int retc, isPosc = 0, crOpts = 0, isRW = 0, open_flag = 0;
    int find_flag = open_mode & (SFS_O_NOWAIT | SFS_O_RESET);
    XrdOucEnv Open_Env(info,0,client);
@@ -451,6 +455,10 @@ int XrdOfsFile::open(const char          *path,      // In
                                                    find_flag, &Open_Env)))
       return XrdOfsFS->fsError(error, retc);
 
+// Preset TPC handling
+//
+   tpcKey = Open_Env.Get(XrdOucTPC::tpcKey);
+
 // Create the file if so requested o/w try to attach the file
 //
    if (open_flag & O_CREAT)
@@ -492,7 +500,12 @@ int XrdOfsFile::open(const char          *path,      // In
 
        // Apply security, as needed
        //
-       AUTHORIZE(client,&Open_Env,(isRW?AOP_Update:AOP_Read),"open",path,error);
+          if (tpcKey && !isRW)
+             {XrdOfsTPC::Facts Args(client, &error, &Open_Env, tpcKey, path);
+              if ((retc = XrdOfsTPC::Authorize(&myTPC, Args))) return retc;
+             } else {AUTHORIZE(client, &Open_Env, (isRW?AOP_Update:AOP_Read),
+                               "open", path, error);
+                    }
        OOIDENTENV(client, Open_Env);
       }
 
@@ -501,6 +514,17 @@ int XrdOfsFile::open(const char          *path,      // In
    if ((retc = XrdOfsHandle::Alloc(path, isRW, &oP.hP)))
       {if (retc > 0) return XrdOfsFS->Stall(error, retc, path);
        return XrdOfsFS->Emsg(epname, error, retc, "attach", path);
+      }
+
+// If this is a third party copy and we are the destination, then validate
+// specification at this point and setup to transfer.
+//
+   if (tpcKey && isRW)
+      {char pfnbuff[MAXPATHLEN+8]; const char *pfnP;
+       if (!(pfnP = XrdOfsOss->Lfn2Pfn(path, pfnbuff, MAXPATHLEN, retc)))
+          return XrdOfsFS->Emsg(epname, error, retc, "open", path);
+       XrdOfsTPC::Facts Args(client, &error, &Open_Env, tpcKey, path, pfnP);
+       if ((retc = XrdOfsTPC::Validate(&myTPC, Args))) return retc;
       }
 
 // Assign/transfer posc ownership. We may need to delay the client if the
@@ -514,10 +538,14 @@ int XrdOfsFile::open(const char          *path,      // In
           }
       }
 
-// If this is a previously existing handle, we are almost done
+// If this is a previously existing handle, we are almost done. If this is
+// the target of a third party copy requesy, fail it now. We don't support
+// multiple writers in tpc mode (this should really never happen).
 //
    if (!(oP.hP->Inactive()))
       {dorawio = (oh->isCompressed && open_mode & SFS_O_RAWIO ? 1 : 0);
+       if (tpcKey && isRW)
+          return XrdOfsFS->Emsg(epname, error, EALREADY, "tpc", path);
        XrdOfsFS->ocMutex.Lock(); oh = oP.hP; XrdOfsFS->ocMutex.UnLock();
        FTRACE(open, "attach use=" <<oh->Usage());
        if (oP.poscNum > 0) XrdOfsFS->poscQ->Commit(path, oP.poscNum);
@@ -626,6 +654,10 @@ int XrdOfsFile::close()  // In
     hP = oh; oh = XrdOfs::dummyHandle;
     XrdOfsFS->ocMutex.UnLock();
     hP->Lock();
+
+// Delete the tpc object, if any
+//
+   if (myTPC) {myTPC->Del(); myTPC = 0;}
 
 // Maintain statistics
 //
@@ -976,7 +1008,7 @@ int XrdOfsFile::stat(struct stat     *buf)         // Out
    EPNAME("fstat");
    int retc;
 
-// Lock the handle and perform any required tracing
+// Perform any required tracing
 //
    FTRACE(stat, "");
 
@@ -1007,6 +1039,10 @@ int XrdOfsFile::sync()  // In
 // Perform any required tracing
 //
    FTRACE(sync, "");
+
+// If we have a tpc object hanging about, we need to dispatch that first
+//
+   if (myTPC && (retc = myTPC->Sync(&error))) return retc;
 
 // We can test the pendio flag w/o a lock because the person doing this
 // sync must have done the previous write. Causality is the synchronizer.

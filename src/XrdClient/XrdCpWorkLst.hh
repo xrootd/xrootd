@@ -16,6 +16,7 @@
 #include <stdint.h>
 
 class XrdSysDir;
+const char *ServerError(XrdClient *cli);
 void PrintLastServerError(XrdClient *cli);
 bool PedanticOpen4Write(XrdClient *cli, kXR_unt16 mode, kXR_unt16 options);
 
@@ -28,8 +29,9 @@ XrdOucString AddSizeHint( const char *dst, off_t size );
 class XrdCpWorkLst {
 
    vecString fWorkList;
-   int fWorkIt;
    uint64_t pSourceSize;  // set if the source URL refers to a file
+   int srcPathLen;
+   int fWorkIt;
 
    XrdClientAdmin *xrda_src, *xrda_dst;
 
@@ -44,12 +46,12 @@ class XrdCpWorkLst {
 
    // Sets the source path for the file copy
    int SetSrc(XrdClient **srccli, XrdOucString url,
-	      XrdOucString urlopaquedata, bool do_recurse);
+	      XrdOucString urlopaquedata, bool do_recurse, int newCP=0);
 
    // Sets the destination of the file copy
    int SetDest(XrdClient **xrddest, const char *url,
 	       const char *urlopaquedata,
-	       kXR_unt16 xrdopenflags);
+	       kXR_unt16 xrdopenflags, int newCP=0);
 
    inline void GetDest(XrdOucString &dest, bool& isdir) {
       dest = fDest;

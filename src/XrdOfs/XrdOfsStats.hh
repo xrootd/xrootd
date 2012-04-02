@@ -34,6 +34,10 @@ int         numErrors;
 int         numDelays;
 int         numSeventOK;
 int         numSeventER;
+int         numTPCgrant;
+int         numTPCdeny;
+int         numTPCerrs;
+int         numTPCexpr;
 }           Data;
 
 XrdSysMutex sdMutex;

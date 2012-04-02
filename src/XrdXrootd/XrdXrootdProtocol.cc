@@ -375,13 +375,15 @@ int XrdXrootdProtocol::Process2()
             }
 
 // Help the compiler, select the the high activity requests (the ones with
-// file handles) in a separate switch statement
+// file handles) in a separate switch statement. A special case exists for
+// sync() which return with a callback, so handle it here.
 //
    switch(Request.header.requestid)   // First, the ones with file handles
          {case kXR_read:     return do_Read();
           case kXR_readv:    return do_ReadV();
           case kXR_write:    return do_Write();
-          case kXR_sync:     return do_Sync();
+          case kXR_sync:     ReqID.setID(Request.header.streamid);
+                             return do_Sync();
           case kXR_close:    return do_Close();
           case kXR_truncate: if (!Request.header.dlen) return do_Truncate();
                              break;
