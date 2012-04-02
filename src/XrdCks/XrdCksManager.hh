@@ -10,6 +10,8 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
+#include "sys/types.h"
+
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksData.hh"
 

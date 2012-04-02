@@ -761,7 +761,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 /******************************************************************************/
 int XrdLink::Send(const struct sfVec *sfP, int sfN)
 {
-#if !defined(HAVE_SENDFILE)
+#if !defined(HAVE_SENDFILE) || defined(__macos__)
    return -1;
 #else
 // Make sure we have valid vector count

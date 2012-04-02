@@ -37,6 +37,12 @@ using namespace std;
 
 #define ZMSG(x) {EMSG(x);return 0;}
 
+// Bypass stupid issue with stupid solaris for missdefining 'struct opt'.
+//
+#ifdef __solaris__
+#define OPT_TYPE (char *)
+#endif
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -53,25 +59,25 @@ const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHPrRsS:t:TvVy:";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
-      {"cksum",     1, 0, XrdCpConfig::OpCksum},
-      {"debug",     1, 0, XrdCpConfig::OpDebug},
-      {"coerce",    0, 0, XrdCpConfig::OpCoerce},
-      {"force",     0, 0, XrdCpConfig::OpForce},
-      {"help",      0, 0, XrdCpConfig::OpHelp},
-      {"nopbar",    0, 0, XrdCpConfig::OpNoPbar},
-      {"posc",      0, 0, XrdCpConfig::OpPosc},
-      {"proxy",     0, 0, XrdCpConfig::OpProxy},
-      {"recursive", 0, 0, XrdCpConfig::OpRecurse},
-      {"retry",     1, 0, XrdCpConfig::OpRetry},
-      {"server",    0, 0, XrdCpConfig::OpServer},
-      {"silent",    0, 0, XrdCpConfig::OpSilent},
-      {"sources",   0, 0, XrdCpConfig::OpSources},
-      {"streams",   0, 0, XrdCpConfig::OpStreams},
-      {"tpc",       2, 0, XrdCpConfig::OpTpc},
-      {"verbose",   0, 0, XrdCpConfig::OpVerbose},
-      {"version",   0, 0, XrdCpConfig::OpVersion},
-      {"xrate",     1, 0, XrdCpConfig::OpXrate},
-      {0,           0, 0, 0}
+      {OPT_TYPE "cksum",     1, 0, XrdCpConfig::OpCksum},
+      {OPT_TYPE "debug",     1, 0, XrdCpConfig::OpDebug},
+      {OPT_TYPE "coerce",    0, 0, XrdCpConfig::OpCoerce},
+      {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
+      {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
+      {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
+      {OPT_TYPE "proxy",     0, 0, XrdCpConfig::OpProxy},
+      {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
+      {OPT_TYPE "retry",     1, 0, XrdCpConfig::OpRetry},
+      {OPT_TYPE "server",    0, 0, XrdCpConfig::OpServer},
+      {OPT_TYPE "silent",    0, 0, XrdCpConfig::OpSilent},
+      {OPT_TYPE "sources",   0, 0, XrdCpConfig::OpSources},
+      {OPT_TYPE "streams",   0, 0, XrdCpConfig::OpStreams},
+      {OPT_TYPE "tpc",       2, 0, XrdCpConfig::OpTpc},
+      {OPT_TYPE "verbose",   0, 0, XrdCpConfig::OpVerbose},
+      {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
+      {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
+      {0,                    0, 0, 0}
      };
 
 /******************************************************************************/

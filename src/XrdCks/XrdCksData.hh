@@ -63,6 +63,7 @@ int       Set(const void *csVal, int csLen)
              {if (csLen > ValuSize || csLen < 1) return 0;
               memcpy(Value, csVal, csLen);
               Length = csLen;
+              return 1;
              }
 
 int       Set(const char *csVal, int csLen)
