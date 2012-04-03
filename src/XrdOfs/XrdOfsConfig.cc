@@ -1229,20 +1229,22 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
   
 /* Function: xtpc
 
-   Purpose:  To parse the directive: tpc [logok] [ttl <dflt> [<max>]] [xfr <n>]
-                                         [allow <parms>]
+   Purpose:  To parse the directive: tpc [cksum <type>] [ttl <dflt> [<max>]]
+                                         [logok] [xfr <n>] [allow <parms>]
                                          [require {all|client|dest} <auth>[+]]
-                                         [restrict <path>]
+                                         [restrict <path>] [streams <num>]
                                          [pgm <path> [parms]]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
              <dflt>  the default seconds a tpc authorization may be valid.
              <max>   the maximum seconds a tpc authorization may be valid.
+             cksum   checksum incomming files using <type> checksum.
              logok   log successful authorizations.
              allow   only allow destinations that match the specified
                      authentication specification.
              <n>     maximum number of simultaneous transfers.
+             <num>   the number of TCP streams to use for the copy.
              <auth>  require that the client, destination, or both (i.e. all)
                      use the specified authentication protocol. Additional
                      require statements may be specified to add additional
@@ -1257,8 +1259,9 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
-   char *val, pgm[1024];
-   int  reqType, vlogOK = -1, vttlD = -1, vttlM = -1, vxfr = -1;
+   XrdOfsTPC::iParm Parms;
+   char *vcksum = 0, *val, pgm[1024];
+   int  reqType;
    *pgm = 0;
 
    while((val =  Config.GetWord()))
@@ -1266,12 +1269,20 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
             {if (!xtpcal(Config, Eroute)) return 1;
              continue;
             }
-         if (!strcmp(val, "logok")) {vlogOK = 1; continue;}
+         if (!strcmp(val, "cksum"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","cksum type not specified"); return 1;}
+             if (Parms.Ckst) free(Parms.Ckst);
+             Parms.Ckst = strdup(val);
+             continue;
+            }
+         if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}
              if (!*pgm)
                 {Eroute.Emsg("Config", "tpc program not specified"); return 1;}
+             Parms.Pgm = pgm;
              break;
             }
          if (!strcmp(val, "require"))
@@ -1298,25 +1309,30 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
          if (!strcmp(val, "ttl"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc ttl value not specified"); return 1;}
-             if (XrdOuca2x::a2tm(Eroute,"tpc ttl default",val,&vttlD,1))
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl default",val,&Parms.Dflttl,1))
                  return 1;
              if (!(val = Config.GetWord())) break;
              if (!(isdigit(*val))) {Config.RetToken(); continue;}
-             if (XrdOuca2x::a2tm(Eroute,"tpc ttl maximum",val,&vttlM,1))
+             if (XrdOuca2x::a2tm(Eroute,"tpc ttl maximum",val,&Parms.Maxttl,1))
                  return 1;
              continue;
             }
          if (!strcmp(val, "xfr"))
             {if (!(val = Config.GetWord()))
                 {Eroute.Emsg("Config","tpc xfr value not specified"); return 1;}
-             if (XrdOuca2x::a2i(Eroute,"tpc xfr",val,&vxfr,1)) return 1;
+             if (XrdOuca2x::a2i(Eroute,"tpc xfr",val,&Parms.Xmax,1)) return 1;
+             continue;
+            }
+         if (!strcmp(val, "streams"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","tpc streams value not specified"); return 1;}
+             if (XrdOuca2x::a2i(Eroute,"tpc streams",val,&Parms.Strm,1)) return 1;
              continue;
             }
          Eroute.Say("Config warning: ignoring invalid tpc option '",val,"'.");
         }
 
-   if (*pgm) XrdOfsTPC::Init(pgm);
-   XrdOfsTPC::Init(vttlD, vttlM, vlogOK, vxfr);
+   XrdOfsTPC::Init(Parms);
    Options |= ThirdPC;
    return 0;
 }

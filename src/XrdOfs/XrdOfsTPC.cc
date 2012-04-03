@@ -104,9 +104,11 @@ XrdOfsTPCAllow    *XrdOfsTPC::ALList   = 0;
 XrdOss            *XrdOfsTPC::OfsOss   = 0;
 XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
+char              *XrdOfsTPC::cksType  = 0;
 int                XrdOfsTPC::dflTTL   = 7;
 int                XrdOfsTPC::maxTTL   =15;
 int                XrdOfsTPC::LogOK    = 0;
+int                XrdOfsTPC::nStrms   = 0;
 int                XrdOfsTPC::xfrMax   = 9;
 int                XrdOfsTPC::tpcOK    = 0;
 int                XrdOfsTPC::encTPC   = 0;
@@ -300,23 +302,29 @@ int XrdOfsTPC::getTTL(XrdOucEnv *Env)
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-void XrdOfsTPC::Init(char *Prog)
+void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
 {
-   if (XfrProg) free(XfrProg);
-   XfrProg = strdup(Prog);
-}
-
-/******************************************************************************/
-  
-void XrdOfsTPC::Init(int dflttl, int maxttl, int logok, int xfrmax)
-{
-
-// Set static values
+// Set program if specified
 //
-   if (dflttl > 0) dflTTL = dflttl;
-   if (maxttl > 0) maxTTL = maxttl;
-   if (logok >= 0) LogOK  = logok;
-   if (xfrmax > 0) xfrMax = xfrmax;
+   if (Parms.Pgm)
+      {if (XfrProg) free(XfrProg);
+       XfrProg = strdup(Parms.Pgm);
+      }
+
+// Set checksum type if specified
+//
+   if (Parms.Ckst)
+      {if (cksType) free(cksType);
+       cksType = Parms.Ckst;
+      }
+
+// Set all other static values
+//
+   if (Parms.Dflttl >  0) dflTTL = Parms.Dflttl;
+   if (Parms.Maxttl >  0) maxTTL = Parms.Maxttl;
+   if (Parms.Logok  >= 0) LogOK  = Parms.Logok;
+   if (Parms.Strm   >  0) nStrms = Parms.Strm;
+   if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
 }
 
 /******************************************************************************/
@@ -407,7 +415,13 @@ int XrdOfsTPC::Start()
 
 // If there is no copy program then we use the default one
 //
-   if (!XfrProg) XfrProg = strdup("xrdcp --server");
+   if (!XfrProg)
+      {char pgmBuff[256], sBuff[32];
+       if (nStrms) sprintf(sBuff, " -S %d", nStrms);
+          else *sBuff = 0;
+       snprintf(pgmBuff,sizeof(pgmBuff),"xrdcp --server%s",sBuff);
+       XfrProg = strdup(pgmBuff);
+      }
 
 // Allocate copy program objects
 //

@@ -53,9 +53,18 @@ static  int   Authorize(XrdOfsTPC **theTPC,
 
 virtual void  Del() {}
 
-static  void  Init(char *Pgm);
+struct  iParm {char *Pgm;
+               char *Ckst;
+               int   Dflttl;
+               int   Maxttl;
+               int   Logok;
+               int   Strm;
+               int   Xmax;
+                     iParm() : Pgm(0), Ckst(0), Dflttl(-1), Maxttl(-1),
+                               Logok(-1), Strm(-1), Xmax(-1) {}
+              };
 
-static  void  Init(int dflttl, int maxttl, int logok, int xfrmax);
+static  void  Init(iParm &Parms);
 
 static  void  Init(XrdAccAuthorize *accP) {fsAuth = accP;}
 
@@ -85,6 +94,8 @@ virtual      ~XrdOfsTPC() {}
 
 XrdOfsTPCInfo Info;
 
+static char  *cksType;
+
 protected:
 
 static int    Fatal(Facts &Args, const char *eMsg, int eCode, int nomsg=0);
@@ -107,6 +118,7 @@ static XrdOucPListAnchor *RPList;
 static int                dflTTL;
 static int                maxTTL;
 static int                LogOK;
+static int                nStrms;
 static int                xfrMax;
 static int                tpcOK;
 static int                encTPC;

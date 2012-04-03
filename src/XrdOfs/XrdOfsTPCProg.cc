@@ -145,7 +145,8 @@ int XrdOfsTPCProg::Xeq()
 
 // Determine checksum option
 //
-   cksOpt = ((cksVal = Job->Info.Cks) ? "-C" : 0);
+   cksVal = (Job->Info.Cks ? Job->Info.Cks : XrdOfsTPC::cksType);
+   cksOpt = (cksVal ? "-C" : 0);
 
 // Start the job.
 //

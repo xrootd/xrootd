@@ -41,6 +41,8 @@ using namespace std;
 //
 #ifdef __solaris__
 #define OPT_TYPE (char *)
+#else
+#define OPT_TYPE
 #endif
 
 /******************************************************************************/
