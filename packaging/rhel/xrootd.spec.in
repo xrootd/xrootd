@@ -309,6 +309,7 @@ exit 0
 %{_bindir}/xprep
 %{_bindir}/xrd
 %{_bindir}/xrdcp
+%{_bindir}/xrdcpy
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdstagetool
 %doc %{_mandir}/man1/xprep.1.gz
