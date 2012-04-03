@@ -607,7 +607,7 @@ void *XrdCmsStartResp(void *carg)
        return (void *)0;
       }
 
-int XrdCmsFinderRMT::StartManagers(XrdOucTList *myManList)
+int XrdCmsFinderRMT::StartManagers(XrdOucTList *theManList)
 {
    XrdOucTList *tp;
    XrdCmsClientMan *mp, *firstone = 0;
@@ -621,7 +621,7 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *myManList)
 
 // For each manager, start a thread to handle it
 //
-   tp = myManList;
+   tp = theManList;
    while(tp && i < MaxMan)
         {mp = new XrdCmsClientMan(tp->text,tp->val,ConWait,RepNone,RepWait,RepDelay);
          myManTable[i] = mp;
