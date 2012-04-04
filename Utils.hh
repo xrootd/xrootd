@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <zlib.h>
+#include <string>
 
 //------------------------------------------------------------------------------
 //! A bunch of useful functions
@@ -17,6 +18,15 @@
 class Utils
 {
   public:
+    //--------------------------------------------------------------------------
+    //! Convert string representation of a crc checksum to int
+    //!
+    //! @param  result the resulting integer
+    //! @param  text   input sting
+    //! @return status of the conversion
+    //--------------------------------------------------------------------------
+    static bool CRC32TextToInt( uint32_t &result, const std::string &text  );
+
     //--------------------------------------------------------------------------
     //! Fill the buffer with random data
     //!
@@ -27,6 +37,14 @@ class Utils
     static ssize_t GetRandomBytes( char *buffer, size_t size );
 
     //--------------------------------------------------------------------------
+    //! Get initial CRC32 value
+    //--------------------------------------------------------------------------
+    static uint32_t GetInitialCRC32()
+    {
+      return crc32( 0L, Z_NULL, 0 );
+    }
+
+    //--------------------------------------------------------------------------
     //! Compute crc32 checksum out of a buffer
     //!
     //! @param buffer data buffer
@@ -34,7 +52,7 @@ class Utils
     //--------------------------------------------------------------------------
     static uint32_t ComputeCRC32( const void *buffer, uint32_t len )
     {
-      return crc32( crc32( 0L, Z_NULL, 0 ), (const Bytef*)buffer, len );
+      return crc32( GetInitialCRC32(), (const Bytef*)buffer, len );
     }
 
     //--------------------------------------------------------------------------

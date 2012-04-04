@@ -5,9 +5,30 @@
 //------------------------------------------------------------------------------
 
 #include "Utils.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <vector>
+#include <cstdlib>
+
+//------------------------------------------------------------------------------
+// Convert text CRC32 to int
+//------------------------------------------------------------------------------
+bool Utils::CRC32TextToInt( uint32_t &result, const std::string &text  )
+{
+  std::vector<std::string> res;
+  XrdClient::Utils::splitString( res, text, " " );
+  if( res.size() != 2 )
+    return false;
+
+  char *cnvCursor;
+  result = ::strtoll( res[1].c_str(), &cnvCursor, 0 );
+  if( *cnvCursor != 0 )
+    return false;
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Fill the buffer with random data
