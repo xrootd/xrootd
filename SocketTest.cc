@@ -9,6 +9,7 @@
 #include <ctime>
 #include "Server.hh"
 #include "Utils.hh"
+#include "TestEnv.hh"
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
 
@@ -18,9 +19,10 @@
 class RandomHandler: public ClientHandler
 {
   public:
-    virtual void HandleConnection( int socket, XrdClient::Log *log )
+    virtual void HandleConnection( int socket )
     {
-      XrdClient::ScopedDescriptor scopetDesc( socket );
+      XrdClient::ScopedDescriptor scopedDesc( socket );
+      XrdClient::Log *log = TestEnv::GetLog();
 
       //------------------------------------------------------------------------
       // Pump some data

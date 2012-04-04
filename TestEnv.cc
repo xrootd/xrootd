@@ -7,7 +7,8 @@
 #include "TestEnv.hh"
 
 XrdSysMutex     TestEnv::sEnvMutex;
-XrdClient::Env *TestEnv::sEnv             = 0;
+XrdClient::Env *TestEnv::sEnv       = 0;
+XrdClient::Log *TestEnv::sLog       = 0;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -39,16 +40,26 @@ XrdClient::Env *TestEnv::GetEnv()
   return sEnv;
 }
 
+XrdClient::Log *TestEnv::GetLog()
+{
+  //----------------------------------------------------------------------------
+  // This is actually thread safe because it is first called from
+  // a static initializer in a thread safe context
+  //----------------------------------------------------------------------------
+  if( unlikely( !sLog ) )
+    sLog = new XrdClient::Log();
+  return sLog;
+}
+
 //------------------------------------------------------------------------------
 // Release the environment
 //------------------------------------------------------------------------------
 void TestEnv::Release()
 {
-  if( sEnv )
-  {
-    delete sEnv;
-    sEnv = 0;
-  }
+  delete sEnv;
+  sEnv = 0;
+  delete sLog;
+  sLog = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -59,11 +70,23 @@ namespace
   static struct EnvInitializer
   {
     //--------------------------------------------------------------------------
+    // Initializer
+    //--------------------------------------------------------------------------
+    EnvInitializer()
+    {
+      using namespace XrdClient;
+      Log *log = TestEnv::GetLog();
+      char *level = getenv( "XRDTEST_LOGLEVEL" );
+      if( level )
+        log->SetLevel( level );
+    }
+
+    //--------------------------------------------------------------------------
     // Finalizer
     //--------------------------------------------------------------------------
     ~EnvInitializer()
     {
       TestEnv::Release();
     }
-  } finalizer;
+  } initializer;
 }

@@ -13,7 +13,6 @@
 #include <vector>
 #include <stdint.h>
 #include <pthread.h>
-#include "XrdCl/XrdClLog.hh"
 
 //------------------------------------------------------------------------------
 //! Interface for the client handler
@@ -35,9 +34,8 @@ class ClientHandler
     //! Handle connection
     //!
     //! @param socket the connection socket - needs to be closed when not needed
-    //! @param log    a log object that may be use to report diagnostics
     //--------------------------------------------------------------------------
-    virtual void HandleConnection( int socket, XrdClient::Log *log ) = 0;
+    virtual void HandleConnection( int socket ) = 0;
 
     //--------------------------------------------------------------------------
     //! Update statistics of the received data
@@ -173,7 +171,6 @@ class Server
     std::vector<ClientHelper*>  pClients;
     int                         pListenSocket;
     ClientHandlerFactory       *pHandlerFactory;
-    XrdClient::Log             *pLog;
 };
 
 #endif // SERVER_HH

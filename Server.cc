@@ -7,6 +7,8 @@
 #include "Server.hh"
 #include "Utils.hh"
 #include "XrdSys/XrdSysDNS.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "TestEnv.hh"
 
 #include <errno.h>
 #include <sys/socket.h>
@@ -22,7 +24,6 @@ struct ClientHelper
   ClientHandler  *handler;
   int             socket;
   pthread_t       thread;
-  XrdClient::Log *log;
   std::string     name;
 };
 
@@ -41,7 +42,7 @@ extern "C"
   void *HandleClient( void *arg )
   {
     ClientHelper *helper = (ClientHelper*)arg;
-    helper->handler->HandleConnection( helper->socket, helper->log );
+    helper->handler->HandleConnection( helper->socket );
     return 0;
   }
 }
@@ -85,10 +86,6 @@ void ClientHandler::UpdateReceivedData( char *buffer, uint32_t size )
 //------------------------------------------------------------------------------
 Server::Server(): pListenSocket(-1), pHandlerFactory(0)
 {
-  pLog = new XrdClient::Log();
-  char *level = getenv( "XRD_TEST_LOGLEVEL" );
-  if( level )
-     pLog->SetLevel( level );
 }
 
 //------------------------------------------------------------------------------
@@ -96,7 +93,6 @@ Server::Server(): pListenSocket(-1), pHandlerFactory(0)
 //------------------------------------------------------------------------------
 Server::~Server()
 {
-  delete pLog;
   delete pHandlerFactory;
   close( pListenSocket );
 }
@@ -107,14 +103,15 @@ Server::~Server()
 //------------------------------------------------------------------------------
 bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 {
-  pLog->Debug( 1, "Seting up the server, port: %d, clients: %d", port, accept );
+  XrdClient::Log *log = TestEnv::GetLog();
+  log->Debug( 1, "Seting up the server, port: %d, clients: %d", port, accept );
 
   //----------------------------------------------------------------------------
   // Set up the handler factory
   //----------------------------------------------------------------------------
   if( !factory )
   {
-    pLog->Error( 1, "Invalid client handler factory" );
+    log->Error( 1, "Invalid client handler factory" );
     return false;
   }
   pHandlerFactory = factory;
@@ -125,7 +122,7 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
   pListenSocket = socket( AF_INET, SOCK_STREAM, 0 );
   if( pListenSocket < 0 )
   {
-    pLog->Error( 1, "Unable to create listening socket: %s", strerror( errno ) );
+    log->Error( 1, "Unable to create listening socket: %s", strerror( errno ) );
     return false;
   }
 
@@ -133,7 +130,7 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
   if( setsockopt( pListenSocket, SOL_SOCKET, SO_REUSEADDR,
                   &optVal, sizeof(optVal) ) == -1 )
   {
-    pLog->Error( 1, "Unable to set the REUSEADDR option: %s", strerror( errno ) );
+    log->Error( 1, "Unable to set the REUSEADDR option: %s", strerror( errno ) );
     return false;
   }
 
@@ -145,13 +142,13 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 
   if( bind( pListenSocket, (sockaddr *)&servAddr, sizeof( servAddr ) ) < 0 )
   {
-    pLog->Error( 1, "Unable to bind the socket: %s", strerror( errno ) );
+    log->Error( 1, "Unable to bind the socket: %s", strerror( errno ) );
     return false;
   }
 
   if( listen( pListenSocket, accept ) < 0 )
   {
-    pLog->Error( 1, "Unable to listen on the socket: %s", strerror( errno ) );
+    log->Error( 1, "Unable to listen on the socket: %s", strerror( errno ) );
     return false;
   }
 
@@ -165,10 +162,11 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 //------------------------------------------------------------------------------
 bool Server::Start()
 {
-  pLog->Debug( 1, "Spawning the server thread" );
+  XrdClient::Log *log = TestEnv::GetLog();
+  log->Debug( 1, "Spawning the server thread" );
   if( pthread_create( &pServerThread, 0, ::HandleConnections, this ) < 0 )
   {
-    pLog->Error( 1, "Unable to spawn the server thread: %s", strerror(errno) );
+    log->Error( 1, "Unable to spawn the server thread: %s", strerror(errno) );
     return false;
   }
   return true;
@@ -179,11 +177,12 @@ bool Server::Start()
 //------------------------------------------------------------------------------
 bool Server::Stop()
 {
-  pLog->Debug( 1, "Waiting for the server thread to finish" );
+  XrdClient::Log *log = TestEnv::GetLog();
+  log->Debug( 1, "Waiting for the server thread to finish" );
   long ret;
   if( pthread_join( pServerThread, (void**)&ret ) < 0 )
   {
-    pLog->Error( 1, "Unable to join the server thread: %s", strerror(errno) );
+    log->Error( 1, "Unable to join the server thread: %s", strerror(errno) );
     return false;
   }
 
@@ -220,6 +219,8 @@ std::pair<uint64_t, uint32_t> Server::GetReceivedStats( const std::string host )
 //------------------------------------------------------------------------------
 int Server::HandleConnections()
 {
+  XrdClient::Log *log = TestEnv::GetLog();
+
   //----------------------------------------------------------------------------
   // Initiate the connections
   //----------------------------------------------------------------------------
@@ -234,7 +235,7 @@ int Server::HandleConnections()
                                    &inetLen );
     if( connectionSocket < 0 )
     {
-      pLog->Error( 1, "Unable to accept a connection: %s", strerror( errno ) );
+      log->Error( 1, "Unable to accept a connection: %s", strerror( errno ) );
       return 1;
     }
 
@@ -245,19 +246,18 @@ int Server::HandleConnections()
     char           nameBuff[1024];
     ClientHelper  *helper = new ClientHelper();
     XrdSysDNS::IPFormat( (sockaddr*)&inetAddr, nameBuff, sizeof( nameBuff ) );
-    pLog->Debug( 1, "Accepted a connection from %s", nameBuff );
+    log->Debug( 1, "Accepted a connection from %s", nameBuff );
 
     //--------------------------------------------------------------------------
     // Spawn the thread
     //--------------------------------------------------------------------------
-    helper->log     = pLog;
     helper->name    = nameBuff;
     helper->handler = handler;
     helper->socket  = connectionSocket;
     if( pthread_create( &helper->thread, 0, ::HandleClient, helper ) < 0 )
     {
-      pLog->Error( 1, "Unable to spawn a new thread for client no %d: %s",
-                   i, nameBuff );
+      log->Error( 1, "Unable to spawn a new thread for client no %d: %s",
+                  i, nameBuff );
       delete handler;
       close( connectionSocket );
       delete helper;
@@ -277,7 +277,7 @@ int Server::HandleConnections()
     //--------------------------------------------------------------------------
     if( *it == 0 )
     {
-      pLog->Debug( 1, "Skipping client that falied to start" );
+      log->Debug( 1, "Skipping client that falied to start" );
       continue;
     }
 
@@ -285,8 +285,8 @@ int Server::HandleConnections()
     // Join the client thread
     //--------------------------------------------------------------------------
     if( pthread_join( (*it)->thread, 0 ) < 0 )
-      pLog->Error( 1, "Unable to join the clint thread for: %s",
-                   (*it)->name.c_str() );
+      log->Error( 1, "Unable to join the clint thread for: %s",
+                  (*it)->name.c_str() );
 
     pSent[(*it)->name]     = std::make_pair(
                                 (*it)->handler->GetSentBytes(),

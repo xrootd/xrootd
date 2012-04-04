@@ -8,6 +8,7 @@
 #include "XrdCl/XrdClPoller.hh"
 #include "Server.hh"
 #include "Utils.hh"
+#include "TestEnv.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClSocket.hh"
@@ -42,9 +43,10 @@ class RandomPumpHandler: public ClientHandler
     //--------------------------------------------------------------------------
     // Pump some random data through the socket
     //--------------------------------------------------------------------------
-    virtual void HandleConnection( int socket, XrdClient::Log *log )
+    virtual void HandleConnection( int socket )
     {
       XrdClient::ScopedDescriptor scopetDesc( socket );
+      XrdClient::Log *log = TestEnv::GetLog();
 
       uint8_t  packets = random() % 100;
       uint16_t packetSize;
