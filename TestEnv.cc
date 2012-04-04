@@ -17,9 +17,11 @@ TestEnv::TestEnv()
   PutString( "MainServerURL",    "localhost:1094" );
   PutString( "DiskServerURL",    "localhost:1094" );
   PutString( "DataPath",         "/data"         );
+  PutString( "LocalFile",        "/data/testFile.dat" );
   ImportString( "MainServerURL", "XRDTEST_MAINSERVERURL" );
   ImportString( "DiskServerURL", "XRDTEST_DISKSERVERURL" );
   ImportString( "DataPath",      "XRDTEST_DATAPATH" );
+  ImportString( "LocalFile",     "XRDTEST_LOCALFILE" );
 }
 
 //------------------------------------------------------------------------------
