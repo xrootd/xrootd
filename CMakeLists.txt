@@ -74,3 +74,18 @@ target_link_libraries(
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
 
+
+#-------------------------------------------------------------------------------
+# Install
+#-------------------------------------------------------------------------------
+install(
+  TARGETS XrdCl xrdquery
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
+
+install(
+  DIRECTORY      ./
+  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl
+  FILES_MATCHING
+  PATTERN "*.hh"
+  PATTERN "*.icc" )
