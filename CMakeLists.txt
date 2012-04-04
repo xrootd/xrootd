@@ -13,6 +13,7 @@ add_library(
   PostMasterTest.cc
   QueryTest.cc
   FileTest.cc
+  FileCopyTest.cc
 )
 
 target_link_libraries(
