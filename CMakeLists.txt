@@ -4,9 +4,10 @@ link_directories( ${XROOTD_LIB_DIR} )
 
 add_library(
   XrdClTests MODULE
-  Server.cc          Server.hh
-  Utils.cc           Utils.hh
-  TestEnv.cc         TestEnv.hh
+  Server.cc              Server.hh
+  Utils.cc               Utils.hh
+  TestEnv.cc             TestEnv.hh
+  CppUnitXrdHelpers.hh
   UtilsTest.cc
   SocketTest.cc
   PollerTest.cc
