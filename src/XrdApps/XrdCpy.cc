@@ -1600,6 +1600,6 @@ int main(int argc, char**argv)
 // All done
 //
    if (retval < 0) retval = -retval;
-   exit(retval);
+   _exit(retval);
    return retval;
 }
