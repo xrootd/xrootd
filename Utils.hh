@@ -50,7 +50,7 @@ class Utils
     //! @param buffer data buffer
     //! @param len    size of the data buffer
     //--------------------------------------------------------------------------
-    static uint32_t ComputeCRC32( const void *buffer, uint32_t len )
+    static uint32_t ComputeCRC32( const void *buffer, uint64_t len )
     {
       return crc32( GetInitialCRC32(), (const Bytef*)buffer, len );
     }
@@ -62,9 +62,21 @@ class Utils
     //! @param buffer data buffer
     //! @param len    size of the data buffer
     //--------------------------------------------------------------------------
-    static uint32_t UpdateCRC32( uint32_t crc, const void *buffer, uint32_t len )
+    static uint32_t UpdateCRC32( uint32_t crc, const void *buffer, uint64_t len )
     {
       return crc32( crc, (const Bytef*)buffer, len );
+    }
+
+    //--------------------------------------------------------------------------
+    //! Combine two crc32 checksums
+    //!
+    //! @param crc1 checksum of the first data block
+    //! @param crc2 checksum of the second data block
+    //! @param len2 size of the second data block
+    //--------------------------------------------------------------------------
+    static uint32_t CombineCRC32( uint32_t crc1, uint32_t crc2, uint64_t len2 )
+    {
+      return crc32_combine( crc1, crc2, len2 );
     }
 };
 
