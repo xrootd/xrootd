@@ -15,6 +15,7 @@ add_library(
   QueryTest.cc
   FileTest.cc
   FileCopyTest.cc
+  ThreadingTest.cc
 )
 
 target_link_libraries(
