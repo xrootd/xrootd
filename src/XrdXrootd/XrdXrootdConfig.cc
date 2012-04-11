@@ -117,7 +117,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    XrdXrootdXPath *xp;
    void *secGetProt = 0;
    char *adminp, *fsver, *rdf, *bP, *tmp, c, buff[1024];
-   int i, n, deper = 0;
+   int i, n, deper = 0, iamaMan = 0;
 
 // Copy out the special info we want to use at top level
 //
@@ -286,6 +286,18 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    sprintf(buff, "udp://%s:%d/&L=%%d&U=%%s", pi->myName, pi->Port);
    Notify = strdup(buff);
 
+// Set the redirect flag if we are a pure redirector
+//
+   myRole = kXR_isServer; myRolf = kXR_DataServer;
+   if ((rdf = getenv("XRDREDIRECT"))
+   && (!strcmp(rdf, "R") || !strcmp(rdf, "M")))
+      {isRedir = *rdf;
+       myRole = kXR_isManager; myRolf = kXR_LBalServer; iamaMan = 1;
+       if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
+      } 
+   if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
+   myRole = htonl(myRole); myRolf = htonl(myRolf);
+
 // Check if we are redirecting anything
 //
    if ((xp = RPList.Next()))
@@ -300,25 +312,22 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    if ((xp = RQList.Next()))
       {int k;
-       char buff[512];
+       const char *cgi1, *cgi2;
+       char buff[1024], xCgi[RD_Num] = {0};
+       if (iamaMan) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
+          else      {cgi1 = "";  cgi2 = pi->myName;}
        do {k = xp->Opts();
            sprintf(buff, " to %s:%d", Route[k].Host, Route[k].Port);
            eDest.Say("Config redirect enoent ", xp->Path(), buff);
+           if (!xCgi[k] && cgi2)
+              {snprintf(buff,sizeof(buff), "%s?tried=%s%s", Route[k].Host,
+                                           cgi1, cgi2);
+               free(Route[k].Host); Route[k].Host = strdup(buff);
+              }
+           xCgi[k] = 1;
            xp = xp->Next();
           } while(xp);
       }
-
-// Set the redirect flag if we are a pure redirector
-//
-   myRole = kXR_isServer; myRolf = kXR_DataServer;
-   if ((rdf = getenv("XRDREDIRECT"))
-   && (!strcmp(rdf, "R") || !strcmp(rdf, "M")))
-      {isRedir = *rdf;
-       myRole = kXR_isManager; myRolf = kXR_LBalServer;
-       if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
-      } 
-   if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
-   myRole = htonl(myRole); myRolf = htonl(myRolf);
 
 // Check if monitoring should be enabled
 //
@@ -1040,7 +1049,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
     if (!(val = Config.GetWord()))
        {eDest.Emsg("config", "redirect option not specified"); return 1;}
 
-    if (*val == '/' || (isQ = (*val == '?')))
+    if (*val == '/' || (isQ = ((*val == '?') || !strcmp(val,"enoent"))))
        {if (isQ)
            {RQLxist = 1;
             if (!(val = Config.GetWord()))
