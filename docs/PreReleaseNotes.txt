@@ -9,6 +9,8 @@ Prerelease Notes
 + **Minor bug fixes**
    * Pass through error code returned by the N2N plug-in. This only affects
      the proxy server and caused feature interference.
+   * Automatically exclude originating server/cluster on an enoent static
+     redirect.
 
 + **Miscellaneous**
 
