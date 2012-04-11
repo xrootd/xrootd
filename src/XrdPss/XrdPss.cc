@@ -208,6 +208,7 @@ const char *XrdPssSys::Lfn2Pfn(const char *oldp, char *newp, int blen, int &rc)
 int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 {
    char pbuff[PBsz];
+   int retc;
 
 // Verify we can write here
 //
@@ -215,7 +216,7 @@ int XrdPssSys::Mkdir(const char *path, mode_t mode, int mkpath, XrdOucEnv *eP)
 
 // Convert path to URL
 //
-   if (!P2URL(pbuff, PBsz, path)) return -ENAMETOOLONG;
+   if (!P2URL(retc, pbuff, PBsz, path)) return retc;
 
 // Simply return the proxied result here
 //
@@ -246,8 +247,8 @@ int XrdPssSys::Remdir(const char *path, int Opts, XrdOucEnv *eP)
 
 // Convert path to URL
 //
-   if (!(subPath = P2URL(pbuff, PBsz, path, allRmdir, Cgi, strlen(Cgi))))
-      return -ENAMETOOLONG;
+   if (!(subPath = P2URL(rc, pbuff, PBsz, path, allRmdir, Cgi, strlen(Cgi))))
+      return rc;
 
 // If unlinks are being forwarded, just execute this on a single node.
 // Otherwise, make sure it it's not the base dir and execute everywhere.
@@ -281,6 +282,7 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
                       XrdOucEnv  *oldenvP, XrdOucEnv  *newenvP)
 {
    char oldName[PBsz], *oldSubP, newName[PBsz], *newSubP;
+   int retc;
 
 // Verify we can write in the source and target
 //
@@ -296,9 +298,9 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 
 // Convert path to URL
 //
-   if (!(oldSubP = P2URL(oldName, PBsz, oldname))
-   ||  !(newSubP = P2URL(newName, PBsz, newname)))
-       return -ENAMETOOLONG;
+   if (!(oldSubP = P2URL(retc, oldName, PBsz, oldname))
+   ||  !(newSubP = P2URL(retc, newName, PBsz, newname)))
+       return retc;
 
 // Execute the rename and return result
 //
@@ -329,7 +331,7 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
    static const int   noStageCGL = strlen(noStageCGI);
    const char *Cgi;
    char pbuff[PBsz];
-   int CgiLen;
+   int CgiLen, retc;
 
 // Setup any required cgi information
 //
@@ -339,7 +341,7 @@ int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP
 
 // Convert path to URL
 //
-   if (!P2URL(pbuff, PBsz, path, 0, Cgi, CgiLen)) return -ENAMETOOLONG;
+   if (!P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen)) return retc;
 
 // Return proxied stat
 //
@@ -363,6 +365,7 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
                         XrdOucEnv *envP)
 {
    char pbuff[PBsz];
+   int retc;
 
 // Make sure we can write here
 //
@@ -370,7 +373,7 @@ int XrdPssSys::Truncate(const char *path, unsigned long long flen,
 
 // Convert path to URL
 //
-   if (!P2URL(pbuff, PBsz, path)) return -ENAMETOOLONG;
+   if (!P2URL(retc, pbuff, PBsz, path)) return retc;
 
 // Return proxied truncate. We only do this on a single machine because the
 // redirector will forbid the trunc() if multiple copies exist.
@@ -402,8 +405,8 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 
 // Convert path to URL
 //
-   if (!(subPath = P2URL(pbuff, PBsz, path, allRm, Cgi, strlen(Cgi))))
-      return -ENAMETOOLONG;
+   if (!(subPath = P2URL(rc, pbuff, PBsz, path, allRm, Cgi, strlen(Cgi))))
+      return rc;
 
 // If unlinks are being forwarded, just execute this on a single node.
 // Otherwise, make sure it may be a file and execute everywhere.
@@ -437,7 +440,7 @@ int XrdPssSys::Unlink(const char *path, int Opts, XrdOucEnv *envP)
 int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 {
    char pbuff[PBsz], *subPath;
-   int theUid = XrdPssSys::T2UID(tident);
+   int retc, theUid = XrdPssSys::T2UID(tident);
 
 // Return an error if this object is already open
 //
@@ -446,7 +449,7 @@ int XrdPssDir::Opendir(const char *dir_path, XrdOucEnv &Env)
 
 // Convert path to URL
 //
-   if (!(subPath = XrdPssSys::P2URL(pbuff,PBsz,dir_path))) return -ENAMETOOLONG;
+   if (!(subPath = XrdPssSys::P2URL(retc,pbuff,PBsz,dir_path))) return retc;
 
 // Return proxied result
 //
@@ -546,7 +549,7 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
    unsigned long long popts = XrdPssSys::XPList.Find(path);
    const char *Cgi;
    char pbuff[PBsz], cgbuff[PBsz];
-   int CgiLen;
+   int CgiLen, retc;
 
 // Return an error if the object is already open
 //
@@ -575,8 +578,8 @@ int XrdPssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
 
 // Convert path to URL
 //
-   if (!XrdPssSys::P2URL(pbuff, PBsz, path, 0, Cgi, CgiLen, tident))
-      return -ENAMETOOLONG;
+   if (!XrdPssSys::P2URL(retc, pbuff, PBsz, path, 0, Cgi, CgiLen, tident))
+      return retc;
 
 // Try to open and if we failed, return an error
 //
@@ -807,7 +810,8 @@ int XrdPssFile::isCompressed(char *cxidp)  // Not supported for proxies
 /*                                 P 2 U R L                                  */
 /******************************************************************************/
   
-char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
+char *XrdPssSys::P2URL(int &retc, char *pbuff, int pblen,
+                 const char *path,  int Split,
                  const char *Cgi,   int CgiLn, const char *Ident,int doN2N)
 {
    int   pfxLen, pathln;
@@ -820,7 +824,8 @@ char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
 // mapping fails and ENAMETOOLONG will be returned.
 //
    if (doN2N && XrdProxySS.theN2N)
-      {if (XrdProxySS.theN2N->lfn2pfn(path, Apath, sizeof(Apath))) return 0;
+      {if ((retc = XrdProxySS.theN2N->lfn2pfn(path, Apath, sizeof(Apath))))
+          return 0;
        fname = Apath;
       }
    pathln = strlen(fname);
@@ -842,8 +847,12 @@ char *XrdPssSys::P2URL(char *pbuff, int pblen, const char *path, int Split,
 
 // Calculate if the rest of the data will actually fit (we overestimate by 1)
 //
-   if ((pfxLen + pathln + CgiLn + 1 + (Split ? 1 : 0)) >= pblen) return 0;
+   if ((pfxLen + pathln + CgiLn + 1 + (Split ? 1 : 0)) >= pblen)
+      {retc = -ENAMETOOLONG;
+       return 0;
+      }
    retPath = (pbuff += pfxLen);
+   retc = 0;
 
 // If we need to return a split path, then compute where to split it. Note
 // that Split assumes that all redundant slashes have been removed. We do

@@ -68,8 +68,8 @@ int XrdPssCks::Get(const char *Pfn, XrdCksData &Cks)
 
 // Direct the path to the origin (we don't have any cgi or ident info)
 //
-   if (!XrdPssSys::P2URL(pBuff, sizeof(pBuff), Pfn, 0, 0, 0, 0, 0))
-      return -ENAMETOOLONG;
+   if (!XrdPssSys::P2URL(rc, pBuff, sizeof(pBuff), Pfn, 0, 0, 0, 0, 0))
+      return rc;
 
 // First step is to getthe checksum value
 //
