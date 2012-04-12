@@ -1484,10 +1484,10 @@ void XrdPosixXrootd::initEnv()
           {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
           {"XRDPOSIX_TTO",         NAME_TRANSACTIONTIMEOUT,   0},
           {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0},
-          {"XRDPSOIX_CTO",         NAME_CONNECTTIMEOUT,       0},
-          {"XRDPSOIX_CRDELAY",     NAME_RECONNECTWAIT,        0},
-          {"XRDPSOIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
-          {"XRDPSOIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
+          {"XRDPOSIX_CTO",         NAME_CONNECTTIMEOUT,       0},
+          {"XRDPOSIX_CRDELAY",     NAME_RECONNECTWAIT,        0},
+          {"XRDPOSIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
+          {"XRDPOSIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
           };
    int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
    char *cvar, *evar;
