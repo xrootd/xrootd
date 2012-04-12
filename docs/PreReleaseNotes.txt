@@ -11,6 +11,7 @@ Prerelease Notes
      the proxy server and caused feature interference.
    * Automatically exclude originating server/cluster on an enoent static
      redirect.
+   * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
 
