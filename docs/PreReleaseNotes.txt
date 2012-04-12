@@ -5,6 +5,7 @@ XRootD
 Prerelease Notes
 ================
 + **Major bug fixes**
+   * Avoid deadlock when closing a Posix File with an active preread.
 
 + **Minor bug fixes**
    * Pass through error code returned by the N2N plug-in. This only affects
