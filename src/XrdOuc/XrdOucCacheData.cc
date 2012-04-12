@@ -103,10 +103,6 @@ XrdOucCacheIO *XrdOucCacheData::Detach()
 {
    XrdOucCacheIO *RetVal;
 
-// Get exclusive control
-//
-   rwLock.Lock(xs_Exclusive);
-
 // We must wait for any pre-reads to stop at this point
 //
    DMutex.Lock();
@@ -117,6 +113,10 @@ XrdOucCacheIO *XrdOucCacheData::Detach()
        prDone.Wait();
        DMutex.Lock();
       }
+
+// Get exclusive control
+//
+   rwLock.Lock(xs_Exclusive);
 
 // We can now detach ourselves from the cache
 //
