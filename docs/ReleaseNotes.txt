@@ -15,9 +15,9 @@ Version 3.2.0
      of disk caches containing partial files.
    * Add the pss.cachelib directive to specify a cache plugin.
    * Implement ultralow overhead redirect monitoring.
-     WARNING: ofs plugin writers will need to recompile their plugin interface
-              to be fully compatible with this commit due to additional
-              information passed to the ofs object "new" methods.
+     **WARNING: ofs plugin writers will need to recompile their plugin interface
+     to be fully compatible with this commit due to additional
+     information passed to the ofs object "new" methods.**
    * Allow the XrdCmsClient interface (a.k.a Finder) to be a plug-in.
    * Add ofs.cmslib directive to specify the XrdCmsClient plug-in.
    * Add new class, XrdOucCallBack, to simplify using callbacks in the
@@ -34,9 +34,9 @@ Version 3.2.0
    * Add -y option to xrdcp to limit number of extreme copy sources.
    * Uniformly pass the execution environment to all oss and cms client
      methods. This is largely for DPM support.
-     WARNING: While this update is binary backwad compatible to existing oss
-              plug-ins it is not source compatible. Plug-in writers will need
-              to modify their oss methods to successfully compile.
+     **WARNING: While this update is binary backwad compatible to existing oss
+     plug-ins it is not source compatible. Plug-in writers will need
+     to modify their oss methods to successfully compile.**
    * Allow an automatic redirect when a file operation ends with ENOENT.
      Allow redirects for chsum and trunc operations.
      Both of the above are controlled via the xrootd.redirect directive.
@@ -60,6 +60,7 @@ Version 3.2.0
      for the just added monitoring code.
    * Remove regressions that prevent a proxy cluster from being fully
      configured.
+   * Avoid deadlock when closing a Posix File with an active preread.
 
 + **Minor bug fixes**
    * Correct debug message frequency that caused people to think some file
@@ -76,6 +77,11 @@ Version 3.2.0
      when monitoring file information.
    * Do not create meta-files or update extended attributes when placing a
      file into read-only space.
+   * Automatically exclude originating server/cluster on an enoent static
+     redirect.
+   * Pass through error code returned by the N2N plug-in. This only affects
+     the proxy server and caused feature interference.
+   * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
    * Bonjour code dropped
@@ -86,6 +92,11 @@ Version 3.2.0
    * Document the XrdCmsClient interface in the header file.
    * Cut close monitor records before cutting the disconnect record.
    * Make frm_purged and frm_xfrd use sparate log files.
+     **WARNING: This changes the way the frm daemons are configured in
+     the sysconfig file. PURD_INSTANCES and XFRD_INSTANCES instances
+     and their respective commandline settings need to be give separetely.
+     To enable seamless RPM upgrade, setting FRMD_INSTANCES will still
+     be supported in 3.2.x but will be dropped in 3.3.x.**
 
 -------------
 Version 3.1.1
@@ -97,7 +108,7 @@ Version 3.1.1
    * Add possibility to switch off automatic download of CRL from the web;
      default is OFF; to enable it multiply by 10 the relevant CRL options
      (i.e. 12 and 13 are like 2 and 3 but trying download if the file is not
-      found).
+     found).
    * Add refresh frequency time for CRL's; default 1 day .
 
 + **Major bug fixes**
