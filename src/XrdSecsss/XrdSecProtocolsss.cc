@@ -73,7 +73,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    XrdSecsssKT::ktEnt  decKey;
    XrdSecEntity        myID("sss");
    char lidBuff[16],  eType, *idP, *dP, *eodP, *theIP = 0, *theHost = 0;
-   int idTLen = 0, idSz, dLen;
+   int idTLen, idSz, dLen;
 
 // Decode the credentials
 //
@@ -91,6 +91,13 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
        *parms = Encode(einfo, decKey, rrHdr, &rrData, dP-(char *)&rrData);
        return (*parms ? 1 : -1);
       }
+
+// Set the minimum size of the id buffer. This is likely going to wind up
+// a bit larger than we need but at least it will big enough.
+//
+   idTLen  = (decKey.Data.User ? strlen(decKey.Data.User) : 0);
+   idTLen += (decKey.Data.Grup ? strlen(decKey.Data.Grup) : 0);
+   if (idTLen < 16) idTLen = 16;
 
 // Extract out the entity ID
 //
