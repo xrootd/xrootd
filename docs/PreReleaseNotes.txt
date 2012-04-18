@@ -4,6 +4,9 @@ XRootD
 
 Prerelease Notes
 ================
++ **New Features**
+   *Add third party copy statistics to the summary record.
+
 + **Major bug fixes**
    * Make sure the id buffer is large enough to hold all id combinations.
    * Avoid deadlock when closing a Posix File with an active preread.
