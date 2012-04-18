@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdOfsStatsCVSID = "$Id$";
-
 #include <stdio.h>
 
 #include "XrdOfs/XrdOfsStats.hh"
@@ -25,7 +21,9 @@ int XrdOfsStats::Report(char *buff, int blen)
     static const char stats1[] = "<stats id=\"ofs\"><role>%s</role>"
            "<opr>%d</opr><opw>%d</opw><opp>%d</opp><ups>%d</ups><han>%d</han>"
            "<rdr>%d</rdr><bxq>%d</bxq><rep>%d</rep><err>%d</err><dly>%d</dly>"
-           "<sok>%d</sok><ser>%d</ser></stats>";
+           "<sok>%d</sok><ser>%d</ser>"
+           "<tpc><grnt>%d</grnt><deny>%d</deny><err>%d</err><exp>%d<exp></tpc>"
+           "</stats>";
     static const int  statsz = sizeof(stats1) + (12*10) + 64;
 
     StatsData myData;
@@ -50,5 +48,7 @@ int XrdOfsStats::Report(char *buff, int blen)
                     myData.numOpenP,    myData.numUnpsist, myData.numHandles,
                     myData.numRedirect, myData.numStarted, myData.numReplies,
                     myData.numErrors,   myData.numDelays,
-                    myData.numSeventOK, myData.numSeventER);
+                    myData.numSeventOK, myData.numSeventER,
+                    myData.numTPCgrant, myData.numTPCdeny,
+                    myData.numTPCerrs,  myData.numTPCexpr);
 }
