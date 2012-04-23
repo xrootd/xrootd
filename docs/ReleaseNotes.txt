@@ -61,6 +61,7 @@ Version 3.2.0
    * Remove regressions that prevent a proxy cluster from being fully
      configured.
    * Avoid deadlock when closing a Posix File with an active preread.
+   * Make sure the sss id buffer is large enough to hold all id combinations.
 
 + **Minor bug fixes**
    * Correct debug message frequency that caused people to think some file
