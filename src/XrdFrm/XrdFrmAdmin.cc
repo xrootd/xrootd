@@ -1014,6 +1014,7 @@ char XrdFrmAdmin::VerifyMP(const char *func, const char *path)
    else if (Popts & XRDEXP_MIG)   Opt.MPType = 'm';
    else if (Popts & XRDEXP_STAGE) Opt.MPType = 'p';
 
-   if (msg) return XrdFrcUtils::Ask('n', path, msg, "; continue?");
+   if (msg && !Opt.Force)
+      return XrdFrcUtils::Ask('n', path, msg, "; continue?");
    return 'y';
 }
