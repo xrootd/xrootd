@@ -12,7 +12,7 @@ Prerelease Notes
    * Avoid deadlock when closing a Posix File with an active preread.
 
 + **Minor bug fixes**
-   
+   * Fix the -force option to really work for the mark subcommand.
    * Pass through error code returned by the N2N plug-in. This only affects
      the proxy server and caused feature interference.
    * Automatically exclude originating server/cluster on an enoent static
