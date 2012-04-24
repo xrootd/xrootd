@@ -10,6 +10,8 @@ Prerelease Notes
 + **Major bug fixes**
    * Make sure the id buffer is large enough to hold all id combinations.
    * Avoid deadlock when closing a Posix File with an active preread.
+   * For concurrent queries for the same file allow servers to respond to the
+     query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
    * Fix the -force option to really work for the mark subcommand.
