@@ -785,7 +785,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    if (!(Sel.Opts & XrdCmsSelect::Refresh)
    &&   (retc = Cache.GetFile(Sel, pinfo.rovec)))
       {if (isRW)
-          {     if (Sel.Opts & XrdCmsSelect::Replica)
+          {     if (retc<0) return Config.LUPDelay;
+              else if (Sel.Opts & XrdCmsSelect::Replica)
                    {pmask = amask & ~(Sel.Vec.hf | Sel.Vec.bf); smask = 0;
                     if (!pmask && !Sel.Vec.bf) return SelFail(Sel,eNoRep);
                    }
@@ -804,7 +805,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
           } else {
            pmask = Sel.Vec.hf  & amask; 
            if (Sel.Opts & XrdCmsSelect::Online) {pmask &= ~Sel.Vec.pf; smask=0;}
-              else smask = pinfo.ssvec & amask;
+           else smask = (retc < 0 ? 0 : pinfo.ssvec & amask);
           }
        if (Sel.Vec.hf & Sel.nmask) Cache.UnkFile(Sel, Sel.nmask);
       } else {
