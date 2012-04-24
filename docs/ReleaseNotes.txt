@@ -62,6 +62,9 @@ Version 3.2.0
      configured.
    * Avoid deadlock when closing a Posix File with an active preread.
    * Make sure the sss id buffer is large enough to hold all id combinations.
+   * For concurrent queries for the same file allow servers to respond to the
+     query and only redirect clients to a stageable server if the file is not
+     found.
 
 + **Minor bug fixes**
    * Correct debug message frequency that caused people to think some file
