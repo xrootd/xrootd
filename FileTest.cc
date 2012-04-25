@@ -254,12 +254,12 @@ void FileTest::WriteTest()
                            Access::UR | Access::UW ).IsOK() );
   CPPUNIT_ASSERT( f1.Truncate( 20*MB ).IsOK() );
   CPPUNIT_ASSERT( f1.Close().IsOK() );
-  Query query( url );
+  FileSystem fs( url );
   StatInfo *response = 0;
-  CPPUNIT_ASSERT( query.Stat( filePath, response ).IsOK() );
+  CPPUNIT_ASSERT( fs.Stat( filePath, response ).IsOK() );
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() == 20*MB );
-  CPPUNIT_ASSERT( query.Rm( filePath ).IsOK() );
+  CPPUNIT_ASSERT( fs.Rm( filePath ).IsOK() );
   delete [] buffer1;
   delete [] buffer2;
   delete [] buffer3;

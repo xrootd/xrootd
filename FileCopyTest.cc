@@ -97,9 +97,9 @@ void FileCopyTest::DownloadTest()
   Buffer  arg;
   Buffer *cksResponse = 0;
   arg.FromString( path );
-  Query query( url );
-  CPPUNIT_ASSERT_XRDST( query.ServerQuery( QueryCode::Checksum,
-                                           arg, cksResponse ) );
+  FileSystem fs( url );
+  CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum,
+                                  arg, cksResponse ) );
   CPPUNIT_ASSERT( cksResponse );
 
   uint32_t remoteCRC32 = 0;
@@ -157,7 +157,7 @@ void FileCopyTest::UploadTest()
   ssize_t  bytesRead;
   uint32_t computedCRC32 = Utils::GetInitialCRC32();
 
-  while( (bytesRead = read( fd, buffer, 10*MB )) > 0 )
+  while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )
   {
     computedCRC32 = Utils::UpdateCRC32( computedCRC32, buffer, bytesRead );
     CPPUNIT_ASSERT_XRDST( f.Write( offset, bytesRead, buffer ) );
@@ -172,9 +172,9 @@ void FileCopyTest::UploadTest()
   //----------------------------------------------------------------------------
   // Verify the size
   //----------------------------------------------------------------------------
-  Query     query( url );
-  StatInfo *stat = 0;
-  CPPUNIT_ASSERT_XRDST( query.Stat( dataPath + "/testUpload.dat", stat ) );
+  FileSystem  fs( url );
+  StatInfo   *stat = 0;
+  CPPUNIT_ASSERT_XRDST( fs.Stat( dataPath + "/testUpload.dat", stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == offset );
   delete stat;
@@ -186,8 +186,7 @@ void FileCopyTest::UploadTest()
   Buffer *cksResponse = 0;
   arg.FromString( dataPath + "/testUpload.dat" );
 
-  CPPUNIT_ASSERT_XRDST( query.ServerQuery( QueryCode::Checksum,
-                                           arg, cksResponse ) );
+  CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, cksResponse ) );
   CPPUNIT_ASSERT( cksResponse );
   uint32_t remoteCRC32 = 0;
   CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
@@ -199,5 +198,5 @@ void FileCopyTest::UploadTest()
   //----------------------------------------------------------------------------
   // Delete the file
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( query.Rm( dataPath + "/testUpload.dat" ) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( dataPath + "/testUpload.dat" ) );
 }

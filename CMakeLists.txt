@@ -12,7 +12,7 @@ add_library(
   SocketTest.cc
   PollerTest.cc
   PostMasterTest.cc
-  QueryTest.cc
+  FileSystemTest.cc
   FileTest.cc
   FileCopyTest.cc
   ThreadingTest.cc

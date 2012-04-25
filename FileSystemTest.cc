@@ -5,7 +5,9 @@
 //------------------------------------------------------------------------------
 
 #include <cppunit/extensions/HelperMacros.h>
-#include <XrdCl/XrdClQuery.hh>
+#include <XrdCl/XrdClFileSystem.hh>
+#include <XrdCl/XrdClFile.hh>
+#include "CppUnitXrdHelpers.hh"
 
 #include <pthread.h>
 
@@ -14,10 +16,10 @@
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
-class QueryTest: public CppUnit::TestCase
+class FileSystemTest: public CppUnit::TestCase
 {
   public:
-    CPPUNIT_TEST_SUITE( QueryTest );
+    CPPUNIT_TEST_SUITE( FileSystemTest );
       CPPUNIT_TEST( LocateTest );
       CPPUNIT_TEST( MvTest );
       CPPUNIT_TEST( ServerQueryTest );
@@ -45,12 +47,12 @@ class QueryTest: public CppUnit::TestCase
     void DirListTest();
 };
 
-CPPUNIT_TEST_SUITE_REGISTRATION( QueryTest );
+CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemTest );
 
 //------------------------------------------------------------------------------
 // Locate test
 //------------------------------------------------------------------------------
-void QueryTest::LocateTest()
+void FileSystemTest::LocateTest()
 {
   using namespace XrdClient;
 
@@ -73,10 +75,10 @@ void QueryTest::LocateTest()
   //----------------------------------------------------------------------------
   // Query the server for all of the file locations
   //----------------------------------------------------------------------------
-  Query query( url );
+  FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  XRootDStatus st = query.Locate( filePath, OpenFlags::Refresh, locations );
+  XRootDStatus st = fs.Locate( filePath, OpenFlags::Refresh, locations );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
@@ -86,7 +88,7 @@ void QueryTest::LocateTest()
 //------------------------------------------------------------------------------
 // Mv test
 //------------------------------------------------------------------------------
-void QueryTest::MvTest()
+void FileSystemTest::MvTest()
 {
   using namespace XrdClient;
 
@@ -107,18 +109,18 @@ void QueryTest::MvTest()
   std::string filePath1 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
   std::string filePath2 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat2";
 
-  Query query( url );
+  FileSystem fs( url );
 
-  XRootDStatus st = query.Mv( filePath1, filePath2 );
+  XRootDStatus st = fs.Mv( filePath1, filePath2 );
   CPPUNIT_ASSERT( st.IsOK() );
-  st = query.Mv( filePath2, filePath1 );
+  st = fs.Mv( filePath2, filePath1 );
   CPPUNIT_ASSERT( st.IsOK() );
 }
 
 //------------------------------------------------------------------------------
 // Query test
 //------------------------------------------------------------------------------
-void QueryTest::ServerQueryTest()
+void FileSystemTest::ServerQueryTest()
 {
   using namespace XrdClient;
 
@@ -138,11 +140,11 @@ void QueryTest::ServerQueryTest()
 
   std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
 
-  Query query( url );
+  FileSystem fs( url );
   Buffer *response = 0;
   Buffer  arg;
   arg.FromString( filePath );
-  XRootDStatus st = query.ServerQuery( QueryCode::Checksum, arg, response );
+  XRootDStatus st = fs.Query( QueryCode::Checksum, arg, response );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() != 0 );
@@ -152,7 +154,7 @@ void QueryTest::ServerQueryTest()
 //------------------------------------------------------------------------------
 // Truncate/Rm test
 //------------------------------------------------------------------------------
-void QueryTest::TruncateRmTest()
+void FileSystemTest::TruncateRmTest()
 {
   using namespace XrdClient;
 
@@ -164,26 +166,28 @@ void QueryTest::TruncateRmTest()
   std::string address;
   std::string dataPath;
 
-  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
   CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
   std::string filePath = dataPath + "/testfile";
+  std::string fileUrl  = address + "/";
+  fileUrl += filePath;
 
-  Query query( url );
-
-  XRootDStatus st = query.Truncate( filePath, 10000000 );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = query.Rm( filePath );
-  CPPUNIT_ASSERT( st.IsOK() );
+  FileSystem fs( url );
+  File       f;
+  CPPUNIT_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Update | OpenFlags::Delete,
+                                Access::UR | Access::UW ) );
+  CPPUNIT_ASSERT_XRDST( fs.Truncate( filePath, 10000000 ) );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( filePath ) );
 }
 
 //------------------------------------------------------------------------------
 // Mkdir/Rmdir test
 //------------------------------------------------------------------------------
-void QueryTest::MkdirRmdirTest()
+void FileSystemTest::MkdirRmdirTest()
 {
   using namespace XrdClient;
 
@@ -204,21 +208,21 @@ void QueryTest::MkdirRmdirTest()
   std::string dirPath1 = dataPath + "/testdir";
   std::string dirPath2 = dataPath + "/testdir/asdads";
 
-  Query query( url );
+  FileSystem fs( url );
 
-  XRootDStatus st = query.MkDir( dirPath2, MkDirFlags::MakePath,
-                          Access::UR | Access::UW | Access::UX );
+  XRootDStatus st = fs.MkDir( dirPath2, MkDirFlags::MakePath,
+                              Access::UR | Access::UW | Access::UX );
   CPPUNIT_ASSERT( st.IsOK() );
-  st = query.RmDir( dirPath2 );
+  st = fs.RmDir( dirPath2 );
   CPPUNIT_ASSERT( st.IsOK() );
-  st = query.RmDir( dirPath1 );
+  st = fs.RmDir( dirPath1 );
   CPPUNIT_ASSERT( st.IsOK() );
 }
 
 //------------------------------------------------------------------------------
 // Chmod test
 //------------------------------------------------------------------------------
-void QueryTest::ChmodTest()
+void FileSystemTest::ChmodTest()
 {
   using namespace XrdClient;
 
@@ -238,23 +242,20 @@ void QueryTest::ChmodTest()
 
   std::string dirPath = dataPath + "/testdir";
 
-  Query query( url );
+  FileSystem fs( url );
 
-  XRootDStatus st = query.MkDir( dirPath, MkDirFlags::MakePath,
-                          Access::UR | Access::UW | Access::UX );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = query.ChMod( dirPath,
-                    Access::UR | Access::UW | Access::UX |
-                    Access::GR | Access::GX );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = query.RmDir( dirPath );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.MkDir( dirPath, MkDirFlags::MakePath,
+                                  Access::UR | Access::UW | Access::UX ) );
+  CPPUNIT_ASSERT_XRDST( fs.ChMod( dirPath,
+                                  Access::UR | Access::UW | Access::UX |
+                                  Access::GR | Access::GX ) );
+  CPPUNIT_ASSERT_XRDST( fs.RmDir( dirPath ) );
 }
 
 //------------------------------------------------------------------------------
 // Locate test
 //------------------------------------------------------------------------------
-void QueryTest::PingTest()
+void FileSystemTest::PingTest()
 {
   using namespace XrdClient;
 
@@ -268,15 +269,15 @@ void QueryTest::PingTest()
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  Query query( url );
-  XRootDStatus st = query.Ping();
+  FileSystem fs( url );
+  XRootDStatus st = fs.Ping();
   CPPUNIT_ASSERT( st.IsOK() );
 }
 
 //------------------------------------------------------------------------------
 // Stat test
 //------------------------------------------------------------------------------
-void QueryTest::StatTest()
+void FileSystemTest::StatTest()
 {
   using namespace XrdClient;
 
@@ -293,9 +294,9 @@ void QueryTest::StatTest()
 
   std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
 
-  Query query( url );
+  FileSystem fs( url );
   StatInfo *response = 0;
-  XRootDStatus st = query.Stat( filePath, response );
+  XRootDStatus st = fs.Stat( filePath, response );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() == 1048576000 );
@@ -308,7 +309,7 @@ void QueryTest::StatTest()
 //------------------------------------------------------------------------------
 // Stat VFS test
 //------------------------------------------------------------------------------
-void QueryTest::StatVFSTest()
+void FileSystemTest::StatVFSTest()
 {
   using namespace XrdClient;
 
@@ -323,9 +324,9 @@ void QueryTest::StatVFSTest()
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  Query query( url );
+  FileSystem fs( url );
   StatInfoVFS *response = 0;
-  XRootDStatus st = query.StatVFS( dataPath, response );
+  XRootDStatus st = fs.StatVFS( dataPath, response );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
   delete response;
@@ -334,7 +335,7 @@ void QueryTest::StatVFSTest()
 //------------------------------------------------------------------------------
 // Protocol test
 //------------------------------------------------------------------------------
-void QueryTest::ProtocolTest()
+void FileSystemTest::ProtocolTest()
 {
   using namespace XrdClient;
 
@@ -345,9 +346,9 @@ void QueryTest::ProtocolTest()
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  Query query( url );
+  FileSystem fs( url );
   ProtocolInfo *response = 0;
-  XRootDStatus st = query.Protocol( response );
+  XRootDStatus st = fs.Protocol( response );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( response );
   delete response;
@@ -356,7 +357,7 @@ void QueryTest::ProtocolTest()
 //------------------------------------------------------------------------------
 // Deep locate test
 //------------------------------------------------------------------------------
-void QueryTest::DeepLocateTest()
+void FileSystemTest::DeepLocateTest()
 {
   using namespace XrdClient;
 
@@ -379,10 +380,10 @@ void QueryTest::DeepLocateTest()
   //----------------------------------------------------------------------------
   // Query the server for all of the file locations
   //----------------------------------------------------------------------------
-  Query query( url );
+  FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  XRootDStatus st = query.DeepLocate( filePath, OpenFlags::Refresh, locations );
+  XRootDStatus st = fs.DeepLocate( filePath, OpenFlags::Refresh, locations );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
@@ -395,7 +396,7 @@ void QueryTest::DeepLocateTest()
 //------------------------------------------------------------------------------
 // Dir list
 //------------------------------------------------------------------------------
-void QueryTest::DirListTest()
+void FileSystemTest::DirListTest()
 {
   using namespace XrdClient;
 
@@ -418,10 +419,10 @@ void QueryTest::DirListTest()
   //----------------------------------------------------------------------------
   // Query the server for all of the file locations
   //----------------------------------------------------------------------------
-  Query query( url );
+  FileSystem fs( url );
 
   DirectoryList *list = 0;
-  XRootDStatus st = query.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list );
+  XRootDStatus st = fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list );
   CPPUNIT_ASSERT( st.IsOK() );
   CPPUNIT_ASSERT( list );
   CPPUNIT_ASSERT( list->GetSize() == 40000 );

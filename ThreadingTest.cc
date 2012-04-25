@@ -161,9 +161,8 @@ void ThreadingTest::ReadTest()
 
     Buffer  arg; arg.FromString( path[i] );
     Buffer *cksResponse = 0;
-    Query query( url );
-    CPPUNIT_ASSERT_XRDST( query.ServerQuery( QueryCode::Checksum,
-                                             arg, cksResponse ) );
+    FileSystem fs( url );
+    CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, cksResponse ) );
     CPPUNIT_ASSERT( cksResponse );
     uint32_t remoteCRC32 = 0;
     CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
