@@ -4,8 +4,8 @@
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
-#include "XrdCl/XrdClQuery.hh"
-#include "XrdCl/XrdClQueryExecutor.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClFSExecutor.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -131,8 +131,9 @@ XRootDStatus ConvertMode( uint16_t &mode, const std::string &modeStr )
 //------------------------------------------------------------------------------
 // Change current working directory
 //------------------------------------------------------------------------------
-XRootDStatus DoCD( Query *query, Env *env,
-                   const QueryExecutor::CommandParams &args )
+XRootDStatus DoCD( FileSystem                      *fs,
+                   Env                             *env,
+                   const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -155,7 +156,7 @@ XRootDStatus DoCD( Query *query, Env *env,
   // Check if the path exist and is not a directory
   //----------------------------------------------------------------------------
   StatInfo *info;
-  XRootDStatus st = query->Stat( newPath, info );
+  XRootDStatus st = fs->Stat( newPath, info );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to stat the path: %s", st.ToStr().c_str() );
@@ -176,8 +177,9 @@ XRootDStatus DoCD( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // List a directory
 //------------------------------------------------------------------------------
-XRootDStatus DoLS( Query *query, Env *env,
-                   const QueryExecutor::CommandParams &args )
+XRootDStatus DoLS( FileSystem                      *fs,
+                   Env                             *env,
+                   const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -226,7 +228,7 @@ XRootDStatus DoLS( Query *query, Env *env,
   // Ask for the list
   //----------------------------------------------------------------------------
   DirectoryList *list;
-  XRootDStatus st = query->DirList( newPath, flags, list );
+  XRootDStatus st = fs->DirList( newPath, flags, list );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable to list the path: %s", st.ToStr().c_str() );
@@ -288,8 +290,9 @@ XRootDStatus DoLS( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Create a directory
 //------------------------------------------------------------------------------
-XRootDStatus DoMkDir( Query *query, Env *env,
-                      const QueryExecutor::CommandParams &args )
+XRootDStatus DoMkDir( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -335,7 +338,7 @@ XRootDStatus DoMkDir( Query *query, Env *env,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  st = query->MkDir( newPath, flags, mode );
+  st = fs->MkDir( newPath, flags, mode );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable create directory %s: %s",
@@ -350,8 +353,9 @@ XRootDStatus DoMkDir( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Remove a directory
 //------------------------------------------------------------------------------
-XRootDStatus DoRmDir( Query *query, Env *env,
-                      const QueryExecutor::CommandParams &args )
+XRootDStatus DoRmDir( FileSystem                      *query,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -390,8 +394,9 @@ XRootDStatus DoRmDir( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Move a file or directory
 //------------------------------------------------------------------------------
-XRootDStatus DoMv( Query *query, Env *env,
-                   const QueryExecutor::CommandParams &args )
+XRootDStatus DoMv( FileSystem                      *fs,
+                   Env                             *env,
+                   const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -422,7 +427,7 @@ XRootDStatus DoMv( Query *query, Env *env,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  XRootDStatus st = query->Mv( fullPath1, fullPath2 );
+  XRootDStatus st = fs->Mv( fullPath1, fullPath2 );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable move %s to %s: %s",
@@ -437,8 +442,9 @@ XRootDStatus DoMv( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Remove a file
 //------------------------------------------------------------------------------
-XRootDStatus DoRm( Query *query, Env *env,
-                   const QueryExecutor::CommandParams &args )
+XRootDStatus DoRm( FileSystem                      *fs,
+                   Env                             *env,
+                   const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -462,7 +468,7 @@ XRootDStatus DoRm( Query *query, Env *env,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  XRootDStatus st = query->Rm( fullPath );
+  XRootDStatus st = fs->Rm( fullPath );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable remove %s: %s",
@@ -477,8 +483,9 @@ XRootDStatus DoRm( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Truncate a file
 //------------------------------------------------------------------------------
-XRootDStatus DoTruncate( Query *query, Env *env,
-                         const QueryExecutor::CommandParams &args )
+XRootDStatus DoTruncate( FileSystem                      *fs,
+                         Env                             *env,
+                         const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -510,7 +517,7 @@ XRootDStatus DoTruncate( Query *query, Env *env,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  XRootDStatus st = query->Truncate( fullPath, size );
+  XRootDStatus st = fs->Truncate( fullPath, size );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable truncate %s: %s",
@@ -525,8 +532,9 @@ XRootDStatus DoTruncate( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Change the access rights to a file
 //------------------------------------------------------------------------------
-XRootDStatus DoChMod( Query *query, Env *env,
-                      const QueryExecutor::CommandParams &args )
+XRootDStatus DoChMod( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -558,7 +566,7 @@ XRootDStatus DoChMod( Query *query, Env *env,
   //----------------------------------------------------------------------------
   // Run the query
   //----------------------------------------------------------------------------
-  st = query->ChMod( fullPath, mode );
+  st = fs->ChMod( fullPath, mode );
   if( !st.IsOK() )
   {
     log->Error( AppMsg, "Unable change mode of %s: %s",
@@ -573,8 +581,9 @@ XRootDStatus DoChMod( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Locate a path
 //------------------------------------------------------------------------------
-XRootDStatus DoLocate( Query *query, Env *env,
-                       const QueryExecutor::CommandParams &args )
+XRootDStatus DoLocate( FileSystem                      *fs,
+                       Env                             *env,
+                       const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -625,9 +634,9 @@ XRootDStatus DoLocate( Query *query, Env *env,
   LocationInfo *info = 0;
   XRootDStatus  st;
   if( doDeepLocate )
-    st = query->DeepLocate( fullPath, flags, info );
+    st = fs->DeepLocate( fullPath, flags, info );
   else
-    st = query->Locate( fullPath, flags, info );
+    st = fs->Locate( fullPath, flags, info );
 
   if( !st.IsOK() )
   {
@@ -683,8 +692,9 @@ XRootDStatus DoLocate( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Stat a path
 //------------------------------------------------------------------------------
-XRootDStatus DoStat( Query *query, Env *env,
-                     const QueryExecutor::CommandParams &args )
+XRootDStatus DoStat( FileSystem                      *fs,
+                     Env                             *env,
+                     const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -709,7 +719,7 @@ XRootDStatus DoStat( Query *query, Env *env,
   // Run the query
   //----------------------------------------------------------------------------
   StatInfo *info = 0;
-  XRootDStatus st = query->Stat( fullPath, info );
+  XRootDStatus st = fs->Stat( fullPath, info );
 
   if( !st.IsOK() )
   {
@@ -755,8 +765,9 @@ XRootDStatus DoStat( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Stat a VFS
 //------------------------------------------------------------------------------
-XRootDStatus DoStatVFS( Query *query, Env *env,
-                        const QueryExecutor::CommandParams &args )
+XRootDStatus DoStatVFS( FileSystem                      *fs,
+                        Env                            *env,
+                        const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -781,7 +792,7 @@ XRootDStatus DoStatVFS( Query *query, Env *env,
   // Run the query
   //----------------------------------------------------------------------------
   StatInfoVFS *info = 0;
-  XRootDStatus st = query->StatVFS( fullPath, info );
+  XRootDStatus st = fs->StatVFS( fullPath, info );
 
   if( !st.IsOK() )
   {
@@ -816,8 +827,9 @@ XRootDStatus DoStatVFS( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Query the server
 //------------------------------------------------------------------------------
-XRootDStatus DoQuery( Query *query, Env *env,
-                      const QueryExecutor::CommandParams &args )
+XRootDStatus DoQuery( FileSystem                      *fs,
+                      Env                             *env,
+                      const FSExecutor::CommandParams &args )
 {
   //----------------------------------------------------------------------------
   // Check up the args
@@ -874,7 +886,7 @@ XRootDStatus DoQuery( Query *query, Env *env,
   Buffer *response = 0;
   Buffer  arg( strArg.size() );
   arg.FromString( strArg );
-  XRootDStatus st = query->ServerQuery( qCode, arg, response );
+  XRootDStatus st = fs->Query( qCode, arg, response );
 
   if( !st.IsOK() )
   {
@@ -895,8 +907,8 @@ XRootDStatus DoQuery( Query *query, Env *env,
 //------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
-XRootDStatus PrintHelp( Query *, Env *,
-                        const QueryExecutor::CommandParams & )
+XRootDStatus PrintHelp( FileSystem *, Env *,
+                        const FSExecutor::CommandParams & )
 {
   printf( "Usage:\n"                                                        );
   printf( "   xrdquery host[:port]              - interactive mode\n"       );
@@ -964,11 +976,11 @@ XRootDStatus PrintHelp( Query *, Env *,
 //------------------------------------------------------------------------------
 // Create the executor object
 //------------------------------------------------------------------------------
-QueryExecutor *CreateExecutor( const URL &url )
+FSExecutor *CreateExecutor( const URL &url )
 {
   Env *env = new Env();
   env->PutString( "CWD", "/" );
-  QueryExecutor *executor = new QueryExecutor( url, env );
+  FSExecutor *executor = new FSExecutor( url, env );
   executor->AddCommand( "cd",          DoCD         );
   executor->AddCommand( "chmod",       DoChMod      );
   executor->AddCommand( "ls",          DoLS         );
@@ -988,7 +1000,7 @@ QueryExecutor *CreateExecutor( const URL &url )
 //------------------------------------------------------------------------------
 // Execute command
 //------------------------------------------------------------------------------
-int ExecuteCommand( QueryExecutor *ex, const std::string &commandline )
+int ExecuteCommand( FSExecutor *ex, const std::string &commandline )
 {
   XRootDStatus st = ex->Execute( commandline );
   return st.GetShellCode();
@@ -1058,7 +1070,7 @@ int ExecuteInteractive( const URL &url )
   historyFile += "/.xrdquery.history";
   rl_bind_key( '\t', rl_insert );
   read_history( historyFile.c_str() );
-  QueryExecutor *ex = CreateExecutor( url );
+  FSExecutor *ex = CreateExecutor( url );
 
   //----------------------------------------------------------------------------
   // Execute the commands
@@ -1105,7 +1117,7 @@ int ExecuteCommand( const URL &url, int argc, char **argv )
     commandline += " ";
   }
 
-  QueryExecutor *ex = CreateExecutor( url );
+  FSExecutor *ex = CreateExecutor( url );
   int st = ExecuteCommand( ex, commandline );
   delete ex;
   return st;
@@ -1119,7 +1131,7 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
-  XrdClient::QueryExecutor::CommandParams params;
+  XrdClient::FSExecutor::CommandParams params;
   if( argc == 1 )
   {
     PrintHelp( 0, 0, params );

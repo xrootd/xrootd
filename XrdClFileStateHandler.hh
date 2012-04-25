@@ -8,7 +8,7 @@
 #define __XRD_CL_FILE_STATE_HANDLER_HH__
 
 #include "XrdCl/XrdClXRootDResponses.hh"
-#include "XrdCl/XrdClQuery.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdClient

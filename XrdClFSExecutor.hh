@@ -4,10 +4,10 @@
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_QUERY_EXECUTOR_HH__
-#define __XRD_CL_QUERY_EXECUTOR_HH__
+#ifndef __XRD_CL_FS_EXECUTOR_HH__
+#define __XRD_CL_FS_EXECUTOR_HH__
 
-#include "XrdCl/XrdClQuery.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include <vector>
@@ -19,7 +19,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   //! Execute queries given as a commandline
   //----------------------------------------------------------------------------
-  class QueryExecutor
+  class FSExecutor
   {
     public:
       //------------------------------------------------------------------------
@@ -30,7 +30,8 @@ namespace XrdClient
       //------------------------------------------------------------------------
       //! Definition of a command
       //------------------------------------------------------------------------
-      typedef XRootDStatus (*Command)( Query *query, Env *env,
+      typedef XRootDStatus (*Command)( FileSystem          *fs,
+                                       Env                 *env,
                                        const CommandParams &args );
 
       //------------------------------------------------------------------------
@@ -39,12 +40,12 @@ namespace XrdClient
       //! @param url the sercer that the executor should contact
       //! @param env execution environment, the executor takes ownership over it
       //------------------------------------------------------------------------
-      QueryExecutor( const URL &url, Env *env = 0 );
+      FSExecutor( const URL &url, Env *env = 0 );
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~QueryExecutor();
+      ~FSExecutor();
 
       //------------------------------------------------------------------------
       //! Add a command to the set of known commands
@@ -75,10 +76,10 @@ namespace XrdClient
 
     private:
       typedef std::map<std::string, Command> CommandMap;
-      Query      *pQuery;
-      Env        *pEnv;
-      CommandMap  pCommands;
+      FileSystem  *pFS;
+      Env         *pEnv;
+      CommandMap   pCommands;
   };
 }
 
-#endif // __XRD_CL_QUERY_EXECUTOR_HH__
+#endif // __XRD_CL_FS_EXECUTOR_HH__

@@ -5,7 +5,7 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClMessageUtils.hh"
-#include "XrdCl/XrdClQuery.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -117,9 +117,9 @@ namespace
           //--------------------------------------------------------------------
           if( it->IsManager() )
           {
-            Query q( it->GetAddress() );
+            FileSystem fs( it->GetAddress() );
             //!! FIXME timeout
-            if( q.Locate( pPath, pFlags, this, 300 ).IsOK() )
+            if( fs.Locate( pPath, pFlags, this, 300 ).IsOK() )
               ++pOutstanding;
           }
         }
@@ -227,7 +227,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  Query::Query( const URL &url )
+  FileSystem::FileSystem( const URL &url )
   {
     pUrl = new URL( url.GetURL() );
   }
@@ -235,7 +235,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Destructor
   //----------------------------------------------------------------------------
-  Query::~Query()
+  FileSystem::~FileSystem()
   {
     delete pUrl;
   }
@@ -243,10 +243,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Locate a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Locate( const std::string &path,
-                              uint16_t           flags,
-                              ResponseHandler   *handler,
-                              uint16_t           timeout )
+  XRootDStatus FileSystem::Locate( const std::string &path,
+                                   uint16_t           flags,
+                                   ResponseHandler   *handler,
+                                   uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_locate request for path %s",
@@ -272,10 +272,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Locate a file - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Locate( const std::string  &path,
-                              uint16_t            flags,
-                              LocationInfo      *&response,
-                              uint16_t            timeout )
+  XRootDStatus FileSystem::Locate( const std::string  &path,
+                                   uint16_t            flags,
+                                   LocationInfo      *&response,
+                                   uint16_t            timeout )
   {
     SyncResponseHandler handler;
     Status st = Locate( path, flags, &handler, timeout );
@@ -288,10 +288,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Locate a file, recursively locate all disk servers - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::DeepLocate( const std::string &path,
-                                  uint16_t           flags,
-                                  ResponseHandler   *handler,
-                                  uint16_t           timeout )
+  XRootDStatus FileSystem::DeepLocate( const std::string &path,
+                                       uint16_t           flags,
+                                       ResponseHandler   *handler,
+                                       uint16_t           timeout )
   {
     return Locate( path, flags, new DeepLocateHandler( handler, path, flags ), timeout );
   }
@@ -299,7 +299,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Locate a file, recursively locate all disk servers - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::DeepLocate( const std::string  &path,
+  XRootDStatus FileSystem::DeepLocate( const std::string  &path,
                                   uint16_t            flags,
                                   LocationInfo      *&response,
                                   uint16_t            timeout )
@@ -315,10 +315,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Move a directory or a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Mv( const std::string &source,
-                          const std::string &dest,
-                          ResponseHandler   *handler,
-                          uint16_t           timeout )
+  XRootDStatus FileSystem::Mv( const std::string &source,
+                               const std::string &dest,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_mv request to move %s to %s",
@@ -345,9 +345,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Move a directory or a file - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Mv( const std::string &source,
-                          const std::string &dest,
-                          uint16_t           timeout )
+  XRootDStatus FileSystem::Mv( const std::string &source,
+                               const std::string &dest,
+                               uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = Mv( source, dest, &handler, timeout );
@@ -360,10 +360,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain server information - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::ServerQuery( QueryCode::Code  queryCode,
-                                   const Buffer    &arg,
-                                   ResponseHandler *handler,
-                                   uint16_t         timeout )
+  XRootDStatus FileSystem::Query( QueryCode::Code  queryCode,
+                                  const Buffer    &arg,
+                                  ResponseHandler *handler,
+                                  uint16_t         timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_query request [%d]",
@@ -389,13 +389,13 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain server information - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::ServerQuery( QueryCode::Code   queryCode,
-                                   const Buffer     &arg,
-                                   Buffer          *&response,
-                                   uint16_t          timeout )
+  XRootDStatus FileSystem::Query( QueryCode::Code   queryCode,
+                                  const Buffer     &arg,
+                                  Buffer          *&response,
+                                  uint16_t          timeout )
   {
     SyncResponseHandler handler;
-    Status st = ServerQuery( queryCode, arg, &handler, timeout );
+    Status st = Query( queryCode, arg, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
@@ -405,10 +405,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Truncate a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Truncate( const std::string &path,
-                                uint64_t           size,
-                                ResponseHandler   *handler,
-                                uint16_t           timeout )
+  XRootDStatus FileSystem::Truncate( const std::string &path,
+                                     uint64_t           size,
+                                     ResponseHandler   *handler,
+                                     uint16_t           timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request for path %s",
@@ -434,9 +434,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Truncate a file - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Truncate( const std::string &path,
-                                uint64_t           size,
-                                uint16_t           timeout )
+  XRootDStatus FileSystem::Truncate( const std::string &path,
+                                     uint64_t           size,
+                                     uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = Truncate( path, size, &handler, timeout );
@@ -449,9 +449,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Remove a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Rm( const std::string &path,
-                          ResponseHandler   *handler,
-                          uint16_t           timeout )
+  XRootDStatus FileSystem::Rm( const std::string &path,
+                               ResponseHandler   *handler,
+                               uint16_t           timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_rm request for path %s",
@@ -476,8 +476,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Remove a file - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Rm( const std::string &path,
-                          uint16_t           timeout )
+  XRootDStatus FileSystem::Rm( const std::string &path,
+                               uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = Rm( path, &handler, timeout );
@@ -490,11 +490,11 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Create a directory - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::MkDir( const std::string &path,
-                             uint8_t            flags,
-                             uint16_t           mode,
-                             ResponseHandler   *handler,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::MkDir( const std::string &path,
+                                  uint8_t            flags,
+                                  uint16_t           mode,
+                                  ResponseHandler   *handler,
+                                  uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_mkdir request for path %s",
@@ -521,10 +521,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Create a directory - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::MkDir( const std::string &path,
-                             uint8_t            flags,
-                             uint16_t           mode,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::MkDir( const std::string &path,
+                                  uint8_t            flags,
+                                  uint16_t           mode,
+                                  uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = MkDir( path, flags, mode, &handler, timeout );
@@ -537,9 +537,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Remove a directory - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::RmDir( const std::string &path,
-                             ResponseHandler   *handler,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::RmDir( const std::string &path,
+                                  ResponseHandler   *handler,
+                                  uint16_t           timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_rmdir request for path %s",
@@ -564,8 +564,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Remove a directory - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::RmDir( const std::string &path,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::RmDir( const std::string &path,
+                                  uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = RmDir( path, &handler, timeout );
@@ -578,10 +578,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Change access mode on a directory or a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::ChMod( const std::string &path,
-                             uint16_t           mode,
-                             ResponseHandler   *handler,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::ChMod( const std::string &path,
+                                  uint16_t           mode,
+                                  ResponseHandler   *handler,
+                                  uint16_t           timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_chmod request for path %s",
@@ -607,9 +607,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Change access mode on a directory or a file - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::ChMod( const std::string &path,
-                             uint16_t           mode,
-                             uint16_t           timeout )
+  XRootDStatus FileSystem::ChMod( const std::string &path,
+                                  uint16_t           mode,
+                                  uint16_t           timeout )
   {
     SyncResponseHandler handler;
     Status st = ChMod( path, mode, &handler, timeout );
@@ -622,8 +622,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Check if the server is alive - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Ping( ResponseHandler *handler,
-                             uint16_t        timeout )
+  XRootDStatus FileSystem::Ping( ResponseHandler *handler,
+                                 uint16_t        timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_ping request",
@@ -646,7 +646,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Check if the server is alive - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Ping( uint16_t timeout  )
+  XRootDStatus FileSystem::Ping( uint16_t timeout  )
   {
     SyncResponseHandler handler;
     Status st = Ping( &handler, timeout );
@@ -659,9 +659,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain status information for a path - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Stat( const std::string &path,
-                            ResponseHandler   *handler,
-                            uint16_t           timeout )
+  XRootDStatus FileSystem::Stat( const std::string &path,
+                                 ResponseHandler   *handler,
+                                 uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for path %s",
@@ -687,9 +687,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain status information for a path - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Stat( const std::string  &path,
-                            StatInfo          *&response,
-                            uint16_t            timeout )
+  XRootDStatus FileSystem::Stat( const std::string  &path,
+                                 StatInfo          *&response,
+                                 uint16_t            timeout )
   {
     SyncResponseHandler handler;
     Status st = Stat( path, &handler, timeout );
@@ -702,9 +702,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain status information for a path - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::StatVFS( const std::string &path,
-                               ResponseHandler   *handler,
-                               uint16_t           timeout )
+  XRootDStatus FileSystem::StatVFS( const std::string &path,
+                                    ResponseHandler   *handler,
+                                    uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_stat + VFS request for path %s",
@@ -730,9 +730,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain status information for a path - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::StatVFS( const std::string  &path,
-                               StatInfoVFS       *&response,
-                               uint16_t            timeout )
+  XRootDStatus FileSystem::StatVFS( const std::string  &path,
+                                    StatInfoVFS       *&response,
+                                    uint16_t            timeout )
   {
     SyncResponseHandler handler;
     Status st = StatVFS( path, &handler, timeout );
@@ -745,8 +745,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain server protocol information - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Protocol( ResponseHandler *handler,
-                                uint16_t         timeout )
+  XRootDStatus FileSystem::Protocol( ResponseHandler *handler,
+                                     uint16_t         timeout )
   {
     Log    *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_protocol",
@@ -770,8 +770,8 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Obtain server protocol information - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::Protocol( ProtocolInfo *&response,
-                                uint16_t       timeout )
+  XRootDStatus FileSystem::Protocol( ProtocolInfo *&response,
+                                     uint16_t       timeout )
   {
     SyncResponseHandler handler;
     Status st = Protocol( &handler, timeout );
@@ -784,9 +784,9 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // List entries of a directory - async
   //----------------------------------------------------------------------------
-  XRootDStatus Query::DirList( const std::string &path,
-                               ResponseHandler   *handler,
-                               uint16_t           timeout )
+  XRootDStatus FileSystem::DirList( const std::string &path,
+                                    ResponseHandler   *handler,
+                                    uint16_t           timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Dump( QueryMsg, "[%s] Sending a kXR_dirlist request for path %s",
@@ -811,10 +811,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // List entries of a directory - sync
   //----------------------------------------------------------------------------
-  XRootDStatus Query::DirList( const std::string  &path,
-                               uint8_t            flags,
-                               DirectoryList    *&response,
-                               uint16_t           timeout )
+  XRootDStatus FileSystem::DirList( const std::string  &path,
+                                    uint8_t            flags,
+                                    DirectoryList    *&response,
+                                    uint16_t           timeout )
   {
     //--------------------------------------------------------------------------
     // We do the deep locate and ask all the returned servers for the list
@@ -841,7 +841,7 @@ namespace XrdClient
       // Ask each server for a directory list
       //------------------------------------------------------------------------
       flags &= ~DirListFlags::Locate;
-      Query         *query;
+      FileSystem    *fs;
       DirectoryList *currentResp = 0;
       bool           errors = false;
 
@@ -849,12 +849,12 @@ namespace XrdClient
 
       for( uint32_t i = 0; i < locations->GetSize(); ++i )
       {
-        query = new Query( locations->At(i).GetAddress() );
-        st = query->DirList( path, flags, currentResp, timeout );
+        fs = new FileSystem( locations->At(i).GetAddress() );
+        st = fs->DirList( path, flags, currentResp, timeout );
         if( !st.IsOK() )
         {
           errors = true;
-          delete query;
+          delete fs;
           continue;
         }
 
@@ -869,9 +869,9 @@ namespace XrdClient
           *it = 0;
         }
 
-        delete query;
+        delete fs;
         delete currentResp;
-        query       = 0;
+        fs          = 0;
         currentResp = 0;
       }
       delete locations;

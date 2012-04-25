@@ -7,7 +7,7 @@
 #ifndef __XRD_CL_FILE_HH__
 #define __XRD_CL_FILE_HH__
 
-#include "XrdCl/XrdClQuery.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include <stdint.h>
 #include <string>

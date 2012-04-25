@@ -4,7 +4,7 @@
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
-#include "XrdCl/XrdClQueryExecutor.hh"
+#include "XrdCl/XrdClFSExecutor.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
@@ -14,10 +14,10 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  QueryExecutor::QueryExecutor( const URL &url, Env *env ):
-    pQuery( 0 )
+  FSExecutor::FSExecutor( const URL &url, Env *env ):
+    pFS( 0 )
   {
-    pQuery = new Query( url );
+    pFS = new FileSystem( url );
     if( env )
       pEnv = env;
     else
@@ -27,16 +27,16 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Destructor
   //----------------------------------------------------------------------------
-  QueryExecutor::~QueryExecutor()
+  FSExecutor::~FSExecutor()
   {
-    delete pQuery;
+    delete pFS;
     delete pEnv;
   }
 
   //---------------------------------------------------------------------------
   // Add a command to the set of known commands
   //---------------------------------------------------------------------------
-  bool QueryExecutor::AddCommand( const std::string &name, Command command )
+  bool FSExecutor::AddCommand( const std::string &name, Command command )
   {
     Log *log = DefaultEnv::GetLog();
     CommandMap::iterator it = pCommands.find( name );
@@ -53,7 +53,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   // Execute the given commandline
   //----------------------------------------------------------------------------
-  XRootDStatus QueryExecutor::Execute( const std::string &commandline )
+  XRootDStatus FSExecutor::Execute( const std::string &commandline )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( AppMsg, "Executing: %s", commandline.c_str() );
@@ -85,6 +85,6 @@ namespace XrdClient
       return XRootDStatus( stError, errUnknownCommand );
     }
 
-    return it->second( pQuery, pEnv, args );
+    return it->second( pFS, pEnv, args );
   }
 }

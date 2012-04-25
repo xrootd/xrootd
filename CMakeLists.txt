@@ -32,7 +32,7 @@ add_library(
   XrdClInQueue.cc             XrdClInQueue.hh
   XrdClTaskManager.cc         XrdClTaskManager.hh
   XrdClSIDManager.cc          XrdClSIDManager.hh
-  XrdClQuery.cc               XrdClQuery.hh
+  XrdClFileSystem.cc          XrdClFileSystem.hh
   XrdClXRootDMsgHandler.cc    XrdClXRootDMsgHandler.hh
                               XrdClBuffer.hh
                               XrdClMessage.hh
@@ -64,12 +64,12 @@ set_target_properties(
 # xrdquery
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdquery
-  XrdClQueryCommandline.cc
-  XrdClQueryExecutor.cc         XrdClQueryExecutor.hh )
+  xrdfs
+  XrdClFS.cc
+  XrdClFSExecutor.cc         XrdClFSExecutor.hh )
 
 target_link_libraries(
-  xrdquery
+  xrdfs
   XrdCl
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
@@ -79,7 +79,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCl xrdquery
+  TARGETS XrdCl xrdfs
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 

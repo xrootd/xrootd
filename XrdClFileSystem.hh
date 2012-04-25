@@ -4,8 +4,8 @@
 // See the LICENCE file for details.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_QUERY_HH__
-#define __XRD_CL_QUERY_HH__
+#ifndef __XRD_CL_FILE_SYSTEM_HH__
+#define __XRD_CL_FILE_SYSTEM_HH__
 
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClStatus.hh"
@@ -136,7 +136,7 @@ namespace XrdClient
   //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
   //----------------------------------------------------------------------------
-  class Query
+  class FileSystem
   {
     public:
       typedef std::vector<LocationInfo> LocationList; //!< Location list
@@ -146,12 +146,12 @@ namespace XrdClient
       //!
       //! @param url URL    of the entry-point server to be contacted
       //------------------------------------------------------------------------
-      Query( const URL &url );
+      FileSystem( const URL &url );
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~Query();
+      ~FileSystem();
 
       //------------------------------------------------------------------------
       //! Locate a file - async
@@ -257,10 +257,10 @@ namespace XrdClient
       //!                  be used
       //! @return          status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus ServerQuery( QueryCode::Code  queryCode,
-                                const Buffer    &arg,
-                                ResponseHandler *handler,
-                                uint16_t         timeout = 0 );
+      XRootDStatus Query( QueryCode::Code  queryCode,
+                          const Buffer    &arg,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Obtain server information - sync
@@ -272,10 +272,10 @@ namespace XrdClient
       //!                  be used
       //! @return          status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus ServerQuery( QueryCode::Code   queryCode,
-                                const Buffer     &arg,
-                                Buffer          *&response,
-                                uint16_t          timeout = 0 );
+      XRootDStatus Query( QueryCode::Code   queryCode,
+                          const Buffer     &arg,
+                          Buffer          *&response,
+                          uint16_t          timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Truncate a file - async
@@ -548,4 +548,4 @@ namespace XrdClient
   };
 }
 
-#endif // __XRD_CL_QUERY_HH__
+#endif // __XRD_CL_FILE_SYSTEM_HH__
