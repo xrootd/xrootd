@@ -12,6 +12,7 @@
 #include "XrdCl/XrdClConstants.hh"
 
 #include <cstdlib>
+#include <cstdio>
 #include <iostream>
 #include <iomanip>
 
