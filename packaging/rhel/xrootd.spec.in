@@ -284,6 +284,7 @@ exit 0
 %{_libdir}/libXrdCrypto*.so*
 %{_libdir}/libXrdUtils.so*
 %{_libdir}/libXrdMain.so*
+%{_libdir}/libXrdAppUtils.so*
 
 %files libs-devel
 %defattr(-,root,root,-)
@@ -299,6 +300,7 @@ exit 0
 %{_includedir}/%{name}/Xrd
 %{_includedir}/%{name}/XProtocol
 %{_includedir}/%{name}/XrdCks
+%{_includedir}/%{name}/XrdApps
 
 %files client
 %defattr(-,root,root,-)
