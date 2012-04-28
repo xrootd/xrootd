@@ -8,6 +8,9 @@ Prerelease Notes
    *Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Undo the side-effect of commit ff8bdbd6 that prevented the frm from
+     sending stage notifications to xrootd; causing opens and xrdstagetool
+     to hang with dynamic staging enabled.
    * Make sure the id buffer is large enough to hold all id combinations.
    * Avoid deadlock when closing a Posix File with an active preread.
    * For concurrent queries for the same file allow servers to respond to the
