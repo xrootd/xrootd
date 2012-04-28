@@ -177,6 +177,18 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           else CksConfig->Manager(buff, 0);
       }
 
+// Configure third party copy but only if we are not a manager or a proxy
+//
+   if ((Options & ThirdPC) && !(Options & isProxy) && !(Options & isManager))
+      if (!XrdOfsTPC::Start()) NoGo = 1;
+
+// We need to do pre-initialization for event recording as the oss needs some
+// environmental information from that initialization to initialize the frm,
+// should it need to be used. We will do full evr initialization after the oss
+// and the finder are initialized. A bit messy in the current plug-in world.
+//
+   if (!(Options & isManager) && !evrObject.Init(&Eroute)) NoGo = 1;
+
 // Now configure the storage system
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib))) NoGo = 1;
@@ -190,8 +202,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 
 // Initialize th Evr object if we are an actual server
 //
-   if (!(Options & isManager) 
-   && !evrObject.Init(&Eroute, Balancer)) NoGo = 1;
+   if (!(Options & isManager) && !evrObject.Init(Balancer)) NoGo = 1;
 
 // Turn off forwarding if we are not a pure remote redirector or a peer
 //
