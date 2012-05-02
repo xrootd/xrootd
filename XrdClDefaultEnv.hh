@@ -10,7 +10,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class PostMaster;
   class Log;

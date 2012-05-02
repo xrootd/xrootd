@@ -18,13 +18,13 @@ namespace
   //----------------------------------------------------------------------------
   // Filter handler
   //----------------------------------------------------------------------------
-  class FilterHandler: public XrdClient::MessageHandler
+  class FilterHandler: public XrdCl::MessageHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      FilterHandler( XrdClient::MessageFilter *filter ):
+      FilterHandler( XrdCl::MessageFilter *filter ):
         pSem( 0 ), pFilter( filter ), pMsg( 0 )
       {
       }
@@ -32,7 +32,7 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint8_t HandleMessage( XrdClient::Message *msg )
+      virtual uint8_t HandleMessage( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
         {
@@ -46,7 +46,7 @@ namespace
       //------------------------------------------------------------------------
       // Handle a fault
       //------------------------------------------------------------------------
-      virtual void HandleFault( XrdClient::Status status )
+      virtual void HandleFault( XrdCl::Status status )
       {
         pStatus = status;
         pSem.Post();
@@ -55,7 +55,7 @@ namespace
       //------------------------------------------------------------------------
       // Wait for a status of the message
       //------------------------------------------------------------------------
-      XrdClient::Status WaitForStatus()
+      XrdCl::Status WaitForStatus()
       {
         pSem.Wait();
         return pStatus;
@@ -64,34 +64,34 @@ namespace
       //------------------------------------------------------------------------
       // Wait for the arraival of the message
       //------------------------------------------------------------------------
-      XrdClient::Message *GetMessage()
+      XrdCl::Message *GetMessage()
       {
         return pMsg;
       }
 
     private:
       XrdSysSemaphore           pSem;
-      XrdClient::MessageFilter *pFilter;
-      XrdClient::Message       *pMsg;
-      XrdClient::Status         pStatus;
+      XrdCl::MessageFilter *pFilter;
+      XrdCl::Message       *pMsg;
+      XrdCl::Status         pStatus;
   };
 
   //----------------------------------------------------------------------------
   // Status handler
   //----------------------------------------------------------------------------
-  class StatusHandler: public XrdClient::MessageStatusHandler
+  class StatusHandler: public XrdCl::MessageStatusHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatusHandler( XrdClient::Message *msg ): pSem( 0 ), pMsg( msg ) {}
+      StatusHandler( XrdCl::Message *msg ): pSem( 0 ), pMsg( msg ) {}
 
       //------------------------------------------------------------------------
       // Handle the status information
       //------------------------------------------------------------------------
-      void HandleStatus( const XrdClient::Message *message,
-                         XrdClient::Status         status )
+      void HandleStatus( const XrdCl::Message *message,
+                         XrdCl::Status         status )
       {
         if( pMsg == message )
           pStatus = status;
@@ -101,7 +101,7 @@ namespace
       //------------------------------------------------------------------------
       // Wait for the status to be ready
       //------------------------------------------------------------------------
-      XrdClient:: Status WaitForStatus()
+      XrdCl:: Status WaitForStatus()
       {
         pSem.Wait();
         return pStatus;
@@ -109,17 +109,17 @@ namespace
       
     private:
       XrdSysSemaphore     pSem;
-      XrdClient::Status   pStatus;
-      XrdClient::Message *pMsg;
+      XrdCl::Status   pStatus;
+      XrdCl::Message *pMsg;
   };
 
-  class TickGeneratorTask: public XrdClient::Task
+  class TickGeneratorTask: public XrdCl::Task
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      TickGeneratorTask( XrdClient::Channel *channel ):
+      TickGeneratorTask( XrdCl::Channel *channel ):
         pChannel( channel ) {}
 
       //------------------------------------------------------------------------
@@ -127,7 +127,7 @@ namespace
       //------------------------------------------------------------------------
       time_t Run( time_t now )
       {
-        using namespace XrdClient;
+        using namespace XrdCl;
         pChannel->Tick( now );
 
         Env *env = DefaultEnv::GetEnv();
@@ -137,11 +137,11 @@ namespace
       }
 
     private:
-      XrdClient::Channel *pChannel;
+      XrdCl::Channel *pChannel;
   };
 }
 
-namespace XrdClient
+namespace XrdCl
 {
 
   //----------------------------------------------------------------------------

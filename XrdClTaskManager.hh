@@ -14,7 +14,7 @@
 #include <pthread.h>
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Interface for a task to be run by the TaskManager

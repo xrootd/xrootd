@@ -9,7 +9,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

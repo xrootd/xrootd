@@ -12,7 +12,7 @@
 #include <utility>
 #include "XrdCl/XrdClStatus.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class Message;
   class MessageHandler;

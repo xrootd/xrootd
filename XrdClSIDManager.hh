@@ -12,7 +12,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClStatus.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Handle XRootD stream IDs

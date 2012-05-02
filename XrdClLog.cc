@@ -16,7 +16,7 @@
 
 #include "XrdCl/XrdClLog.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Open a file

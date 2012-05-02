@@ -19,7 +19,7 @@
 //------------------------------------------------------------------------------
 int main( int argc, char **argv )
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
   Log *log = DefaultEnv::GetLog();
 
   //----------------------------------------------------------------------------

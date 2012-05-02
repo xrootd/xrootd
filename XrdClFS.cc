@@ -21,7 +21,7 @@
 #include <readline/history.h>
 #endif
 
-using namespace XrdClient;
+using namespace XrdCl;
 
 //------------------------------------------------------------------------------
 // Build a path
@@ -49,7 +49,7 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
   //----------------------------------------------------------------------------
   std::list<std::string> pathComponents;
   std::list<std::string>::iterator it;
-  XrdClient::Utils::splitString( pathComponents, newPath, "/" );
+  XrdCl::Utils::splitString( pathComponents, newPath, "/" );
   newPath = "/";
   for( it = pathComponents.begin(); it != pathComponents.end(); )
   {
@@ -1132,7 +1132,7 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   // Check the commandline parameters
   //----------------------------------------------------------------------------
-  XrdClient::FSExecutor::CommandParams params;
+  XrdCl::FSExecutor::CommandParams params;
   if( argc == 1 )
   {
     PrintHelp( 0, 0, params );

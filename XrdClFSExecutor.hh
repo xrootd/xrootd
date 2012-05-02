@@ -14,7 +14,7 @@
 #include <string>
 #include <map>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Execute queries given as a commandline

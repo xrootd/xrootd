@@ -21,7 +21,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class Stream;
 

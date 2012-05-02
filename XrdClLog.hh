@@ -15,7 +15,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Interface for logger outputs

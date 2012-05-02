@@ -15,7 +15,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Message helper
@@ -667,13 +667,13 @@ namespace XrdClient
 //------------------------------------------------------------------------------
 namespace
 {
-  class StreamConnectorTask: public XrdClient::Task
+  class StreamConnectorTask: public XrdCl::Task
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StreamConnectorTask( XrdClient::Stream *stream ):
+      StreamConnectorTask( XrdCl::Stream *stream ):
         pStream( stream ) {}
 
       //------------------------------------------------------------------------
@@ -686,11 +686,11 @@ namespace
       }
 
     private:
-      XrdClient::Stream *pStream;
+      XrdCl::Stream *pStream;
   };
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //------------------------------------------------------------------------
   // Handle stream fault

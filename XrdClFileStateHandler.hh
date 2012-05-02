@@ -11,7 +11,7 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class Message;
 

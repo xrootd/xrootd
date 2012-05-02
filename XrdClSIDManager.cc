@@ -6,7 +6,7 @@
 
 #include "XrdCl/XrdClSIDManager.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Allocate a SID

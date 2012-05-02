@@ -13,7 +13,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <memory>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Synchronize the response
@@ -86,7 +86,7 @@ namespace XrdClient
       //! Wait for the response
       //------------------------------------------------------------------------
       template<class Type>
-      static XrdClient::XRootDStatus WaitForResponse(
+      static XrdCl::XRootDStatus WaitForResponse(
                             SyncResponseHandler  *handler,
                             Type                *&response )
       {

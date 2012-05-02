@@ -15,7 +15,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <list>
 
-namespace XrdClient
+namespace XrdCl
 {
   class  Message;
   class  MessageStatusHandler;

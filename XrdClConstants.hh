@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Log message types

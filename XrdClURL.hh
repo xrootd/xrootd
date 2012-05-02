@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! URL representation

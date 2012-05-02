@@ -9,7 +9,7 @@
 
 #include "XrdCl/XrdClBuffer.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! The message representation used throughout the system

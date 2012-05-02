@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-namespace XrdClient
+namespace XrdCl
 {
   class PostMaster;
   class Message;

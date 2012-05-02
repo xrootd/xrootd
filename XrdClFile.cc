@@ -11,7 +11,7 @@
 #include "XrdCl/XrdClFileStateHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

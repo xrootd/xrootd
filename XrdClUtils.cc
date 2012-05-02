@@ -6,6 +6,6 @@
 
 #include "XrdCl/XrdClUtils.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
 }

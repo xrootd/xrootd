@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace XrdClient
+namespace XrdCl
 {
   class Socket;
   class Poller;

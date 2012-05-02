@@ -25,21 +25,21 @@ namespace
   // We need an extra task what will run the handler in the future, because
   // tasks get deleted and we need the handler
   //----------------------------------------------------------------------------
-  class WaitTask: public XrdClient::Task
+  class WaitTask: public XrdCl::Task
   {
     public:
-      WaitTask( XrdClient::XRootDMsgHandler *handler ): pHandler( handler ) {}
+      WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler ) {}
       virtual time_t Run( time_t now )
       {
         pHandler->WaitDone( now );
         return 0;
       }
     private:
-      XrdClient::XRootDMsgHandler *pHandler;
+      XrdCl::XRootDMsgHandler *pHandler;
   };
 };
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Examine an incomming message, and decide on the action to be taken

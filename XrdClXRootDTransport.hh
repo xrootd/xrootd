@@ -12,7 +12,7 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   struct XRootDChannelInfo;
 

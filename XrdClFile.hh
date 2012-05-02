@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace XrdClient
+namespace XrdCl
 {
   class FileStateHandler;
 

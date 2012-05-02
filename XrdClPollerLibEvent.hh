@@ -16,7 +16,7 @@
 struct event_base;
 struct event;
 
-namespace XrdClient
+namespace XrdCl
 {
 
   //----------------------------------------------------------------------------

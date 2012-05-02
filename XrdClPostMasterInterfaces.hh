@@ -14,7 +14,7 @@
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClURL.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class Channel;
   class Message;

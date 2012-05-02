@@ -19,14 +19,14 @@ namespace
   // Object that does things to the FileStateHandler when kXR_open returns
   // and then calls the user handler
   //----------------------------------------------------------------------------
-  class OpenHandler: public XrdClient::ResponseHandler
+  class OpenHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      OpenHandler( XrdClient::FileStateHandler *stateHandler,
-                   XrdClient::ResponseHandler  *userHandler ):
+      OpenHandler( XrdCl::FileStateHandler *stateHandler,
+                   XrdCl::ResponseHandler  *userHandler ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler )
       {
@@ -35,11 +35,11 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdClient::XRootDStatus *status,
-                                   XrdClient::AnyObject    *response,
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response,
                                    URLList                 *urlList )
       {
-        using namespace XrdClient;
+        using namespace XrdCl;
 
         //----------------------------------------------------------------------
         // Extract the statistics info
@@ -65,22 +65,22 @@ namespace
       }
 
     private:
-      XrdClient::FileStateHandler *pStateHandler;
-      XrdClient::ResponseHandler  *pUserHandler;
+      XrdCl::FileStateHandler *pStateHandler;
+      XrdCl::ResponseHandler  *pUserHandler;
   };
 
   //----------------------------------------------------------------------------
   // Object that does things to the FileStateHandler when kXR_close returns
   // and then calls the user handler
   //----------------------------------------------------------------------------
-  class CloseHandler: public XrdClient::ResponseHandler
+  class CloseHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      CloseHandler( XrdClient::FileStateHandler *stateHandler,
-                    XrdClient::ResponseHandler  *userHandler ):
+      CloseHandler( XrdCl::FileStateHandler *stateHandler,
+                    XrdCl::ResponseHandler  *userHandler ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler )
       {
@@ -89,8 +89,8 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdClient::XRootDStatus *status,
-                                   XrdClient::AnyObject    *response,
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response,
                                    URLList                 *urlList )
       {
         pStateHandler->SetCloseStatus( status );
@@ -99,22 +99,22 @@ namespace
       }
 
     private:
-      XrdClient::FileStateHandler *pStateHandler;
-      XrdClient::ResponseHandler  *pUserHandler;
+      XrdCl::FileStateHandler *pStateHandler;
+      XrdCl::ResponseHandler  *pUserHandler;
   };
 
   //----------------------------------------------------------------------------
   // Stateful message handler
   //----------------------------------------------------------------------------
-  class StatefulHandler: public XrdClient::ResponseHandler
+  class StatefulHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatefulHandler( XrdClient::FileStateHandler *stateHandler,
-                       XrdClient::ResponseHandler  *userHandler,
-                       XrdClient::Message          *message ):
+      StatefulHandler( XrdCl::FileStateHandler *stateHandler,
+                       XrdCl::ResponseHandler  *userHandler,
+                       XrdCl::Message          *message ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler ),
         pMessage( message )
@@ -124,11 +124,11 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdClient::XRootDStatus *status,
-                                   XrdClient::AnyObject    *response,
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response,
                                    URLList                 *urlList )
       {
-        using namespace XrdClient;
+        using namespace XrdCl;
         std::auto_ptr<StatefulHandler> self( this );
         std::auto_ptr<XRootDStatus>    statusPtr( status );
         std::auto_ptr<AnyObject>       responsePtr( response );
@@ -165,13 +165,13 @@ namespace
       }
 
     private:
-      XrdClient::FileStateHandler *pStateHandler;
-      XrdClient::ResponseHandler  *pUserHandler;
-      XrdClient::Message          *pMessage;
+      XrdCl::FileStateHandler *pStateHandler;
+      XrdCl::ResponseHandler  *pUserHandler;
+      XrdCl::Message          *pMessage;
   };
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

@@ -20,7 +20,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! A hub for dispaching and receiving messages

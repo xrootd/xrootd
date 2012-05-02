@@ -19,7 +19,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Information holder for XRootDStreams

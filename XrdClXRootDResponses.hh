@@ -17,7 +17,7 @@
 #include <list>
 #include <ctime>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Path location info

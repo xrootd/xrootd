@@ -9,7 +9,7 @@
 
 namespace
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
   struct ErrorMap
   {
     uint16_t    code;
@@ -57,7 +57,7 @@ namespace
   }
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Create a string representation

@@ -12,7 +12,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class PostMaster;
   class SIDManager;

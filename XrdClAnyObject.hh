@@ -10,7 +10,7 @@
 #include <typeinfo>
 #include <cstring>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Simple implementation of a type safe holder for any object pointer

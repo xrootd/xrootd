@@ -21,13 +21,13 @@ namespace
   //----------------------------------------------------------------------------
   // Deep locate handler
   //----------------------------------------------------------------------------
-  class DeepLocateHandler: public XrdClient::ResponseHandler
+  class DeepLocateHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      DeepLocateHandler( XrdClient::ResponseHandler *handler,
+      DeepLocateHandler( XrdCl::ResponseHandler *handler,
                          const std::string          &path,
                          uint16_t                    flags ):
         pFirstTime( true ),
@@ -36,7 +36,7 @@ namespace
         pPath( path ),
         pFlags( flags )
       {
-        pLocations = new XrdClient::LocationInfo();
+        pLocations = new XrdCl::LocationInfo();
       }
 
       //------------------------------------------------------------------------
@@ -50,10 +50,10 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdClient::XRootDStatus *status,
-                                   XrdClient::AnyObject    *response )
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
       {
-        using namespace XrdClient;
+        using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         --pOutstanding;
 
@@ -138,7 +138,7 @@ namespace
       //------------------------------------------------------------------------
       void HandleResponse()
       {
-        using namespace XrdClient;
+        using namespace XrdCl;
 
         //----------------------------------------------------------------------
         // Nothing found
@@ -166,8 +166,8 @@ namespace
     private:
       bool                        pFirstTime;
       uint16_t                    pOutstanding;
-      XrdClient::ResponseHandler *pHandler;
-      XrdClient::LocationInfo    *pLocations;
+      XrdCl::ResponseHandler *pHandler;
+      XrdCl::LocationInfo    *pLocations;
       std::string                 pPath;
       uint16_t                    pFlags;
   };
@@ -175,15 +175,15 @@ namespace
   //----------------------------------------------------------------------------
   // Handle stat results for a dirlist request
   //----------------------------------------------------------------------------
-  class DirListStatHandler: public XrdClient::ResponseHandler
+  class DirListStatHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      DirListStatHandler( XrdClient::DirectoryList *list,
+      DirListStatHandler( XrdCl::DirectoryList *list,
                           uint32_t                  index,
-                          XrdClient::RequestSync   *sync ):
+                          XrdCl::RequestSync   *sync ):
         pList( list ),
         pIndex( index ),
         pSync( sync )
@@ -194,8 +194,8 @@ namespace
       // Check if we were successful and if so put the StatInfo object
       // in the appropriate entry info
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdClient::XRootDStatus *status,
-                                   XrdClient::AnyObject    *response )
+      virtual void HandleResponse( XrdCl::XRootDStatus *status,
+                                   XrdCl::AnyObject    *response )
       {
         if( !status->IsOK() )
         {
@@ -205,7 +205,7 @@ namespace
           return;
         }
 
-        XrdClient::StatInfo *info = 0;
+        XrdCl::StatInfo *info = 0;
         response->Get( info );
         response->Set( (char*) 0 );
         pList->At( pIndex )->SetStatInfo( info );
@@ -216,13 +216,13 @@ namespace
       }
 
     private:
-      XrdClient::DirectoryList *pList;
+      XrdCl::DirectoryList *pList;
       uint32_t                  pIndex;
-      XrdClient::RequestSync   *pSync;
+      XrdCl::RequestSync   *pSync;
   };
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

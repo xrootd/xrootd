@@ -7,7 +7,7 @@
 #include "XrdCl/XrdClInQueue.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Add a message to the queue

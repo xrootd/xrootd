@@ -13,7 +13,7 @@
 
 #include "XrdCl/XrdClStatus.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! A network socket

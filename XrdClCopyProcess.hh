@@ -11,7 +11,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include <stdint.h>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Interface for copy progress notification

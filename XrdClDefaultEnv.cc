@@ -12,7 +12,7 @@
 
 #include <map>
 
-namespace XrdClient
+namespace XrdCl
 {
   XrdSysMutex  DefaultEnv::sEnvMutex;
   Env         *DefaultEnv::sEnv             = 0;
@@ -130,9 +130,9 @@ namespace
     //--------------------------------------------------------------------------
     MaskTranslator()
     {
-      masks["AppMsg"]     = XrdClient::AppMsg;
-      masks["UtilityMsg"] = XrdClient::UtilityMsg;
-      masks["FileMsg"]    = XrdClient::FileMsg;
+      masks["AppMsg"]     = XrdCl::AppMsg;
+      masks["UtilityMsg"] = XrdCl::UtilityMsg;
+      masks["FileMsg"]    = XrdCl::FileMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -148,7 +148,7 @@ namespace
 
       std::vector<std::string>           topics;
       std::vector<std::string>::iterator it;
-      XrdClient::Utils::splitString( topics, mask, "|" );
+      XrdCl::Utils::splitString( topics, mask, "|" );
 
       uint64_t resultMask = 0;
       std::map<std::string, uint64_t>::iterator maskIt;
@@ -172,7 +172,7 @@ namespace
     //--------------------------------------------------------------------------
     EnvInitializer()
     {
-      using namespace XrdClient;
+      using namespace XrdCl;
       Log *log = DefaultEnv::GetLog();
 
       //------------------------------------------------------------------------
@@ -211,7 +211,7 @@ namespace
     //--------------------------------------------------------------------------
     ~EnvInitializer()
     {
-      XrdClient::DefaultEnv::Release();
+      XrdCl::DefaultEnv::Release();
     }
   } finalizer;
 }

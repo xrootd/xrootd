@@ -6,7 +6,7 @@
 
 #include "XrdCl/XrdClThirdPartyCopyJob.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Run the copy job

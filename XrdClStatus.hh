@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <sstream>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constants

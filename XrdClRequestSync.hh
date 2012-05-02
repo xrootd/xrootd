@@ -9,7 +9,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! A helper running a fixed number of requests at a given time

@@ -11,7 +11,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include <cstdlib>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // LocationInfo constructor

@@ -18,14 +18,14 @@ extern "C"
 {
   static void *RunRunnerThread( void *arg )
   {
-    using namespace XrdClient;
+    using namespace XrdCl;
     TaskManager *mgr = (TaskManager*)arg;
     mgr->RunTasks();
     return 0;
   }
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

@@ -13,7 +13,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! A simple key value store intended to hold global configuration.

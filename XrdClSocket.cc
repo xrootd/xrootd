@@ -18,7 +18,7 @@
 #include <sys/socket.h>
 #include <cstdlib>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Initialize

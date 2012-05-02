@@ -35,13 +35,13 @@ namespace
 {
   struct PollerHelper
   {
-    PollerHelper( XrdClient::SocketHandler *hndl,
-                  XrdClient::Socket        *sock ):
+    PollerHelper( XrdCl::SocketHandler *hndl,
+                  XrdCl::Socket        *sock ):
       handler( hndl ), socket( sock ),
       readEvent( 0 ), writeEvent( 0 ),
       readEnabled( false ), writeEnabled( false ) {}
-    XrdClient::SocketHandler *handler;
-    XrdClient::Socket        *socket;
+    XrdCl::SocketHandler *handler;
+    XrdCl::Socket        *socket;
     event                    *readEvent;
     event                    *writeEvent;
     bool                      readEnabled;
@@ -59,7 +59,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void HandleLogMessage( int severity, const char *msg )
   {
-    using namespace XrdClient;
+    using namespace XrdCl;
     Log *log = DefaultEnv::GetLog();
     switch( severity )
     {
@@ -90,7 +90,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void *RunPollerThread( void *arg )
   {
-    using namespace XrdClient;
+    using namespace XrdCl;
     PollerLibEvent *poller = (PollerLibEvent*)arg;
     long result = poller->RunEventLoop();
     return (void*)result;
@@ -108,7 +108,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void ReadEventCallback( evutil_socket_t, short what, void *arg )
   {
-    using namespace XrdClient;
+    using namespace XrdCl;
 
     PollerHelper *helper = (PollerHelper *)arg;
     uint8_t       ev     = 0;
@@ -129,7 +129,7 @@ extern "C"
   //----------------------------------------------------------------------------
   static void WriteEventCallback( evutil_socket_t, short what, void *arg )
   {
-    using namespace XrdClient;
+    using namespace XrdCl;
 
     PollerHelper *helper = (PollerHelper *)arg;
     uint8_t       ev     = 0;
@@ -146,7 +146,7 @@ extern "C"
   }
 }
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Initialize the poller

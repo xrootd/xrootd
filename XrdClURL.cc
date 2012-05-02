@@ -14,7 +14,7 @@
 #include <vector>
 #include <sstream>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor

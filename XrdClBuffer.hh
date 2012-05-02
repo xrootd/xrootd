@@ -13,7 +13,7 @@
 #include <cstring>
 #include <string>
 
-namespace XrdClient
+namespace XrdCl
 {
   //----------------------------------------------------------------------------
   //! Binary blob representation

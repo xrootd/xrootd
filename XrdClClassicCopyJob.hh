@@ -9,7 +9,7 @@
 
 #include "XrdCl/XrdClCopyProcess.hh"
 
-namespace XrdClient
+namespace XrdCl
 {
   class ClassicCopyJob: public CopyJob
   {
