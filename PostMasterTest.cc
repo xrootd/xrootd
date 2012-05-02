@@ -37,7 +37,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
 //------------------------------------------------------------------------------
 // Message filter
 //------------------------------------------------------------------------------
-class XrdFilter: public XrdClient::MessageFilter
+class XrdFilter: public XrdCl::MessageFilter
 {
   public:
     XrdFilter( char id0 = 0, char id1 = 0 )
@@ -46,7 +46,7 @@ class XrdFilter: public XrdClient::MessageFilter
       streamId[1] = id1;
     }
 
-    virtual bool Filter( const XrdClient::Message *msg )
+    virtual bool Filter( const XrdCl::Message *msg )
     {
       ServerResponse *resp = (ServerResponse *)msg->GetBuffer();
       if( resp->hdr.streamid[0] == streamId[0] &&
@@ -63,7 +63,7 @@ class XrdFilter: public XrdClient::MessageFilter
 //------------------------------------------------------------------------------
 struct ArgHelper
 {
-  XrdClient::PostMaster *pm;
+  XrdCl::PostMaster *pm;
   int                    index;
 };
 
@@ -72,7 +72,7 @@ struct ArgHelper
 //------------------------------------------------------------------------------
 void *TestThreadFunc( void *arg )
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   std::string address;
   Env *testEnv = TestEnv::GetEnv();
@@ -123,7 +123,7 @@ void *TestThreadFunc( void *arg )
 //------------------------------------------------------------------------------
 void PostMasterTest::ThreadingTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
   PostMaster postMaster;
   postMaster.Initialize();
   postMaster.Start();
@@ -150,7 +150,7 @@ void PostMasterTest::ThreadingTest()
 //------------------------------------------------------------------------------
 void PostMasterTest::FunctionalTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize the stuff
@@ -274,7 +274,7 @@ void PostMasterTest::FunctionalTest()
 //------------------------------------------------------------------------------
 void PostMasterTest::PingIPv6()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 #if 0
   //----------------------------------------------------------------------------
   // Initialize the stuff

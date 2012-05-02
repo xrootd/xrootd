@@ -42,7 +42,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( FileCopyTest );
 //------------------------------------------------------------------------------
 void FileCopyTest::DownloadTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize
@@ -118,7 +118,7 @@ void FileCopyTest::DownloadTest()
 //------------------------------------------------------------------------------
 void FileCopyTest::UploadTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize

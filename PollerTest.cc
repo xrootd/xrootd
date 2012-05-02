@@ -29,7 +29,7 @@ class PollerTest: public CppUnit::TestCase
       CPPUNIT_TEST( FunctionTestLibEvent );
     CPPUNIT_TEST_SUITE_END();
     void FunctionTestLibEvent();
-    void FunctionTest( XrdClient::Poller *poller );
+    void FunctionTest( XrdCl::Poller *poller );
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( PollerTest );
@@ -45,8 +45,8 @@ class RandomPumpHandler: public ClientHandler
     //--------------------------------------------------------------------------
     virtual void HandleConnection( int socket )
     {
-      XrdClient::ScopedDescriptor scopetDesc( socket );
-      XrdClient::Log *log = TestEnv::GetLog();
+      XrdCl::ScopedDescriptor scopetDesc( socket );
+      XrdCl::Log *log = TestEnv::GetLog();
 
       uint8_t  packets = random() % 100;
       uint16_t packetSize;
@@ -89,13 +89,13 @@ class RandomPumpHandlerFactory: public ClientHandlerFactory
 //------------------------------------------------------------------------------
 // Socket listener
 //------------------------------------------------------------------------------
-class SocketHandler: public XrdClient::SocketHandler
+class SocketHandler: public XrdCl::SocketHandler
 {
   public:
     //--------------------------------------------------------------------------
     // Initializer
     //--------------------------------------------------------------------------
-    virtual void Initialize( XrdClient::Poller *poller )
+    virtual void Initialize( XrdCl::Poller *poller )
     {
       pPoller = poller;
     }
@@ -104,7 +104,7 @@ class SocketHandler: public XrdClient::SocketHandler
     // Handle an event
     //--------------------------------------------------------------------------
     virtual void Event( uint8_t type,
-                        XrdClient::Socket *socket )
+                        XrdCl::Socket *socket )
     {
       //------------------------------------------------------------------------
       // Read event
@@ -191,16 +191,16 @@ class SocketHandler: public XrdClient::SocketHandler
 
   private:
     Server::TransferMap  pMap;
-    XrdClient::Poller   *pPoller;
+    XrdCl::Poller   *pPoller;
 };
 
 //------------------------------------------------------------------------------
 // Test the functionality of a poller
 //------------------------------------------------------------------------------
-void PollerTest::FunctionTest( XrdClient::Poller *poller )
+void PollerTest::FunctionTest( XrdCl::Poller *poller )
 {
-  using XrdClient::Socket;
-  using XrdClient::URL;
+  using XrdCl::Socket;
+  using XrdCl::URL;
 
   //----------------------------------------------------------------------------
   // Initialize
@@ -261,7 +261,7 @@ void PollerTest::FunctionTest( XrdClient::Poller *poller )
 void PollerTest::FunctionTestLibEvent()
 {
 #ifdef HAVE_LIBEVENT
-  XrdClient::Poller *poller = new XrdClient::PollerLibEvent();
+  XrdCl::Poller *poller = new XrdCl::PollerLibEvent();
   FunctionTest( poller );
   delete poller;
 #else

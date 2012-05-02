@@ -13,7 +13,7 @@
 
 #define CPPUNIT_ASSERT_XRDST( x )                    \
 {                                                    \
-  XrdClient::XRootDStatus st = x;                    \
+  XrdCl::XRootDStatus st = x;                    \
   std::string msg = "["; msg += #x; msg += "]: ";    \
   msg += st.ToStr();                                 \
   CPPUNIT_ASSERT_MESSAGE( msg, st.IsOK() );   \

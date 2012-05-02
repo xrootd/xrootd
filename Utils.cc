@@ -18,7 +18,7 @@
 bool Utils::CRC32TextToInt( uint32_t &result, const std::string &text  )
 {
   std::vector<std::string> res;
-  XrdClient::Utils::splitString( res, text, " " );
+  XrdCl::Utils::splitString( res, text, " " );
   if( res.size() != 2 )
     return false;
 

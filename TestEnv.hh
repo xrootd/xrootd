@@ -14,7 +14,7 @@
 //------------------------------------------------------------------------------
 //! Envornment holding the variables for tests
 //------------------------------------------------------------------------------
-class TestEnv: public XrdClient::Env
+class TestEnv: public XrdCl::Env
 {
   public:
     //--------------------------------------------------------------------------
@@ -25,12 +25,12 @@ class TestEnv: public XrdClient::Env
     //--------------------------------------------------------------------------
     //! Get default test environment
     //--------------------------------------------------------------------------
-    static XrdClient::Env *GetEnv();
+    static XrdCl::Env *GetEnv();
 
     //--------------------------------------------------------------------------
     //! Get default test environment
     //--------------------------------------------------------------------------
-    static XrdClient::Log *GetLog();
+    static XrdCl::Log *GetLog();
 
     //--------------------------------------------------------------------------
     //! Release the environment
@@ -39,8 +39,8 @@ class TestEnv: public XrdClient::Env
 
   private:
     static XrdSysMutex     sEnvMutex;
-    static XrdClient::Env *sEnv;
-    static XrdClient::Log *sLog;
+    static XrdCl::Env *sEnv;
+    static XrdCl::Log *sLog;
 };
 
 #endif // __TEST_ENV_HH__

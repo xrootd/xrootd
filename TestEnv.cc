@@ -7,8 +7,8 @@
 #include "TestEnv.hh"
 
 XrdSysMutex     TestEnv::sEnvMutex;
-XrdClient::Env *TestEnv::sEnv       = 0;
-XrdClient::Log *TestEnv::sLog       = 0;
+XrdCl::Env *TestEnv::sEnv       = 0;
+XrdCl::Log *TestEnv::sLog       = 0;
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -28,7 +28,7 @@ TestEnv::TestEnv()
 //------------------------------------------------------------------------------
 // Get default client environment
 //------------------------------------------------------------------------------
-XrdClient::Env *TestEnv::GetEnv()
+XrdCl::Env *TestEnv::GetEnv()
 {
   if( !sEnv )
   {
@@ -40,14 +40,14 @@ XrdClient::Env *TestEnv::GetEnv()
   return sEnv;
 }
 
-XrdClient::Log *TestEnv::GetLog()
+XrdCl::Log *TestEnv::GetLog()
 {
   //----------------------------------------------------------------------------
   // This is actually thread safe because it is first called from
   // a static initializer in a thread safe context
   //----------------------------------------------------------------------------
   if( unlikely( !sLog ) )
-    sLog = new XrdClient::Log();
+    sLog = new XrdCl::Log();
   return sLog;
 }
 
@@ -74,7 +74,7 @@ namespace
     //--------------------------------------------------------------------------
     EnvInitializer()
     {
-      using namespace XrdClient;
+      using namespace XrdCl;
       Log *log = TestEnv::GetLog();
       char *level = getenv( "XRDTEST_LOGLEVEL" );
       if( level )

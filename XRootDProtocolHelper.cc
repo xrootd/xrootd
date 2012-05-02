@@ -11,7 +11,7 @@
 //------------------------------------------------------------------------------
 // Handle XRootD Log-in
 //------------------------------------------------------------------------------
-bool XRootDProtocolHelper::HandleLogin( int socket, XrdClient::Log *log )
+bool XRootDProtocolHelper::HandleLogin( int socket, XrdCl::Log *log )
 {
   //----------------------------------------------------------------------------
   // Handle the handshake
@@ -90,7 +90,7 @@ bool XRootDProtocolHelper::HandleLogin( int socket, XrdClient::Log *log )
 //------------------------------------------------------------------------------
 // Handle disconnection
 //------------------------------------------------------------------------------
-bool XRootDProtocolHelper::HandleClose( int socket, XrdClient::Log *log )
+bool XRootDProtocolHelper::HandleClose( int socket, XrdCl::Log *log )
 {
   return true;
 }
@@ -98,8 +98,8 @@ bool XRootDProtocolHelper::HandleClose( int socket, XrdClient::Log *log )
 //------------------------------------------------------------------------------
 // Receive a message
 //------------------------------------------------------------------------------
-bool XRootDProtocolHelper::GetMessage( XrdClient::Message *msg, int socket,
-                                       XrdClient::Log *log )
+bool XRootDProtocolHelper::GetMessage( XrdCl::Message *msg, int socket,
+                                       XrdCl::Log *log )
 {
   return true;
 }

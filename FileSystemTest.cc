@@ -54,7 +54,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemTest );
 //------------------------------------------------------------------------------
 void FileSystemTest::LocateTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -90,7 +90,7 @@ void FileSystemTest::LocateTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::MvTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -122,7 +122,7 @@ void FileSystemTest::MvTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::ServerQueryTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -156,7 +156,7 @@ void FileSystemTest::ServerQueryTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::TruncateRmTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -189,7 +189,7 @@ void FileSystemTest::TruncateRmTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::MkdirRmdirTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -224,7 +224,7 @@ void FileSystemTest::MkdirRmdirTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::ChmodTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -257,7 +257,7 @@ void FileSystemTest::ChmodTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::PingTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -279,7 +279,7 @@ void FileSystemTest::PingTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::StatTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   Env *testEnv = TestEnv::GetEnv();
 
@@ -311,7 +311,7 @@ void FileSystemTest::StatTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::StatVFSTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   Env *testEnv = TestEnv::GetEnv();
 
@@ -337,7 +337,7 @@ void FileSystemTest::StatVFSTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::ProtocolTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   Env *testEnv = TestEnv::GetEnv();
 
@@ -359,7 +359,7 @@ void FileSystemTest::ProtocolTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::DeepLocateTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables
@@ -398,7 +398,7 @@ void FileSystemTest::DeepLocateTest()
 //------------------------------------------------------------------------------
 void FileSystemTest::DirListTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Get the environment variables

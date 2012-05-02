@@ -16,17 +16,17 @@ class XRootDProtocolHelper
     //--------------------------------------------------------------------------
     //! Handle XRootD Log-in
     //--------------------------------------------------------------------------
-    bool HandleLogin( int socket, XrdClient::Log *log );
+    bool HandleLogin( int socket, XrdCl::Log *log );
 
     //--------------------------------------------------------------------------
     //! Handle disconnection
     //--------------------------------------------------------------------------
-    bool HandleClose( int socket, XrdClient::Log *log );
+    bool HandleClose( int socket, XrdCl::Log *log );
 
     //--------------------------------------------------------------------------
     //! Receive a message
     //--------------------------------------------------------------------------
-    bool GetMessage( XrdClient::Message *msg, int socket, XrdClient::Log *log );
+    bool GetMessage( XrdCl::Message *msg, int socket, XrdCl::Log *log );
   private:
 };
 

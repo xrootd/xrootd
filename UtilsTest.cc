@@ -35,20 +35,20 @@ CPPUNIT_TEST_SUITE_REGISTRATION( UtilsTest );
 //------------------------------------------------------------------------------
 void UtilsTest::URLTest()
 {
-  XrdClient::URL url1( "root://user1:passwd1@host1:123//path?param1=val1&param2=val2" );
-  XrdClient::URL url2( "root://user1@host1//path?param1=val1&param2=val2" );
-  XrdClient::URL url3( "root://host1" );
-  XrdClient::URL url4( "root://user1:passwd1@[::1]:123//path?param1=val1&param2=val2" );
-  XrdClient::URL url5( "root://user1@192.168.1.1:123//path?param1=val1&param2=val2" );
-  XrdClient::URL url6( "root://[::1]" );
-  XrdClient::URL urlInvalid1( "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2" );
-  XrdClient::URL urlInvalid2( "root://user1:passwd1host1:123//path?param1=val1&param2=val2" );
-  XrdClient::URL urlInvalid3( "root:////path?param1=val1&param2=val2" );
-  XrdClient::URL urlInvalid4( "root://@//path?param1=val1&param2=val2" );
-  XrdClient::URL urlInvalid5( "root://:@//path?param1=val1&param2=val2" );
-  XrdClient::URL urlInvalid6( "root://" );
-  XrdClient::URL urlInvalid7( "://asds" );
-  XrdClient::URL urlInvalid8( "root://asd@://path?param1=val1&param2=val2" );
+  XrdCl::URL url1( "root://user1:passwd1@host1:123//path?param1=val1&param2=val2" );
+  XrdCl::URL url2( "root://user1@host1//path?param1=val1&param2=val2" );
+  XrdCl::URL url3( "root://host1" );
+  XrdCl::URL url4( "root://user1:passwd1@[::1]:123//path?param1=val1&param2=val2" );
+  XrdCl::URL url5( "root://user1@192.168.1.1:123//path?param1=val1&param2=val2" );
+  XrdCl::URL url6( "root://[::1]" );
+  XrdCl::URL urlInvalid1( "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2" );
+  XrdCl::URL urlInvalid2( "root://user1:passwd1host1:123//path?param1=val1&param2=val2" );
+  XrdCl::URL urlInvalid3( "root:////path?param1=val1&param2=val2" );
+  XrdCl::URL urlInvalid4( "root://@//path?param1=val1&param2=val2" );
+  XrdCl::URL urlInvalid5( "root://:@//path?param1=val1&param2=val2" );
+  XrdCl::URL urlInvalid6( "root://" );
+  XrdCl::URL urlInvalid7( "://asds" );
+  XrdCl::URL urlInvalid8( "root://asd@://path?param1=val1&param2=val2" );
 
   //----------------------------------------------------------------------------
   // Full url
@@ -63,7 +63,7 @@ void UtilsTest::URLTest()
   CPPUNIT_ASSERT( url1.GetPath() == "/path" );
   CPPUNIT_ASSERT( url1.GetParams().size() == 2 );
 
-  XrdClient::URL::ParamsMap::const_iterator it;
+  XrdCl::URL::ParamsMap::const_iterator it;
   it = url1.GetParams().find( "param1" );
   CPPUNIT_ASSERT( it != url1.GetParams().end() );
   CPPUNIT_ASSERT( it->second == "val1" );
@@ -207,10 +207,10 @@ void UtilsTest::AnyTest()
   A *a4 = 0;
   B *b  = 0;
 
-  XrdClient::AnyObject *any1 = new XrdClient::AnyObject();
-  XrdClient::AnyObject *any2 = new XrdClient::AnyObject();
-  XrdClient::AnyObject *any3 = new XrdClient::AnyObject();
-  XrdClient::AnyObject *any4 = new XrdClient::AnyObject();
+  XrdCl::AnyObject *any1 = new XrdCl::AnyObject();
+  XrdCl::AnyObject *any2 = new XrdCl::AnyObject();
+  XrdCl::AnyObject *any3 = new XrdCl::AnyObject();
+  XrdCl::AnyObject *any4 = new XrdCl::AnyObject();
 
   any1->Set( a1 );
   any1->Get( b );
@@ -241,7 +241,7 @@ void UtilsTest::AnyTest()
 //------------------------------------------------------------------------------
 // Some tasks that do something
 //------------------------------------------------------------------------------
-class TestTask1: public XrdClient::Task
+class TestTask1: public XrdCl::Task
 {
   public:
     TestTask1( std::vector<time_t> &runs ): pRuns( runs ) {}
@@ -256,7 +256,7 @@ class TestTask1: public XrdClient::Task
     std::vector<time_t> &pRuns;
 };
 
-class TestTask2: public XrdClient::Task
+class TestTask2: public XrdCl::Task
 {
   public:
     TestTask2( std::vector<time_t> &runs ): pRuns( runs ) {}
@@ -278,7 +278,7 @@ class TestTask2: public XrdClient::Task
 //------------------------------------------------------------------------------
 void UtilsTest::TaskManagerTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   std::vector<time_t> runs1, runs2;
   Task *tsk1 = new TestTask1( runs1 );
@@ -307,7 +307,7 @@ void UtilsTest::TaskManagerTest()
 //------------------------------------------------------------------------------
 void UtilsTest::SIDManagerTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
   SIDManager manager;
 
   uint8_t sid1[2];

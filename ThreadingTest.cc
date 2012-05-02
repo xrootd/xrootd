@@ -32,7 +32,7 @@ struct ThreadData
 {
   ThreadData():
     file( 0 ), startOffset( 0 ), length( 0 ), checkSum( 0 ) {}
-  XrdClient::File *file;
+  XrdCl::File *file;
   uint64_t         startOffset;
   uint64_t         length;
   uint32_t         checkSum;
@@ -79,7 +79,7 @@ void *DataReader( void *arg )
 //------------------------------------------------------------------------------
 void ThreadingTest::ReadTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize

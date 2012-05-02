@@ -21,8 +21,8 @@ class RandomHandler: public ClientHandler
   public:
     virtual void HandleConnection( int socket )
     {
-      XrdClient::ScopedDescriptor scopedDesc( socket );
-      XrdClient::Log *log = TestEnv::GetLog();
+      XrdCl::ScopedDescriptor scopedDesc( socket );
+      XrdCl::Log *log = TestEnv::GetLog();
 
       //------------------------------------------------------------------------
       // Pump some data
@@ -138,7 +138,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( SocketTest );
 //------------------------------------------------------------------------------
 void SocketTest::TransferTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
   srandom( time(0) );
   Server serv;
   Socket sock;

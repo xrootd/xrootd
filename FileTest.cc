@@ -41,7 +41,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
 //------------------------------------------------------------------------------
 void FileTest::RedirectReturnTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize
@@ -107,7 +107,7 @@ void FileTest::RedirectReturnTest()
 //------------------------------------------------------------------------------
 void FileTest::ReadTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize
@@ -183,7 +183,7 @@ void FileTest::ReadTest()
 //------------------------------------------------------------------------------
 void FileTest::WriteTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize
@@ -272,7 +272,7 @@ void FileTest::WriteTest()
 //------------------------------------------------------------------------------
 void FileTest::VectorReadTest()
 {
-  using namespace XrdClient;
+  using namespace XrdCl;
 
   //----------------------------------------------------------------------------
   // Initialize

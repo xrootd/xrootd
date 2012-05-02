@@ -103,7 +103,7 @@ Server::~Server()
 //------------------------------------------------------------------------------
 bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 {
-  XrdClient::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = TestEnv::GetLog();
   log->Debug( 1, "Seting up the server, port: %d, clients: %d", port, accept );
 
   //----------------------------------------------------------------------------
@@ -162,7 +162,7 @@ bool Server::Setup( int port, int accept, ClientHandlerFactory *factory )
 //------------------------------------------------------------------------------
 bool Server::Start()
 {
-  XrdClient::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = TestEnv::GetLog();
   log->Debug( 1, "Spawning the server thread" );
   if( pthread_create( &pServerThread, 0, ::HandleConnections, this ) < 0 )
   {
@@ -177,7 +177,7 @@ bool Server::Start()
 //------------------------------------------------------------------------------
 bool Server::Stop()
 {
-  XrdClient::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = TestEnv::GetLog();
   log->Debug( 1, "Waiting for the server thread to finish" );
   long ret;
   if( pthread_join( pServerThread, (void**)&ret ) < 0 )
@@ -219,7 +219,7 @@ std::pair<uint64_t, uint32_t> Server::GetReceivedStats( const std::string host )
 //------------------------------------------------------------------------------
 int Server::HandleConnections()
 {
-  XrdClient::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = TestEnv::GetLog();
 
   //----------------------------------------------------------------------------
   // Initiate the connections
