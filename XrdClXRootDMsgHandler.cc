@@ -600,10 +600,9 @@ namespace XrdCl
         }
         memcpy( pUserBuffer, buffer, length );
 
-        AnyObject *obj = new AnyObject();
-        uint32_t  *len = new uint32_t;
-        *len = length;
-        obj->Set( len );
+        AnyObject *obj   = new AnyObject();
+        Chunk     *chunk = new Chunk( req->read.offset, length );
+        obj->Set( chunk );
         return obj;
       }
 

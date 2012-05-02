@@ -133,12 +133,12 @@ namespace XrdCl
     if( !st.IsOK() )
       return st;
 
-    uint32_t *bytesR = 0;
-    XRootDStatus status = MessageUtils::WaitForResponse( &handler, bytesR );
+    Chunk *chunkInfo = 0;
+    XRootDStatus status = MessageUtils::WaitForResponse( &handler, chunkInfo );
     if( status.IsOK() )
     {
-      bytesRead = *bytesR;
-      delete bytesR;
+      bytesRead = chunkInfo->length;
+      delete chunkInfo;
     }
     return status;
   }

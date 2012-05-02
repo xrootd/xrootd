@@ -122,10 +122,8 @@ namespace XrdCl
       //! @param buffer  a pointer to a buffer big enough to hold the data
       //!                or 0 if the buffer should be allocated by the system
       //! @param handler handler to be notified when the response arrives,
-      //!                the response parameter will hold a buffer object if
-      //!                the procedure was successful, if a prealocated
-      //!                buffer was specified then the buffer object will
-      //!                "wrap" this buffer
+      //!                the response parameter will hold a ChunkInfo object if
+      //!                the procedure was successful
       //! @param timeout timeout value, if 0 the environment default will be
       //!                used
       //! @return        status of the operation
