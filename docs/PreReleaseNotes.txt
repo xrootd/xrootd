@@ -5,7 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
-   *Add third party copy statistics to the summary record.
+   * Create a general place for platform dependent utility methods.
+   * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
    * Undo the side-effect of commit ff8bdbd6 that prevented the frm from
