@@ -18,6 +18,8 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Correct log processing for sites that use the root directory as the
+     stomping ground for newly created files.
    * Fix the -force option to really work for the mark subcommand.
    * Pass through error code returned by the N2N plug-in. This only affects
      the proxy server and caused feature interference.
