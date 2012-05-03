@@ -609,17 +609,19 @@ XrdCnsSsiFRec *XrdCnsSsi::AddFile(char *lfn, char *lP)
    XrdCnsLogRec::Arg *aP = (XrdCnsLogRec::Arg *)lP;
    XrdCnsSsiDRec *theDir;
    XrdCnsSsiFRec *theFile;
-   char *fP, *mP, *sP;
+   char *fP, *mP, *sP, rDir[] = {'/', 0};
 
 // Extract out the directory, file name, space name and mount point, if any
 //
    if ((sP = index(lfn, ' '))) *sP++ = '\0';
    if (!(fP = rindex(lfn+1, '/')) || !(*(fP+1)))
-      {if (sP) *(sP-1) = ' ';
-       Say.V("Invalid log record ", lP); nErrs++;
-       return 0;
-      }
-   *fP++ = '\0';
+      {if (!fP && *lfn == '/' && *(lfn+1)) {fP = lfn+1; lfn = rDir;}
+          else {if (sP) *(sP-1) = ' ';
+                Say.V("Invalid log record ", lP); nErrs++;
+                return 0;
+               }
+      } else *fP++ = '\0';
+
    if (sP)
       {if (!(mP = index(sP, ' '))) aP->Mount = mountP->Default();
           else {*mP++ = '\0';      aP->Mount = mountP->Add(mP);}
