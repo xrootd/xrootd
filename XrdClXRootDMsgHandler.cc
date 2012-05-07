@@ -179,20 +179,13 @@ namespace XrdCl
         }
 
         //----------------------------------------------------------------------
-        // Send the request to the new location
+        // Send the request to the new location, we don't need to look at the
+        // status code here because, in case of failure we will be notified
+        // as a handler (HandleFault will be called)
         //----------------------------------------------------------------------
         pRedirections->push_back( pUrl );
         st = pPostMaster->Send( pUrl, pRequest, this, 300 );
 
-        if( !st.IsOK() )
-        {
-          log->Error( XRootDMsg, "[%s] Unable to redirect message 0x%x to: %s",
-                                pUrl.GetHostId().c_str(), pRequest,
-                                urlInfo.c_str() );
-          pStatus = st;
-          HandleResponse();
-          return Take | RemoveHandler;
-        }
         return Take | RemoveHandler;
       }
 
