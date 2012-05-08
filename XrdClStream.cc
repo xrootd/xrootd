@@ -203,7 +203,7 @@ namespace XrdCl
     {
       log->Error( PostMasterMsg, "[%s #%d] Unable to initialize socket: %s",
                                  pUrl->GetHostId().c_str(), pStreamNum,
-                                 strerror( st.errNo ) );
+                                 st.ToString().c_str() );
       pStreamStatus = Error;
       return st;
     }
@@ -213,7 +213,7 @@ namespace XrdCl
     {
       log->Error( PostMasterMsg, "[%s #%d] Unable to initiate the connection: %s",
                                  pUrl->GetHostId().c_str(), pStreamNum,
-                                 strerror( st.errNo ) );
+                                 st.ToString().c_str() );
       pStreamStatus = Error;
       return st;
     }
