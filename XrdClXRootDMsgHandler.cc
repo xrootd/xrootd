@@ -11,6 +11,7 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 
@@ -143,10 +144,26 @@ namespace XrdCl
                              urlInfo.c_str(), rsp->body.redirect.port );
 
         //----------------------------------------------------------------------
-        // Check the validity of the url
+        // Build the URL and check it's validity
         //----------------------------------------------------------------------
-        pUrl = URL( urlInfo, rsp->body.redirect.port );
+        std::vector<std::string> urlComponents;
+        std::string newCgi;
+        Utils::splitString( urlComponents, urlInfo, "?" );
+        std::ostringstream o;
+        o << urlComponents[0] << ":" << rsp->body.redirect.port << "/";
+        o << pUrl.GetPathWithParams();
 
+        if( urlComponents.size() > 1 )
+        {
+          if( pUrl.GetParams().empty() )
+            o << "?";
+          else if( urlComponents[1][0] != '&' )
+            o << "&";
+          o << urlComponents[1];
+          newCgi = urlComponents[1];
+        }
+
+        pUrl = URL( o.str() );
         if( !pUrl.IsValid() )
         {
           pStatus = Status( stError, errInvalidRedirectURL );
@@ -170,7 +187,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
-        Status st = RewriteRequestRedirect();
+        Status st = RewriteRequestRedirect( newCgi );
         if( !st.IsOK() )
         {
           pStatus = st;
@@ -640,7 +657,7 @@ namespace XrdCl
   // Perform the changes to the original request needed by the redirect
   // procedure - allocate new streamid, append redirection data and such
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RewriteRequestRedirect()
+  Status XRootDMsgHandler::RewriteRequestRedirect( const std::string &newCgi )
   {
     Log *log = DefaultEnv::GetLog();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
@@ -670,6 +687,87 @@ namespace XrdCl
                             pUrl.GetHostId().c_str(), pRequest );
       return st;
     }
+
+    //--------------------------------------------------------------------------
+    // Rewrite particular requests
+    //--------------------------------------------------------------------------
+    if( newCgi.empty() )
+      return Status();
+
+    XRootDTransport::UnMarshallRequest( pRequest );
+    switch( req->header.requestid )
+    {
+      //------------------------------------------------------------------------
+      // Add the CGI information
+      //------------------------------------------------------------------------
+      case kXR_chmod:
+      case kXR_mkdir:
+      case kXR_mv:
+      case kXR_open:
+      case kXR_rm:
+      case kXR_rmdir:
+      case kXR_stat:
+      case kXR_truncate:
+      {
+        //----------------------------------------------------------------------
+        // Get the pointer to the appropriate path
+        //----------------------------------------------------------------------
+        char *path = pRequest->GetBuffer( 24 );
+        if( req->header.requestid == kXR_mv )
+        {
+          for( int i = 0; i < req->header.dlen; ++i, ++path )
+            if( *path == ' ' )
+              break;
+          ++path;
+        }
+
+        //----------------------------------------------------------------------
+        // Check if the path description in the request already has a question
+        // mark, ie. there is already some CGI information appended
+        //----------------------------------------------------------------------
+        bool hasQM = false;
+        for( int i = 0; i < req->header.dlen; ++i )
+          if( *(path+i) == '?' )
+            hasQM = true;
+
+        //----------------------------------------------------------------------
+        // Calculate the new buffer size and reallocate
+        //----------------------------------------------------------------------
+        uint32_t size = pRequest->GetSize() + newCgi.size();
+        if( !hasQM )
+          ++size;
+
+        if( newCgi[0] != '&' )
+          ++size;
+
+        pRequest->ReAllocate( size );
+        req  = (ClientRequest *)pRequest->GetBuffer();
+        path = pRequest->GetBuffer( req->header.dlen + 24 );
+
+        //----------------------------------------------------------------------
+        // Append the CGI
+        //----------------------------------------------------------------------
+        size = newCgi.size();
+        if( !hasQM )
+        {
+          *path = '?';
+          ++path;
+          ++size;
+        }
+
+        if( newCgi[0] != '&' )
+        {
+          *path = '&';
+          ++path;
+          ++size;
+        }
+
+        memcpy( path, newCgi.c_str(), newCgi.size() );
+        req->header.dlen += size;
+        break;
+      }
+    }
+    XRootDTransport::UnMarshallRequest( pRequest );
     return Status();
   }
 

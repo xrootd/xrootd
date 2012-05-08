@@ -144,7 +144,7 @@ namespace XrdCl
       // Perform the changes to the original request needed by the redirect
       // procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect();
+      Status RewriteRequestRedirect( const std::string &newCgi );
 
       //------------------------------------------------------------------------
       // Some requests need to be rewriten also after getting kXR_wait - sigh
