@@ -583,7 +583,8 @@ namespace XrdCl
         {
           log->Dump( XRootDMsg, "[%s] Found StatInfo in response to 0x%x",
                                 pUrl.GetHostId().c_str(), pRequest );
-          statInfo = new StatInfo( buffer+12 );
+          if( req->open.dlen >= 12 )
+            statInfo = new StatInfo( buffer+12 );
         }
 
         OpenInfo *data = new OpenInfo( (uint8_t*)buffer, statInfo );

@@ -617,7 +617,8 @@ namespace XrdCl
       pFileState  = Opened;
       pFileHandle = new uint8_t[4];
       openInfo->GetFileHandle( pFileHandle );
-      pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
+      if( openInfo->GetStatInfo() )
+        pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
       log->Debug( FileMsg, "[%s] File %s successfully opened with id 0x%x",
                             pDataServer->GetHostId().c_str(),
                             pFileUrl->GetPath().c_str(),
