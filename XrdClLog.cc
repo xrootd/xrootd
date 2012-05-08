@@ -88,8 +88,11 @@ namespace XrdCl
     char *buffer = 0;
     while(1)
     {
+      va_list cp;
+      va_copy( cp, list );
       buffer = new char[size];
-      ret = vsnprintf( buffer, size, format, list );
+      ret = vsnprintf( buffer, size, format, cp );
+      va_end( cp );
 
       if( ret < 0 )
       {
