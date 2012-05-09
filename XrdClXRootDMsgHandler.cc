@@ -768,7 +768,7 @@ namespace XrdCl
         break;
       }
     }
-    XRootDTransport::UnMarshallRequest( pRequest );
+    XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
 
