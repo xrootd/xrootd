@@ -26,9 +26,7 @@ class theClient;
 
 void flushEvents();
 
-int  Init(XrdSysError *eObj);
-
-int  Init(XrdCmsClient *trg=0);
+int  Init(XrdSysError *eObj, XrdCmsClient *trg=0);
 
 void recvEvents();
 
