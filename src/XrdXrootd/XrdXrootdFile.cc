@@ -224,7 +224,7 @@ if (XTab)
                                                  XTab[i]->writeCnt);
            delete XTab[i];
           }
-       free(*XTab); XTab = 0; XTnum = 0; XTfree = 0;
+       free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
 
 // Delete this object if not called from destructor
