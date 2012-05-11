@@ -5,6 +5,15 @@ XRootD
 Release Notes
 =============
 
+
+-------------
+Version 3.2.1
+-------------
++ **Major bug fixes**
+   * Don't build sendfile support on MacOSX because it doesn't work
+   * Prevent double-free abort when more than 16 files have been opened by a
+     client and the client terminates the session without closing the 17th one.
+
 -------------
 Version 3.2.0
 -------------
