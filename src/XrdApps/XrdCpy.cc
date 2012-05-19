@@ -893,6 +893,7 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
          nfo->clientidx = xrdxtrdfile->GimmeANewClientIdx();
          nfo->startfromblk = iii*xrdxtrdfile->GetNBlks() / xtremeclients.GetSize();
          nfo->maxoutstanding = xrdmin( 5, xrdxtrdfile->GetNBlks() / xtremeclients.GetSize() );
+         if (nfo->maxoutstanding < 1) nfo->maxoutstanding = 1;
 
          XrdSysThread::Run(&myTID, ReaderThread_xrd_xtreme, 
                            (void *)nfo, XRDSYSTHREAD_HOLD);

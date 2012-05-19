@@ -8,38 +8,26 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//       $Id$
-
-const char *XrdCpMthrQueueCVSID = "$Id$";
-
 #include "XrdClient/XrdCpMthrQueue.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientDebug.hh"
 
-XrdCpMthrQueue::XrdCpMthrQueue(): fReadSem(0) {
+XrdCpMthrQueue::XrdCpMthrQueue(): fWrWait(0), fReadSem(0), fWriteSem(0) {
    // Constructor
 
    fMsgQue.Clear();
    fTotSize = 0;
 }
 
-XrdCpMthrQueue::~XrdCpMthrQueue() {
-   // Destructor
-
-
-}
-
 int XrdCpMthrQueue::PutBuffer(void *buf, long long offs, int len) {
    XrdCpMessage *m;
-   bool wantstowait = FALSE;
 
-   {
-      XrdSysMutexHelper mtx(fMutex);
-      
-      if (fTotSize > CPMTQ_BUFFSIZE) wantstowait = TRUE;
-   }
-   
-   if (wantstowait) fWriteCnd.Wait(60);
+   fMutex.Lock();
+   if (len && fTotSize > CPMTQ_BUFFSIZE)
+      {fWrWait++;
+       fMutex.UnLock();
+       fWriteSem.Wait();
+      }
 
    m = new XrdCpMessage;
    m->offs = offs;
@@ -47,13 +35,11 @@ int XrdCpMthrQueue::PutBuffer(void *buf, long long offs, int len) {
    m->len = len;
 
    // Put message in the list
-   {
-      XrdSysMutexHelper mtx(fMutex);
-    
+   //
       fMsgQue.Push_back(m);
       fTotSize += len;
-   }
     
+   fMutex.UnLock();
    fReadSem.Post(); 
 
    return 0;
@@ -65,15 +51,16 @@ int XrdCpMthrQueue::GetBuffer(void **buf, long long &offs, int &len) {
    res = 0;
  
    // If there is no data for one hour, then give up with an error
-   if (!fReadSem.Wait(3600)) {
-	 XrdSysMutexHelper mtx(fMutex);
-
-      	 if (fMsgQue.GetSize() > 0) {
-
-	    // If there are messages to dequeue, we pick the oldest one
-	    res = fMsgQue.Pop_front();
-	    if (res) fTotSize -= res->len;
-	 }
+   if (!fReadSem.Wait(3600))
+      {fMutex.Lock();
+      // If there are messages to dequeue, we pick the oldest one
+       if (fMsgQue.GetSize() > 0)
+          {res = fMsgQue.Pop_front();
+           if (res) {fTotSize -= res->len;
+                     if (fWrWait) {fWrWait--; fWriteSem.Post();}
+                    }
+          }
+       fMutex.UnLock();
       }
 
 
@@ -82,7 +69,6 @@ int XrdCpMthrQueue::GetBuffer(void **buf, long long &offs, int &len) {
       len = res->len;
       offs = res->offs;
       delete res;
-      fWriteCnd.Signal();
    }
 
    return (res != 0);
@@ -94,7 +80,7 @@ void XrdCpMthrQueue::Clear() {
    int len;
    long long offs;
 
-   while (GetBuffer(&buf, offs, len)) {
+   while (fMsgQue.GetSize() && GetBuffer(&buf, offs, len)) {
       free(buf);
    }
 

@@ -8,8 +8,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//       $Id$
-
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClientVector.hh"
 #include "XrdSys/XrdSysSemWait.hh"
@@ -32,17 +30,18 @@ class XrdCpMthrQueue {
    long                           fTotSize;
    XrdClientVector<XrdCpMessage*>            fMsgQue;      // queue for incoming messages
    int                                       fMsgIter;     // an iterator on it
+   int                                       fWrWait;      // Write waiters
 
    XrdSysRecMutex                        fMutex;       // mutex to protect data structures
 
    XrdSysSemWait                      fReadSem;     // variable to make the reader wait
                                                     // until some data is available
-   XrdSysCondVar                      fWriteCnd;    // variable to make the writer wait
+   XrdSysSemaphore                    fWriteSem;    // variable to make the writer wait
                                                     // if the queue is full
  public:
 
    XrdCpMthrQueue();
-   ~XrdCpMthrQueue();
+   ~XrdCpMthrQueue() {}
 
    int PutBuffer(void *buf, long long offs, int len);
    int GetBuffer(void **buf, long long &offs, int &len);
