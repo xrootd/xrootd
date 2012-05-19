@@ -20,6 +20,7 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Prevent hangs when doing exterme copy from server to server.
    * Correct log processing for sites that use the root directory as the
      stomping ground for newly created files.
    * Fix the -force option to really work for the mark subcommand.
