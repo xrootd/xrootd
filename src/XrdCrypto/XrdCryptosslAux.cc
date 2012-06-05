@@ -349,7 +349,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
    // Parse content of file 'fname' and add X509 certificates to
    // chain (which must be initialized by the caller).
    // If a private key matching the public key of one of the certificates
-   // is found in teh file, the certificate key is completed.
+   // is found in the file, the certificate key is completed.
    EPNAME("X509ParseFile");
    int nci = 0;
 
@@ -382,7 +382,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
       if (c) {
          chain->PushBack(c);
          nci++;
-         DEBUG("certificate added to the chain - ord: "<<chain->Size());
+         DEBUG("certificate for '"<<c->Subject()<<"'added to the chain - ord: "<<chain->Size());
       } else {
          DEBUG("could not create certificate: memory exhausted?");
          fclose(fcer);
@@ -431,7 +431,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
 #else
                      if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
 #endif
-                        DEBUG("RSA key completed ");
+                        DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
                         int rc = RSA_check_key(evpp->pkey.rsa);
                         if (rc != 0) {

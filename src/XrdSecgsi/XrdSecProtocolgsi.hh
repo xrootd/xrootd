@@ -439,5 +439,5 @@ private:
    void FreeEntity(XrdSecEntity *in);
 
    // VOMS parsing
-   void ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent);
+   void ExtractVOMS(X509Chain *c, XrdSecEntity &ent);
 };

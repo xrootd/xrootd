@@ -1748,7 +1748,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          
       // Extract the VOMS attrbutes, if required
       if (VOMSAttrOpt > 0) {
-         ExtractVOMS(hs->Chain->End(), Entity);
+         ExtractVOMS(hs->Chain, Entity);
          DEBUG("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
          DEBUG("VOMS: Entity.grps:         "<< (Entity.grps ? Entity.grps : "<none>"));
          DEBUG("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));
@@ -2010,23 +2010,33 @@ void XrdSecProtocolgsi::FreeEntity(XrdSecEntity *in)
 /*                         E x t r a c t V O M S                              */
 /******************************************************************************/
 
-void XrdSecProtocolgsi::ExtractVOMS(XrdCryptoX509 *xp, XrdSecEntity &ent)
+void XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
 {
-   // Get the VOMS atrributes in 'xp' and fill the relevant fields in 'ent'
+   // Get the VOMS attributes from proxy file(s) in chain 'c' (either the proxy
+   // or the limited proxy) and fill the relevant fields in 'ent'
    EPNAME("ExtractVOMS");
 
-   if (!xp) return;
+   if (!c) return;
 
+   XrdCryptoX509 *xp = c->End();
+   if (!xp) return;
+   
    // Extract the information
    XrdOucString vatts;
    int rc = 0;
    if ((rc = XrdSslgsiX509GetVOMSAttr(xp, vatts)) != 0) {
-      if (rc > 0) {
-         DEBUG("No VOMS attributes in proxy certificate");
-      } else {
-         PRINT("ERROR: problem extracting VOMS attributes");
+      if (strstr(xp->Subject(), "CN=limited proxy")) {
+         xp = c->SearchBySubject(xp->Issuer());
+         rc = XrdSslgsiX509GetVOMSAttr(xp, vatts);
       }
-      return;
+      if (rc != 0) {
+         if (rc > 0) {
+            DEBUG("No VOMS attributes in proxy chain");
+         } else {
+            PRINT("ERROR: problem extracting VOMS attributes");
+         }
+         return;
+      }      
    }
 
    int from = 0;

@@ -100,7 +100,7 @@ int main( int argc, char **argv )
    int secValid = 0;
    XrdProxyOpt_t pxopt;
    XrdCryptosslgsiX509Chain *cPXp = 0;
-   XrdCryptoX509 *xPXp = 0;
+   XrdCryptoX509 *xPXp = 0, *xPXPp = 0;
    XrdCryptoRSA *kPXp = 0;
    XrdCryptoX509ParseFile_t ParseFile = 0;
    int prc = 0;
@@ -200,6 +200,14 @@ int main( int argc, char **argv )
       if (xPXp) {
          if (!Exists) {
             Display(xPXp);
+            if (strstr(xPXp->Subject(), "CN=limited proxy")) {
+               xPXPp = cPXp->SearchBySubject(xPXp->Issuer());
+               if (xPXPp) {
+                  Display(xPXPp);
+               } else {
+                  PRT("WARNING: found 'limited proxy' but not the associated proxy!");
+               }
+            }
          } else {
             // Check time validity
             secValid = XrdSutParseTime(Valid.c_str(), 1);
