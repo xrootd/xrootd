@@ -72,7 +72,8 @@ target_link_libraries(
   XrdUtils
   dl
   pthread
-  ${ZLIB_LIBRARY} )
+  ${ZLIB_LIBRARY}
+  ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
 # xrd

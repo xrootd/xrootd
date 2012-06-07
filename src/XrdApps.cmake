@@ -95,7 +95,8 @@ target_link_libraries(
   XrdUtils
   XrdAppUtils
   dl
-  pthread )
+  pthread
+  ${EXTRA_LIBS} )
 
 #-------------------------------------------------------------------------------
 # Install
