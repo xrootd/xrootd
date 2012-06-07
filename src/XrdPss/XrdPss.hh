@@ -90,6 +90,8 @@ class XrdSysError;
 class XrdOucStream;
 class XrdOucTList;
 
+struct XrdVersionInfo;
+
 class XrdPssSys : public XrdOss
 {
 public:
@@ -134,6 +136,7 @@ static int          hdrLen;
 static const char  *hdrData;
 static const char  *urlRdr;
 static int          Workers;
+static int          Trace;
 
 static char         allChmod;
 static char         allMkdir;
@@ -144,8 +147,7 @@ static char         allTrunc;
 
 static char         cfgDone;   // Configuration completed
 
-         XrdPssSys() : LocalRoot(0), N2NLib(0), N2NParms(0), theN2N(0),
-                       DirFlags(0), cPath(0), cParm(0) {}
+         XrdPssSys();
 virtual ~XrdPssSys() {}
 
 private:
@@ -157,6 +159,8 @@ XrdOucName2Name   *theN2N;   // -> File mapper object
 unsigned long long DirFlags; // Defaults for exports
 char              *cPath;    // -> Cache path
 char              *cParm;    // -> Cache parameters
+XrdVersionInfo    *myVersion;// -> Compilation version
+int                TraceLvl; // Tracing options
 
 int    buildHdr();
 int    Configure(const char *);

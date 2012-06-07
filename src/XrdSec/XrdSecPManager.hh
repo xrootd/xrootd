@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//       $Id$
-
 #include <sys/socket.h>
   
 #include "XrdSec/XrdSecInterface.hh"
@@ -20,6 +18,7 @@
 class XrdOucErrInfo;
 class XrdSecProtList;
 class XrdSecProtocol;
+class XrdSysError;
 
 typedef int XrdSecPMask_t;
 
@@ -51,8 +50,11 @@ int             Load(XrdOucErrInfo *eMsg,    // In
 
 void            setDebug(int dbg) {DebugON = dbg;}
 
+void            setErrP(XrdSysError *eP) {errP = eP;}
+
                 XrdSecPManager(int dbg=0)
-                   {First = Last = 0; DebugON = dbg; protnum = 1;}
+                              : protnum(1), First(0), Last(0), errP(0),
+                                DebugON(dbg) {}
                ~XrdSecPManager() {}
 
 private:
@@ -70,6 +72,7 @@ XrdSecPMask_t      protnum;
 XrdSysMutex        myMutex;
 XrdSecProtList    *First;
 XrdSecProtList    *Last;
+XrdSysError       *errP;
 int                DebugON;
 };
 #endif

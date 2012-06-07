@@ -10,54 +10,102 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-// This class defines the interface to a checksum computation. When this class
-// is used to define a plugin computation, the initial XrdCksCalc computation object
-// is created by the XrdCksCalcInit() function defined at the end of this file.
+/*! This class defines the interface to a checksum computation. When this class
+    is used to define a plugin computation, the initial XrdCksCalc computation
+    object is created by the XrdCksCalcInit() function defined at the end of
+    this file.
+*/
   
 class XrdCksCalc
 {
 public:
 
-// Calc()     Calculates a one-time checksum. The obvious default implementation
-//            is provided and assumes that Init() may be called more than once.
-//
+//------------------------------------------------------------------------------
+//! Calculate a one-time checksum. The obvious default implementation is
+//! provided and assumes that Init() may be called more than once.
+//!
+//! @param    Buff   -> Data to be checksummed.
+//! @param    BLen   -> Length of the data in Buff.
+//!
+//! @return   the checksum value in binary format. The pointer to the value
+//!           becomes invalid once the associated object is deleted.
+//------------------------------------------------------------------------------
+
 virtual char *Calc(const char *Buff, int BLen)
                   {Init(); Update(Buff, BLen); return Final();}
 
-// Current()  returns the current binary checksum value (defaults to final).
-//            The final checksum result is not affected.
-//
+//------------------------------------------------------------------------------
+//! Get the current binary checksum value (defaults to final). However, the
+//! final checksum result is not affected.
+//!
+//! @return   the checksum value in binary format. The pointer to the value
+//!           becomes invalid once the associated object is deleted.
+//------------------------------------------------------------------------------
+
 virtual char *Current() {return Final();}
 
-// Final()    Returns the actual checksum in binary format.
-//
+//------------------------------------------------------------------------------
+//! Get the actual checksum in binary format.
+//!
+//! @return   the checksum value in binary format. The pointer to the value
+//!           becomes invalid once the associated object is deleted.
+//------------------------------------------------------------------------------
+
 virtual char *Final() = 0;
 
-// Init()     Initializes data structures (must be called by constructor). This
-//            is always called to reuse the object for a new checksum.
-//
+//------------------------------------------------------------------------------
+//! Initializes data structures (must be called by constructor). This is always
+//! called to reuse the object for a new checksum.
+//------------------------------------------------------------------------------
+
 virtual void  Init() = 0;
 
-// New()      Must provide a new instance of the underlying object.
-//
+//------------------------------------------------------------------------------
+//! Get a new instance of the underlying checksum calculation object.
+//!
+//! @return   the checksum calculation object.
+//------------------------------------------------------------------------------
 virtual
 XrdCksCalc   *New() = 0;
 
-// Recycle()  Is called when the object is no longer needed. A default is given.
-//
+//------------------------------------------------------------------------------
+//! Recycle the checksum object as it is no longer needed. A default is given.
+//------------------------------------------------------------------------------
+
 virtual void  Recycle() {delete this;}
 
-// Type()     returns the character name of the checksum object and the number
-//            bytes (i.e. size) required for the checksum value.
-//
+//------------------------------------------------------------------------------
+//! Get the checksum object algorithm name and the number bytes (i.e. size)
+//! required for the checksum value.
+//!
+//! @param    csSize -> Parameter to hold the size of the checksum value.
+//!
+//! @return   the checksum algorithm's name. The name persists event after the
+//!           checksum object is deleted.
+//------------------------------------------------------------------------------
+
 virtual const char *Type(int &csSize) = 0;
 
-// Update()   computes a running checksum and may be called repeatedly for
-//            data segments; with Final() returning the full checksum.
-//
+//------------------------------------------------------------------------------
+//! Compute a running checksum. This method may be called repeatedly for data
+//! segments; with Final() returning the full checksum.
+//!
+//! @param    Buff   -> Data to be checksummed.
+//! @param    BLen   -> Length of the data in Buff.
+//------------------------------------------------------------------------------
+
 virtual void  Update(const char *Buff, int BLen) = 0;
 
+//------------------------------------------------------------------------------
+//! Constructor
+//------------------------------------------------------------------------------
+
               XrdCksCalc() {}
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+
 virtual      ~XrdCksCalc() {}
 };
 
@@ -65,17 +113,39 @@ virtual      ~XrdCksCalc() {}
 /*               C h e c k s u m   O b j e c t   C r e a t o r                */
 /******************************************************************************/
   
-/* When building a shared library plugin, the following "C" entry point must
-   exist in the library:
+//------------------------------------------------------------------------------
+//! Obtain an instance of the checksum calculation object.
+//!
+//! XrdCksCalcInit() is an extern "C" function that is called to obtain an
+//! initial instance of a checksum calculation object. You may create custom
+//! checksum calculation and use them as plug-ins to the  checksum manager
+//! (see XrdCks.hh). The function must be defined in the plug-in shared library.
+//! All the following extern symbols must be defined at file level!
+//!
+//! @param eDest  -> The XrdSysError object for messages.
+//! @param csName -> The name of the checksum algorithm.
+//! @param cFN    -> The name of the configuration file
+//! @param Parms  -> Parameters specified on the ckslib directive. If none it is
+//!                  zero.
+//------------------------------------------------------------------------------
 
-   extern "C"
-   {XrdCksCalc *XrdCksCalcInit(XrdSysError *eDest,  // The error msg object
-                               const char  *csName, // Name of checksum
-                               const char  *cFN,    // Config file name
-                               const char  *Parms); // Parms on lib directive
-   }
+/*! extern "C" XrdCksCalc *XrdCksCalcInit(XrdSysError *eDest,
+                                          const char  *csName,
+                                          const char  *cFN,
+                                          const char  *Parms);
+*/
 
-   This entry is called to get an instance of the checksum object which must
-   match the passed checksum name. If the object cannot be created; return 0.
+//------------------------------------------------------------------------------
+//! Declare the compilation version number.
+//!
+//! Additionally, you *should* declare the xrootd version you used to compile
+//! your plug-in. While not currently required, it is highly recommended to
+//! avoid execution issues should the class definition change. Declare it as:
+//------------------------------------------------------------------------------
+
+/*! #include "XrdVersion.hh"
+    XrdVERSIONINFO(XrdCksCalcInit,<name>);
+
+    where <name> is a 1- to 15-character unquoted name identifying your plugin.
 */
 #endif

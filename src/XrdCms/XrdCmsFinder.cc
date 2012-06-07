@@ -27,6 +27,8 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <inttypes.h>
+
+#include "XrdVersion.hh"
   
 #include "XProtocol/YProtocol.hh"
 
@@ -55,6 +57,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 
 using namespace XrdCms;
 
@@ -69,6 +72,8 @@ namespace XrdCms
 XrdSysError  Say(0, "cms_");
   
 XrdOucTrace  Trace(&Say);
+
+XrdVERSIONINFODEF(myVersion,cmsclient,XrdVNUMBER,XrdVERSION);
 };
 
 /******************************************************************************/
@@ -702,6 +707,15 @@ int XrdCmsFinderRMT::Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *eP)
 }
   
 /******************************************************************************/
+/*                                V C h e c k                                 */
+/******************************************************************************/
+  
+bool XrdCmsFinderRMT::VCheck(XrdVersionInfo &urVersion)
+{
+   return XrdSysPlugin::VerCmp(urVersion, myVersion);
+}
+
+/******************************************************************************/
 /*                         T a r g e t   F i n d e r                          */
 /******************************************************************************/
 /******************************************************************************/
@@ -883,6 +897,15 @@ void *XrdCmsFinderTRG::Start()
 // We should never get here
 //
    return (void *)0;
+}
+  
+/******************************************************************************/
+/*                                V C h e c k                                 */
+/******************************************************************************/
+  
+bool XrdCmsFinderTRG::VCheck(XrdVersionInfo &urVersion)
+{
+   return XrdSysPlugin::VerCmp(urVersion, myVersion);
 }
 
 /******************************************************************************/

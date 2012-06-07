@@ -15,7 +15,6 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
-#include "XrdVersion.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdSys/XrdSysError.hh"

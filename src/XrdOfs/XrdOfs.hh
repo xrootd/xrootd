@@ -32,6 +32,8 @@ class XrdSysLogger;
 class XrdOucStream;
 class XrdSfsAio;
 
+struct XrdVersionInfo;
+
 /******************************************************************************/
 /*                       X r d O f s D i r e c t o r y                        */
 /******************************************************************************/
@@ -301,6 +303,7 @@ char *HostName;       //    ->Our hostname
 char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
 char *OssLib;         //    ->Oss Library
+char *OssParms;       //    ->Oss Library Parameters
 char *CmsLib;         //    ->Cms Library
 char *CmsParms;       //    ->Cms Library Parameters
 
@@ -347,6 +350,8 @@ int               poscAuto;       //  1 -> Automatic persist on close
 XrdCksConfig     *CksConfig;      // Checksum configurator
 XrdCks           *Cks;            // Checksum manager
 int               CksRdsz;        // Checksum read size
+
+XrdVersionInfo   *myVersion;      // Version number compiled against
 
 static XrdOfsHandle     *dummyHandle;
 XrdSysMutex              ocMutex; // Global mutex for open/close

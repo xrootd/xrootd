@@ -34,7 +34,8 @@
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCksManager::XrdCksManager(XrdSysError *erP, int rdsz) : XrdCks(erP)
+XrdCksManager::XrdCksManager(XrdSysError *erP, int rdsz, XrdVersionInfo *vInfo)
+              : XrdCks(erP), myVersion(vInfo)
 {
 
 // Prefill the native digests we support
@@ -278,7 +279,7 @@ int XrdCksManager::Config(const char *cFN, csInfo &Info)
 
 // Get a plugin object
 //
-   if (!(Info.Plugin = new XrdSysPlugin(eDest, Info.Path)))
+   if (!(Info.Plugin = new XrdSysPlugin(eDest, Info.Path, "ckslib", myVersion)))
       {eDest->Emsg("Config", "Unable to configure cksum", Info.Name);
        return 0;
       }

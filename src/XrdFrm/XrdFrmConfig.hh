@@ -28,6 +28,8 @@ class XrdSysLogger;
 
 class XrdFrmConfigSE;
 
+struct XrdVersionInfo;
+
 class XrdFrmConfig
 {
 public:
@@ -177,6 +179,7 @@ int          xdpol();
 int          xitm(const char *What, int &tDest);
 int          xnml();
 int          xmon();
+int          xoss();
 int          xpol();
 int          xpolprog();
 int          xqchk();
@@ -186,9 +189,11 @@ int          xxfr();
 
 char               *ConfigFN;
 char               *ossLib;
+char               *ossParms;
 char               *LocalRoot;
 char               *RemoteRoot;
 XrdOucStream       *cFile;
+XrdVersionInfo     *myVersion;
 
 int                 plnDTS;
 const char         *pfxDTS;

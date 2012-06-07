@@ -222,12 +222,12 @@ XrdSecPManager XrdSecServer::PManager;
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
-XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(0, "sec_")
+XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
 {
 
 // Set default values
 //
-   eDest.logger(lp);
+   PManager.setErrP(&eDest);
    bpFirst     = 0;
    bpLast      = 0;
    bpDefault   = 0;
@@ -236,7 +236,10 @@ XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(0, "sec_")
   *STBuff      = '\0';
    SToken      = STBuff;
    SecTrace    = new XrdOucTrace(&eDest);
-   if (getenv("XRDDEBUG") || getenv("XrdSecDEBUG")) SecTrace->What = TRACE_ALL;
+   if (getenv("XRDDEBUG") || getenv("XrdSecDEBUG"))
+      {SecTrace->What = TRACE_ALL;
+       PManager.setDebug(1);
+      }
    Enforce     = 0;
    implauth    = 0;
 }
@@ -646,7 +649,9 @@ int XrdSecServer::xprot(XrdOucStream &Config, XrdSysError &Eroute)
 //
    pap = myParms.Result(psize);
    if (!PManager.Load(&erp, 's', pid, (psize ? pap : 0), path))
-      {Eroute.Emsg("Config", erp.getErrText()); return 1;}
+      {if (*(erp.getErrText())) Eroute.Say(erp.getErrText());
+       return 1;
+      }
 
 // Add this protocol to the default security token
 //

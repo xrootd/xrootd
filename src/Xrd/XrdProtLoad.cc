@@ -15,6 +15,8 @@
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdProtLoad.hh"
 
+#include "XrdVersion.hh"
+
 #define XRD_TRACE XrdTrace->
 #include "Xrd/XrdTrace.hh"
   
@@ -240,6 +242,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
                                        char *parms,
                          XrdProtocol_Config *pi)
 {
+   static XrdVERSIONINFODEF(myVer, xrd, XrdVNUMBER, XrdVERSION);
    const char *xname = (lname ? lname : "");
    int (*ep)(const char *, char *, XrdProtocol_Config *);
    void *epvoid;
@@ -253,14 +256,15 @@ int XrdProtLoad::getProtocolPort(const char *lname,
           {XrdLog->Emsg("Protocol", "Too many protocols have been defined.");
            return -1;
           }
-       if (!(libhndl[i] = new XrdSysPlugin(XrdLog, lname))) return -1;
+       if (!(libhndl[i] = new XrdSysPlugin(XrdLog, lname, "protocol", &myVer)))
+          return -1;
        liblist[i] = strdup(xname);
        libcnt++;
       }
 
 // Get the port number to be used
 //
-   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocolPort", 1))) 
+   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocolPort", 2)))
       return (pi->Port < 0 ? 0 : pi->Port);
    ep = (int (*)(const char*,char*,XrdProtocol_Config*))epvoid;
    return ep(pname, parms, pi);

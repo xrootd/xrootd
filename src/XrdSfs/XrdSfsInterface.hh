@@ -251,16 +251,20 @@ protected:
                                                 const char       *configFn);
          }
 
-   This entry is called to get an instance of the file system. Return 0 if upon
-   failure to properly create such an object. For statically linked file systems
-   the non-extern C XrdSfsGetDefaultFileSystem() is used instead. It has a
-   slightly different calling convention which adds an environment parameter
-   as follows:
+*/
+  
+//------------------------------------------------------------------------------
+//! Specify the compilation version.
+//!
+//! Additionally, you *should* declare the xrootd version you used to compile
+//! your plug-in. While not currently required, it is highly recommended to
+//! avoid execution issues should the class definition change. Declare it as:
+//------------------------------------------------------------------------------
 
-   XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *nativeFS,
-                                                XrdSysLogger     *Logger,
-                                                const char       *configFn,
-                                                XrdOucEnv        *EnvInfo);
+/*! #include "XrdVersion.hh"
+    XrdVERSIONINFO(XrdSfsGetFileSystem,<name>);
+
+    where <name> is a 1- to 15-character unquoted name identifying your plugin.
 */
 
 /******************************************************************************/

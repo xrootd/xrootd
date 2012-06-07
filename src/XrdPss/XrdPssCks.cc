@@ -11,12 +11,16 @@
 #include "XrdPss/XrdPss.hh"
 #include "XrdPss/XrdPssCks.hh"
 
+#include "XrdVersion.hh"
+
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
   
 /******************************************************************************/
 /*                            X r d C k s I n i t                             */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdCksInit,PssCks);
   
 // Return the proxy checksum object created by the storage system interface.
 //

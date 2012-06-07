@@ -42,6 +42,8 @@ void      ka_StringToKey(char *str, char *cell,
 }
 #endif
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysError.hh>
@@ -1574,6 +1576,8 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d I n i t                     */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdSecProtocolpwdInit,secpwd);
   
 extern "C"
 {

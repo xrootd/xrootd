@@ -8,26 +8,19 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-// Bypass Solaris ELF madness
-//
-#ifdef __solaris__
-#include <sys/isa_defs.h>
-#if defined(_ILP32) && (_FILE_OFFSET_BITS != 32)
-#undef  _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 32
-#undef  _LARGEFILE_SOURCE
-#endif
-#endif
-  
-#include <dlfcn.h>
-#ifndef __macos__
-#include <link.h>
-#endif
+#include "XrdVersion.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+
+/******************************************************************************/
+/*              V e r s i o n   I n f o r m a t i o n   L i n k               */
+/******************************************************************************/
+  
+XrdVERSIONINFOREF(XrdgetProtocol);
 
 /******************************************************************************/
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
@@ -36,7 +29,7 @@
 XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest, 
                                           char *fslib, const char *cfn)
 {
-   void *libhandle;
+   XrdSysPlugin ofsLib(eDest,fslib,"fslib",&XrdVERSIONINFOVAR(XrdgetProtocol));
    XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
    XrdSfsFileSystem *FS;
 
@@ -44,21 +37,11 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 //
    XrdOucEnv::Export("XRDOFSLIB", fslib);
 
-// Open the file system library
-//
-   if (!(libhandle = dlopen(fslib, RTLD_NOW)))
-      {eDest->Emsg("Config",dlerror(),"opening shared library",fslib);
-       return 0;
-      }
-
 // Get the file system object creator
 //
    if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                  dlsym(libhandle,"XrdSfsGetFileSystem")))
-      {eDest->Emsg("Config", dlerror(),
-                   "finding XrdSfsGetFileSystem() in", fslib);
+                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
        return 0;
-      }
 
 // Get the file system object
 //
@@ -69,6 +52,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 
 // All done
 //
+   ofsLib.Persist();
    return FS;
 }
   
@@ -79,25 +63,16 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib, 
                                      char *cfn, void **secGetProt)
 {
-   void *libhandle;
+   XrdSysPlugin secLib(eDest, seclib, "seclib",
+                       &XrdVERSIONINFOVAR(XrdgetProtocol), 1);
    XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
    XrdSecService *CIA;
 
-// Open the security library
-//
-   if (!(libhandle = dlopen(seclib, RTLD_NOW)))
-      {eDest->Emsg("Config",dlerror(),"opening shared library",seclib);
-       return 0;
-      }
-
 // Get the server object creator
 //
-   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))dlsym(libhandle,
-              "XrdSecgetService")))
-      {eDest->Emsg("Config", dlerror(),
-                   "finding XrdSecgetService() in", seclib);
+   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))
+              secLib.getPlugin("XrdSecgetService")))
        return 0;
-      }
 
 // Get the server object
 //
@@ -110,12 +85,10 @@ XrdSecService *XrdXrootdloadSecurity(XrdSysError *eDest, char *seclib,
 // the function pointer as a (void *) to the caller so that it can be passed
 // onward via an environment object.
 //
-   if (!(*secGetProt = (void *)dlsym(libhandle, "XrdSecGetProtocol")))
-      {eDest->Emsg("Config",dlerror(),"finding XrdSecGetProtocol() in", seclib);
-       return 0;
-      }
+   if (!(*secGetProt = (void *)secLib.getPlugin("XrdSecGetProtocol"))) return 0;
 
 // All done
 //
+   secLib.Persist();
    return CIA;
 }

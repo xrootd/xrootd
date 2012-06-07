@@ -15,6 +15,8 @@
 class XrdCks;
 class XrdOucStream;
 class XrdSysError;
+
+struct XrdVersionInfo;
   
 class XrdCksConfig
 {
@@ -28,9 +30,8 @@ int     Manager(const char *Path, const char *Parms);
 
 int     ParseLib(XrdOucStream &Config);
 
-        XrdCksConfig(const char *cFN, XrdSysError *Eroute)
-                    : eDest(Eroute), cfgFN(cFN), CksLib(0), CksParm(0),
-                      CksList(0), CksLast(0) {}
+        XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
+                     XrdVersionInfo *vInfo);
        ~XrdCksConfig() {XrdOucTList *tP;
                         if (CksLib)  free(CksLib);
                         if (CksParm) free(CksParm);
@@ -40,11 +41,12 @@ int     ParseLib(XrdOucStream &Config);
 private:
 XrdCks      *getCks(int rdsz);
 
-XrdSysError *eDest;
-const char  *cfgFN;
-char        *CksLib;
-char        *CksParm;
-XrdOucTList *CksList;
-XrdOucTList *CksLast;
+XrdSysError    *eDest;
+const char     *cfgFN;
+char           *CksLib;
+char           *CksParm;
+XrdOucTList    *CksList;
+XrdOucTList    *CksLast;
+XrdVersionInfo *myVersion;
 };
 #endif

@@ -20,8 +20,9 @@
    which may be needed for handling certain filesystems (see protected ones).
 */
 
-class XrdCksCalc;
-class XrdSysError;
+class  XrdCksCalc;
+class  XrdSysError;
+struct XrdVersionInfo;
   
 class XrdCksManager : public XrdCks
 {
@@ -48,7 +49,8 @@ virtual int         Set(  const char *Pfn, XrdCksData &Cks, int myTime=0);
 
 virtual int         Ver(  const char *Pfn, XrdCksData &Cks);
 
-                    XrdCksManager(XrdSysError *erP, int iosz=0);
+                    XrdCksManager(XrdSysError *erP, int iosz,
+                                  XrdVersionInfo *vInfo);
 virtual            ~XrdCksManager();
 
 protected:
@@ -85,5 +87,6 @@ static const int csMax = 4;
 csInfo           csTab[csMax];
 int              csLast;
 int              segSize;
+XrdVersionInfo  *myVersion;
 };
 #endif

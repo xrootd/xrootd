@@ -23,8 +23,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-#include "XrdVersion.hh"
-
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksData.hh"
@@ -116,6 +114,7 @@ XrdOfs::XrdOfs()
    CmsLib        = 0;
    CmsParms      = 0;
    OssLib        = 0;
+   OssParms      = 0;
    Finder        = 0;
    Balancer      = 0;
    evsObject     = 0;
@@ -1548,12 +1547,6 @@ int XrdOfs::getStats(char *buff, int blen)
    return n;
 }
   
-/******************************************************************************/
-/*                            g e t V e r s i o n                             */
-/******************************************************************************/
-  
-const char *XrdOfs::getVersion() {return XrdVSTRING;}
-
 /******************************************************************************/
 /*                                 m k d i r                                  */
 /******************************************************************************/
