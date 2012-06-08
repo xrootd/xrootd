@@ -448,10 +448,16 @@ namespace XrdCl
   Status XRootDTransport::UnMarshallRequest( Message *msg )
   {
     // We rely on the marshaling process to be symetric!
+    // First we unmarshal the request ID and the length because
+    // MarshallRequest() relies on these, and then we need to unmarshall these
+    // two again, because they get marshalled in MarshallRequest().
+    // All this is pretty damn ugly and should be rewritten.
     ClientRequest *req = (ClientRequest*)msg->GetBuffer();
     req->header.requestid = htons( req->header.requestid );
+    req->header.dlen      = htonl( req->header.dlen );
     Status st = MarshallRequest( msg );
     req->header.requestid = htons( req->header.requestid );
+    req->header.dlen      = htonl( req->header.dlen );
     return st;
   }
 
