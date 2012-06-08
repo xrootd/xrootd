@@ -296,14 +296,14 @@ void FileTest::VectorReadTest()
   // Fetch some data and checksum
   //----------------------------------------------------------------------------
   const uint32_t MB = 1024*1024;
-  char *buffer = new char[4*MB];
+  char *buffer = new char[40*MB];
   File f;
 
   //----------------------------------------------------------------------------
   // Build the chunk list
   //----------------------------------------------------------------------------
   ChunkList chunkList;
-  for( int i = 0; i < 4; ++i )
+  for( int i = 0; i < 40; ++i )
     chunkList.push_back( Chunk( (i+1)*10*MB, 1*MB ) );
 
   //----------------------------------------------------------------------------
@@ -312,10 +312,10 @@ void FileTest::VectorReadTest()
   CPPUNIT_ASSERT( f.Open( fileUrl, OpenFlags::Read ).IsOK() );
   VectorReadInfo *info = 0;
   CPPUNIT_ASSERT( f.VectorRead( chunkList, buffer, info ).IsOK() );
-  CPPUNIT_ASSERT( info->GetSize() == 4*MB );
+  CPPUNIT_ASSERT( info->GetSize() == 40*MB );
   delete info;
-  uint32_t crc = Utils::ComputeCRC32( buffer, 4*MB );
-  CPPUNIT_ASSERT( crc == 1844167763 );
+  uint32_t crc = Utils::ComputeCRC32( buffer, 40*MB );
+  CPPUNIT_ASSERT( crc == 3695956670 );
   CPPUNIT_ASSERT( f.Close().IsOK() );
 
   delete [] buffer;
