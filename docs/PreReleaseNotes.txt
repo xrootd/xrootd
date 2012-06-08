@@ -9,6 +9,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Correct test whether or not to initialize redirect monitoring. The old
+     code never initialized it this disabling redirect monitoring. 
    * Prevent double-free abort when more than 16 files have been opened by a
      client and the client terminates the session without closing the 17th one.
    * Undo the side-effect of commit ff8bdbd6 that prevented the frm from
