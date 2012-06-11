@@ -26,7 +26,9 @@ class theClient;
 
 void flushEvents();
 
-int  Init(XrdSysError *eObj, XrdCmsClient *trg=0);
+int  Init(XrdSysError *eObj);
+
+int  Init(XrdCmsClient *trg=0);
 
 void recvEvents();
 
@@ -41,7 +43,7 @@ class theClient : XrdOucEICB
 {
 public:
 
-void Done(int &Result, XrdOucErrInfo *eInfo, const char *Path=0)
+void Done(int &Result, XrdOucErrInfo *eInfo, const char *path=0)
          {EvrP->Work4Event(this);}
 
 int  Same(unsigned long long arg1, unsigned long long arg2) {return 0;}

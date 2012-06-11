@@ -114,17 +114,15 @@ void XrdOfsEvr::flushEvents()
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOfsEvr::Init(XrdSysError *eobj, XrdCmsClient *trgp)
+int XrdOfsEvr::Init(XrdSysError *eobj) // Must be called 1st!
 {
    XrdNetSocket *msgSock;
-   pthread_t     tid;
-   int n, rc;
-   char *p, *path, pbuff[2048];
+   char *p, path[2048];
+   int n;
 
-// Set the error object and balancer pointers
+// Set he error object (need to do only once)
 //
    eDest    = eobj;
-   Balancer = trgp;
 
 // Create path to the pipe we will creat
 //
@@ -132,11 +130,10 @@ int XrdOfsEvr::Init(XrdSysError *eobj, XrdCmsClient *trgp)
       {eobj->Emsg("Events", "XRDADMINPATH not defined");
        return 0;
       }
-   path = pbuff;
    strcpy(path, p); n = strlen(p);
    if (path[n-1] != '/') {path[n] = '/'; n++;}
    strcpy(&path[n], "ofsEvents");
-   XrdOucEnv::Export("XRDOFSEVENTS", pbuff);
+   XrdOucEnv::Export("XRDOFSEVENTS", path);
 
 // Now create a socket to a path
 //
@@ -145,11 +142,27 @@ int XrdOfsEvr::Init(XrdSysError *eobj, XrdCmsClient *trgp)
    msgFD = msgSock->Detach();
    delete msgSock;
 
+// We succeeded and are now ready for the call to he second stage below
+//
+   return 1;
+}
+
+/******************************************************************************/
+  
+int XrdOfsEvr::Init(XrdCmsClient *trgp)
+{
+   pthread_t     tid;
+   int rc;
+
+// Set the balancer pointers (err object set in 1st phase Init).
+//
+   Balancer = trgp;
+
 // Now start a thread to get incomming messages
 //
    if ((rc = XrdSysThread::Run(&tid, XrdOfsEvRecv, static_cast<void *>(this),
                           0, "Event receiver")))
-      {eobj->Emsg("Evr", rc, "create event reader thread");
+      {eDest->Emsg("Evr", rc, "create event reader thread");
        return 0;
       }
 
@@ -157,7 +170,7 @@ int XrdOfsEvr::Init(XrdSysError *eobj, XrdCmsClient *trgp)
 //
    if ((rc = XrdSysThread::Run(&tid, XrdOfsEvFlush,static_cast<void *>(this),
                           0, "Event flusher")))
-      {eobj->Emsg("Evr", rc, "create event flush thread");
+      {eDest->Emsg("Evr", rc, "create event flush thread");
        return 0;
       }
 

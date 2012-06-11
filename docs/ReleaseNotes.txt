@@ -13,6 +13,8 @@ Version 3.2.1
    * Don't build sendfile support on MacOSX because it doesn't work
    * Prevent double-free abort when more than 16 files have been opened by a
      client and the client terminates the session without closing the 17th one.
+   * Backport frm notification fix that stalled stage-in requests from commit
+     69e38cfd6b8bb024dd34f8eb28a666fbf97f346b
 
 -------------
 Version 3.2.0
