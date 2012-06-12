@@ -20,7 +20,7 @@ namespace XrdCl
   // Constructor
   //----------------------------------------------------------------------------
   URL::URL( const std::string &url, int port  ):
-    pIsValid( false ), pUrl( url ), pPort( port )
+    pIsValid( true ), pUrl( url ), pPort( port )
   {
     ParseUrl();
   }
@@ -40,58 +40,112 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Flags - if they are true and the corresponding field is empty
-    // or uninitialized then the URL is malformed
-    //--------------------------------------------------------------------------
-    bool hasProtocol = false;
-    bool hasUserName = false;
-    bool hasPassword = false;
-    bool hasPath     = false;
-
-    //--------------------------------------------------------------------------
-    // Extract the protocol
+    // Extract the protocol, assume file:// if none found
     //--------------------------------------------------------------------------
     size_t pos          = pUrl.find( "://" );
-    size_t currentStart = 0;
+
+    std::string current;
     if( pos != std::string::npos )
     {
       pProtocol = pUrl.substr( 0, pos );
-      currentStart = pos+3;
-      hasProtocol = true;
+      current   = pUrl.substr( pos+3, pUrl.length()-pos-3 );
+    }
+    else
+    {
+      pProtocol = "file";
+      current   = pUrl;
     }
 
     //--------------------------------------------------------------------------
-    // Separate the user-pass-host-port parts
+    // Extract host info and path
     //--------------------------------------------------------------------------
-    pos = pUrl.find( "/", currentStart );
-    if( pos != std::string::npos )
-      hasPath = true;
+    std::string path;
+    std::string hostInfo;
 
-    std::string userHost = pUrl.substr( currentStart, pos-currentStart );
-    currentStart = pos+1;
+    if( pProtocol == "file" )
+      path = current;
+    else
+    {
+      pos = current.find( "/" );
+      if( pos == std::string::npos )
+        hostInfo = current;
+      else
+      {
+        hostInfo = current.substr( 0, pos );
+        path     = current.substr( pos+1, current.length()-pos );
+      }
+    }
+
+    if( !ParseHostInfo( hostInfo ) )
+      pIsValid = false;
+
+    if( !ParsePath( path ) )
+      pIsValid = false;
 
     //--------------------------------------------------------------------------
-    // Do we have username and password?
+    // Dump the url
     //--------------------------------------------------------------------------
-    pos = userHost.find( "@" );
+    log->Dump( UtilityMsg,
+               "URL: %s\n"
+               "Protocol:  %s\n"
+               "User Name: %s\n"
+               "Password:  %s\n"
+               "Host Name: %s\n"
+               "Port:      %d\n"
+               "Path:      %s\n"
+               "Full path: %s",
+               pUrl.c_str(), pProtocol.c_str(), pUserName.c_str(),
+               pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str(),
+               pPathWithParams.c_str() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Parse host info
+  //----------------------------------------------------------------------------
+  bool URL::ParseHostInfo( const std::string hostInfo )
+  {
+    if( pProtocol == "file" )
+      return true;
+
+    if( pProtocol.empty() || hostInfo.empty() )
+      return false;
+
+    size_t pos = hostInfo.find( "@" );
     std::string hostPort;
+
+    //--------------------------------------------------------------------------
+    // We have found username-password
+    //--------------------------------------------------------------------------
     if( pos != std::string::npos )
     {
-      std::string userPass = userHost.substr( 0, pos );
-      hostPort = userHost.substr( pos+1, userHost.length() );
+      std::string userPass = hostInfo.substr( 0, pos );
+      hostPort = hostInfo.substr( pos+1, hostInfo.length() );
       pos = userPass.find( ":" );
+
+      //------------------------------------------------------------------------
+      // It's both username and password
+      //------------------------------------------------------------------------
       if( pos != std::string::npos )
       {
         pUserName = userPass.substr( 0, pos );
         pPassword = userPass.substr( pos+1, userPass.length() );
-        hasPassword = true;
+        if( pPassword.empty() )
+          return false;
       }
+      //------------------------------------------------------------------------
+      // It's just the user name
+      //------------------------------------------------------------------------
       else
         pUserName = userPass;
-      hasUserName = true;
+      if( pUserName.empty() )
+        return false;
     }
+
+    //--------------------------------------------------------------------------
+    // No username-password
+    //--------------------------------------------------------------------------
     else
-      hostPort = userHost;
+      hostPort = hostInfo;
 
     //--------------------------------------------------------------------------
     // Deal with hostname - IPv6 encoded address RFC 2732
@@ -128,7 +182,8 @@ namespace XrdCl
         pHostName = hostPort;
         hostPort  = "";
       }
-
+      if( pHostName.empty() )
+        return false;
     }
 
     //--------------------------------------------------------------------------
@@ -139,39 +194,7 @@ namespace XrdCl
       char *result;
       pPort = ::strtol( hostPort.c_str(), &result, 0 );
       if( *result != 0 )
-        pPort = -1;
-    }
-
-    //--------------------------------------------------------------------------
-    // Deal with the path
-    //--------------------------------------------------------------------------
-    if( hasPath )
-    {
-      pPathWithParams = pUrl.substr( currentStart, pUrl.length() );
-      pos = pPathWithParams.find( "?" );
-      if( pos != std::string::npos )
-      {
-        pPath = pPathWithParams.substr( 0, pos );
-        std::string paramsStr
-          = pPathWithParams.substr( pos+1, pPathWithParams.length() );
-
-        //----------------------------------------------------------------------
-        // Parse parameters
-        //----------------------------------------------------------------------
-        std::vector<std::string>           params;
-        std::vector<std::string>::iterator it;
-        Utils::splitString( params, paramsStr, "&" );
-        for( it = params.begin(); it != params.end(); ++it )
-        {
-          pos = it->find( "=" );
-          if( pos == std::string::npos )
-            pParams[*it] = "";
-          else
-            pParams[it->substr(0, pos)] = it->substr( pos+1, it->length() );
-        }
-      }
-      else
-        pPath = pPathWithParams;
+        return false;
     }
 
     //--------------------------------------------------------------------------
@@ -183,32 +206,39 @@ namespace XrdCl
     o << pHostName << ":" << pPort;
     pHostId = o.str();
 
-    //--------------------------------------------------------------------------
-    // Dump the url
-    //--------------------------------------------------------------------------
-    log->Dump( UtilityMsg,
-               "URL: %s\n"
-               "Protocol:  %s\n"
-               "User Name: %s\n"
-               "Password:  %s\n"
-               "Host Name: %s\n"
-               "Port:      %d\n"
-               "Path:      %s\n"
-               "Full path: %s",
-               pUrl.c_str(), pProtocol.c_str(), pUserName.c_str(),
-               pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str(),
-               pPathWithParams.c_str() );
+    return true;
+  }
 
-    //--------------------------------------------------------------------------
-    // Check validity
-    //--------------------------------------------------------------------------
-    if( hasProtocol && pProtocol.length() == 0 ) return;
-    if( hasUserName && pUserName.length() == 0 ) return;
-    if( hasPassword && pPassword.length() == 0 ) return;
-    if( pHostName.length() == 0 ) return;
-    if( pPort == -1 ) return;
+  //----------------------------------------------------------------------------
+  // Parse path
+  //----------------------------------------------------------------------------
+  bool URL::ParsePath( const std::string &path )
+  {
+    pPathWithParams = path;
+    size_t pos = pPathWithParams.find( "?" );
+    if( pos != std::string::npos )
+    {
+      pPath = pPathWithParams.substr( 0, pos );
+      std::string paramsStr
+        = pPathWithParams.substr( pos+1, pPathWithParams.length() );
 
-    pIsValid = true;
-
+      //------------------------------------------------------------------------
+      // Parse parameters
+      //------------------------------------------------------------------------
+      std::vector<std::string>           params;
+      std::vector<std::string>::iterator it;
+      Utils::splitString( params, paramsStr, "&" );
+      for( it = params.begin(); it != params.end(); ++it )
+      {
+        pos = it->find( "=" );
+        if( pos == std::string::npos )
+          pParams[*it] = "";
+        else
+          pParams[it->substr(0, pos)] = it->substr( pos+1, it->length() );
+      }
+    }
+    else
+      pPath = pPathWithParams;
+    return true;
   }
 }

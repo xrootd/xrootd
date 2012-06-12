@@ -120,6 +120,8 @@ namespace XrdCl
 
     private:
       void ParseUrl();
+      bool ParseHostInfo( const std::string hhostInfo );
+      bool ParsePath( const std::string &path );
       bool        pIsValid;
       std::string pUrl;
       std::string pHostId;
