@@ -42,6 +42,7 @@ void UtilsTest::URLTest()
   XrdCl::URL url5( "root://user1@192.168.1.1:123//path?param1=val1&param2=val2" );
   XrdCl::URL url6( "root://[::1]" );
   XrdCl::URL url7( "root://lxfsra02a08.cern.ch:1095//eos/dev/SMWZd3pdExample_NTUP_SMWZ.526666._000073.root.1?&cap.sym=sfdDqALWo3W3tWUJ2O5XwQ5GG8U=&cap.msg=eGj/mh+9TrecFBAZBNr/nLau4p0kjlEOjc1JC+9DVjLL1Tq+g311485W0baMBAsM#W8lNFdVQcKNAu8K5yVskIcLDOEi6oNpvoxDA1DN4oCxtHR6LkOWhO91MLn/ZosJ5#Dc7aeBCIz/kKs261mnL4dJeUu6r25acCn4vhyp8UKyL1cVmmnyBnjqe6tz28qFO2#0fQHrHf6Z9N0MNhw1fplYjpGeNwFH2jQSfSo24zSZKGa/PKClGYnXoXBWDGU1spm#kJsGGrErhBHYvLq3eS+jEBr8l+c1BhCQU7ZaLZiyaKOnspYnR/Tw7bMrooWMh7eL#&mgm.logid=766877e6-9874-11e1-a77f-003048cf8cd8&mgm.recdcdcdcdplicaindex=0&mgm.replicahead=0" );
+  XrdCl::URL url8( "/etc/passwd" );
   XrdCl::URL urlInvalid1( "root://user1:passwd1@host1:asd//path?param1=val1&param2=val2" );
   XrdCl::URL urlInvalid2( "root://user1:passwd1host1:123//path?param1=val1&param2=val2" );
   XrdCl::URL urlInvalid3( "root:////path?param1=val1&param2=val2" );
@@ -165,6 +166,19 @@ void UtilsTest::URLTest()
   CPPUNIT_ASSERT( url6.GetPath() == "" );
   CPPUNIT_ASSERT( url6.GetPathWithParams() == "" );
   CPPUNIT_ASSERT( url6.GetParams().size() == 0 );
+
+  //----------------------------------------------------------------------------
+  // Local file
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT( url8.IsValid() == true );
+  CPPUNIT_ASSERT( url8.GetProtocol() == "file" );
+  CPPUNIT_ASSERT( url8.GetUserName() == "" );
+  CPPUNIT_ASSERT( url8.GetPassword() == "" );
+  CPPUNIT_ASSERT( url8.GetHostName() == "" );
+  CPPUNIT_ASSERT( url8.GetPath() == "/etc/passwd" );
+
+  CPPUNIT_ASSERT( url8.GetPathWithParams() == "/etc/passwd" );
+  CPPUNIT_ASSERT( url8.GetParams().size() == 0 );
 
   //----------------------------------------------------------------------------
   // Bunch od invalid ones
