@@ -304,7 +304,7 @@ void FileTest::VectorReadTest()
   //----------------------------------------------------------------------------
   ChunkList chunkList;
   for( int i = 0; i < 40; ++i )
-    chunkList.push_back( Chunk( (i+1)*10*MB, 1*MB ) );
+    chunkList.push_back( ChunkInfo( (i+1)*10*MB, 1*MB ) );
 
   //----------------------------------------------------------------------------
   // Open the file
