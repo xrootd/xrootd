@@ -133,7 +133,7 @@ namespace XrdCl
     if( !st.IsOK() )
       return st;
 
-    Chunk *chunkInfo = 0;
+    ChunkInfo *chunkInfo = 0;
     XRootDStatus status = MessageUtils::WaitForResponse( &handler, chunkInfo );
     if( status.IsOK() )
     {

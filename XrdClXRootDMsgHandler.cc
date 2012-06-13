@@ -612,7 +612,7 @@ namespace XrdCl
         memcpy( pUserBuffer, buffer, length );
 
         AnyObject *obj   = new AnyObject();
-        Chunk     *chunk = new Chunk( req->read.offset, length );
+        ChunkInfo *chunk = new ChunkInfo( req->read.offset, length );
         obj->Set( chunk );
         return obj;
       }
@@ -824,7 +824,7 @@ namespace XrdCl
       chunk->rlen   = ntohl( chunk->rlen );
       chunk->offset = ntohll( chunk->offset );
       size += chunk->rlen;
-      vReadInfo->GetChunks().push_back( Chunk( chunk->offset, chunk->rlen ) );
+      vReadInfo->GetChunks().push_back( ChunkInfo( chunk->offset, chunk->rlen ) );
 
       if( size > targetBufferSize )
       {

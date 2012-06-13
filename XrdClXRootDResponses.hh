@@ -701,12 +701,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Describe a data chunk for vector read
   //----------------------------------------------------------------------------
-  struct Chunk
+  struct ChunkInfo
   {
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    Chunk( uint64_t off, uint32_t len ): offset( off ), length( len ) {}
+    ChunkInfo( uint64_t off, uint32_t len ): offset( off ), length( len ) {}
 
     uint64_t offset; //! offset in the file
     uint32_t length; //! length of the chunk
@@ -715,7 +715,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! List of chunks
   //----------------------------------------------------------------------------
-  typedef std::vector<Chunk> ChunkList;
+  typedef std::vector<ChunkInfo> ChunkList;
 
   //----------------------------------------------------------------------------
   //! Vector read info
