@@ -9,6 +9,7 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Prevent SEGV when xrd.monitor rbuff value not specified.
    * Correct test whether or not to initialize redirect monitoring. The old
      code never initialized it this disabling redirect monitoring. 
    * Prevent double-free abort when more than 16 files have been opened by a
