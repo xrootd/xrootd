@@ -457,8 +457,8 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
 
 // Set default monitor redirect buffer size
 //
-   if (rsz <= 0) monRlen = 32768;
-      else if (rsz < 2048) monRlen = 2048;
+   if (rsz <= 0) rsz = 32768;
+      else if (rsz < 2048) rsz = 2048;
    lastRnt = (rsz-(sizeof(XrdXrootdMonHeader) + 16))/sizeof(XrdXrootdMonRedir);
    monRlen =  (lastRnt*sizeof(XrdXrootdMonRedir))+sizeof(XrdXrootdMonHeader)+16;
    lastRnt--;
