@@ -5,6 +5,20 @@ XRootD
 Release Notes
 =============
 
+-------------
+Version 3.2.2
+-------------
++ **Major bug fixes**
+   * Correct test whether or not to initialize redirect monitoring. The old
+     code never initialized it this disabling redirect monitoring.
+   * Backport frm notification fix that stalled stage-in requests from commit
+     69e38cfd6b8bb024dd34f8eb28a666fbf97f346b
+   * Prevent SEGV when xrd.monitor rbuff value not specified
+   * Prevent xrdcp hangs when doing exterme copy from server to server.
+   * In case of 'limited proxy' look for VOMS attributes also in the parent
+     proxy.
+   * Correct log processing for sites that use the root directory as the
+     stomping ground for newly created files.
 
 -------------
 Version 3.2.1
@@ -13,8 +27,6 @@ Version 3.2.1
    * Don't build sendfile support on MacOSX because it doesn't work
    * Prevent double-free abort when more than 16 files have been opened by a
      client and the client terminates the session without closing the 17th one.
-   * Backport frm notification fix that stalled stage-in requests from commit
-     69e38cfd6b8bb024dd34f8eb28a666fbf97f346b
 
 -------------
 Version 3.2.0
