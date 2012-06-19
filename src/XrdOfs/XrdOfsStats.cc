@@ -22,7 +22,7 @@ int XrdOfsStats::Report(char *buff, int blen)
            "<opr>%d</opr><opw>%d</opw><opp>%d</opp><ups>%d</ups><han>%d</han>"
            "<rdr>%d</rdr><bxq>%d</bxq><rep>%d</rep><err>%d</err><dly>%d</dly>"
            "<sok>%d</sok><ser>%d</ser>"
-           "<tpc><grnt>%d</grnt><deny>%d</deny><err>%d</err><exp>%d<exp></tpc>"
+           "<tpc><grnt>%d</grnt><deny>%d</deny><err>%d</err><exp>%d</exp></tpc>"
            "</stats>";
     static const int  statsz = sizeof(stats1) + (12*10) + 64;
 

@@ -9,6 +9,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Fix <exp> tag in ofs statistics. It is improperly terminated and may
+     cause certain xml parsers to fail; rendering monitoring useless.
    * Prevent SEGV when xrd.monitor rbuff value not specified.
    * Correct test whether or not to initialize redirect monitoring. The old
      code never initialized it this disabling redirect monitoring. 
