@@ -706,7 +706,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    ChunkInfo( uint64_t off, uint32_t len ): offset( off ), length( len ) {}
+    ChunkInfo( uint64_t off = 0, uint32_t len = 0 ): offset( off ), length( len ) {}
 
     uint64_t offset; //! offset in the file
     uint32_t length; //! length of the chunk
