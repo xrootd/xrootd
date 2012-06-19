@@ -11,7 +11,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Run the copy job
   //----------------------------------------------------------------------------
-  XRootDStatus ThirdPartyCopyJob::Run( CopyProgressHandler */*handler*/ )
+  XRootDStatus ThirdPartyCopyJob::Run( CopyProgressHandler */*progress*/ )
   {
     return XRootDStatus();
   }

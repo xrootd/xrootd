@@ -19,23 +19,36 @@ namespace XrdCl
   class CopyProgressHandler
   {
     public:
+
       //------------------------------------------------------------------------
-      //! Notify abut the progress of copy operations
+      //! Notify when a new job is about to start
       //!
       //! @param jobNum         the job number of the copy job concerned
       //! @param jobTotal       total number of jobs being processed
       //! @param source         the source url of the current job
       //! @param destination    the destination url of the current job
+      //------------------------------------------------------------------------
+      virtual void BeginJob( uint16_t   jobNum,
+                             uint16_t   jobTotal,
+                             const URL *source,
+                             const URL *destination ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Notify when the previous job has finished
+      //!
+      //! @param status status of the job
+      //------------------------------------------------------------------------
+      virtual void EndJob( const XRootDStatus &status ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Notify about the progress of the current job
+      //!
       //! @param bytesProcessed bytes processed by the current job
       //! @param bytesTotal     total number of bytes to be processed by the 
       //!                       current job
       //------------------------------------------------------------------------
-      virtual void ProgressNotify( uint16_t   jobNum,
-                                   uint16_t   jobTotal,
-                                   const URL &source,
-                                   const URL &destination,
-                                   uint64_t   bytesProcessed,
-                                   uint64_t   bytesTotal ) = 0;
+      virtual void JobProgress( uint64_t bytesProcessed,
+                                uint64_t bytesTotal ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -47,10 +60,30 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Run the copy job
       //!
-      //! @param handler the handler to be notified about the copy progress
-      //! @return        status of the copy operation
+      //! @param progress the handler to be notified about the copy progress
+      //! @return         status of the copy operation
       //------------------------------------------------------------------------
-      virtual XRootDStatus Run( CopyProgressHandler *handler = 0 ) = 0;
+      virtual XRootDStatus Run( CopyProgressHandler *progress = 0 ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get source URL
+      //------------------------------------------------------------------------
+      const URL *GetSource() const
+      {
+        return pSource;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get destination URL
+      //------------------------------------------------------------------------
+      const URL *GetDestination() const
+      {
+        return pDestination;
+      }
+
+    protected:
+      const URL *pSource;
+      const URL *pDestination;
   };
 
   //----------------------------------------------------------------------------
@@ -62,24 +95,37 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      CopyProcess( const URL &source, const URL &destination ):
-        pSource( source ),
-        pDestination( destination ),
+      CopyProcess():
+        pDestination( 0 ),
         pRecursive( false ),
         pThirdParty( false ),
         pSourceLimit( 1 ),
         pProgressHandler( 0 ) {}
 
       //------------------------------------------------------------------------
-      //! Constructor
+      //! Destructor
       //------------------------------------------------------------------------
-      CopyProcess( const std::string &source, const std::string &destination ):
-        pSource( source ),
-        pDestination( destination ),
-        pRecursive( false ),
-        pThirdParty( false ),
-        pSourceLimit( 1 ),
-        pProgressHandler( 0 ) {}
+      virtual ~CopyProcess();
+
+      //------------------------------------------------------------------------
+      //! Add source
+      //------------------------------------------------------------------------
+      bool AddSource( const std::string &source );
+
+      //------------------------------------------------------------------------
+      //! Add source
+      //------------------------------------------------------------------------
+      bool AddSource( const URL &source );
+
+      //------------------------------------------------------------------------
+      //! Set destination
+      //------------------------------------------------------------------------
+      bool SetDestination( const std::string &destination );
+
+      //------------------------------------------------------------------------
+      //! Set destination
+      //------------------------------------------------------------------------
+      bool SetDestination( const URL &destination );
 
       //------------------------------------------------------------------------
       //! Perform a recursive copy
@@ -114,13 +160,19 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // Prepare the copy jobs
+      //------------------------------------------------------------------------
+      XRootDStatus Prepare();
+
+      //------------------------------------------------------------------------
       //! Run the copy jobs
       //------------------------------------------------------------------------
       XRootDStatus Run();
 
     private:
-      URL                  pSource;
-      URL                  pDestination;
+      std::list<URL*>      pSource;
+      std::list<CopyJob*>  pJobs;
+      URL                 *pDestination;
       bool                 pRecursive;
       bool                 pThirdParty;
       uint16_t             pSourceLimit;

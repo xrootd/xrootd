@@ -15,12 +15,17 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
+      // Constructor
+      //------------------------------------------------------------------------
+      ClassicCopyJob( const URL *source, const URL *destination );
+
+      //------------------------------------------------------------------------
       //! Run the copy job
       //!
-      //! @param handler the handler to be notified about the copy progress
-      //! @return        status of the copy operation
+      //! @param progress the handler to be notified about the copy progress
+      //! @return         status of the copy operation
       //------------------------------------------------------------------------
-      virtual XRootDStatus Run( CopyProgressHandler *handler = 0 );
+      virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
   };
 }
 

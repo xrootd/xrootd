@@ -61,7 +61,7 @@ set_target_properties(
   SOVERSION ${XRD_CL_SOVERSION} )
 
 #-------------------------------------------------------------------------------
-# xrdquery
+# xrdfs
 #-------------------------------------------------------------------------------
 add_executable(
   xrdfs
@@ -74,12 +74,23 @@ target_link_libraries(
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
 
+#-------------------------------------------------------------------------------
+# xrdcopy
+#-------------------------------------------------------------------------------
+add_executable(
+  xrdcopy
+  XrdClCopy.cc )
+
+target_link_libraries(
+  xrdcopy
+  XrdCl
+  XrdAppUtils )
 
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCl xrdfs
+  TARGETS XrdCl xrdfs xrdcopy
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
