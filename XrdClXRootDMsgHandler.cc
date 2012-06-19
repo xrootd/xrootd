@@ -597,7 +597,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_read:
       {
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as int*",
+        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as ChunkInfo",
                               pUrl.GetHostId().c_str(), pRequest );
 
         if( pUserBufferSize < length )
