@@ -246,4 +246,12 @@ namespace XrdCl
 
     return MessageUtils::WaitForResponse( &handler, vReadInfo );
   }
+
+  //----------------------------------------------------------------------------
+  // Check if the file is open
+  //----------------------------------------------------------------------------
+  bool File::IsOpen() const
+  {
+    return pStateHandler->IsOpen();
+  }
 }

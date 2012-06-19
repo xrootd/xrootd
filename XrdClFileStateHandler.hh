@@ -200,8 +200,13 @@ namespace XrdCl
                            AnyObject                *response,
                            ResponseHandler::URLList *urlList );
 
+      //------------------------------------------------------------------------
+      //! Check if the file is open
+      //------------------------------------------------------------------------
+      bool IsOpen() const;
+
     private:
-      XrdSysMutex   pMutex;
+      mutable XrdSysMutex pMutex;
       FileStatus    pFileState;
       XRootDStatus  pStatus;
       StatInfo     *pStatInfo;

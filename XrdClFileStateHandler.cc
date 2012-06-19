@@ -580,6 +580,18 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Check if the file is open
+  //----------------------------------------------------------------------------
+  bool FileStateHandler::IsOpen() const
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState == Opened )
+      return true;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Process the results of the opening operation
   //----------------------------------------------------------------------------
   void FileStateHandler::SetOpenStatus(

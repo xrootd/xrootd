@@ -258,6 +258,12 @@ namespace XrdCl
                                void             *buffer,
                                VectorReadInfo  *&vReadInfo,
                                uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Check if the file is open
+      //------------------------------------------------------------------------
+      bool IsOpen() const;
+
     private:
       FileStateHandler *pStateHandler;
   };
