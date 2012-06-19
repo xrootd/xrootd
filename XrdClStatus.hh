@@ -45,6 +45,8 @@ namespace XrdCl
   const uint16_t errUnknownCommand = 8;
   const uint16_t errInvalidArgs    = 9;
   const uint16_t errInProgress     = 10;
+  const uint16_t errUninitialized  = 11;
+  const uint16_t errOSError        = 12;
 
   //----------------------------------------------------------------------------
   // Socket related errors
