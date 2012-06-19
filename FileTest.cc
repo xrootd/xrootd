@@ -7,6 +7,7 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "TestEnv.hh"
 #include "Utils.hh"
+#include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
@@ -141,12 +142,12 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Open the file
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Open( fileUrl, OpenFlags::Read ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Open( fileUrl, OpenFlags::Read ) );
 
   //----------------------------------------------------------------------------
   // Stat1
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Stat( false, stat ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Stat( false, stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
   CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
@@ -155,7 +156,7 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Stat2
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Stat( true, stat ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Stat( true, stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
   CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
@@ -164,8 +165,8 @@ void FileTest::ReadTest()
   //----------------------------------------------------------------------------
   // Read test
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT( f.Read( 10*MB, 4*MB, buffer1, bytesRead1 ).IsOK() );
-  CPPUNIT_ASSERT( f.Read( 20*MB, 4*MB, buffer2, bytesRead2 ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Read( 10*MB, 4*MB, buffer1, bytesRead1 ) );
+  CPPUNIT_ASSERT_XRDST( f.Read( 20*MB, 4*MB, buffer2, bytesRead2 ) );
   CPPUNIT_ASSERT( bytesRead1 == 4*MB );
   CPPUNIT_ASSERT( bytesRead2 == 4*MB );
   uint32_t crc = Utils::ComputeCRC32( buffer1, 4*MB );
@@ -174,7 +175,7 @@ void FileTest::ReadTest()
   delete [] buffer1;
   delete [] buffer2;
 
-  CPPUNIT_ASSERT( f.Close().IsOK() );
+  CPPUNIT_ASSERT_XRDST( f.Close() );
 }
 
 

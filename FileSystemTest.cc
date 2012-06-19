@@ -210,13 +210,10 @@ void FileSystemTest::MkdirRmdirTest()
 
   FileSystem fs( url );
 
-  XRootDStatus st = fs.MkDir( dirPath2, MkDirFlags::MakePath,
-                              Access::UR | Access::UW | Access::UX );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = fs.RmDir( dirPath2 );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = fs.RmDir( dirPath1 );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.MkDir( dirPath2, MkDirFlags::MakePath,
+                              Access::UR | Access::UW | Access::UX ) );
+  CPPUNIT_ASSERT_XRDST( fs.RmDir( dirPath2 ) );
+  CPPUNIT_ASSERT_XRDST( fs.RmDir( dirPath1 ) );
 }
 
 //------------------------------------------------------------------------------
