@@ -50,9 +50,14 @@ namespace XrdCl
       pProtocol = pUrl.substr( 0, pos );
       current   = pUrl.substr( pos+3, pUrl.length()-pos-3 );
     }
-    else
+    else if( pUrl[0] == '/' )
     {
       pProtocol = "file";
+      current   = pUrl;
+    }
+    else
+    {
+      pProtocol = "root";
       current   = pUrl;
     }
 
