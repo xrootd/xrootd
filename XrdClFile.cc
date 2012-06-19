@@ -148,7 +148,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus File::Write( uint64_t         offset,
                             uint32_t         size,
-                            void            *buffer,
+                            const void      *buffer,
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
@@ -158,10 +158,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Write a data chunk at a given offset - sync
   //----------------------------------------------------------------------------
-  XRootDStatus File::Write( uint64_t  offset,
-                            uint32_t  size,
-                            void     *buffer,
-                            uint16_t  timeout )
+  XRootDStatus File::Write( uint64_t    offset,
+                            uint32_t    size,
+                            const void *buffer,
+                            uint16_t    timeout )
   {
     SyncResponseHandler handler;
     Status st = Write( offset, size, buffer, &handler, timeout );

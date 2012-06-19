@@ -164,7 +164,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       XRootDStatus Write( uint64_t         offset,
                           uint32_t         size,
-                          void            *buffer,
+                          const void      *buffer,
                           ResponseHandler *handler,
                           uint16_t         timeout = 0 );
 
@@ -179,10 +179,10 @@ namespace XrdCl
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus Write( uint64_t  offset,
-                          uint32_t  size,
-                          void     *buffer,
-                          uint16_t  timeout = 0 );
+      XRootDStatus Write( uint64_t    offset,
+                          uint32_t    size,
+                          const void *buffer,
+                          uint16_t    timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Commit all pending disk writes - async

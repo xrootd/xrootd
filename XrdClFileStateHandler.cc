@@ -417,7 +417,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Write( uint64_t         offset,
                                         uint32_t         size,
-                                        void            *buffer,
+                                        const void      *buffer,
                                         ResponseHandler *handler,
                                         uint16_t         timeout )
   {
