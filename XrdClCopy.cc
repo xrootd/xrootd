@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClCopyProcess.hh"
 
 #include <iostream>
+#include <iomanip>
 
 //------------------------------------------------------------------------------
 // Progress notifier
@@ -29,6 +30,14 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
 {
   public:
     //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    ProgressDisplay():
+      pAllJobs( 0 ), pCurrentJob( 0 )
+    {
+    }
+
+    //--------------------------------------------------------------------------
     //! Begin job
     //--------------------------------------------------------------------------
     virtual void BeginJob( uint16_t          jobNum,
@@ -36,19 +45,16 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
                            const XrdCl::URL */*source*/,
                            const XrdCl::URL */*destination*/ )
     {
-      std::cout << "Job: " << jobNum << "/" << jobTotal << std::endl;
+      pAllJobs    = jobTotal;
+      pCurrentJob = jobNum;
     }
 
     //--------------------------------------------------------------------------
     //! End job
     //--------------------------------------------------------------------------
-    virtual void EndJob( const XrdCl::XRootDStatus &status )
+    virtual void EndJob( const XrdCl::XRootDStatus &/*status*/ )
     {
       std::cout << std::endl;
-      if( status.IsOK() )
-        std::cout << "Done." << std::endl;
-      else
-        std::cout << "Error: " << status.ToStr() << std::endl;
     }
 
     //--------------------------------------------------------------------------
@@ -57,8 +63,24 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     virtual void JobProgress( uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
-      std::cout << "\r" << bytesProcessed << "/" << bytesTotal << std::flush;
+      std::string bar;
+      int prog = ((double)bytesProcessed/bytesTotal)*50;
+      int proc = ((double)bytesProcessed/bytesTotal)*100;
+      bar.append( prog, '=' );
+      if( prog < 50 )
+        bar += ">";
+
+      std::cout << "\r";
+      std::cout << "[" << pCurrentJob << "/" << pAllJobs << "] ";
+      std::cout << "[" << std::setw(50) << std::left;
+      std::cout << bar;
+      std::cout << "] ";
+      std::cout << "[" << std::setw(3) << std::right << proc << "%]";
+      std::cout << std::flush;
     }
+  private:
+    uint16_t pAllJobs;
+    uint16_t pCurrentJob;
 };
 
 //------------------------------------------------------------------------------
