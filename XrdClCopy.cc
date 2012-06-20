@@ -105,11 +105,15 @@ int main( int argc, char **argv )
     return st.GetShellCode();
 
   ProgressDisplay display;
-  process.SetProgressHandler( &display );
+  if( !config.Want(XrdCpConfig::DoNoPbar) )
+    process.SetProgressHandler( &display );
 
   st = process.Run();
   if( !st.IsOK() )
+  {
+    std::cout << st.ToStr() << std::endl;
     return st.GetShellCode();
+  }
 
   return 0;
 }

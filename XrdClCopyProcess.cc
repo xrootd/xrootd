@@ -148,11 +148,13 @@ namespace XrdCl
     uint16_t totalJobs  = pJobs.size();
     for( it = pJobs.begin(); it != pJobs.end(); ++it )
     {
-      pProgressHandler->BeginJob( currentJob, totalJobs,
-                                  (*it)->GetSource(),
-                                  (*it)->GetDestination() );
+      if( pProgressHandler )
+        pProgressHandler->BeginJob( currentJob, totalJobs,
+                                    (*it)->GetSource(),
+                                    (*it)->GetDestination() );
       XRootDStatus st = (*it)->Run( pProgressHandler );
-      pProgressHandler->EndJob( st );
+      if( pProgressHandler )
+        pProgressHandler->EndJob( st );
       if( !st.IsOK() ) return st;
     }
     return XRootDStatus();
