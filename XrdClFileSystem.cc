@@ -96,7 +96,7 @@ namespace
           {
             log->Debug( QueryMsg, "[DeepLocate] No outstanding requests, "
                                   "give out what we've got" );
-            HandleResponse();
+            HandleFinalResponse();
           }
           delete status;
           return;
@@ -142,13 +142,13 @@ namespace
         delete response;
         delete status;
         if( !pOutstanding )
-          HandleResponse();
+          HandleFinalResponse();
       }
 
       //------------------------------------------------------------------------
       // Build the response for the client
       //------------------------------------------------------------------------
-      void HandleResponse()
+      void HandleFinalResponse()
       {
         using namespace XrdCl;
 
