@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Allow meta-files (i.e. .fail file) to be relocated to a shadow directory
+     using the oss.xfr directive. This avoids polluting the exported name
+     space when an frm transfer operation fails.
    * Create a general place for platform dependent utility methods.
    * Add third party copy statistics to the summary record.
 
