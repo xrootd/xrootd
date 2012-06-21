@@ -2056,10 +2056,8 @@ int XrdFrmConfig::xxfr()
           else break;
          };
 
-    if (!val)
-       {if (wantParm) return 0;
-        else {Say.Emsg("Config", wantParm, "value not specified"); return 1;}
-       }
+    if (!val && wantParm)
+       {Say.Emsg("Config", wantParm, "value not specified"); return 1;}
 
     return 0;
 }

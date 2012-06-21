@@ -479,8 +479,7 @@ time_t XrdOssSys::HasFile(const char *fn, const char *fsfx, time_t *mTime)
 // Add the suffix
 //
    if ((fnlen + strlen(fsfx)) >= sizeof(path)) return 0;
-   pp += fnlen;
-   strcpy(pp, fsfx);
+   strcpy(path+fnlen, fsfx);
 
 // Now check if the file actually exists
 //
