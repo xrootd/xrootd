@@ -119,12 +119,16 @@ int main( int argc, char **argv )
       std::cerr << "Invalid source path: " << sourceFile->Path << std::endl;
       return 2;
     }
+    process.SetRootOffset( sourceFile->Doff );
     sourceFile = sourceFile->Next;
   }
 
   XRootDStatus st = process.Prepare();
   if( !st.IsOK() )
+  {
+    std::cout << st.ToStr() << std::endl;
     return st.GetShellCode();
+  }
 
   ProgressDisplay display;
   if( !config.Want(XrdCpConfig::DoNoPbar) )

@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClClassicCopyJob.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 
 namespace XrdCl
 {
@@ -32,6 +33,8 @@ namespace XrdCl
     delete pDestination;
     std::list<URL*>::iterator it;
     for( it = pSource.begin(); it != pSource.end(); ++it )
+      delete *it;
+    for( it = pDestinations.begin(); it != pDestinations.end(); ++it )
       delete *it;
   }
 
@@ -130,10 +133,52 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Build the jobs
+    // We just have one job to do
     //--------------------------------------------------------------------------
-    CopyJob *job = new ClassicCopyJob( pSource.front(), pDestination );
-    pJobs.push_back( job );
+    if( pSource.size() == 1 )
+    {
+      CopyJob *job = new ClassicCopyJob( pSource.front(), pDestination );
+      pJobs.push_back( job );
+    }
+    //--------------------------------------------------------------------------
+    // Many jobs
+    //--------------------------------------------------------------------------
+    else
+    {
+      //------------------------------------------------------------------------
+      // Check if the remote path exist and is a directory
+      //------------------------------------------------------------------------
+      FileSystem fs( *pDestination );
+      StatInfo *statInfo = 0;
+      XRootDStatus st = fs.Stat( pDestination->GetPath(), statInfo );
+      if( !st.IsOK() )
+        return st;
+
+      if( !statInfo->TestFlags( StatInfo::IsDir ) )
+      {
+        delete statInfo;
+        log->Debug( UtilityMsg, "CopyProcess: destination for recursive copy "
+                                "is not a directory." );
+
+        return Status( stError, errInvalidArgs, EINVAL );
+      }
+
+      //------------------------------------------------------------------------
+      // Loop through the sources and create the destination paths
+      //------------------------------------------------------------------------
+      std::list<URL*>::iterator it;
+      for( it = pSource.begin(); it != pSource.end(); ++it )
+      {
+        std::string pathSuffix = (*it)->GetPath();
+        pathSuffix = pathSuffix.substr( pRootOffset,
+                                        pathSuffix.length()-pRootOffset );
+        URL *dst = new URL( *pDestination );
+        dst->SetPath( dst->GetPath() + pathSuffix );
+        pDestinations.push_back( dst );
+        CopyJob *job = new ClassicCopyJob( *it, dst );
+        pJobs.push_back( job );
+      }
+    }
 
     return XRootDStatus();
   }
@@ -156,6 +201,7 @@ namespace XrdCl
       if( pProgressHandler )
         pProgressHandler->EndJob( st );
       if( !st.IsOK() ) return st;
+      ++currentJob;
     }
     return XRootDStatus();
   }

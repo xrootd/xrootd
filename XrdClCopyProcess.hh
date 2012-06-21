@@ -112,6 +112,7 @@ namespace XrdCl
         pRecursive( false ),
         pThirdParty( false ),
         pSourceLimit( 1 ),
+        pRootOffset( 0 ),
         pProgressHandler( 0 ) {}
 
       //------------------------------------------------------------------------
@@ -155,6 +156,11 @@ namespace XrdCl
         pSourceLimit = sourceLimit;
       }
 
+      void SetRootOffset( uint16_t rootOffset )
+      {
+        pRootOffset = rootOffset;
+      }
+
       //------------------------------------------------------------------------
       //! Perform third party copy whenever possible
       //------------------------------------------------------------------------
@@ -183,11 +189,13 @@ namespace XrdCl
 
     private:
       std::list<URL*>      pSource;
+      std::list<URL*>      pDestinations;
       std::list<CopyJob*>  pJobs;
       URL                 *pDestination;
       bool                 pRecursive;
       bool                 pThirdParty;
       uint16_t             pSourceLimit;
+      uint16_t             pRootOffset;
       CopyProgressHandler *pProgressHandler;
   };
 }
