@@ -410,8 +410,9 @@ struct ClientReadRequest {
 struct ClientReadVRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char  reserved[16];
-   kXR_int32  dlen;
+   kXR_char  reserved[15];
+   kXR_char  pathid;
+   kXR_int32 dlen;
 };
 struct ClientRmRequest {
    kXR_char  streamid[2];

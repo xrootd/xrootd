@@ -36,4 +36,5 @@ Prerelease Notes
    * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
+   * Add pathid to readv request struct as documented in 2.9.9.
 
