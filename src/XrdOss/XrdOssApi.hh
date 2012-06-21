@@ -251,6 +251,8 @@ XrdOucProg     *RSSProg;      //    Command for Remote Storage Services
 
 char           *UDir;         // -> Usage logdir
 char           *QFile;        // -> Quota file
+char           *xfrFdir;      // -> Fail file base dir
+int             xfrFdln;      //    strlen(xfrFDir)
 
 int                Alloc_Cache(XrdOssCreateInfo &, XrdOucEnv &);
 int                Alloc_Local(XrdOssCreateInfo &, XrdOucEnv &);

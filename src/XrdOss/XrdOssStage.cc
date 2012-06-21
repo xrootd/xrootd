@@ -464,16 +464,20 @@ time_t XrdOssSys::HasFile(const char *fn, const char *fsfx, time_t *mTime)
 {
     struct stat statbuff;
     int fnlen;
-    char path[MAXPATHLEN+1];
+    char path[MAXPATHLEN+8];
     char *pp = path;
 
 // Copy the path with possible conversion
 //
-   if (GenLocalPath(fn, path)) return 0;
+   if (xfrFdir)
+      {strcpy(path, xfrFdir);
+       pp = path + xfrFdln;
+      }
+   if (GenLocalPath(fn, pp)) return 0;
+   fnlen = strlen(path);
 
 // Add the suffix
 //
-   fnlen = strlen(path);
    if ((fnlen + strlen(fsfx)) >= sizeof(path)) return 0;
    pp += fnlen;
    strcpy(pp, fsfx);

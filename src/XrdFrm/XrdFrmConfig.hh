@@ -124,6 +124,8 @@ int              pVecNum;     // Number of policy variables
 static const int pVecMax=8;
 char             pVec[pVecMax];
 char            *pProg;
+char            *xfrFdir;
+int              xfrFdln;
 
 enum  PPVar {PP_atime=0, PP_ctime, PP_fname, PP_fsize, PP_fspace,
              PP_mtime,   PP_pfn,   PP_sname, PP_tspace, PP_usage};

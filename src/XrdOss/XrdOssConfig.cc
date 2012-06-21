@@ -182,6 +182,8 @@ XrdOssSys::XrdOssSys()
    runOld        = 0;
    XrdOssRunMode = &runOld;
    numCG = numDP = 0;
+   xfrFdir       = 0;
+   xfrFdln       = 0;
 }
   
 /******************************************************************************/
@@ -1559,9 +1561,13 @@ int XrdOssSys::xusage(XrdOucStream &Config, XrdSysError &Eroute)
 /* Function: xxfr
 
    Purpose:  To parse the directive: xfr [deny <sec>] [keep <sec>] [up]
+                                         [fdir <path>]
                                          [<threads> [<speed> [<ovhd> [<hold>]]]]
 
+             deny      number of seconds to deny staging requests in the
+                       presence of a '.fail' file.
              keep      number of seconds to keep queued requests
+             fdir      the base directory where '.fail' files are to be written
              <threads> number of threads for staging (* uses default).
 
 The following are deprecated and allowed for backward compatability:
@@ -1575,36 +1581,52 @@ The following are deprecated and allowed for backward compatability:
 
 int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
 {
+    static const int maxfdln = 256;
+    const char *wantParm = 0;
     char *val;
     int       thrds = 1;
     long long speed = 9*1024*1024;
     int       ovhd  = 30;
     int       htime = 3*60*60;
     int       ktime;
-    int       haveparm = 0;
     int       upon = 0;
 
-    while((val = Config.GetWord()))        // deny | keep
+    while((val = Config.GetWord()))        // deny |fdir | keep | up
          {     if (!strcmp("deny", val))
-                  {if ((val = Config.GetWord()))     // keep time
-                      {if (XrdOuca2x::a2tm(Eroute,"xfr deny",val,&htime,0))
+                  {wantParm = "xfr deny";
+                   if ((val = Config.GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Eroute,wantParm,val,&htime,0))
                           return 1;
-                       haveparm=1;
+                       wantParm=0;
+                      }
+                  }
+          else if (!strcmp("fdir", val))
+                  {wantParm = "xfr fdir";
+                   if ((val = Config.GetWord()))     // fdir path
+                      {if (xfrFdir) free(xfrFdir);
+                       xfrFdln = strlen(val);
+                       if (xfrFdln > maxfdln)
+                          {Eroute.Emsg("Config","xfr fdir path too long");
+                           xfrFdir = 0; xfrFdln = 0; return 1;
+                          }
+                       xfrFdir = strdup(val); 
+                       wantParm = 0;
                       }
                   }
           else if (!strcmp("keep", val))
-                  {if ((val = Config.GetWord()))     // keep time
-                      {if (XrdOuca2x::a2tm(Eroute,"xfr keep",val,&ktime,0))
+                  {wantParm = "xfr keep";
+                   if ((val = Config.GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Eroute,wantParm,val,&ktime,0))
                           return 1;
-                       xfrkeep=ktime; haveparm=1;
+                       xfrkeep=ktime; wantParm=0;
                       }
                   }
-          else if (!strcmp("up", val)) {upon = 1; haveparm = 1;}
+          else if (!strcmp("up", val)) {upon = 1; wantParm = 0;}
           else break;
          };
 
-    if (!val) {if (haveparm) return 0;
-                  else {Eroute.Emsg("Config", "xfr parameter not specified");
+    if (!val) {if (!wantParm) return 0;
+                  else {Eroute.Emsg("Config", wantParm, "value not specified");
                         return 1;
                        }
               }

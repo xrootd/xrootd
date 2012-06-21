@@ -178,6 +178,9 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    CksCfg   = 0;
    CksMan   = 0;
 
+   xfrFdir  = 0;
+   xfrFdln  = 0;
+
 // Establish our instance name
 //
    myInst = XrdOucUtils::InstName(-1);
@@ -2006,9 +2009,10 @@ void XrdFrmConfig::xspaceBuild(char *grp, char *fn, int isxa)
   
 /* Function: xxfr
 
-   Purpose:  To parse the directive: xfr [deny <sec>] [keep <sec>]
+   Purpose:  To parse the directive: xfr [deny <sec>] [fdir <path>] [keep <sec>]
 
              deny      number of seconds that a fail file rejects a request
+             fdir      base directory where fail files are kept
              keep      number of seconds to keep queued requests (ignored)
 
    Output: 0 upon success or !0 upon failure.
@@ -2016,31 +2020,45 @@ void XrdFrmConfig::xspaceBuild(char *grp, char *fn, int isxa)
 
 int XrdFrmConfig::xxfr()
 {
+    static const int maxfdln = 256;
+    const char *wantParm = 0;
     char *val;
     int       htime = 3*60*60;
-    int       haveparm = 0;
 
     while((val = cFile->GetWord()))        // deny | keep
          {     if (!strcmp("deny", val))
-                  {if ((val = cFile->GetWord()))     // keep time
-                      {if (XrdOuca2x::a2tm(Say,"xfr deny",val,&htime,0))
-                          return 1;
-                       FailHold = htime, haveparm=1;
+                  {wantParm = "xfr deny";
+                   if ((val = cFile->GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Say,wantParm,val,&htime,0)) return 1;
+                       FailHold = htime, wantParm=0;
+                      }
+                  }
+          else if (!strcmp("fdir", val))
+                  {wantParm = "xfr fdir";
+                   if ((val = cFile->GetWord()))     // fdir path
+                      {if (xfrFdir) free(xfrFdir);
+                       xfrFdln = strlen(val);
+                       if (xfrFdln > maxfdln)
+                          {Say.Emsg("Config","xfr fdir path too long");
+                           xfrFdir = 0; xfrFdln = 0; return 1;
+                          }
+                       xfrFdir = strdup(val);
+                       wantParm = 0;
                       }
                   }
           else if (!strcmp("keep", val))
-                  {if ((val = cFile->GetWord()))     // keep time
-                      {if (XrdOuca2x::a2tm(Say,"xfr keep",val,&htime,0))
-                          return 1;
-                       haveparm=1;
+                  {wantParm = "xfr keep";
+                   if ((val = cFile->GetWord()))     // keep time
+                      {if (XrdOuca2x::a2tm(Say,wantParm,val,&htime,0)) return 1;
+                       wantParm=0;
                       }
                   }
           else break;
          };
 
     if (!val)
-       {if (haveparm) return 0;
-        else {Say.Emsg("Config", "xfr parameter not specified"); return 1;}
+       {if (wantParm) return 0;
+        else {Say.Emsg("Config", wantParm, "value not specified"); return 1;}
        }
 
     return 0;
