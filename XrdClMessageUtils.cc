@@ -88,7 +88,6 @@ namespace XrdCl
     {
       log->Error( XRootDMsg, "[%s] Unable to send the message 0x%x",
                              url.GetHostId().c_str(), &msg );
-      delete msgHandler;
       return st;
     }
     return Status();
