@@ -377,10 +377,11 @@ struct ClientProtocolRequest {
 struct ClientPrepareRequest {
    kXR_char  streamid[2];
    kXR_unt16 requestid;
-   kXR_char options;
-   kXR_char prty;
-   kXR_char reserved[14];
-   kXR_int32  dlen;
+   kXR_char  options;
+   kXR_char  prty;
+   kXR_unt16 port;          // 2.9.9 or higher
+   kXR_char  reserved[12];
+   kXR_int32 dlen;
 };
 struct ClientPutfileRequest {
    kXR_char  streamid[2];
