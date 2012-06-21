@@ -31,22 +31,23 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  URL::URL( const std::string &url, int port  ):
-    pIsValid( true ), pUrl( url ), pPort( port )
+  URL::URL( const std::string &url ):
+    pIsValid( true ), pPort( 1094 )
   {
-    ParseUrl();
+    ParseUrl( url );
   }
 
   //----------------------------------------------------------------------------
   // Parse URL - it is rather trivial and horribly slow but probably there
   // is not need to have anything more fancy
   //----------------------------------------------------------------------------
-  void URL::ParseUrl()
+  void URL::ParseUrl( const std::string &url )
   {
     Log *log = DefaultEnv::GetLog();
 
-    if( pUrl.length() == 0 )
+    if( url.length() == 0 )
     {
+      pIsValid = false;
       log->Error( UtilityMsg, "The given URL is empty" );
       return;
     }
@@ -54,23 +55,23 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Extract the protocol, assume file:// if none found
     //--------------------------------------------------------------------------
-    size_t pos          = pUrl.find( "://" );
+    size_t pos          = url.find( "://" );
 
     std::string current;
     if( pos != std::string::npos )
     {
-      pProtocol = pUrl.substr( 0, pos );
-      current   = pUrl.substr( pos+3, pUrl.length()-pos-3 );
+      pProtocol = url.substr( 0, pos );
+      current   = url.substr( pos+3, url.length()-pos-3 );
     }
-    else if( pUrl[0] == '/' )
+    else if( url[0] == '/' )
     {
       pProtocol = "file";
-      current   = pUrl;
+      current   = url;
     }
     else
     {
       pProtocol = "root";
-      current   = pUrl;
+      current   = url;
     }
 
     //--------------------------------------------------------------------------
@@ -109,11 +110,9 @@ namespace XrdCl
                "Password:  %s\n"
                "Host Name: %s\n"
                "Port:      %d\n"
-               "Path:      %s\n"
-               "Full path: %s",
-               pUrl.c_str(), pProtocol.c_str(), pUserName.c_str(),
-               pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str(),
-               pPathWithParams.c_str() );
+               "Path:      %s\n",
+               url.c_str(), pProtocol.c_str(), pUserName.c_str(),
+               pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -214,15 +213,6 @@ namespace XrdCl
         return false;
     }
 
-    //--------------------------------------------------------------------------
-    // Create the host id
-    //--------------------------------------------------------------------------
-    std::ostringstream o;
-    if( pUserName.length() )
-      o << pUserName << "@";
-    o << pHostName << ":" << pPort;
-    pHostId = o.str();
-
     return true;
   }
 
@@ -231,13 +221,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool URL::ParsePath( const std::string &path )
   {
-    pPathWithParams = path;
-    size_t pos = pPathWithParams.find( "?" );
+    size_t pos = path.find( "?" );
     if( pos != std::string::npos )
     {
-      pPath = pPathWithParams.substr( 0, pos );
-      std::string paramsStr
-        = pPathWithParams.substr( pos+1, pPathWithParams.length() );
+      pPath = path.substr( 0, pos );
+      std::string paramsStr = path.substr( pos+1, path.length() );
 
       //------------------------------------------------------------------------
       // Parse parameters
@@ -255,7 +243,69 @@ namespace XrdCl
       }
     }
     else
-      pPath = pPathWithParams;
+      pPath = path;
     return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Recreate the url
+  //----------------------------------------------------------------------------
+  std::string URL::GetURL() const
+  {
+    if( !pIsValid )
+      return "";
+
+    std::ostringstream o;
+    if( !pProtocol.empty() )
+      o << pProtocol << "://";
+
+    if( !pUserName.empty() )
+    {
+      o << pUserName;
+      if( !pPassword.empty() )
+        o << ":" << pPassword;
+      o << "@";
+    }
+
+    if( !pHostName.empty() )
+      o << pHostName << ":" << pPort << "/";
+
+    o << GetPathWithParams();
+
+    return o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Get path with params
+  //----------------------------------------------------------------------------
+  std::string URL::GetPathWithParams() const
+  {
+    std::ostringstream o;
+    if( !pPath.empty() )
+      o << pPath;
+
+    if( !pParams.empty() )
+    {
+      o << "?";
+      ParamsMap::const_iterator it;
+      for( it = pParams.begin(); it != pParams.end(); ++it )
+      {
+        if( it != pParams.begin() ) o << "&";
+        o << it->first << "=" << it->second;
+      }
+    }
+    return o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Get host id
+  //----------------------------------------------------------------------------
+  std::string URL::GetHostId() const
+  {
+    std::ostringstream o;
+    if( pUserName.length() )
+      o << pUserName << "@";
+    o << pHostName << ":" << pPort;
+    return o.str();
   }
 }
