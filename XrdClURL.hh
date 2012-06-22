@@ -34,20 +34,22 @@ namespace XrdCl
                                                             //!< params
 
       //------------------------------------------------------------------------
+      //! Default constructor
+      //------------------------------------------------------------------------
+      URL();
+
+      //------------------------------------------------------------------------
       //! Constructor
       //!
       //! @param url  an url in format:
-      //!             user:password\@host:port/path?param1=x&param2=y
+      //!             protocol://user:password\@host:port/path?param1=x&param2=y
       //------------------------------------------------------------------------
       URL( const std::string &url );
 
       //------------------------------------------------------------------------
-      //! Is the url valide
+      //! Is the url valid
       //------------------------------------------------------------------------
-      bool IsValid() const
-      {
-        return pIsValid;
-      }
+      bool IsValid() const;
 
       //------------------------------------------------------------------------
       //! Get the URL
@@ -176,11 +178,19 @@ namespace XrdCl
         return pParams;
       }
 
+      //------------------------------------------------------------------------
+      //! Parse a string and fill the URL fields
+      //------------------------------------------------------------------------
+      bool FromString( const std::string &url );
+
+      //------------------------------------------------------------------------
+      //! Clear the url
+      //------------------------------------------------------------------------
+      void Clear();
+
     private:
-      void ParseUrl( const std::string &url );
       bool ParseHostInfo( const std::string hhostInfo );
       bool ParsePath( const std::string &path );
-      bool        pIsValid;
       std::string pHostId;
       std::string pProtocol;
       std::string pUserName;

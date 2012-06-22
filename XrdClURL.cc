@@ -31,25 +31,34 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  URL::URL( const std::string &url ):
-    pIsValid( true ), pPort( 1094 )
+  URL::URL():
+    pPort( 2094 )
   {
-    ParseUrl( url );
+  }
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  URL::URL( const std::string &url ):
+    pPort( 1094 )
+  {
+    FromString( url );
   }
 
   //----------------------------------------------------------------------------
   // Parse URL - it is rather trivial and horribly slow but probably there
   // is not need to have anything more fancy
   //----------------------------------------------------------------------------
-  void URL::ParseUrl( const std::string &url )
+  bool URL::FromString( const std::string &url )
   {
     Log *log = DefaultEnv::GetLog();
 
+    Clear();
+
     if( url.length() == 0 )
     {
-      pIsValid = false;
       log->Error( UtilityMsg, "The given URL is empty" );
-      return;
+      return false;
     }
 
     //--------------------------------------------------------------------------
@@ -95,10 +104,16 @@ namespace XrdCl
     }
 
     if( !ParseHostInfo( hostInfo ) )
-      pIsValid = false;
+    {
+      Clear();
+      return false;
+    }
 
     if( !ParsePath( path ) )
-      pIsValid = false;
+    {
+      Clear();
+      return false;
+    }
 
     //--------------------------------------------------------------------------
     // Dump the url
@@ -113,6 +128,7 @@ namespace XrdCl
                "Path:      %s\n",
                url.c_str(), pProtocol.c_str(), pUserName.c_str(),
                pPassword.c_str(), pHostName.c_str(), pPort, pPath.c_str() );
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -252,7 +268,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   std::string URL::GetURL() const
   {
-    if( !pIsValid )
+    if( !IsValid() )
       return "";
 
     std::ostringstream o;
@@ -307,5 +323,34 @@ namespace XrdCl
       o << pUserName << "@";
     o << pHostName << ":" << pPort;
     return o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Clear the fields
+  //----------------------------------------------------------------------------
+  void URL::Clear()
+  {
+    pHostId.clear();
+    pProtocol.clear();
+    pUserName.clear();
+    pPassword.clear();
+    pHostName.clear();
+    pPort = 1094;
+    pPath.clear();
+    pParams.clear();
+  }
+
+  //----------------------------------------------------------------------------
+  // Check validity
+  //----------------------------------------------------------------------------
+  bool URL::IsValid() const
+  {
+    if( pProtocol.empty() )
+      return false;
+    if( pProtocol == "file" && pPath.empty() )
+      return false;
+    if( pProtocol != "file" && pHostName.empty() )
+      return false;
+    return true;
   }
 }
