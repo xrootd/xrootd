@@ -35,6 +35,7 @@
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucSxeq.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -336,8 +337,7 @@ const char *XrdFrmTransfer::ffCheck()
 /* Private:                       f f M a k e                                 */
 /******************************************************************************/
   
-void XrdFrmTransfer::ffMake(int nofile)
-{
+void XrdFrmTransfer::ffMake(int nofile){
    static const mode_t fMode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
    char ffPath[MAXPATHLEN+8], *ffP;
    int myFD;
@@ -349,6 +349,7 @@ void XrdFrmTransfer::ffMake(int nofile)
        strcpy(ffPath, Config.xfrFdir);
        strcpy(ffPath+Config.xfrFdln, xfrP->PFN);
        strcpy(ffPath+Config.xfrFdln+xfrP->pfnEnd, ".fail");
+       XrdOucUtils::makePath(ffPath, fMode);
        ffP = ffPath;
       } else {
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".fail");

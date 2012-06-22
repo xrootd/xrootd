@@ -997,6 +997,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "xrootd.chksum" )) return xcks();
 //     if (!strcmp(var, "oss.mssgwcmd"  )) return Grab(var, &MSSCmd,    0);
 //     if (!strcmp(var, "oss.msscmd"    )) return Grab(var, &MSSCmd,    0);
+       if (!strcmp(var, "oss.xfr"       )) return xxfr();
       }
 
    if (ssID == ssXfr)
