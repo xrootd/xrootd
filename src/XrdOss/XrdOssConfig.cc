@@ -1625,6 +1625,9 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
           else break;
          };
 
+    xfrhold    = htime;
+    if (upon) OptFlags |= XrdOss_USRPRTY;
+
     if (!val) {if (!wantParm) return 0;
                   else {Eroute.Emsg("Config", wantParm, "value not specified");
                         return 1;
@@ -1651,8 +1654,6 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
       xfrthreads = thrds;
       xfrspeed   = speed;
       xfrovhd    = ovhd;
-      xfrhold    = htime;
-      if (upon) OptFlags |= XrdOss_USRPRTY;
       return 0;
 }
 
