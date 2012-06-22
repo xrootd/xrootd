@@ -19,6 +19,8 @@
 #include "XrdApps/XrdCpConfig.hh"
 #include "XrdApps/XrdCpFile.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClLog.hh"
 
 #include <iostream>
 #include <iomanip>
@@ -142,6 +144,14 @@ int main( int argc, char **argv )
     process.SetForce( true );
   if( config.Want( XrdCpConfig::DoTpc ) )
     process.SetThirdPartyCopy( true );
+
+  if( config.Dlvl )
+  {
+    Log *log = DefaultEnv::GetLog();
+    if( config.Dlvl == 1 ) log->SetLevel( Log::InfoMsg );
+    else if( config.Dlvl == 2 ) log->SetLevel( Log::DebugMsg );
+    else if( config.Dlvl == 3 ) log->SetLevel( Log::DumpMsg );
+  }
 
   //----------------------------------------------------------------------------
   // Prepare and run the copy process
