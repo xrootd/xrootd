@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Allow tracker files (e.g. ".fail") to be placed in a shadow directory.
+     This is controlled by the new fdir option on the oss.xfr directive.
    * Allow meta-files (i.e. .fail file) to be relocated to a shadow directory
      using the oss.xfr directive. This avoids polluting the exported name
      space when an frm transfer operation fails.
