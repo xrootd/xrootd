@@ -339,6 +339,7 @@ const char *XrdFrmTransfer::ffCheck()
   
 void XrdFrmTransfer::ffMake(int nofile){
    static const mode_t fMode = S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH;
+   static const mode_t dMode = S_IXUSR|S_IWGRP|S_IXGRP|S_IXOTH | fMode;
    char ffPath[MAXPATHLEN+8], *ffP;
    int myFD;
 
@@ -349,7 +350,7 @@ void XrdFrmTransfer::ffMake(int nofile){
        strcpy(ffPath, Config.xfrFdir);
        strcpy(ffPath+Config.xfrFdln, xfrP->PFN);
        strcpy(ffPath+Config.xfrFdln+xfrP->pfnEnd, ".fail");
-       XrdOucUtils::makePath(ffPath, fMode);
+       XrdOucUtils::makePath(ffPath, dMode);
        ffP = ffPath;
       } else {
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".fail");
