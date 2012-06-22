@@ -70,6 +70,19 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      CopyJob():
+        pSource( 0 ), pDestination( 0 ), pForce( 0 ), pPosc( 0 ) {}
+
+      //------------------------------------------------------------------------
+      //! Virtual destructor
+      //------------------------------------------------------------------------
+      virtual ~CopyJob()
+      {
+      }
+
+      //------------------------------------------------------------------------
       //! Run the copy job
       //!
       //! @param progress the handler to be notified about the copy progress
@@ -93,9 +106,43 @@ namespace XrdCl
         return pDestination;
       }
 
+      //------------------------------------------------------------------------
+      //! Check if the destination file will be overwritten
+      //------------------------------------------------------------------------
+      bool GetForce() const
+      {
+        return pForce;
+      }
+
+      //------------------------------------------------------------------------
+      //! Overwrite the destination if it exists
+      //------------------------------------------------------------------------
+      void SetForce( bool force )
+      {
+        pForce = force;
+      }
+
+      //------------------------------------------------------------------------
+      //! Check if POSC is enabled
+      //------------------------------------------------------------------------
+      bool GetPOSC() const
+      {
+        return pPosc;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the POSC semantics
+      //------------------------------------------------------------------------
+      void SetPosc( bool posc )
+      {
+        pPosc = posc;
+      }
+
     protected:
       const URL *pSource;
       const URL *pDestination;
+      bool       pForce;
+      bool       pPosc;
   };
 
   //----------------------------------------------------------------------------
@@ -111,6 +158,8 @@ namespace XrdCl
         pDestination( 0 ),
         pRecursive( false ),
         pThirdParty( false ),
+        pForce( false ),
+        pPosc( false ),
         pSourceLimit( 1 ),
         pRootOffset( 0 ),
         pProgressHandler( 0 ) {}
@@ -170,6 +219,22 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Force overwriting files if they exist
+      //------------------------------------------------------------------------
+      void SetForce( bool force )
+      {
+        pForce = force;
+      }
+
+      //------------------------------------------------------------------------
+      //! Persistify on successfull close
+      //------------------------------------------------------------------------
+      void SetPOSC( bool posc )
+      {
+        pPosc = posc;
+      }
+
+      //------------------------------------------------------------------------
       //! Monitor the progress with the given handler
       //------------------------------------------------------------------------
       void SetProgressHandler( CopyProgressHandler *handler )
@@ -194,6 +259,8 @@ namespace XrdCl
       URL                 *pDestination;
       bool                 pRecursive;
       bool                 pThirdParty;
+      bool                 pForce;
+      bool                 pPosc;
       uint16_t             pSourceLimit;
       uint16_t             pRootOffset;
       CopyProgressHandler *pProgressHandler;

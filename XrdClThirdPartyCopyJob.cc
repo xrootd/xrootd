@@ -21,6 +21,16 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  ThirdPartyCopyJob::ThirdPartyCopyJob( const URL *source,
+                                        const URL *destination )
+  {
+    pSource = source;
+    pDestination = destination;
+  }
+
+  //----------------------------------------------------------------------------
   // Run the copy job
   //----------------------------------------------------------------------------
   XRootDStatus ThirdPartyCopyJob::Run( CopyProgressHandler */*progress*/ )

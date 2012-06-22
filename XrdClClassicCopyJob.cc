@@ -73,6 +73,12 @@ namespace
   {
     public:
       //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      Destination():
+        pPosc( false ), pForce( false ) {}
+
+      //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~Destination() {}
@@ -91,6 +97,26 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus PutChunk( const XrdCl::Buffer    &buffer,
                                             const XrdCl::ChunkInfo &ci ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Set POSC
+      //------------------------------------------------------------------------
+      void SetPOSC( bool posc )
+      {
+        pPosc = posc;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set force
+      //------------------------------------------------------------------------
+      void SetForce( bool force )
+      {
+        pForce = force;
+      }
+
+    protected:
+      bool pPosc;
+      bool pForce;
   };
 
   //----------------------------------------------------------------------------
@@ -331,7 +357,11 @@ namespace
         //----------------------------------------------------------------------
         log->Debug( UtilityMsg, "Openning %s for writing", pPath.c_str() );
 
-        int fd = open( pPath.c_str(), O_WRONLY|O_CREAT|O_EXCL, 0644 );
+        int flags = O_WRONLY|O_CREAT|O_TRUNC;
+        if( !pForce )
+          flags |= O_EXCL;
+
+        int fd = open( pPath.c_str(), flags, 0644 );
         if( fd == -1 )
         {
           log->Debug( UtilityMsg, "Unable to open %s: %s",
@@ -366,6 +396,8 @@ namespace
                                   pPath.c_str(), strerror( errno ) );
           close( pFD );
           pFD = -1;
+          if( pPosc )
+            unlink( pPath.c_str() );
           return XRootDStatus( stError, errOSError, errno );
         }
         return XRootDStatus();
@@ -408,9 +440,16 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for writing",
                                 pUrl->GetURL().c_str() );
 
-        return pFile->Open( pUrl->GetURL(),
-                            OpenFlags::Update|OpenFlags::Delete,
-                            Access::UR|Access::UW);
+        uint16_t flags = OpenFlags::Update;
+        if( pForce )
+          flags |= OpenFlags::Delete;
+        else
+          flags |= OpenFlags::New;
+
+        if( pPosc )
+          flags |= OpenFlags::POSC;
+
+        return pFile->Open( pUrl->GetURL(), flags, Access::UR|Access::UW);
       }
 
       //------------------------------------------------------------------------
@@ -476,6 +515,8 @@ namespace XrdCl
     else
       dest.reset( new XRootDDestination( pDestination ) );
 
+    dest->SetForce( pForce );
+    dest->SetPOSC( pPosc );
     st = dest->Initialize();
     if( !st.IsOK() ) return st;
 

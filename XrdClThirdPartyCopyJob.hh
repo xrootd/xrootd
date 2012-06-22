@@ -27,6 +27,11 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      ThirdPartyCopyJob( const URL *source, const URL *destination );
+
+      //------------------------------------------------------------------------
       //! Run the copy job
       //!
       //! @param progress the handler to be notified about the copy progress

@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClClassicCopyJob.hh"
+#include "XrdCl/XrdClThirdPartyCopyJob.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 
 namespace XrdCl
@@ -137,8 +138,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pSource.size() == 1 )
     {
-      CopyJob *job = new ClassicCopyJob( pSource.front(), pDestination );
+      CopyJob *job = 0;
+      if( pThirdParty )
+        job = new ThirdPartyCopyJob( pSource.front(), pDestination );
+      else
+        job = new ClassicCopyJob( pSource.front(), pDestination );
       pJobs.push_back( job );
+      job->SetForce( pForce );
+      job->SetPosc( pPosc );
     }
     //--------------------------------------------------------------------------
     // Many jobs
@@ -175,8 +182,15 @@ namespace XrdCl
         URL *dst = new URL( *pDestination );
         dst->SetPath( dst->GetPath() + pathSuffix );
         pDestinations.push_back( dst );
-        CopyJob *job = new ClassicCopyJob( *it, dst );
+
+        CopyJob *job = 0;
+        if( pThirdParty )
+          job = new ThirdPartyCopyJob( pSource.front(), pDestination );
+        else
+          job = new ClassicCopyJob( *it, dst );
         pJobs.push_back( job );
+        job->SetForce( pForce );
+        job->SetPosc( pPosc );
       }
     }
 

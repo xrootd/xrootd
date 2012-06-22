@@ -114,7 +114,13 @@ int main( int argc, char **argv )
   XrdCpFile *sourceFile = config.srcFile;
   while( sourceFile )
   {
-    if( !process.AddSource( sourceFile->Path ) )
+    std::string source;
+    if( sourceFile->Protocol == XrdCpFile::isDir ||
+        sourceFile->Protocol == XrdCpFile::isFile )
+      source = "file://";
+    source += sourceFile->Path;
+
+    if( !process.AddSource( source ) )
     {
       std::cerr << "Invalid source path: " << sourceFile->Path << std::endl;
       return 2;
@@ -123,6 +129,23 @@ int main( int argc, char **argv )
     sourceFile = sourceFile->Next;
   }
 
+  //----------------------------------------------------------------------------
+  // Set other options
+  //----------------------------------------------------------------------------
+  ProgressDisplay display;
+  if( !config.Want(XrdCpConfig::DoNoPbar) )
+    process.SetProgressHandler( &display );
+
+  if( config.Want( XrdCpConfig::DoPosc ) )
+    process.SetThirdPartyCopy( true );
+  if( config.Want( XrdCpConfig::DoForce ) )
+    process.SetForce( true );
+  if( config.Want( XrdCpConfig::DoTpc ) )
+    process.SetThirdPartyCopy( true );
+
+  //----------------------------------------------------------------------------
+  // Prepare and run the copy process
+  //----------------------------------------------------------------------------
   XRootDStatus st = process.Prepare();
   if( !st.IsOK() )
   {
@@ -130,9 +153,6 @@ int main( int argc, char **argv )
     return st.GetShellCode();
   }
 
-  ProgressDisplay display;
-  if( !config.Want(XrdCpConfig::DoNoPbar) )
-    process.SetProgressHandler( &display );
 
   st = process.Run();
   if( !st.IsOK() )
