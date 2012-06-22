@@ -509,11 +509,19 @@ namespace XrdCl
     if( !st.IsOK() ) return st;
 
     std::auto_ptr<Destination> dest;
+    URL newDestUrl( *pDestination );
 
     if( pDestination->GetProtocol() == "file" )
       dest.reset( new LocalDestination( pDestination ) );
+    //--------------------------------------------------------------------------
+    // For xrootd destination buil the oss.asize hint
+    //--------------------------------------------------------------------------
     else
-      dest.reset( new XRootDDestination( pDestination ) );
+    {
+      std::ostringstream o; o << src->GetSize();
+      newDestUrl.GetParams()["oss.asize"] = o.str();
+      dest.reset( new XRootDDestination( &newDestUrl ) );
+    }
 
     dest->SetForce( pForce );
     dest->SetPOSC( pPosc );
