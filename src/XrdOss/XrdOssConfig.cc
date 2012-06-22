@@ -1651,6 +1651,7 @@ int XrdOssSys::xxfr(XrdOucStream &Config, XrdSysError &Eroute)
              }
          }
 
+      xfrhold    = htime;
       xfrthreads = thrds;
       xfrspeed   = speed;
       xfrovhd    = ovhd;
