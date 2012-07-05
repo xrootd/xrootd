@@ -1017,7 +1017,7 @@ bool XrdClient::TryOpen(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
       while( fConnModule->LastServerError.errnum == kXR_NotAuthorized )
       {
 
-        if( fConnModule->GetRedirCnt() > fConnModule->GetMaxRedirCnt() )
+        if( fConnModule->GetRedirCnt() >= fConnModule->GetMaxRedirCnt() )
           break;
 
         //----------------------------------------------------------------------
