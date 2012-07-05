@@ -355,6 +355,10 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    // ... also for auxilliary libs
    XrdSutSetTrace(trace);
    XrdCryptoSetTrace(trace);
+   
+   // SSL name hashing algorithm
+   if (opt.sslhash == 0)
+      XrdCryptosslSetUseHashOld(1);
 
    //
    // Operation mode
@@ -2226,6 +2230,8 @@ void gsiOptions::Print(XrdOucTrace *t)
          if (vomsfunparms) POPTS(t, " VOMS extraction function parms: ignored (no VOMS extraction function defined)");
       }
       POPTS(t, " MonInfo option: "<< moninfo);
+      if (sslhash == 0)
+         POPTS(t, " Using old SSL name hashing algorithm");
    }
    // Crypto options
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
@@ -2305,6 +2311,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                     explicitely denied by these, or it is
       //                                     not in the form "*/<hostname>", the
       //                                     handshake fails.
+      //             "XrdSecGSIUSEHASHOLD"   Use old name hashing algorithm
 
       //
       opts.mode = mode;
@@ -2397,6 +2404,11 @@ char *XrdSecProtocolgsiInit(const char mode,
       cenv = getenv("XrdSecGSISRVNAMES");
       if (cenv)
          opts.srvnames = strdup(cenv);
+
+      // SSL name hashing algorithm
+      cenv = getenv("XrdSecGSIUSEHASHOLD");
+      if (cenv)
+         opts.sslhash = 0;
 
       //
       // Setup the object with the chosen options
@@ -2491,6 +2503,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int authzpxy = 0;
       int vomsat = 1;
       int moninfo = 0;
+      int sslhash = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2552,6 +2565,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                moninfo = 1;
             } else if (!strncmp(op, "-moninfo:",9)) {
                moninfo = atoi(op+9);
+            } else if (!strncmp(op, "-sslhashold",11)) {
+               sslhash = 0;
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2572,6 +2587,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
+      opts.sslhash = sslhash;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -4135,7 +4151,8 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          if (!notdone) {
             // Verify the chain
             X509Chain::EX509ChainErr e;
-            verified = cca->Verify(e);
+            if (!(verified = cca->Verify(e)))
+               PRINT("CA certificate not self-signed: verification failed ("<<xc->SubjectHash()<<")");
          } else {
             PRINT("CA certificate not self-signed: cannot verify integrity ("<<xc->SubjectHash()<<")");
          }
@@ -4146,13 +4163,22 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          verified = 1;
          // Notify if some sort of check was required
          if (opt == 1) {
-            DEBUG("Warning: CA certificate not self-signed:"
-                  " integrity not checked, assuming OK ("<<xc->SubjectHash()<<")");
+            DEBUG("Warning: CA certificate not self-signed and"
+                  " integrity not checked: assuming OK ("<<xc->SubjectHash()<<")");
          }
       }
-   } else if (CACheck > 0) {
-      // Check self-signature
-      verified = cca->CheckCA();
+   } else {
+      if (CACheck > 0) {
+         // Check self-signature
+         if (!(verified = cca->CheckCA()))
+            PRINT("CA certificate self-signed: integrity check failed ("<<xc->SubjectHash()<<")");
+      } else {
+         // Set OK in any case
+         verified = 1;
+         // Notify if some sort of check was required
+         DEBUG("Warning: CA certificate self-signed but"
+               " integrity not checked: assuming OK ("<<xc->SubjectHash()<<")");
+      }
    }
 
    // Set the status in the chain
@@ -5327,7 +5353,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
          if (rcgetca == -1) {
             PRINT("do not have certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
          } else {
-            PRINT("failed to initialized CRL for issuing CA '"<<xsrv->IssuerHash()<<"'");
+            PRINT("failed to load certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
          }
          SafeDelete(xsrv);
          SafeDelete(xbck);

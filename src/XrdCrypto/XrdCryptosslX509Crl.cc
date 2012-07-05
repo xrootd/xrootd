@@ -463,12 +463,13 @@ const char *XrdCryptosslX509Crl::IssuerHash()
 
       // Make sure we have a CRL
       if (crl) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
+         char chash[15] = {0};
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+         if (XrdCryptosslUseHashOld())
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
 #endif
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
          issuerhash = chash;
       } else {
          DEBUG("WARNING: no CRL available - cannot extract issuer hash");

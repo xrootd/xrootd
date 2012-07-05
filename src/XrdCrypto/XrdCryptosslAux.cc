@@ -47,6 +47,21 @@ int XrdCryptosslX509VerifyCB(int ok, X509_STORE_CTX *ctx)
    return ok;
 }
 
+//  Hashing algorithm control
+static bool gX509UseHashOld = 0;
+//____________________________________________________________________________
+void XrdCryptosslSetUseHashOld(bool on)
+{
+   // Set gX509UseHashOld
+   gX509UseHashOld = on;
+}
+//____________________________________________________________________________
+bool XrdCryptosslUseHashOld()
+{
+   // Get gX509UseHashOld
+   return gX509UseHashOld;
+}
+
 //____________________________________________________________________________
 int XrdCryptosslKDFunLen()
 {

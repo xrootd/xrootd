@@ -167,12 +167,13 @@ const char *XrdCryptosslX509Req::SubjectHash()
 
       // Make sure we have a certificate
       if (creq) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
+         char chash[15] = {0};
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+         if (XrdCryptosslUseHashOld())
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
 #endif
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
          subjecthash = chash;
       } else {
          DEBUG("WARNING: no certificate available - cannot extract subject hash");

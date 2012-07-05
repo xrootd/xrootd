@@ -54,5 +54,11 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1);
 #define sslTRACE_Debug     0x0002
 #define sslTRACE_Notify    0x0001
 
+/******************************************************************************/
+/*          H a s h i n g    a l g o r i t h m    c o n t r o l               */
+/******************************************************************************/
+void XrdCryptosslSetUseHashOld(bool on = 1);
+bool XrdCryptosslUseHashOld();
+
 #endif
 
