@@ -84,10 +84,12 @@ int XrdCryptoX509::BitStrength()
 //_____________________________________________________________________________
 bool XrdCryptoX509::IsValid(int when)
 {
-   // Check validity at UTC time 'when'. Use when =0 (default) to check
+   // Check validity at local time 'when'. Use when =0 (default) to check
    // at present time.
 
    int now = (when > 0) ? when : (int)time(0);
+   // Correct for time zone (certificate times are UTC plus, eventually, DST
+   now -= (int) XrdCryptoTZCorr();
    return (now >= (NotBefore()-kAllowedSkew) && now <= NotAfter());
 }
 
@@ -98,6 +100,8 @@ bool XrdCryptoX509::IsExpired(int when)
    // at present time.
 
    int now = (when > 0) ? when : (int)time(0);
+   // Correct for time zone (certificate times are UTC plus, eventually, DST
+   now -= (int) XrdCryptoTZCorr();
    return (now > NotAfter());
 }
 

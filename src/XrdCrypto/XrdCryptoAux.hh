@@ -3,6 +3,7 @@
 #define __CRYPTO_AUX_H__
 
 #include <stdio.h>
+#include <time.h>
 #ifndef WIN32
 #include "XrdSys/XrdSysHeaders.hh"
 #endif
@@ -46,5 +47,16 @@ int XrdCryptoKDFun(const char *pass, int plen, const char *salt, int slen,
 /******************************************************************************/
 //______________________________________________________________________________
 void XrdCryptoSetTrace(kXR_int32 trace);
+
+
+/******************************************************************************/
+/*  X r d C r y p t o T Z C o r r                                             */
+/*                                                                            */
+/*  Time Zone correction (calculated once)                                    */
+/*                                                                            */
+/******************************************************************************/
+//______________________________________________________________________________
+time_t XrdCryptoTZCorr();
+const time_t XrdCryptoDSTShift = 3600;
 
 #endif

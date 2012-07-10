@@ -22,6 +22,10 @@ const char *XrdCryptoAuxCVSID = "$Id$";
 static XrdSysLogger Logger;
 static XrdSysError eDest(0,"crypto_");
 XrdOucTrace *cryptoTrace = 0;
+//
+// Time Zone correction (wrt UTC)
+static time_t TZCorr = 0;
+static bool TZInitialized = 0;
 
 /******************************************************************************/
 /*  X r d C r y p t o S e t T r a c e                                         */
@@ -49,4 +53,24 @@ void XrdCryptoSetTrace(kXR_int32 trace)
       if ((trace & cryptoTRACE_Dump))
          cryptoTrace->What |= cryptoTRACE_ALL;
    }
+}
+
+/******************************************************************************/
+/*  X r d C r y p t o T i m e G m                                             */
+/******************************************************************************/
+//______________________________________________________________________________
+time_t XrdCryptoTZCorr()
+{
+   // Time Zone correction (wrt UTC)
+   
+   if (!TZInitialized) {
+      time_t now = time(0), lct = 0, gmt = 0;
+      struct tm ltn, gtn;
+      if (localtime_r(&now, &ltn) != 0 && gmtime_r(&now, &gtn) != 0) {
+         TZCorr = difftime(mktime(&ltn), mktime(&gtn));
+         TZInitialized = 1;
+      }
+   }
+   // Done
+   return TZCorr;
 }
