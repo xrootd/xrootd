@@ -279,7 +279,7 @@ namespace XrdCl
       //!
       //! @param queryCode the query code as specified in the QueryCode struct
       //! @param arg       query argument
-      //! @param response  the response (to be deletedy by the user)
+      //! @param response  the response (to be deleted by the user)
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
