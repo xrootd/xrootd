@@ -308,7 +308,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Dump( FileMsg, "[%s] Sending a kXR_close request for file handle "
                          "0x%x",
-                         pFileUrl->GetHostId().c_str(),
+                         pDataServer->GetHostId().c_str(),
                          *((uint32_t*)pFileHandle) );
 
     Message            *msg;
