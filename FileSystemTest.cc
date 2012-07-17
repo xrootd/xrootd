@@ -74,15 +74,13 @@ void FileSystemTest::LocateTest()
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
-  std::string dataPath;
+  std::string remoteFile;
 
   CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile", remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
-
-  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
 
   //----------------------------------------------------------------------------
   // Query the server for all of the file locations
@@ -90,8 +88,7 @@ void FileSystemTest::LocateTest()
   FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  XRootDStatus st = fs.Locate( filePath, OpenFlags::Refresh, locations );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.Locate( remoteFile, OpenFlags::Refresh, locations ) );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
   delete locations;
@@ -111,22 +108,22 @@ void FileSystemTest::MvTest()
 
   std::string address;
   std::string dataPath;
+  std::string remoteFile;
 
   CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",    remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  std::string filePath1 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
-  std::string filePath2 = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat2";
+  std::string filePath1 = remoteFile;
+  std::string filePath2 = remoteFile + "2";
 
   FileSystem fs( url );
 
-  XRootDStatus st = fs.Mv( filePath1, filePath2 );
-  CPPUNIT_ASSERT( st.IsOK() );
-  st = fs.Mv( filePath2, filePath1 );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.Mv( filePath1, filePath2 ) );
+  CPPUNIT_ASSERT_XRDST( fs.Mv( filePath2, filePath1 ) );
+
 }
 
 //------------------------------------------------------------------------------
@@ -142,22 +139,19 @@ void FileSystemTest::ServerQueryTest()
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
-  std::string dataPath;
+  std::string remoteFile;
 
-  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DiskServerURL", address ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile", remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
-
   FileSystem fs( url );
   Buffer *response = 0;
   Buffer  arg;
-  arg.FromString( filePath );
-  XRootDStatus st = fs.Query( QueryCode::Checksum, arg, response );
-  CPPUNIT_ASSERT( st.IsOK() );
+  arg.FromString( remoteFile );
+  CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, response ) );
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() != 0 );
   delete response;
@@ -279,8 +273,7 @@ void FileSystemTest::PingTest()
   CPPUNIT_ASSERT( url.IsValid() );
 
   FileSystem fs( url );
-  XRootDStatus st = fs.Ping();
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.Ping() );
 }
 
 //------------------------------------------------------------------------------
@@ -293,20 +286,17 @@ void FileSystemTest::StatTest()
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
-  std::string dataPath;
+  std::string remoteFile;
 
   CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",    remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
-
   FileSystem fs( url );
   StatInfo *response = 0;
-  XRootDStatus st = fs.Stat( filePath, response );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.Stat( remoteFile, response ) );
   CPPUNIT_ASSERT( response );
   CPPUNIT_ASSERT( response->GetSize() == 1048576000 );
   CPPUNIT_ASSERT( response->TestFlags( StatInfo::IsReadable ) );
@@ -335,8 +325,7 @@ void FileSystemTest::StatVFSTest()
 
   FileSystem fs( url );
   StatInfoVFS *response = 0;
-  XRootDStatus st = fs.StatVFS( dataPath, response );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.StatVFS( dataPath, response ) );
   CPPUNIT_ASSERT( response );
   delete response;
 }
@@ -357,8 +346,7 @@ void FileSystemTest::ProtocolTest()
 
   FileSystem fs( url );
   ProtocolInfo *response = 0;
-  XRootDStatus st = fs.Protocol( response );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.Protocol( response ) );
   CPPUNIT_ASSERT( response );
   delete response;
 }
@@ -376,15 +364,13 @@ void FileSystemTest::DeepLocateTest()
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
-  std::string dataPath;
+  std::string remoteFile;
 
   CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",    remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
-
-  std::string filePath = dataPath + "/89120cec-5244-444c-9313-703e4bee72de.dat";
 
   //----------------------------------------------------------------------------
   // Query the server for all of the file locations
@@ -392,8 +378,7 @@ void FileSystemTest::DeepLocateTest()
   FileSystem fs( url );
 
   LocationInfo *locations = 0;
-  XRootDStatus st = fs.DeepLocate( filePath, OpenFlags::Refresh, locations );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
   CPPUNIT_ASSERT( locations );
   CPPUNIT_ASSERT( locations->GetSize() != 0 );
   LocationInfo::Iterator it = locations->Begin();
@@ -431,8 +416,7 @@ void FileSystemTest::DirListTest()
   FileSystem fs( url );
 
   DirectoryList *list = 0;
-  XRootDStatus st = fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list );
-  CPPUNIT_ASSERT( st.IsOK() );
+  CPPUNIT_ASSERT_XRDST( fs.DirList( lsPath, DirListFlags::Stat | DirListFlags::Locate, list ) );
   CPPUNIT_ASSERT( list );
   CPPUNIT_ASSERT( list->GetSize() == 40000 );
 

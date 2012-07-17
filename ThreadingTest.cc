@@ -171,10 +171,23 @@ void ThreadingTest::ReadTest()
                                           threadData[j*5+i].length );
     }
 
+    //--------------------------------------------------------------------------
+    // Locate the file
+    //--------------------------------------------------------------------------
+    FileSystem  fs( url );
+    LocationInfo *locations = 0;
+    CPPUNIT_ASSERT_XRDST( fs.DeepLocate( path[i], OpenFlags::Refresh, locations ) );
+    CPPUNIT_ASSERT( locations );
+    CPPUNIT_ASSERT( locations->GetSize() != 0 );
+    FileSystem fs1( locations->Begin()->GetAddress() );
+    delete locations;
+
+    //--------------------------------------------------------------------------
+    // Get the checksum
+    //--------------------------------------------------------------------------
     Buffer  arg; arg.FromString( path[i] );
     Buffer *cksResponse = 0;
-    FileSystem fs( url );
-    CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, cksResponse ) );
+    CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum, arg, cksResponse ) );
     CPPUNIT_ASSERT( cksResponse );
     uint32_t remoteCRC32 = 0;
     CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,

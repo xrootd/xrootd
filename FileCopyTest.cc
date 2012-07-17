@@ -62,16 +62,15 @@ void FileCopyTest::DownloadTest()
   Env *testEnv = TestEnv::GetEnv();
 
   std::string address;
-  std::string dataPath;
+  std::string remoteFile;
 
   CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
-  CPPUNIT_ASSERT( testEnv->GetString( "DataPath", dataPath ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",    remoteFile ) );
 
   URL url( address );
   CPPUNIT_ASSERT( url.IsValid() );
 
-  std::string path = dataPath + "/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat";
-  std::string fileUrl = address + "/" + path;
+  std::string fileUrl = address + "/" + remoteFile;
 
   const uint32_t  MB = 1024*1024;
   char           *buffer = new char[4*MB];
@@ -108,10 +107,24 @@ void FileCopyTest::DownloadTest()
   //----------------------------------------------------------------------------
   Buffer  arg;
   Buffer *cksResponse = 0;
-  arg.FromString( path );
+  arg.FromString( remoteFile );
   FileSystem fs( url );
-  CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum,
-                                  arg, cksResponse ) );
+
+  //----------------------------------------------------------------------------
+  // Locate a disk server containing the file
+  //----------------------------------------------------------------------------
+  LocationInfo *locations = 0;
+  CPPUNIT_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
+  CPPUNIT_ASSERT( locations );
+  CPPUNIT_ASSERT( locations->GetSize() != 0 );
+  FileSystem fs1( locations->Begin()->GetAddress() );
+  delete locations;
+
+  //----------------------------------------------------------------------------
+  // Get the checksum
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum,
+                                   arg, cksResponse ) );
   CPPUNIT_ASSERT( cksResponse );
 
   uint32_t remoteCRC32 = 0;
@@ -149,6 +162,7 @@ void FileCopyTest::UploadTest()
   CPPUNIT_ASSERT( url.IsValid() );
 
   std::string fileUrl = address + "/" + dataPath + "/testUpload.dat";
+  std::string remoteFile = dataPath + "/testUpload.dat";
 
   const uint32_t  MB = 1024*1024;
   char           *buffer = new char[4*MB];
@@ -182,11 +196,21 @@ void FileCopyTest::UploadTest()
   delete [] buffer;
 
   //----------------------------------------------------------------------------
-  // Verify the size
+  // Find out which server has the file
   //----------------------------------------------------------------------------
   FileSystem  fs( url );
+  LocationInfo *locations = 0;
+  CPPUNIT_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
+  CPPUNIT_ASSERT( locations );
+  CPPUNIT_ASSERT( locations->GetSize() != 0 );
+  FileSystem fs1( locations->Begin()->GetAddress() );
+  delete locations;
+
+  //----------------------------------------------------------------------------
+  // Verify the size
+  //----------------------------------------------------------------------------
   StatInfo   *stat = 0;
-  CPPUNIT_ASSERT_XRDST( fs.Stat( dataPath + "/testUpload.dat", stat ) );
+  CPPUNIT_ASSERT_XRDST( fs1.Stat( remoteFile, stat ) );
   CPPUNIT_ASSERT( stat );
   CPPUNIT_ASSERT( stat->GetSize() == offset );
   delete stat;
@@ -196,9 +220,9 @@ void FileCopyTest::UploadTest()
   //----------------------------------------------------------------------------
   Buffer  arg;
   Buffer *cksResponse = 0;
-  arg.FromString( dataPath + "/testUpload.dat" );
+  arg.FromString( remoteFile );
 
-  CPPUNIT_ASSERT_XRDST( fs.Query( QueryCode::Checksum, arg, cksResponse ) );
+  CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum, arg, cksResponse ) );
   CPPUNIT_ASSERT( cksResponse );
   uint32_t remoteCRC32 = 0;
   CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
