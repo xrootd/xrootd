@@ -312,9 +312,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if the stream should be disconnected
   //----------------------------------------------------------------------------
-  bool XRootDTransport::IsStreamTTLElapsed( time_t     inactiveTime,
-                                            AnyObject &channelData )
+  bool XRootDTransport::IsStreamTTLElapsed( time_t     /*inactiveTime*/,
+                                            AnyObject &/*channelData*/ )
   {
+#if 0
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
 
@@ -341,7 +342,7 @@ namespace XrdCl
       if( inactiveTime >= ttl ) return true;
       return false;
     }
-
+#endif
     return false;
   }
 
