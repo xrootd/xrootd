@@ -23,12 +23,20 @@
 #include <errno.h>
 #include <string.h>
 
-#define CPPUNIT_ASSERT_XRDST( x )                    \
+#define CPPUNIT_ASSERT_XRDST_NOTOK( x, err )         \
 {                                                    \
-  XrdCl::XRootDStatus st = x;                    \
+  XrdCl::XRootDStatus st = x;                        \
   std::string msg = "["; msg += #x; msg += "]: ";    \
   msg += st.ToStr();                                 \
-  CPPUNIT_ASSERT_MESSAGE( msg, st.IsOK() );   \
+  CPPUNIT_ASSERT_MESSAGE( msg, !st.IsOK() && st.code == err ); \
+}
+
+#define CPPUNIT_ASSERT_XRDST( x )                    \
+{                                                    \
+  XrdCl::XRootDStatus st = x;                        \
+  std::string msg = "["; msg += #x; msg += "]: ";    \
+  msg += st.ToStr();                                 \
+  CPPUNIT_ASSERT_MESSAGE( msg, st.IsOK() );          \
 }
 
 #define CPPUNIT_ASSERT_ERRNO( x )                    \
