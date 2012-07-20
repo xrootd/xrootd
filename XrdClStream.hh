@@ -26,6 +26,8 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include <list>
+#include <vector>
+#include <netinet/in.h>
 
 namespace XrdCl
 {
@@ -127,6 +129,11 @@ namespace XrdCl
       Status Connect();
 
       //------------------------------------------------------------------------
+      //! Run the async connection process - connect to the given address
+      //------------------------------------------------------------------------
+      Status Connect( const sockaddr_in &addr );
+
+      //------------------------------------------------------------------------
       //! Disconnect the stream
       //------------------------------------------------------------------------
       void Disconnect( bool force = false );
@@ -214,6 +221,7 @@ namespace XrdCl
       time_t                         pConnectionInitTime;
       uint16_t                       pConnectionWindow;
       uint16_t                       pConnectionRetry;
+      std::vector<sockaddr_in>       pAddresses;
   };
 }
 

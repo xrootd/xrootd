@@ -23,6 +23,8 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClUtils.hh"
+#include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -117,12 +119,14 @@ namespace XrdCl
         else
           ConnectingReadyToRead();
         break;
+
       case ReadTimeOut:
         if( pStreamStatus == Connected )
           HandleReadTimeout();
         else
           HandleConnectingTimeout();
         break;
+
       case ReadyToWrite:
         pLastActivity = ::time(0);
         if( pStreamStatus == Connected )
@@ -130,6 +134,7 @@ namespace XrdCl
         else
           ConnectingReadyToWrite();
         break;
+
       case WriteTimeOut:
         if( pStreamStatus == Connected )
           HandleWriteTimeout();
@@ -159,7 +164,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // The stream seems to be OK
     //--------------------------------------------------------------------------
-    pMutex.Lock();
+    XrdSysMutexHelper scopedLock( pMutex );
     if( pOutQueue.empty() )
     {
       if( pStreamStatus == Connected &&
@@ -174,7 +179,6 @@ namespace XrdCl
     pOutQueue.push_back( new OutMessageHelper( msg,
                                                handler,
                                                ::time(0)+timeout )  );
-    pMutex.UnLock();
     return Status();
   }
 
@@ -197,18 +201,15 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Start the async connection process
+  //! Run the async connection process - connect to the given address
   //----------------------------------------------------------------------------
-  Status Stream::Connect()
+  Status Stream::Connect( const sockaddr_in &addr )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
 
-    pConnectionInitTime = ::time(0);
-    ++pConnectionCount;
-
     //--------------------------------------------------------------------------
-    // We're disconnected so we need to connect
+    // We're disconnected so we need to connect - initialize the socket
     //--------------------------------------------------------------------------
     Status st = pSocket->Initialize();
     if( !st.IsOK() )
@@ -219,8 +220,16 @@ namespace XrdCl
       pStreamStatus = Error;
       return st;
     }
+    //--------------------------------------------------------------------------
+    // Pick an address and initiate the connection
+    //--------------------------------------------------------------------------
+    char nameBuff[256];
+    XrdSysDNS::IPFormat( (sockaddr*)&addr, nameBuff, sizeof(nameBuff) );
+    log->Debug( PostMasterMsg, "[%s #%d] Attempting connection to %s",
+                               pUrl->GetHostId().c_str(), pStreamNum,
+                               nameBuff );
 
-    st = pSocket->Connect( pUrl->GetHostName(), pUrl->GetPort(), 0 );
+    st = pSocket->ConnectToAddress( addr, 0 );
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s #%d] Unable to initiate the connection: %s",
@@ -250,6 +259,41 @@ namespace XrdCl
     }
 
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Start the async connection process
+  //----------------------------------------------------------------------------
+  Status Stream::Connect()
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+
+    pConnectionInitTime = ::time(0);
+    ++pConnectionCount;
+
+    //--------------------------------------------------------------------------
+    // Resolve all the addresses for the given hostname
+    //--------------------------------------------------------------------------
+    Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
+    if( !st.IsOK() )
+    {
+      log->Error( PostMasterMsg, "[%s #%d] Unable to resolve IP address for "
+                                 "the host",
+                                 pUrl->GetHostId().c_str(), pStreamNum );
+      pStreamStatus = Error;
+      st.status = stFatal;
+      return st;
+    }
+
+    Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
+                             pAddresses );
+
+    sockaddr_in addr;
+    memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+    pAddresses.pop_back();
+
+    return Connect( addr );
   }
 
   //----------------------------------------------------------------------------
@@ -355,7 +399,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Check the error code from the socket
+      // We were unable to connect
       //------------------------------------------------------------------------
       if( errorCode )
       {
@@ -418,6 +462,7 @@ namespace XrdCl
       {
         pConnectionCount = 0;
         pStreamStatus    = Connected;
+        pAddresses.clear();
         delete pHandShakeData;
       }
     }
@@ -722,6 +767,19 @@ namespace XrdCl
     delete pIncoming;
     pIncoming = 0;
     pTransport->Disconnect( *pChannelData, pStreamNum );
+
+    //--------------------------------------------------------------------------
+    //! If we're still connecting and we have some addresses left we should
+    //! try annother one
+    //--------------------------------------------------------------------------
+    if( pStreamStatus == Connecting && !pAddresses.empty() )
+    {
+      sockaddr_in addr;
+      memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+      pAddresses.pop_back();
+      Connect( addr );
+      return;
+    }
 
     //--------------------------------------------------------------------------
     // Check if we are in the connection stage and should retry establishing
