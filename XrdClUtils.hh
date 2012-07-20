@@ -21,6 +21,10 @@
 
 #include <string>
 #include <vector>
+#include <netinet/in.h>
+#include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClURL.hh"
 
 namespace XrdCl
 {
@@ -58,6 +62,20 @@ namespace XrdCl
         }
         while( end != std::string::npos );
       }
+
+      //------------------------------------------------------------------------
+      //! Resolve IP addresses
+      //------------------------------------------------------------------------
+      static Status GetHostAddresses( std::vector<sockaddr_in> &addresses,
+                                      const URL                &url);
+
+      //------------------------------------------------------------------------
+      //! Log all the addresses on the list
+      //------------------------------------------------------------------------
+      static void LogHostAddresses( Log                      *log,
+                                    uint64_t                  type,
+                                    const std::string        &hostId,
+                                    std::vector<sockaddr_in> &addresses );
   };
 
   //----------------------------------------------------------------------------
