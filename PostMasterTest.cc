@@ -27,6 +27,7 @@
 #include <pthread.h>
 
 #include "TestEnv.hh"
+#include "CppUnitXrdHelpers.hh"
 
 //------------------------------------------------------------------------------
 // Declaration
@@ -38,10 +39,12 @@ class PostMasterTest: public CppUnit::TestCase
       CPPUNIT_TEST( FunctionalTest );
       CPPUNIT_TEST( PingIPv6 );
       CPPUNIT_TEST( ThreadingTest );
+      CPPUNIT_TEST( MultiIPConnectionTest );
     CPPUNIT_TEST_SUITE_END();
     void FunctionalTest();
     void ThreadingTest();
     void PingIPv6();
+    void MultiIPConnectionTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
@@ -347,4 +350,87 @@ void PostMasterTest::PingIPv6()
   postMaster.Stop();
   postMaster.Finalize();
 #endif
+}
+
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Create a ping message
+  //----------------------------------------------------------------------------
+  XrdCl::Message *CreatePing( char streamID1, char streamID2 )
+  {
+    using namespace XrdCl;
+    Message *m = new Message();
+    m->Allocate( sizeof( ClientPingRequest ) );
+    m->Zero();
+
+    ClientPingRequest *request = (ClientPingRequest *)m->GetBuffer();
+    request->streamid[0] = streamID1;
+    request->streamid[1] = streamID2;
+    request->requestid   = kXR_ping;
+    XRootDTransport::MarshallRequest( m );
+    return m;
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Connection test
+//------------------------------------------------------------------------------
+void PostMasterTest::MultiIPConnectionTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize the stuff
+  //----------------------------------------------------------------------------
+  Env *env = DefaultEnv::GetEnv();
+  Env *testEnv = TestEnv::GetEnv();
+  env->PutInt( "TimeoutResolution", 1 );
+  env->PutInt( "ConnectionWindow",  5 );
+
+  PostMaster postMaster;
+  postMaster.Initialize();
+  postMaster.Start();
+
+  std::string address;
+  CPPUNIT_ASSERT( testEnv->GetString( "MultiIPServerURL", address ) );
+
+  URL url1( "nenexistent" );
+  URL url2( address );
+  URL url3( address );
+  url2.SetPort( 1111 );
+  url3.SetPort( 1099 );
+
+  //----------------------------------------------------------------------------
+  // Sent ping to a nonexistent host
+  //----------------------------------------------------------------------------
+  Message *m = CreatePing( 1, 2 );
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, 1200 ),
+                              errInvalidAddr );
+
+  //----------------------------------------------------------------------------
+  // Try on the wrong port
+  //----------------------------------------------------------------------------
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, 1200 ),
+                              errConnectionError );
+
+  //----------------------------------------------------------------------------
+  // Try on a good one
+  //----------------------------------------------------------------------------
+  Message   *m2 = 0;
+  XrdFilter  f1( 1, 2 );
+
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( url3, m2, &f1, 1200 ) );
+  ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  //----------------------------------------------------------------------------
+  // Clean up
+  //----------------------------------------------------------------------------
+  postMaster.Stop();
+  postMaster.Finalize();
 }

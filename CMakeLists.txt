@@ -42,6 +42,7 @@ ADD_TEST( FunctionTestLibEvent ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdC
 ADD_TEST( PostMasterTest       ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::FunctionalTest")
 ADD_TEST( PingIPv6Test         ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::PingIPv6")
 ADD_TEST( ThreadingTest        ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::ThreadingTest")
+ADD_TEST( MultiIPConnectTest   ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::MultiIPConnectionTest")
 ADD_TEST( LocateTest           ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/FileSystemTest/FileSystemTest::LocateTest")
 ADD_TEST( MvTest               ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/FileSystemTest/FileSystemTest::MvTest")
 ADD_TEST( ServerQueryTest      ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/FileSystemTest/FileSystemTest::ServerQueryTest")
