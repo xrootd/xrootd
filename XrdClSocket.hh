@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <string>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "XrdCl/XrdClStatus.hh"
 
@@ -93,7 +94,7 @@ namespace XrdCl
                          socklen_t optlen );
 
       //------------------------------------------------------------------------
-      //! Connect to the given URL
+      //! Connect to the given host name
       //!
       //! @param host   name of the host to connect to
       //! @param port   port to connect to
@@ -103,6 +104,16 @@ namespace XrdCl
       Status Connect( const std::string &host,
                       uint16_t           port,
                       uint16_t           timout = 10 );
+
+      //------------------------------------------------------------------------
+      //! Connect to the given host address
+      //!
+      //! @param addr   address of the host to connect to
+      //! @param timout timeout in seconds, 0 for no timeout handling (may be
+      //!               used for non blocking IO)
+      //------------------------------------------------------------------------
+      Status ConnectToAddress( const sockaddr_in &addr,
+                               uint16_t           timout = 10 );
 
       //------------------------------------------------------------------------
       //! Disconnect
@@ -173,7 +184,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the server address
       //------------------------------------------------------------------------
-      const sockaddr *GetServerAddress() const
+      const sockaddr_in *GetServerAddress() const
       {
         return pServerAddr;
       }
@@ -196,7 +207,7 @@ namespace XrdCl
 
       int                  pSocket;
       SocketStatus         pStatus;
-      sockaddr            *pServerAddr;
+      sockaddr_in         *pServerAddr;
       mutable std::string  pSockName;     // mutable because it's for caching
       mutable std::string  pPeerName;
       mutable std::string  pName;

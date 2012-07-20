@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <cstdlib>
+#include <cstring>
 
 namespace XrdCl
 {
@@ -124,7 +125,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Connect to the given URL
+  // Connect to the given host name
   //----------------------------------------------------------------------------
   Status Socket::Connect( const std::string &host,
                           uint16_t           port,
@@ -136,16 +137,31 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Set up the network connection structures
     //--------------------------------------------------------------------------
-    pServerAddr = (sockaddr*)malloc( sizeof(sockaddr_in) );
-    if( XrdSysDNS::getHostAddr( host.c_str(), *pServerAddr ) == 0 )
+    sockaddr_in serverAddr;
+    if( XrdSysDNS::getHostAddr( host.c_str(), *((sockaddr*)&serverAddr) ) == 0 )
       return Status( stError, errInvalidAddr );
 
-    ((sockaddr_in*)pServerAddr)->sin_port = htons( (unsigned short) port );
+    serverAddr.sin_port = htons( (unsigned short) port );
+
+    return ConnectToAddress( serverAddr, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Connect to the given host
+  //----------------------------------------------------------------------------
+  Status Socket::ConnectToAddress( const sockaddr_in &addr,
+                                   uint16_t           timeout )
+  {
+    if( pStatus != Initialized )
+      return Status( stError, errInvalidOp );
+
+    pServerAddr = (sockaddr_in*)malloc( sizeof( sockaddr_in ) );
+    memcpy( pServerAddr, &addr, sizeof( sockaddr_in ) );
 
     //--------------------------------------------------------------------------
     // Connect
     //--------------------------------------------------------------------------
-    int status = XrdNetConnect::Connect( pSocket, pServerAddr,
+    int status = XrdNetConnect::Connect( pSocket, (sockaddr*)pServerAddr,
                                          sizeof(sockaddr_in), timeout );
 
     if( status != 0 )
