@@ -32,11 +32,14 @@ TestEnv::TestEnv()
   PutString( "DataPath",         "/data"         );
   PutString( "RemoteFile",       "/data/cb4aacf1-6f28-42f2-b68a-90a73460f424.dat" );
   PutString( "LocalFile",        "/data/testFile.dat" );
-  ImportString( "MainServerURL", "XRDTEST_MAINSERVERURL" );
-  ImportString( "DiskServerURL", "XRDTEST_DISKSERVERURL" );
-  ImportString( "DataPath",      "XRDTEST_DATAPATH" );
-  ImportString( "LocalFile",     "XRDTEST_LOCALFILE" );
-  ImportString( "RemoteFile",    "XRDTEST_REMOTEFILE" );
+  PutString( "MultiIPServeURL",  "multiip:1099" );
+
+  ImportString( "MainServerURL",    "XRDTEST_MAINSERVERURL" );
+  ImportString( "DiskServerURL",    "XRDTEST_DISKSERVERURL" );
+  ImportString( "DataPath",         "XRDTEST_DATAPATH" );
+  ImportString( "LocalFile",        "XRDTEST_LOCALFILE" );
+  ImportString( "RemoteFile",       "XRDTEST_REMOTEFILE" );
+  ImportString( "MultiIPServerURL", "XRDTEST_MULTIIPSERVERURL" );
 }
 
 //------------------------------------------------------------------------------
