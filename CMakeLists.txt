@@ -30,6 +30,7 @@ add_library(
   XrdClStream.cc              XrdClStream.hh
   XrdClXRootDTransport.cc     XrdClXRootDTransport.hh
   XrdClInQueue.cc             XrdClInQueue.hh
+  XrdClOutQueue.cc            XrdClOutQueue.hh
   XrdClTaskManager.cc         XrdClTaskManager.hh
   XrdClSIDManager.cc          XrdClSIDManager.hh
   XrdClFileSystem.cc          XrdClFileSystem.hh
