@@ -368,7 +368,7 @@ namespace XrdCl
   // This depends on the environment and whether we are connected to
   // a data server or not
   //----------------------------------------------------------------------------
-  uint16_t SubStreamNumber( AnyObject &channelData )
+  uint16_t XRootDTransport::SubStreamNumber( AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
@@ -381,7 +381,7 @@ namespace XrdCl
       env->GetInt( "StreamsPerChannel", streams );
       if( streams < 1 ) streams = 1;
       if( streams > 0 ) --streams; // we always have the master stream
-      return (uint16_t)streams;              // so we only return number of substreams
+      return (uint16_t)streams;    // so we only return number of substreams
     }
 
     return 0;
