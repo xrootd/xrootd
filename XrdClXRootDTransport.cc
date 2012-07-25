@@ -187,7 +187,7 @@ namespace XrdCl
                                    "[%d, %d]",
                                    socket->GetName().c_str(), message,
                                    message->GetSize(),
-                                  rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
+                                   rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
 
     return Status();
   }
@@ -351,6 +351,39 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint16_t XRootDTransport::Multiplex( Message *, AnyObject & )
   {
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Return a number of streams that should be created - we always have
+  // one primary stream
+  //----------------------------------------------------------------------------
+  uint16_t XRootDTransport::StreamNumber( AnyObject &/*channelData*/ )
+  {
+    return 1;
+  }
+
+  //----------------------------------------------------------------------------
+  // Return a number of substreams per stream that should be created
+  // This depends on the environment and whether we are connected to
+  // a data server or not
+  //----------------------------------------------------------------------------
+  uint16_t SubStreamNumber( AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+
+    Env *env = DefaultEnv::GetEnv();
+
+    if( info->serverFlags & kXR_isServer )
+    {
+      int streams = DefaultStreamsPerChannel;
+      env->GetInt( "StreamsPerChannel", streams );
+      if( streams < 1 ) streams = 1;
+      if( streams > 0 ) --streams; // we always have the master stream
+      return (uint16_t)streams;              // so we only return number of substreams
+    }
+
     return 0;
   }
 

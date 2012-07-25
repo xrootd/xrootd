@@ -97,6 +97,16 @@ namespace XrdCl
       virtual uint16_t Multiplex( Message *msg, AnyObject &channelData );
 
       //------------------------------------------------------------------------
+      //! Return a number of streams that should be created
+      //------------------------------------------------------------------------
+      virtual uint16_t StreamNumber( AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Return a number of substreams per stream that should be created
+      //------------------------------------------------------------------------
+      virtual uint16_t SubStreamNumber( AnyObject &channelData );
+
+      //------------------------------------------------------------------------
       //! Return the information whether a control connection needs to be
       //! valid before establishing other connections
       //------------------------------------------------------------------------
