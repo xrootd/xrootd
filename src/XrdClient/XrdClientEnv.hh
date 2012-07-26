@@ -90,6 +90,15 @@ class XrdClientEnv {
 
       fOucEnv->PutInt(varname, value);
    }
+   void Lock()
+   {
+     fMutex.Lock();
+   }
+
+   void UnLock()
+   {
+     fMutex.UnLock();
+   }
 
   static XrdClientEnv *Instance();
 };

@@ -185,6 +185,7 @@ static void prepare()
     ConnectionManager->ShutDown();
     XrdClientConn::DelSessionIDRepo();
   }
+  XrdClientEnv::Instance()->Lock();
 }
 
 //------------------------------------------------------------------------------
@@ -192,6 +193,7 @@ static void prepare()
 //------------------------------------------------------------------------------
 static void parent()
 {
+  XrdClientEnv::Instance()->UnLock();
   if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->BootUp();
@@ -203,6 +205,7 @@ static void parent()
 //------------------------------------------------------------------------------
 static void child()
 {
+  XrdClientEnv::Instance()->UnLock();
   if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->BootUp();
