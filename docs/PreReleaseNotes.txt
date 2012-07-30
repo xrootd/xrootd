@@ -30,6 +30,7 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Correct monitor initialization test to start monitor under all configs.
    * Prevent hangs when doing exterme copy from server to server.
    * Correct log processing for sites that use the root directory as the
      stomping ground for newly created files.
@@ -41,5 +42,6 @@ Prerelease Notes
    * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
+   * Add port to prepare request struct as documented in 2.9.9.
    * Add pathid to readv request struct as documented in 2.9.9.
 
