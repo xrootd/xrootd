@@ -331,7 +331,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Check if monitoring should be enabled
 //
-   if ((isRedir || RQList.Next() != 0) && XrdXrootdMonitor::Redirect())
+   if (!isRedir || XrdXrootdMonitor::Redirect())
       {if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
                                    myInst, Port)) return 0;
       }
