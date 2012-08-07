@@ -47,7 +47,7 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
         } In, Out(outFD);
 
    struct utimbuf tBuff;
-   struct stat buf, bufO;
+   struct stat buf, bufO, bufSL;
    char *inBuff, *bP;
    off_t  Offset=0, fileSize;
    size_t ioSize, copySize;
@@ -71,8 +71,8 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
    if (fstat(Out.FD, &bufO)) return -OssEroute.Emsg("Copy",errno,"stat",outFn);
    if (buf.st_dev == bufO.st_dev)
       {char lnkBuff[1024+8]; const char *srcFn = inFn; int n;
-       if (lstat(inFn, &buf)) return -OssEroute.Emsg("Copy",errno,"lstat",inFn);
-       if ((buf.st_mode & S_IFMT) == S_IFLNK)
+       if (lstat(inFn, &bufSL)) return -OssEroute.Emsg("Copy",errno,"lstat",inFn);
+       if ((bufSL.st_mode & S_IFMT) == S_IFLNK)
           {if ((n = readlink(inFn, lnkBuff, sizeof(lnkBuff)-1)) < 0)
               return -OssEroute.Emsg("Copy", errno, "readlink", inFn);
            lnkBuff[n] = '\0'; srcFn = lnkBuff;
