@@ -1,0 +1,111 @@
+/******************************************************************************/
+/*                                                                            */
+/*             X r d S y s I O E v e n t s P o l l D e v . i c c              */
+/*                                                                            */
+/* (c) 2012 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/*                            All Rights Reserved                             */
+/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
+/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/******************************************************************************/
+
+#ifndef __macos__
+#include <malloc.h>
+#endif
+#include <sys/types.h>
+#include <sys/stat.h>
+
+using namespace std;
+  
+/******************************************************************************/
+/*                         C l a s s   P o l l D e v                          */
+/******************************************************************************/
+
+namespace XrdSys
+{
+namespace IOEvents
+{
+class PollDev : public Poller
+{
+public:
+            PollDev(int pFD[2])
+                    : Poller(pFD[0], pFD[1])
+                 {}
+           ~PollDev() {Stop();}
+
+protected:
+
+       void Begin(XrdSysSemaphore *syncp, int &rc, const char **eMsg);
+
+       void Exclude(Channel *cP, bool &isLocked, bool dover=1) {}
+
+       bool Include(Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       bool Modify (Channel *cP, int &eNum, const char **eTxt, bool &isLocked);
+
+       void Shutdown() {}
+
+};
+};
+};
+  
+/******************************************************************************/
+/*                          C l a s s   P o l l e r                           */
+/******************************************************************************/
+/******************************************************************************/
+/* Static:                     n e w P o l l e r                              */
+/******************************************************************************/
+  
+XrdSys::IOEvents::Poller *
+XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
+                                    int         &eNum,
+                                    const char **eTxt)
+
+{
+   eNum = ENOTSUP;
+   if (eTxt) *eTxt = "creating poller";
+   return 0;
+}
+  
+/******************************************************************************/
+/*                         C l a s s   P o l l D e v                          */
+/******************************************************************************/
+/******************************************************************************/
+/* Protected:                      B e g i n                                  */
+/******************************************************************************/
+  
+void XrdSys::IOEvents::PollDev::Begin(XrdSysSemaphore *syncsem,
+                                      int             &retcode,
+                                      const char     **eTxt)
+{
+   retcode = ENOTSUP;
+   *eTxt   = "creating poller";
+   syncsem->Post();
+}
+
+/******************************************************************************/
+/* Protected:                    I n c l u d e                                */
+/******************************************************************************/
+  
+bool XrdSys::IOEvents::PollDev::Include(XrdSys::IOEvents::Channel *cP,
+                                        int                       &eNum,
+                                        const char               **eTxt,
+                                        bool                      &isLocked)
+{
+   eNum = ENOTSUP;
+   if (eTxt) *eTxt = "including channel";
+   return false;
+}
+
+/******************************************************************************/
+/* Protected:                     M o d i f y                                 */
+/******************************************************************************/
+
+bool XrdSys::IOEvents::PollDev::Modify(XrdSys::IOEvents::Channel *cP,
+                                       int                       &eNum,
+                                       const char               **eTxt,
+                                       bool                      &isLocked)
+{
+   eNum = ENOTSUP;
+   if (eTxt) *eTxt = "modifying poller";
+   return false;
+}

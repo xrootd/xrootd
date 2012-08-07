@@ -34,6 +34,10 @@ add_library(
                                 XrdSys/XrdSysFAttrLnx.icc
                                 XrdSys/XrdSysFAttrMac.icc
                                 XrdSys/XrdSysFAttrSun.icc
+  XrdSys/XrdSysIOEvents.cc      XrdSys/XrdSysIOEvents.hh
+                                XrdSys/XrdSysIOEventsPollDev.icc
+                                XrdSys/XrdSysIOEventsPollE.icc
+                                XrdSys/XrdSysIOEventsPollPoll.icc
                                 XrdSys/XrdSysAtomics.hh
                                 XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
