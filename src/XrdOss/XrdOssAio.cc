@@ -8,13 +8,10 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-//         $Id$
-
-const char *XrdOssAioCVSID = "$Id$";
-
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <fcntl.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO
 #ifdef __FreeBSD__
 #include <fcntl.h>
