@@ -279,9 +279,12 @@ XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
 
 // Allocate a local dirent. Note that we get additional padding because on
 // some system the dirent structure does not include the name buffer
+// Attempt to read the directory now so that we can reflect ENOENT at opendir()
 //
-   if (!(myDirent = (dirent64 *)malloc(sizeof(dirent64) + maxname + 1)))
-      eNum = ENOMEM;
+   if ((myDirent = (dirent64 *)malloc(sizeof(dirent64) + maxname + 1)))
+      {if (XAdmin.DirList(fpath,fentries)) fentry = 0;
+          else eNum = XrdPosixXrootd::mapError(XAdmin.LastServerError()->errnum);
+      } else eNum = ENOMEM;
 }
 
 /******************************************************************************/

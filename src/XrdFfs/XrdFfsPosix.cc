@@ -447,9 +447,20 @@ int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direnta
 //        dir_i[i] = NULL;
 
     nurls = XrdFfsMisc_get_all_urls(rdrurl, newurls, XrdFfs_MAX_NUM_NODES);
-    if (nurls < 0) 
+/* 
+   If a directory doesn't exist on any data server, it is better to return -1 with errno = ENOENT
+   than to return 0 with errno = 0. But this is difficult because it depends on correct returning
+   from XrdPosixXrootd::Opendir(). This has never been a problem for xrootdfs itself because FUSE 
+   does stat() before readdir().
+
+   In the use case of XrdPssDir::Opendir(), it does expect this function to return -1/ENOENT. In
+   this use case the "rdrurl" contains the complete URL and "path" contains "" so "nurls" will be
+   zero if no data server has the directory. The following is a quick and dirty fix for this use 
+   case. The orignal code was:     if (nurls < 0) { errno = EACCES; return -1; }
+ */
+    if (nurls <= 0) 
     {
-        errno = EACCES;
+        errno = (nurls == 0? ENOENT : EACCES);
         return -1;
     }
 
