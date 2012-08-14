@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Provide libevent replacement for Linux (epoll), Solaris (poll_create),
+     and others (poll). Note: versions of Solaris less than 10 are no longer
+     supported and they will no longer compile with this update!
    * Provide a libevent type replacement package.
    * Allow tracker files (e.g. ".fail") to be placed in a shadow directory.
      This is controlled by the new fdir option on the oss.xfr directive.
