@@ -52,7 +52,7 @@ protected:
 private:
        int   AllocPT(int slots);
        void  Dispatch(Channel *cP, uint32_t pollEv);
-       int   Process();
+       bool  Process();
 
 struct epoll_event *pollTab;
        int          pollDfd;
@@ -164,7 +164,7 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
                                     int             &retcode,
                                     const char     **eTxt)
 {
-   int i, numpolled, aOK = 1, doPost = 0;
+   int i, numpolled;
    Channel *cP;
 
 // Indicate to the starting thread that all went well
@@ -188,12 +188,10 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
        else for (i = 0; i < numpolled; i++)
                 {if ((cP = (Channel *)pollTab[i].data.ptr))
                     Dispatch(cP, pollTab[i].events);
-                    else if ((doPost = Process()) < 0) return;
+                    else if (!Process()) return;
                 }
 
        if (pollMax < pollNum) AllocPT(pollNum);
-
-       if (doPost) {pollDone.Post(); doPost = 0;}
 
       } while(1);
 }
@@ -327,18 +325,18 @@ bool XrdSys::IOEvents::PollE::Modify(XrdSys::IOEvents::Channel *cP,
 /* Private:                      P r o c e s s                                */
 /******************************************************************************/
 
-int XrdSys::IOEvents::PollE::Process()
+bool XrdSys::IOEvents::PollE::Process()
 {
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
-     {if (reqBuff.req == PipeData::Post) return  1;
-      if (reqBuff.req == PipeData::Stop) return -1;
+     {     if (reqBuff.req == PipeData::Post) pollDone.Post();
+      else if (reqBuff.req == PipeData::Stop) return false;
      }
 
-// Return false
+// Return true
 //
-   return 0;
+   return true;
 }
   
 /******************************************************************************/

@@ -453,9 +453,8 @@ pthread_t       pollTid;    // Poller's thread ID
 struct pollfd   pipePoll;   // Stucture to wait for pipe events
 int             cmdFD;      // FD to send PipeData commands
 int             reqFD;      // FD to recv PipeData requests
-struct          PipeData {struct {int fd; int ent;} Arg;
-                          enum cmd {EnFD, DiFD, RmFD, NoOp, Post, Stop};
-                          cmd req;
+struct          PipeData {char req; char evt; short ent; int fd;
+                          enum cmd {MdFD = 0, MiFD, RmFD, NoOp, Post, Stop};
                          };
                 PipeData reqBuff; // Buffer used by poller thread to recv data
 char           *pipeBuff;         // Read resumption point in buffer

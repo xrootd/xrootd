@@ -861,7 +861,7 @@ void XrdSys::IOEvents::Poller::SetPollEnt(XrdSys::IOEvents::Channel *cP, int pe)
 
 void XrdSys::IOEvents::Poller::Stop()
 {
-   PipeData cmdbuff = {{0,0}, PipeData::Stop};
+   PipeData cmdbuff = {PipeData::Stop, 0};
    Channel *cP;
    void    *vrc;
    int      doCB;
@@ -1001,7 +1001,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 void XrdSys::IOEvents::Poller::WakeUp()
 {
-   static PipeData cmdbuff = {{0,0}, PipeData::NoOp};
+   static PipeData cmdbuff = {PipeData::NoOp, 0};
 
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.
@@ -1019,7 +1019,7 @@ void XrdSys::IOEvents::Poller::WakeUp()
 /******************************************************************************/
 
 #if defined( __solaris__ )  
-#include "XrdSys/XrdSysIOEventsPollDev.icc"
+#include "XrdSys/XrdSysIOEventsPollPort.icc"
 #elif defined( __linux__ )
 #include "XrdSys/XrdSysIOEventsPollE.icc"
 #else
