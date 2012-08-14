@@ -33,6 +33,9 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Make sure opendir() returns a null pointer when the directory doesn't
+     exist.
+   * Make sure that XrootdFS returns ENOENT when opendir() returns a null.
    * Make sure to use correct time to set mtime/atime after a physical reloc.
    * Correct monitor initialization test to start monitor under all configs.
    * Prevent hangs when doing exterme copy from server to server.
