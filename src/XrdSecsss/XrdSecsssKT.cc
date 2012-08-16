@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//       $Id$
-
-const char *XrdSecsssKTCVSID = "$Id$";
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -60,11 +56,11 @@ XrdSecsssKT::XrdSecsssKT(XrdOucErrInfo *eInfo, const char *kPath,
    static const char *eText = "Unable to start keytab refresh thread";
    const char *devRand = "/dev/urandom";
    struct stat sbuf;
-   pthread_t pid;
    int retc;
 
 // Do some common initialization
 //
+   ktRefID= 0;
    ktPath = (kPath ? strdup(kPath) : 0);
    ktList = 0; kthiID = 0; ktMode = oMode; ktRefT = (time_t)refrInt;
    if (eInfo) eInfo->setErrCode(0);
@@ -96,7 +92,8 @@ XrdSecsssKT::XrdSecsssKT(XrdOucErrInfo *eInfo, const char *kPath,
 //
    if ((ktList = getKeyTab(eInfo, sbuf.st_mtime, sbuf.st_mode))
    && (oMode != isAdmin) && (!eInfo || eInfo->getErrInfo() == 0))
-      {if ((retc = XrdSysThread::Run(&pid,XrdSecsssKTRefresh,(void *)this)))
+      {if ((retc = XrdSysThread::Run(&ktRefID,XrdSecsssKTRefresh, (void *)this,
+                                     XRDSYSTHREAD_HOLD)))
           {eMsg("sssKT", errno, eText); eInfo->setErrInfo(-1, eText);}
       }
 }
@@ -108,11 +105,23 @@ XrdSecsssKT::XrdSecsssKT(XrdOucErrInfo *eInfo, const char *kPath,
 XrdSecsssKT::~XrdSecsssKT()
 {
    ktEnt *ktP;
+   void  *Dummy;
 
+// Lock against others
+//
    myMutex.Lock();
+
+// Kill the refresh thread first
+//
+   if (ktRefID && !XrdSysThread::Kill(ktRefID))
+      XrdSysThread::Join(ktRefID, &Dummy);
+
+// Now we can safely clean up
+//
    if (ktPath) {free(ktPath); ktPath = 0;}
 
    while((ktP = ktList)) {ktList = ktList->Next; delete ktP;}
+
    myMutex.UnLock();
 }
   
