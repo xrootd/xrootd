@@ -18,6 +18,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Make sure refresh thread is dead before deleting deleting the keytab to
+     avoid SEGV's.
    * Add missing include for compiling with gcc-4.7 (from Sebastien Binet).
      This patch is required for successful compilation.
    * Fix <exp> tag in ofs statistics. It is improperly terminated and may
