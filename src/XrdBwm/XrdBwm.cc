@@ -56,6 +56,8 @@ XrdBwmHandle     *XrdBwm::dummyHandle;
 /******************************************************************************/
 /*                    F i l e   S y s t e m   O b j e c t                     */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdSfsGetFileSystem,XrdBwm);
   
 XrdBwm XrdBwmFS;
 
@@ -100,6 +102,7 @@ XrdBwm::XrdBwm()
    HostName[i] = '.';
    myDomain = &HostName[i+1];
    myDomLen = strlen(myDomain);
+   myVersion = &XrdVERSIONINFOVAR(XrdSfsGetFileSystem);
 
 // Set the configuration file name abd dummy handle
 //
@@ -760,7 +763,7 @@ int XrdBwm::fsctl(const int               cmd,
 /*                            g e t V e r s i o n                             */
 /******************************************************************************/
   
-const char *XrdBwm::getVersion() {return XrdVSTRING;}
+const char *XrdBwm::getVersion() {return XrdVERSION;}
 
 /******************************************************************************/
 /*                                 m k d i r                                  */

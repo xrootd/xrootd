@@ -108,6 +108,8 @@ XrdObjectQ<XrdXrootdProtocol>
 // the protocol driver to obtain a copy of the protocol object that can be used
 // to decide whether or not a link is talking a particular protocol.
 //
+XrdVERSIONINFO(XrdgetProtocol,xrootd);
+
 extern "C"
 {
 XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
@@ -118,8 +120,8 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 
 // Put up the banner
 //
-   pi->eDest->Say("Copr.  2007 Stanford University, xrootd version "
-                   kXR_PROTOCOLVSTRING " build "  XrdVERSION);
+   pi->eDest->Say("Copr.  2012 Stanford University, xrootd protocol "
+                   kXR_PROTOCOLVSTRING, " version ", XrdVERSION);
    pi->eDest->Say("++++++ xrootd protocol initialization started.");
 
 // Return the protocol object to be used if static init succeeds
@@ -141,6 +143,8 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 // This function is called early on to determine the port we need to use. The
 // default is ostensibly 1094 but can be overidden; which we allow.
 //
+XrdVERSIONINFO(XrdgetProtocolPort,xrootd);
+
 extern "C"
 {
 int XrdgetProtocolPort(const char *pname, char *parms, XrdProtocol_Config *pi)

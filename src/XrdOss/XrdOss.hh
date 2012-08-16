@@ -29,10 +29,10 @@ class XrdSfsAio;
 /*                              X r d O s s D F                               */
 /******************************************************************************/
 
-// This class defines the object that handles directory as well as file
-// oriented requests. It is instantiated for each file/dir to be opened.
-// The object is obtained by calling newDir() or newFile() in class XrdOss.
-// This allows flexibility on how to structure an oss plugin.
+//! This class defines the object that handles directory as well as file
+//! oriented requests. It is instantiated for each file/dir to be opened.
+//! The object is obtained by calling newDir() or newFile() in class XrdOss.
+//! This allows flexibility on how to structure an oss plugin.
   
 class XrdOssDF
 {
@@ -157,19 +157,46 @@ virtual        ~XrdOss() {}
 /*           S t o r a g e   S y s t e m   I n s t a n t i a t o r            */
 /******************************************************************************/
 
-// This function is called to obtain an instance of a configured XrdOss object.
-// It is passed the object that would have been used as the storage system.
-// The object is not initialized (i.e., Init() has not yet been called).
-// This allows one to easily wrap the native implementation or to completely 
-// replace it, as needed. The name of the config file and any parameters
-// specified after the path on the ofs.osslib directive are also passed (note
-// that if no parameters exist, parms may be null).
+//------------------------------------------------------------------------------
+//! Get an instance of a configured XrdOss object.
+//!
+//! @param  native_oss -> object that would have been used as the storage
+//!                       system. The object is not initialized (i.e., Init()
+//!                       has not yet been called). This allows one to easily
+//!                       wrap the native implementation or to completely
+//!                       replace it, as needed.
+//! @param  Logger     -> The message routing object to be used in conjunction
+//!                       with an XrdSysError object for error messages.
+//! @param  config_fn  -> The name of the config file.
+//! @param  parms      -> Any parameters specified after the path on the
+//!                       ofs.osslib directive. If there are no parameters, the
+//!                       pointer may be zero.
+//!
+//! @return Success:   -> an instance of the XrdOss object to be used as the
+//!                       underlying storage system.
+//!         Failure:      Null pointer which causes initialization to fail.
+//!
+//! The object creation function must be declared as an extern "C" function
+//! in the plug-in shared library as follows:
+//------------------------------------------------------------------------------
+/*!
+    extern "C" XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
+                                              XrdSysLogger *Logger,
+                                              const char   *config_fn,
+                                              const char   *parms);
+*/
 
-extern "C"
-{
-XrdOss *XrdOssGetStorageSystem(XrdOss       *native_oss,
-                               XrdSysLogger *Logger,
-                               const char   *config_fn,
-                               const char   *parms);
-}
+//------------------------------------------------------------------------------
+//! Declare compilation version.
+//!
+//! Additionally, you *should* declare the xrootd version you used to compile
+//! your plug-in. While not currently required, it is highly recommended to
+//! avoid execution issues should the class definition change. Declare it as:
+//------------------------------------------------------------------------------
+
+/*! #include "XrdVersion.hh"
+    XrdVERSIONINFO(XrdOssGetStorageSystem,<name>);
+
+    where <name> is a 1- to 15-character unquoted name identifying your plugin.
+*/
 #endif

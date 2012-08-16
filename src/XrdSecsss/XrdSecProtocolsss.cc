@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <sys/param.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -851,6 +853,8 @@ char  *XrdSecProtocolsssInit(const char     mode,
 /******************************************************************************/
 /*               X r d S e c P r o t o c o l s s s O b j e c t                */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdSecProtocolsssObject,secsss);
   
 extern "C"
 {

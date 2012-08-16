@@ -31,6 +31,8 @@ class XrdOucStream;
 class XrdCmsAdmin;
 class XrdCmsXmi;
 
+struct XrdVersionInfo;
+
 class XrdCmsConfig : public XrdJob
 {
 public:
@@ -93,6 +95,8 @@ int         DiskOK;       // This configuration has data
 
 int         sched_RR;     // 1 -> Simply do round robin scheduling
 int         doWait;       // 1 -> Wait for a data end-point
+
+XrdVersionInfo  *myVInfo; // xrootd version used in compilation
 
 XrdOucName2Name *xeq_N2N; // Server or Manager (non-null if library loaded)
 XrdOucName2Name *lcl_N2N; // Server Only

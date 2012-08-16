@@ -23,6 +23,7 @@ struct XrdCmsData;
 class  XrdCmsRRData;
 struct XrdSfsPrep;
 class  XrdSysLogger;
+struct XrdVersionInfo;
 
 /******************************************************************************/
 /*                         R e m o t e   F i n d e r                          */
@@ -52,6 +53,8 @@ XrdOucTList   *Managers() {return myManList;}
         void   setSS(XrdOss *thess) {}
 
         int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *Info=0);
+
+static  bool   VCheck(XrdVersionInfo &urVersion);
 
                XrdCmsFinderRMT(XrdSysLogger *lp, int whoami=0, int Port=0);
               ~XrdCmsFinderRMT();
@@ -114,6 +117,8 @@ public:
                     {return 0;}
 
         void  *Start();
+
+static  bool   VCheck(XrdVersionInfo &urVersion);
 
                XrdCmsFinderTRG(XrdSysLogger *, int, int, XrdOss *theSS=0);
               ~XrdCmsFinderTRG();

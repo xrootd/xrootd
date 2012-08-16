@@ -8,19 +8,18 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-const char *XrdAccAccessCVSID = "$Id$";
-
 #include <stdio.h>
 #include <time.h>
 #include <sys/param.h>
+
+#include "XrdVersion.hh"
 
 #include "XrdAcc/XrdAccAccess.hh"
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysPlugin.hh"
   
 /******************************************************************************/
 /*                   E x t e r n a l   R e f e r e n c e s                    */
@@ -38,10 +37,18 @@ extern XrdAccConfig XrdAccConfiguration;
 /*       Autorization Object Creation via XrdAccDefaultAuthorizeObject        */
 /******************************************************************************/
   
-XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp, const char *cfn,
-                                              const char *parm)
+XrdAccAuthorize *XrdAccDefaultAuthorizeObject(XrdSysLogger *lp,
+                                              const char *cfn,
+                                              const char *parm,
+                                              XrdVersionInfo &urVer)
 {
+   static XrdVERSIONINFODEF(myVer, XrdAcc, XrdVNUMBER, XrdVERSION);
    static XrdSysError Eroute(lp, "acc_");
+
+// Verify version compatability
+//
+   if (urVer.vNum != myVer.vNum && !XrdSysPlugin::VerCmp(urVer,myVer))
+      return 0;
 
 // Configure the authorization system
 //

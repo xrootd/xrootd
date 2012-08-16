@@ -65,7 +65,7 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                    const char *iname, const char *pname)
 {
    static const char *head =
-          "<statistics tod=\"%%ld\" ver=\"" XrdVSTRING "\" src=\"%s:%d\" "
+          "<statistics tod=\"%%ld\" ver=\"" XrdVERSION "\" src=\"%s:%d\" "
                       "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\">";
    char myBuff[1024];
 

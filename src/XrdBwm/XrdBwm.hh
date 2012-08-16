@@ -24,6 +24,8 @@ class XrdSysLogger;
 class XrdOucStream;
 class XrdSfsAio;
 
+struct XrdVersionInfo;
+
 /******************************************************************************/
 /*                       X r d B w m D i r e c t o r y                        */
 /******************************************************************************/
@@ -218,13 +220,15 @@ virtual               ~XrdBwm() {}  // Too complicate to delete :-)
 /*                  C o n f i g u r a t i o n   V a l u e s                   */
 /******************************************************************************/
 
+XrdVersionInfo *myVersion;  //    ->Version compiled with
+
 char *ConfigFN;       //    ->Configuration filename
 char *HostName;       //    ->Our hostname
 char *HostPref;       //    ->Our hostname with domain removed
 char *myDomain;       //    ->Our domain name
 int   myDomLen;       //
 char  Authorize;
-char  Reserved[3];
+char  Reserved[7];
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */

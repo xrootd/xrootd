@@ -32,6 +32,8 @@ extern "C" {
 #endif
 }
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -1021,3 +1023,4 @@ void
         abort ();
       }
 }
+XrdVERSIONINFO(XrdSecProtocolkrb5Object,seckrb5)

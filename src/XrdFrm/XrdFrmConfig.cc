@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#include "XrdVersion.hh"
+
 #include "Xrd/XrdInfo.hh"
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksManager.hh"
@@ -34,7 +36,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
-#include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPList.hh"
@@ -45,7 +47,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -123,14 +124,17 @@ void *XrdLogWorker(void *parg)
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
+
   
 XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
              : dfltPolicy("*", -2, -3, 72000, 0)
 {
+   static XrdVERSIONINFODEF(myVer, XrdFrm, XrdVNUMBER, XrdVERSION);
    char *sP, buff[128];
 
 // Preset all variables with common defaults
 //
+   myVersion= &myVer;
    vOpts    = vopts;
    uInfo    = uinfo;
    ssID     = ss;
@@ -150,6 +154,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    xfrIN    = xfrOUT = 0;
    isAgent  = (getenv("XRDADMINPATH") ? 1 : 0);
    ossLib   = 0;
+   ossParms = 0;
    cmsPath  = 0;
    haveCMS  = 0;
    isOTO    = 0;
@@ -218,7 +223,8 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
   
 int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
-   extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *);
+   extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
+                              const char   *, XrdVersionInfo &);
    extern int *XrdOssRunMode;
    XrdFrmConfigSE theSE;
    int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
@@ -370,7 +376,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        XrdOucEnv::Export("XRDOSSTYPE",  myFrmID);
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo)
-          {if (!(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib))) NoGo=1;
+          {if (!(ossFS=XrdOssGetSS(Say.logger(), ConfigFN, ossLib, ossParms,
+                                   *myVersion))) NoGo = 1;
               else runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
           }
       }
@@ -792,36 +799,26 @@ int XrdFrmConfig::ConfigMum(XrdFrmConfigSE &theSE)
 
 int XrdFrmConfig::ConfigN2N()
 {
-   XrdSysPlugin    *myLib;
-   XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
+   XrdOucN2NLoader n2nLoader(&Say,ConfigFN,N2N_Parms,LocalRoot,RemoteRoot);
 
-// If we have no library path then use the default method (this will always
-// succeed).
+// Check if we really need to configure this
 //
-   if (!N2N_Lib)
-      {the_N2N = XrdOucgetName2Name(&Say, ConfigFN, "", LocalRoot, RemoteRoot);
-       if (LocalRoot)  lcl_N2N = the_N2N;
-       if (RemoteRoot) rmt_N2N = the_N2N;
-       return 0;
-      }
+   if (!N2N_Lib && !LocalRoot && !RemoteRoot) return 0;
 
-// Create a pluin object (we will throw this away without deletion because
-// the library must stay open but we never want to reference it again).
+// Get the plugin
 //
-   if (!(myLib = new XrdSysPlugin(&Say, N2N_Lib))) return 1;
+   if (!(the_N2N = n2nLoader.Load(N2N_Lib, *myVersion))) return 1;
 
-// Now get the entry point of the object creator
+// Optimize the local case
 //
-   ep = (XrdOucName2Name *(*)(XrdOucgetName2NameArgs))(myLib->getPlugin("XrdOucgetName2Name"));
-   if (!ep) return 1;
+   if (N2N_Lib)   rmt_N2N = lcl_N2N = the_N2N;
+      else {if (LocalRoot)  lcl_N2N = the_N2N;
+            if (RemoteRoot) rmt_N2N = the_N2N;
+           }
 
-
-// Get the Object now
+// All done
 //
-   lcl_N2N = rmt_N2N = the_N2N = ep(&Say, ConfigFN, 
-                                   (N2N_Parms ? N2N_Parms : ""),
-                                   LocalRoot, RemoteRoot);
-   return lcl_N2N == 0;
+   return 0;
 }
   
 /******************************************************************************/
@@ -937,7 +934,10 @@ int XrdFrmConfig::ConfigProc()
 
 // Allocate a chksum configurator if needed
 //
-   if (ssID == ssAdmin) CksCfg = new XrdCksConfig(ConfigFN, &Say);
+   if (ssID == ssAdmin)
+      {CksCfg = new XrdCksConfig(ConfigFN, &Say, retc, myVersion);
+       if (!retc) return 1;
+      }
 
 // Try to open the configuration file.
 //
@@ -986,7 +986,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
       {
        if (!strcmp(var, "frm.xfr.qcheck")) return xqchk();
        if (!strcmp(var, "ofs.ckslib"    )) return xcks(1);
-       if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
+       if (!strcmp(var, "ofs.osslib"    )) return xoss();
        if (!strcmp(var, "oss.cache"     )){hasCache = 1; // runOld
                                            return xspace(0,0);
                                           }
@@ -1645,6 +1645,40 @@ int XrdFrmConfig::xnml()
       {Say.Emsg("Config", "namelib parameters too long"); return 1;}
    if (N2N_Parms) free(N2N_Parms);
    N2N_Parms = (*parms ? strdup(parms) : 0);
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                         x o s s                                   */
+/******************************************************************************/
+  
+
+/* Function: xoss
+
+   Purpose:  To parse the directive: osslib <path>
+
+             <path>    the path of the filesystem library to be used.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdFrmConfig::xoss()
+{
+    char *val, parms[1024];
+
+// Get the path
+//
+   if (!(val = cFile->GetWord()) || !val[0])
+      {Say.Emsg("Config", "osslib not specified"); return 1;}
+   if (ossLib) free(ossLib);
+   ossLib = strdup(val);
+
+// Record any parms
+//
+   if (!cFile->GetRest(parms, sizeof(parms)))
+      {Say.Emsg("Config", "osslib parameters too long"); return 1;}
+   if (ossParms) free(ossParms);
+   ossParms = (*parms ? strdup(parms) : 0);
    return 0;
 }
 

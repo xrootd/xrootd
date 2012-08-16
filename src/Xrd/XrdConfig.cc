@@ -239,7 +239,7 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'd': Trace.What |= TRACE_ALL;
                  ProtInfo.DebugON = 1;
-                 putenv((char *)"XRDDEBUG=1"); // XrdOucEnv::Export()
+                 XrdOucEnv::Export("XRDDEBUG",  "1");
                  break;
        case 'h': Usage(0);
                  break;

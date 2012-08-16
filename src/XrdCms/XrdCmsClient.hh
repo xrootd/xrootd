@@ -95,140 +95,227 @@ class XrdCmsClient
 {
 public:
 
-// Added() notifies the cms of a newly added file or a file whose state has
-//         changed. It is only used on data server nodes. When Pend is true,
-//         the file is scheduled to be present in the future (e.g. copied in).
-//
+//------------------------------------------------------------------------------
+//! Notify the cms of a newly added file or a file whose state has changed on
+//! a data server node.
+//!
+//! @param  path  The logical file name.
+//! @param  Pend  When true, the file is scheduled to be present in the future
+//!               (e.g. copied in).
+//------------------------------------------------------------------------------
+
 virtual void   Added(const char *path, int Pend=0) {}
 
-// Configue() is called to configure the client. If the client is obtained via
-//            a plug-in then Parms are whether parameters were specified after
-//            cmslib path. It is zero if no parameters exist.
-// Return:    If successful, true must be returned; otherise, false/
-//
+//------------------------------------------------------------------------------
+//! Configure the client object.
+//!
+//! @param  cfn     The configuration file name.
+//! @param  Parms   Any parameters specified in the cmslib directive. If none,
+//!                 the pointer may be null.
+//! @param  EnvInfo Environmental information of the caller.
+//!
+//! @return Success !0
+//!         Failure =0
+//------------------------------------------------------------------------------
+
 virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 
-// Forward() relays a meta-operation to all nodes in the cluster. It is only
-//           used on manager nodes and is enabled by the ofs.forward directive.
-//           The 'cmd" specified what command is must be forwarded (see table).
-//           If it starts with a '+' then a response (2way) is needed.
-//           Otherwise, a best-effort is all that is all that is required and
-//           success can always be returned. The "Env" arguments provide
-//           associated environmental information. For instance, opaque data
-//           can be retrieved by Env->Env(<len>). The following is passed:
+//------------------------------------------------------------------------------
+//! Relay a meta-operation to all nodes in the cluster.
+//!
+//! This method is only used on manager nodes and is enabled by the ofs.forward
+//! directive.
+//!
+//! @param   Resp Object where messages are to be returned.
+//! @param   cmd  The operation being performed (see table below).
+//!               If it starts with a '+' then a response (2way) is needed.
+//!               Otherwise, a best-effort is all that is all that is required
+//!               and success can always be returned.
+//! @param   arg1 1st argument to cmd.
+//! @param   arg2 2nd argument to cmd, which may be null if none exists.
+//! @param   Env1 Associated environmental information for arg1 (e.g., cgi info
+//!               which can be retrieved by Env1->Env(<len>)).
+//! @param   Env2 Associated environmental information for arg2 (e.g., cgi info
+//!               which can be retrieved by Env1->Env(<len>)).
+//!
+//!          cmd       arg1    arg2           cmd       arg1    arg2
+//!          --------  ------  ------         --------  ------  ------
+//!          [+]chmod  <path>  <mode %o>      [+]rmdir  <path>  0
+//!          [+]mkdir  <path>  <mode %o>      [+]mv     <oldp>  <newp>
+//!          [+]mkpath <path>  <mode %o>      [+]trunc  <path>  <size %lld>
+//!          [+]rm     <path>  0
+//!
+//! @Return:   As explained under "return conventions".
+//------------------------------------------------------------------------------
 
-//           cmd       arg1    arg2           cmd       arg1    arg2
-//           --------  ------  ------         --------  ------  ------
-//           [+]chmod  <path>  <mode %o>      [+]rmdir  <path>  0
-//           [+]mkdir  <path>  <mode %o>      [+]mv     <oldp>  <newp>
-//           [+]mkpath <path>  <mode %o>      [+]trunc  <path>  <size %lld>
-//           [+]rm     <path>  0
-
-// Return:   As explained under "return conventions".
-//
 virtual int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,
                        XrdOucEnv     *Env1=0, XrdOucEnv  *Env2=0) {return 0;}
 
-// isRemote() returns true of this client is configured for a manager node.
-//
+//------------------------------------------------------------------------------
+//! Check if this client is configured for a manager node.
+//!
+//! @return !0 Yes, configured as a manager.
+//!         =0 No.
+//------------------------------------------------------------------------------
+
 virtual int    isRemote() {return myPersona == XrdCmsClient::amRemote;}
 
-// Locate() is called to retrieve file location information. It is only used
-//          on a manager node. This can be the list of servers that have a
-//          file or the single server that the client should be sent to. The
-//          "flags" indicate what is required and how to process the request.
+//------------------------------------------------------------------------------
+//! Retrieve file location information.
+//!
+//! @param   Resp  Object where message or response is to be returned.
+//! @param   path  The logical path whise location is wanted.
+//! @param   flags One or more of the following:
+//!
+//!          SFS_O_LOCATE  - return the list of servers that have the file.
+//!                          Otherwise, redirect to the best server for the file.
+//!          SFS_O_NOWAIT  - w/ SFS_O_LOCATE return readily available info.
+//!                          Otherwise, select online files only.
+//!          SFS_O_CREAT   - file will be created.
+//!          SFS_O_NOWAIT  - select server if file is online.
+//!          SFS_O_REPLICA - a replica of the file will be made.
+//!          SFS_O_STAT    - only stat() information wanted.
+//!          SFS_O_TRUNC   - file will be truncated.
+//!
+//!          For any the the above, additional flags are passed:
+//!          SFS_O_META    - data will not change (inode operation only)
+//!          SFS_O_RESET   - reset cached info and recaculate the location(s).
+//!          SFS_O_WRONLY  - file will be only written    (o/w RDWR   or RDONLY).
+//!          SFS_O_RDWR    - file may be read and written (o/w WRONLY or RDONLY).
+//!
+//! @param   Info Associated environmental information for arg2 (e.g., cgi info
+//!               which can be retrieved by Env1->Env(<len>)).
+//!
+//! @return  As explained under "return conventions".
+//------------------------------------------------------------------------------
 
-//          SFS_O_LOCATE  - return the list of servers that have the file.
-//                          Otherwise, redirect to the best server for the file.
-//          SFS_O_NOWAIT  - w/ SFS_O_LOCATE return readily available info.
-//                          Otherwise, select online files only.
-//          SFS_O_CREAT   - file will be created.
-//          SFS_O_NOWAIT  - select server if file is online.
-//          SFS_O_REPLICA - a replica of the file will be made.
-//          SFS_O_STAT    - only stat() information wanted.
-//          SFS_O_TRUNC   - file will be truncated.
-
-//          For any the the above, additional flags are passed:
-//          SFS_O_META    - data will not change (inode operation only)
-//          SFS_O_RESET   - reset cached info and recaculate the location(s).
-//          SFS_O_WRONLY  - file will be only written    (o/w RDWR   or RDONLY).
-//          SFS_O_RDWR    - file may be read and written (o/w WRONLY or RDONLY).
-
-// Return:  As explained under "return conventions".
-//
 virtual int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
                       XrdOucEnv  *Info=0) = 0;
 
-// Managers() is called to obtain the list of cmsd's being used by a manager
-//            node along with their associated index numbers, origin 1.
-//            This is used by the monitoring systems to report who redirected.
-//            The list is considered permanent and is not deleted.
-
+//------------------------------------------------------------------------------
+//! Obtain the list of cmsd's being used by a manager node along with their
+//! associated index numbers, origin 1.
+//!
+//! @return The list of cmsd's being used. The list is considered permanent
+//!         and is not deleted.
 // Return:    A list of managers or null if none exist.
-//
+//------------------------------------------------------------------------------
+
 virtual
 XrdOucTList   *Managers() {return 0;}
 
-// Prepare() is called to start the preparation of a file for future processing.
-//           It is only used on a manager node.
+//------------------------------------------------------------------------------
+//! Start the preparation of a file for future processing.
+//!
+//! @param   Resp  Object where message or response is to be returned.
+//! @param   pargs Information on which and how to prepare the file.
+//! @param   Info  Associated environmental information.
+//!
+//! @return  As explained under "return conventions".
+//------------------------------------------------------------------------------
 
-// Return:  As explained under "return conventions".
-//
 virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
                        XrdOucEnv  *Info=0) {return 0;}
 
-// Removed() is called when a file or directory has been deleted. It is only
-//           called on a data server node.
-//
+//------------------------------------------------------------------------------
+//! Notify the cmsd that a file or directory has been deleted. It is only called
+//! called on a data server node.
+//!
+//! @param  path The logical file name that was removed.
+//------------------------------------------------------------------------------
+
 virtual void   Removed(const char *path) {}
 
-// Resume() and Suspend() server complimentary functions and, by default,
-//          persist across server restarts. A temporary suspend/resume may be
-//          requested by passing a value of 0. Suspend() informs cluster 
-//          managers that data services are suspended. Resume() re-enables
-//          data services. The default implementation performs nothing.
-//
+//------------------------------------------------------------------------------
+//! Resume service after a suspension.
+//!
+//! @param  Perm When true the resume persist across server restarts. Otherwise,
+//!              it is treated as a temporary request.
+//------------------------------------------------------------------------------
+
 virtual void   Resume (int Perm=1) {}
+
+//------------------------------------------------------------------------------
+//! Suspend service.
+//!
+//! @param  Perm When true the suspend persist across server restarts.
+//!              Otherwise, it is treated as a temporary request.
+//------------------------------------------------------------------------------
+
 virtual void   Suspend(int Perm=1) {}
 
 // The following set of functions can be used to control whether or not clients
 // are dispatched to this data server based on a virtual resource. The default
 // implementations do nothing.
 //
-// Resource() should be called first and enables the Reserve() & Release()
-//            methods. It's argument a positive integer that specifies the
-//            amount of resource units that are available. It may be called
-//            at any time (though usually it is not) and returns the previous
-//            value. This first call will return 0.
-// Reserve()  decreases the amount of resources available by the value passed
-//            as the argument (default is 1). When the available resources
-//            becomes non-positive, a temporary suspend is activated preventing
-//            additional clients from being dispatched to this data server.
-//            Reserve() returns the amount of resource left.
-// Release()  increases the amount of resource available by the value passed
-//            as the argument (default 1). The total amount is capped by the
-//            amount specified by Resource(). When a transition is made from
-//            a non-positive to a positive amount, resume is activated that
-//            allows additional clients to be dispatched to this data server.
-//            Release() returns the amount of resource left.
-//
+//------------------------------------------------------------------------------
+//! Enables the Reserve() & Release() methods.
+//!
+//! @param  n  a positive integer that specifies the amount of resource units
+//!            that are available. It may be reset at any time.
+//!
+//! @return The previous resource value. This first call returns 0.
+//------------------------------------------------------------------------------
+
 virtual int    Resource(int n)   {return 0;}
+
+//------------------------------------------------------------------------------
+//! Decreases the amount of resources available. When the available resources
+//! becomes non-positive, perform a temporary suspend to prevent additional
+//! clients from being dispatched to this data server.
+//!
+//! @param  n  The value by which resources are decreased (default 1).
+//!
+//! @return The amount of resource left.
+//------------------------------------------------------------------------------
+
 virtual int    Reserve (int n=1) {return 0;}
+
+//------------------------------------------------------------------------------
+//! Increases the amount of resource available. When transitioning from a
+//! a non-positive to a positive resource amount, perform a resume so that
+//! additional clients may be dispatched to this data server.
+//!
+//! @param  n  The value to add to the resources available (default 1). The
+//!            total amount is capped by the amount specified by Resource().
+//!
+//! @return The amount of resource left.
+//------------------------------------------------------------------------------
+
 virtual int    Release (int n=1) {return 0;}
 
-// Space() is called to obtain the overall space usage of a cluster. It is
-//         only called on manager nodes.
+//------------------------------------------------------------------------------
+//! Obtain the overall space usage of a cluster. Called only on manager nodes.
+//!
+//! @param  Resp  Object to hold response or error message.
+//! @param  path  Associated logical path for the space request.
+//! @param  Info  Associated cgi information for path.
+//!
+//! @return Space information as defined by the response to kYR_statfs. For a
+//!               typical implementation see XrdCmsNode::do_StatFS().
+//------------------------------------------------------------------------------
 
-// Return: Space information as defined by the response to kYR_statfs. Fo a
-//         typical implementation see XrdCmsNode::do_StatFS().
-//
 virtual int    Space(XrdOucErrInfo &Resp, const char *path,
                      XrdOucEnv  *Info=0) = 0;
 
-        enum   Persona {amLocal, amRemote, amTarget};
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param  acting  The type of function this object is performing.
+//------------------------------------------------------------------------------
+
+        enum   Persona {amLocal,  //!< Not affiliated with a cluster
+                        amRemote, //!< Am a manager an issue redirects
+                        amTarget  //!< Am a server  an field redirects
+                       };
 
                XrdCmsClient(Persona acting) : myPersona(acting) {}
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+
 virtual       ~XrdCmsClient() {}
 
 protected:
@@ -240,16 +327,16 @@ Persona        myPersona;
 /*              I n s t a n t i a t i o n   M o d e   F l a g s               */
 /******************************************************************************/
   
-// The following instantiation mode flags are passed to the instantiator. They
-// may be or'd together, depending on which mode the client should operate.
-// They are defined as follows:
-
+/*! The following instantiation mode flags are passed to the instantiator (see
+    comments that follow). They may be or'd together, depending on which mode
+    the cms client should operate. They are defined as follows:
+*/
 namespace XrdCms
 {
-enum  {IsProxy  = 1, // The role is proxy  <one or more of the below>
-       IsRedir  = 2, // The role is manager and will redirect users
-       IsTarget = 4, // The role is server  and will be a redirection target
-       IsMeta   = 8  // The role is meta   <one or more of the above>
+enum  {IsProxy  = 1, //!< The role is proxy  {plus one or more of the below}
+       IsRedir  = 2, //!< The role is manager and will redirect users
+       IsTarget = 4, //!< The role is server  and will be a redirection target
+       IsMeta   = 8  //!< The role is meta   {plus one or more of the above}
       };
 }
 
@@ -257,38 +344,55 @@ enum  {IsProxy  = 1, // The role is proxy  <one or more of the below>
 /*               C M S   C l i e n t   I n s t a n t i a t o r                */
 /******************************************************************************/
 
-// This function is called to obtain an instance of a configured XrdCmsClient
-// Object. This is only used of the client is an actual plug-in as identified
-// by the ofs.cmslib directive.
+//------------------------------------------------------------------------------
+//! Obtain an instance of a configured XrdCmsClient.
+//!
+//! The following extern "C" function is called to obtain an instance of the
+//! XrdCmsClient object. This is only used if the client is an actual plug-in
+//! as identified by the ofs.cmslib directive. Once the XrdCmsClient object
+//! is obtained, its Configure() method is called to initialize the object.
+//!
+//! @param  logger -> XrdSysLogger to be tied to an XrdSysError object for
+//!                   any messages.
+//! @param  opMode -> The operational mode as defined by the enum above. There
+//!                   are two general types of clients, IsRedir and IsTarget.
+//!                   The IsProxy and IsMeta modes are specialization of these
+//!                   two basic types. The plug-in must provide an instance of
+//!                   the one asked for whether or not they actually do anything.
+//!
+//!                   IsRedir  clients are anything other than a data provider
+//!                            (i.e., data servers). These clients are expected
+//!                            to locate files and redirect a requestor to an
+//!                            actual data server.
+//!
+//!                   IsTarget clients are typically data providers (i.e., data
+//!                            servers) but may actually do other functions are
+//!                            are allowed to redirect as well.
+//!
+//! @param  myPort -> The server's port number.
+//! @param  theSS  -> The object that implements he underlying storage system.
+//!
+//! @return Success: a pointer to the appropriate object (IsRedir or IsTarget).
+//!
+//!         Failure: a null pointer which causes initialization to fail.
+//------------------------------------------------------------------------------
 
-// There are two general types of clients, Redir and Target. The plug-in must
-// provide an instance of each whether or not they actually do anything.
+/*! extern "C" XrdCmsClient *XrdCmsGetClient(XrdSysLogger *Logger,
+                                             int           opMode,
+                                             int           myPort,
+                                             XrdOss       *theSS);
+*/
 
-// Redir  clients are anything other than a data provider (i.e., data servers).
-//        These clients are expected to locate files and redirect a requestor
-//        to an actual data server.
+//------------------------------------------------------------------------------
+//! Declare compilation version.
+//!
+//! Additionally, you *should* declare the xrootd version you used to compile
+//! your plug-in. While not currently required, it is highly recommended to
+//! avoid execution issues should the class definition change. Declare it as:
+//------------------------------------------------------------------------------
 
-// Target clients are typically data providers (i.e., data servers) but may
-//        actually do other functions are are allowed to redirect as well.
+/*! #include "XrdVersion.hh"
+    XrdVERSIONINFO(XrdCmsClient,<name>);
 
-// The instantiator is passed the operational mode (opMode) as defined by the
-// enum above. The returned object must provide suitable functions for the mode.
-
-// If successful, the instantiator must return a pointer to the appropriate
-// object. Otherwise, a null pointer should be returned upon which server
-// initialization fails.
-
-// As this is a plug-in, the plug-in loader searches the cmslib for the
-// following extern symbol which must be a "C" type symbol. Once the object
-// is obtained, its Configure() method is called to initialize the object.
-
-/*
-extern "C"
-{
-XrdCmsClient *XrdCmsGetClient(XrdSysLogger *Logger, // Where messages go
-                              int           opMode, // Operational mode
-                              int           myPort, // Server's port number
-                              XrdOss       *theSS); // Storage System I/F
-}
 */
 #endif

@@ -117,6 +117,8 @@ class XrdOucProg;
 class XrdOssSpace;
 class XrdOssStage_Req;
 
+struct XrdVersionInfo;
+
 class XrdOssSys : public XrdOss
 {
 public:
@@ -223,6 +225,8 @@ OssDPath         *DPList;    //    The stat path list
 int               lenDP;
 short             numDP;
 short             numCG;
+
+XrdVersionInfo   *myVersion; //    Compilation version set by constructor
    
          XrdOssSys();
 virtual ~XrdOssSys() {}

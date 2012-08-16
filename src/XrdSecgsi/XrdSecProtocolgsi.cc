@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include <XrdSys/XrdSysLogger.hh>
@@ -2640,6 +2642,8 @@ char *XrdSecProtocolgsiInit(const char mode,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d O b j e c t                 */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
 extern "C"
 {

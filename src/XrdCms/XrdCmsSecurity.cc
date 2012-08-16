@@ -8,23 +8,9 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-// Bypass Solaris ELF madness
-//
-#ifdef __solaris__
-#include <sys/isa_defs.h>
-#if defined(_ILP32) && (_FILE_OFFSET_BITS != 32)
-#undef  _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 32
-#undef  _LARGEFILE_SOURCE
-#endif
-#endif
-  
-#include <dlfcn.h>
-#ifndef __macos__
-#include <link.h>
-#endif
-
 #include <stdlib.h>
+
+#include "XrdVersion.hh"
 
 #include "XProtocol/YProtocol.hh"
 
@@ -38,6 +24,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 using namespace XrdCms;
@@ -142,21 +129,15 @@ do {
 
 int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 {
+   static XrdVERSIONINFODEF(myVer, cmssec, XrdVNUMBER, XrdVERSION);
    static XrdSysMutex myMutex;
+   static XrdSysPlugin secLib(&Say, Lib, "seclib", &myVer);
    XrdSysMutexHelper  hlpMtx(&myMutex);
    XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
-   static void *libhandle = 0;
 
 // If we aleady have a security interface, return (may happen in client)
 //
    if (!Cfn && Sec.getProtocol) return 1;
-
-// Open the security library
-//
-   if (!libhandle && !(libhandle = dlopen(Lib, RTLD_NOW)))
-      {Say.Emsg("Config",dlerror(),"opening shared library",Lib);
-       return 0;
-      }
 
 // Get the client object creator (in case we are acting as a client)
 //
@@ -165,10 +146,7 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
                                                 const struct sockaddr  &,
                                                 const XrdSecParameters &,
                                                       XrdOucErrInfo    *))
-                       dlsym(libhandle, "XrdSecGetProtocol")))
-      {Say.Emsg("Config",dlerror(),"finding XrdSecGetProtocol() in",Lib);
-       return 0;
-      }
+                       secLib.getPlugin("XrdSecGetProtocol"))) return 0;
 
 // If only configuring a client or we already cnfigured a server, all done
 //
@@ -176,11 +154,8 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 
 // Get the server object creator
 //
-   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))dlsym(libhandle,
-              "XrdSecgetService")))
-      {Say.Emsg("Config",dlerror(),"finding XrdSecgetService() in",Lib);
-       return 0;
-      }
+   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))
+              secLib.getPlugin("XrdSecgetService"))) return 0;
 
 // Get the server object
 //

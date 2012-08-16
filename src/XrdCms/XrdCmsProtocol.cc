@@ -21,6 +21,8 @@
 
 #include "XProtocol/YProtocol.hh"
 
+#include "XrdVersion.hh"
+
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdLink.hh"
 
@@ -73,6 +75,7 @@ using namespace XrdCms;
 // Phase 1 initialization occured on the call to XrdgetProtocolPort(). At this
 // point a network interface is defined and we can complete initialization.
 //
+XrdVERSIONINFO(XrdgetProtocol,cmsd);
 
 extern "C"
 {
@@ -113,6 +116,7 @@ XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
 // port number if it differs from the one provided by the protocol driver. Only
 // one port instance of the cmsd protocol is allowed.
 //
+XrdVERSIONINFO(XrdgetProtocolPort,cmsd);
 
 extern "C"
 {

@@ -15,6 +15,8 @@
 #include <strings.h>
 #include <sys/types.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -167,6 +169,8 @@ char  *XrdSecProtocolunixInit(const char     mode,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l u n i x O b j e c t               */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdSecProtocolunixObject,secunix);
   
 extern "C"
 {
