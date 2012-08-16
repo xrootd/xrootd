@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
   
-//       $Id$
-
 #include <string.h>
 #include <time.h>
 #include "XrdSys/XrdSysPthread.hh"
@@ -112,6 +110,7 @@ time_t      ktMtime;
 xMode       ktMode;
 time_t      ktRefT;
 int         kthiID;
+pthread_t   ktRefID;
 static int  randFD;
 };
 #endif
