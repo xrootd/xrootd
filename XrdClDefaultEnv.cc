@@ -37,14 +37,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   DefaultEnv::DefaultEnv()
   {
-    PutInt( "ConnectionWindow",  DefaultConnectionWindow  );
-    PutInt( "ConnectionRetry",   DefaultConnectionRetry   );
-    PutInt( "RequestTimeout",    DefaultRequestTimeout    );
-    PutInt( "DataServerTTL",     DefaultDataServerTTL     );
-    PutInt( "ManagerTTL",        DefaultManagerTTL        );
-    PutInt( "StreamsPerChannel", DefaultStreamsPerChannel );
-    PutInt( "TimeoutResolution", DefaultTimeoutResolution );
-    PutInt( "StreamErrorWindow", DefaultStreamErrorWindow );
+    PutInt( "ConnectionWindow",     DefaultConnectionWindow  );
+    PutInt( "ConnectionRetry",      DefaultConnectionRetry   );
+    PutInt( "RequestTimeout",       DefaultRequestTimeout    );
+    PutInt( "DataServerTTL",        DefaultDataServerTTL     );
+    PutInt( "ManagerTTL",           DefaultManagerTTL        );
+    PutInt( "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
+    PutInt( "TimeoutResolution",    DefaultTimeoutResolution );
+    PutInt( "StreamErrorWindow",    DefaultStreamErrorWindow );
   }
 
   //----------------------------------------------------------------------------
