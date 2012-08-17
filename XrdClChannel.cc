@@ -172,22 +172,19 @@ namespace XrdCl
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
 
-    int  numStreams = DefaultStreamsPerChannel;
-    env->GetInt( "StreamsPerChannel", numStreams );
-
     int  timeoutResolution = DefaultTimeoutResolution;
     env->GetInt( "TimeoutResolution", timeoutResolution );
 
+    pTransport->InitializeChannel( pChannelData );
+    uint16_t numStreams = transport->StreamNumber( pChannelData );
     log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
                                 url.GetHostId().c_str(), numStreams );
-
-    pTransport->InitializeChannel( pChannelData );
 
     //--------------------------------------------------------------------------
     // Create the streams
     //--------------------------------------------------------------------------
     pStreams.resize( numStreams );
-    for( int i = 0; i < numStreams; ++i )
+    for( uint16_t i = 0; i < numStreams; ++i )
     {
       pStreams[i] = new Stream( &pUrl, i );
       pStreams[i]->SetTransport( transport );
@@ -195,6 +192,7 @@ namespace XrdCl
       pStreams[i]->SetIncomingQueue( &pIncoming );
       pStreams[i]->SetTaskManager( taskManager );
       pStreams[i]->SetChannelData( &pChannelData );
+      pStreams[i]->Initialize();
     }
 
     //--------------------------------------------------------------------------
@@ -236,11 +234,8 @@ namespace XrdCl
                         int32_t               timeout )
 
   {
-    Log *log = DefaultEnv::GetLog();
-    uint16_t stream = pTransport->Multiplex( msg, pChannelData );
-    log->Dump( PostMasterMsg, "[%s #%d] Sending message %x",
-                              pUrl.GetHostId().c_str(), stream, msg );
-    return pStreams[stream]->QueueOut( msg, statusHandler, timeout );
+    PathID path = pTransport->Multiplex( msg, pChannelData );
+    return pStreams[path.up]->Send( msg, statusHandler, timeout );
   }
 
   //----------------------------------------------------------------------------

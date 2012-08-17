@@ -16,208 +16,203 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_STREAM_HH__
-#define __XRD_CL_STREAM_HH__
+#ifndef __XRD_CL_ASYNC_SOCKET_HANDLER_HH__
+#define __XRD_CL_ASYNC_SOCKET_HANDLER_HH__
 
+#include "XrdCl/XrdClSocket.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
-#include "XrdCl/XrdClStatus.hh"
-#include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 
-#include "XrdSys/XrdSysPthread.hh"
-#include <list>
-#include <vector>
-#include <netinet/in.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 namespace XrdCl
 {
-  class  Message;
-  class  MessageStatusHandler;
-  class  Channel;
-  class  TransportHandler;
-  class  InQueue;
-  class  TaskManager;
-  struct SubStreamData;
+  class Stream;
 
   //----------------------------------------------------------------------------
-  //! Stream
+  //! Utility class handling asynchronous socket interactions and forwarding
+  //! events to the parent stream.
   //----------------------------------------------------------------------------
-  class Stream
+  class AsyncSocketHandler: public SocketHandler
   {
     public:
       //------------------------------------------------------------------------
-      //! Status of the stream
-      //------------------------------------------------------------------------
-      enum StreamStatus
-      {
-        Disconnected    = 0,    //!< Not connected
-        Connected       = 1,    //!< Connected
-        Connecting      = 2,    //!< In the process of being connected
-        Error           = 3     //!< Broken
-      };
-
-      //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Stream( const URL *url, uint16_t streamNum );
+      AsyncSocketHandler( Poller           *poller,
+                          TransportHandler *transport,
+                           AnyObject        *channelData,
+                           uint16_t          subStreamNum );
 
       //------------------------------------------------------------------------
       //! Destructor
       //------------------------------------------------------------------------
-      ~Stream();
+      ~AsyncSocketHandler();
 
       //------------------------------------------------------------------------
-      //! Initializer
+      //! Set address
       //------------------------------------------------------------------------
-      Status Initialize();
-
-      //------------------------------------------------------------------------
-      //! Queue the message for sending
-      //------------------------------------------------------------------------
-      Status Send( Message              *msg,
-                   MessageStatusHandler *handler,
-                   uint32_t              timeout );
-
-      //------------------------------------------------------------------------
-      //! Set the transport
-      //------------------------------------------------------------------------
-      void SetTransport( TransportHandler *transport )
+      void SetAddress( const sockaddr_in &address )
       {
-        pTransport = transport;
+        memcpy( &pSockAddr, &address, sizeof( sockaddr_in ) );
       }
 
       //------------------------------------------------------------------------
-      //! Set the poller
+      //! Get the address that the socket is connected to
       //------------------------------------------------------------------------
-      void SetPoller( Poller *poller )
+      const sockaddr_in &GetAddress() const
       {
-        pPoller = poller;
+        return pSockAddr;
       }
 
       //------------------------------------------------------------------------
-      //! Set the incoming queue
+      //! Connect to the currently set addres
       //------------------------------------------------------------------------
-      void SetIncomingQueue( InQueue *incomingQueue )
+      Status Connect( time_t timeout );
+
+      //------------------------------------------------------------------------
+      //! Close the connection
+      //------------------------------------------------------------------------
+      Status Close();
+
+      //------------------------------------------------------------------------
+      //! Set a stream object to be notified about the status of the operations
+      //------------------------------------------------------------------------
+      void SetStream( Stream *stream );
+
+      //------------------------------------------------------------------------
+      //! Get status
+      //------------------------------------------------------------------------
+      Socket::SocketStatus GetStatus() const
       {
-        pIncomingQueue = incomingQueue;
+        return pStatus;
       }
 
       //------------------------------------------------------------------------
-      //! Set the channel data
+      //! Set status
       //------------------------------------------------------------------------
-      void SetChannelData( AnyObject *channelData )
+      void SetStatus( Socket::SocketStatus status )
       {
-        pChannelData = channelData;
+        pStatus = status;
       }
 
       //------------------------------------------------------------------------
-      //! Set task manager
+      //! Handle a socket event
       //------------------------------------------------------------------------
-      void SetTaskManager( TaskManager *taskManager )
+      virtual void Event( uint8_t type, XrdCl::Socket */*socket*/ );
+
+      //------------------------------------------------------------------------
+      //! Enable uplink
+      //------------------------------------------------------------------------
+      Status EnableUplink()
       {
-        pTaskManager = taskManager;
+        if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
+          return Status( stError, errPollerError );
+        return Status();
       }
 
       //------------------------------------------------------------------------
-      //! Make sure that the underlying socket handler gets write readiness
-      //! events, it will update the path with what it has actually enabled
+      //! Disable uplink
       //------------------------------------------------------------------------
-      Status EnableLink( PathID &path );
-
-      //------------------------------------------------------------------------
-      //! Disconnect the stream
-      //------------------------------------------------------------------------
-      void Disconnect( bool force = false );
-
-      //------------------------------------------------------------------------
-      //! Handle a clock event generated either by socket timeout, or by
-      //! the task manager event
-      //------------------------------------------------------------------------
-      void Tick( time_t now );
-
-      //------------------------------------------------------------------------
-      //! Get the URL
-      //------------------------------------------------------------------------
-      const URL *GetURL() const
+      Status DisableUplink()
       {
-        return pUrl;
+        if( !pPoller->EnableWriteNotification( pSocket, false ) )
+          return Status( stError, errPollerError );
+        return Status();
       }
 
       //------------------------------------------------------------------------
-      //! Get the stream number
+      //! Get stream name
       //------------------------------------------------------------------------
-      uint16_t GetStreamNumber() const
+      const std::string &GetStreamName()
       {
-        return pStreamNum;
+        return pStreamName;
       }
-
-      //------------------------------------------------------------------------
-      //! Call back when a message has been reconstructed
-      //------------------------------------------------------------------------
-      void OnIncoming( uint16_t subStream, Message *msg );
-
-      //------------------------------------------------------------------------
-      // Call when one of the sockets is ready to accept a new message
-      //------------------------------------------------------------------------
-      Message *OnReadyToWrite( uint16_t subStream );
-
-      //------------------------------------------------------------------------
-      // Call when a message is written to the socket
-      //------------------------------------------------------------------------
-      void OnMessageSent( uint16_t subStream, Message *msg );
-
-      //------------------------------------------------------------------------
-      //! Call back when a message has been reconstructed
-      //------------------------------------------------------------------------
-      void OnConnect( uint16_t subStream );
-
-      //------------------------------------------------------------------------
-      //! On connect error
-      //------------------------------------------------------------------------
-      void OnConnectError( uint16_t subStream, Status st );
-
-      //------------------------------------------------------------------------
-      //! On error
-      //------------------------------------------------------------------------
-      void OnError( uint16_t subStream, Status st );
-
-      //------------------------------------------------------------------------
-      //! On fatal error
-      //------------------------------------------------------------------------
-      void OnFatalError( uint16_t subStream, Status st );
-
-      //------------------------------------------------------------------------
-      //! On read timeout
-      //------------------------------------------------------------------------
-      void OnReadTimeout( uint16_t subStream );
-
-      //------------------------------------------------------------------------
-      //! On write timeout
-      //------------------------------------------------------------------------
-      void OnWriteTimeout( uint16_t subStream );
 
     private:
 
-      typedef std::vector<SubStreamData*> SubStreamList;
+      //------------------------------------------------------------------------
+      // Connect returned
+      //------------------------------------------------------------------------
+      void OnConnectionReturn();
 
-      const URL                     *pUrl;
-      uint16_t                       pStreamNum;
-      std::string                    pStreamName;
-      TransportHandler              *pTransport;
+      //------------------------------------------------------------------------
+      // Got a write readiness event
+      //------------------------------------------------------------------------
+      void OnWrite();
+
+      //------------------------------------------------------------------------
+      // Got a write readiness event while handshaking
+      //------------------------------------------------------------------------
+      void OnWriteWhileHandshaking();
+
+      //------------------------------------------------------------------------
+      // Write the current message
+      //------------------------------------------------------------------------
+      Status WriteCurrentMessage();
+
+      //------------------------------------------------------------------------
+      // Got a read rediness event
+      //------------------------------------------------------------------------
+      void OnRead();
+
+      //------------------------------------------------------------------------
+      // Got a read rediness event while handshaking
+      //------------------------------------------------------------------------
+      void OnReadWhileHandshaking();
+
+      //------------------------------------------------------------------------
+      // Read a message
+      //------------------------------------------------------------------------
+      Status ReadMessage();
+
+      //------------------------------------------------------------------------
+      // Handle fault
+      //------------------------------------------------------------------------
+      void OnFault( Status st );
+
+      //------------------------------------------------------------------------
+      // Handle fault while handshaking
+      //------------------------------------------------------------------------
+      void OnFaultWhileHandshaking( Status st );
+
+      //------------------------------------------------------------------------
+      // Handle write timeout event
+      //------------------------------------------------------------------------
+      void OnWriteTimeout();
+
+      //------------------------------------------------------------------------
+      // Handle read timeout event
+      //------------------------------------------------------------------------
+      void OnReadTimeout();
+
+      //------------------------------------------------------------------------
+      // Handle timeout event while handshaking
+      //------------------------------------------------------------------------
+      void OnTimeoutWhileHandshaking();
+
+      //------------------------------------------------------------------------
+      // Data members
+      //------------------------------------------------------------------------
       Poller                        *pPoller;
-      TaskManager                   *pTaskManager;
-      XrdSysRecMutex                 pMutex;
-      InQueue                       *pIncomingQueue;
+      TransportHandler              *pTransport;
       AnyObject                     *pChannelData;
-      uint16_t                       pLastStreamError;
-      uint16_t                       pStreamErrorWindow;
-      uint16_t                       pConnectionCount;
-      uint16_t                       pConnectionRetry;
-      time_t                         pConnectionInitTime;
-      uint16_t                       pConnectionWindow;
-      SubStreamList                  pSubStreams;
-      std::vector<sockaddr_in>       pAddresses;
+      uint16_t                       pSubStreamNum;
+      Stream                        *pStream;
+      std::string                    pStreamName;
+      Socket                        *pSocket;
+      Message                       *pIncoming;
+      Message                       *pOutgoing;
+      sockaddr_in                    pSockAddr;
+      Socket::SocketStatus           pStatus;
+      HandShakeData                 *pHandShakeData;
+      uint16_t                       pTimeoutResolution;
+      time_t                         pConnectionStarted;
+      time_t                         pConnectionTimeout;
   };
 }
 
-#endif // __XRD_CL_STREAM_HH__
+#endif // __XRD_CL_ASYNC_SOCKET_HANDLER_HH__

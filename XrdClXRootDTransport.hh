@@ -90,11 +90,26 @@ namespace XrdCl
                                        AnyObject &channelData );
 
       //------------------------------------------------------------------------
-      //! Return a stream number by which the message should be sent and/or
-      //! alter the message to include the info by which stream the response
-      //! should be sent back
+      //! Return the ID for the up stream this message should be sent by
+      //! and the down stream which the answer should be expected at.
+      //! Modify the message itself if necessary.
+      //! If hint is non-zero then the message should be modified such that
+      //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
-      virtual uint16_t Multiplex( Message *msg, AnyObject &channelData );
+      virtual PathID Multiplex( Message   *msg,
+                                AnyObject &channelData,
+                                PathID    *hint = 0 );
+
+      //------------------------------------------------------------------------
+      //! Return the ID for the up substream this message should be sent by
+      //! and the down substream which the answer should be expected at.
+      //! Modify the message itself if necessary.
+      //! If hint is non-zero then the message should be modified such that
+      //! the answer will be returned via the hinted stream.
+      //------------------------------------------------------------------------
+      virtual PathID MultiplexSubStream( Message   *msg,
+                                         AnyObject &channelData,
+                                         PathID    *hint = 0 );
 
       //------------------------------------------------------------------------
       //! Return a number of streams that should be created
@@ -144,7 +159,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
-      virtual void Disconnect( AnyObject &channelData, uint16_t streamId );
+      virtual void Disconnect( AnyObject &channelData,
+                               uint16_t   streamId,
+                               uint16_t   subStreamId );
 
       //------------------------------------------------------------------------
       //! Query the channel
@@ -155,10 +172,29 @@ namespace XrdCl
     private:
 
       //------------------------------------------------------------------------
+      // Hand shake the main stream
+      //------------------------------------------------------------------------
+      Status HandShakeMain( HandShakeData *handShakeData,
+                            AnyObject     &channelData );
+
+      //------------------------------------------------------------------------
+      // Hand shake a parallel stream
+      //------------------------------------------------------------------------
+      Status HandShakeParallel( HandShakeData *handShakeData,
+                                AnyObject     &channelData );
+
+      //------------------------------------------------------------------------
       // Generate the message to be sent as an initial handshake
       //------------------------------------------------------------------------
       Message *GenerateInitialHS( HandShakeData     *hsData,
                                   XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Generate the message to be sent as an initial handshake
+      // (handshake + kXR_protocol)
+      //------------------------------------------------------------------------
+      Message *GenerateInitialHSProtocol( HandShakeData     *hsData,
+                                          XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Process the server initial handshake response
@@ -166,11 +202,23 @@ namespace XrdCl
       Status ProcessServerHS( HandShakeData     *hsData,
                               XRootDChannelInfo *info );
 
-      //------------------------------------------------------------------------
+      //-----------------------------------------------------------------------
       // Process the protocol response
       //------------------------------------------------------------------------
       Status ProcessProtocolResp( HandShakeData     *hsData,
                                   XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Generate the bind message
+      //------------------------------------------------------------------------
+      Message *GenerateBind( HandShakeData     *hsData,
+                             XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Generate the bind message
+      //------------------------------------------------------------------------
+      Status ProcessBindResp( HandShakeData     *hsData,
+                              XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Generate the login  message

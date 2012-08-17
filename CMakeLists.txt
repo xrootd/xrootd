@@ -45,6 +45,7 @@ add_library(
   XrdClCopyProcess.cc         XrdClCopyProcess.hh
   XrdClClassicCopyJob.cc      XrdClClassicCopyJob.hh
   XrdClThirdPartyCopyJob.cc   XrdClThirdPartyCopyJob.hh
+  XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
 )
 
 target_link_libraries(

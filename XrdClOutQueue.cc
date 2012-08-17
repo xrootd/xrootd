@@ -19,40 +19,55 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 
+#include <iostream>
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  // Add a message to the queue
+  // Add a message to the back of the queue
   //----------------------------------------------------------------------------
-  void OutQueue::AddMessage( Message              */*msg*/,
-                             MessageStatusHandler */*handler*/,
-                             time_t                /*expires*/,
-                             bool                  /*stateful*/ )
+  void OutQueue::PushBack( Message              *msg,
+                           MessageStatusHandler *handler,
+                           time_t                expires,
+                           bool                  stateful )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    pMessages.push_back( MsgHelper( msg, handler, expires, stateful ) );
   }
 
   //----------------------------------------------------------------------------
-  // Get a message from the beginning of the queue
+  // Add a message to the front the queue
   //----------------------------------------------------------------------------
-  Message *OutQueue::GetFront()
+  void OutQueue::PushFront( Message              *msg,
+                            MessageStatusHandler *handler,
+                            time_t                expires,
+                            bool                  stateful )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( !pMessages.empty() )
-      return pMessages.front().msg;
-    return 0;
+    pMessages.push_front( MsgHelper( msg, handler, expires, stateful ) );
   }
 
   //----------------------------------------------------------------------------
-  // Confirm successful sending of the message from the front
+  //! Get a message from the front of the queue
   //----------------------------------------------------------------------------
-  void OutQueue::ConfirmFront()
+  Message *OutQueue::PopMessage( MessageStatusHandler *&handler,
+                                 time_t                &expires,
+                                 bool                  &stateful )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
     if( pMessages.empty() )
-      return;
-    MsgHelper &mh = pMessages.front();
-    mh.handler->HandleStatus( mh.msg, Status() );
+      return 0;
+
+    MsgHelper  m = pMessages.front();
+    handler  = m.handler;
+    expires  = m.expires;
+    stateful = m.stateful;
+    pMessages.pop_front();
+    return m.msg;
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a message from the front
+  //----------------------------------------------------------------------------
+  void OutQueue::PopFront()
+  {
     pMessages.pop_front();
   }
 
@@ -62,7 +77,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::ReportDisconnection()
   {
-    XrdSysMutexHelper scopedLock( pMutex );
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); )
     {
@@ -83,9 +97,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::ReportError( Status status )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
     MessageList::iterator it;
-    for( it = pMessages.begin(); it != pMessages.end(); )
+    for( it = pMessages.begin(); it != pMessages.end(); ++it )
       it->handler->HandleStatus( it->msg, status );
     pMessages.clear();
   }
@@ -96,15 +109,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void OutQueue::ReportTimeout( time_t exp )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-
     if( !exp )
       exp = time(0);
 
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); )
     {
-      if( !it->expires > exp )
+      if( it->expires > exp )
       {
         ++it;
         continue;
@@ -113,5 +124,16 @@ namespace XrdCl
                                  Status( stError, errSocketTimeout ) );
       it = pMessages.erase( it );
     }
+  }
+
+  //----------------------------------------------------------------------------
+  // Take all the items from the queue and put them in this one
+  //----------------------------------------------------------------------------
+  void OutQueue::GrabItems( OutQueue &queue )
+  {
+    MessageList::iterator it;
+    for( it = queue.pMessages.begin(); it != queue.pMessages.end(); ++it )
+      pMessages.push_back( *it );
+    queue.pMessages.clear();
   }
 }

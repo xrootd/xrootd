@@ -19,7 +19,6 @@
 #ifndef __XRD_CL_OUT_QUEUE_HH__
 #define __XRD_CL_OUT_QUEUE_HH__
 
-#include <XrdSys/XrdSysPthread.hh>
 #include <list>
 #include <utility>
 #include "XrdCl/XrdClStatus.hh"
@@ -36,7 +35,7 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a message to the queue
+      //! Add a message to the back the queue
       //!
       //! @param msg      message to be sent
       //! @param handler  handler to be notified about the status of the
@@ -46,22 +45,40 @@ namespace XrdCl
       //!                 removing from the queue, otherwise sending
       //!                 wil be retattempted
       //------------------------------------------------------------------------
-      void AddMessage( Message              *msg,
-                       MessageStatusHandler *handler,
-                       time_t                expires,
-                       bool                  stateful );
+      void PushBack( Message              *msg,
+                     MessageStatusHandler *handler,
+                     time_t                expires,
+                     bool                  stateful );
 
       //------------------------------------------------------------------------
-      //! Get a message from the beginning of the queue
+      //! Add a message to the front the queue
       //!
-      //! @param return 0 if there is no incomming message
+      //! @param msg      message to be sent
+      //! @param handler  handler to be notified about the status of the
+      //!                 operation
+      //! @param expires  timeout
+      //! @param stateful if true a disconnection will cause an error and
+      //!                 removing from the queue, otherwise sending
+      //!                 wil be retattempted
       //------------------------------------------------------------------------
-      Message *GetFront();
+      void PushFront( Message              *msg,
+                      MessageStatusHandler *handler,
+                      time_t                expires,
+                      bool                  stateful );
 
       //------------------------------------------------------------------------
-      //! Confirm successful sending of the message from the front
+      //! Pop a message from the front of the queue
+      //!
+      //! @return 0 if there is no message message
       //------------------------------------------------------------------------
-      void ConfirmFront();
+      Message *PopMessage( MessageStatusHandler *&handler,
+                           time_t                &expires,
+                           bool                  &stateful );
+
+      //------------------------------------------------------------------------
+      //! Remove a message from the front
+      //------------------------------------------------------------------------
+      void PopFront();
 
       //------------------------------------------------------------------------
       //! Report disconection to the handlers of stateful messages and remove
@@ -84,6 +101,27 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ReportTimeout( time_t exp = 0 );
 
+      //------------------------------------------------------------------------
+      //! Check if the queue is empty
+      //------------------------------------------------------------------------
+      bool IsEmpty() const
+      {
+        return pMessages.empty();
+      }
+
+      //------------------------------------------------------------------------
+      // Return the size of the queue
+      //------------------------------------------------------------------------
+      uint64_t GetSize() const
+      {
+        return pMessages.size();
+      }
+
+      //------------------------------------------------------------------------
+      //! Take all the items from the queue and put them in this one
+      //------------------------------------------------------------------------
+      void GrabItems( OutQueue &queue );
+
     private:
       //------------------------------------------------------------------------
       // Helper struct holding all the message data
@@ -101,7 +139,6 @@ namespace XrdCl
 
       typedef std::list<MsgHelper> MessageList;
       MessageList pMessages;
-      XrdSysMutex pMutex;
   };
 }
 

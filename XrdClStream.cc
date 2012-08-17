@@ -24,6 +24,8 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClOutQueue.hh"
+#include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
@@ -36,21 +38,38 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct OutMessageHelper
   {
-    OutMessageHelper( Message              *message,
-                      MessageStatusHandler *hndlr = 0,
-                      time_t                expir = 0 ):
-      msg( message ), handler( hndlr ), expires( expir ),
-      ownMessage( false )  {}
-    ~OutMessageHelper()
+    OutMessageHelper( Message              *message = 0,
+                      MessageStatusHandler *hndlr   = 0,
+                      time_t                expir   = 0,
+                      bool                  statefu = 0 ):
+      msg( message ), handler( hndlr ), expires( expir ), stateful( statefu ) {}
+    void Reset()
     {
-      if( ownMessage )
-          delete msg;
+      msg = 0; handler = 0; expires = 0; stateful = 0;
     }
-
     Message              *msg;
     MessageStatusHandler *handler;
     time_t                expires;
-    bool                  ownMessage;
+    bool                  stateful;
+  };
+
+  //----------------------------------------------------------------------------
+  // Sub stream helper
+  //----------------------------------------------------------------------------
+  struct SubStreamData
+  {
+    SubStreamData(): socket( 0 )
+    {
+      outQueue = new OutQueue();
+    }
+    ~SubStreamData()
+    {
+      delete socket;
+      delete outQueue;
+    }
+    AsyncSocketHandler *socket;
+    OutQueue           *outQueue;
+    OutMessageHelper    msgHelper;
   };
 
   //----------------------------------------------------------------------------
@@ -60,29 +79,19 @@ namespace XrdCl
     pUrl( url ),
     pStreamNum( streamNum ),
     pTransport( 0 ),
-    pSocket( 0 ),
     pPoller( 0 ),
     pTaskManager( 0 ),
-    pCurrentOut( 0 ),
     pIncomingQueue( 0 ),
-    pIncoming( 0 ),
-    pStreamStatus( Disconnected ),
     pChannelData( 0 ),
     pLastStreamError( 0 ),
-    pErrorTime( 0 ),
-    pLastActivity( 0 ),
-    pHandShakeData( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 )
   {
-    pSocket = new Socket();
+    std::ostringstream o;
+    o << pUrl->GetHostId() << " #" << pStreamNum;
+    pStreamName = o.str();
 
     Env *env = DefaultEnv::GetEnv();
-
-    int timeoutResolution = DefaultTimeoutResolution;
-    env->GetInt( "TimeoutResolution", timeoutResolution );
-    pTimeoutResolution = timeoutResolution;
-
     int connectionWindow = DefaultConnectionWindow;
     env->GetInt( "ConnectionWindow", connectionWindow );
     pConnectionWindow = connectionWindow;
@@ -101,187 +110,91 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Stream::~Stream()
   {
-    Disconnect();
-    delete pSocket;
+    Disconnect( true );
+    SubStreamList::iterator it;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      delete *it;
   }
 
   //----------------------------------------------------------------------------
-  // Handle a socket event
+  // Initializer
   //----------------------------------------------------------------------------
-  void Stream::Event( uint8_t type, Socket * )
+  Status Stream::Initialize()
   {
-    switch( type )
-    {
-      case ReadyToRead:
-        pLastActivity = ::time(0);
-        if( pStreamStatus == Connected )
-          ConnectedReadyToRead();
-        else
-          ConnectingReadyToRead();
-        break;
+    if( !pTransport || !pPoller || !pChannelData )
+      return Status( stError, errUninitialized );
 
-      case ReadTimeOut:
-        if( pStreamStatus == Connected )
-          HandleReadTimeout();
-        else
-          HandleConnectingTimeout();
-        break;
-
-      case ReadyToWrite:
-        pLastActivity = ::time(0);
-        if( pStreamStatus == Connected )
-          ConnectedReadyToWrite();
-        else
-          ConnectingReadyToWrite();
-        break;
-
-      case WriteTimeOut:
-        if( pStreamStatus == Connected )
-          HandleWriteTimeout();
-        else
-          HandleConnectingTimeout();
-        break;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Queue the message for sending
-  //----------------------------------------------------------------------------
-  Status Stream::QueueOut( Message              *msg,
-                           MessageStatusHandler *handler,
-                           uint32_t              timeout )
-  {
-    //--------------------------------------------------------------------------
-    // Check if the stream is connected and if it may be reconnected
-    //--------------------------------------------------------------------------
-    Status sc;
-    if( !(sc = CheckConnection()).IsOK() )
-    {
-      handler->HandleStatus( msg, sc );
-      return sc;
-    }
-
-    //--------------------------------------------------------------------------
-    // The stream seems to be OK
-    //--------------------------------------------------------------------------
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( pOutQueue.empty() )
-    {
-      if( pStreamStatus == Connected &&
-          !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ))
-      {
-        Status st( stFatal, errPollerError );
-        HandleStreamFault( st );
-        return st;
-      }
-    }
-
-    pOutQueue.push_back( new OutMessageHelper( msg,
-                                               handler,
-                                               ::time(0)+timeout )  );
+    AsyncSocketHandler *s = new AsyncSocketHandler( pPoller,
+                                                    pTransport,
+                                                    pChannelData,
+                                                    0 );
+    s->SetStream( this );
+    pSubStreams.push_back( new SubStreamData() );
+    pSubStreams[0]->socket = s;
     return Status();
   }
 
-  //----------------------------------------------------------------------------
-  // Establish the connection if needed
-  //----------------------------------------------------------------------------
-  Status Stream::CheckConnection()
+  //------------------------------------------------------------------------
+  // Make sure that the underlying socket handler gets write readiness
+  // events
+  //------------------------------------------------------------------------
+  Status Stream::EnableLink( PathID &path )
   {
-    time_t now = ::time(0);
-
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pStreamStatus == Connected || pStreamStatus == Connecting )
+    //--------------------------------------------------------------------------
+    // We are in the process of connecting the main stream, so we do nothing
+    // because when the main stream connection is established it will connect
+    // all the other streams
+    //--------------------------------------------------------------------------
+    if( pSubStreams[0]->socket->GetStatus() == Socket::Connecting )
       return Status();
 
-    if( pStreamStatus == Error && (now-pErrorTime > pStreamErrorWindow) )
-      return Status( stError );
+    //--------------------------------------------------------------------------
+    // The main stream is connected, so we can verify whether we have
+    // the up and the down stream connected and ready to handle data.
+    // If anything is not right we fall back to stream 0.
+    //--------------------------------------------------------------------------
+    if( pSubStreams[0]->socket->GetStatus() == Socket::Connected )
+    {
+      if( pSubStreams[path.down]->socket->GetStatus() != Socket::Connected )
+        path.down = 0;
 
-    return Connect();
-  }
+      if( pSubStreams[path.up]->socket->GetStatus() == Socket::Disconnected )
+      {
+        path.up = 0;
+        return pSubStreams[0]->socket->EnableUplink();
+      }
 
-  //----------------------------------------------------------------------------
-  //! Run the async connection process - connect to the given address
-  //----------------------------------------------------------------------------
-  Status Stream::Connect( const sockaddr_in &addr )
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
+      if( pSubStreams[path.up]->socket->GetStatus() == Socket::Connected )
+        return pSubStreams[path.up]->socket->EnableUplink();
+
+      return Status();
+    }
+
+    //--------------------------------------------------------------------------
+    // The main stream is not connected, we need to check whether enough time
+    // has passed since we last encoutnered an error (if any) so that we could
+    // reattempt the connection
+    //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
+    time_t now = ::time(0);
 
-    //--------------------------------------------------------------------------
-    // We're disconnected so we need to connect - initialize the socket
-    //--------------------------------------------------------------------------
-    Status st = pSocket->Initialize();
-    if( !st.IsOK() )
-    {
-      log->Error( PostMasterMsg, "[%s #%d] Unable to initialize socket: %s",
-                                 pUrl->GetHostId().c_str(), pStreamNum,
-                                 st.ToString().c_str() );
-      pStreamStatus = Error;
-      return st;
-    }
-    //--------------------------------------------------------------------------
-    // Pick an address and initiate the connection
-    //--------------------------------------------------------------------------
-    char nameBuff[256];
-    XrdSysDNS::IPFormat( (sockaddr*)&addr, nameBuff, sizeof(nameBuff) );
-    log->Debug( PostMasterMsg, "[%s #%d] Attempting connection to %s",
-                               pUrl->GetHostId().c_str(), pStreamNum,
-                               nameBuff );
+    if( now-pLastStreamError < pStreamErrorWindow )
+      return Status( stFatal, errConnectionError );
 
-    st = pSocket->ConnectToAddress( addr, 0 );
-    if( !st.IsOK() )
-    {
-      log->Error( PostMasterMsg, "[%s #%d] Unable to initiate the connection: %s",
-                                 pUrl->GetHostId().c_str(), pStreamNum,
-                                 st.ToString().c_str() );
-      pStreamStatus = Error;
-      return st;
-    }
-    pStreamStatus = Connecting;
-
-    //--------------------------------------------------------------------------
-    // We should get the ready to write event once we're really connected
-    // so we need to listen to it
-    //--------------------------------------------------------------------------
-    if( !pPoller->AddSocket( pSocket, this ) )
-    {
-      Status st( stFatal, errPollerError );
-      HandleStreamFault( st );
-      return st;
-    }
-
-    if( !pPoller->EnableWriteNotification( pSocket, pTimeoutResolution ) )
-    {
-      Status st( stFatal, errPollerError );
-      HandleStreamFault( st );
-      return st;
-    }
-
-    return Status();
-  }
-
-  //----------------------------------------------------------------------------
-  // Start the async connection process
-  //----------------------------------------------------------------------------
-  Status Stream::Connect()
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    Log *log = DefaultEnv::GetLog();
-
-    pConnectionInitTime = ::time(0);
+    pConnectionInitTime = now;
     ++pConnectionCount;
 
     //--------------------------------------------------------------------------
-    // Resolve all the addresses for the given hostname
+    // Resolve all the addresses of the host we're supposed to connect to
     //--------------------------------------------------------------------------
     Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s #%d] Unable to resolve IP address for "
-                                 "the host",
-                                 pUrl->GetHostId().c_str(), pStreamNum );
-      pStreamStatus = Error;
+      log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
+                                 "the host", pStreamName.c_str() );
+      pLastStreamError = now;
       st.status = stFatal;
       return st;
     }
@@ -289,44 +202,61 @@ namespace XrdCl
     Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
                              pAddresses );
 
+    //--------------------------------------------------------------------------
+    // Initiate the connection process to the first one on the list
+    //--------------------------------------------------------------------------
     sockaddr_in addr;
     memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
     pAddresses.pop_back();
+    pSubStreams[0]->socket->SetAddress( addr );
+    return pSubStreams[0]->socket->Connect( pConnectionWindow );
+  }
 
-    return Connect( addr );
+  //----------------------------------------------------------------------------
+  // Queue the message for sending
+  //----------------------------------------------------------------------------
+  Status Stream::Send( Message              *msg,
+                       MessageStatusHandler *handler,
+                       uint32_t              timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Decide on the path to send the message
+    //--------------------------------------------------------------------------
+    PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
+    if( pSubStreams.size() <= path.up )
+    {
+      log->Warning( PostMasterMsg, "[%s] Unable to send message 0x%x through "
+                                   "substream %d using 0 instead",
+                                   pStreamName.c_str(), msg, path.up );
+      path.up = 0;
+    }
+
+    log->Dump( PostMasterMsg, "[%s] Sending message %x through substream %d "
+                              "expecting answer at %d",
+                              pStreamName.c_str(), msg, path.up, path.down );
+
+    //--------------------------------------------------------------------------
+    // See if we can enable this path and, if no, whether there is another
+    // path available. If not, there is nothing else we can do here.
+    //--------------------------------------------------------------------------
+    Status st = EnableLink( path );
+    if( st.IsOK() )
+    {
+      pTransport->MultiplexSubStream( msg, *pChannelData, &path );
+      pSubStreams[path.up]->outQueue->PushBack( msg, handler,
+                                                time(0)+timeout, false );
+    }
+    return st;
   }
 
   //----------------------------------------------------------------------------
   // Disconnect the stream
   //----------------------------------------------------------------------------
-  void Stream::Disconnect( bool force )
+  void Stream::Disconnect( bool /*force*/ )
   {
-    Log *log = DefaultEnv::GetLog();
-    XrdSysMutexHelper scopedLock( pMutex );
-
-    //--------------------------------------------------------------------------
-    // We need to check here (in a locked section) if the queue is empty,
-    // if it's not, then somebody has requested message sending, so we cancel
-    // the disconnection
-    //--------------------------------------------------------------------------
-    if( !force && !pOutQueue.empty() )
-      return;
-
-    //--------------------------------------------------------------------------
-    // We don't seem to have anything to send so we disconnect
-    //--------------------------------------------------------------------------
-    log->Debug( PostMasterMsg, "[%s #%d] Disconnecting.",
-                               pUrl->GetHostId().c_str(), pStreamNum );
-    pPoller->RemoveSocket( pSocket );
-    pSocket->Close();
-
-    if( pStreamNum == 0 )
-      pIncomingQueue->FailAllHandlers( Status( stError, errStreamDisconnect ) );
-
-    FailOutgoingHandlers( Status( stError, errStreamDisconnect ) );
-
-    pStreamStatus = Disconnected;
-    pTransport->Disconnect( *pChannelData, pStreamNum );
   }
 
   //----------------------------------------------------------------------------
@@ -334,388 +264,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
-    //--------------------------------------------------------------------------
-    // Timout the handlers for the incoming messages
-    //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( pMutex );
     if( pStreamNum == 0 )
       pIncomingQueue->TimeoutHandlers( now );
-
-    //--------------------------------------------------------------------------
-    // Timeout the handlers for the outgoing messages
-    //--------------------------------------------------------------------------
-    XrdSysMutexHelper scopedLock( pMutex );
-    std::list<OutMessageHelper *>::iterator it = pOutQueue.begin();
-    while( it != pOutQueue.end() )
-    {
-      //------------------------------------------------------------------------
-      // We timeout all the handlers but we don't stop the current
-      // transmission in order not to invalidate the stream
-      //------------------------------------------------------------------------
-      if( *it && *it != pCurrentOut && (*it)->expires <= now )
-      {
-        if( (*it)->handler )
-          (*it)->handler->HandleStatus( (*it)->msg,
-                                        Status( stError, errSocketTimeout ) );
-        delete (*it);
-        it = pOutQueue.erase( it );
-      }
-      else
-        ++it;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle the socket readiness to write in the connection stage
-  //----------------------------------------------------------------------------
-  void Stream::ConnectingReadyToWrite()
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // We got a write event while being in the 'Connecting' state, if the
-    // socket's state is also 'Connecting' it means that we just got the
-    // async connect return so we need to verify whether the connection
-    // was successful or not
-    //--------------------------------------------------------------------------
-    if( pSocket->GetStatus() == Socket::Connecting )
-    {
-      int errorCode = 0;
-      socklen_t optSize = sizeof( errorCode );
-      Status st = pSocket->GetSockOpt( SOL_SOCKET, SO_ERROR, &errorCode,
-                                       &optSize );
-
-      //------------------------------------------------------------------------
-      // This is an internal error really (either logic or system fault), 
-      // so we call it a day and don't retry
-      //------------------------------------------------------------------------
-      if( !st.IsOK() )
-      {
-        log->Error( PostMasterMsg, "[%s #%d] Unable to get the status of the "
-                                   "connect operation: %s",
-                                   pUrl->GetHostId().c_str(), pStreamNum,
-                                   strerror( errno ) );
-        HandleStreamFault( Status( stFatal, errSocketOptError ) );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // We were unable to connect
-      //------------------------------------------------------------------------
-      if( errorCode )
-      {
-        log->Error( PostMasterMsg, "[%s #%d] Unable to connect: %s",
-                                   pUrl->GetHostId().c_str(), pStreamNum,
-                                   strerror( errorCode ) );
-        HandleStreamFault( Status( stError, errConnectionError ) );
-        return;
-      }
-
-      pSocket->SetStatus( Socket::Connected );
-      pHandShakeData = new HandShakeData( pUrl, pStreamNum );
-      pHandShakeData->serverAddr = pSocket->GetServerAddress();
-      pHandShakeData->clientName = pSocket->GetSockName();
-
-      //------------------------------------------------------------------------
-      // Call the protocol handshake method for the first time
-      // to see whether we have something to send out
-      //------------------------------------------------------------------------
-      while(1)
-      {
-        st = pTransport->HandShake( pHandShakeData, *pChannelData );
-        ++pHandShakeData->step;
-
-        if( !st.IsOK() )
-        {
-          log->Error( PostMasterMsg, "[%s #%d] Connection negotiation failed",
-                                      pUrl->GetHostId().c_str(), pStreamNum );
-          HandleStreamFault( st );
-          return;
-        }
-
-        //----------------------------------------------------------------------
-        // We do have something, so we queue it for sending
-        //----------------------------------------------------------------------
-        if( pHandShakeData->out )
-        {
-          OutMessageHelper *hlpr = new OutMessageHelper( pHandShakeData->out );
-          hlpr->ownMessage = true;
-          pOutQueueConnect.push_back( hlpr );
-          pHandShakeData->out = 0;
-        }
-
-        if( st.code != suRetry )
-          break;
-      }
-
-      if( !pPoller->EnableReadNotification( pSocket, true, pTimeoutResolution ) )
-      {
-        HandleStreamFault( Status( stFatal, errPollerError ) );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // We're done handshaking - we're setting the stream status to connected
-      // and reseting the connection counter to zero so that we could again
-      // reconnect as many times as needed on the next timeout
-      //------------------------------------------------------------------------
-      if( st.IsOK() && st.code == suDone )
-      {
-        pConnectionCount = 0;
-        pStreamStatus    = Connected;
-        pAddresses.clear();
-        delete pHandShakeData;
-      }
-    }
-
-    //--------------------------------------------------------------------------
-    // If we're here it means that we should have a message in the outgoing
-    // buffer, we don't then we disable the write notifications
-    //--------------------------------------------------------------------------
-    Status st = WriteMessage( pOutQueueConnect );
-
-    if( !st.IsOK() )
-    {
-      HandleStreamFault( st );
-      return;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle the ReadyToWrite message
-  //----------------------------------------------------------------------------
-  void Stream::ConnectedReadyToWrite()
-  {
-    Status st = WriteMessage( pOutQueue );
-    if( !st.IsOK() )
-    {
-      HandleStreamFault( st );
-      return;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Write a message from an outgoing queue
-  //----------------------------------------------------------------------------
-  Status Stream::WriteMessage( std::list<OutMessageHelper *> &queue )
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    //--------------------------------------------------------------------------
-    // Pick up a message if we're not in process of writing something
-    //--------------------------------------------------------------------------
-    XrdSysMutexHelper scopedLock( pMutex );
-
-    if( !pCurrentOut )
-    {
-      if( !queue.empty() )
-      {
-        pCurrentOut = queue.front();
-        pCurrentOut->msg->SetCursor(0);
-      }
-      else
-      {
-        if( !pPoller->EnableWriteNotification( pSocket, false ) )
-          return Status( stFatal, errPollerError );
-        return Status();
-      }
-    }
-    scopedLock.UnLock();
-
-    //--------------------------------------------------------------------------
-    // Try to write down the current message
-    //--------------------------------------------------------------------------
-    int       sock            = pSocket->GetFD();
-    Message  *msg             = pCurrentOut->msg;
-    uint32_t  leftToBeWritten = msg->GetSize()-msg->GetCursor();
-
-    while( leftToBeWritten )
-    {
-      int status = ::write( sock, msg->GetBufferAtCursor(), leftToBeWritten );
-      if( status <= 0 )
-      {
-        //----------------------------------------------------------------------
-        // Writing operation would block!
-        //----------------------------------------------------------------------
-        if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suContinue );
-
-        //----------------------------------------------------------------------
-        // Actual socket error error!
-        //----------------------------------------------------------------------
-        pCurrentOut->msg->SetCursor( 0 );
-        return Status( stError, errSocketError, errno );
-      }
-      msg->AdvanceCursor( status );
-      leftToBeWritten -= status;
-    }
-
-    //--------------------------------------------------------------------------
-    // We have written the message successfully
-    //--------------------------------------------------------------------------
-    log->Dump( PostMasterMsg, "[%s #%d] Wrote a message of %d bytes",
-                              pUrl->GetHostId().c_str(), pStreamNum,
-                              pCurrentOut->msg->GetSize() );
-
-    if( pCurrentOut->handler )
-      pCurrentOut->handler->HandleStatus( pCurrentOut->msg, Status() );
-
-    scopedLock.Lock( &pMutex );
-    queue.pop_front();
-    delete pCurrentOut;
-    pCurrentOut = 0;
-
-    if( queue.empty() )
-    {
-      log->Dump( PostMasterMsg, "[%s #%d] Nothing to write, disable write "
-                                "notifications",
-                                 pUrl->GetHostId().c_str(), pStreamNum );
-
-      if( !pPoller->EnableWriteNotification( pSocket, false ) )
-        return Status( stFatal, errPollerError );
-    }
-    return Status();
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle the socket readiness to read in the connection stage
-  //----------------------------------------------------------------------------
-  void Stream::ConnectingReadyToRead()
-  {
-    //--------------------------------------------------------------------------
-    // Read the message and let the transport handler look at it
-    //--------------------------------------------------------------------------
-    Status st = ReadMessage();
-    if( st.IsOK() && st.code == suDone )
-    {
-      pHandShakeData->in = pIncoming;
-      pIncoming = 0;
-      Status st = pTransport->HandShake( pHandShakeData, *pChannelData );
-      ++pHandShakeData->step;
-      delete pHandShakeData->in;
-      pHandShakeData->in = 0;
-
-      if( !st.IsOK() )
-      {
-        HandleStreamFault( st );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // The transport handler gave us something to write
-      //------------------------------------------------------------------------
-      if( pHandShakeData->out )
-      {
-        OutMessageHelper *hlpr = new OutMessageHelper( pHandShakeData->out );
-        hlpr->ownMessage = true;
-        pOutQueueConnect.push_back( hlpr );
-        pHandShakeData->out = 0;
-        if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-        {
-          HandleStreamFault( Status( stFatal, errPollerError ) );
-          return;
-        }
-      }
-
-      //------------------------------------------------------------------------
-      // The hand shake process is done
-      //------------------------------------------------------------------------
-      if( st.IsOK() && st.code == suDone )
-      {
-        pStreamStatus = Connected;
-        pConnectionCount = 0;
-        delete pHandShakeData;
-        if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-        {
-          HandleStreamFault( Status( stFatal, errPollerError ) );
-          return;
-        }
-      }
-    }
-
-    if( !st.IsOK() )
-    {
-      HandleStreamFault( st );
-      return;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle the socket readiness to read in the connection stage
-  //----------------------------------------------------------------------------
-  void Stream::ConnectedReadyToRead()
-  {
-    Status st = ReadMessage();
-    if( st.IsOK() && st.code == suDone )
-    {
-      pIncomingQueue->AddMessage( pIncoming );
-      pIncoming = 0;
-    }
-
-    if( !st.IsOK() )
-    {
-      HandleStreamFault( st );
-      return;
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Read message
-  //----------------------------------------------------------------------------
-  Status Stream::ReadMessage()
-  {
-    Log *log = DefaultEnv::GetLog();
-
-    if( !pIncoming )
-      pIncoming = new Message();
-
-    Status sc = pTransport->GetMessage( pIncoming, pSocket );
-
-    //--------------------------------------------------------------------------
-    // The entire message has been read fine
-    //--------------------------------------------------------------------------
-    if( sc.IsOK() && sc.code == suDone )
-    {
-      log->Dump( PostMasterMsg, "[%s #%d] Got a message of %d bytes",
-                                pUrl->GetHostId().c_str(), pStreamNum,
-                                pIncoming->GetSize() );
-    }
-    return sc;
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle a timeout during the link negotiation process
-  //----------------------------------------------------------------------------
-  void Stream::HandleConnectingTimeout()
-  {
-    time_t now = ::time(0);
-    if( now >= pConnectionInitTime+pConnectionWindow )
-    {
-      std::list<OutMessageHelper *>::iterator it;
-      for( it = pOutQueueConnect.begin(); it != pOutQueueConnect.end(); ++it )
-        delete (*it);
-      pOutQueueConnect.clear();
-      HandleStreamFault( Status( stError, errConnectionError ) );
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle read timeout
-  //----------------------------------------------------------------------------
-  void Stream::HandleReadTimeout()
-  {
-    time_t now = ::time(0);
-    if( pTransport->IsStreamTTLElapsed( now-pLastActivity, *pChannelData ) )
-      Disconnect();
-  }
-
-  //----------------------------------------------------------------------------
-  // Handle write timeout
-  //----------------------------------------------------------------------------
-  void Stream::HandleWriteTimeout()
-  {
-    time_t now = ::time(0);
-    if( pTransport->IsStreamTTLElapsed( now-pLastActivity, *pChannelData ) )
-      Disconnect();
+    SubStreamList::iterator it;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      (*it)->outQueue->ReportTimeout( now );
   }
 }
 
@@ -738,7 +292,10 @@ namespace
       //------------------------------------------------------------------------
       time_t Run( time_t )
       {
-        pStream->Connect();
+        XrdCl::PathID path( 0, 0 );
+        XrdCl::Status st = pStream->EnableLink( path );
+        if( !st.IsOK() )
+          pStream->OnConnectError( 0, st );
         return 0;
       }
 
@@ -749,108 +306,321 @@ namespace
 
 namespace XrdCl
 {
-  //------------------------------------------------------------------------
-  // Handle stream fault
-  //------------------------------------------------------------------------
-  void Stream::HandleStreamFault( Status status )
+  //----------------------------------------------------------------------------
+  // Call back when a message has been reconstructed
+  //----------------------------------------------------------------------------
+  void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-    Log    *log = DefaultEnv::GetLog();
-    time_t  now = ::time(0);
-
-    log->Error( PostMasterMsg, "[%s #%d] Stream fault. Cleaning up.",
-                               pUrl->GetHostId().c_str(), pStreamNum );
-
-    pPoller->RemoveSocket( pSocket );
-    pSocket->Close();
-    pCurrentOut = 0;
-    delete pIncoming;
-    pIncoming = 0;
-    pTransport->Disconnect( *pChannelData, pStreamNum );
-
-    //--------------------------------------------------------------------------
-    //! If we're still connecting and we have some addresses left we should
-    //! try annother one
-    //--------------------------------------------------------------------------
-    if( pStreamStatus == Connecting && !pAddresses.empty() )
-    {
-      sockaddr_in addr;
-      memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
-      pAddresses.pop_back();
-      Connect( addr );
-      return;
-    }
-
-    //--------------------------------------------------------------------------
-    // Check if we are in the connection stage and should retry establishing
-    // the connection
-    //--------------------------------------------------------------------------
-    if( !status.IsFatal() && (pConnectionCount < pConnectionRetry) )
-    {
-      pStreamStatus = Connecting;
-      time_t  newConnectTime = pConnectionInitTime + pConnectionWindow;
-      int64_t timeToConnect  = newConnectTime - now;
-
-      //------------------------------------------------------------------------
-      // We may attempt the reconnection process immediately
-      //------------------------------------------------------------------------
-      if( timeToConnect <= 0 )
-      {
-        log->Info( PostMasterMsg, "[%s #%d] Attempting reconnection now.",
-                                  pUrl->GetHostId().c_str(), pStreamNum );
-
-        Connect();
-      }
-      //------------------------------------------------------------------------
-      // We need to schedule a task to reconnect in the future
-      //------------------------------------------------------------------------
-      else
-      {
-        log->Info( PostMasterMsg, "[%s #%d] Attempting reconnection in %d "
-                                  "seconds.",
-                                  pUrl->GetHostId().c_str(), pStreamNum,
-                                  timeToConnect );
-
-        Task *task = new ::StreamConnectorTask( this );
-        pTaskManager->RegisterTask( task, newConnectTime );
-      }
-      return;
-    }
-
-    log->Error( PostMasterMsg, "[%s #%d] Fatal errors have occured, "
-                               "giving up.",
-                               pUrl->GetHostId().c_str(), pStreamNum );
-
-    //--------------------------------------------------------------------------
-    // We cannot really do anything - declare and error and fail all the
-    // requests
-    //--------------------------------------------------------------------------
-    pStreamStatus = Error;
-    pLastStreamError = status.code;
-    pErrorTime = now;
-
-    //--------------------------------------------------------------------------
-    // since the incoming queue is shared we handle it only in the "main"
-    // stream
-    //--------------------------------------------------------------------------
-    if( pStreamNum == 0 )
-      pIncomingQueue->FailAllHandlers( status );
-
-    FailOutgoingHandlers( status );
+    pIncomingQueue->AddMessage( msg );
   }
 
   //----------------------------------------------------------------------------
-  // Fail outgoing handlers
+  // Call when one of the sockets is ready to accept a new message
   //----------------------------------------------------------------------------
-  void Stream::FailOutgoingHandlers( Status status )
+  Message *Stream::OnReadyToWrite( uint16_t subStream )
   {
-    std::list<OutMessageHelper *>::iterator it;
-    for( it = pOutQueue.begin(); it != pOutQueue.end(); ++it )
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+    if( pSubStreams[subStream]->outQueue->IsEmpty() )
     {
-      if( (*it)->handler )
-        (*it)->handler->HandleStatus( (*it)->msg, status );
-      delete (*it);
+      log->Dump( PostMasterMsg, "[%s] Nothing to write, disable uplink",
+                 pSubStreams[subStream]->socket->GetStreamName().c_str() );
+
+      pSubStreams[subStream]->socket->DisableUplink();
+      return 0;
     }
-    pOutQueue.clear();
+
+    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
+                                                          h.expires,
+                                                          h.stateful );
+    return h.msg;
+  }
+
+  //----------------------------------------------------------------------------
+  // Call when a message is written to the socket
+  //----------------------------------------------------------------------------
+  void Stream::OnMessageSent( uint16_t subStream, Message *msg )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    if( h.handler )
+      h.handler->HandleStatus( msg, Status() );
+    pSubStreams[subStream]->msgHelper.Reset();
+  }
+
+  //----------------------------------------------------------------------------
+  // Call back when a message has been reconstructed
+  //----------------------------------------------------------------------------
+  void Stream::OnConnect( uint16_t subStream )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    pSubStreams[subStream]->socket->SetStatus( Socket::Connected );
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( PostMasterMsg, "[%s] Stream %d connected.",
+                               pStreamName.c_str(), subStream );
+
+    if( subStream == 0 )
+    {
+      uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
+
+      //------------------------------------------------------------------------
+      // Create the streams if they don't exist yet
+      //------------------------------------------------------------------------
+      if( pSubStreams.size() == 1 && numSub > 1 )
+      {
+        for( uint16_t i = 1; i < numSub; ++i )
+        {
+          AsyncSocketHandler *s = new AsyncSocketHandler( pPoller, pTransport,
+                                                          pChannelData, i );
+          s->SetStream( this );
+          pSubStreams.push_back( new SubStreamData() );
+          pSubStreams[i]->socket = s;
+        }
+      }
+
+      //------------------------------------------------------------------------
+      // Connect the extra streams, if we fail we move all the outgoing items
+      // to stream 0, we don't need to enable the uplink here, because it
+      // should be already enabled after the handshaking process is completed.
+      //------------------------------------------------------------------------
+      if( pSubStreams.size() > 1 )
+      {
+        log->Debug( PostMasterMsg, "[%s] Attempting to connect %d additional "
+                                   "streams.",
+                                   pStreamName.c_str(), pSubStreams.size()-1 );
+        for( size_t i = 1; i < pSubStreams.size(); ++i )
+        {
+          pSubStreams[i]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
+          Status st = pSubStreams[i]->socket->Connect( pConnectionWindow );
+          if( !st.IsOK() )
+          {
+            pSubStreams[0]->outQueue->GrabItems( *pSubStreams[i]->outQueue );
+            pSubStreams[i]->socket->Close();
+          }
+        }
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // On connect error
+  //----------------------------------------------------------------------------
+  void Stream::OnConnectError( uint16_t subStream, Status st )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+    pSubStreams[subStream]->socket->Close();
+    time_t now = ::time(0);
+
+    //--------------------------------------------------------------------------
+    // If we connected subStream == 0 and cannot connect >0 then we just give
+    // up and move the outgoing messages to another queue
+    //--------------------------------------------------------------------------
+    if( subStream > 0 )
+    {
+      pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
+      if( pSubStreams[0]->socket->GetStatus() == Socket::Connected )
+      {
+        Status st = pSubStreams[0]->socket->EnableUplink().IsOK();
+        if( !st.IsOK() )
+          OnFatalError( 0, st );
+        return;
+      }
+
+      if( pSubStreams[0]->socket->GetStatus() == Socket::Connecting )
+        return;
+
+      OnFatalError( subStream, st );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Check if we still have time to try and do somethig in the current window
+    //--------------------------------------------------------------------------
+    time_t elapsed = now-pConnectionInitTime;
+    if( elapsed < pConnectionWindow )
+    {
+      //------------------------------------------------------------------------
+      // If we have some IP addresses left we try them
+      //------------------------------------------------------------------------
+      if( !pAddresses.empty() )
+      {
+        sockaddr_in addr;
+        memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+        pAddresses.pop_back();
+        pSubStreams[0]->socket->SetAddress( addr );
+
+        Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
+        if( !st.IsOK() )
+          OnFatalError( subStream, st );
+        return;
+      }
+
+      //------------------------------------------------------------------------
+      // If we still can retry with the same host name, we sleep until the end
+      // of the connection window and try
+      //------------------------------------------------------------------------
+      else if( pConnectionCount < pConnectionRetry )
+      {
+        log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
+                                  "seconds.", pStreamName.c_str(),
+                                  pConnectionWindow-elapsed );
+
+        Task *task = new ::StreamConnectorTask( this );
+        pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
+        return;
+      }
+
+      //------------------------------------------------------------------------
+      // Nothing can be done, we declare a failure
+      //------------------------------------------------------------------------
+      OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+    }
+
+    //--------------------------------------------------------------------------
+    // We are out of the connection window, the only thing we can do here
+    // is re-resolving the host name and retrying if we still can
+    //--------------------------------------------------------------------------
+    if( pConnectionCount < pConnectionRetry )
+    {
+      pAddresses.clear();
+      Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
+      if( !st.IsOK() )
+      {
+        log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
+                                   "the host", pStreamName.c_str() );
+        OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+        return;
+      }
+
+      Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
+                               pAddresses );
+
+      //----------------------------------------------------------------------
+      // Initiate the connection process to the first one on the list
+      //----------------------------------------------------------------------
+      sockaddr_in addr;
+      memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+      pAddresses.pop_back();
+      pSubStreams[0]->socket->SetAddress( addr );
+      st = pSubStreams[0]->socket->Connect( pConnectionWindow );
+      if( !st.IsOK() )
+        OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Else, we fail
+    //--------------------------------------------------------------------------
+    OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+  }
+
+  //----------------------------------------------------------------------------
+  // Call back when an error has occured
+  //----------------------------------------------------------------------------
+  void Stream::OnError( uint16_t subStream, Status st )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log *log = DefaultEnv::GetLog();
+    pSubStreams[subStream]->socket->Close();
+
+    log->Debug( PostMasterMsg, "[%s] Recovering error for stream #%d: %s.",
+                               pStreamName.c_str(), subStream,
+                               st.ToString().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Reinsert the stuff that we have failed to sent
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->msgHelper.msg )
+    {
+      OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+      pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
+                                                   h.stateful );
+      pSubStreams[subStream]->msgHelper.Reset();
+    }
+
+    //--------------------------------------------------------------------------
+    // If we lost the stream 0 we have lost the session, we re-enable the
+    // stream if we still have things in one of the outgoing queues
+    //--------------------------------------------------------------------------
+    if( subStream == 0 )
+    {
+      SubStreamList::iterator it;
+      size_t outstanding = 0;
+      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      {
+        (*it)->outQueue->ReportDisconnection();
+        outstanding += (*it)->outQueue->GetSize();
+      }
+
+      if( outstanding )
+      {
+        PathID path( 0, 0 );
+        Status st = EnableLink( path );
+        if( !st.IsOK() )
+        {
+          OnFatalError( 0, st );
+          return;
+        }
+      }
+
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // We are now dealing with an error of a peripheral stream. If we don't have
+    // anything to send don't bother recovering. Otherwise move the requests
+    // to stream 0 if possible.
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->outQueue->IsEmpty() )
+      return;
+
+    if( pSubStreams[0]->socket->GetStatus() != Socket::Disconnected )
+    {
+      pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
+      if( pSubStreams[0]->socket->GetStatus() == Socket::Connected )
+      {
+        Status st = pSubStreams[0]->socket->EnableUplink();
+        if( !st.IsOK() )
+          OnFatalError( 0, st );
+        return;
+      }
+      return;
+    }
+
+    OnFatalError( subStream, st );
+  }
+
+  //----------------------------------------------------------------------------
+  // On fatal error
+  //----------------------------------------------------------------------------
+  void Stream::OnFatalError( uint16_t /*subStream*/, Status st )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    Log    *log = DefaultEnv::GetLog();
+    log->Error( PostMasterMsg, "[%s] Unable to recover: %s.",
+                               pStreamName.c_str(), st.ToString().c_str() );
+
+    pConnectionCount = 0;
+    pIncomingQueue->FailAllHandlers( st );
+    SubStreamList::iterator it;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      (*it)->outQueue->ReportError( st );
+    pLastStreamError = ::time(0);
+  }
+
+  //----------------------------------------------------------------------------
+  // Call back when a message has been reconstructed
+  //----------------------------------------------------------------------------
+  void Stream::OnReadTimeout( uint16_t /*substream*/ )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  // Call back when a message has been reconstru
+  //----------------------------------------------------------------------------
+  void Stream::OnWriteTimeout( uint16_t /*substream*/ )
+  {
   }
 }

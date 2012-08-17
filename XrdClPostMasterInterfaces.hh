@@ -102,18 +102,31 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    HandShakeData( const URL *addr, uint16_t stream ):
-      step(0), out(0), in(0), url(addr), streamId(stream), startTime( time(0) ),
-      serverAddr(0)
+    HandShakeData( const URL *addr, uint16_t stream, uint16_t subStream ):
+      step(0), out(0), in(0), url(addr), streamId(stream),
+      subStreamId( subStream ), startTime( time(0) ), serverAddr(0)
     {}
     uint16_t     step;           //!< Handshake step
     Message     *out;            //!< Message to be sent out
     Message     *in;             //!< Message that has been received
     const URL   *url;            //!< Destination URL
     uint16_t     streamId;       //!< Stream number
+    uint16_t     subStreamId;    //!< Sub-stream id
     time_t       startTime;      //!< Timestamp of when the handshake started
     const void  *serverAddr;     //!< Server address in the form of sockaddr
     std::string  clientName;     //!< Client name (an IPv6 representation)
+    std::string  streamName;     //!< Name of the stream
+  };
+
+  //----------------------------------------------------------------------------
+  //! Path ID - a pair of integers describing the up and down stream
+  //! for given interaction
+  //----------------------------------------------------------------------------
+  struct PathID
+  {
+    PathID( uint16_t u = 0, uint16_t d = 0 ): up(u), down(d) {}
+    uint16_t up;
+    uint16_t down;
   };
 
   //----------------------------------------------------------------------------
@@ -169,11 +182,26 @@ namespace XrdCl
                                        AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
-      //! Return a stream number by which the message should be sent and/or
-      //! alter the message to include the info by which stream the response
-      //! should be sent back
+      //! Return the ID for the up stream this message should be sent by
+      //! and the down stream which the answer should be expected at.
+      //! Modify the message itself if necessary.
+      //! If hint is non-zero then the message should be modified such that
+      //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
-      virtual uint16_t Multiplex( Message *msg, AnyObject &channelData ) = 0;
+      virtual PathID Multiplex( Message   *msg,
+                                AnyObject &channelData,
+                                PathID    *hint = 0 ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Return the ID for the up substream this message should be sent by
+      //! and the down substream which the answer should be expected at.
+      //! Modify the message itself if necessary.
+      //! If hint is non-zero then the message should be modified such that
+      //! the answer will be returned via the hinted stream.
+      //------------------------------------------------------------------------
+      virtual PathID MultiplexSubStream( Message   *msg,
+                                         AnyObject &channelData,
+                                         PathID    *hint = 0 ) = 0;
 
       //------------------------------------------------------------------------
       //! Return a number of streams that should be created
@@ -194,7 +222,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
-      virtual void Disconnect( AnyObject &channelData, uint16_t streamId ) = 0;
+      virtual void Disconnect( AnyObject &channelData,
+                               uint16_t   streamId,
+                               uint16_t   subStreamId ) = 0;
 
       //------------------------------------------------------------------------
       //! Query the channel
