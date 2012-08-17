@@ -39,10 +39,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum SocketStatus
       {
-        Uninitialized = 0,      //!< The socket hasn't been initialized
-        Initialized   = 1,      //!< The socket is initialized but not connected
+        Disconnected  = 1,      //!< The socket is disconnected
         Connected     = 2,      //!< The socket is connected
-        Connecting    = 3       //!< The connection process is in progress
+        Connecting    = 3,       //!< The connection process is in progress
       };
 
       //------------------------------------------------------------------------
@@ -51,11 +50,9 @@ namespace XrdCl
       //! @param socket already connected socket if available, -1 otherwise
       //! @param status status of a socket if available
       //------------------------------------------------------------------------
-      Socket( int socket = -1, SocketStatus status = Uninitialized ):
+      Socket( int socket = -1, SocketStatus status = Disconnected ):
         pSocket(socket), pStatus( status ), pServerAddr( 0 )
       {
-        if( pSocket != -1 && status == Uninitialized )
-          pStatus = Initialized;
       };
 
       //------------------------------------------------------------------------

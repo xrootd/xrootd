@@ -38,7 +38,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Socket::Initialize()
   {
-    if( pStatus != Uninitialized )
+    if( pSocket != -1 )
       return Status( stError, errInvalidOp );
 
     pSocket = ::socket( PF_INET, SOCK_STREAM, 0 );
@@ -60,8 +60,6 @@ namespace XrdCl
       Close();
       return Status( stError, errFcntl, errno );
     }
-
-    pStatus = Initialized;
     return Status();
   }
 
@@ -70,7 +68,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Socket::SetFlags( int flags )
   {
-    if( pStatus == Uninitialized )
+    if( pSocket == -1 )
       return Status( stError, errInvalidOp );
 
     int st = ::fcntl( pSocket, F_SETFL, flags );
@@ -84,7 +82,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Socket::GetFlags( int &flags )
   {
-    if( pStatus == Uninitialized )
+    if( pSocket == -1 )
       return Status( stError, errInvalidOp );
 
     int st = ::fcntl( pSocket, F_GETFL, 0 );
@@ -100,7 +98,7 @@ namespace XrdCl
   Status Socket::GetSockOpt( int level, int optname, void *optval,
                              socklen_t *optlen )
   {
-    if( pStatus == Uninitialized )
+    if( pSocket == -1 )
       return Status( stError, errInvalidOp );
 
     if( ::getsockopt( pSocket, level, optname, optval, optlen ) != 0 )
@@ -115,7 +113,7 @@ namespace XrdCl
   Status Socket::SetSockOpt( int level, int optname, const void *optval,
                              socklen_t optlen )
   {
-    if( pStatus == Uninitialized )
+    if( pSocket == -1 )
       return Status( stError, errInvalidOp );
 
     if( ::setsockopt( pSocket, level, optname, optval, optlen ) != 0 )
@@ -131,7 +129,7 @@ namespace XrdCl
                           uint16_t           port,
                           uint16_t           timeout )
   {
-    if( pStatus != Initialized )
+    if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
@@ -152,7 +150,7 @@ namespace XrdCl
   Status Socket::ConnectToAddress( const sockaddr_in &addr,
                                    uint16_t           timeout )
   {
-    if( pStatus != Initialized )
+    if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
       return Status( stError, errInvalidOp );
 
     pServerAddr = (sockaddr_in*)malloc( sizeof( sockaddr_in ) );
@@ -199,11 +197,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Socket::Close()
   {
-    if( pStatus != Uninitialized )
+    if( pSocket != -1 )
     {
       close( pSocket );
       free( pServerAddr );
-      pStatus      = Uninitialized;
+      pStatus      = Disconnected;
       pSocket      = -1;
       pSockName    = "";
       pPeerName    = "";
