@@ -27,7 +27,7 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    uint16_t allocSID = 0;
+    uint16_t allocSID = 1;
 
     //--------------------------------------------------------------------------
     // Get a SID from the list of free SIDs if it's not empty
