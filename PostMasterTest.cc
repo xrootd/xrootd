@@ -214,22 +214,6 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
 
   //----------------------------------------------------------------------------
-  // Wait until the connection TTL expires and send echo again
-  //----------------------------------------------------------------------------
-  ::sleep( 4 );
-
-  m2 = 0;
-  sc = postMaster.Send( host, &m1, 1200 );
-  CPPUNIT_ASSERT( sc.IsOK() );
-
-  sc = postMaster.Receive( host, m2, &f1, 1200 );
-  CPPUNIT_ASSERT( sc.IsOK() );
-  resp = (ServerResponse *)m2->GetBuffer();
-  CPPUNIT_ASSERT( resp != 0 );
-  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
-  CPPUNIT_ASSERT( m2->GetSize() == 8 );
-
-  //----------------------------------------------------------------------------
   // Wait for an answer to a message that has not been sent - test the
   // reception timeout
   //----------------------------------------------------------------------------
@@ -238,10 +222,6 @@ void PostMasterTest::FunctionalTest()
   sc = postMaster.Receive( host, m2, &f1, 2 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errSocketTimeout );
-
-//  sc = postMaster.Receive( host, m2, &f1, 20 );
-//  CPPUNIT_ASSERT( !sc.IsOK() );
-//  CPPUNIT_ASSERT( sc.code == errStreamDisconnect );
 
   //----------------------------------------------------------------------------
   // Send out some stuff to a location where nothing listens

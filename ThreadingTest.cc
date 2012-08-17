@@ -21,6 +21,7 @@
 #include "Utils.hh"
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include <pthread.h>
 
 //------------------------------------------------------------------------------
@@ -31,8 +32,11 @@ class ThreadingTest: public CppUnit::TestCase
   public:
     CPPUNIT_TEST_SUITE( ThreadingTest );
       CPPUNIT_TEST( ReadTest );
+      CPPUNIT_TEST( MultiStreamReadTest );
     CPPUNIT_TEST_SUITE_END();
+    void ReadTestFunc();
     void ReadTest();
+    void MultiStreamReadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
@@ -89,7 +93,7 @@ void *DataReader( void *arg )
 //------------------------------------------------------------------------------
 // Read test
 //------------------------------------------------------------------------------
-void ThreadingTest::ReadTest()
+void ThreadingTest::ReadTestFunc()
 {
   using namespace XrdCl;
 
@@ -203,4 +207,22 @@ void ThreadingTest::ReadTest()
     CPPUNIT_ASSERT_XRDST( threadData[i].file->Close() );
     delete threadData[i].file;
   }
+}
+
+//------------------------------------------------------------------------------
+// Read test
+//------------------------------------------------------------------------------
+void ThreadingTest::ReadTest()
+{
+  ReadTestFunc();
+}
+
+//------------------------------------------------------------------------------
+// Multistream read test
+//------------------------------------------------------------------------------
+void ThreadingTest::MultiStreamReadTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "SubStreamsPerChannel", 4 );
+  ReadTestFunc();
 }

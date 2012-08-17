@@ -42,9 +42,15 @@ class FileCopyTest: public CppUnit::TestCase
     CPPUNIT_TEST_SUITE( FileCopyTest );
       CPPUNIT_TEST( DownloadTest );
       CPPUNIT_TEST( UploadTest );
+      CPPUNIT_TEST( MultiStreamDownloadTest );
+      CPPUNIT_TEST( MultiStreamUploadTest );
     CPPUNIT_TEST_SUITE_END();
+    void DownloadTestFunc();
+    void UploadTestFunc();
     void DownloadTest();
     void UploadTest();
+    void MultiStreamDownloadTest();
+    void MultiStreamUploadTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileCopyTest );
@@ -52,7 +58,7 @@ CPPUNIT_TEST_SUITE_REGISTRATION( FileCopyTest );
 //------------------------------------------------------------------------------
 // Download test
 //------------------------------------------------------------------------------
-void FileCopyTest::DownloadTest()
+void FileCopyTest::DownloadTestFunc()
 {
   using namespace XrdCl;
 
@@ -139,9 +145,9 @@ void FileCopyTest::DownloadTest()
 }
 
 //------------------------------------------------------------------------------
-// Read test
+// Upload test
 //------------------------------------------------------------------------------
-void FileCopyTest::UploadTest()
+void FileCopyTest::UploadTestFunc()
 {
   using namespace XrdCl;
 
@@ -235,4 +241,34 @@ void FileCopyTest::UploadTest()
   // Delete the file
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST( fs.Rm( dataPath + "/testUpload.dat" ) );
+}
+
+//------------------------------------------------------------------------------
+// Upload test
+//------------------------------------------------------------------------------
+void FileCopyTest::UploadTest()
+{
+  UploadTestFunc();
+}
+
+void FileCopyTest::MultiStreamUploadTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "SubStreamsPerChannel", 4 );
+  UploadTestFunc();
+}
+
+//------------------------------------------------------------------------------
+// Download test
+//------------------------------------------------------------------------------
+void FileCopyTest::DownloadTest()
+{
+  DownloadTestFunc();
+}
+
+void FileCopyTest::MultiStreamDownloadTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "SubStreamsPerChannel", 4 );
+  DownloadTestFunc();
 }
