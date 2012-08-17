@@ -22,58 +22,58 @@
 
 namespace XrdCl
 {
-      //------------------------------------------------------------------------
-      // Resolve IP addresses
-      //------------------------------------------------------------------------
-      Status Utils::GetHostAddresses( std::vector<sockaddr_in> &addresses,
-                                      const URL                &url )
-      {
-        //----------------------------------------------------------------------
-        // The address resolution algorithm in XRootD has a weird interface
-        // so we need to limit the number of possible IP addresses for
-        // a given hostname to 25. Why? Because.
-        //----------------------------------------------------------------------
-        sockaddr_in *sa = (sockaddr_in*)malloc( sizeof(sockaddr_in) * 25 );
-        int numAddr = XrdSysDNS::getHostAddr( url.GetHostName().c_str(),
-                                              (sockaddr*)sa, 25 );
-        if( numAddr == 0 )
-        {
-          free( sa );
-          return Status( stError, errInvalidAddr );
-        }
+  //----------------------------------------------------------------------------
+  // Resolve IP addresses
+  //----------------------------------------------------------------------------
+  Status Utils::GetHostAddresses( std::vector<sockaddr_in> &addresses,
+                                  const URL                &url )
+  {
+    //--------------------------------------------------------------------------
+    // The address resolution algorithm in XRootD has a weird interface
+    // so we need to limit the number of possible IP addresses for
+    // a given hostname to 25. Why? Because.
+    //--------------------------------------------------------------------------
+    sockaddr_in *sa = (sockaddr_in*)malloc( sizeof(sockaddr_in) * 25 );
+    int numAddr = XrdSysDNS::getHostAddr( url.GetHostName().c_str(),
+                                          (sockaddr*)sa, 25 );
+    if( numAddr == 0 )
+    {
+      free( sa );
+      return Status( stError, errInvalidAddr );
+    }
 
-        addresses.resize( numAddr );
-        std::vector<sockaddr_in>::iterator it = addresses.begin();;
-        for( int i = 0; i < numAddr; ++i, ++it )
-        {
-          memcpy( &(*it), &sa[i], sizeof( sockaddr_in ) );
-          it->sin_port = htons( (unsigned short) url.GetPort() );
-        }
-        free( sa );
+    addresses.resize( numAddr );
+    std::vector<sockaddr_in>::iterator it = addresses.begin();;
+    for( int i = 0; i < numAddr; ++i, ++it )
+    {
+      memcpy( &(*it), &sa[i], sizeof( sockaddr_in ) );
+      it->sin_port = htons( (unsigned short) url.GetPort() );
+    }
+    free( sa );
 
-        std::random_shuffle( addresses.begin(), addresses.end() );
-        return Status();
-      }
+    std::random_shuffle( addresses.begin(), addresses.end() );
+    return Status();
+  }
 
-      //------------------------------------------------------------------------
-      // Log all the addresses on the list
-      //------------------------------------------------------------------------
-      void Utils::LogHostAddresses( Log                      *log,
-                                    uint64_t                  type,
-                                    const std::string        &hostId,
-                                    std::vector<sockaddr_in> &addresses )
-      {
-        std::string addrStr;
-        std::vector<sockaddr_in>::iterator it;
-        for( it = addresses.begin(); it != addresses.end(); ++it )
-        {
-          char nameBuff[256];
-          XrdSysDNS::IPFormat( (sockaddr*)&(*it), nameBuff, sizeof(nameBuff) );
-          addrStr += nameBuff;
-          addrStr += ", ";
-        }
-        addrStr.erase( addrStr.length()-2, 2 );
-        log->Debug( type, "[%s] Found %d addresses: %s",
-                          hostId.c_str(), addresses.size(), addrStr.c_str() );
-      }
+  //----------------------------------------------------------------------------
+  // Log all the addresses on the list
+  //----------------------------------------------------------------------------
+  void Utils::LogHostAddresses( Log                      *log,
+                                uint64_t                  type,
+                                const std::string        &hostId,
+                                std::vector<sockaddr_in> &addresses )
+  {
+    std::string addrStr;
+    std::vector<sockaddr_in>::iterator it;
+    for( it = addresses.begin(); it != addresses.end(); ++it )
+    {
+      char nameBuff[256];
+      XrdSysDNS::IPFormat( (sockaddr*)&(*it), nameBuff, sizeof(nameBuff) );
+      addrStr += nameBuff;
+      addrStr += ", ";
+    }
+    addrStr.erase( addrStr.length()-2, 2 );
+    log->Debug( type, "[%s] Found %d address(es): %s",
+                      hostId.c_str(), addresses.size(), addrStr.c_str() );
+  }
 }
