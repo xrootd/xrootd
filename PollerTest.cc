@@ -31,6 +31,8 @@
 #include "XrdCl/XrdClPollerLibEvent.hh"
 #endif
 
+#include "XrdCl/XrdClPollerBuiltIn.hh"
+
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
@@ -39,8 +41,10 @@ class PollerTest: public CppUnit::TestCase
   public:
     CPPUNIT_TEST_SUITE( PollerTest );
       CPPUNIT_TEST( FunctionTestLibEvent );
+      CPPUNIT_TEST( FunctionTestBuiltIn );
     CPPUNIT_TEST_SUITE_END();
     void FunctionTestLibEvent();
+    void FunctionTestBuiltIn();
     void FunctionTest( XrdCl::Poller *poller );
 };
 
@@ -279,4 +283,14 @@ void PollerTest::FunctionTestLibEvent()
 #else
   CPPUNIT_ASSERT_MESSAGE( "LibEvent poller implementation is absent", false );
 #endif
+}
+
+//------------------------------------------------------------------------------
+// Test the functionality the built-in poller
+//------------------------------------------------------------------------------
+void PollerTest::FunctionTestBuiltIn()
+{
+  XrdCl::Poller *poller = new XrdCl::PollerBuiltIn();
+  FunctionTest( poller );
+  delete poller;
 }
