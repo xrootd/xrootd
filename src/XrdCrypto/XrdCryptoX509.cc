@@ -89,7 +89,7 @@ bool XrdCryptoX509::IsValid(int when)
 
    int now = (when > 0) ? when : (int)time(0);
    // Correct for time zone (certificate times are UTC plus, eventually, DST
-   now -= (int) XrdCryptoTZCorr();
+   now -= XrdCryptoTZCorr();
    return (now >= (NotBefore()-kAllowedSkew) && now <= NotAfter());
 }
 
@@ -101,7 +101,7 @@ bool XrdCryptoX509::IsExpired(int when)
 
    int now = (when > 0) ? when : (int)time(0);
    // Correct for time zone (certificate times are UTC plus, eventually, DST
-   now -= (int) XrdCryptoTZCorr();
+   now -= XrdCryptoTZCorr();
    return (now > NotAfter());
 }
 

@@ -24,7 +24,7 @@ static XrdSysError eDest(0,"crypto_");
 XrdOucTrace *cryptoTrace = 0;
 //
 // Time Zone correction (wrt UTC)
-static time_t TZCorr = 0;
+static int TZCorr = 0;
 static bool TZInitialized = 0;
 
 /******************************************************************************/
@@ -59,7 +59,7 @@ void XrdCryptoSetTrace(kXR_int32 trace)
 /*  X r d C r y p t o T i m e G m                                             */
 /******************************************************************************/
 //______________________________________________________________________________
-time_t XrdCryptoTZCorr()
+int XrdCryptoTZCorr()
 {
    // Time Zone correction (wrt UTC)
    
@@ -67,7 +67,7 @@ time_t XrdCryptoTZCorr()
       time_t now = time(0), lct = 0, gmt = 0;
       struct tm ltn, gtn;
       if (localtime_r(&now, &ltn) != 0 && gmtime_r(&now, &gtn) != 0) {
-         TZCorr = difftime(mktime(&ltn), mktime(&gtn));
+         TZCorr = int(difftime(mktime(&ltn), mktime(&gtn)));
          TZInitialized = 1;
       }
    }

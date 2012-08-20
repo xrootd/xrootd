@@ -635,7 +635,7 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1)
    // Calculate UTC
    etime = mktime(&ltm);
    // Include DST shift; here, because we have the information
-   if (ltm.tm_isdst > 0) etime += (int) XrdCryptoDSTShift;
+   if (ltm.tm_isdst > 0) etime += XrdCryptoDSTShift;
    // Notify, if requested
    DEBUG(" UTC: "<<etime<<"  isdst: "<<ltm.tm_isdst);
    //

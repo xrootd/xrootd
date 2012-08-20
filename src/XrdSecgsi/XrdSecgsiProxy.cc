@@ -683,7 +683,7 @@ void Display(XrdCryptoX509 *xp)
    // Key strength
    PRT("bits        : "<<xp->BitStrength());
    // Time left
-   int now = (int) (time(0) - XrdCryptoTZCorr());
+   int now = int(time(0)) - XrdCryptoTZCorr();
    int tl = xp->NotAfter() - now;
    int hh = (tl >= 3600) ? (tl/3600) : 0; tl -= (hh*3600); 
    int mm = (tl >= 60)   ? (tl/60)   : 0; tl -= (mm*60); 

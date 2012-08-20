@@ -56,7 +56,7 @@ void XrdCryptoSetTrace(kXR_int32 trace);
 /*                                                                            */
 /******************************************************************************/
 //______________________________________________________________________________
-time_t XrdCryptoTZCorr();
-const time_t XrdCryptoDSTShift = 3600;
+int XrdCryptoTZCorr();
+const int XrdCryptoDSTShift = 3600;
 
 #endif
