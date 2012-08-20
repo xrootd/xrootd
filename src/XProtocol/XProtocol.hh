@@ -637,6 +637,7 @@ struct ServerResponse
     ServerResponseBody_Protocol protocol;
     ServerResponseBody_Login    login;
     ServerResponseBody_Buffer   buffer;
+    ServerResponseBody_Bind     bind;
   } body;
 };
 
