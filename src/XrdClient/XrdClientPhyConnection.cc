@@ -833,6 +833,7 @@ ERemoteServerType XrdClientPhyConnection::DoHandShake(ServerInitHandShake &xbody
 
           fServerType  = typeres;
           fServerProto = resp->pval;
+          delete msg;
           return typeres;
         }
       }
