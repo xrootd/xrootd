@@ -24,6 +24,7 @@ add_library(
   XrdClSocket.cc              XrdClSocket.hh
                               XrdClPoller.hh
   XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
+  XrdClPollerBuiltIn.cc       XrdClPollerBuiltIn.hh
   XrdClPostMaster.cc          XrdClPostMaster.hh
                               XrdClPostMasterInterfaces.hh
   XrdClChannel.cc             XrdClChannel.hh
