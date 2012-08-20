@@ -342,8 +342,8 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
    OneTimeInitDone = 1;
 
     EnvPutInt(NAME_FIRSTCONNECTMAXCNT,2);
-    EnvPutInt(NAME_DATASERVERCONN_TTL, 99999999);
-    EnvPutInt(NAME_LBSERVERCONN_TTL, 99999999);
+//    EnvPutInt(NAME_DATASERVERCONN_TTL, 99999999);
+//    EnvPutInt(NAME_LBSERVERCONN_TTL, 99999999);
     EnvPutInt(NAME_READAHEADSIZE,0);
     EnvPutInt(NAME_READCACHESIZE,0);
     EnvPutInt(NAME_REQUESTTIMEOUT, 30);
