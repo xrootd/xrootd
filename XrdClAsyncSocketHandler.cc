@@ -302,8 +302,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnWrite()
   {
-    Log *log = DefaultEnv::GetLog();
-
     //--------------------------------------------------------------------------
     // Pick up a message if we're not in process of writing something
     //--------------------------------------------------------------------------
