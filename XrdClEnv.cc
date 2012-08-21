@@ -30,7 +30,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::GetString( const std::string &key, std::string &value )
   {
-    XrdSysRWLockHelper( pLock );
+    XrdSysRWLockHelper scopedLock( pLock );
     StringMap::iterator it;
     it = pStringMap.find( key );
     if( it == pStringMap.end() )
@@ -50,7 +50,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::PutString( const std::string &key, const std::string &value )
   {
-    XrdSysRWLockHelper( pLock, false );
+    XrdSysRWLockHelper scopedLock( pLock, false );
 
     //--------------------------------------------------------------------------
     // Insert the string if it's not there yet
@@ -86,7 +86,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::GetInt( const std::string &key, int &value )
   {
-    XrdSysRWLockHelper( pLock );
+    XrdSysRWLockHelper scopedLock( pLock );
     IntMap::iterator it;
     it = pIntMap.find( key );
     if( it == pIntMap.end() )
@@ -106,7 +106,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::PutInt( const std::string &key, int value )
   {
-    XrdSysRWLockHelper( pLock, false );
+    XrdSysRWLockHelper scopedLock( pLock, false );
 
     //--------------------------------------------------------------------------
     // Insert the string if it's not there yet
@@ -143,7 +143,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::ImportInt( const std::string &key, const std::string &shellKey )
   {
-    XrdSysRWLockHelper( pLock, false );
+    XrdSysRWLockHelper scopedLock( pLock, false );
     std::string strValue = GetEnv( shellKey );
     if( strValue == "" )
       return false;
@@ -171,7 +171,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool Env::ImportString( const std::string &key, const std::string &shellKey )
   {
-    XrdSysRWLockHelper( pLock, false );
+    XrdSysRWLockHelper scopedLock( pLock, false );
     std::string value = GetEnv( shellKey );
     if( value == "" )
       return false;
