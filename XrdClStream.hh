@@ -152,6 +152,14 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Return stream name
+      //------------------------------------------------------------------------
+      const std::string &GetName() const
+      {
+        return pStreamName;
+      }
+
+      //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
       void OnIncoming( uint16_t subStream, Message *msg );

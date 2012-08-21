@@ -285,7 +285,12 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       StreamConnectorTask( XrdCl::Stream *stream ):
-        pStream( stream ) {}
+        pStream( stream )
+      {
+        std::string name = "StreamConnectorTask for";
+        name += stream->GetName();
+        SetName( name );
+      }
 
       //------------------------------------------------------------------------
       // Run the task
