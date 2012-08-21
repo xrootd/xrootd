@@ -289,7 +289,10 @@ XrdSysRecMutex::XrdSysRecMutex() {
    if (!rc) {
       rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
       if (!rc)
-	 pthread_mutex_init(&cs, &attr);
+      {
+        pthread_mutex_destroy(&cs);
+        pthread_mutex_init(&cs, &attr);
+      }
    }
 
    pthread_mutexattr_destroy(&attr);
