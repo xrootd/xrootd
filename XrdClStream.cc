@@ -481,6 +481,7 @@ namespace XrdCl
       // Nothing can be done, we declare a failure
       //------------------------------------------------------------------------
       OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+      return;
     }
 
     //--------------------------------------------------------------------------
