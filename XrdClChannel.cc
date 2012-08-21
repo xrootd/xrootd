@@ -131,8 +131,13 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      TickGeneratorTask( XrdCl::Channel *channel ):
-        pChannel( channel ) {}
+      TickGeneratorTask( XrdCl::Channel *channel, const std::string &hostId ):
+        pChannel( channel )
+      {
+        std::string name = "TickGeneratorTask for: ";
+        name += hostId;
+        SetName( name );
+      }
 
       //------------------------------------------------------------------------
       // Run the task
@@ -147,7 +152,6 @@ namespace
         env->GetInt( "TimeoutResolution", timeoutResolution );
         return now+timeoutResolution;
       }
-
     private:
       XrdCl::Channel *pChannel;
   };
@@ -198,7 +202,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Register the task generating timout events
     //--------------------------------------------------------------------------
-    pTickGenerator = new TickGeneratorTask( this );
+    pTickGenerator = new TickGeneratorTask( this, pUrl.GetHostId() );
     pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
   }
 
