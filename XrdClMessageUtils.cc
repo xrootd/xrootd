@@ -46,6 +46,9 @@ namespace XrdCl
     PostMaster *postMaster = DefaultEnv::GetPostMaster();
     Status      st;
 
+    if( !postMaster )
+      return Status( stError, errUninitialized );
+
     AnyObject   sidMgrObj;
     SIDManager *sidMgr    = 0;
     st = postMaster->QueryTransport( url, XRootDQuery::SIDManager,

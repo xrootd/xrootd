@@ -1,3 +1,7 @@
+if( LIBEVENT_FOUND )
+  include_directories( ${LIBEVENT_INCLUDE_DIR} )
+endif()
+
 include_directories( ../ ${XROOTD_INCLUDES} ${LIBEVENT_INCLUDE_DIR} )
 link_directories( ${XROOTD_LIB_DIR} )
 
@@ -23,7 +27,7 @@ add_library(
   XrdClStatus.cc              XrdClStatus.hh
   XrdClSocket.cc              XrdClSocket.hh
                               XrdClPoller.hh
-  XrdClPollerLibEvent.cc      XrdClPollerLibEvent.hh
+  XrdClPollerFactory.cc       XrdClPollerFactory.hh
   XrdClPollerBuiltIn.cc       XrdClPollerBuiltIn.hh
   XrdClPostMaster.cc          XrdClPostMaster.hh
                               XrdClPostMasterInterfaces.hh
@@ -47,6 +51,7 @@ add_library(
   XrdClClassicCopyJob.cc      XrdClClassicCopyJob.hh
   XrdClThirdPartyCopyJob.cc   XrdClThirdPartyCopyJob.hh
   XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
+  ${LIBEVENT_POLLER_FILES}
 )
 
 target_link_libraries(

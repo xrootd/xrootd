@@ -40,11 +40,18 @@ namespace XrdCl
     PutInt( "ConnectionWindow",     DefaultConnectionWindow  );
     PutInt( "ConnectionRetry",      DefaultConnectionRetry   );
     PutInt( "RequestTimeout",       DefaultRequestTimeout    );
-    PutInt( "DataServerTTL",        DefaultDataServerTTL     );
-    PutInt( "ManagerTTL",           DefaultManagerTTL        );
     PutInt( "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
     PutInt( "TimeoutResolution",    DefaultTimeoutResolution );
     PutInt( "StreamErrorWindow",    DefaultStreamErrorWindow );
+    PutString( "PollerPreference",  DefaultPollerPreference  );
+
+    ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
+    ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
+    ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
+    ImportInt(    "SubStreamsPerChannel", "XRD_SUBSTREAMSPERCHANNEL" );
+    ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
+    ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
+    ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
   }
 
   //----------------------------------------------------------------------------

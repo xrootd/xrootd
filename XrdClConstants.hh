@@ -43,10 +43,10 @@ namespace XrdCl
   const int DefaultConnectionWindow     = 120;
   const int DefaultConnectionRetry      = 5;
   const int DefaultRequestTimeout       = 300;
-  const int DefaultDataServerTTL        = 300;
-  const int DefaultManagerTTL           = 1200;
   const int DefaultTimeoutResolution    = 15;
   const int DefaultStreamErrorWindow    = 1800;
+
+  const char * const DefaultPollerPreference = "libevent,built-in";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

@@ -17,18 +17,20 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClPostMaster.hh"
-#include "XrdCl/XrdClPollerLibEvent.hh"
+#include "XrdCl/XrdClPollerFactory.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  PostMaster::PostMaster()
+  PostMaster::PostMaster():
+    pPoller( 0 ), pInitialized( false )
   {
-    pPoller           = new PollerLibEvent();
     pTransportHandler = new XRootDTransport();
     pTaskManager      = new TaskManager();
   }
@@ -48,7 +50,21 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Initialize()
   {
-    return pPoller->Initialize();
+    Env *env = DefaultEnv::GetEnv();
+    std::string pollerPref = DefaultPollerPreference;
+    env->GetString( "PollerPreference", pollerPref );
+
+    pPoller = PollerFactory::CreatePoller( pollerPref );
+    if( !pPoller )
+      return false;
+    bool st = pPoller->Initialize();
+    if( !st )
+    {
+      delete pPoller;
+      return false;
+    }
+    pInitialized = true;
+    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -59,7 +75,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Clean up the channels
     //--------------------------------------------------------------------------
-    XrdSysMutexHelper scopedLock( pChannelMapMutex );
+    if( !pInitialized )
+      return true;
+
+    pInitialized = false;
+
     ChannelMap::iterator it;
     for( it = pChannelMap.begin(); it != pChannelMap.end(); ++it )
       delete it->second;
@@ -72,6 +92,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Start()
   {
+    if( !pInitialized )
+      return false;
+
     if( !pPoller->Start() )
       return false;
 
@@ -88,6 +111,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PostMaster::Stop()
   {
+    if( !pInitialized )
+      return true;
     if( !pPoller->Stop() )
       return false;
     if( !pTaskManager->Stop() )
@@ -108,6 +133,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status PostMaster::Send( const URL &url, Message *msg, uint16_t timeout )
   {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
     return channel->Send( msg, timeout );
   }
@@ -120,6 +147,8 @@ namespace XrdCl
                            MessageStatusHandler *handler,
                            uint16_t              timeout )
   {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
     return channel->Send( msg, handler, timeout );
   }
@@ -132,6 +161,8 @@ namespace XrdCl
                               MessageFilter  *filter,
                               uint16_t        timeout )
   {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
     return channel->Receive( msg, filter, timeout );
   }
@@ -143,6 +174,8 @@ namespace XrdCl
                               MessageHandler *handler,
                               uint16_t        timeout )
   {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
     return channel->Receive( handler, timeout );
   }
@@ -154,6 +187,8 @@ namespace XrdCl
                                      uint16_t   query,
                                      AnyObject &result )
   {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
     return channel->QueryTransport( query, result );
   }
