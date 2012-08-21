@@ -30,9 +30,13 @@ namespace
   //----------------------------------------------------------------------------
   struct PollerHelper
   {
-    PollerHelper(): channel(0), callBack(0) {}
+    PollerHelper():
+      channel(0), callBack(0), readEnabled(false), writeEnabled(false)
+    {}
     XrdSys::IOEvents::Channel  *channel;
     XrdSys::IOEvents::CallBack *callBack;
+    bool                        readEnabled;
+    bool                        writeEnabled;
   };
 
   //----------------------------------------------------------------------------
@@ -249,6 +253,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( notify )
     {
+      if( helper->readEnabled )
+        return true;
+
       log->Dump( PollerMsg, "%s Enable read notifications",
                             socket->GetName().c_str() );
       const char *errMsg;
@@ -260,6 +267,8 @@ namespace XrdCl
                                socket->GetName().c_str(), errMsg );
         return false;
       }
+
+      helper->readEnabled = true;
     }
 
     //--------------------------------------------------------------------------
@@ -267,6 +276,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
+      if( !helper->readEnabled )
+        return true;
+
       log->Dump( PollerMsg, "%s Disable read notifications",
                             socket->GetName().c_str() );
       const char *errMsg;
@@ -277,6 +289,7 @@ namespace XrdCl
                                socket->GetName().c_str(), errMsg );
         return false;
       }
+      helper->readEnabled = false;
     }
     return true;
   }
@@ -316,6 +329,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( notify )
     {
+      if( helper->writeEnabled )
+        return true;
+
       log->Dump( PollerMsg, "%s Enable write notifications",
                             socket->GetName().c_str() );
 
@@ -328,6 +344,7 @@ namespace XrdCl
                                socket->GetName().c_str(), errMsg );
         return false;
       }
+      helper->writeEnabled = true;
     }
 
     //--------------------------------------------------------------------------
@@ -335,6 +352,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     else
     {
+      if( !helper->writeEnabled )
+        return true;
+
       log->Dump( PollerMsg, "%s Disable write notifications",
                             socket->GetName().c_str() );
       const char *errMsg;
@@ -345,6 +365,7 @@ namespace XrdCl
                                socket->GetName().c_str(), errMsg );
         return false;
       }
+      helper->writeEnabled = false;
     }
     return true;
   }
