@@ -217,8 +217,6 @@ void PostMasterTest::FunctionalTest()
   // Wait for an answer to a message that has not been sent - test the
   // reception timeout
   //----------------------------------------------------------------------------
-  env->PutInt( "DataServerTTL", 5 );
-  env->PutInt( "ManagerTTL", 5 );
   sc = postMaster.Receive( host, m2, &f1, 2 );
   CPPUNIT_ASSERT( !sc.IsOK() );
   CPPUNIT_ASSERT( sc.code == errSocketTimeout );
