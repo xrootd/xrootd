@@ -22,6 +22,7 @@
 #include <ctime>
 #include <set>
 #include <list>
+#include <string>
 #include <stdint.h>
 #include <pthread.h>
 #include "XrdSys/XrdSysPthread.hh"
@@ -34,6 +35,8 @@ namespace XrdCl
   class Task
   {
     public:
+      virtual ~Task() {};
+
       //------------------------------------------------------------------------
       //! Perform the task
       //!
@@ -42,6 +45,25 @@ namespace XrdCl
       //!         the time at which it should be run again
       //------------------------------------------------------------------------
       virtual time_t Run( time_t now ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Name of the task
+      //------------------------------------------------------------------------
+      const std::string &GetName() const
+      {
+        return pName;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set name of the task
+      //------------------------------------------------------------------------
+      void SetName( const std::string &name )
+      {
+        pName = name;
+      }
+
+    private:
+      std::string pName;
   };
 
   //----------------------------------------------------------------------------

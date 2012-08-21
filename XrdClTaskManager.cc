@@ -122,8 +122,8 @@ namespace XrdCl
   void TaskManager::RegisterTask( Task *task, time_t time )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Debug( TaskMgrMsg, "Registering task: 0x%x to be run at: %d",
-                            task, time );
+    log->Debug( TaskMgrMsg, "Registering task: \"%s\" to be run at: %d",
+                            task->GetName().c_str(), time );
 
     XrdSysMutexHelper scopedLock( pMutex );
     pTasks.insert( TaskHelper( task, time ) );
@@ -135,7 +135,8 @@ namespace XrdCl
   void TaskManager::UnregisterTask( Task *task )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Debug( TaskMgrMsg, "Requesting unregistration of: 0x%x", task );
+    log->Debug( TaskMgrMsg, "Requesting unregistration of: \"%s\"",
+                            task->GetName().c_str() );
     XrdSysMutexHelper scopedLock( pMutex );
     pToBeUnregistered.push_back( task );
   }
@@ -180,7 +181,7 @@ namespace XrdCl
       for( itRem = iteratorList.begin(); itRem != iteratorList.end(); ++itRem )
       {
         Task *tsk = (*itRem)->task;
-        log->Debug( TaskMgrMsg, "Removing task: 0x%x", tsk );
+        log->Debug( TaskMgrMsg, "Removing task: \"%s\"", tsk->GetName().c_str() );
         pTasks.erase( *itRem );
         delete tsk;
       }
@@ -207,19 +208,21 @@ namespace XrdCl
       //------------------------------------------------------------------------
       for( listIt = toRun.begin(); listIt != toRun.end(); ++listIt )
       {
-        log->Dump( TaskMgrMsg, "Running task: 0x%x", *listIt );
+        log->Dump( TaskMgrMsg, "Running task: \"%s\"",
+                   (*listIt)->GetName().c_str() );
         time_t schedule = (*listIt)->Run( now );
         if( schedule )
         {
-          log->Dump( TaskMgrMsg, "Will rerun task 0x%x at %d",
-                                 *listIt, schedule );
+          log->Dump( TaskMgrMsg, "Will rerun task \"%s\" at %d",
+                     (*listIt)->GetName().c_str(), schedule );
           pMutex.Lock();
           pTasks.insert( TaskHelper( *listIt, schedule ) );
           pMutex.UnLock();
         }
         else
         {
-          log->Debug( TaskMgrMsg, "Done with task: 0x%x", *listIt );
+          log->Debug( TaskMgrMsg, "Done with task: \"%s\"",
+                      (*listIt)->GetName().c_str() );
           delete *listIt;
         }
       }
