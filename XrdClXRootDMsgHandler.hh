@@ -135,6 +135,14 @@ namespace XrdCl
         pUserBufferSize = size;
       }
 
+      //------------------------------------------------------------------------
+      //! Get the request pointer
+      //------------------------------------------------------------------------
+      const Message *GetRequest() const
+      {
+        return pRequest;
+      }
+
     private:
       //------------------------------------------------------------------------
       // Unpack the message and call the response handler

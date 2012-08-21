@@ -27,10 +27,10 @@
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 
-
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
 #include <memory>
+#include <sstream>
 
 namespace
 {
@@ -41,7 +41,13 @@ namespace
   class WaitTask: public XrdCl::Task
   {
     public:
-      WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler ) {}
+      WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler )
+      {
+        std::ostringstream o;
+        o << "WaitTask for: 0x" << handler->GetRequest() << std::endl;
+        SetName( o.str() );
+      }
+
       virtual time_t Run( time_t now )
       {
         pHandler->WaitDone( now );
