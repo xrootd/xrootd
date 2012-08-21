@@ -491,26 +491,9 @@ namespace XrdCl
     if( pConnectionCount < pConnectionRetry )
     {
       pAddresses.clear();
-      Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
-      if( !st.IsOK() )
-      {
-        log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
-                                   "the host", pStreamName.c_str() );
-        OnFatalError( subStream, Status( stFatal, errConnectionError ) );
-        return;
-      }
-
-      Utils::LogHostAddresses( log, PostMasterMsg, pUrl->GetHostId(),
-                               pAddresses );
-
-      //----------------------------------------------------------------------
-      // Initiate the connection process to the first one on the list
-      //----------------------------------------------------------------------
-      sockaddr_in addr;
-      memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
-      pAddresses.pop_back();
-      pSubStreams[0]->socket->SetAddress( addr );
-      st = pSubStreams[0]->socket->Connect( pConnectionWindow );
+      pSubStreams[0]->socket->SetStatus( Socket::Disconnected );
+      PathID path( 0, 0 );
+      st = EnableLink( path );
       if( !st.IsOK() )
         OnFatalError( subStream, Status( stFatal, errConnectionError ) );
       return;
