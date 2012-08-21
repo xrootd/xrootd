@@ -287,14 +287,15 @@ void UtilsTest::AnyTest()
 class TestTask1: public XrdCl::Task
 {
   public:
-    TestTask1( std::vector<time_t> &runs ): pRuns( runs ) {}
-
+    TestTask1( std::vector<time_t> &runs ): pRuns( runs )
+    {
+      SetName( "TestTask1" );
+    }
     virtual time_t Run( time_t now )
     {
       pRuns.push_back( now );
       return 0;
     }
-
   private:
     std::vector<time_t> &pRuns;
 };
@@ -302,7 +303,10 @@ class TestTask1: public XrdCl::Task
 class TestTask2: public XrdCl::Task
 {
   public:
-    TestTask2( std::vector<time_t> &runs ): pRuns( runs ) {}
+    TestTask2( std::vector<time_t> &runs ): pRuns( runs )
+    {
+      SetName( "TestTask2" );
+    }
 
     virtual time_t Run( time_t now )
     {
@@ -311,7 +315,6 @@ class TestTask2: public XrdCl::Task
         return 0;
       return now+2;
     }
-
   private:
     std::vector<time_t> &pRuns;
 };
