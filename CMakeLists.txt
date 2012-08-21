@@ -38,7 +38,12 @@ ADD_TEST( AnyTest                   ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./li
 ADD_TEST( TaskManagerTest           ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/UtilsTest/UtilsTest::TaskManagerTest")
 ADD_TEST( SIDManagerTest            ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/UtilsTest/UtilsTest::SIDManagerTest")
 ADD_TEST( TransferTest              ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/SocketTest/SocketTest::TransferTest")
-ADD_TEST( FunctionTestLibEvent      ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PollerTest/PollerTest::FunctionTestLibEvent")
+ADD_TEST( FunctionTestBuiltIn       ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PollerTest/PollerTest::FunctionTestBuiltIn")
+
+if( LIBEVENT_FOUND )
+ADD_TEST( FunctionTestLibEvent       ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PollerTest/PollerTest::FunctionTestLibEvent")
+endif()
+
 ADD_TEST( PostMasterTest            ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::FunctionalTest")
 ADD_TEST( PingIPv6Test              ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::PingIPv6")
 ADD_TEST( ThreadingTest             ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/PostMasterTest/PostMasterTest::ThreadingTest")
