@@ -329,7 +329,7 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 // that we cannot hold the channel mutex for this call because it may wait.
 //
    if (isLocked) chMutex.UnLock();
-   if (retval && !(chPollXQ->inCB) && setTO && isLocked) chPollXQ->WakeUp();
+   if (retval && !(chPollXQ->wakePend) && setTO && isLocked) chPollXQ->WakeUp();
 
 // All done
 //
@@ -451,7 +451,6 @@ XrdSys::IOEvents::Poller::Poller(int rFD, int cFD) : pollDone(0)
    tmoBase         = 0;
    cmdFD           = cFD;
    reqFD           = rFD;
-   inCB            = false;
    wakePend        = false;
    pipeBuff        = 0;
    pipeBlen        = 0;
@@ -508,11 +507,6 @@ void XrdSys::IOEvents::Poller::CbkTMO()
 bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
                                       int eNum, const char *eTxt)
 {
-   struct cbMode {Poller *pollP;
-                   cbMode(Poller *pP) : pollP(pP) {pP->inCB = 1;}
-                  ~cbMode() {if (pollP) pollP->inCB = 1;}
-                 } cbModeHelper(this);
-
    char oldEvents;
    int isRead = 0, isWrite = 0;
    bool isLocked = true;
@@ -882,7 +876,6 @@ void XrdSys::IOEvents::Poller::Stop()
 //
    close(cmdFD); cmdFD = -1;
    close(reqFD); reqFD = -1;
-   inCB = 1;
 
 // Run through cleaning up the channels. While there should not be any other
 // operations happening on this poller, we take the conservative approach.
@@ -902,7 +895,6 @@ void XrdSys::IOEvents::Poller::Stop()
 // Now invoke the poller specific shutdown
 //
    Shutdown();
-   inCB = 0;
    adMutex.UnLock();
 }
   

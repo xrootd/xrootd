@@ -459,8 +459,7 @@ struct          PipeData {char req; char evt; short ent; int fd;
                 PipeData reqBuff; // Buffer used by poller thread to recv data
 char           *pipeBuff;         // Read resumption point in buffer
 int             pipeBlen;         // Number of outstanding bytes
-bool            wakePend;         // Wakeup is pending (don't send more)
-bool            inCB;             // Callback program path is executing
+bool            wakePend;         // Wakeup is effectively pending (don't send)
 
 static int      maxFD;            // Maximum number of FD's allowed
 static time_t   maxTime;          // Maximum time allowed
