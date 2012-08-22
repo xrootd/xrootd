@@ -103,8 +103,17 @@ install(
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
-  DIRECTORY      ./
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )
+  FILES
+    XrdClAnyObject.hh
+    XrdClBuffer.hh
+    XrdClConstants.hh
+    XrdClDefaultEnv.hh
+    XrdClEnv.hh
+    XrdClFile.hh
+    XrdClFileSystem.hh
+    XrdClPostMaster.hh
+    XrdClPostMasterInterfaces.hh
+    XrdClStatus.hh
+    XrdClURL.hh
+    XrdClXRootDResponses.hh
+  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
