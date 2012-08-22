@@ -100,6 +100,7 @@ namespace XrdCl
       class Holder
       {
         public:
+          virtual ~Holder() {}
           virtual void Delete() = 0;
           virtual void *Get()   = 0;
       };

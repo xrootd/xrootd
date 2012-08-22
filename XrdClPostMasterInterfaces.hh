@@ -39,6 +39,8 @@ namespace XrdCl
   class MessageFilter
   {
     public:
+      virtual ~MessageFilter() {}
+
       //------------------------------------------------------------------------
       //! Examine the message and return true if the message should be picked
       //! up (usually removed from the queue and to the caller)
@@ -62,6 +64,8 @@ namespace XrdCl
         RemoveHandler = 0x04      //!< Remove the handler from the notification
                                   //!< list
       };
+
+      virtual ~MessageHandler() {}
 
       //------------------------------------------------------------------------
       //! Examine an incomming message, and decide on the action to be taken
@@ -87,6 +91,8 @@ namespace XrdCl
   class MessageStatusHandler
   {
     public:
+      virtual ~MessageStatusHandler() {}
+
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
@@ -144,6 +150,8 @@ namespace XrdCl
   class TransportHandler
   {
     public:
+      virtual ~TransportHandler() {}
+
       //------------------------------------------------------------------------
       //! Read a message from the socket, the socket is non blocking, so if
       //! there is not enough data the function should retutn errRetry in which

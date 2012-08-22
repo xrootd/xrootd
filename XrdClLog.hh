@@ -35,6 +35,8 @@ namespace XrdCl
   class LogOut
   {
     public:
+      virtual ~LogOut() {}
+
       //------------------------------------------------------------------------
       //! Write a message to the destination
       //!
@@ -50,7 +52,7 @@ namespace XrdCl
   {
     public:
       LogOutFile(): pFileDes(-1) {};
-      ~LogOutFile() { Close(); };
+      virtual ~LogOutFile() { Close(); };
 
       //------------------------------------------------------------------------
       //! Open the log file

@@ -788,6 +788,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       typedef std::vector<URL> URLList;
 
+      virtual ~ResponseHandler() {}
+
       //------------------------------------------------------------------------
       //! Called when a response to associated request arrives or an error
       //! occurs
@@ -813,8 +815,8 @@ namespace XrdCl
       //! @param response an object associated with the response
       //!                 (request dependent)
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus */*status*/,
-                                   AnyObject    */*response*/ ) {}
+      virtual void HandleResponse( XRootDStatus *status,
+                                   AnyObject    *response ) {}
   };
 }
 

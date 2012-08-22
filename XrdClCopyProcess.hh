@@ -31,6 +31,7 @@ namespace XrdCl
   class CopyProgressHandler
   {
     public:
+      virtual ~CopyProgressHandler() {}
 
       //------------------------------------------------------------------------
       //! Notify when a new job is about to start
