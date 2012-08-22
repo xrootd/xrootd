@@ -26,15 +26,15 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Log message types
   //----------------------------------------------------------------------------
-  const uint64_t AppMsg             = 0x0000000000000001;
-  const uint64_t UtilityMsg         = 0x0000000000000002;
-  const uint64_t FileMsg            = 0x0000000000000004;
-  const uint64_t PollerMsg          = 0x0000000000000008;
-  const uint64_t PostMasterMsg      = 0x0000000000000010;
-  const uint64_t XRootDTransportMsg = 0x0000000000000020;
-  const uint64_t TaskMgrMsg         = 0x0000000000000040;
-  const uint64_t XRootDMsg          = 0x0000000000000080;
-  const uint64_t QueryMsg           = 0x0000000000000100;
+  const uint64_t AppMsg             = 0x0000000000000001ULL;
+  const uint64_t UtilityMsg         = 0x0000000000000002ULL;
+  const uint64_t FileMsg            = 0x0000000000000004ULL;
+  const uint64_t PollerMsg          = 0x0000000000000008ULL;
+  const uint64_t PostMasterMsg      = 0x0000000000000010ULL;
+  const uint64_t XRootDTransportMsg = 0x0000000000000020ULL;
+  const uint64_t TaskMgrMsg         = 0x0000000000000040ULL;
+  const uint64_t XRootDMsg          = 0x0000000000000080ULL;
+  const uint64_t QueryMsg           = 0x0000000000000100ULL;
 
   //----------------------------------------------------------------------------
   // Environment settings

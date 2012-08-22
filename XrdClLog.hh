@@ -100,7 +100,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( InfoMsg ), pMask( 0xffffffffffffffff )
+      Log(): pLevel( InfoMsg ), pMask( 0xffffffffffffffffULL )
       {
         pOutput = new LogOutCerr();
       }
