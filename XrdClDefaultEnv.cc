@@ -160,7 +160,7 @@ namespace
     uint64_t translateMask( const std::string mask )
     {
       if( mask == "" || mask == "All" )
-        return 0xffffffffffffffff;
+        return 0xffffffffffffffffULL;
 
       if( mask == "None" )
         return 0;
