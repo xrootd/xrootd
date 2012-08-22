@@ -18,6 +18,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Remove redundant flag indicating a running poller. This may cause the
+     poller to never be woken up when a timeout value changes.
    * Make sure refresh thread is dead before deleting deleting the keytab to
      avoid SEGV's.
    * Add missing include for compiling with gcc-4.7 (from Sebastien Binet).
