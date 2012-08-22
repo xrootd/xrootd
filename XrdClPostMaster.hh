@@ -25,15 +25,16 @@
 
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClPoller.hh"
-#include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
-#include "XrdCl/XrdClChannel.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
 {
+  class Poller;
+  class TaskManager;
+  class Channel;
+
   //----------------------------------------------------------------------------
   //! A hub for dispaching and receiving messages
   //----------------------------------------------------------------------------

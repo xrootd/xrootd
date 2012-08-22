@@ -22,6 +22,9 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPoller.hh"
+#include "XrdCl/XrdClTaskManager.hh"
+#include "XrdCl/XrdClChannel.hh"
 
 namespace XrdCl
 {
