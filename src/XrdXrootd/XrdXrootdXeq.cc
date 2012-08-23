@@ -1632,18 +1632,23 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // transfer the requested data to minimize latency.
 //
    if (myFile->isMMapped)
-      {     if (myOffset >= myFile->fSize) return Response.Send();
-       else if (myOffset+myIOLen <= myFile->fSize)
-               return Response.Send(myFile->mmAddr+myOffset, myIOLen);
-       else    return Response.Send(myFile->mmAddr+myOffset,
-                                    myFile->fSize -myOffset);
+      {if (myOffset >= myFile->fSize) return Response.Send();
+       if (myOffset+myIOLen <= myFile->fSize)
+          {myFile->readCnt += myIOLen;
+           return Response.Send(myFile->mmAddr+myOffset, myIOLen);
+          }
+       xframt = myFile->fSize -myOffset;
+       myFile->readCnt += xframt;
+       return Response.Send(myFile->mmAddr+myOffset, xframt);
       }
 
 // If we are sendfile enabled, then just send the file if possible
 //
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->fSize)
-      return Response.Send(myFile->fdNum, myOffset, myIOLen);
+      {myFile->readCnt += myIOLen;
+       return Response.Send(myFile->fdNum, myOffset, myIOLen);
+      }
 
 // If we are in async mode, schedule the read to ocur asynchronously
 //
