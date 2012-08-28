@@ -224,7 +224,7 @@ void UtilsTest::URLTest()
 class A
 {
   public:
-    A( bool &st ): stat(st) {}
+    A( bool &st ): a(0.0), stat(st) {}
     ~A() { stat = true; }
     double  a;
     bool   &stat;

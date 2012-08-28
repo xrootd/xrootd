@@ -177,8 +177,8 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   // Open
   //----------------------------------------------------------------------------
-  int fd = open( localFile.c_str(), O_RDONLY );
-  CPPUNIT_ASSERT_MESSAGE( strerror(errno), fd != -1 );
+  int fd = -1;
+  CPPUNIT_ASSERT_ERRNO( (fd=open( localFile.c_str(), O_RDONLY )) > 0 )
   CPPUNIT_ASSERT_XRDST( f.Open( fileUrl,
                                 OpenFlags::Delete|OpenFlags::Append ) );
 

@@ -96,7 +96,7 @@ void ClientHandler::UpdateReceivedData( char *buffer, uint32_t size )
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Server::Server(): pListenSocket(-1), pHandlerFactory(0)
+Server::Server(): pServerThread(0), pListenSocket(-1), pHandlerFactory(0)
 {
 }
 

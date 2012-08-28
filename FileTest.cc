@@ -164,6 +164,7 @@ void FileTest::ReadTest()
   CPPUNIT_ASSERT( stat->GetSize() == 1048576000 );
   CPPUNIT_ASSERT( stat->TestFlags( StatInfo::IsReadable ) );
   delete stat;
+  stat = 0;
 
   //----------------------------------------------------------------------------
   // Stat2
