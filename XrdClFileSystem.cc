@@ -908,7 +908,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Do the stats on all the entries if necessary
     //--------------------------------------------------------------------------
-    if( !(flags && DirListFlags::Stat) )
+    if( !(flags & DirListFlags::Stat) )
       return st;
 
     uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
