@@ -107,13 +107,11 @@ void *TestThreadFunc( void *arg )
   request->requestid   = kXR_ping;
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m );
-  Status sc;
 
   for( int i = 0; i < 100; ++i )
   {
     request->streamid[1] = i;
-    sc = a->pm->Send( host, &m, 1200 );
-    CPPUNIT_ASSERT( sc.IsOK() );
+    CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &m, 1200 ) );
   }
 
   //----------------------------------------------------------------------------
@@ -123,8 +121,7 @@ void *TestThreadFunc( void *arg )
   {
     Message *m;
     f.streamId[1] = i;
-    sc = a->pm->Receive( host, m, &f, 1200 );
-    CPPUNIT_ASSERT( sc.IsOK() );
+    CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, 1200 ) );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
@@ -201,13 +198,9 @@ void PostMasterTest::FunctionalTest()
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  Status sc;
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, 1200 ) );
 
-  sc = postMaster.Send( host, &m1, 1200 );
-  CPPUNIT_ASSERT( sc.IsOK() );
-
-  sc = postMaster.Receive( host, m2, &f1, 1200 );
-  CPPUNIT_ASSERT( sc.IsOK() );
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, 1200 ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
@@ -217,9 +210,8 @@ void PostMasterTest::FunctionalTest()
   // Wait for an answer to a message that has not been sent - test the
   // reception timeout
   //----------------------------------------------------------------------------
-  sc = postMaster.Receive( host, m2, &f1, 2 );
-  CPPUNIT_ASSERT( !sc.IsOK() );
-  CPPUNIT_ASSERT( sc.code == errSocketTimeout );
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Receive( host, m2, &f1, 2 ),
+                              errSocketTimeout );
 
   //----------------------------------------------------------------------------
   // Send out some stuff to a location where nothing listens
@@ -227,13 +219,10 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "ConnectionWindow", 5 );
   env->PutInt( "ConnectionRetry", 3 );
   URL localhost1( "root://localhost:10101" );
-  sc = postMaster.Send( localhost1, &m1, 3 );
-  CPPUNIT_ASSERT( !sc.IsOK() );
-  CPPUNIT_ASSERT( sc.code == errSocketTimeout );
-
-  sc = postMaster.Send( localhost1, &m1, 1200 );
-  CPPUNIT_ASSERT( !sc.IsOK() );
-  CPPUNIT_ASSERT( sc.code == errConnectionError );
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, 3 ),
+                              errSocketTimeout );
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, 1200 ),
+                              errConnectionError );
 
   //----------------------------------------------------------------------------
   // Test the transport queries
@@ -243,12 +232,12 @@ void PostMasterTest::FunctionalTest()
   const char *name   = 0;
   SIDManager *sidMgr = 0;
 
-  st1 = postMaster.QueryTransport( host, TransportQuery::Name, nameObj );
-  st2 = postMaster.QueryTransport( host, XRootDQuery::SIDManager,
-                                   sidMgrObj );
-
-  CPPUNIT_ASSERT( st1.IsOK() );
-  CPPUNIT_ASSERT( st2.IsOK() );
+  CPPUNIT_ASSERT_XRDST( postMaster.QueryTransport( host,
+                                                   TransportQuery::Name,
+                                                   nameObj ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.QueryTransport( host,
+                                                   XRootDQuery::SIDManager,
+                                                   sidMgrObj ) );
 
   nameObj.Get( name );
   sidMgrObj.Get( sidMgr );

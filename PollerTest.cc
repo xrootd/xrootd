@@ -21,6 +21,7 @@
 #include "Server.hh"
 #include "Utils.hh"
 #include "TestEnv.hh"
+#include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClSocket.hh"
@@ -234,8 +235,8 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
   SocketHandler *handler = new SocketHandler();
   for( int i = 0; i < 3; ++i )
   {
-    CPPUNIT_ASSERT( s[i].Initialize().IsOK() );
-    CPPUNIT_ASSERT( s[i].Connect( "localhost", 9999 ).IsOK() );
+    CPPUNIT_ASSERT_XRDST( s[i].Initialize() );
+    CPPUNIT_ASSERT_XRDST( s[i].Connect( "localhost", 9999 ) );
     CPPUNIT_ASSERT( poller->AddSocket( &s[i], handler ) );
     CPPUNIT_ASSERT( poller->EnableReadNotification( &s[i], true, 60 ) );
     CPPUNIT_ASSERT( poller->IsRegistered( &s[i] ) );
