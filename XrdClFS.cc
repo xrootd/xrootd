@@ -223,7 +223,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
       path = args[i];
   }
 
-  std::string newPath;
+  std::string newPath = "/";
   if( path.empty() )
     env->GetString( "CWD", newPath );
   else
