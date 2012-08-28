@@ -40,8 +40,8 @@ namespace XrdCl
     pSocket( 0 ),
     pIncoming( 0 ),
     pOutgoing( 0 ),
-    pStatus( Socket::Disconnected ),
     pHandShakeData( 0 ),
+    pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 )
   {
@@ -72,9 +72,6 @@ namespace XrdCl
     pConnectionStarted = ::time(0);
     pConnectionTimeout = timeout;
 
-    if( pStatus == Socket::Connected || pStatus == Socket::Connecting )
-      return Status( stOK, suAlreadyDone );
-
     //--------------------------------------------------------------------------
     // Initialize the socket
     //--------------------------------------------------------------------------
@@ -86,6 +83,8 @@ namespace XrdCl
                                  st.ToString().c_str() );
       return st;
     }
+
+    pHandShakeDone = false;
 
     //--------------------------------------------------------------------------
     // Initiate async connection to the address
@@ -100,7 +99,6 @@ namespace XrdCl
     {
       log->Error( PostMasterMsg, "[%s] Unable to initiate the connection: %s",
                                  pStreamName.c_str(), st.ToString().c_str() );
-      pStatus = Socket::Disconnected;
       return st;
     }
 
@@ -112,7 +110,6 @@ namespace XrdCl
     {
       Status st( stFatal, errPollerError );
       pSocket->Close();
-      pStatus = Socket::Disconnected;
       return st;
     }
 
@@ -121,11 +118,9 @@ namespace XrdCl
       Status st( stFatal, errPollerError );
       pPoller->RemoveSocket( pSocket );
       pSocket->Close();
-      pStatus = Socket::Disconnected;
       return st;
     }
 
-    pStatus = Socket::Connecting;
     return Status();
   }
 
@@ -142,7 +137,6 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
-    pStatus = Socket::Disconnected;
     return Status();
   }
 
@@ -155,8 +149,7 @@ namespace XrdCl
     std::ostringstream o;
     o << pStream->GetURL()->GetHostId();
     o << " #" << pStream->GetStreamNumber();
-    if( pSubStreamNum )
-      o << "." << pSubStreamNum;
+    o << "." << pSubStreamNum;
     pStreamName = o.str();
   }
 
@@ -171,42 +164,43 @@ namespace XrdCl
       // Read event
       //------------------------------------------------------------------------
       case ReadyToRead:
-        if( pStatus == Socket::Connecting )
-          OnReadWhileHandshaking();
-        else
+        if( likely( pHandShakeDone ) )
           OnRead();
+        else
+          OnReadWhileHandshaking();
         break;
 
       //------------------------------------------------------------------------
       // Read timeout
       //------------------------------------------------------------------------
       case ReadTimeOut:
-        if( pStatus == Socket::Connecting )
-          OnTimeoutWhileHandshaking();
-        else
+        if( likely( pHandShakeDone ) )
           OnReadTimeout();
+        else
+          OnTimeoutWhileHandshaking();
         break;
 
       //------------------------------------------------------------------------
       // Write event
       //------------------------------------------------------------------------
       case ReadyToWrite:
-        if( pSocket->GetStatus() == Socket::Connecting )
+        if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
           OnConnectionReturn();
-        else if( pStatus == Socket::Connecting )
-          OnWriteWhileHandshaking();
-        else
+        else if( likely( pHandShakeDone ) )
           OnWrite();
+        else
+          OnWriteWhileHandshaking();
+
         break;
 
       //------------------------------------------------------------------------
       // Write timeout
       //------------------------------------------------------------------------
       case WriteTimeOut:
-        if( pStatus == Socket::Connecting )
-          OnTimeoutWhileHandshaking();
-        else
+        if( likely( pHandShakeDone ) )
           OnWriteTimeout();
+        else
+          OnTimeoutWhileHandshaking();
         break;
     }
   }
@@ -491,6 +485,7 @@ namespace XrdCl
         OnFaultWhileHandshaking( Status( stFatal, errPollerError ) );
         return;
       }
+      pHandShakeDone = true;
       pStream->OnConnect( pSubStreamNum );
     }
 

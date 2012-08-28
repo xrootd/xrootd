@@ -44,8 +44,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       AsyncSocketHandler( Poller           *poller,
                           TransportHandler *transport,
-                           AnyObject        *channelData,
-                           uint16_t          subStreamNum );
+                          AnyObject        *channelData,
+                          uint16_t          subStreamNum );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -82,22 +82,6 @@ namespace XrdCl
       //! Set a stream object to be notified about the status of the operations
       //------------------------------------------------------------------------
       void SetStream( Stream *stream );
-
-      //------------------------------------------------------------------------
-      //! Get status
-      //------------------------------------------------------------------------
-      Socket::SocketStatus GetStatus() const
-      {
-        return pStatus;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set status
-      //------------------------------------------------------------------------
-      void SetStatus( Socket::SocketStatus status )
-      {
-        pStatus = status;
-      }
 
       //------------------------------------------------------------------------
       //! Handle a socket event
@@ -207,8 +191,8 @@ namespace XrdCl
       Message                       *pIncoming;
       Message                       *pOutgoing;
       sockaddr_in                    pSockAddr;
-      Socket::SocketStatus           pStatus;
       HandShakeData                 *pHandShakeData;
+      bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;

@@ -119,8 +119,9 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Make sure that the underlying socket handler gets write readiness
-      //! events, it will update the path with what it has actually enabled
+      //! Connect if needed, otherwise make sure that the underlying socket
+      //! handler gets write readiness events, it will update the path with
+      //! what it has actually enabled
       //------------------------------------------------------------------------
       Status EnableLink( PathID &path );
 
@@ -150,6 +151,11 @@ namespace XrdCl
       {
         return pStreamNum;
       }
+
+      //------------------------------------------------------------------------
+      //! Force connection
+      //------------------------------------------------------------------------
+      void ForceConnect();
 
       //------------------------------------------------------------------------
       //! Return stream name
