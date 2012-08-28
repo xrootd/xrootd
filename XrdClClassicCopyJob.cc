@@ -241,6 +241,14 @@ namespace
       }
 
       //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~XRootDSource()
+      {
+        delete pFile;
+      }
+
+      //------------------------------------------------------------------------
       //! Initialize the source
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
@@ -514,7 +522,7 @@ namespace XrdCl
     if( pDestination->GetProtocol() == "file" )
       dest.reset( new LocalDestination( pDestination ) );
     //--------------------------------------------------------------------------
-    // For xrootd destination buil the oss.asize hint
+    // For xrootd destination build the oss.asize hint
     //--------------------------------------------------------------------------
     else
     {

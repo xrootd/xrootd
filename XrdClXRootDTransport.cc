@@ -491,11 +491,10 @@ namespace XrdCl
       {
         if( msg->GetSize() < sizeof(ClientReadRequest) + 8 )
         {
-          ClientReadRequest *req = (ClientReadRequest*)msg->GetBuffer();
           msg->ReAllocate( sizeof(ClientReadRequest) + 8 );
           void *newBuf = msg->GetBuffer(sizeof(ClientReadRequest));
           memset( newBuf, 0, 8 );
-          req = (ClientReadRequest*)msg->GetBuffer();
+          ClientReadRequest *req = (ClientReadRequest*)msg->GetBuffer();
           req->dlen += 8;
         }
         read_args *args = (read_args*)msg->GetBuffer(sizeof(ClientReadRequest));

@@ -157,7 +157,6 @@ namespace XrdCl
       default:
         return "Unknown Level";
     }
-    return "Unknown Level";
   }
 
   //----------------------------------------------------------------------------

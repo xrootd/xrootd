@@ -42,7 +42,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  TaskManager::TaskManager(): pResolution(1), pRunning(false) {}
+  TaskManager::TaskManager(): pResolution(1), pRunnerThread(0), pRunning(false)
+  {}
 
   //----------------------------------------------------------------------------
   // Destructor
