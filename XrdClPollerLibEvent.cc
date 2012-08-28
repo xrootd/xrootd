@@ -600,6 +600,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Running the event loop..." );
+    XrdSysMutexHelper scopedLock( pMutex );
 
     //--------------------------------------------------------------------------
     // Create a dummy event in order to keep the event loop running
@@ -627,7 +628,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Run the show
     //--------------------------------------------------------------------------
-    if( ::event_base_dispatch( pEventBase ) != 0 )
+    scopedLock.UnLock();
+    int dispatchStatus = ::event_base_dispatch( pEventBase );
+    scopedLock.Lock( &pMutex );
+    if( dispatchStatus != 0 )
     {
       log->Error( PollerMsg, "Unable to dispatch the event loop" );
       return -1;
