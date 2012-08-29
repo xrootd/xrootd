@@ -149,9 +149,15 @@ namespace
     //--------------------------------------------------------------------------
     MaskTranslator()
     {
-      masks["AppMsg"]     = XrdCl::AppMsg;
-      masks["UtilityMsg"] = XrdCl::UtilityMsg;
-      masks["FileMsg"]    = XrdCl::FileMsg;
+      masks["AppMsg"]             = XrdCl::AppMsg;
+      masks["UtilityMsg"]         = XrdCl::UtilityMsg;
+      masks["FileMsg"]            = XrdCl::FileMsg;
+      masks["PollerMsg"]          = XrdCl::PollerMsg;
+      masks["PostMasterMsg"]      = XrdCl::PostMasterMsg;
+      masks["XRootDTransportMsg"] = XrdCl::XRootDTransportMsg;
+      masks["TaskMgrMsg"]         = XrdCl::TaskMgrMsg;
+      masks["XRootDMsg"]          = XrdCl::XRootDMsg;
+      masks["QueryMsg"]           = XrdCl::QueryMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -159,11 +165,8 @@ namespace
     //--------------------------------------------------------------------------
     uint64_t translateMask( const std::string mask )
     {
-      if( mask == "" || mask == "All" )
+      if( mask == "" )
         return 0xffffffffffffffffULL;
-
-      if( mask == "None" )
-        return 0;
 
       std::vector<std::string>           topics;
       std::vector<std::string>::iterator it;
@@ -173,8 +176,39 @@ namespace
       std::map<std::string, uint64_t>::iterator maskIt;
       for( it = topics.begin(); it != topics.end(); ++it )
       {
-        maskIt = masks.find( *it );
-        if( maskIt != masks.end() )
+        //----------------------------------------------------------------------
+        // Check for reseting pseudo topics
+        //----------------------------------------------------------------------
+        if( *it == "All" )
+        {
+          resultMask = 0xffffffffffffffffULL;
+          continue;
+        }
+
+        if( *it == "None" )
+        {
+          resultMask = 0ULL;
+          continue;
+        }
+
+        //----------------------------------------------------------------------
+        // Check whether given topic should be disabled or enabled
+        //----------------------------------------------------------------------
+        std::string topic = *it;
+        bool disable      = false;
+        if( !topic.empty() && topic[0] == '^' )
+        {
+          disable = true;
+          topic   = topic.substr( 1, topic.length()-1 );
+        }
+
+        maskIt = masks.find( topic );
+        if( maskIt == masks.end() )
+          continue;
+
+        if( disable )
+          resultMask &= (0xffffffffffffffffULL ^ maskIt->second);
+        else
           resultMask |= maskIt->second;
       }
 
@@ -215,14 +249,39 @@ namespace
       }
 
       //------------------------------------------------------------------------
+      // Log mask defaults
+      //------------------------------------------------------------------------
+      MaskTranslator translator;
+      log->SetMask( Log::DumpMsg, translator.translateMask( "All|^PollerMsg" ) );
+
+      //------------------------------------------------------------------------
       // Initialize the topic mask
       //------------------------------------------------------------------------
       char *logMask = getenv( "XRD_LOGMASK" );
       if( logMask )
       {
-        MaskTranslator translator;
-        log->SetMask( translator.translateMask( logMask ) );
+        uint64_t mask = translator.translateMask( logMask );
+        log->SetMask( Log::ErrorMsg,   mask );
+        log->SetMask( Log::WarningMsg, mask );
+        log->SetMask( Log::InfoMsg,    mask );
+        log->SetMask( Log::DebugMsg,   mask );
+        log->SetMask( Log::DumpMsg,    mask );
       }
+
+      logMask = getenv( "XRD_LOGMASK_ERROR" );
+      if( logMask ) log->SetMask( Log::ErrorMsg, translator.translateMask( logMask ) );
+
+      logMask = getenv( "XRD_LOGMASK_WARNING" );
+      if( logMask ) log->SetMask( Log::WarningMsg, translator.translateMask( logMask ) );
+
+      logMask = getenv( "XRD_LOGMASK_INFO" );
+      if( logMask ) log->SetMask( Log::InfoMsg, translator.translateMask( logMask ) );
+
+      logMask = getenv( "XRD_LOGMASK_DEBUG" );
+      if( logMask ) log->SetMask( Log::DebugMsg, translator.translateMask( logMask ) );
+
+      logMask = getenv( "XRD_LOGMASK_DUMP" );
+      if( logMask ) log->SetMask( Log::DumpMsg, translator.translateMask( logMask ) );
     }
 
     //--------------------------------------------------------------------------

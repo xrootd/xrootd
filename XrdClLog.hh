@@ -100,9 +100,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( InfoMsg ), pMask( 0xffffffffffffffffULL )
+      Log(): pLevel( InfoMsg )
       {
         pOutput = new LogOutCerr();
+        int maxMask = (int)DumpMsg+1;
+        for( int i = 0; i < maxMask; ++i )
+          pMask[i] = 0xffffffffffffffffULL;
       }
 
       //------------------------------------------------------------------------
@@ -121,7 +124,7 @@ namespace XrdCl
         if( unlikely( pLevel < ErrorMsg ) )
           return;
 
-        if( unlikely( (type & pMask) == 0 ) )
+        if( unlikely( (type & pMask[ErrorMsg]) == 0 ) )
           return;
 
         va_list argList;
@@ -138,7 +141,7 @@ namespace XrdCl
         if( unlikely( pLevel < WarningMsg ) )
           return;
 
-        if( unlikely( (type & pMask) == 0 ) )
+        if( unlikely( (type & pMask[WarningMsg]) == 0 ) )
           return;
 
         va_list argList;
@@ -155,7 +158,7 @@ namespace XrdCl
         if( likely( pLevel < InfoMsg ) )
           return;
 
-        if( unlikely( (type & pMask) == 0 ) )
+        if( unlikely( (type & pMask[InfoMsg]) == 0 ) )
           return;
 
         va_list argList;
@@ -172,7 +175,7 @@ namespace XrdCl
         if( likely( pLevel < DebugMsg ) )
           return;
 
-        if( unlikely( (type & pMask) == 0 ) )
+        if( unlikely( (type & pMask[DebugMsg]) == 0 ) )
           return;
 
         va_list argList;
@@ -189,7 +192,7 @@ namespace XrdCl
         if( likely( pLevel < DumpMsg ) )
           return;
 
-        if( unlikely( (type & pMask) == 0 ) )
+        if( unlikely( (type & pMask[DumpMsg]) == 0 ) )
           return;
 
         va_list argList;
@@ -238,9 +241,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Sets the mask for the types of messages that should be printed
       //------------------------------------------------------------------------
-      void SetMask( uint64_t mask )
+      void SetMask( LogLevel level, uint64_t mask )
       {
-        pMask = mask;
+        pMask[level] = mask;
+      }
+
+      //------------------------------------------------------------------------
+      //! Sets the mask for the types of messages that should be printed
+      //------------------------------------------------------------------------
+      void SetMask( const std::string &level, uint64_t mask )
+      {
+        LogLevel lvl;
+        if( StringToLogLevel( level, lvl ) )
+          pMask[lvl] = mask;
       }
 
     private:
@@ -248,7 +261,7 @@ namespace XrdCl
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
 
       LogLevel    pLevel;
-      uint64_t    pMask;
+      uint64_t    pMask[DumpMsg+1];
       LogOut     *pOutput;
   };
 }
