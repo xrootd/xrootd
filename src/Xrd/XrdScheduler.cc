@@ -88,6 +88,7 @@ XrdScheduler::XrdScheduler(XrdSysError *eP, XrdOucTrace *tP,
     max_QLength =  0;
     num_TCreate =  0;
     num_TDestroy=  0;
+    num_Layoffs =  0;
     num_Limited =  0;
     firstPID    =  0;
     WorkFirst = WorkLast = TimerQueue = 0;

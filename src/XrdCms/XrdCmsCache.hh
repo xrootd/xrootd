@@ -59,7 +59,8 @@ int         Init(int fxHold, int fxDelay, int fxQuery, int seFS);
 void       *TickTock();
 
             XrdCmsCache() : okVec(0), Tick(8*60*60), Tock(0), BClock(0), 
-                            DLTime(5), Bhits(0), Bmiss(0), vecHi(-1), isDFS(0)
+                            DLTime(5), QDelay(5), Bhits(0), Bmiss(0), vecHi(-1),
+                            isDFS(0)
                           {memset(Bounced,  0, sizeof(Bounced));
                            memset(Bhistory, 0, sizeof(Bhistory));
                           }

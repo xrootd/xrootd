@@ -10,8 +10,6 @@
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//        $Id$
-
 #include <sys/epoll.h>
 
 #include "Xrd/XrdPoll.hh"
@@ -33,7 +31,7 @@ public:
 protected:
        void  Exclude(XrdLink *lp);
        int   Include(XrdLink *lp);
-       char *x2Text(unsigned int evf);
+const  char *x2Text(unsigned int evf, char *buff);
 
 private:
 void remFD(XrdLink *lp, unsigned int events);

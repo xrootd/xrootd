@@ -8,10 +8,6 @@
 /*           DE-AC03-76-SFO0515 with the Deprtment of Energy                  */
 /******************************************************************************/
 
-//       $Id$ 
-
-const char *XrdSysLoggerCVSID = "$Id$";
-
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -234,7 +230,11 @@ int XrdSysLogger::ReBind(int dorename)
 // Now set the file descriptor to be the same as the error FD. This will
 // close the previously opened file, if any.
 //
-   if (dup2(newfd, eFD) < 0) return -errno;
+   if (dup2(newfd, eFD) < 0)
+      {int rc = errno;
+       close(newfd);
+       return -rc;
+      }
    close(newfd);
 
 // Check if we should trim log files

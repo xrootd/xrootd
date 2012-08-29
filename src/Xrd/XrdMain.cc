@@ -71,7 +71,7 @@ XrdInet             *theNet;
 int                  thePort;
 static XrdConfig     Config;
 
-           XrdMain() {}
+           XrdMain() : theNet(0), thePort(0) {}
            XrdMain(XrdInet *nP) : theNet(nP), thePort(nP->Port()) {}
           ~XrdMain() {}
 };

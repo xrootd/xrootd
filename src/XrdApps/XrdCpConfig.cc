@@ -595,7 +595,8 @@ const char *XrdCpConfig::Human(long long inval, char *Buff, int Blen)
     static const char *sfx[] = {" bytes", "KB", "MB", "GB", "TB", "PB"};
     unsigned int i;
 
-    for (i = 0; i < sizeof(sfx)-1 && inval >= 1024; i++) inval = inval/1024;
+    for (i = 0; i < sizeof(sfx)/sizeof(sfx[0]) - 1 && inval >= 1024; i++) 
+        inval = inval/1024;
 
     snprintf(Buff, Blen, "%lld%s", inval, sfx[i]);
     return Buff;
@@ -617,6 +618,7 @@ int XrdCpConfig::Legacy()
       else oArg = Argv[optind+1];
    if (!(rc = Legacy(Argv[optind], oArg))) return 0;
    optind += rc;
+   return 1;
 }
 
 /******************************************************************************/

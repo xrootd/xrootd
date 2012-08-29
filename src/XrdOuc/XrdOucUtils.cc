@@ -517,6 +517,7 @@ bool XrdOucUtils::PidFile(XrdSysError &eDest, const char *path)
                                   static_cast<int>(getpid()) ) ) < 0 )
    {
       eDest.Emsg( "Config", errno, "write to pidfile" );
+      close(fd);
       return false;
    }
 

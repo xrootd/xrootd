@@ -232,7 +232,8 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 //
    if (!runOld && !(crInfo.pOpts & XRDEXP_NOXATTR)
    &&  (rc = XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), crInfo.Path,
-                              strlen(crInfo.Path)+1, pbuff, datfd))) return rc;
+                              strlen(crInfo.Path)+1, pbuff, datfd)))
+      {close(datfd); return rc;}
 
 // Set extended attributes for this newly created file if allowed to do so.
 // SetFattr() alaways closes the provided file descriptor!

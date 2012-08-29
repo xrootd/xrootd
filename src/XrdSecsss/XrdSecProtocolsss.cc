@@ -608,8 +608,8 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
                                              int                 dLen)
 {
    static const int hdrSZ = sizeof(XrdSecsssRR_Hdr);
-   XrdOucEnv *errEnv;
-   char *myIP, *credP, *eodP = ((char *)rrData) + dLen;
+   XrdOucEnv *errEnv = 0;
+   char *myIP = 0, *credP, *eodP = ((char *)rrData) + dLen;
    int knum, cLen;
 
 // Make sure we have enought space left in the buffer

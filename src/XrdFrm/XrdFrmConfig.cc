@@ -672,7 +672,7 @@ int XrdFrmConfig::ConfigMP(const char *pType)
 //
    if (!mypList)
       {XrdOucPList *fP = XrdOssRPList->First();
-       short sval[2];
+       short sval[4];    // Last two elements are unused
        while(fP)
             {sval[0] = (fP->Flag() & XRDEXP_MAKELF ? 1 : 0);
              sval[1] = fP->Plen();

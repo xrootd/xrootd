@@ -66,7 +66,7 @@ int             Match(const XrdSecEntity *Who);
                               {if (vHN) theHN = new XrdOucNList(vHN);
                                   else  theHN = 0;
                               }
-               ~XrdOfsTPCAllow() {}
+               ~XrdOfsTPCAllow() {if (theHN) delete theHN;}
 };
 
 /******************************************************************************/

@@ -8,10 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//          $Id$
-
-const char *XrdOfsPoscqCVSID = "$Id$";
-
 #include <string.h>
 #include <strings.h>
 #include <stddef.h>
@@ -237,7 +233,9 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::List(XrdSysError *Say, const char *theFN)
    for (Offs = ReqOffs; Offs < buf.st_size; Offs += ReqSize)
        {do {rc = pread(theFD, (void *)&tmpReq, ReqSize, Offs);}
            while(rc < 0 && errno == EINTR);
-        if (rc < 0) {Say->Emsg("List",errno,"read",theFN); return First;}
+        if (rc < 0) {Say->Emsg("List",errno,"read",theFN);
+                     close(theFD); return First;
+                    }
         if (*tmpReq.LFN != '\0') First = new recEnt(tmpReq, 0, First);
        }
 

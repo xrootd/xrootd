@@ -106,7 +106,7 @@ char *XrdFrcUtils::makePath(const char *iName, const char *Path, int Mode)
   
 char *XrdFrcUtils::makeQDir(const char *Path, int Mode)
 {
-   char qPath[1032], qLink[2048];
+   char qPath[1040], qLink[1032];
    int n, lksz, rc;
 
 // Generate an frm-specific queue path
@@ -118,7 +118,7 @@ char *XrdFrcUtils::makeQDir(const char *Path, int Mode)
 
 // If the target is a symlink, optimize the path
 //
-   if ((lksz = readlink(qPath, qLink, sizeof(qLink))) > 0)
+   if ((lksz = readlink(qPath, qLink, sizeof(qLink)-1)) > 0)
       {qLink[lksz] = '\0';
        if (qLink[lksz-1] != '/') {qLink[lksz++] = '/'; qLink[lksz++] = '\0';}
        if (*qLink == '/') strcpy(qPath, qLink);

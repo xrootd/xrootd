@@ -38,7 +38,7 @@ char *XrdFrcReqAgent::c2sFN = 0;
 /******************************************************************************/
   
 XrdFrcReqAgent::XrdFrcReqAgent(const char *Me, int qVal)
-              : Persona(Me),theQ(qVal)
+              : Persona(Me),myName(""),theQ(qVal)
 {
 // Set default ping message
 //
@@ -214,5 +214,6 @@ int XrdFrcReqAgent::Start(char *aPath, int aMode)
 // All done
 //
    if (myClid) Ping();
+   free(qPath);
    return 1;
 }

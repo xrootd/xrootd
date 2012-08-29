@@ -693,6 +693,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
    if (!(Path = index(Path, '/')))
       {EMSG("Unable to extract lfn from '" <<getFName(src) <<"'."); return 0;}
    strncpy(lfnBuff, Path+1, sizeof(lfnBuff));
+   lfnBuff[sizeof(lfnBuff)-1] = 0;
    if ((qP = index(lfnBuff, '?'))) *qP = 0;
 
 // Generate a key

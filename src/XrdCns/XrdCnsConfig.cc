@@ -177,9 +177,9 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
           {MLog.Emsg("Config","'-R' is valid only for a stand-alone command.");
            return 0;
           }
-       if (bPath) {free(bPath); bPath = 0;}
        if (lroot)
           {sprintf(buff, "XRDLCLROOT=%s", lroot); putenv(strdup(buff));}
+       if (bPath) {free(bPath); bPath = 0;}
        if (n2n)
           {if ((tP=index(n2n, ' '))) {*tP++ = '\0'; while(*tP == ' ') tP++;}
            sprintf(buff, "XRDN2NLIB=%s", n2n); putenv(strdup(buff));
@@ -227,7 +227,9 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                 } else strcpy(buff, dP);
             }
        if (!*buff)
-          {MLog.Emsg("Config","Backup path cannot be determined."); NoGo=1;}
+          {MLog.Emsg("Config","Backup path cannot be determined.");
+           free(bHost); bHost = 0; NoGo=1;
+          }
           else {if (buff[strlen(buff)-1] == '/') strcat(buff, "cns/");
                    else strcat(buff, "/cns/");
                 bPath = strdup(buff);
@@ -454,9 +456,7 @@ int XrdCnsConfig::ConfigN2N()
 // Get the library path and parameters
 //
    if ((N2NLib = getenv("XRDN2NLIB")) && !*N2NLib) N2NParms = N2NLib = 0;
-      else {N2NLib = strdup(N2NLib);
-            if ((N2NParms = getenv("XRDN2NPARMS"))) N2NParms = strdup(N2NParms);
-           }
+      else N2NParms = getenv("XRDN2NPARMS");
 
 // Skip getting plugin if there is no reason for it
 //
@@ -470,8 +470,6 @@ int XrdCnsConfig::ConfigN2N()
 
 // Cleanup and return result
 //
-   if (N2NLib)   free(N2NLib);
-   if (N2NParms) free(N2NParms);
    return N2N == 0;
 }
 

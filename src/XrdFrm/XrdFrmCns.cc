@@ -249,9 +249,9 @@ int XrdFrmCns::setPath(const char *aPath, const char *iName)
 // Generate a new one and make sure it is usable
 //
    pP = XrdOucUtils::genPath(aPath, iName, "cns");
-   strcpy(buff, pP); free(pP);
    if (strlen(pP) + strlen(sfx) >= (int)sizeof(buff))
-      {Say.Emsg("FrmCns", "Invalid cnsd apath", aPath); return 1;}
+      {Say.Emsg("FrmCns", "Invalid cnsd apath", aPath); free(pP); return 1;}
+   strcpy(buff, pP); free(pP);
    strcat(buff, "XrdCnsd.events");
    if (stat(buff, &Stat) && errno != ENOENT)
       {Say.Emsg("FrmCns", errno, "use cnsd file", buff); return 1;}

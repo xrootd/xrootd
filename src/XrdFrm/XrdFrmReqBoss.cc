@@ -146,8 +146,9 @@ int XrdFrmReqBoss::Start(char *aPath, int aMode)
    for (i = 0; i <= XrdFrcRequest::maxPrty; i++)
        {sprintf(buff, "%s%sQ.%d", qPath, Persona, i);
         rQueue[i] = new XrdFrcReqFile(buff, 0);
-        if (!rQueue[i]->Init()) return 0;
+        if (!rQueue[i]->Init()) {free(qPath); return 0;}
        }
+   free(qPath);
 
 // Start the request processing thread
 //

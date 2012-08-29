@@ -98,7 +98,7 @@ int XrdFrmAdmin::Chksum()
    static const char *Reqs[] = {"function", "target", 0};
    const char *csName;
    char pfnbuf[MAXPATHLEN], *Pfn, *Lfn, *csFunc;
-   int rc;
+   int rc = 0;
 
 // Check if this is even supported
 //

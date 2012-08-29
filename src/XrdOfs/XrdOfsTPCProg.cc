@@ -162,7 +162,7 @@ int XrdOfsTPCProg::Xeq()
    *eRec = 0;
    while((lP = JobStream.GetLine()))
         {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
-            strncpy(eRec, Colon+2, sizeof(eRec));
+            {strncpy(eRec, Colon+2, sizeof(eRec)); eRec[sizeof(eRec)-1] = 0;}
          DEBUG("Job " <<Pnum <<": " <<lP);
         }
 

@@ -86,7 +86,7 @@ void        Update(const char *Buff, int BLen)
                         }
                   }
 
-const char *Type(int &csSize) {csSize = sizeof(AdlerResult); return "adler32";}
+const char *Type(int &csSize) {csSize = sizeof(AdlerValue); return "adler32";}
 
             XrdCksCalcadler32() {Init();}
 virtual    ~XrdCksCalcadler32() {}
@@ -99,10 +99,8 @@ static const          int AdlerNMax  = 5552;
 
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
 
-             unsigned int AdlerResult;
              unsigned int AdlerValue;
              unsigned int unSum1;
              unsigned int unSum2;
-                      int n;
 };
 #endif
