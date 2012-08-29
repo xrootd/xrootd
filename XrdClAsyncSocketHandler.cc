@@ -303,13 +303,8 @@ namespace XrdCl
     {
       pOutgoing = pStream->OnReadyToWrite( pSubStreamNum );
       if( !pOutgoing )
-      {
-
-        Status st = DisableUplink();
-        if( !st.IsOK() )
-          OnFault( st );
         return;
-      }
+
       pOutgoing->SetCursor( 0 );
     }
 
