@@ -308,7 +308,7 @@ void XrdSecsssKT::Refresh()
   
 int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
 {
-   char tmpFN[1024], buff[2048], kbuff[4096], *Slash;
+   char tmpFN[2048], buff[2048], kbuff[4096], *Slash;
    int ktFD, numID = 0, n, retc = 0;
    ktEnt ktCurr, *ktP, *ktN;
    mode_t theMode = fileMode(ktPath);

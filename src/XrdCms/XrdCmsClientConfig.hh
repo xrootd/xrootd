@@ -53,7 +53,8 @@ enum {FailOver = 'f', RoundRob = 'r'};
                              FwdWait(0),  haveMeta(0), CMSPath(0),
                              myHost(0),   myName(0),
                              ManList(0),  PanList(0),
-                             SMode(FailOver), SModeP(FailOver), isMeta(0) {}
+                             SMode(FailOver), SModeP(FailOver),
+                             isMeta(0), isMan(0) {}
      ~XrdCmsClientConfig();
 
 private:

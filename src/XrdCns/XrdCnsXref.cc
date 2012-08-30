@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
-
-const char *XrdCnsXrefCVSID = "$Id$";
 
 #include "XrdCns/XrdCnsXref.hh"
 
@@ -57,7 +53,8 @@ char XrdCnsXref::Add(const char *kval, char idx)
 
 // If a character was specified, try to use it.
 //
-        if (idx) i = c2i(idx);
+        if (idx)
+           {if ((i = c2i(idx)) < 0)     {free(xKey); return 0;}}
    else if ((oldx = xTable.Find(xKey))) {free(xKey); return *oldx;}
    else if ((i = availI()) < 0)         {free(xKey); return 0;}
 

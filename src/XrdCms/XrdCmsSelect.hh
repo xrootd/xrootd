@@ -58,7 +58,7 @@ struct {int  Port;      // Out: Target node port number
        }     Resp;
 
              XrdCmsSelect(int opts=0, char *thePath=0, int thePLen=0)
-                         : Path(thePath,thePLen), smask(0), Opts(opts)
+                         : Path(thePath,thePLen), InfoP(0), smask(0), Opts(opts)
                          {Resp.Port = 0; *Resp.Data = '\0'; Resp.DLen = 0;}
             ~XrdCmsSelect() {}
 };

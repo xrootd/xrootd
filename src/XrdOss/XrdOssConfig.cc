@@ -187,6 +187,8 @@ XrdOssSys::XrdOssSys()
    numCG = numDP = 0;
    xfrFdir       = 0;
    xfrFdln       = 0;
+   RSSProg       = 0;
+   StageProg     = 0;
 }
   
 /******************************************************************************/

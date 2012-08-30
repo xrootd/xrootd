@@ -77,7 +77,6 @@ virtual ~XrdPssFile() {if (fd >= 0) Close();}
 private:
 
 const char *tident;
-const char *crPath;
       int   crOpts;
 };
 

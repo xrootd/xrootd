@@ -962,6 +962,7 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
            XrdSecProtocolkrb5::setParms(params);
            return params;
           }
+       return (char *)0;
       }
 
 // Failure

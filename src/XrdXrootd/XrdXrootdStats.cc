@@ -23,6 +23,7 @@ XrdXrootdStats::XrdXrootdStats(XrdStats *sp)
 {
 
 xstats   = sp;
+fsP      = 0;
 
 Count    = 0;     // Stats: Number of matches
 errorCnt = 0;     // Stats: Number of errors returned

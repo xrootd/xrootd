@@ -303,7 +303,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    if (ssID != ssAdmin)
       {if (!logfn)
           {if (isAgent && (logfn = getenv("XRDLOGDIR")))
-              {sprintf(buff, "%s%s%clog", logfn, myFrmid, (isAgent ? 'a' : 'd'));
+              {snprintf(buff, sizeof(buff), "%s%s%clog", logfn, myFrmid,
+                                           (isAgent ? 'a' : 'd'));
                logfn = strdup(buff);
               }
           } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
@@ -339,7 +340,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // Set the Environmental variables to hold some config information
 // XRDINSTANCE=<pgm> <instance name>@<host name>
 //
-   sprintf(buff,"XRDINSTANCE=%s %s@%s",myProg,
+   snprintf(buff,sizeof(buff), "XRDINSTANCE=%s %s@%s",myProg,
                  XrdOucUtils::InstName(myInst), myName);
    putenv(strdup(buff)); // XRDINSTANCE
    myInstance = strdup(index(buff,'=')+1);
@@ -906,7 +907,7 @@ void XrdFrmConfig::ConfigPF(const char *pFN)
 
 // Construct pidfile name
 //
-   if (myInst) sprintf(buff, "%s/%s/%s.pid", ppP, myInst, pFN);
+   if (myInst) snprintf(buff, sizeof(buff), "%s/%s/%s.pid", ppP, myInst, pFN);
       else sprintf(buff, "%s/%s.pid", ppP, pFN);
 
 // Open the pidfile creating it if necessary

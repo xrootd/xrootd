@@ -10,8 +10,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
 #include <stdlib.h>
 
 #include "XrdSys/XrdSysError.hh"
@@ -43,8 +41,6 @@ const char      *pfn;       // $PFN
 const char      *pfn2;      // $PFN2             or $DST
 const char      *misc;      // $OPTS  or $MDP
 const char      *Rid;       // $RID for real
-const char      *Src;       // $SRC
-const char      *Dst;       // $DST
 char            *pfnbuff;
 char            *rfnbuff;
 char            *pfn2buff;

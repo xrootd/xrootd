@@ -24,9 +24,8 @@ public:
 // error object. Otherwise, errors will be returned quietly.
 //
             XrdOucProg(XrdSysError *errobj=0)
-                      {eDest = errobj; myStream = 0;
-                       ArgBuff = Arg[0] = 0; numArgs = 0; theEFD = -1;
-                      }
+                      : eDest(errobj), myStream(0), myProc(0), ArgBuff(0),
+                        numArgs(0), theEFD(-1) {Arg[0] = 0;}
 
            ~XrdOucProg();
 

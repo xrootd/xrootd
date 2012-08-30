@@ -94,7 +94,7 @@ XrdCnsLogClient::XrdCnsLogClient(XrdOucTList     *rP,
 // Establish the backup operation processing
 //
    arkOnly = Config.Opts & XrdCnsConfig::optNoCns;
-   if (rP->val >= 0) {*arkURL = '\0'; arkFN = 0;}
+   if (rP->val >= 0) {arkPath = 0; *arkURL = '\0'; arkFN = 0;}
       else {strcpy(arkURL, crtURL); arkPath = arkURL + strlen(crtURL);
             strcpy(arkPath,Config.bPath); strcat(arkPath, myName);
             arkFN  = arkPath + strlen(arkPath); *arkFN++ = '/';

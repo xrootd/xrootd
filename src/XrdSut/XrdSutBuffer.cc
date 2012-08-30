@@ -60,7 +60,7 @@ XrdSutBuffer::XrdSutBuffer(const char *buf, kXR_int32 len)
          // Extract protocol name
          char proto[XrdSecPROTOIDSIZE];
          strncpy(proto,buf+cur,k);
-         proto[k] = 0;  // null-terminated
+         proto[(k >= XrdSecPROTOIDSIZE ? XrdSecPROTOIDSIZE-1:k)]=0;  // null-terminated
          fProtocol = proto;
          cur += (k+1);
          //

@@ -5,9 +5,6 @@
 /* (c) 2006 G. Ganis (CERN)                                                   */
 /*     All Rights Reserved. See XrdInfo.cc for complete License Terms         */
 /******************************************************************************/
-// $Id$
-
-const char *XrdSysDirCVSID = "$Id$";
 
 //////////////////////////////////////////////////////////////////////////
 //                                                                      //
@@ -37,7 +34,7 @@ XrdSysDir::XrdSysDir(const char *path)
    // Use isValid() to check the result of this operation, and lastError()
    // to get the last error code, if any.
 
-   lasterr = 0;
+   lasterr = 0; dhandle = 0;
    if (path && strlen(path) > 0) {
 #if !defined(WINDOWS)
       dhandle = (void *) opendir(path);

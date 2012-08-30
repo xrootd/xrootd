@@ -8,12 +8,6 @@
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
 
-//         $Id$
-
-// Original Version: 1.4 2007/07/31 02:25:16 abh
-
-const char *XrdCmsReqCVSID = "$Id$";
-
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -59,6 +53,7 @@ XrdCmsReq::XrdCmsReq(XrdCmsReq *Req, unsigned int rn)
    ReqID   = rn;
    ReqNnum = Req->ReqNnum;
    ReqNins = Req->ReqNins;
+   ReqAdv  = 0;
 }
 
 /******************************************************************************/

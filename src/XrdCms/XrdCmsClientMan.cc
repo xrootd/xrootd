@@ -69,6 +69,7 @@ XrdCmsClientMan::XrdCmsClientMan(char *host, int port,
    maxDelay= rd*3;
    chkCount= chkVal;
    lastUpdt= lastTOut = time(0);
+   Next    = 0;
 
 // Compute dally value
 //

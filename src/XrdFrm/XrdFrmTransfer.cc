@@ -58,8 +58,9 @@ char        *theINS;
 char         theMDP[8];
 
             XrdFrmTranArg(XrdOucEnv *Env)
-                         : theEnv(Env), theSrc(0), theDst(0), theINS(0)
-                           {theMDP[0] = '0'; theMDP[1] = 0;}
+                         : theEnv(Env), theCmd(0), theVec(0), theSrc(0),
+                           theDst(0), theINS(0) 
+                            {theMDP[0] = '0'; theMDP[1] = 0;}
            ~XrdFrmTranArg() {}
 };
 

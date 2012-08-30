@@ -65,6 +65,7 @@ XrdCmsPrepare::XrdCmsPrepare() : XrdJob("Prep cache scrubber"),
  Relay    = new XrdNetMsg(&Say);
  PrepFrm  = 0;
  prepOK   = 0;
+ N2N      = 0;
 }
 
 /******************************************************************************/

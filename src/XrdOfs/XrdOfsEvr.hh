@@ -36,7 +36,7 @@ void Wait4Event(const char *path, XrdOucErrInfo *einfo);
 
 void Work4Event(theClient *Client);
 
-      XrdOfsEvr() : mySem(0) {runQ = 0; deferQ = 0;}
+      XrdOfsEvr() : mySem(0), eDest(0), Balancer(0) {runQ = 0; deferQ = 0;}
      ~XrdOfsEvr();
 
 class theClient : XrdOucEICB

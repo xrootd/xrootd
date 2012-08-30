@@ -7,10 +7,6 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-  
-//         $Id$
-
-const char *XrdBwmLoggerCVSID = "$Id$";
 
 #include <ctype.h>
 #include <stddef.h>
@@ -73,6 +69,7 @@ XrdBwmLogger::XrdBwmLogger(const char *Target)
    msgFD = 0;
    endIT = 0;
    theEOL= '\n';
+   msgsInQ = 0;
 }
 
 /******************************************************************************/

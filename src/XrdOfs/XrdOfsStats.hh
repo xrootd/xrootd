@@ -48,7 +48,7 @@ inline void Dec(int &Cntr) {sdMutex.Lock(); Cntr--; sdMutex.UnLock();}
 
        void setRole(const char *theRole) {myRole = theRole;}
 
-            XrdOfsStats() {memset(&Data, 0, sizeof(Data));}
+            XrdOfsStats() : myRole("?") {memset(&Data, 0, sizeof(Data));}
            ~XrdOfsStats() {}
 
 private:

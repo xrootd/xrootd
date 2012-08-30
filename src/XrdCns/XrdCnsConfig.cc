@@ -179,7 +179,6 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
           }
        if (lroot)
           {sprintf(buff, "XRDLCLROOT=%s", lroot); putenv(strdup(buff));}
-       if (bPath) {free(bPath); bPath = 0;}
        if (n2n)
           {if ((tP=index(n2n, ' '))) {*tP++ = '\0'; while(*tP == ' ') tP++;}
            sprintf(buff, "XRDN2NLIB=%s", n2n); putenv(strdup(buff));
@@ -194,6 +193,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                   return 0;
                  }
        Space = new XrdCnsXref("public",0);
+       if (bPath) {free(bPath); bPath = 0;}
       } else {
        *buff = '\0'; tP = buff;
        if (lroot) {*tP++ = ' '; *tP++ = '-'; *tP++ = 'L';}
