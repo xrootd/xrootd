@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Liberlize locking structure to prevent lock inversion relative to
+     external locks.
    * Provide libevent replacement for Linux (epoll), Solaris (poll_create),
      and others (poll). Note: versions of Solaris less than 10 are no longer
      supported and they will no longer compile with this update!
