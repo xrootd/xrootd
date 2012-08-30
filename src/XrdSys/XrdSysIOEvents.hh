@@ -51,7 +51,8 @@ namespace IOEvents
 //! simple serialization for all channels associated with a single poller.
 //! You may call any channel method from a callback to effect appropriate
 //! changes. However, you may not delete the associated channel or stop its
-//! poller from the callback method as a deadlock will occur.
+//! poller from the callback method as a deadlock will occur. The only exception
+//! is that a channel may be safely deleted within a stop callback.
 //-----------------------------------------------------------------------------
   
 class Channel;
@@ -286,9 +287,11 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //! Destuctor. When this object is deleted, all events are disabled, pending
 //!            callbacks are completed, and the channel is removed from the
 //!            assigned poller. Only then is the storage freed.
+//! Warning!   Deleting a channel from a callback other than in a stop event
+//!            will create a deadlock!
 //-----------------------------------------------------------------------------
 
-     ~Channel() {Stop();}
+     ~Channel();
 
 private:
 
@@ -312,14 +315,14 @@ time_t         wrDL;        // Write deadline
 time_t         deadLine;    // The deadline in effect (read or write)
 char           dlType;      // The deadline type in deadLine as CallBack type
 char           chEvents;    // Enabled events as Channel type
-char           Reserved;
+char           chStat;      // Channel status below (!0 -> in callback mode)
+enum Status   {isClear = 0, isCBMode, isDead};
 char           inTOQ;       // True if the channel is in the timeout queue
 char           inPSet;      // FD is in the actual poll set
 char           reMod;       // Modify issued while defered, re-issue needed
 short          chFault;     // Defered error, 0 if all is well
 
 void           Reset(Poller *thePoller, int fd, int eNum=0);
-void           Stop();
 };
 
 /******************************************************************************/

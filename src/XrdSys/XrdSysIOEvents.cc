@@ -224,11 +224,51 @@ XrdSys::IOEvents::Channel::Channel(Poller   *pollP, int   fd,
    tmoList.next = tmoList.prev = this;
    inTOQ    = 0;
    pollEnt  = 0;
+   chStat   = isClear;
    Reset(&pollInit, fd);
 
    pollP->Attach(this);
 }
 
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+
+XrdSys::IOEvents::Channel::~Channel()
+{
+   bool isLocked = true;
+
+// Lock ourselves during the delete process. If the channel is disassociated
+// then we need do nothing more.
+//
+   chMutex.Lock();
+   if (!chPollXQ || chPollXQ == &pollErr1)
+      {chMutex.UnLock();
+       return;
+      }
+
+// If we are in callback mode then we will need to delay the destruction until
+// after the callback completes. Note that we deadlock if the channel is deleted
+// or the poller stopped by the callback object. We ignore double deletes.
+//
+   if (chStat)
+      {XrdSysSemaphore cbDone(0);
+       chStat = isDead;
+       chCBA  = (void *)&cbDone;
+       chMutex.UnLock();
+       cbDone.Wait();
+       chMutex.Lock();
+      }
+
+// Disable and remove ourselves from all queues
+//
+   if (chPollXQ && chPollXQ != &pollErr1) chPollXQ->Detach(this,isLocked,false);
+
+// All done
+//
+   if (isLocked) chMutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                               D i s a b l e                                */
 /******************************************************************************/
@@ -376,11 +416,14 @@ void XrdSys::IOEvents::Channel::Reset(XrdSys::IOEvents::Poller *thePoller,
 void XrdSys::IOEvents::Channel::SetCallBack(CallBack *cbP, void *cbArg)
 {
 
-// We only need to have the channel lock to set the callback
+// We only need to have the channel lock to set the callback. If the object
+// is in the process of being destroyed, we do nothing.
 //
    chMutex.Lock();
-   chCB  = cbP;
-   chCBA = cbArg;
+   if (chStat != isDead)
+      {chCB  = cbP;
+       chCBA = cbArg;
+      }
    chMutex.UnLock();
 }
 
@@ -392,9 +435,16 @@ void XrdSys::IOEvents::Channel::SetFD(int fd)
 {
    bool isLocked = true;
 
-// Obtain the channel lock
+// Obtain the channel lock. If the object is in callback mode we have some
+// extra work to do. If normal callback then indicate the channel transitioned
+// to prevent it being automatically re-enabled. If it's being destroyed, then
+// do nothing. Otherwise, this is a stupid double setFD call.
 //
    chMutex.Lock();
+   if (chStat == isDead)
+      {chMutex.UnLock();
+       return;
+      }
 
 // This is a tricky deal here because we need to protect ourselves from other
 // threads as well as the poller trying to do a callback. We first, set the
@@ -412,27 +462,6 @@ void XrdSys::IOEvents::Channel::SetFD(int fd)
 //
    Reset(&pollInit, fd);
    chMutex.UnLock();
-}
-  
-/******************************************************************************/
-/*                                  S t o p                                   */
-/******************************************************************************/
-
-void XrdSys::IOEvents::Channel::Stop()
-{
-   bool isLocked = true;
-
-// Lock ourselves during the stop process
-//
-   chMutex.Lock();
-
-// Disable and remove ourselves from all queues
-//
-   if (chPollXQ && chPollXQ != &pollErr1) chPollXQ->Detach(this,isLocked,false);
-
-// All done
-//
-   if (isLocked) chMutex.UnLock();
 }
   
 /******************************************************************************/
@@ -507,14 +536,10 @@ void XrdSys::IOEvents::Poller::CbkTMO()
 bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
                                       int eNum, const char *eTxt)
 {
+   XrdSysMutexHelper cbkMHelp(cP->chMutex);
    char oldEvents;
    int isRead = 0, isWrite = 0;
-   bool isLocked = true;
-
-// Prepare for callback. Note that we lock the target channel. The channel
-// poller promises to not create a wait situation or poller thread deadlock.
-//
-   cP->chMutex.Lock();
+   bool cbok, isLocked = true;
 
 // Remove this from the timeout queue if there and reset the deadlines based
 // on the event we are reflecting. This separates read and write deadlines
@@ -536,7 +561,6 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
       {if (eNum)
           {cP->chPoller = &pollErr1; cP->chFault = eNum;
            cP->inPSet   = 0;
-           cP->chMutex.UnLock();
            return false;
           }
        oldEvents = cP->chEvents;
@@ -544,7 +568,6 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
        Modify(cP, eNum, 0, isLocked);
        if (!isLocked) cP->chMutex.Lock();
        cP->chEvents = oldEvents;
-       cP->chMutex.UnLock();
        return true;
       }
 
@@ -556,21 +579,37 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
       {if (cP->chEvents & Channel::errorEvents)
           {cP->chPoller = &pollErr1; cP->chFault = eNum;
            cP->chCB->Fatal(cP,cP->chCBA, eNum, eTxt);
-           cP->chMutex.UnLock();
            return false;
           }
             if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
        else if (WEVENTS(cP->chEvents)) events = CallBack::ReadyToWrite;
        else    {cP->chPoller = &pollErr1; cP->chFault = eNum;
-                cP->chMutex.UnLock();
                 return false;
                }
       }
 
-// Issue callback and disable channel if need be. Otherwise, handle the timeout
-// reset if it hasn't been handled via a call from the callback.
+// Indicate that we are in callback mode then drop the channel and effect the
+// callback. We then regain the lock.
 //
-        if (!(cP->chCB->Event(cP,cP->chCBA, events))) Detach(cP,isLocked,false);
+   cP->chStat = Channel::isCBMode;
+   cP->chMutex.UnLock();
+   cbok = cP->chCB->Event(cP,cP->chCBA, events);
+   cP->chMutex.Lock();
+
+// If the channel is being destroyed; then bail fast!
+//
+   if (cP->chStat != Channel::isCBMode)
+      {if (cP->chStat == Channel::isDead)
+          {((XrdSysSemaphore *)cP->chCBA)->Post(); return false;}
+       cP->chStat = Channel::isClear;
+       return true;
+      }
+   cP->chStat = Channel::isClear;
+
+// Handle enable or disable here. If we keep the channel enabled then reset
+// the timeout it hasn't been handled via a call from the callback.
+//
+        if (!cbok) Detach(cP,isLocked,false);
    else if (!(cP->inTOQ) && (cP->chRTO || cP->chWTO))
            {time_t tNow = time(0);
             if (isRead)  cP->rdDL = (REVENTS(cP->chEvents) && cP->chRTO
@@ -580,9 +619,10 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
             if (cP->rdDL != maxTime || cP->wrDL != maxTime) TmoAdd(cP);
            }
 
-// All done
+// All done. While the mutex should not have been unlocked, we relock it if
+// it has to keep the mutex helper from croaking.
 //
-   if (isLocked) cP->chMutex.UnLock();
+   if (!isLocked) cP->chMutex.Lock();
    return true;
 }
 
@@ -855,10 +895,11 @@ void XrdSys::IOEvents::Poller::SetPollEnt(XrdSys::IOEvents::Channel *cP, int pe)
 
 void XrdSys::IOEvents::Poller::Stop()
 {
-   PipeData cmdbuff = {PipeData::Stop, 0};
-   Channel *cP;
-   void    *vrc;
-   int      doCB;
+   PipeData  cmdbuff = {PipeData::Stop, 0};
+   CallBack *theCB;
+   Channel  *cP;
+   void     *vrc, *cbArg;
+   int       doCB;
 
 // Lock all of this
 //
@@ -887,8 +928,13 @@ void XrdSys::IOEvents::Poller::Stop()
          doCB = cP->chCB != 0 && (cP->chEvents & Channel::stopEvent);
          if (cP->inTOQ) TmoDel(cP);
          cP->Reset(&pollErr1, cP->chFD, EIDRM);
-         if (doCB) cP->chCB->Stop(cP, cP->chCBA);
-         cP->chMutex.UnLock();
+         cP->chPollXQ = &pollErr1;
+         if (doCB)
+            {cP->chStat = Channel::isClear;
+             theCB = cP->chCB; cbArg = cP->chCBA;
+             cP->chMutex.UnLock();
+             theCB->Stop(cP, cbArg);
+            } else cP->chMutex.UnLock();
          adMutex.Lock();
         }
 
