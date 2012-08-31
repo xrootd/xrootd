@@ -134,12 +134,15 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message synchronously
   //----------------------------------------------------------------------------
-  Status PostMaster::Send( const URL &url, Message *msg, uint16_t timeout )
+  Status PostMaster::Send( const URL &url,
+                           Message   *msg,
+                           bool       stateful,
+                           uint16_t   timeout )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Send( msg, timeout );
+    return channel->Send( msg, stateful, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -147,13 +150,14 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status PostMaster::Send( const URL            &url,
                            Message              *msg,
-                           MessageStatusHandler *handler,
+                           OutgoingMsgHandler   *handler,
+                           bool                  stateful,
                            uint16_t              timeout )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Send( msg, handler, timeout );
+    return channel->Send( msg, handler, stateful, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -173,9 +177,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Listen to incomming messages
   //----------------------------------------------------------------------------
-  Status PostMaster::Receive( const URL      &url,
-                              MessageHandler *handler,
-                              uint16_t        timeout )
+  Status PostMaster::Receive( const URL          &url,
+                              IncomingMsgHandler *handler,
+                              uint16_t            timeout )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );

@@ -32,19 +32,19 @@ namespace XrdCl
     uint8_t               action = 0;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
     {
-      action = it->first->HandleMessage( msg );
+      action = it->first->OnIncoming( msg );
 
-      if( action & MessageHandler::RemoveHandler )
+      if( action & IncomingMsgHandler::RemoveHandler )
       {
         it = pHandlers.erase( it );
         --it;
       }
 
-      if( action & MessageHandler::Take )
+      if( action & IncomingMsgHandler::Take )
         break;
     }
 
-    if( !(action & MessageHandler::Take) )
+    if( !(action & IncomingMsgHandler::Take) )
       pMessages.push_front( msg );
 
     return true;
@@ -53,7 +53,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Add a listener that should be notified about incomming messages
   //----------------------------------------------------------------------------
-  void InQueue::AddMessageHandler( MessageHandler *handler, time_t expires )
+  void InQueue::AddMessageHandler( IncomingMsgHandler *handler, time_t expires )
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
@@ -61,26 +61,26 @@ namespace XrdCl
     uint8_t                        action = 0;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
     {
-      action = handler->HandleMessage( *it );
+      action = handler->OnIncoming( *it );
 
-      if( action & MessageHandler::Take )
+      if( action & IncomingMsgHandler::Take )
       {
         it = pMessages.erase( it );
         --it;
       }
 
-      if( action & MessageHandler::RemoveHandler )
+      if( action & IncomingMsgHandler::RemoveHandler )
         break;
     }
 
-    if( !(action & MessageHandler::RemoveHandler) )
+    if( !(action & IncomingMsgHandler::RemoveHandler) )
       pHandlers.push_back( HandlerAndExpire( handler, expires ) );
   }
 
   //----------------------------------------------------------------------------
   // Remove a listener
   //----------------------------------------------------------------------------
-  void InQueue::RemoveMessageHandler( MessageHandler *handler )
+  void InQueue::RemoveMessageHandler( IncomingMsgHandler *handler )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     HandlerList::iterator it;
@@ -92,13 +92,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Fail and remove all the message handlers with a given status code
   //----------------------------------------------------------------------------
-  void InQueue::FailAllHandlers( Status status )
+  void InQueue::FailAllHandlers( Status status, uint16_t streamNum )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     HandlerList::iterator it;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
-      it->first->HandleFault( status );
-     pHandlers.clear();
+      it->first->OnStreamEvent( IncomingMsgHandler::Broken, streamNum, status );
+    pHandlers.clear();
   }
 
   //----------------------------------------------------------------------------
@@ -115,7 +115,8 @@ namespace XrdCl
     {
       if( it->second <= now )
       {
-        it->first->HandleFault( Status( stError, errSocketTimeout ) );
+        it->first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
+                                  Status( stError, errSocketTimeout ) );
         it = pHandlers.erase( it );
       }
       else

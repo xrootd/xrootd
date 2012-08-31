@@ -63,7 +63,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Examine an incomming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint8_t XRootDMsgHandler::HandleMessage( Message *msg )
+  uint8_t XRootDMsgHandler::OnIncoming( Message *msg )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -100,7 +100,7 @@ namespace XrdCl
       // we need to unmarshall the header by hand
       XRootDTransport::UnMarshallHeader( embededMsg );
       delete msg;
-      return HandleMessage( embededMsg );
+      return OnIncoming( embededMsg );
     }
 
     //--------------------------------------------------------------------------
@@ -219,7 +219,7 @@ namespace XrdCl
         // as a handler (HandleFault will be called)
         //----------------------------------------------------------------------
         pRedirections->push_back( pUrl );
-        st = pPostMaster->Send( pUrl, pRequest, this, 300 );
+        st = pPostMaster->Send( pUrl, pRequest, this, false, 300 );
 
         return Take | RemoveHandler;
       }
@@ -308,8 +308,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle an event other that a message arrival - may be timeout
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::HandleFault( Status status )
+  void XRootDMsgHandler::OnStreamEvent( StreamEvent event,
+                                        uint16_t    streamNum,
+                                        Status      status )
   {
+    if( event == Ready )
+      return;
     Log *log = DefaultEnv::GetLog();
     log->Error( XRootDMsg, "[%s] Unable to get the response to request 0x%x",
                           pUrl.GetHostId().c_str(), pRequest );
@@ -321,8 +325,8 @@ namespace XrdCl
   // We're here when we requested sending something over the wire
   // and there has been a status update on this action
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::HandleStatus( const Message *message,
-                                       Status         status )
+  void XRootDMsgHandler::OnStatusReady( const Message *message,
+                                        Status         status )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -351,7 +355,7 @@ namespace XrdCl
   void XRootDMsgHandler::WaitDone( time_t )
   {
     Log *log = DefaultEnv::GetLog();
-    Status st = pPostMaster->Send( pUrl, pRequest, this, 300 );
+    Status st = pPostMaster->Send( pUrl, pRequest, this, false, 300 );
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Impossible to send message 0x%x after wait.",

@@ -27,7 +27,7 @@
 namespace XrdCl
 {
   class Message;
-  class MessageHandler;
+  class IncomingMsgHandler;
 
   //----------------------------------------------------------------------------
   //! A synchronize queue for incomming data
@@ -46,17 +46,17 @@ namespace XrdCl
       //! @param handler message handler
       //! @param expires time when the message handler expires
       //------------------------------------------------------------------------
-      void AddMessageHandler( MessageHandler *handler, time_t expires );
+      void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Remove a listener
       //------------------------------------------------------------------------
-      void RemoveMessageHandler( MessageHandler *handler );
+      void RemoveMessageHandler( IncomingMsgHandler *handler );
 
       //------------------------------------------------------------------------
       //! Fail and remove all the message handlers with a given status code
       //------------------------------------------------------------------------
-      void FailAllHandlers( Status status );
+      void FailAllHandlers( Status status, uint16_t streamNum );
 
       //------------------------------------------------------------------------
       //! Timeout handlers
@@ -64,7 +64,7 @@ namespace XrdCl
       void TimeoutHandlers( time_t now = 0 );
 
     private:
-      typedef std::pair<MessageHandler *, time_t> HandlerAndExpire;
+      typedef std::pair<IncomingMsgHandler *, time_t> HandlerAndExpire;
       typedef std::list<HandlerAndExpire> HandlerList;
       std::list<Message *> pMessages;
       HandlerList          pHandlers;

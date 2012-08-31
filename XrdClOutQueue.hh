@@ -26,7 +26,7 @@
 namespace XrdCl
 {
   class Message;
-  class MessageStatusHandler;
+  class OutgoingMsgHandler;
 
   //----------------------------------------------------------------------------
   //! A synchronized queue for the outgoind data
@@ -46,7 +46,7 @@ namespace XrdCl
       //!                 wil be retattempted
       //------------------------------------------------------------------------
       void PushBack( Message              *msg,
-                     MessageStatusHandler *handler,
+                     OutgoingMsgHandler   *handler,
                      time_t                expires,
                      bool                  stateful );
 
@@ -62,7 +62,7 @@ namespace XrdCl
       //!                 wil be retattempted
       //------------------------------------------------------------------------
       void PushFront( Message              *msg,
-                      MessageStatusHandler *handler,
+                      OutgoingMsgHandler   *handler,
                       time_t                expires,
                       bool                  stateful );
 
@@ -71,7 +71,7 @@ namespace XrdCl
       //!
       //! @return 0 if there is no message message
       //------------------------------------------------------------------------
-      Message *PopMessage( MessageStatusHandler *&handler,
+      Message *PopMessage( OutgoingMsgHandler   *&handler,
                            time_t                &expires,
                            bool                  &stateful );
 
@@ -128,11 +128,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct MsgHelper
       {
-        MsgHelper( Message *m, MessageStatusHandler *h, time_t r, bool s ):
+        MsgHelper( Message *m, OutgoingMsgHandler *h, time_t r, bool s ):
           msg( m ), handler( h ), expires( r ), stateful( s ) {}
 
         Message              *msg;
-        MessageStatusHandler *handler;
+        OutgoingMsgHandler   *handler;
         time_t                expires;
         bool                  stateful;
       };

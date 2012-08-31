@@ -82,12 +82,16 @@ namespace XrdCl
       //!
       //! @param url     recipient of the message
       //! @param msg     message to be sent
+      //! @param statful physical stream disconnection causes an error
       //! @param timeout timout after which a failure should be reported if
       //!                sending was unsuccessful
       //! @return        success if the message has been pushed through the wire,
       //!                failure otherwise
       //------------------------------------------------------------------------
-      Status Send( const URL &url, Message *msg, uint16_t timeout );
+      Status Send( const URL &url,
+                   Message   *msg,
+                   bool       stateful,
+                   uint16_t   timeout );
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
@@ -98,13 +102,15 @@ namespace XrdCl
       //! @param msg           message to be sent
       //! @param timeout       timeout after which a failure is reported to the
       //!                      handler
-      //! @param statusHandler handler will be notified about the status
+      //! @param handler       handler will be notified about the status
+      //! @param stateful      physical stream disconnection causes an error
       //! @return              success if the message was successfuly inserted
       //!                      into the send quees, failure otherwise
       //------------------------------------------------------------------------
       Status Send( const URL            &url,
                    Message              *msg,
-                   MessageStatusHandler *statusHandler,
+                   OutgoingMsgHandler   *handler,
+                   bool                  stateful,
                    uint16_t              timeout );
 
       //------------------------------------------------------------------------
@@ -133,9 +139,9 @@ namespace XrdCl
       //! @param timeout timout
       //! @return        success when the listener has been inserted correctly
       //------------------------------------------------------------------------
-      Status Receive( const URL      &url,
-                      MessageHandler *handler,
-                      uint16_t        timeout );
+      Status Receive( const URL          &url,
+                      IncomingMsgHandler *handler,
+                      uint16_t            timeout );
 
       //------------------------------------------------------------------------
       //! Query the transport handler for a given URL

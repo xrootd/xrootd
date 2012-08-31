@@ -30,7 +30,7 @@ namespace
   //----------------------------------------------------------------------------
   // Filter handler
   //----------------------------------------------------------------------------
-  class FilterHandler: public XrdCl::MessageHandler
+  class FilterHandler: public XrdCl::IncomingMsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -44,7 +44,7 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint8_t HandleMessage( XrdCl::Message *msg )
+      virtual uint8_t OnIncoming( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
         {
@@ -58,8 +58,12 @@ namespace
       //------------------------------------------------------------------------
       // Handle a fault
       //------------------------------------------------------------------------
-      virtual void HandleFault( XrdCl::Status status )
+      virtual void OnStreamEvent( StreamEvent   event,
+                                  uint16_t      streamNum,
+                                  XrdCl::Status status )
       {
+        if( event == Ready )
+          return;
         pStatus = status;
         pSem.Post();
       }
@@ -91,7 +95,7 @@ namespace
   //----------------------------------------------------------------------------
   // Status handler
   //----------------------------------------------------------------------------
-  class StatusHandler: public XrdCl::MessageStatusHandler
+  class StatusHandler: public XrdCl::OutgoingMsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -102,8 +106,8 @@ namespace
       //------------------------------------------------------------------------
       // Handle the status information
       //------------------------------------------------------------------------
-      void HandleStatus( const XrdCl::Message *message,
-                         XrdCl::Status         status )
+      void OnStatusReady( const XrdCl::Message *message,
+                          XrdCl::Status         status )
       {
         if( pMsg == message )
           pStatus = status;
@@ -220,10 +224,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message synchronously
   //----------------------------------------------------------------------------
-  Status Channel::Send( Message *msg, int32_t timeout )
+  Status Channel::Send( Message *msg, bool stateful, int32_t timeout )
   {
     StatusHandler sh( msg );
-    Status sc = Send( msg, &sh, timeout );
+    Status sc = Send( msg, &sh, stateful, timeout );
     if( !sc.IsOK() )
       return sc;
     sc = sh.WaitForStatus();
@@ -234,12 +238,13 @@ namespace XrdCl
   // Send the message asynchronously
   //----------------------------------------------------------------------------
   Status Channel::Send( Message              *msg,
-                        MessageStatusHandler *statusHandler,
+                        OutgoingMsgHandler   *handler,
+                        bool                  stateful,
                         int32_t               timeout )
 
   {
     PathID path = pTransport->Multiplex( msg, pChannelData );
-    return pStreams[path.up]->Send( msg, statusHandler, timeout );
+    return pStreams[path.up]->Send( msg, handler, stateful, timeout );
   }
 
   //----------------------------------------------------------------------------
@@ -263,7 +268,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Listen to incomming messages
   //----------------------------------------------------------------------------
-  Status Channel::Receive( MessageHandler *handler, uint16_t timeout )
+  Status Channel::Receive( IncomingMsgHandler *handler, uint16_t timeout )
   {
     time_t tm = ::time(0) + timeout;
     pIncoming.AddMessageHandler( handler, tm );

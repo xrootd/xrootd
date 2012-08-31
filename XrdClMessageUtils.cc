@@ -86,7 +86,7 @@ namespace XrdCl
     msgHandler->SetRedirectAsAnswer( !followRedirects );
     msgHandler->SetUserBuffer( userBuffer, userBufferSize );
 
-    st = postMaster->Send( url, msg, msgHandler, 300 );
+    st = postMaster->Send( url, msg, msgHandler, true, 300 );
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Unable to send the message 0x%x",

@@ -51,7 +51,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Message handler
   //----------------------------------------------------------------------------
-  class MessageHandler
+  class IncomingMsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -65,7 +65,21 @@ namespace XrdCl
                                   //!< list
       };
 
-      virtual ~MessageHandler() {}
+      //------------------------------------------------------------------------
+      //! Events that may have occured to the stream
+      //------------------------------------------------------------------------
+      enum StreamEvent
+      {
+        Ready      = 1, //! The stream has become connected
+        Broken     = 2, //! The stream is broken
+        Timeout    = 3, //! The declared timeout has occured
+      };
+
+      //------------------------------------------------------------------------
+      //! Event types that the message handler may receive
+      //------------------------------------------------------------------------
+
+      virtual ~IncomingMsgHandler() {}
 
       //------------------------------------------------------------------------
       //! Examine an incomming message, and decide on the action to be taken
@@ -74,30 +88,44 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t HandleMessage( Message *msg  ) = 0;
+      virtual uint8_t OnIncoming( Message *msg ) = 0;
 
       //------------------------------------------------------------------------
-      //! Handle an event other that a message arrival - may be timeout
-      //! or stream failure
+      //! Handle an event other that a message arrival
       //!
-      //! @param status info about the fault that occured
+      //! @param event     type of the event
+      //! @param streamNum stream concerned
+      //! @param status    status info
       //------------------------------------------------------------------------
-      virtual void HandleFault( Status status ) = 0;
+      virtual void OnStreamEvent( StreamEvent event,
+                                  uint16_t    streamNum,
+                                  Status      status ) {};
   };
 
   //----------------------------------------------------------------------------
   //! Message status handler
   //----------------------------------------------------------------------------
-  class MessageStatusHandler
+  class OutgoingMsgHandler
   {
     public:
-      virtual ~MessageStatusHandler() {}
+      virtual ~OutgoingMsgHandler() {}
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
-      virtual void HandleStatus( const Message *message,
-                                 Status         status ) = 0;
+      virtual void OnStatusReady( const Message *message,
+                                  Status         status ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Called just before the message is going to be sent through
+      //! a valid connection, so that the user can still make some
+      //! modifications that were impossible before (ie. protocol version
+      //! dependent adjustments)
+      //!
+      //! @param msg       message concerned
+      //! @param streamNum number of the stream the message will go through
+      //------------------------------------------------------------------------
+      virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
   };
 
   //----------------------------------------------------------------------------

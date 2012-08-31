@@ -39,7 +39,7 @@ namespace XrdCl
   struct OutMessageHelper
   {
     OutMessageHelper( Message              *message = 0,
-                      MessageStatusHandler *hndlr   = 0,
+                      OutgoingMsgHandler   *hndlr   = 0,
                       time_t                expir   = 0,
                       bool                  statefu = 0 ):
       msg( message ), handler( hndlr ), expires( expir ), stateful( statefu ) {}
@@ -48,7 +48,7 @@ namespace XrdCl
       msg = 0; handler = 0; expires = 0; stateful = 0;
     }
     Message              *msg;
-    MessageStatusHandler *handler;
+    OutgoingMsgHandler   *handler;
     time_t                expires;
     bool                  stateful;
   };
@@ -220,7 +220,8 @@ namespace XrdCl
   // Queue the message for sending
   //----------------------------------------------------------------------------
   Status Stream::Send( Message              *msg,
-                       MessageStatusHandler *handler,
+                       OutgoingMsgHandler   *handler,
+                       bool                  stateful,
                        uint32_t              timeout )
   {
     XrdSysMutexHelper scopedLock( pMutex );
@@ -353,7 +354,9 @@ namespace XrdCl
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
-    return h.msg;
+    if( h.handler )
+      h.handler->OnReadyToSend( h.msg, pStreamNum );
+      return h.msg;
   }
 
   //----------------------------------------------------------------------------
@@ -364,7 +367,7 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
     if( h.handler )
-      h.handler->HandleStatus( msg, Status() );
+      h.handler->OnStatusReady( msg, Status() );
     pSubStreams[subStream]->msgHelper.Reset();
   }
 
@@ -614,7 +617,7 @@ namespace XrdCl
                                pStreamName.c_str(), st.ToString().c_str() );
 
     pConnectionCount = 0;
-    pIncomingQueue->FailAllHandlers( st );
+    pIncomingQueue->FailAllHandlers( st, pStreamNum );
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       (*it)->outQueue->ReportError( st );

@@ -32,7 +32,6 @@
 namespace XrdCl
 {
   class  Message;
-  class  MessageStatusHandler;
   class  Channel;
   class  TransportHandler;
   class  InQueue;
@@ -75,7 +74,8 @@ namespace XrdCl
       //! Queue the message for sending
       //------------------------------------------------------------------------
       Status Send( Message              *msg,
-                   MessageStatusHandler *handler,
+                   OutgoingMsgHandler   *handler,
+                   bool                  stateful,
                    uint32_t              timeout );
 
       //------------------------------------------------------------------------

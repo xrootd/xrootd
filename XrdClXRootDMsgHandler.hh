@@ -33,8 +33,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Handle/Process/Forward XRootD messages
   //----------------------------------------------------------------------------
-  class XRootDMsgHandler: public MessageHandler,
-                          public MessageStatusHandler
+  class XRootDMsgHandler: public IncomingMsgHandler,
+                          public OutgoingMsgHandler
   {
     public:
       //------------------------------------------------------------------------
@@ -85,21 +85,25 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t HandleMessage( Message *msg  );
+      virtual uint8_t OnIncoming( Message *msg  );
+
 
       //------------------------------------------------------------------------
-      //! Handle an event other that a message arrival - may be timeout
-      //! or stream failure
+      //! Handle an event other that a message arrival
       //!
-      //! @param status info about the fault that occured
+      //! @param event     type of the event
+      //! @param streamNum stream concerned
+      //! @param status    status info
       //------------------------------------------------------------------------
-      virtual void HandleFault( Status status );
+      virtual void OnStreamEvent( StreamEvent event,
+                                  uint16_t    streamNum,
+                                  Status      status );
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
       //------------------------------------------------------------------------
-      virtual void HandleStatus( const Message *message,
-                                 Status         status );
+      virtual void OnStatusReady( const Message *message,
+                                  Status         status );
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed

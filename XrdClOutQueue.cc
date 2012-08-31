@@ -27,7 +27,7 @@ namespace XrdCl
   // Add a message to the back of the queue
   //----------------------------------------------------------------------------
   void OutQueue::PushBack( Message              *msg,
-                           MessageStatusHandler *handler,
+                           OutgoingMsgHandler   *handler,
                            time_t                expires,
                            bool                  stateful )
   {
@@ -38,7 +38,7 @@ namespace XrdCl
   // Add a message to the front the queue
   //----------------------------------------------------------------------------
   void OutQueue::PushFront( Message              *msg,
-                            MessageStatusHandler *handler,
+                            OutgoingMsgHandler   *handler,
                             time_t                expires,
                             bool                  stateful )
   {
@@ -48,7 +48,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Get a message from the front of the queue
   //----------------------------------------------------------------------------
-  Message *OutQueue::PopMessage( MessageStatusHandler *&handler,
+  Message *OutQueue::PopMessage( OutgoingMsgHandler   *&handler,
                                  time_t                &expires,
                                  bool                  &stateful )
   {
@@ -85,8 +85,8 @@ namespace XrdCl
         ++it;
         continue;
       }
-      it->handler->HandleStatus( it->msg,
-                                 Status( stError, errStreamDisconnect ) );
+      it->handler->OnStatusReady( it->msg,
+                                  Status( stError, errStreamDisconnect ) );
       it = pMessages.erase( it );
     }
   }
@@ -99,7 +99,7 @@ namespace XrdCl
   {
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
-      it->handler->HandleStatus( it->msg, status );
+      it->handler->OnStatusReady( it->msg, status );
     pMessages.clear();
   }
 
@@ -120,8 +120,8 @@ namespace XrdCl
         ++it;
         continue;
       }
-      it->handler->HandleStatus( it->msg,
-                                 Status( stError, errSocketTimeout ) );
+      it->handler->OnStatusReady( it->msg,
+                                  Status( stError, errSocketTimeout ) );
       it = pMessages.erase( it );
     }
   }

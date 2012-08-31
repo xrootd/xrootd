@@ -76,10 +76,11 @@ namespace XrdCl
       //! @param msg     message to be sent
       //! @param timeout timout after which a failure should be reported if
       //!                sending was unsuccessful
+      //! @param stateful physical stream disconnection causes an error
       //! @return        success if the message has been pushed through the wire,
       //!                failure otherwise
       //------------------------------------------------------------------------
-      Status Send( Message *msg, int32_t timeout );
+      Status Send( Message *msg, bool stateful, int32_t timeout );
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
@@ -87,6 +88,7 @@ namespace XrdCl
       //! pushed through the wire or when the timeout elapses
       //!
       //! @param msg     message to be sent
+      //! @apram stateful physical stream disconnection causes an error
       //! @param timeout timeout after which a failure is reported to the
       //!                listener
       //! @param handler handler to be notified about the status
@@ -94,7 +96,8 @@ namespace XrdCl
       //!                into the send quees, failure otherwise
       //------------------------------------------------------------------------
       Status Send( Message              *msg,
-                   MessageStatusHandler *handler,
+                   OutgoingMsgHandler   *handler,
+                   bool                  stateful,
                    int32_t               timeout );
 
 
@@ -119,7 +122,7 @@ namespace XrdCl
       //! @param timeout timout
       //! @return        success when the handler has been registered correctly
       //------------------------------------------------------------------------
-      Status Receive( MessageHandler *handler, uint16_t timeout );
+      Status Receive( IncomingMsgHandler *handler, uint16_t timeout );
 
       //------------------------------------------------------------------------
       //! Query the transport handler

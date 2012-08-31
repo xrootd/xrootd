@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClUtils.hh"
 
 #include <map>
+#include <iostream>
 
 namespace XrdCl
 {
