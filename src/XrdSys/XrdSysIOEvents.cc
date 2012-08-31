@@ -13,7 +13,6 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/resource.h>
   
 #include "XrdSys/XrdSysIOEvents.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -51,8 +50,6 @@
 /*                           G l o b a l   D a t a                            */
 /******************************************************************************/
   
-       int          XrdSys::IOEvents::Poller::maxFD = 0;
-
        time_t       XrdSys::IOEvents::Poller::maxTime
                     = (sizeof(time_t) == 8 ? 0x7fffffffffffffffLL : 0x7fffffff);
  
@@ -92,7 +89,6 @@ void *BootStrap::Start(void *parg)
 
    thePoller->Begin(&(pollArg->pollSync), pollArg->retCode, &(pollArg->retMsg));
 
-   thePoller->pollDone.Post();
    return (void *)0;
 }
 
@@ -236,6 +232,7 @@ XrdSys::IOEvents::Channel::Channel(Poller   *pollP, int   fd,
 
 XrdSys::IOEvents::Channel::~Channel()
 {
+   Poller *myPoller;
    bool isLocked = true;
 
 // Lock ourselves during the delete process. If the channel is disassociated
@@ -247,26 +244,28 @@ XrdSys::IOEvents::Channel::~Channel()
        return;
       }
 
-// If we are in callback mode then we will need to delay the destruction until
-// after the callback completes. Note that we deadlock if the channel is deleted
-// or the poller stopped by the callback object. We ignore double deletes.
-//
-   if (chStat)
-      {XrdSysSemaphore cbDone(0);
-       chStat = isDead;
-       chCBA  = (void *)&cbDone;
-       chMutex.UnLock();
-       cbDone.Wait();
-       chMutex.Lock();
-      }
-
 // Disable and remove ourselves from all queues
 //
-   if (chPollXQ && chPollXQ != &pollErr1) chPollXQ->Detach(this,isLocked,false);
+   myPoller = chPollXQ;
+   chPollXQ->Detach(this,isLocked,false);
+   if (!isLocked) chMutex.Lock();
 
-// All done
+// If we are in callback mode then we will need to delay the destruction until
+// after the callback completes unless this is the poller thread. In that case,
+// we need to tell the poller that we have been destroyed in a shelf-stable way.
 //
-   if (isLocked) chMutex.UnLock();
+   if (chStat)
+      {if (XrdSysThread::Same(XrdSysThread::ID(),myPoller->pollTid))
+          {myPoller->chDead = true;
+           chMutex.UnLock();
+          } else {
+           XrdSysSemaphore cbDone(0);
+           chStat = isDead;
+           chCBA  = (void *)&cbDone;
+           chMutex.UnLock();
+           cbDone.Wait();
+          }
+      }
 }
   
 /******************************************************************************/
@@ -471,7 +470,7 @@ void XrdSys::IOEvents::Channel::SetFD(int fd)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdSys::IOEvents::Poller::Poller(int rFD, int cFD) : pollDone(0)
+XrdSys::IOEvents::Poller::Poller(int rFD, int cFD)
 {
 
 // Now initialize local class members
@@ -588,26 +587,32 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
                }
       }
 
-// Indicate that we are in callback mode then drop the channel and effect the
-// callback. We then regain the lock.
+// Indicate that we are in callback mode then drop the channel lock and effect
+// the callback. This allows the callback to freely manage locks.
 //
    cP->chStat = Channel::isCBMode;
+   chDead     = false;
    cP->chMutex.UnLock();
    cbok = cP->chCB->Event(cP,cP->chCBA, events);
+
+// If channel destroyed by the callback, bail really fast. Otherwise, regain
+// the channel lock.
+//
+   if (chDead) return true;
    cP->chMutex.Lock();
 
-// If the channel is being destroyed; then bail fast!
+// If the channel is being destroyed; then another thread must have done so.
+// Tell it the callback has finished and just return.
 //
    if (cP->chStat != Channel::isCBMode)
       {if (cP->chStat == Channel::isDead)
-          {((XrdSysSemaphore *)cP->chCBA)->Post(); return false;}
-       cP->chStat = Channel::isClear;
+          ((XrdSysSemaphore *)cP->chCBA)->Post();
        return true;
       }
    cP->chStat = Channel::isClear;
 
 // Handle enable or disable here. If we keep the channel enabled then reset
-// the timeout it hasn't been handled via a call from the callback.
+// the timeout if it hasn't been handled via a call from the callback.
 //
         if (!cbok) Detach(cP,isLocked,false);
    else if (!(cP->inTOQ) && (cP->chRTO || cP->chWTO))
@@ -637,21 +642,6 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
    int fildes[2];
    struct pollArg pArg;
    pthread_t tid;
-
-// Get maximum number of file descriptors we can have (hard limit)
-//
-   if (!maxFD)
-      {struct rlimit rlim;
-       if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
-          {eNum = errno;
-           if (eTxt) *eTxt= "getting file descriptor limit";
-           return 0;
-          }
-       maxFD = rlim.rlim_max;
-#if (defined(__macos__) && defined(MAC_OS_X_VERSION_10_5))
-       if (maxFD == RLIM_INFINITY || maxFD > OPEN_MAX) maxFD=OPEN_MAX;
-#endif
-      }
 
 // Create a pipe used to break the poll wait loop
 //
@@ -854,30 +844,28 @@ int XrdSys::IOEvents::Poller::Poll2Enum(short events)
 /*                               S e n d C m d                                */
 /******************************************************************************/
   
-int XrdSys::IOEvents::Poller::SendCmd(char *cmdbuff, int cmdblen, bool doWait)
+int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd)
 {
-   int wlen, myerrno = 0;
+   int wlen;
 
-// Lock the pipe
+// Pipe writes are atomic so we don't need locks. Some commands require
+// confirmation. We handle that here based on the command. Note that pipes
+// gaurantee that all of the data will be written or we will block.
 //
-   pollPipe.Lock();
-
-// Send off the command
-//
-   do {if ((wlen = write(cmdFD, cmdbuff, cmdblen)) < 0)
-          if (errno == EINTR) wlen = 0;
-             else {myerrno = errno; break;}
-       cmdbuff += wlen; cmdblen -= wlen;
-      } while(cmdblen > 0);
-
-// Check if we should wait for completion
-//
-   if (doWait && !myerrno) pollDone.Wait();
+   if (cmd.req >= PipeData::Post)
+      {XrdSysSemaphore mySem(0);
+       cmd.theSem = &mySem;
+       do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
+          while (wlen < 0 && errno == EINTR);
+       if (wlen > 0) mySem.Wait();
+      } else {
+       do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
+          while (wlen < 0 && errno == EINTR);
+      }
 
 // All done
 //
-   pollPipe.UnLock();
-   return myerrno;
+   return (wlen >= 0 ? 0 : errno);
 }
   
 /******************************************************************************/
@@ -911,7 +899,7 @@ void XrdSys::IOEvents::Poller::Stop()
 
 // First we must stop the poller thread in an orderly fashion.
 //
-   SendCmd((char *)&cmdbuff, sizeof(cmdbuff), true);
+   SendCmd(cmdbuff);
 
 // Close the pipe communication mechanism
 //
@@ -1048,7 +1036,7 @@ void XrdSys::IOEvents::Poller::WakeUp()
    if (wakePend) toMutex.UnLock();
       else {wakePend = true;
             toMutex.UnLock();
-            SendCmd((char *)&cmdbuff, sizeof(cmdbuff));
+            SendCmd(cmdbuff);
            }
 }
 

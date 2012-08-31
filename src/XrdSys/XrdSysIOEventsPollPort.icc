@@ -240,7 +240,7 @@ void XrdSys::IOEvents::PollPort::Exclude(XrdSys::IOEvents::Channel *cP,
            UnLockChannel(cP);
           }
        cmdbuff.req = PipeData::Post;
-       SendCmd((char *)&cmdbuff, sizeof(cmdbuff), true);
+       SendCmd(cmdbuff);
       }
 }
 
@@ -311,8 +311,10 @@ bool XrdSys::IOEvents::PollPort::Process()
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
-     {if (reqBuff.req == PipeData::Stop) return false;
-      if (reqBuff.req == PipeData::Post) pollDone.Post();
+      if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
+     {if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                         return false;
+                                        }
      }
 
 // Associate the pipe again and return true

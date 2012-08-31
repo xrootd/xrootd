@@ -50,9 +50,7 @@ namespace IOEvents
 //! callbacks are handled before the poller resumes any channels. This provides
 //! simple serialization for all channels associated with a single poller.
 //! You may call any channel method from a callback to effect appropriate
-//! changes. However, you may not delete the associated channel or stop its
-//! poller from the callback method as a deadlock will occur. The only exception
-//! is that a channel may be safely deleted within a stop callback.
+//! changes. You may also delete the channel at any time.
 //-----------------------------------------------------------------------------
   
 class Channel;
@@ -287,8 +285,6 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //! Destuctor. When this object is deleted, all events are disabled, pending
 //!            callbacks are completed, and the channel is removed from the
 //!            assigned poller. Only then is the storage freed.
-//! Warning!   Deleting a channel from a callback other than in a stop event
-//!            will create a deadlock!
 //-----------------------------------------------------------------------------
 
      ~Channel();
@@ -392,6 +388,7 @@ static Poller     *Create(int &eNum, const char **eTxt=0);
 virtual ~Poller() {}
 
 protected:
+struct  PipeData;
 
         void  CbkTMO();
         bool  CbkXeq(Channel *cP, int events, int eNum, const char *eTxt);
@@ -401,7 +398,7 @@ inline  int   GetPollEnt(Channel *cP) {return cP->pollEnt;}
         bool  Init(Channel *cP, int &eNum, const char **eTxt, bool &isLockd);
 inline  void  LockChannel(Channel *cP) {cP->chMutex.Lock();}
         int   Poll2Enum(short events);
-        int   SendCmd(char *cmdbuff, int cmdblen, bool doWait=0);
+        int   SendCmd(PipeData &cmd);
         void  SetPollEnt(Channel *cP, int ptEnt);
         bool  TmoAdd(Channel *cP);
         void  TmoDel(Channel *cP);
@@ -449,23 +446,23 @@ virtual void Shutdown() = 0;
 Channel        *attBase;    // -> First channel in attach  queue or 0
 Channel        *tmoBase;    // -> First channel in timeout queue or 0
 
-XrdSysMutex     pollPipe;   // Mutex to control sending to poll thread
-XrdSysSemaphore pollDone;   // Semaphore for syncing with poller thread
 pthread_t       pollTid;    // Poller's thread ID
 
 struct pollfd   pipePoll;   // Stucture to wait for pipe events
 int             cmdFD;      // FD to send PipeData commands
 int             reqFD;      // FD to recv PipeData requests
 struct          PipeData {char req; char evt; short ent; int fd;
-                          enum cmd {MdFD = 0, MiFD, RmFD, NoOp, Post, Stop};
+                          XrdSysSemaphore *theSem;
+                          enum cmd {NoOp = 0, MdFD = 1, Post = 2,
+                                    MiFD = 3, RmFD = 4, Stop = 5};
                          };
-                PipeData reqBuff; // Buffer used by poller thread to recv data
-char           *pipeBuff;         // Read resumption point in buffer
-int             pipeBlen;         // Number of outstanding bytes
-bool            wakePend;         // Wakeup is effectively pending (don't send)
+PipeData        reqBuff;    // Buffer used by poller thread to recv data
+char           *pipeBuff;   // Read resumption point in buffer
+int             pipeBlen;   // Number of outstanding bytes
+bool            wakePend;   // Wakeup is effectively pending (don't send)
+bool            chDead;     // True if channel deleted by callback
 
-static int      maxFD;            // Maximum number of FD's allowed
-static time_t   maxTime;          // Maximum time allowed
+static time_t   maxTime;    // Maximum time allowed
 
 private:
 

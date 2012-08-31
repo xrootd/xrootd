@@ -262,7 +262,7 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
       } else {
        PipeData cmdbuff = {(char)PipeData::RmFD, 0, (short)ctnum, cP->GetFD()};
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
-       SendCmd((char *)&cmdbuff, sizeof(cmdbuff), true);
+       SendCmd(cmdbuff);
       }
 }
  
@@ -415,7 +415,7 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
        PipeData cmdbuff = {(char)PipeData::MiFD, (char)cP->GetEvents(),
                            (short)ctnum,         fd};
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
-       SendCmd((char *)&cmdbuff, sizeof(cmdbuff), true);
+       SendCmd(cmdbuff);
       }
 
 // All done
@@ -444,7 +444,7 @@ bool XrdSys::IOEvents::PollPoll::Modify(XrdSys::IOEvents::Channel *cP,
        PipeData cmdbuff = {(char)PipeData::MdFD, (char)cP->GetEvents(),
                            (short)GetPollEnt(cP), cP->GetFD()};
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
-       SendCmd((char *)&cmdbuff, sizeof(cmdbuff), false);
+       SendCmd(cmdbuff);
       }
 
 // All done
@@ -465,15 +465,16 @@ bool XrdSys::IOEvents::PollPoll::Process()
               {case PipeData::MdFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
                                     break;
                case PipeData::MiFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
-                                    pollDone.Post();
+                                    reqBuff.theSem->Post();
                                     break;
                case PipeData::RmFD: FDRem(reqBuff.ent);
-                                    pollDone.Post();
+                                    reqBuff.theSem->Post();
                                     break;
                case PipeData::NoOp: break;
-               case PipeData::Post: pollDone.Post();
+               case PipeData::Post: reqBuff.theSem->Post();
                                     break;
-               case PipeData::Stop: return false;
+               case PipeData::Stop: reqBuff.theSem->Post();
+                                    return false;
                                     break;
                default:             break;
               }

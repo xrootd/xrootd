@@ -254,7 +254,7 @@ void XrdSys::IOEvents::PollE::Exclude(XrdSys::IOEvents::Channel *cP,
            UnLockChannel(cP);
           }
        cmdbuff.req = PipeData::Post;
-       SendCmd((char *)&cmdbuff, sizeof(cmdbuff), true);
+       SendCmd(cmdbuff);
       }
 }
 
@@ -330,8 +330,10 @@ bool XrdSys::IOEvents::PollE::Process()
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
-     {     if (reqBuff.req == PipeData::Post) pollDone.Post();
-      else if (reqBuff.req == PipeData::Stop) return false;
+     {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
      }
 
 // Return true
