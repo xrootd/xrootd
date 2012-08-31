@@ -105,7 +105,7 @@ void FileTest::RedirectReturnTest()
   msgHandler->SetTimeout( 300 );
   msgHandler->SetRedirectAsAnswer( true );
 
-  st = postMaster->Send( url, msg, msgHandler, 300 );
+  st = postMaster->Send( url, msg, msgHandler, false, 300 );
   URL *response = 0;
   CPPUNIT_ASSERT( st.IsOK() );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );

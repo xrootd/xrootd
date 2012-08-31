@@ -246,7 +246,7 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
   // All the business happens elsewhere so we have nothing better to do
   // here that wait, otherwise server->stop will hang.
   //----------------------------------------------------------------------------
-  ::sleep(2);
+  ::sleep(5);
   
   //----------------------------------------------------------------------------
   // Cleanup

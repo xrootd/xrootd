@@ -111,7 +111,7 @@ void *TestThreadFunc( void *arg )
   for( int i = 0; i < 100; ++i )
   {
     request->streamid[1] = i;
-    CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &m, 1200 ) );
+    CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &m, false, 1200 ) );
   }
 
   //----------------------------------------------------------------------------
@@ -169,8 +169,6 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   Env *env = DefaultEnv::GetEnv();
   Env *testEnv = TestEnv::GetEnv();
-  env->PutInt( "DataServerTTL", 2 );
-  env->PutInt( "ManagerTTL", 2 );
   env->PutInt( "TimeoutResolution", 1 );
   env->PutInt( "ConnectionWindow", 15 );
 
@@ -198,7 +196,7 @@ void PostMasterTest::FunctionalTest()
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, 1200 ) );
 
   CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, 1200 ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
@@ -219,9 +217,9 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "ConnectionWindow", 5 );
   env->PutInt( "ConnectionRetry", 3 );
   URL localhost1( "root://localhost:10101" );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, 3 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false, 3 ),
                               errSocketTimeout );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false, 1200 ),
                               errConnectionError );
 
   //----------------------------------------------------------------------------
@@ -288,10 +286,10 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   // Send the message - localhost1
   //----------------------------------------------------------------------------
-  sc = postMaster.Send( localhost1, &m1, 1200 );
+  sc = postMaster.Send( localhost1, &m1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
-  sc = postMaster.Receive( localhost1, m2, &f1, 1200 );
+  sc = postMaster.Receive( localhost1, m2, &f1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
@@ -301,7 +299,7 @@ void PostMasterTest::PingIPv6()
   //----------------------------------------------------------------------------
   // Send the message - localhost2
   //----------------------------------------------------------------------------
-  sc = postMaster.Send( localhost2, &m1, 1200 );
+  sc = postMaster.Send( localhost2, &m1, false, 1200 );
   CPPUNIT_ASSERT( sc.IsOK() );
 
   sc = postMaster.Receive( localhost2, m2, &f1, 1200 );
@@ -373,13 +371,13 @@ void PostMasterTest::MultiIPConnectionTest()
   // Sent ping to a nonexistent host
   //----------------------------------------------------------------------------
   Message *m = CreatePing( 1, 2 );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, false, 1200 ),
                               errInvalidAddr );
 
   //----------------------------------------------------------------------------
   // Try on the wrong port
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, false, 1200 ),
                               errConnectionError );
 
   //----------------------------------------------------------------------------
@@ -388,7 +386,7 @@ void PostMasterTest::MultiIPConnectionTest()
   Message   *m2 = 0;
   XrdFilter  f1( 1, 2 );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, false, 1200 ) );
   CPPUNIT_ASSERT_XRDST( postMaster.Receive( url3, m2, &f1, 1200 ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
