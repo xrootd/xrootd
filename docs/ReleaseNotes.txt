@@ -6,6 +6,29 @@ Release Notes
 =============
 
 -------------
+Version 3.2.3
+-------------
++ **Major bug fixes**
+   * Make sure read statistics are updated for sendfile() and mmap I/O.
+   * Make sure refresh thread is dead before deleting deleting the keytab to
+     avoid SEGV's.
+   * Add missing include for compiling with gcc-4.7 (from Sebastien Binet).
+     This patch is required for successful compilation.
+   * Avoid segfaults when limiting number of redirections caused by failed
+     authorization.
+   * Avoid deadlock in the client fork handlers.
+
++ **Minor bug fixes**
+   * Correct monitor initialization test to start monitor under all configs.
+   * Fix a memory leak in the client handshake algorithm.
+
++ **Miscellaneous**
+   * Make RHEL6-created SRPMs buildable on RHEL5 by forcing RPM to use MD5
+     digests.
+   * Fuse: Use default TTL values for data server connection and load
+     balance server connection.
+
+-------------
 Version 3.2.2
 -------------
 + **Major bug fixes**
