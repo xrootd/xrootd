@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Add boiler plate comments indicating the all software is licensed under
+   * LGPL. No functional source code was modified by this patch.
+   * Add GPL and LGPL license text.
    * Liberlize locking structure to prevent lock inversion relative to
      external locks.
    * Provide libevent replacement for Linux (epoll), Solaris (poll_create),
