@@ -17,7 +17,7 @@ add_library(
                                 XrdOfs/XrdOfsSecurity.hh
                                 XrdOfs/XrdOfsTrace.hh
   XrdOfs/XrdOfsFS.cc
-  XrdOfs/XrdOfsConfig.cc        XrdOfs/XrdOfsConfig.hh
+  XrdOfs/XrdOfsConfig.cc
   XrdOfs/XrdOfsEvr.cc           XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsEvs.cc           XrdOfs/XrdOfsEvs.hh
   XrdOfs/XrdOfsHandle.cc        XrdOfs/XrdOfsHandle.hh
