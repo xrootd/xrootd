@@ -1,6 +1,28 @@
-//         $Id$
-
-// const char *TestXrdClient_readCVSID = "$Id$";
+/******************************************************************************/
+/*                                                                            */
+/*                 T e s t X r d C l i e n t _ r e a d . c c                  */
+/*                                                                            */
+/* This file is part of the XRootD software suite.                            */
+/*                                                                            */
+/* XRootD is free software: you can redistribute it and/or modify it under    */
+/* the terms of the GNU Lesser General Public License as published by the     */
+/* Free Software Foundation, either version 3 of the License, or (at your     */
+/* option) any later version.                                                 */
+/*                                                                            */
+/* XRootD is distributed in the hope that it will be useful, but WITHOUT      */
+/* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or      */
+/* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public       */
+/* License for more details.                                                  */
+/*                                                                            */
+/* You should have received a copy of the GNU Lesser General Public License   */
+/* along with XRootD in a file called COPYING.LESSER (LGPL license) and file  */
+/* COPYING (GPL license).  If not, see <http://www.gnu.org/licenses/>.        */
+/*                                                                            */
+/* The copyright holder's institutional names and contributor's names may not */
+/* be used to endorse or promote products derived from this software without  */
+/* specific prior written permission of the institution or contributor.       */
+/******************************************************************************/
+  
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -11,9 +33,6 @@
 #include <sys/time.h>
 #include <math.h>
 
-
-
-
 class MyXrdClientCallback: public XrdClientCallback {
 
    virtual void OpenComplete(XrdClientAbs *clientP, void *cbArg, bool res) {
@@ -21,10 +40,6 @@ class MyXrdClientCallback: public XrdClientCallback {
    }
 
 };
-
-
-
-
 
 kXR_unt16 open_mode = (kXR_ur | kXR_uw);
 kXR_unt16 open_opts = (0);
