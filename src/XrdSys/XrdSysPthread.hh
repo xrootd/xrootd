@@ -152,6 +152,9 @@ public:
 
 XrdSysRecMutex();
 
+int InitRecMutex();
+int ReInitRecMutex();
+
 };
 
 
