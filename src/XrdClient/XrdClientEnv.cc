@@ -205,7 +205,7 @@ static void parent()
 //------------------------------------------------------------------------------
 static void child()
 {
-  XrdClientEnv::Instance()->UnLock();
+  XrdClientEnv::Instance()->ReInitLock();
   if( EnvGetLong( NAME_ENABLE_FORK_HANDLERS ) && ConnectionManager )
   {
     ConnectionManager->BootUp();

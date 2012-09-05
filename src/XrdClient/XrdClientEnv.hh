@@ -100,6 +100,11 @@ class XrdClientEnv {
      fMutex.UnLock();
    }
 
+   int ReInitLock()
+   {
+     return fMutex.ReInitRecMutex();
+   }
+
   static XrdClientEnv *Instance();
 };
 
