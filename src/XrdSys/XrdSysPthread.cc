@@ -297,23 +297,31 @@ int XrdSysThread::Wait(pthread_t tid)
 /******************************************************************************/
 /*                         X r d S y s R e c M u t e x                        */
 /******************************************************************************/
+XrdSysRecMutex::XrdSysRecMutex()
+{
+  InitRecMutex();
+}
 
-XrdSysRecMutex::XrdSysRecMutex() {
+int XrdSysRecMutex::InitRecMutex()
+{
+  int rc;
+  pthread_mutexattr_t attr;
 
-   int rc;
-   pthread_mutexattr_t attr;
+  rc = pthread_mutexattr_init( &attr );
 
-   rc = pthread_mutexattr_init(&attr);
+  if( !rc )
+  {
+    pthread_mutexattr_settype( &attr, PTHREAD_MUTEX_RECURSIVE );
+    pthread_mutex_destroy( &cs );
+    rc = pthread_mutex_init( &cs, &attr );
+  }
 
-   if (!rc) {
-      rc = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-      if (!rc)
-      {
-        pthread_mutex_destroy(&cs);
-        pthread_mutex_init(&cs, &attr);
-      }
-   }
+  pthread_mutexattr_destroy(&attr);
+  return rc;
+}
 
-   pthread_mutexattr_destroy(&attr);
-
- }
+int XrdSysRecMutex::ReInitRecMutex()
+{
+  pthread_mutex_destroy( &cs );
+  return InitRecMutex();
+}
