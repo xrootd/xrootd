@@ -6,6 +6,12 @@ Release Notes
 =============
 
 -------------
+Version 3.2.4
+-------------
++ **Major bug fixes**
+   * Work around a dead-lock in the client fork handlers.
+
+-------------
 Version 3.2.3
 -------------
 + **Major bug fixes**
