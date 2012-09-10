@@ -144,6 +144,29 @@ const char *Path();
 int         Read (char *Buff, long long Offs, int Len)
                 {return XClient->Read (Buff, Offs, Len);}
 
+ssize_t     ReadV (const XrdSfsReadV *readV, size_t n)
+{
+   size_t nbytes;
+   std::vector<long long> offsets; offsets.reserve(n);
+   std::vector<int> lens; lens.reserve(n);
+   for (int i=0; i<n; i++)
+      {nbytes += readV[i].size;
+       offsets[i] = readV[i].offset;
+       lens[i] = readV[i].size;
+      }
+   std::vector<char> result_buffer;
+   result_buffer.reserve(nbytes);
+   ssize_t retval = XClient->ReadV(&(result_buffer[0]), &(offsets[0]), &(lens[0]), n);
+   if (retval < 0)
+       return retval;
+   nbytes = 0;
+   for (int i=0; i<n; i++)
+      {memcpy(readV[i].data, &(result_buffer[nbytes]), readV[i].size);
+       nbytes += readV[i].size;
+      }
+   return nbytes;
+}
+
 int         Sync() {return (XClient->Sync() ? 0 : -1);}
 
 int         Trunc(long long Offset)
