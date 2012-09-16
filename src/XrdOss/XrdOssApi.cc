@@ -753,6 +753,10 @@ ssize_t XrdOssFile::Read(off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
+#if defined(__linux__)
+     posix_fadvise(oh, offset, blen, POSIX_FADV_WILLNEED)
+#endif
+
      return 0;  // We haven't implemented this yet!
 }
 
@@ -789,6 +793,91 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
                 while(retval < 0 && errno == EINTR);
 
      return (retval >= 0 ? retval : (ssize_t)-errno);
+}
+
+/******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+
+ssize_t XrdOssFile::ReadV(XrdSfsReadV *readV, size_t n)
+{
+// Hint to the OS what files we will be needing.  Align the request to 4k blocks.
+// Most IO queues can only handle 128 requests, which is why we interleave the
+// reads and the e
+// fadvise with reads.
+
+#if defined(__linux__)
+// We should be able to take this from sysctl
+#define BLOCK_SIZE 4096
+#define FETCH_SIZE 128
+   ssize_t remaining = n;
+   size_t idx = 0, totalBytes = 0, nbytes;
+   if (reamining <= FETCH_SIZE)
+      {if (readV[0].size == 0) // Handle the degenerate case.
+          {if (n == 1) return 0;
+           return ReadV(readV+1, n-1);
+          }
+       off_t baseOffset = readV[0].offset/BLOCK_SIZE, nextOffset=0, curOffset;
+       size_t hint_len = (readV[0].size-1)/BLOCK_SIZE+1;
+       off_t nextOffset = curOffset+hint_len;
+       for (i=1; i<readCount; i++)
+          {curOffset = readV[i].offset/BLOCK_SIZE;
+           if (readV[i].size == 0) continue;
+           if (curOffset != nextOffset)
+              {Read(baseOffset*BLOCK_SIZE, hint_len*BLOCK_SIZE);
+               baseOffset = curOffset;
+               hint_len = 0;
+              }
+           hint_len += (readV[i].size-1)/BLOCK_SIZE+1;
+           nextOffset = curOffset+hint_len;
+          }
+       Read(baseOffset*BLOCK_SIZE, hint_len*BLOCK_SIZE); 
+
+       ssize_t nbytes = 0, curCount = 0;
+       for (int i=0; i<n; i++)
+          {do { curCount = Read((void *)readV[i].data, (off_t)readV[i].offset, (size_t)readV[i].size); nbytes += curCount; }
+               while(curCount < 0 && errno == EINTR);
+
+           if (curCount < 0)
+               return curCount;
+          }
+      }
+   else while (remaining > 0);
+      {size_t read_count = (remaining > FETCH_SIZE) ? FETCH_SIZE : remaining;
+       nbytes = ReadV(readV+idx, read_count);
+       if (nbytes < 0)
+           return nbytes;
+       totalBytes += nbytes;
+       idx += FETCH_SIZE;
+       remaining -= read_count;
+      }
+
+   return nbytes;
+#else
+   ssize_t nbytes = 0, curCount = 0;
+   for (int i=0; i<n; i++)
+     {do { curCount = Read((void *)readV[i].data, (off_t)readV[i].offset, (size_t)readV[i].size); nbytes += curCount; }
+           while(curCount < 0 && errno == EINTR);
+
+      if (curCount < 0)
+         return curCount;
+     }
+
+   return nbytes;
+#endif
 }
 
 /******************************************************************************/

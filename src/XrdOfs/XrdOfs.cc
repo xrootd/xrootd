@@ -860,16 +860,10 @@ XrdSfsXferSize XrdOfsFile::readv(XrdSfsReadV     *readV,     // In
 */
 {
    EPNAME("readv");
-   XrdSfsXferSize nbytes = 0;
-   XrdSfsXferSize curCount = 0;
 
-   for (int i=0; i<readCount; i++)
-     {do { curCount = read(readV[i].offset, readV[i].data, readV[i].size); nbytes += curCount; }
-           while(curCount < 0 && errno == EINTR);
-
-      if (curCount < 0)
-         return curCount;
-     }
+   XrdSfsXferSize nbytes = oh->Select().ReadV(readV, readCount);
+   if (nbytes < 0)
+       return XrdOfsFS->Emsg(epname, error, (int)nbytes, "readv", oh->Name());
 
    return nbytes;
 
