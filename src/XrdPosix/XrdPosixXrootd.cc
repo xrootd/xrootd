@@ -146,7 +146,7 @@ int         Read (char *Buff, long long Offs, int Len)
 
 ssize_t     ReadV (const XrdSfsReadV *readV, size_t n)
 {
-   size_t nbytes;
+   size_t nbytes = 0;
    std::vector<long long> offsets; offsets.reserve(n);
    std::vector<int> lens; lens.reserve(n);
    for (int i=0; i<n; i++)

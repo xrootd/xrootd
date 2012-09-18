@@ -453,9 +453,9 @@ XrdSfsXferSize XrdSfsNativeFile::readv(XrdSfsReadV     *readV,     // In
 // fadvise with reads.
    int i;
 #if defined(__linux__)
-   off_t baseOffset = readV[0].offset/4096, nextOffset=0, curOffset;
+   off_t baseOffset = readV[0].offset/4096, curOffset;
    size_t hint_len = (readV[0].size-1)/4096+1;
-   off_t nextOffset = curOffset+hint_len;
+   off_t nextOffset = baseOffset+hint_len;
    for (i=1; i<readCount; i++)
      {curOffset = readV[i].offset/4096;
       if (readV[i].size == 0) continue;
@@ -467,7 +467,7 @@ XrdSfsXferSize XrdSfsNativeFile::readv(XrdSfsReadV     *readV,     // In
       hint_len += (readV[i].size-1)/4096+1;
       nextOffset = curOffset+hint_len;
      }
-   posix_fadvise(oh, baseOffset, hint_len, POSIX_FADV_WILLNEED)
+   posix_fadvise(oh, baseOffset, hint_len, POSIX_FADV_WILLNEED);
 #endif
 
    ssize_t curCount = 0;
