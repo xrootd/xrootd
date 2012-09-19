@@ -46,6 +46,7 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Initialize the rMon toggle to avoid valgrind complaint.
    * Fix minor issues reported by Coverity.
    * Make sure opendir() returns a null pointer when the directory doesn't
      exist.
