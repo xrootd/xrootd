@@ -423,6 +423,7 @@ void XrdSys::IOEvents::Channel::Reset(XrdSys::IOEvents::Poller *thePoller,
      chEvents = 0;
      dlType   = 0;
      inPSet   = 0;
+     reMod    = 0;
      rdDL     = Poller::maxTime;
      wrDL     = Poller::maxTime;
      deadLine = Poller::maxTime;
