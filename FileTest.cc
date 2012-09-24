@@ -102,7 +102,6 @@ void FileTest::RedirectReturnTest()
 
   XRootDMsgHandler *msgHandler;
   msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
-  msgHandler->SetTimeout( 300 );
   msgHandler->SetRedirectAsAnswer( true );
 
   st = postMaster->Send( url, msg, msgHandler, false, 300 );
