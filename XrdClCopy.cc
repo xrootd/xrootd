@@ -66,8 +66,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
                               uint64_t bytesTotal )
     {
       std::string bar;
-      int prog = (int)((double)bytesProcessed/bytesTotal)*50;
-      int proc = (int)((double)bytesProcessed/bytesTotal)*100;
+      int prog = (int)((double)bytesProcessed/bytesTotal*50);
+      int proc = (int)((double)bytesProcessed/bytesTotal*100);
       bar.append( prog, '=' );
       if( prog < 50 )
         bar += ">";

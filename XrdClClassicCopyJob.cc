@@ -268,6 +268,7 @@ namespace
           return st;
 
         pSize = statInfo->GetSize();
+        delete statInfo;
 
         return XRootDStatus();
       }

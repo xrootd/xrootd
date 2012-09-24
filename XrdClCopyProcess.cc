@@ -37,6 +37,10 @@ namespace XrdCl
       delete *it;
     for( it = pDestinations.begin(); it != pDestinations.end(); ++it )
       delete *it;
+
+    std::list<CopyJob*>::iterator itJ;
+    for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
+      delete *itJ;
   }
 
   //----------------------------------------------------------------------------
