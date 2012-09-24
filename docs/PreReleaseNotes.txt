@@ -48,6 +48,8 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Make sure to reflect proper range of errors during read/write operations.
+     This also provides filesystem plugins full range of allowed return codes.
    * Initialize the rMon toggle to avoid valgrind complaint.
    * Fix minor issues reported by Coverity.
    * Make sure opendir() returns a null pointer when the directory doesn't
