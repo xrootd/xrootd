@@ -1013,7 +1013,7 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 //
    offs = static_cast<long long>(offset);
    bytes = fp->XCio->Read((char *)buf, offs, (int)iosz);
-   if (bytes < 0) return Fault(fp,-1);
+   if (bytes <= 0) return Fault(fp,-1);
 
 // All went well
 //
@@ -1076,7 +1076,7 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 // Issue the read
 //
    bytes = fp->XCio->Read((char *)buf,fp->Offset(),(int)iosz);
-   if (bytes < 0) return Fault(fp,-1);
+   if (bytes <= 0) return Fault(fp,-1);
 
 // All went well
 //
