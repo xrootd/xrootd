@@ -278,7 +278,10 @@ int                        myBlen;
 int                        myBlast;
 int                       (XrdXrootdProtocol::*Resume)();
 XrdXrootdFile             *myFile;
+union {
 long long                  myOffset;
+int                        myEInfo[2];
+      };
 int                        myIOLen;
 int                        myStalls;
 
