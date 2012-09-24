@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
@@ -16,62 +16,44 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_IN_QUEUE_HH__
-#define __XRD_CL_IN_QUEUE_HH__
+#ifndef __XRD_CL_CHANNEL_HANDLER_LIST_HH__
+#define __XRD_CL_CHANNEL_HANDLER_LIST_HH__
 
-#include <XrdSys/XrdSysPthread.hh>
 #include <list>
 #include <utility>
-#include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClStatus.hh"
+#include <XrdSys/XrdSysPthread.hh>
 
 namespace XrdCl
 {
-  class Message;
-
   //----------------------------------------------------------------------------
-  //! A synchronize queue for incomming data
+  //! A helper for handling hannel event handlers
   //----------------------------------------------------------------------------
-  class InQueue
+  class ChannelHandlerList
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a message to the queue
+      //! Add a channel event handler
       //------------------------------------------------------------------------
-      bool AddMessage( Message *msg );
+      void AddHandler( ChannelEventHandler *handler );
 
       //------------------------------------------------------------------------
-      //! Add a listener that should be notified about incomming messages
-      //!
-      //! @param handler message handler
-      //! @param expires time when the message handler expires
+      //! Remove the channel event handler
       //------------------------------------------------------------------------
-      void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
+      void RemoveHandler( ChannelEventHandler *handler );
 
       //------------------------------------------------------------------------
-      //! Remove a listener
+      //! Report an event to the channel event handlers
       //------------------------------------------------------------------------
-      void RemoveMessageHandler( IncomingMsgHandler *handler );
-
-      //------------------------------------------------------------------------
-      //! Report an event to the handlers
-      //------------------------------------------------------------------------
-      void ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
-                              uint16_t                        streamNum,
-                              Status                          status );
-
-      //------------------------------------------------------------------------
-      //! Timeout handlers
-      //------------------------------------------------------------------------
-      void ReportTimeout( time_t now = 0 );
+      void ReportEvent( ChannelEventHandler::ChannelEvent event,
+                        Status                            status,
+                        uint16_t                          stream );
 
     private:
-      typedef std::pair<IncomingMsgHandler *, time_t> HandlerAndExpire;
-      typedef std::list<HandlerAndExpire> HandlerList;
-      std::list<Message *> pMessages;
-      HandlerList          pHandlers;
-      XrdSysMutex          pMutex;
+      std::list<ChannelEventHandler*> pHandlers;
+      XrdSysMutex                     pMutex;
   };
 }
 
-#endif // __XRD_CL_IN_QUEUE_HH__
+#endif // __XRD_CL_CHANNEL_HANDLER_LIST_HH__

@@ -48,6 +48,7 @@ namespace
     { errSocketOptError,     "Socket opt error"     },
     { errStreamDisconnect,   "Stream disconnect"    },
     { errConnectionError,    "Conection error"      },
+    { errInvalidSession,     "Invalid session"      },
     { errInvalidMessage,     "Invalid message"      },
     { errNotFound,           "Resource not found"   },
     { errHandShakeFailed,    "Hand shake failed"    },

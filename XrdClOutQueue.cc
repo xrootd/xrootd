@@ -19,8 +19,6 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 
-#include <iostream>
-
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -72,57 +70,63 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Report disconection to the handlers of stateful messages and remove
-  // the messages from the queue
+  // Report status to all handlers
   //----------------------------------------------------------------------------
-  void OutQueue::ReportDisconnection()
-  {
-    MessageList::iterator it;
-    for( it = pMessages.begin(); it != pMessages.end(); )
-    {
-      if( !it->stateful )
-      {
-        ++it;
-        continue;
-      }
-      it->handler->OnStatusReady( it->msg,
-                                  Status( stError, errStreamDisconnect ) );
-      it = pMessages.erase( it );
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  // eport error to the message handlers and remove all the messages
-  // from the queue
-  //----------------------------------------------------------------------------
-  void OutQueue::ReportError( Status status )
+  void OutQueue::Report( Status status )
   {
     MessageList::iterator it;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
       it->handler->OnStatusReady( it->msg, status );
-    pMessages.clear();
+  }
+
+  //------------------------------------------------------------------------
+  // Return the size of the queue counting only the stateless messages
+  //------------------------------------------------------------------------
+  uint64_t OutQueue::GetSizeStateless() const
+  {
+    uint64_t size = 0;
+    MessageList::const_iterator it;
+    for( it = pMessages.begin(); it != pMessages.end(); ++it )
+      if( !it->stateful )
+        ++size;
+    return size;
   }
 
   //----------------------------------------------------------------------------
-  // Report timout to the handlers of the expired messages and remove
-  // these messages from the queue
+  // Remove all the expired messages from the queue and put them in
+  // this one
   //----------------------------------------------------------------------------
-  void OutQueue::ReportTimeout( time_t exp )
+  void OutQueue::GrabExpired( OutQueue &queue, time_t exp )
   {
-    if( !exp )
-      exp = time(0);
-
     MessageList::iterator it;
-    for( it = pMessages.begin(); it != pMessages.end(); )
+    for( it = queue.pMessages.begin(); it != queue.pMessages.end(); )
     {
       if( it->expires > exp )
       {
         ++it;
         continue;
       }
-      it->handler->OnStatusReady( it->msg,
-                                  Status( stError, errSocketTimeout ) );
-      it = pMessages.erase( it );
+      pMessages.push_back( *it );
+      it = queue.pMessages.erase( it );
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove all the stateful messages from the queue and put them in this
+  // one
+  //----------------------------------------------------------------------------
+  void OutQueue::GrabStateful( OutQueue &queue )
+  {
+    MessageList::iterator it;
+    for( it = queue.pMessages.begin(); it != queue.pMessages.end(); )
+    {
+      if( !it->stateful )
+      {
+        ++it;
+        continue;
+      }
+      pMessages.push_back( *it );
+      it = queue.pMessages.erase( it );
     }
   }
 
@@ -137,3 +141,4 @@ namespace XrdCl
     queue.pMessages.clear();
   }
 }
+

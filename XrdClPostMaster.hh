@@ -80,6 +80,9 @@ namespace XrdCl
       //! Send a message synchronously - synchronously means that
       //! it will block until the message is written to a socket
       //!
+      //! DEADLOCK WARNING: no lock should be taken while calling this method
+      //! that are used in the callback as well.
+      //!
       //! @param url     recipient of the message
       //! @param msg     message to be sent
       //! @param statful physical stream disconnection causes an error
@@ -97,6 +100,9 @@ namespace XrdCl
       //! Send the message asynchronously - the message is inserted into the
       //! send queue and a listener is called when the message is successuly
       //! pushed through the wire or when the timeout elapses
+      //!
+      //! DEADLOCK WARNING: no lock should be taken while calling this method
+      //! that are used in the callback as well.
       //!
       //! @param url           recipient of the message
       //! @param msg           message to be sent
@@ -155,6 +161,18 @@ namespace XrdCl
       Status QueryTransport( const URL &url,
                              uint16_t   query,
                              AnyObject &result );
+
+      //------------------------------------------------------------------------
+      //! Register channel event handler
+      //------------------------------------------------------------------------
+      Status RegisterEventHandler( const URL           &url,
+                                   ChannelEventHandler *handler );
+
+      //------------------------------------------------------------------------
+      //! Remove a channel event handler
+      //------------------------------------------------------------------------
+      Status RemoveEventHandler( const URL           &url,
+                                 ChannelEventHandler *handler );
 
       //------------------------------------------------------------------------
       //! Get the task manager object user by the post master

@@ -58,14 +58,15 @@ namespace
       //------------------------------------------------------------------------
       // Handle a fault
       //------------------------------------------------------------------------
-      virtual void OnStreamEvent( StreamEvent   event,
-                                  uint16_t      streamNum,
-                                  XrdCl::Status status )
+      virtual uint8_t OnStreamEvent( StreamEvent   event,
+                                     uint16_t      streamNum,
+                                     XrdCl::Status status )
       {
         if( event == Ready )
-          return;
+          return 0;
         pStatus = status;
         pSem.Post();
+        return RemoveHandler;
       }
 
       //------------------------------------------------------------------------
@@ -86,7 +87,7 @@ namespace
       }
 
     private:
-      XrdSysSemaphore           pSem;
+      XrdSysSemaphore       pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::Status         pStatus;
@@ -291,5 +292,25 @@ namespace XrdCl
   Status Channel::QueryTransport( uint16_t query, AnyObject &result )
   {
     return pTransport->Query( query, result, pChannelData );
+  }
+
+  //----------------------------------------------------------------------------
+  // Register channel event handler
+  //----------------------------------------------------------------------------
+  void Channel::RegisterEventHandler( ChannelEventHandler *handler )
+  {
+    std::vector<Stream *>::iterator it;
+    for( it = pStreams.begin(); it != pStreams.end(); ++it )
+      (*it)->RegisterEventHandler( handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Remove a channel event handler
+  //------------------------------------------------------------------------
+  void Channel::RemoveEventHandler( ChannelEventHandler *handler )
+  {
+    std::vector<Stream *>::iterator it;
+    for( it = pStreams.begin(); it != pStreams.end(); ++it )
+      (*it)->RemoveEventHandler( handler );
   }
 }

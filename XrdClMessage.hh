@@ -32,7 +32,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Message( uint32_t size = 0 ): Buffer( size )
+      Message( uint32_t size = 0 ):
+        Buffer( size ), pIsMarshalled( false ), pSessionId(0)
       {
         if( size )
           Zero();
@@ -42,6 +43,59 @@ namespace XrdCl
       //! Destructor
       //------------------------------------------------------------------------
       virtual ~Message() {}
+
+      //------------------------------------------------------------------------
+      //! Check if the message is marshalled
+      //------------------------------------------------------------------------
+      bool IsMarshalled() const
+      {
+        return pIsMarshalled;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the marshalling status
+      //------------------------------------------------------------------------
+      void SetIsMarshalled( bool isMarshalled )
+      {
+        pIsMarshalled = isMarshalled;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the description of the message
+      //------------------------------------------------------------------------
+      void SetDescription( const std::string &description )
+      {
+        pDescription = description;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the description of the message
+      //------------------------------------------------------------------------
+      const std::string &GetDescription() const
+      {
+        return pDescription;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the session ID which this message is meant for
+      //------------------------------------------------------------------------
+      void SetSessionId( uint64_t sessionId )
+      {
+        pSessionId = sessionId;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the session ID the message is meant for
+      //------------------------------------------------------------------------
+      uint64_t GetSessionId() const
+      {
+        return pSessionId;
+      }
+
+    private:
+      bool         pIsMarshalled;
+      uint64_t     pSessionId;
+      std::string  pDescription;
   };
 }
 

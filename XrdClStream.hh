@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
+#include "XrdCl/XrdClChannelHandlerList.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include <list>
@@ -188,17 +189,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! On connect error
       //------------------------------------------------------------------------
-      void OnConnectError( uint16_t subStream, Status st );
+      void OnConnectError( uint16_t subStream, Status status );
 
       //------------------------------------------------------------------------
       //! On error
       //------------------------------------------------------------------------
-      void OnError( uint16_t subStream, Status st );
-
-      //------------------------------------------------------------------------
-      //! On fatal error
-      //------------------------------------------------------------------------
-      void OnFatalError( uint16_t subStream, Status st );
+      void OnError( uint16_t subStream, Status status );
 
       //------------------------------------------------------------------------
       //! On read timeout
@@ -210,7 +206,23 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void OnWriteTimeout( uint16_t subStream );
 
+      //------------------------------------------------------------------------
+      //! Register channel event handler
+      //------------------------------------------------------------------------
+      void RegisterEventHandler( ChannelEventHandler *handler );
+
+      //------------------------------------------------------------------------
+      //! Remove a channel event handler
+      //------------------------------------------------------------------------
+      void RemoveEventHandler( ChannelEventHandler *handler );
+
     private:
+      //------------------------------------------------------------------------
+      //! On fatal error - unlocks the stream
+      //------------------------------------------------------------------------
+      void OnFatalError( uint16_t           subStream,
+                         Status             status,
+                         XrdSysMutexHelper &lock );
 
       typedef std::vector<SubStreamData*> SubStreamList;
 
@@ -231,6 +243,8 @@ namespace XrdCl
       uint16_t                       pConnectionWindow;
       SubStreamList                  pSubStreams;
       std::vector<sockaddr_in>       pAddresses;
+      ChannelHandlerList             pChannelEvHandlers;
+      uint64_t                       pSessionId;
   };
 }
 

@@ -200,6 +200,31 @@ namespace XrdCl
     return channel->QueryTransport( query, result );
   }
 
+  //----------------------------------------------------------------------------
+  // Register channel event handler
+  //----------------------------------------------------------------------------
+  Status PostMaster::RegisterEventHandler( const URL           &url,
+                                           ChannelEventHandler *handler )
+  {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
+    Channel *channel = GetChannel( url );
+    channel->RegisterEventHandler( handler );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Remove a channel event handler
+  //----------------------------------------------------------------------------
+  Status PostMaster::RemoveEventHandler( const URL           &url,
+                                       ChannelEventHandler *handler )
+  {
+    if( !pInitialized )
+      return Status( stFatal, errUninitialized );
+    Channel *channel = GetChannel( url );
+    channel->RemoveEventHandler( handler );
+    return Status();
+  }
 
   //----------------------------------------------------------------------------
   // Get the channel

@@ -82,6 +82,26 @@ namespace XrdCl
   class MessageUtils
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Sending parameters
+      //------------------------------------------------------------------------
+      struct SendParams
+      {
+        SendParams():
+          timeout(0), expires(0), followRedirects(true), stateful(false),
+          userBuffer(0), userBufferSize(0), hostList(0), stateLock(0) {}
+        uint16_t         timeout;
+        time_t           expires;
+        const HostInfo   loadBalancer;
+        bool             followRedirects;
+        bool             stateful;
+        char            *userBuffer;
+        uint32_t         userBufferSize;
+        HostList        *hostList;
+        XrdSysRecMutex  *stateLock;
+      };
+
       //------------------------------------------------------------------------
       //! Wait and return the status of the query
       //------------------------------------------------------------------------
@@ -138,14 +158,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Send message
       //------------------------------------------------------------------------
-      static Status SendMessage( const URL       &url,
-                                 Message         *msg,
-                                 ResponseHandler *handler,
-                                 uint16_t         timeout,
-                                 bool             followRedirects = true,
-                                 char            *userBuffer      = 0,
-                                 uint32_t         userBufferSize  = 0 );
+      static Status SendMessage( const URL        &url,
+                                 Message          *msg,
+                                 ResponseHandler  *handler,
+                                 const SendParams &sendParams );
 
+      //------------------------------------------------------------------------
+      //! Process sending params
+      //------------------------------------------------------------------------
+      static void ProcessSendParams( SendParams &sendParams );
   };
 }
 

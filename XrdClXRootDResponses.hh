@@ -675,8 +675,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      OpenInfo( const uint8_t *fileHandle, StatInfo *statInfo = 0 ):
-        pStatInfo( statInfo )
+      OpenInfo( const uint8_t *fileHandle,
+                uint64_t       sessionId,
+                StatInfo *statInfo        = 0 ):
+        pSessionId(sessionId), pStatInfo( statInfo )
       {
         memcpy( pFileHandle, fileHandle, 4 );
       }
@@ -705,8 +707,17 @@ namespace XrdCl
         return pStatInfo;
       }
 
+      //------------------------------------------------------------------------
+      // Get session ID
+      //------------------------------------------------------------------------
+      uint64_t GetSessionId() const
+      {
+        return pSessionId;
+      }
+
     private:
       uint8_t   pFileHandle[4];
+      uint64_t  pSessionId;
       StatInfo *pStatInfo;
   };
 
@@ -778,16 +789,28 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  // List of URLs
+  //----------------------------------------------------------------------------
+  struct HostInfo
+  {
+    HostInfo():
+      flags(0), protocol(0), loadBalancer(false) {}
+    HostInfo( const URL &u, bool lb = false ):
+      flags(0), protocol(0), loadBalancer(lb), url(u) {}
+    uint32_t flags;        //!< Host type
+    uint32_t protocol;     //!< Version of the protocol the host is speaking
+    bool     loadBalancer; //!< Was the host used as a load balancer
+    URL      url;          //!< URL of the host
+  };
+
+  typedef std::vector<HostInfo> HostList;
+
+  //----------------------------------------------------------------------------
   //! Handle an async response
   //----------------------------------------------------------------------------
   class ResponseHandler
   {
     public:
-      //------------------------------------------------------------------------
-      //! List of URLs
-      //------------------------------------------------------------------------
-      typedef std::vector<URL> URLList;
-
       virtual ~ResponseHandler() {}
 
       //------------------------------------------------------------------------
@@ -801,9 +824,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status,
                                    AnyObject    *response,
-                                   URLList      *urlList )
+                                   HostList     *hostList )
       {
-        delete urlList;
+        delete hostList;
         HandleResponse( status, response );
       }
 

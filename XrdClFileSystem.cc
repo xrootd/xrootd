@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClRequestSync.hh"
+#include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
@@ -260,10 +261,6 @@ namespace XrdCl
                                    ResponseHandler   *handler,
                                    uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_locate request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message             *msg;
     ClientLocateRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -272,8 +269,11 @@ namespace XrdCl
     req->options   = flags;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
 
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -332,11 +332,6 @@ namespace XrdCl
                                ResponseHandler   *handler,
                                uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_mv request to move %s to %s",
-                         pUrl->GetHostId().c_str(),
-                         source.c_str(), dest.c_str() );
-
     Message         *msg;
     ClientMvRequest *req;
     MessageUtils::CreateRequest( msg, req, source.length()+dest.length()+1 );
@@ -346,7 +341,11 @@ namespace XrdCl
     msg->Append( source.c_str(), source.length(), 24 );
     *msg->GetBuffer(24+source.length()) = ' ';
     msg->Append( dest.c_str(), dest.length(), 25+source.length() );
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -377,10 +376,6 @@ namespace XrdCl
                                   ResponseHandler *handler,
                                   uint16_t         timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_query request [%d]",
-                         pUrl->GetHostId().c_str(), queryCode );
-
     Message            *msg;
     ClientQueryRequest *req;
     MessageUtils::CreateRequest( msg, req, arg.GetSize() );
@@ -389,8 +384,10 @@ namespace XrdCl
     req->infotype  = queryCode;
     req->dlen      = arg.GetSize();
     msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -422,10 +419,6 @@ namespace XrdCl
                                      ResponseHandler   *handler,
                                      uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message               *msg;
     ClientTruncateRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -434,8 +427,10 @@ namespace XrdCl
     req->offset    = size;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -465,10 +460,6 @@ namespace XrdCl
                                ResponseHandler   *handler,
                                uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_rm request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message         *msg;
     ClientRmRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -476,8 +467,10 @@ namespace XrdCl
     req->requestid = kXR_rm;
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -508,10 +501,6 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_mkdir request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message            *msg;
     ClientMkdirRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -521,8 +510,10 @@ namespace XrdCl
     req->mode       = mode;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -553,10 +544,6 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_rmdir request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message            *msg;
     ClientRmdirRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -564,8 +551,10 @@ namespace XrdCl
     req->requestid  = kXR_rmdir;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -595,10 +584,6 @@ namespace XrdCl
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_chmod request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message            *msg;
     ClientChmodRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -607,8 +592,10 @@ namespace XrdCl
     req->mode       = mode;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -637,17 +624,15 @@ namespace XrdCl
   XRootDStatus FileSystem::Ping( ResponseHandler *handler,
                                  uint16_t        timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_ping request",
-                         pUrl->GetHostId().c_str() );
-
     Message           *msg;
     ClientPingRequest *req;
     MessageUtils::CreateRequest( msg, req );
 
     req->requestid  = kXR_ping;
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -675,10 +660,6 @@ namespace XrdCl
                                  ResponseHandler   *handler,
                                  uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -687,8 +668,10 @@ namespace XrdCl
     req->options    = 0;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -718,10 +701,6 @@ namespace XrdCl
                                     ResponseHandler   *handler,
                                     uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_stat + VFS request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -730,8 +709,10 @@ namespace XrdCl
     req->options    = kXR_vfs;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -760,18 +741,16 @@ namespace XrdCl
   XRootDStatus FileSystem::Protocol( ResponseHandler *handler,
                                      uint16_t         timeout )
   {
-    Log    *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_protocol",
-                         pUrl->GetHostId().c_str() );
-
     Message               *msg;
     ClientProtocolRequest *req;
     MessageUtils::CreateRequest( msg, req );
 
     req->requestid = kXR_protocol;
     req->clientpv  = kXR_PROTOCOLVERSION;
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;
@@ -800,10 +779,6 @@ namespace XrdCl
                                     ResponseHandler   *handler,
                                     uint16_t           timeout )
   {
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_dirlist request for path %s",
-                         pUrl->GetHostId().c_str(), path.c_str() );
-
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
@@ -811,8 +786,10 @@ namespace XrdCl
     req->requestid  = kXR_dirlist;
     req->dlen       = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
-
-    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
       return st;

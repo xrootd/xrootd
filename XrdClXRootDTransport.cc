@@ -30,6 +30,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dlfcn.h>
+#include <sstream>
+#include <iomanip>
 
 namespace XrdCl
 {
@@ -793,6 +795,20 @@ namespace XrdCl
       case XRootDQuery::SIDManager:
         result.Set( info->sidManager, false );
         return Status();
+
+      //------------------------------------------------------------------------
+      // Server flags
+      //------------------------------------------------------------------------
+      case XRootDQuery::ServerFlags:
+        result.Set( new int( info->serverFlags ), false );
+        return Status();
+
+      //------------------------------------------------------------------------
+      // Protocol version
+      //------------------------------------------------------------------------
+      case XRootDQuery::ProtocolVersion:
+        result.Set( new int( info->protocolVersion ), false );
+        return Status();
     };
     return Status( stError, errQueryNotSupported );
   }
@@ -1333,5 +1349,379 @@ namespace XrdCl
 
     repr += "]";
     return repr;
+  }
+}
+
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Extract file name from a request
+  //----------------------------------------------------------------------------
+  char *GetPath( XrdCl::Message *msg )
+  {
+    ClientRequestHdr *req = (ClientRequestHdr*)msg->GetBuffer();
+    char *fn = new char[req->dlen+1];
+    memcpy( fn, msg->GetBuffer(24), req->dlen );
+    fn[req->dlen] = 0;
+    return fn;
+  }
+}
+
+namespace XrdCl
+{
+  //----------------------------------------------------------------------------
+  // Get the description of a message
+  //----------------------------------------------------------------------------
+  void XRootDTransport::SetDescription( Message *msg )
+  {
+    ClientRequestHdr *req = (ClientRequestHdr *)msg->GetBuffer();
+    std::ostringstream o;
+    switch( req->requestid )
+    {
+      //------------------------------------------------------------------------
+      // kXR_open
+      //------------------------------------------------------------------------
+      case kXR_open:
+      {
+        ClientOpenRequest *sreq = (ClientOpenRequest *)msg->GetBuffer();
+        o << "kXR_open (";
+        char *fn = GetPath( msg );
+        o << "file: " << fn << ", ";
+        delete [] fn;
+        o << "mode: 0" << std::setbase(8) << sreq->mode << ", ";
+        o << std::setbase(10);
+        o << "flags: ";
+        if( sreq->options == 0 )
+          o << "none";
+        else
+        {
+          if( sreq->options & kXR_delete )
+            o << "kXR_delete ";
+          if( sreq->options & kXR_force )
+            o << "kXR_force ";
+          if( sreq->options & kXR_mkpath )
+            o << "kXR_mkpath ";
+          if( sreq->options & kXR_new )
+            o << "kXR_new ";
+          if( sreq->options & kXR_nowait )
+            o << "kXR_delete ";
+          if( sreq->options & kXR_open_apnd )
+            o << "kXR_open_apnd ";
+          if( sreq->options & kXR_open_read )
+            o << "kXR_open_read ";
+          if( sreq->options & kXR_open_updt )
+            o << "kXR_open_updt ";
+          if( sreq->options & kXR_posc )
+            o << "kXR_posc ";
+          if( sreq->options & kXR_refresh )
+            o << "kXR_refresh ";
+          if( sreq->options & kXR_replica )
+            o << "kXR_replica ";
+          if( sreq->options & kXR_seqio )
+            o << "kXR_seqio ";
+        }
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_close
+      //------------------------------------------------------------------------
+      case kXR_close:
+      {
+        ClientCloseRequest *sreq = (ClientCloseRequest *)msg->GetBuffer();
+        o << "kXR_close (";
+        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_stat
+      //------------------------------------------------------------------------
+      case kXR_stat:
+      {
+        ClientStatRequest *sreq = (ClientStatRequest *)msg->GetBuffer();
+        o << "kXR_stat (";
+        if( sreq->dlen )
+        {
+          char *fn = GetPath( msg );;
+          o << "path: " << fn << ", ";
+          delete [] fn;
+        }
+        else
+        {
+          o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+          o << ", ";
+        }
+        o << "flags: ";
+        if( sreq->options == 0 )
+          o << "none";
+        else
+        {
+          if( sreq->options & kXR_vfs )
+            o << "kXR_vfs";
+        }
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_read
+      //------------------------------------------------------------------------
+      case kXR_read:
+      {
+        ClientReadRequest *sreq = (ClientReadRequest *)msg->GetBuffer();
+        o << "kXR_read (";
+        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << std::setbase(10);
+        o << ", ";
+        o << "offset: " << sreq->offset << ", ";
+        o << "size: " << sreq->rlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_write
+      //------------------------------------------------------------------------
+      case kXR_write:
+      {
+        ClientWriteRequest *sreq = (ClientWriteRequest *)msg->GetBuffer();
+        o << "kXR_write (";
+        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << std::setbase(10);
+        o << ", ";
+        o << "offset: " << sreq->offset << ", ";
+        o << "size: " << sreq->dlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_sync
+      //------------------------------------------------------------------------
+      case kXR_sync:
+      {
+        ClientSyncRequest *sreq = (ClientSyncRequest *)msg->GetBuffer();
+        o << "kXR_sync (";
+        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_truncate
+      //------------------------------------------------------------------------
+      case kXR_truncate:
+      {
+        ClientTruncateRequest *sreq = (ClientTruncateRequest *)msg->GetBuffer();
+        o << "kXR_truncate (";
+        if( !sreq->dlen )
+          o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        else
+        {
+          char *fn = GetPath( msg );;
+          o << "file: " << fn;
+          delete [] fn;
+        }
+        o << std::setbase(10);
+        o << ", ";
+        o << "offset: " << sreq->offset;
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_readv
+      //------------------------------------------------------------------------
+      case kXR_readv:
+      {
+        uint32_t fhandle;
+        o << "kXR_readv (";
+
+        readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
+        uint64_t size      = 0;
+        uint32_t numChunks = 0;
+        for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
+        {
+          fhandle = *((uint32_t*)dataChunk[i].fhandle);
+          size += dataChunk[i].rlen;
+          ++numChunks;
+        }
+        o << "handle: 0x" << std::setbase(16) << fhandle << ", ";
+        o << std::setbase(10);
+        o << "chunks: " << numChunks << ", ";
+        o << "total size: " << size << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_locate
+      //------------------------------------------------------------------------
+      case kXR_locate:
+      {
+        ClientLocateRequest *sreq = (ClientLocateRequest *)msg->GetBuffer();
+        char *fn = GetPath( msg );;
+        o << "kXR_locate (";
+        o << "path: " << fn << ", ";
+        delete [] fn;
+        o << "flags: ";
+        if( sreq->options == 0 )
+          o << "none";
+        else
+        {
+          if( sreq->options == kXR_refresh )
+            o << "kXR_refresh";
+        }
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_mv
+      //------------------------------------------------------------------------
+      case kXR_mv:
+      {
+        ClientMvRequest *sreq = (ClientMvRequest *)msg->GetBuffer();
+        char *fn = GetPath( msg );
+        char *fn1 = 0;
+        for( uint16_t i = 0; i < sreq->dlen; ++i )
+        {
+          if( fn[i] == ' ' )
+          {
+            fn[i] = 0;
+            fn1 = fn+i+1;
+          }
+        }
+
+        o << "kXR_mv (";
+        o << "source: " << fn << ", ";
+        o << "destination: " << fn1 << ")";
+        delete [] fn;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_query
+      //------------------------------------------------------------------------
+      case kXR_query:
+      {
+        ClientQueryRequest *sreq = (ClientQueryRequest *)msg->GetBuffer();
+        o << "kXR_query (";
+        o << "code: ";
+        switch( sreq->infotype )
+        {
+          case kXR_Qconfig: o << "kXR_Qconfig"; break;
+          case kXR_Qckscan: o << "kXR_Qckscan"; break;
+          case kXR_Qcksum:  o << "kXR_Qcksum"; break;
+          case kXR_Qopaque: o << "kXR_Qopaque"; break;
+          case kXR_Qopaquf: o << "kXR_Qopaquf"; break;
+          case kXR_QPrep:   o << "kXR_QPrep"; break;
+          case kXR_Qspace:  o << "kXR_Qspace"; break;
+          case kXR_QStats:  o << "kXR_QStats"; break;
+          case kXR_Qvisa:   o << "kXR_Qvisa"; break;
+          case kXR_Qxattr:  o << "kXR_Qxattr"; break;
+          default: o << sreq->infotype; break;
+        }
+        o << ", ";
+        o << "arg lenght: " << sreq->dlen << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_rm
+      //------------------------------------------------------------------------
+      case kXR_rm:
+      {
+        o << "kXR_rm (";
+        char *fn = GetPath( msg );;
+        o << "path: " << fn << ")";
+        delete [] fn;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_mkdir
+      //------------------------------------------------------------------------
+      case kXR_mkdir:
+      {
+        ClientMkdirRequest *sreq = (ClientMkdirRequest *)msg->GetBuffer();
+        o << "kXR_mkdir (";
+        char *fn = GetPath( msg );;
+        o << "path: " << fn << ", ";
+        delete [] fn;
+        o << "mode: 0" << std::setbase(8) << sreq->mode << ", ";
+        o << std::setbase(10);
+        o << "flags: ";
+        if( sreq->options[0] == 0 )
+          o << "none";
+        else
+        {
+          if( sreq->options[0] & kXR_mkdirpath )
+            o << "kXR_mkdirpath";
+        }
+        o << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_rmdir
+      //------------------------------------------------------------------------
+      case kXR_rmdir:
+      {
+        o << "kXR_rmdir (";
+        char *fn = GetPath( msg );;
+        o << "path: " << fn << ")";
+        delete [] fn;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_chmod
+      //------------------------------------------------------------------------
+      case kXR_chmod:
+      {
+        ClientChmodRequest *sreq = (ClientChmodRequest *)msg->GetBuffer();
+        o << "kXR_chmod (";
+        char *fn = GetPath( msg );;
+        o << "path: " << fn << ", ";
+        delete [] fn;
+        o << "mode: 0" << std::setbase(8) << sreq->mode << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_ping
+      //------------------------------------------------------------------------
+      case kXR_ping:
+      {
+        o << "kXR_ping ()";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_protocol
+      //------------------------------------------------------------------------
+      case kXR_protocol:
+      {
+        ClientProtocolRequest *sreq = (ClientProtocolRequest *)msg->GetBuffer();
+        o << "kXR_protocol (";
+        o << "clientpv: 0x" << std::setbase(16) << sreq->clientpv << ")";
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // kXR_dirlist
+      //------------------------------------------------------------------------
+      case kXR_dirlist:
+      {
+        o << "kXR_dirlist (";
+        char *fn = GetPath( msg );;
+        o << "path: " << fn << ")";
+        delete [] fn;
+        break;
+      }
+
+    };
+    msg->SetDescription( o.str() );
   }
 }

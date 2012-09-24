@@ -90,21 +90,29 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Fail and remove all the message handlers with a given status code
+  // Report an event to the handlers
   //----------------------------------------------------------------------------
-  void InQueue::FailAllHandlers( Status status, uint16_t streamNum )
+  void InQueue::ReportStreamEvent( IncomingMsgHandler::StreamEvent event,
+                                   uint16_t                        streamNum,
+                                   Status                          status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     HandlerList::iterator it;
-    for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
-      it->first->OnStreamEvent( IncomingMsgHandler::Broken, streamNum, status );
-    pHandlers.clear();
+    uint8_t               action = 0;
+    for( it = pHandlers.begin(); it != pHandlers.end(); )
+    {
+      action = it->first->OnStreamEvent( event, streamNum, status );
+
+      if( action & IncomingMsgHandler::RemoveHandler )
+        it = pHandlers.erase( it );
+      else ++it;
+    }
   }
 
   //----------------------------------------------------------------------------
   // Timeout handlers
   //----------------------------------------------------------------------------
-  void InQueue::TimeoutHandlers( time_t now )
+  void InQueue::ReportTimeout( time_t now )
   {
     if( !now )
       now = ::time(0);

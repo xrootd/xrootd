@@ -81,25 +81,9 @@ namespace XrdCl
       void PopFront();
 
       //------------------------------------------------------------------------
-      //! Report disconection to the handlers of stateful messages and remove
-      //! the messages from the queue
+      //! Report status to all the handlers
       //------------------------------------------------------------------------
-      void ReportDisconnection();
-
-      //------------------------------------------------------------------------
-      //! Report error to the message handlers and remove all the messages
-      //! from the queue
-      //------------------------------------------------------------------------
-      void ReportError( Status status );
-
-      //------------------------------------------------------------------------
-      //! Report timout to the handlers of the expired messages and remove
-      //! these messages from the queue
-      //!
-      //! @param exp handlers having lower expiry date than "exp" will be
-      //!            notified about timeout, 0 indicates now
-      //------------------------------------------------------------------------
-      void ReportTimeout( time_t exp = 0 );
+      void Report( Status status );
 
       //------------------------------------------------------------------------
       //! Check if the queue is empty
@@ -118,7 +102,31 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Return the size of the queue counting only the stateless messages
+      //------------------------------------------------------------------------
+      uint64_t GetSizeStateless() const;
+
+      //------------------------------------------------------------------------
+      //! Remove all the expired messages from the queue and put them in
+      //! this one
+      //!
+      //! @param queue queue to take the message from
+      //! @param exp   expiration timestamp
+      //------------------------------------------------------------------------
+      void GrabExpired( OutQueue &queue, time_t exp = 0 );
+
+      //------------------------------------------------------------------------
+      //! Remove all the stateful messages from the queue and put them in this
+      //! one
+      //!
+      //! @param queue the queue to take the messages from
+      //------------------------------------------------------------------------
+      void GrabStateful( OutQueue &queue );
+
+      //------------------------------------------------------------------------
       //! Take all the items from the queue and put them in this one
+      //!
+      //! @param queue queue to take the message
       //------------------------------------------------------------------------
       void GrabItems( OutQueue &queue );
 

@@ -135,6 +135,16 @@ namespace XrdCl
       Status QueryTransport( uint16_t query, AnyObject &result );
 
       //------------------------------------------------------------------------
+      //! Register channel event handler
+      //------------------------------------------------------------------------
+      void RegisterEventHandler( ChannelEventHandler *handler );
+
+      //------------------------------------------------------------------------
+      //! Remove a channel event handler
+      //------------------------------------------------------------------------
+      void RemoveEventHandler( ChannelEventHandler *handler );
+
+      //------------------------------------------------------------------------
       //! Handle a time event
       //------------------------------------------------------------------------
       void Tick( time_t now );

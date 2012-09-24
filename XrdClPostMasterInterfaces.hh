@@ -70,9 +70,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum StreamEvent
       {
-        Ready      = 1, //! The stream has become connected
-        Broken     = 2, //! The stream is broken
-        Timeout    = 3, //! The declared timeout has occured
+        Ready      = 1, //!< The stream has become connected
+        Broken     = 2, //!< The stream is broken
+        Timeout    = 3, //!< The declared timeout has occured
+        FatalError = 4, //!< Stream has been broken and won't be recovered
       };
 
       //------------------------------------------------------------------------
@@ -96,10 +97,14 @@ namespace XrdCl
       //! @param event     type of the event
       //! @param streamNum stream concerned
       //! @param status    status info
+      //! @return          Action::RemoveHandler or 0
       //------------------------------------------------------------------------
-      virtual void OnStreamEvent( StreamEvent event,
-                                  uint16_t    streamNum,
-                                  Status      status ) {};
+      virtual uint8_t OnStreamEvent( StreamEvent event,
+                                     uint16_t    streamNum,
+                                     Status      status )
+      {
+        return 0;
+      };
   };
 
   //----------------------------------------------------------------------------
@@ -126,6 +131,41 @@ namespace XrdCl
       //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
       virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
+  };
+
+  //----------------------------------------------------------------------------
+  //! Channel event handler
+  //----------------------------------------------------------------------------
+  class ChannelEventHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      //! Events that may have occured to the channel
+      //------------------------------------------------------------------------
+      enum ChannelEvent
+      {
+        StreamReady  = 1, //!< The stream has become connected
+        StreamBroken = 2, //!< The stream is broken
+        FatalError   = 4, //!< Stream has been broken and won't be recovered
+      };
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~ChannelEventHandler() {};
+
+      //------------------------------------------------------------------------
+      //! Event callback
+      //!
+      //! @param event   the event that has occured
+      //! @param stream  the stream concerned
+      //! @param status  the status info
+      //! @return true if the handler should be kept
+      //!         false if it should be removed from further consideration
+      //------------------------------------------------------------------------
+      virtual bool OnChannelEvent( ChannelEvent event,
+                                   Status       status,
+                                   uint16_t     stream ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -268,6 +308,7 @@ namespace XrdCl
       virtual Status Query( uint16_t   query,
                             AnyObject &result,
                             AnyObject &channelData ) = 0;
+
   };
 }
 

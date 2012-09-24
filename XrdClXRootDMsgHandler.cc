@@ -44,7 +44,7 @@ namespace
       WaitTask( XrdCl::XRootDMsgHandler *handler ): pHandler( handler )
       {
         std::ostringstream o;
-        o << "WaitTask for: 0x" << handler->GetRequest() << std::endl;
+        o << "WaitTask for: 0x" << handler->GetRequest();
         SetName( o.str() );
       }
 
@@ -92,9 +92,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // OK, it looks like we care
       //------------------------------------------------------------------------
-      log->Dump( XRootDMsg, "[%s] Got an async response to message 0x%x, "
-                            "processing it",
-                            pUrl.GetHostId().c_str(), pRequest );
+      log->Dump( XRootDMsg, "[%s] Got an async response to message %s, "
+                 "processing it", pUrl.GetHostId().c_str(),
+                 pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
       // we need to unmarshall the header by hand
@@ -110,6 +110,24 @@ namespace XrdCl
         rsp->hdr.streamid[1] != req->header.streamid[1] )
       return Ignore;
 
+    //--------------------------------------------------------------------------
+    // We got an answer, check who we were talking to
+    //--------------------------------------------------------------------------
+    if( !pHosts )
+    {
+      pHosts = new HostList;
+      pHosts->push_back( pUrl );
+    }
+
+    AnyObject  qryResult;
+    int       *qryResponse = 0;
+    pPostMaster->QueryTransport( pUrl, XRootDQuery::ServerFlags, qryResult );
+    qryResult.Get( qryResponse );
+    pHosts->back().flags = *qryResponse; delete qryResponse; qryResponse = 0;
+    pPostMaster->QueryTransport( pUrl, XRootDQuery::ProtocolVersion, qryResult );
+    qryResult.Get( qryResponse );
+    pHosts->back().protocol = *qryResponse; delete qryResponse;
+
     std::auto_ptr<Message> msgPtr( msg );
 
     //--------------------------------------------------------------------------
@@ -123,8 +141,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_ok:
       {
-        log->Dump( XRootDMsg, "[%s] Got a kXR_ok response to request 0x%x",
-                             pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Got a kXR_ok response to request %s",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
         pResponse = msgPtr.release();
         pStatus   = Status();
         HandleResponse();
@@ -136,10 +155,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_error:
       {
-        log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request 0x%x: "
-                             "[%d] %s",
-                             pUrl.GetHostId().c_str(), pRequest,
-                             rsp->body.error.errnum, rsp->body.error.errmsg );
+        log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request %s "
+                   "[%d] %s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str(), rsp->body.error.errnum,
+                   rsp->body.error.errmsg );
         pResponse = msgPtr.release();
         pStatus = Status( stError, errErrorResponse );
         HandleResponse();
@@ -157,9 +176,38 @@ namespace XrdCl
         std::string urlInfo = urlInfoBuff;
         delete [] urlInfoBuff;
         log->Dump( XRootDMsg, "[%s] Got kXR_redirect response to "
-                             "message 0x%x: %s, port %d",
-                             pUrl.GetHostId().c_str(), pRequest,
-                             urlInfo.c_str(), rsp->body.redirect.port );
+                   "message %s: %s, port %d", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str(), urlInfo.c_str(),
+                   rsp->body.redirect.port );
+
+        //----------------------------------------------------------------------
+        // Keep the info about this server if we still need to find a load
+        // balancer
+        //----------------------------------------------------------------------
+        if( !pHasLoadBalancer )
+        {
+          uint32_t flags = pHosts->back().flags;
+          if( flags & kXR_isManager )
+          {
+            //------------------------------------------------------------------
+            // If the current server is a meta manager then it superseeds
+            // any existing load balancer, otherwise we assign a load-balancer
+            // only if it has not been already assigned
+            //------------------------------------------------------------------
+            if( flags & kXR_attrMeta || !pLoadBalancer.url.IsValid() )
+            {
+              pLoadBalancer = pHosts->back();
+              log->Dump( XRootDMsg, "[%s] Current server has been assigned "
+                         "as a load-balancer for message %s",
+                         pUrl.GetHostId().c_str(),
+                         pRequest->GetDescription().c_str() );
+              HostList::iterator it;
+              for( it = pHosts->begin(); it != pHosts->end(); ++it )
+                it->loadBalancer = false;
+              pHosts->back().loadBalancer = true;
+            }
+          }
+        }
 
         //----------------------------------------------------------------------
         // Build the URL and check it's validity
@@ -218,7 +266,7 @@ namespace XrdCl
         // status code here because, in case of failure we will be notified
         // as a handler (HandleFault will be called)
         //----------------------------------------------------------------------
-        pRedirections->push_back( pUrl );
+        pHosts->push_back( pUrl );
         st = pPostMaster->Send( pUrl, pRequest, this, false, 300 );
 
         return Take | RemoveHandler;
@@ -233,9 +281,9 @@ namespace XrdCl
         infoMsg[rsp->hdr.dlen-4] = 0;
         memcpy( infoMsg, rsp->body.wait.infomsg, rsp->hdr.dlen-4 );
         log->Dump( XRootDMsg, "[%s] Got kXR_wait response of %d seconds to "
-                             "message 0x%x: %s",
-                             pUrl.GetHostId().c_str(), rsp->body.wait.seconds,
-                             pRequest, infoMsg );
+                   "message %s: %s", pUrl.GetHostId().c_str(),
+                   rsp->body.wait.seconds, pRequest->GetDescription().c_str(),
+                   infoMsg );
         delete [] infoMsg;
 
         //----------------------------------------------------------------------
@@ -266,9 +314,9 @@ namespace XrdCl
       case kXR_waitresp:
       {
         log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response of %d seconds to "
-                             "message 0x%x",
-                             pUrl.GetHostId().c_str(),
-                             rsp->body.waitresp.seconds, pRequest );
+                   "message %s", pUrl.GetHostId().c_str(),
+                   rsp->body.waitresp.seconds,
+                   pRequest->GetDescription().c_str() );
 
         // FIXME: we have to think of taking into account the new timeout value
         return Take;
@@ -280,8 +328,8 @@ namespace XrdCl
       case kXR_oksofar:
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
-                              "0x%x",
-                              pUrl.GetHostId().c_str(), pRequest );
+                   "%s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
         pPartialResps.push_back( msgPtr.release() );
         return Take;
       }
@@ -292,10 +340,8 @@ namespace XrdCl
       default:
       {
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
-                             "message 0x%x",
-                             pUrl.GetHostId().c_str(),
-                             rsp->hdr.status,
-                             pRequest );
+                   "message %s", pUrl.GetHostId().c_str(),
+                   rsp->hdr.status, pRequest->GetDescription().c_str() );
         pStatus   = Status( stError, errInvalidResponse );
         HandleResponse();
         return Take | RemoveHandler;
@@ -308,17 +354,64 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle an event other that a message arrival - may be timeout
   //----------------------------------------------------------------------------
-  void XRootDMsgHandler::OnStreamEvent( StreamEvent event,
-                                        uint16_t    streamNum,
-                                        Status      status )
+  uint8_t XRootDMsgHandler::OnStreamEvent( StreamEvent event,
+                                           uint16_t    streamNum,
+                                           Status      status )
   {
-    if( event == Ready )
-      return;
     Log *log = DefaultEnv::GetLog();
-    log->Error( XRootDMsg, "[%s] Unable to get the response to request 0x%x",
-                          pUrl.GetHostId().c_str(), pRequest );
-    pStatus = status;
-    HandleResponse();
+    log->Dump( XRootDMsg, "[%s] Stream event reported for msg %s",
+               pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str() );
+
+
+    if( event == Ready )
+      return 0;
+
+    //--------------------------------------------------------------------------
+    // Nothing can be done if:
+    // 1) a user timeout has occured
+    // 2) a stateful message is being handled, recovery done elsewhere
+    // 3) if another error occured and the validity of the message expired
+    //--------------------------------------------------------------------------
+    if( event == Timeout || pStateful || time(0) >= pExpiration )
+    {
+      log->Error( XRootDMsg, "[%s] Unable to get the response to request %s",
+                  pUrl.GetHostId().c_str(),
+                  pRequest->GetDescription().c_str() );
+      pStatus = status;
+      HandleResponse();
+      return RemoveHandler;
+    }
+
+    //--------------------------------------------------------------------------
+    // Fatal errors can be recovered at a load balancer if it is known
+    //--------------------------------------------------------------------------
+    if( event == FatalError )
+    {
+      if( pLoadBalancer.url.IsValid() &&
+          pUrl.GetHostId() != pLoadBalancer.url.GetHostId() )
+      {
+        log->Error( XRootDMsg, "[%s] Unable to get the response to request 0x%x",
+                    pUrl.GetHostId().c_str(), pRequest );
+        pStatus = status;
+        HandleResponse();
+        return RemoveHandler;
+      }
+      RetryAtServer( pLoadBalancer.url );
+      return RemoveHandler;
+    }
+
+    //--------------------------------------------------------------------------
+    // The connection has been broken but a retry is possible
+    //--------------------------------------------------------------------------
+    if( event == Broken )
+    {
+      if( pLoadBalancer.url.IsValid() )
+        RetryAtServer( pLoadBalancer.url );
+      else
+        RetryAtServer( pUrl );
+      return RemoveHandler;
+    }
+    return RemoveHandler;
   }
 
   //----------------------------------------------------------------------------
@@ -335,15 +428,15 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( status.IsOK() )
     {
-      log->Dump( XRootDMsg, "[%s] Message 0x%x has been successfully sent.",
-                           pUrl.GetHostId().c_str(), message );
+      log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
+                 pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
       Status st = pPostMaster->Receive( pUrl, this, 300 );
       if( st.IsOK() )
         return;
     }
 
-    log->Error( XRootDMsg, "[%s] Impossible to send message 0x%x.",
-                          pUrl.GetHostId().c_str(), message );
+    log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
+                pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
     pStatus = status;
     HandleResponse();
   }
@@ -358,8 +451,9 @@ namespace XrdCl
     Status st = pPostMaster->Send( pUrl, pRequest, this, false, 300 );
     if( !st.IsOK() )
     {
-      log->Error( XRootDMsg, "[%s] Impossible to send message 0x%x after wait.",
-                            pUrl.GetHostId().c_str(), pRequest );
+      log->Error( XRootDMsg, "[%s] Impossible to send message %s after wait.",
+                  pUrl.GetHostId().c_str(),
+                  pRequest->GetDescription().c_str() );
       pStatus = st;
       HandleResponse();
     }
@@ -378,13 +472,14 @@ namespace XrdCl
 
     if( status->IsOK() )
       response = ParseResponse();
-    pResponseHandler->HandleResponse( status, response, pRedirections );
 
     //--------------------------------------------------------------------------
     // Release the stream id
     //--------------------------------------------------------------------------
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
     pSidMgr->ReleaseSID( req->header.streamid );
+
+    pResponseHandler->HandleResponse( status, response, pHosts );
 
     //--------------------------------------------------------------------------
     // As much as I hate to say this, we cannot do more, so we commit
@@ -437,8 +532,7 @@ namespace XrdCl
         return 0;
       }
       log->Dump( XRootDMsg, "Returning the redirection url as a response to "
-                            "0x%x",
-                             pRequest );
+                 "%s", pRequest->GetDescription().c_str() );
       AnyObject *obj = new AnyObject();
       URL       *url = new URL( pUrl );
       obj->Set( url );
@@ -514,9 +608,9 @@ namespace XrdCl
       case kXR_locate:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
-                             "LocateInfo: %s",
-                             pUrl.GetHostId().c_str(), pRequest, buffer );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
+                   "LocateInfo: %s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str(), buffer );
         LocationInfo *data = new LocationInfo( buffer );
         obj->Set( data );
         return obj;
@@ -533,9 +627,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( req->stat.options & kXR_vfs )
         {
-          log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
-                                "StatInfoVFS",
-                                pUrl.GetHostId().c_str(), pRequest );
+          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
+                     "StatInfoVFS", pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str() );
 
           StatInfoVFS *data = new StatInfoVFS( buffer );
           obj->Set( data );
@@ -545,8 +639,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         else
         {
-          log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as StatInfo",
-                                pUrl.GetHostId().c_str(), pRequest );
+          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as StatInfo",
+                     pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str() );
 
           StatInfo *data = new StatInfo( buffer );
           obj->Set( data );
@@ -561,8 +656,9 @@ namespace XrdCl
       case kXR_protocol:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as ProtocolInfo",
-                             pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as ProtocolInfo",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         ProtocolInfo *data = new ProtocolInfo( rsp->body.protocol.pval,
                                                rsp->body.protocol.flags );
@@ -576,9 +672,9 @@ namespace XrdCl
       case kXR_dirlist:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
-                              "DirectoryList",
-                              pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
+                   "DirectoryList", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         char *path = new char[req->dirlist.dlen+1];
         path[req->dirlist.dlen] = 0;
@@ -595,21 +691,25 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_open:
       {
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as OpenInfo",
-                              pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as OpenInfo",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         AnyObject *obj      = new AnyObject();
         StatInfo  *statInfo = 0;
 
         if( req->open.options & kXR_retstat )
         {
-          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to 0x%x",
-                                pUrl.GetHostId().c_str(), pRequest );
+          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to %s",
+                     pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str() );
           if( req->open.dlen >= 12 )
             statInfo = new StatInfo( buffer+12 );
         }
 
-        OpenInfo *data = new OpenInfo( (uint8_t*)buffer, statInfo );
+        OpenInfo *data = new OpenInfo( (uint8_t*)buffer,
+                                       pResponse->GetSessionId(),
+                                       statInfo );
         obj->Set( data );
         return obj;
       }
@@ -619,16 +719,17 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_read:
       {
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as ChunkInfo",
-                              pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as ChunkInfo",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         if( pUserBufferSize < length )
         {
-          log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
-                                 "supplied buffer is to small: %d bytes; got "
-                                 "%d bytes of response data",
-                                 pUrl.GetHostId().c_str(), pRequest,
-                                 pUserBufferSize, length );
+          log->Error( XRootDMsg, "[%s] Handling response to %s: user "
+                      "supplied buffer is to small: %d bytes; got %d bytes "
+                      "of response data", pUrl.GetHostId().c_str(),
+                      pRequest->GetDescription().c_str(), pUserBufferSize,
+                      length );
           return 0;
         }
         memcpy( pUserBuffer, buffer, length );
@@ -645,8 +746,8 @@ namespace XrdCl
       case kXR_readv:
       {
         log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as "
-                              "VectorReadInfo",
-                              pUrl.GetHostId().c_str(), pRequest );
+                   "VectorReadInfo", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         VectorReadInfo *info = new VectorReadInfo();
         UnpackVectorRead( info, pUserBuffer, pUserBufferSize, buffer, length );
@@ -663,8 +764,9 @@ namespace XrdCl
       default:
       {
         AnyObject *obj = new AnyObject();
-        log->Dump( XRootDMsg, "[%s] Parsing the response to 0x%x as BinaryData",
-                              pUrl.GetHostId().c_str(), pRequest );
+        log->Dump( XRootDMsg, "[%s] Parsing the response to %s as BinaryData",
+                   pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
 
         BinaryDataInfo *data = new BinaryDataInfo();
         data->Allocate( length );
@@ -697,8 +799,9 @@ namespace XrdCl
 
     if( !st.IsOK() )
     {
-      log->Error( XRootDMsg, "[%s] Impossible to send message 0x%x.",
-                            pUrl.GetHostId().c_str(), pRequest );
+      log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
+                  pUrl.GetHostId().c_str(),
+                  pRequest->GetDescription().c_str() );
       return st;
     }
 
@@ -706,8 +809,9 @@ namespace XrdCl
     st = pSidMgr->AllocateSID( req->header.streamid );
     if( !st.IsOK() )
     {
-      log->Error( XRootDMsg, "[%s] Impossible to send message 0x%x.",
-                            pUrl.GetHostId().c_str(), pRequest );
+      log->Error( XRootDMsg, "[%s] Impossible to send message %s.",
+                  pUrl.GetHostId().c_str(),
+                  pRequest->GetDescription().c_str() );
       return st;
     }
 
@@ -850,11 +954,11 @@ namespace XrdCl
 
       if( size > targetBufferSize )
       {
-        log->Error( XRootDMsg, "[%s] Handling response to 0x%x: user "
-                               "supplied buffer is to small: %d bytes; got "
-                               "%d bytes of response data",
-                               pUrl.GetHostId().c_str(), pRequest,
-                               targetBufferSize, size );
+        log->Error( XRootDMsg, "[%s] Handling response to %s: user "
+                    "supplied buffer is to small: %d bytes; got %d bytes of "
+                    "response data", pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str(), targetBufferSize,
+                    size );
         return Status( stError, errInvalidResponse );;
       }
 
@@ -865,5 +969,15 @@ namespace XrdCl
     }
     vReadInfo->SetSize( size );
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Retry the message at another server
+  //----------------------------------------------------------------------------
+  void XRootDMsgHandler::RetryAtServer( const URL &url )
+  {
+    pUrl = url;
+    pHosts->push_back( pUrl );
+    pPostMaster->Send( pUrl, pRequest, this, false, pExpiration-time(0) );
   }
 }

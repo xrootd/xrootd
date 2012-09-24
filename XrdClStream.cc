@@ -86,7 +86,8 @@ namespace XrdCl
     pChannelData( 0 ),
     pLastStreamError( 0 ),
     pConnectionCount( 0 ),
-    pConnectionInitTime( 0 )
+    pConnectionInitTime( 0 ),
+    pSessionId( 0 )
   {
     std::ostringstream o;
     o << pUrl->GetHostId() << " #" << pStreamNum;
@@ -194,7 +195,7 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
-                                 "the host", pStreamName.c_str() );
+                  "the host", pStreamName.c_str() );
       pLastStreamError = now;
       st.status = stFatal;
       return st;
@@ -228,20 +229,28 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
+    // Check the session ID and bounce if needed
+    //--------------------------------------------------------------------------
+    if( msg->GetSessionId() &&
+        (pSubStreams[0]->status != Socket::Connected ||
+        pSessionId != msg->GetSessionId()) )
+      return Status( stError, errInvalidSession );
+
+    //--------------------------------------------------------------------------
     // Decide on the path to send the message
     //--------------------------------------------------------------------------
     PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
     if( pSubStreams.size() <= path.up )
     {
-      log->Warning( PostMasterMsg, "[%s] Unable to send message 0x%x through "
-                                   "substream %d using 0 instead",
-                                   pStreamName.c_str(), msg, path.up );
+      log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
+                    "substream %d using 0 instead", pStreamName.c_str(),
+                    msg->GetDescription().c_str(), path.up );
       path.up = 0;
     }
 
-    log->Dump( PostMasterMsg, "[%s] Sending message %x through substream %d "
-                              "expecting answer at %d",
-                              pStreamName.c_str(), msg, path.up, path.down );
+    log->Dump( PostMasterMsg, "[%s] Sending message %s through substream %d "
+               "expecting answer at %d", pStreamName.c_str(),
+               msg->GetDescription().c_str(), path.up, path.down );
 
     //--------------------------------------------------------------------------
     // See if we can enable this path and, if no, whether there is another
@@ -252,7 +261,7 @@ namespace XrdCl
     {
       pTransport->MultiplexSubStream( msg, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
-                                                time(0)+timeout, false );
+                                                time(0)+timeout, stateful );
     }
     return st;
   }
@@ -282,12 +291,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( pStreamNum == 0 )
-      pIncomingQueue->TimeoutHandlers( now );
+    pMutex.Lock();
     SubStreamList::iterator it;
+    OutQueue q;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-      (*it)->outQueue->ReportTimeout( now );
+      q.GrabExpired( *(*it)->outQueue, now );
+    pMutex.UnLock();
+
+    q.Report( Status( stError, errSocketTimeout ) );
+    if( pStreamNum == 0 )
+      pIncomingQueue->ReportTimeout( now );
   }
 }
 
@@ -331,6 +344,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
   {
+    msg->SetSessionId( pSessionId );
     pIncomingQueue->AddMessage( msg );
   }
 
@@ -354,9 +368,10 @@ namespace XrdCl
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
+    scopedLock.UnLock();
     if( h.handler )
       h.handler->OnReadyToSend( h.msg, pStreamNum );
-      return h.msg;
+    return h.msg;
   }
 
   //----------------------------------------------------------------------------
@@ -364,7 +379,6 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnMessageSent( uint16_t subStream, Message *msg )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
     OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
     if( h.handler )
       h.handler->OnStatusReady( msg, Status() );
@@ -379,12 +393,15 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     pSubStreams[subStream]->status = Socket::Connected;
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Stream %d connected.",
-                               pStreamName.c_str(), subStream );
+    log->Debug( PostMasterMsg, "[%s] Stream %d connected.", pStreamName.c_str(),
+                subStream );
 
     if( subStream == 0 )
     {
+      pLastStreamError = 0;
+      pConnectionCount = 0;
       uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
+      ++pSessionId;
 
       //------------------------------------------------------------------------
       // Create the streams if they don't exist yet
@@ -409,8 +426,7 @@ namespace XrdCl
       if( pSubStreams.size() > 1 )
       {
         log->Debug( PostMasterMsg, "[%s] Attempting to connect %d additional "
-                                   "streams.",
-                                   pStreamName.c_str(), pSubStreams.size()-1 );
+                    "streams.", pStreamName.c_str(), pSubStreams.size()-1 );
         for( size_t i = 1; i < pSubStreams.size(); ++i )
         {
           pSubStreams[i]->socket->SetAddress( pSubStreams[0]->socket->GetAddress() );
@@ -451,14 +467,14 @@ namespace XrdCl
       {
         Status st = pSubStreams[0]->socket->EnableUplink();
         if( !st.IsOK() )
-          OnFatalError( 0, st );
+          OnFatalError( 0, st, scopedLock );
         return;
       }
 
       if( pSubStreams[0]->status == Socket::Connecting )
         return;
 
-      OnFatalError( subStream, st );
+      OnFatalError( subStream, st, scopedLock );
       return;
     }
 
@@ -480,7 +496,7 @@ namespace XrdCl
 
         Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
         if( !st.IsOK() )
-          OnFatalError( subStream, st );
+          OnFatalError( subStream, st, scopedLock );
         return;
       }
 
@@ -491,8 +507,7 @@ namespace XrdCl
       else if( pConnectionCount < pConnectionRetry )
       {
         log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
-                                  "seconds.", pStreamName.c_str(),
-                                  pConnectionWindow-elapsed );
+                   "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
 
         Task *task = new ::StreamConnectorTask( this );
         pTaskManager->RegisterTask( task, pConnectionInitTime+pConnectionWindow );
@@ -502,7 +517,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Nothing can be done, we declare a failure
       //------------------------------------------------------------------------
-      OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+      OnFatalError( subStream, Status( stFatal, errConnectionError ),
+                    scopedLock );
       return;
     }
 
@@ -517,29 +533,30 @@ namespace XrdCl
       PathID path( 0, 0 );
       st = EnableLink( path );
       if( !st.IsOK() )
-        OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+        OnFatalError( subStream, Status( stFatal, errConnectionError ),
+                      scopedLock );
       return;
     }
 
     //--------------------------------------------------------------------------
     // Else, we fail
     //--------------------------------------------------------------------------
-    OnFatalError( subStream, Status( stFatal, errConnectionError ) );
+    OnFatalError( subStream, Status( stFatal, errConnectionError ),
+                  scopedLock );
   }
 
   //----------------------------------------------------------------------------
   // Call back when an error has occured
   //----------------------------------------------------------------------------
-  void Stream::OnError( uint16_t subStream, Status st )
+  void Stream::OnError( uint16_t subStream, Status status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
     pSubStreams[subStream]->socket->Close();
-    pSubStreams[subStream]->status = Socket::Connecting;
+    pSubStreams[subStream]->status = Socket::Disconnected;
 
     log->Debug( PostMasterMsg, "[%s] Recovering error for stream #%d: %s.",
-                               pStreamName.c_str(), subStream,
-                               st.ToString().c_str() );
+                pStreamName.c_str(), subStream, status.ToString().c_str() );
 
     //--------------------------------------------------------------------------
     // Reinsert the stuff that we have failed to sent
@@ -553,6 +570,31 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // We are dealing with an error of a peripheral stream. If we don't have
+    // anything to send don't bother recovering. Otherwise move the requests
+    // to stream 0 if possible.
+    //--------------------------------------------------------------------------
+    if( subStream > 0 )
+    {
+      if( pSubStreams[subStream]->outQueue->IsEmpty() )
+        return;
+
+      if( pSubStreams[0]->status != Socket::Disconnected )
+      {
+        pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
+        if( pSubStreams[0]->status == Socket::Connected )
+        {
+          Status st = pSubStreams[0]->socket->EnableUplink();
+          if( !st.IsOK() )
+            OnFatalError( 0, st, scopedLock );
+          return;
+        }
+      }
+      OnFatalError( subStream, status, scopedLock );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
     // If we lost the stream 0 we have lost the session, we re-enable the
     // stream if we still have things in one of the outgoing queues, otherwise
     // there is not point to recover at this point.
@@ -562,10 +604,7 @@ namespace XrdCl
       SubStreamList::iterator it;
       size_t outstanding = 0;
       for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-      {
-        (*it)->outQueue->ReportDisconnection();
-        outstanding += (*it)->outQueue->GetSize();
-      }
+        outstanding += (*it)->outQueue->GetSizeStateless();
 
       if( outstanding )
       {
@@ -573,55 +612,59 @@ namespace XrdCl
         Status st = EnableLink( path );
         if( !st.IsOK() )
         {
-          OnFatalError( 0, st );
+          OnFatalError( 0, st, scopedLock );
           return;
         }
       }
 
+      //------------------------------------------------------------------------
+      // We're done here, unlock the stream mutex to avoid deadlocks and
+      // report the disconnection event to the handlers
+      //------------------------------------------------------------------------
+      log->Debug( PostMasterMsg, "[%s] Reporting disconnection to queued "
+                  "message handlers.", pStreamName.c_str() );
+      OutQueue q;
+      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+        q.GrabStateful( *(*it)->outQueue );
+      scopedLock.UnLock();
+
+      q.Report( status );
+      pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::Broken,
+                                         pStreamNum, status );
+      pChannelEvHandlers.ReportEvent( ChannelEventHandler::StreamBroken, status,
+                                      pStreamNum );
       return;
     }
-
-    //--------------------------------------------------------------------------
-    // We are now dealing with an error of a peripheral stream. If we don't have
-    // anything to send don't bother recovering. Otherwise move the requests
-    // to stream 0 if possible.
-    //--------------------------------------------------------------------------
-    if( pSubStreams[subStream]->outQueue->IsEmpty() )
-      return;
-
-    if( pSubStreams[0]->status != Socket::Disconnected )
-    {
-      pSubStreams[0]->outQueue->GrabItems( *pSubStreams[subStream]->outQueue );
-      if( pSubStreams[0]->status == Socket::Connected )
-      {
-        Status st = pSubStreams[0]->socket->EnableUplink();
-        if( !st.IsOK() )
-          OnFatalError( 0, st );
-        return;
-      }
-      return;
-    }
-
-    OnFatalError( subStream, st );
   }
 
   //----------------------------------------------------------------------------
   // On fatal error
   //----------------------------------------------------------------------------
-  void Stream::OnFatalError( uint16_t subStream, Status st )
+  void Stream::OnFatalError( uint16_t           subStream,
+                             Status             status,
+                             XrdSysMutexHelper &lock )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
     Log    *log = DefaultEnv::GetLog();
     pSubStreams[subStream]->status = Socket::Disconnected;
     log->Error( PostMasterMsg, "[%s] Unable to recover: %s.",
-                               pStreamName.c_str(), st.ToString().c_str() );
+                pStreamName.c_str(), status.ToString().c_str() );
 
     pConnectionCount = 0;
-    pIncomingQueue->FailAllHandlers( st, pStreamNum );
-    SubStreamList::iterator it;
-    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-      (*it)->outQueue->ReportError( st );
     pLastStreamError = ::time(0);
+
+    SubStreamList::iterator it;
+    OutQueue q;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      q.GrabItems( *(*it)->outQueue );
+    lock.UnLock();
+
+    status.status = stFatal;
+    q.Report( status );
+    pIncomingQueue->ReportStreamEvent( IncomingMsgHandler::FatalError,
+                                       pStreamNum, status );
+    pChannelEvHandlers.ReportEvent( ChannelEventHandler::FatalError, status,
+                                    pStreamNum );
+
   }
 
   //----------------------------------------------------------------------------
@@ -637,4 +680,21 @@ namespace XrdCl
   void Stream::OnWriteTimeout( uint16_t /*substream*/ )
   {
   }
+
+  //------------------------------------------------------------------------
+  // Register channel event handler
+  //------------------------------------------------------------------------
+  void Stream::RegisterEventHandler( ChannelEventHandler *handler )
+  {
+    pChannelEvHandlers.AddHandler( handler );
+  }
+
+  //------------------------------------------------------------------------
+  // Remove a channel event handler
+  //------------------------------------------------------------------------
+  void Stream::RemoveEventHandler( ChannelEventHandler *handler )
+  {
+    pChannelEvHandlers.RemoveHandler( handler );
+  }
+
 }

@@ -33,7 +33,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct XRootDQuery
   {
-    static const uint16_t SIDManager = 1001; //!< returns a SIDManager object
+    static const uint16_t SIDManager      = 1001; //!< returns the SIDManager object
+    static const uint16_t ServerFlags     = 1002; //!< returns server flags
+    static const uint16_t ProtocolVersion = 1003; //!< returns the protocol version
   };
 
   //----------------------------------------------------------------------------
@@ -169,6 +171,12 @@ namespace XrdCl
       virtual Status Query( uint16_t   query,
                             AnyObject &result,
                             AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Get the description of a message
+      //------------------------------------------------------------------------
+      static void SetDescription( Message *msg );
+
     private:
 
       //------------------------------------------------------------------------

@@ -24,6 +24,8 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+#include <sstream>
 
 namespace
 {
@@ -49,7 +51,7 @@ namespace
       //------------------------------------------------------------------------
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response,
-                                   URLList                 *urlList )
+                                   XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
 
@@ -62,7 +64,7 @@ namespace
           if( !response )
           {
             XRootDStatus st( stError, errInternal );
-            pStateHandler->SetOpenStatus( &st, 0, urlList );
+            pStateHandler->OnOpen( &st, 0, hostList );
           }
           response->Get( openInfo );
         }
@@ -70,9 +72,15 @@ namespace
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
         //----------------------------------------------------------------------
-        pStateHandler->SetOpenStatus( status, openInfo, urlList );
+        pStateHandler->OnOpen( status, openInfo, hostList );
         delete response;
-        pUserHandler->HandleResponse( status, 0, urlList );
+        if( pUserHandler )
+          pUserHandler->HandleResponse( status, 0, hostList );
+        else
+        {
+          delete status;
+          delete hostList;
+        }
         delete this;
       }
 
@@ -103,10 +111,18 @@ namespace
       //------------------------------------------------------------------------
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response,
-                                   URLList                 *urlList )
+                                   XrdCl::HostList     *hostList )
       {
-        pStateHandler->SetCloseStatus( status );
-        pUserHandler->HandleResponse( status, response, urlList );
+        pStateHandler->OnClose( status );
+        if( pUserHandler )
+          pUserHandler->HandleResponse( status, response, hostList );
+        else
+        {
+          delete response;
+          delete status;
+          delete hostList;
+        }
+
         delete this;
       }
 
@@ -124,13 +140,23 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatefulHandler( XrdCl::FileStateHandler *stateHandler,
-                       XrdCl::ResponseHandler  *userHandler,
-                       XrdCl::Message          *message ):
+      StatefulHandler( XrdCl::FileStateHandler               *stateHandler,
+                       XrdCl::ResponseHandler                *userHandler,
+                       XrdCl::Message                        *message,
+                       const XrdCl::MessageUtils::SendParams &sendParams ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler ),
-        pMessage( message )
+        pMessage( message ),
+        pSendParams( sendParams )
       {
+      }
+
+      //------------------------------------------------------------------------
+      // Destructor
+      //------------------------------------------------------------------------
+      virtual ~StatefulHandler()
+      {
+        delete pMessage;
       }
 
       //------------------------------------------------------------------------
@@ -138,21 +164,21 @@ namespace
       //------------------------------------------------------------------------
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response,
-                                   URLList                 *urlList )
+                                   XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
-        std::auto_ptr<StatefulHandler> self( this );
         std::auto_ptr<XRootDStatus>    statusPtr( status );
         std::auto_ptr<AnyObject>       responsePtr( response );
-        std::auto_ptr<URLList>         urlListPtr( urlList );
+        pSendParams.hostList = hostList;
 
         //----------------------------------------------------------------------
         // Houston we have a problem...
         //----------------------------------------------------------------------
         if( !status->IsOK() )
         {
-          pStateHandler->HandleStateError( status, pMessage, pUserHandler );
-//          return;
+          statusPtr.release();
+          pStateHandler->OnStateError( status, pMessage, this, pSendParams );
+          return;
         }
 
         //----------------------------------------------------------------------
@@ -162,7 +188,8 @@ namespace
         {
           URL *target = 0;
           response->Get( target );
-          pStateHandler->HandleRedirection( target, pMessage, pUserHandler );
+          pStateHandler->OnStateRedirection( target, pMessage, this,
+                                             pSendParams );
           return;
         }
 
@@ -171,15 +198,24 @@ namespace
         //----------------------------------------------------------------------
         statusPtr.release();
         responsePtr.release();
-        urlListPtr.release();
-        pStateHandler->HandleResponse( status, pMessage, response, urlList );
-        pUserHandler->HandleResponse( status, response, urlList );
+        pStateHandler->OnStateResponse( status, pMessage, response, hostList );
+        pUserHandler->HandleResponse( status, response, hostList );
+        delete this;
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the user handler
+      //------------------------------------------------------------------------
+      XrdCl::ResponseHandler *GetUserHandler()
+      {
+        return pUserHandler;
       }
 
     private:
-      XrdCl::FileStateHandler *pStateHandler;
-      XrdCl::ResponseHandler  *pUserHandler;
-      XrdCl::Message          *pMessage;
+      XrdCl::FileStateHandler         *pStateHandler;
+      XrdCl::ResponseHandler          *pUserHandler;
+      XrdCl::Message                  *pMessage;
+      XrdCl::MessageUtils::SendParams  pSendParams;
   };
 }
 
@@ -194,8 +230,12 @@ namespace XrdCl
     pFileUrl( 0 ),
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
-    pFileHandle( 0 )
+    pFileHandle( 0 ),
+    pOpenMode( 0 ),
+    pOpenFlags( 0 ),
+    pSessionId( 0 )
   {
+    pFileHandle = new uint8_t[4];
   }
 
   //----------------------------------------------------------------------------
@@ -230,7 +270,8 @@ namespace XrdCl
     if( pFileState == OpenInProgress )
       return XRootDStatus( stError, errInProgress );
 
-    if( pFileState == CloseInProgress || pFileState == Opened )
+    if( pFileState == CloseInProgress || pFileState == Opened ||
+        pFileState == Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
     pStatus = OpenInProgress;
@@ -242,8 +283,7 @@ namespace XrdCl
     pFileUrl = new URL( url );
     if( !pFileUrl->IsValid() )
     {
-      log->Error( FileMsg, "Trying to open invalid url: %s",
-                             url.c_str() );
+      log->Error( FileMsg, "Trying to open invalid url: %s", url.c_str() );
       pStatus    = XRootDStatus( stError, errInvalidArgs );
       pFileState = Error;
       return pStatus;
@@ -252,9 +292,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
-    log->Dump( FileMsg, "[%s] Sending a kXR_open request for path %s",
-                         pFileUrl->GetHostId().c_str(),
-                         pFileUrl->GetPathWithParams().c_str() );
+    pOpenMode  = mode;
+    pOpenFlags = flags;
 
     Message           *msg;
     ClientOpenRequest *req;
@@ -267,12 +306,16 @@ namespace XrdCl
     req->dlen      = path.length();
     msg->Append( path.c_str(), path.length(), 24 );
 
+    XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
-    Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler,
-                                           timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+
+    Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
 
     if( !st.IsOK() )
     {
+      delete openHandler;
       pStatus    = st;
       pFileState = Error;
       return st;
@@ -297,7 +340,8 @@ namespace XrdCl
     if( pFileState == CloseInProgress )
       return XRootDStatus( stError, errInProgress );
 
-    if( pFileState == OpenInProgress || pFileState == Closed )
+    if( pFileState == OpenInProgress || pFileState == Closed ||
+        pFileState == Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
     pStatus = CloseInProgress;
@@ -305,12 +349,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Close the file
     //--------------------------------------------------------------------------
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( FileMsg, "[%s] Sending a kXR_close request for file handle "
-                         "0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         *((uint32_t*)pFileHandle) );
-
     Message            *msg;
     ClientCloseRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -318,12 +356,16 @@ namespace XrdCl
     req->requestid = kXR_close;
     memcpy( req->fhandle, pFileHandle, 4 );
 
+    XRootDTransport::SetDescription( msg );
     CloseHandler *closeHandler = new CloseHandler( this, handler );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler,
-                                           timeout );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+
+    Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
 
     if( !st.IsOK() )
     {
+      delete closeHandler;
       pStatus    = st;
       pFileState = Error;
       return st;
@@ -340,7 +382,7 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
@@ -350,22 +392,15 @@ namespace XrdCl
     {
       AnyObject *obj = new AnyObject();
       obj->Set( new StatInfo( *pStatInfo ) );
-      handler->HandleResponse( new XRootDStatus(),
-                               obj,
-                               new ResponseHandler::URLList() );
+      handler->HandleResponse( new XRootDStatus(), obj, new HostList() );
       return XRootDStatus();
     }
 
     //--------------------------------------------------------------------------
     // Issue a new stat request
-    //--------------------------------------------------------------------------
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_stat request for file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         *((uint32_t*)pFileHandle) );
-
     // stating a file handle doesn't work (fixed in 3.2.0) so we need to
-    // stat the path
+    // stat the pat
+    //--------------------------------------------------------------------------
     Message           *msg;
     ClientStatRequest *req;
     std::string        path = pFileUrl->GetPath();
@@ -375,14 +410,15 @@ namespace XrdCl
     req->dlen = path.length();
     msg->Append( path.c_str(), req->dlen, 24 );
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -396,14 +432,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_read request of %d bytes at %ld "
-                         "offset for file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         size, offset, *((uint32_t*)pFileHandle) );
 
     Message           *msg;
     ClientReadRequest *req;
@@ -414,14 +444,17 @@ namespace XrdCl
     req->rlen       = size;
     memcpy( req->fhandle, pFileHandle, 4 );
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false, (char*)buffer, size );
+    XRootDTransport::SetDescription( msg );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.userBuffer      = (char*)buffer;
+    params.userBufferSize  = size;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -435,14 +468,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_write request of %d bytes at %ld "
-                         "offset for file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         size, offset, *((uint32_t*)pFileHandle) );
 
     Message            *msg;
     ClientWriteRequest *req;
@@ -454,14 +481,15 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
     msg->Append( (char*)buffer, size, 24 );
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -472,13 +500,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_sync request for file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         *((uint32_t*)pFileHandle) );
 
     Message           *msg;
     ClientSyncRequest *req;
@@ -487,14 +510,15 @@ namespace XrdCl
     req->requestid = kXR_sync;
     memcpy( req->fhandle, pFileHandle, 4 );
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -506,14 +530,8 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_truncate request of size: %ld for "
-                         "file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         size, *((uint32_t*)pFileHandle) );
 
     Message               *msg;
     ClientTruncateRequest *req;
@@ -523,14 +541,15 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
     req->offset = size;
 
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -546,14 +565,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState != Opened )
+    if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
-
-    Log *log = DefaultEnv::GetLog();
-    log->Dump( QueryMsg, "[%s] Sending a kXR_readv request of %d chunks "
-                         "for file handle 0x%x",
-                         pDataServer->GetHostId().c_str(),
-                         chunks.size(), *((uint32_t*)pFileHandle) );
 
     //--------------------------------------------------------------------------
     // Build the message
@@ -566,6 +579,7 @@ namespace XrdCl
     req->dlen      = sizeof(readahead_list)*chunks.size();
 
     uint32_t size  = 0;
+
     //--------------------------------------------------------------------------
     // Copy the chunk info
     //--------------------------------------------------------------------------
@@ -581,14 +595,17 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Send the message
     //--------------------------------------------------------------------------
-    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg );
-    Status st = MessageUtils::SendMessage( *pDataServer, msg, stHandler,
-                                           timeout, false, (char*)buffer, size );
+    MessageUtils::SendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    params.userBuffer      = (char*)buffer;
+    params.userBufferSize  = size;
+    MessageUtils::ProcessSendParams( params );
 
-    if( !st.IsOK() )
-      return st;
-
-    return XRootDStatus();
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
   }
 
   //----------------------------------------------------------------------------
@@ -598,7 +615,7 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
 
-    if( pFileState == Opened )
+    if( pFileState == Opened || pFileState == Recovering )
       return true;
     return false;
   }
@@ -606,20 +623,39 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Process the results of the opening operation
   //----------------------------------------------------------------------------
-  void FileStateHandler::SetOpenStatus(
-                           const XRootDStatus             *status,
-                           const OpenInfo                 *openInfo,
-                           const ResponseHandler::URLList *hostList )
+  void FileStateHandler::OnOpen( const XRootDStatus *status,
+                                 const OpenInfo     *openInfo,
+                                 const HostList     *hostList )
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
     //--------------------------------------------------------------------------
-    // FIXME: we need to check all the servers to properly assign the
-    // load balancer, but it will do for now
+    // Assign the data server and the load balancer
     //--------------------------------------------------------------------------
-    pDataServer   = new URL( hostList->back() );
-    pLoadBalancer = new URL( hostList->front() );
+    std::string lastServer = pFileUrl->GetHostId();
+    if( hostList )
+    {
+      delete pDataServer;
+      delete pLoadBalancer;
+      pLoadBalancer = 0;
+
+      pDataServer = new URL( hostList->back().url );
+      HostList::const_reverse_iterator it;
+      for( it = hostList->rbegin(); it != hostList->rend(); ++it )
+        if( it->loadBalancer )
+        {
+          pLoadBalancer = new URL( it->url );
+          break;
+        }
+    }
+
+    if( pDataServer )
+      lastServer = pDataServer->GetHostId();
+
+    log->Dump( FileMsg, "[%s] Open for file %s has returned with status %s",
+               lastServer.c_str(), pFileUrl->GetURL().c_str(),
+               status->ToStr().c_str() );
 
     //--------------------------------------------------------------------------
     // We have failed
@@ -627,34 +663,51 @@ namespace XrdCl
     pStatus = *status;
     if( !pStatus.IsOK() )
     {
-      pFileState = Error;
       log->Debug( FileMsg, "[%s] Error opening file %s: %s",
-                            pDataServer->GetHostId().c_str(),
-                            pFileUrl->GetPath().c_str(),
-                            pStatus.ToStr().c_str() );
+                  lastServer.c_str(), pFileUrl->GetPath().c_str(),
+                  pStatus.ToStr().c_str() );
+      FailQueuedMessages( pStatus );
+      pFileState = Error;
     }
     //--------------------------------------------------------------------------
     // We have succeeded
     //--------------------------------------------------------------------------
     else
     {
-      pFileState  = Opened;
-      pFileHandle = new uint8_t[4];
       openInfo->GetFileHandle( pFileHandle );
+      pSessionId = openInfo->GetSessionId();
       if( openInfo->GetStatInfo() )
+      {
+        delete pStatInfo;
         pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
-      log->Debug( FileMsg, "[%s] File %s successfully opened with id 0x%x",
-                            pDataServer->GetHostId().c_str(),
-                            pFileUrl->GetPath().c_str(),
-                            *((uint32_t*)pFileHandle) );
+      }
+
+      log->Debug( FileMsg, "[%s] File %s successfully opened with id 0x%x for "
+                  "session ID: %ld", pDataServer->GetHostId().c_str(),
+                  pFileUrl->GetPath().c_str(), *((uint32_t*)pFileHandle),
+                  pSessionId );
+
+      ReSendQueuedMessages();
+      pFileState  = Opened;
     }
   }
 
   //----------------------------------------------------------------------------
   // Process the results of the closing operation
   //----------------------------------------------------------------------------
-  void FileStateHandler::SetCloseStatus( const XRootDStatus *status )
+  void FileStateHandler::OnClose( const XRootDStatus *status )
   {
+    Log *log = DefaultEnv::GetLog();
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    log->Debug( FileMsg, "[%s] Closed file %s",
+                pDataServer->GetHostId().c_str(), pFileUrl->GetPath().c_str() );
+
+    log->Dump( FileMsg, "[%s] File %s, in the fly items %d, queued for "
+               "recovery %d", pDataServer->GetHostId().c_str(),
+               pFileUrl->GetPath().c_str(), pInTheFly.size(),
+               pToBeRecovered.size() );
+
     pStatus    = *status;
     pFileState = Closed;
   }
@@ -662,35 +715,84 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle an error while sending a stateful message
   //----------------------------------------------------------------------------
-  void FileStateHandler::HandleStateError( XRootDStatus    */*status*/,
-                                           Message         */*message*/,
-                                           ResponseHandler */*userHandler*/ )
+  void FileStateHandler::OnStateError( XRootDStatus             *status,
+                                       Message                  *message,
+                                       ResponseHandler          *userHandler,
+                                       MessageUtils::SendParams &sendParams )
   {
+    Log *log = DefaultEnv::GetLog();
+    XrdSysMutexHelper scopedLock( pMutex );
+    pInTheFly.erase( message );
+
+    log->Dump( FileMsg, "[%s] File state error %s: Message %s returned with: "
+               "%s", pDataServer->GetHostId().c_str(),
+               pFileUrl->GetPath().c_str(), message->GetDescription().c_str(),
+               status->ToStr().c_str() );
+
+    //--------------------------------------------------------------------------
+    // The message is not recoverable
+    //--------------------------------------------------------------------------
+    if( !IsRecoverable( *status ) )
+    {
+      log->Dump( FileMsg, "[%s] Fatal file state error %s: Message %s returned "
+                 "with: %s, recovery not possible",
+                 pDataServer->GetHostId().c_str(),
+                 pFileUrl->GetPath().c_str(), message->GetDescription().c_str(),
+                 status->ToStr().c_str() );
+
+      FailMessage( RequestData( message, userHandler, sendParams ), *status );
+      delete status;
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // Insert the message to the recovery queue and start the recovery
+    // procedure if we don't have any more message in the fly
+    //--------------------------------------------------------------------------
+    RecoverMessage( RequestData( message, userHandler, sendParams ) );
+    delete status;
   }
 
   //----------------------------------------------------------------------------
   // Handle stateful redirect
   //----------------------------------------------------------------------------
-  void FileStateHandler::HandleRedirection( URL             */*targetUrl*/,
-                                            Message         */*message*/,
-                                            ResponseHandler */*userHandler*/ )
+  void FileStateHandler::OnStateRedirection( URL                      *targetUrl,
+                                             Message                  *message,
+                                             ResponseHandler          *userHandler,
+                                             MessageUtils::SendParams &sendParams )
   {
+    XrdSysMutexHelper scopedLock( pMutex );
+    pInTheFly.erase( message );
   }
 
   //----------------------------------------------------------------------------
   // Handle stateful response
   //----------------------------------------------------------------------------
-  void FileStateHandler::HandleResponse( XRootDStatus             *status,
-                                         Message                  *message,
-                                         AnyObject                *response,
-                                         ResponseHandler::URLList */*urlList*/ )
+  void FileStateHandler::OnStateResponse( XRootDStatus *status,
+                                          Message      *message,
+                                          AnyObject    *response,
+                                          HostList     */*urlList*/ )
   {
+    Log    *log = DefaultEnv::GetLog();
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    log->Dump( FileMsg, "[%s] Got state response for message: %s",
+               pDataServer->GetHostId().c_str(),
+               message->GetDescription().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Since this message may be the last "in-the-fly" and no recovery
+    // is done if messages are in the fly, we may need to trigger recovery
+    //--------------------------------------------------------------------------
+    pInTheFly.erase( message );
+    RunRecovery();
+
+    //--------------------------------------------------------------------------
+    // Play with the actual response before returning it. This is a good
+    // place to do caching in the future.
+    //--------------------------------------------------------------------------
     XRootDTransport::UnMarshallRequest( message );
     ClientRequest *req = (ClientRequest*)message->GetBuffer();
-
-    if( !status->IsOK() )
-      return;
-
     switch( req->header.requestid )
     {
       //------------------------------------------------------------------------
@@ -700,8 +802,261 @@ namespace XrdCl
       {
         StatInfo *info = 0;
         response->Get( info );
+        delete pStatInfo;
         pStatInfo = new StatInfo( *info );
       }
     };
+  }
+
+  //----------------------------------------------------------------------------
+  // Send a message to a host or put it in the recovery queue
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::SendOrQueue( const URL                &url,
+                                        Message                  *msg,
+                                        ResponseHandler          *handler,
+                                        MessageUtils::SendParams &sendParams )
+  {
+    //--------------------------------------------------------------------------
+    // Recovering
+    //--------------------------------------------------------------------------
+    if( pFileState == Recovering )
+      return RecoverMessage( RequestData( msg, handler, sendParams ), false );
+
+    //--------------------------------------------------------------------------
+    // Trying to send
+    //--------------------------------------------------------------------------
+    if( pFileState == Opened )
+    {
+      msg->SetSessionId( pSessionId );
+      Status st = MessageUtils::SendMessage( *pDataServer, msg, handler, sendParams );
+
+      //------------------------------------------------------------------------
+      // Invalid session id means that the connection has been broken while we
+      // were iddle so we haven't been informed about this fact earlier.
+      //------------------------------------------------------------------------
+      if( !st.IsOK() && st.code == errInvalidSession )
+        return RecoverMessage( RequestData( msg, handler, sendParams ), false );
+
+      if( st.IsOK() )
+        pInTheFly.insert(msg);
+      else
+        delete handler;
+      return st;
+    }
+    return Status( stError, errInvalidOp );
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if the stateful error is recoverable
+  //----------------------------------------------------------------------------
+  bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
+  {
+    if( status.code == errSocketTimeout )
+      return false;
+
+    if( status.code == errErrorResponse )
+    {
+      if( IsReadOnly() && pLoadBalancer && (status.errNo == kXR_FSError ||
+          status.errNo == kXR_IOError || status.errNo == kXR_ServerError) )
+      {
+        return true;
+      }
+      return false;
+    }
+
+    if( !IsReadOnly() && (pOpenFlags & kXR_posc) )
+      return false;
+
+    if( !status.IsFatal() )
+      return true;
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if the file is open for read only
+  //----------------------------------------------------------------------------
+  bool FileStateHandler::IsReadOnly() const
+  {
+    if( (pOpenFlags & kXR_open_read) && !(pOpenFlags & kXR_open_updt) &&
+        !(pOpenFlags & kXR_open_apnd ) )
+      return true;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Recover a message
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::RecoverMessage( RequestData rd,
+                                           bool        callbackOnFailure )
+  {
+    pFileState = Recovering;
+    XRootDTransport::UnMarshallRequest( rd.request );
+    Status st = RunRecovery();
+    if( st.IsOK() )
+    {
+      pToBeRecovered.push_back( rd );
+      return st;
+    }
+
+    if( callbackOnFailure )
+      FailMessage( rd, st );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the recovery procedure if appropriate
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::RunRecovery()
+  {
+    if( pFileState != Recovering )
+      return Status();
+
+    if( !pInTheFly.empty() )
+      return Status();
+
+    Status st;
+    if( IsReadOnly() && pLoadBalancer )
+      st = ReOpenFileAtServer( *pLoadBalancer, 300 );
+    else
+      st = ReOpenFileAtServer( *pDataServer, 300 );
+
+    if( !st.IsOK() )
+    {
+      pFileState = Error;
+      FailQueuedMessages( st );
+    }
+
+    return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Re-open the current file at a given server
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::ReOpenFileAtServer( const URL &url, uint16_t timeout )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Info( FileMsg, "[%s] Trying to re-open file: %s",
+               url.GetHostId().c_str(), pFileUrl->GetPath().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Remove the kXR_delete and kXR_new flags, we don't want the recovery
+    // procedure to delete a file that has been partially updated or fail
+    // it because a partially uploaded file already exists
+    //--------------------------------------------------------------------------
+    pOpenFlags &= ~kXR_delete;
+    pOpenFlags &= ~kXR_new;
+
+    Message           *msg;
+    ClientOpenRequest *req;
+    std::string        path = pFileUrl->GetPathWithParams();
+    MessageUtils::CreateRequest( msg, req, path.length() );
+
+    req->requestid = kXR_open;
+    req->mode      = pOpenMode;
+    req->options   = pOpenFlags;
+    req->dlen      = path.length();
+    msg->Append( path.c_str(), path.length(), 24 );
+
+    OpenHandler *openHandler = new OpenHandler( this, 0 );
+    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+    Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
+    if( !st.IsOK() )
+      delete openHandler;
+    return st;
+  }
+
+  //------------------------------------------------------------------------
+  // Fail a message
+  //------------------------------------------------------------------------
+  void FileStateHandler::FailMessage( RequestData rd, XRootDStatus status )
+  {
+    StatefulHandler *sh = dynamic_cast<StatefulHandler*>(rd.handler);
+    if( !sh )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( FileMsg, "Internal error has occured while "
+                  "recovering: %s",
+                  rd.request->GetDescription().c_str() );
+      return;
+    }
+    ResponseHandler *userHandler = sh->GetUserHandler();
+    userHandler->HandleResponse( new XRootDStatus( status ), 0,
+                                 rd.params.hostList );
+    delete sh;
+  }
+
+  //----------------------------------------------------------------------------
+  // Fail queued messages
+  //----------------------------------------------------------------------------
+  void FileStateHandler::FailQueuedMessages( Status status )
+  {
+    RequestList::iterator it;
+    for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); ++it )
+      FailMessage( *it, status );
+    pToBeRecovered.clear();
+  }
+
+  //------------------------------------------------------------------------
+  // Re-send queued messages
+  //------------------------------------------------------------------------
+  void FileStateHandler::ReSendQueuedMessages()
+  {
+    RequestList::iterator it;
+    for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); ++it )
+    {
+      it->request->SetSessionId( pSessionId );
+      ReWriteFileHandle( it->request );
+      Status st = MessageUtils::SendMessage( *pDataServer, it->request,
+                                             it->handler, it->params );
+      if( !st.IsOK() )
+        FailMessage( *it, st );
+    }
+    pToBeRecovered.clear();
+  }
+
+  //------------------------------------------------------------------------
+  // Re-write file handle
+  //------------------------------------------------------------------------
+  void FileStateHandler::ReWriteFileHandle( Message *msg )
+  {
+    ClientRequestHdr *hdr = (ClientRequestHdr*)msg->GetBuffer();
+    switch( hdr->requestid )
+    {
+      case kXR_read:
+      {
+        ClientReadRequest *req = (ClientReadRequest*)msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_write:
+      {
+        ClientWriteRequest *req = (ClientWriteRequest*)msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_sync:
+      {
+        ClientSyncRequest *req = (ClientSyncRequest*)msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_truncate:
+      {
+        ClientTruncateRequest *req = (ClientTruncateRequest*)msg->GetBuffer();
+        memcpy( req->fhandle, pFileHandle, 4 );
+        break;
+      }
+      case kXR_readv:
+      {
+        ClientReadVRequest *req = (ClientReadVRequest*)msg->GetBuffer();
+        readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
+        for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
+          memcpy( dataChunk[i].fhandle, pFileHandle, 4 );
+        break;
+      }
+    }
   }
 }

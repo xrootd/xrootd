@@ -56,14 +56,15 @@ namespace XrdCl
         pResponseHandler( respHandler ),
         pUrl( *url ),
         pSidMgr( sidMgr ),
-        pTimeout( 300 ),
+        pExpiration( 0 ),
         pRedirectAsAnswer( false ),
+        pHosts( 0 ),
         pUserBuffer( 0 ),
-        pUserBufferSize( 0 )
+        pUserBufferSize( 0 ),
+        pHasLoadBalancer( false ),
+        pStateful( false )
       {
-        pPostMaster   = DefaultEnv::GetPostMaster();
-        pRedirections = new ResponseHandler::URLList;
-        pRedirections->push_back( *url );
+        pPostMaster = DefaultEnv::GetPostMaster();
       }
 
       //------------------------------------------------------------------------
@@ -71,7 +72,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
-        delete pRequest;
+        if( !pStateful )
+          delete pRequest;
         delete pResponse;
         std::vector<Message *>::iterator it;
         for( it = pPartialResps.begin(); it != pPartialResps.end(); ++it )
@@ -95,9 +97,9 @@ namespace XrdCl
       //! @param streamNum stream concerned
       //! @param status    status info
       //------------------------------------------------------------------------
-      virtual void OnStreamEvent( StreamEvent event,
-                                  uint16_t    streamNum,
-                                  Status      status );
+      virtual uint8_t OnStreamEvent( StreamEvent event,
+                                     uint16_t    streamNum,
+                                     Status      status );
 
       //------------------------------------------------------------------------
       //! The requested action has been performed and the status is available
@@ -113,11 +115,11 @@ namespace XrdCl
       void WaitDone( time_t now );
 
       //------------------------------------------------------------------------
-      //! Set timeout
+      //! Set a timestamp after which we give up
       //------------------------------------------------------------------------
-      void SetTimeout( uint16_t timeout )
+      void SetExpiration( time_t expiration )
       {
-        pTimeout = timeout;
+        pExpiration = expiration;
       }
 
       //------------------------------------------------------------------------
@@ -147,7 +149,66 @@ namespace XrdCl
         return pRequest;
       }
 
+      //------------------------------------------------------------------------
+      //! Set the load balancer
+      //------------------------------------------------------------------------
+      void SetLoadBalancer( const HostInfo &loadBalancer )
+      {
+        if( !loadBalancer.url.IsValid() )
+          return;
+        pLoadBalancer    = loadBalancer;
+        pHasLoadBalancer = true;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set stateful status
+      //------------------------------------------------------------------------
+      void SetStateful( bool stateful )
+      {
+        pStateful = stateful;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set host list
+      //------------------------------------------------------------------------
+      void SetHostList( HostList *hostList )
+      {
+        delete pHosts;
+        pHosts = hostList;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set the state lock
+      //------------------------------------------------------------------------
+      void SetStateLock( XrdSysRecMutex *stateLock )
+      {
+        pStateLock = stateLock;
+      }
+
+      //------------------------------------------------------------------------
+      //! Lock the state
+      //------------------------------------------------------------------------
+      virtual void Lock()
+      {
+        if( pStateLock )
+          pStateLock->Lock();
+      };
+
+      //------------------------------------------------------------------------
+      //! Unlock the state
+      //------------------------------------------------------------------------
+      virtual void UnLock()
+      {
+        if( pStateLock )
+          pStateLock->UnLock();
+      };
+
     private:
+      //------------------------------------------------------------------------
+      // Retry the request at another server
+      //------------------------------------------------------------------------
+      void RetryAtServer( const URL &url );
+
       //------------------------------------------------------------------------
       // Unpack the message and call the response handler
       //------------------------------------------------------------------------
@@ -184,19 +245,23 @@ namespace XrdCl
                                char           *sourceBuffer,
                                uint32_t        sourceBufferSize );
 
-      Message                  *pRequest;
-      Message                  *pResponse;
-      std::vector<Message *>    pPartialResps;
-      ResponseHandler          *pResponseHandler;
-      URL                       pUrl;
-      PostMaster               *pPostMaster;
-      SIDManager               *pSidMgr;
-      Status                    pStatus;
-      uint16_t                  pTimeout;
-      bool                      pRedirectAsAnswer;
-      ResponseHandler::URLList *pRedirections;
-      char                     *pUserBuffer;
-      uint32_t                  pUserBufferSize;
+      Message                   *pRequest;
+      Message                   *pResponse;
+      std::vector<Message *>     pPartialResps;
+      ResponseHandler           *pResponseHandler;
+      URL                        pUrl;
+      PostMaster                *pPostMaster;
+      SIDManager                *pSidMgr;
+      Status                     pStatus;
+      time_t                     pExpiration;
+      bool                       pRedirectAsAnswer;
+      HostList                  *pHosts;
+      char                      *pUserBuffer;
+      uint32_t                   pUserBufferSize;
+      bool                       pHasLoadBalancer;
+      HostInfo                   pLoadBalancer;
+      bool                       pStateful;
+      XrdSysRecMutex            *pStateLock;
   };
 }
 

@@ -31,13 +31,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message
   //----------------------------------------------------------------------------
-  Status MessageUtils::SendMessage( const URL       &url,
-                                    Message         *msg,
-                                    ResponseHandler *handler,
-                                    uint16_t         timeout,
-                                    bool             followRedirects,
-                                    char            *userBuffer,
-                                    uint32_t         userBufferSize )
+  Status MessageUtils::SendMessage( const URL        &url,
+                                    Message          *msg,
+                                    ResponseHandler  *handler,
+                                    const SendParams &sendParams )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -48,6 +45,10 @@ namespace XrdCl
 
     if( !postMaster )
       return Status( stError, errUninitialized );
+
+    log->Dump( XRootDMsg, "[%s] Sending message %s",
+               url.GetHostId().c_str(), msg->GetDescription().c_str() );
+
 
     AnyObject   sidMgrObj;
     SIDManager *sidMgr    = 0;
@@ -62,7 +63,8 @@ namespace XrdCl
     }
     sidMgrObj.Get( sidMgr );
 
-    ClientLocateRequest *req = (ClientLocateRequest*)msg->GetBuffer();
+    ClientRequestHdr *req = (ClientRequestHdr*)msg->GetBuffer();
+
 
     //--------------------------------------------------------------------------
     // Allocate the SID and marshall the message
@@ -78,21 +80,54 @@ namespace XrdCl
     XRootDTransport::MarshallRequest( msg );
 
     //--------------------------------------------------------------------------
-    // Create the message handler and send the thing into the wild
+    // Create and set up the message handler
     //--------------------------------------------------------------------------
     XRootDMsgHandler *msgHandler;
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
-    msgHandler->SetTimeout( timeout );
-    msgHandler->SetRedirectAsAnswer( !followRedirects );
-    msgHandler->SetUserBuffer( userBuffer, userBufferSize );
+    msgHandler->SetExpiration( sendParams.expires );
+    msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
+    msgHandler->SetStateful( sendParams.stateful );
+    msgHandler->SetUserBuffer( sendParams.userBuffer,
+                               sendParams.userBufferSize );
+    if( sendParams.loadBalancer.url.IsValid() )
+      msgHandler->SetLoadBalancer( sendParams.loadBalancer );
 
-    st = postMaster->Send( url, msg, msgHandler, true, 300 );
+    if( sendParams.hostList )
+      msgHandler->SetHostList( sendParams.hostList );
+
+    if( sendParams.stateLock )
+      msgHandler->SetStateLock( sendParams.stateLock );
+
+    //--------------------------------------------------------------------------
+    // Send the messafe
+    //--------------------------------------------------------------------------
+    st = postMaster->Send( url, msg, msgHandler, sendParams.stateful,
+                           sendParams.timeout );
     if( !st.IsOK() )
     {
-      log->Error( XRootDMsg, "[%s] Unable to send the message 0x%x",
-                             url.GetHostId().c_str(), &msg );
+      log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
+                  url.GetHostId().c_str(), msg->GetDescription().c_str(),
+                  st.ToString().c_str() );
+      delete msgHandler;
       return st;
     }
     return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Process sending params
+  //----------------------------------------------------------------------------
+  void MessageUtils::ProcessSendParams( SendParams &sendParams )
+  {
+    if( sendParams.timeout == 0 )
+    {
+      Env *env = DefaultEnv::GetEnv();
+      int requestTimeout = DefaultRequestTimeout;
+      env->GetInt( "RequestTimeout", requestTimeout );
+      sendParams.timeout = requestTimeout;
+    }
+
+    if( sendParams.expires == 0 )
+      sendParams.expires = ::time(0)+sendParams.timeout;
   }
 }
