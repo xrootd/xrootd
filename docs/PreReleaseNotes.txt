@@ -23,6 +23,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Properly check for errors when client read returns 0 and reflect true
+     status. This only affects the Posix client interface.
    * Make sure read statistics are updated for sendfile() and mmap I/O.
    * Remove redundant flag indicating a running poller. This may cause the
      poller to never be woken up when a timeout value changes.
