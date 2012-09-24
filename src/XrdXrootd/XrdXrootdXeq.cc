@@ -444,7 +444,10 @@ int XrdXrootdProtocol::do_Close()
    rc = fp->XrdSfsp->close();
    TRACEP(FS, "close rc=" <<rc <<" fh=" <<fh.handle);
    if (SFS_OK != rc)
-      return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+      {if (rc == SFS_ERROR || rc == SFS_STALL)
+          return fsError(rc, 0, fp->XrdSfsp->error, 0);
+       return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+      }
 
 // Delete the file from the file table; this will unlock/close the file
 //
@@ -1698,7 +1701,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
-   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
+   return fsError(xframt, 0, myFile->XrdSfsp->error, 0);
 }
 
 /******************************************************************************/
@@ -1875,7 +1878,7 @@ int XrdXrootdProtocol::do_ReadV()
           }
         return Response.Send(argp->buff, Quantum-Qleft);
       }
-   return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
+   return fsError(xframt, 0, myFile->XrdSfsp->error, 0);
 }
   
 /******************************************************************************/
@@ -2062,7 +2065,7 @@ int XrdXrootdProtocol::do_Stat()
        rc = fp->XrdSfsp->stat(&buf);
        TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
        if (SFS_OK == rc) return Response.Send(xxBuff, StatGen(buf, xxBuff));
-       return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+       return fsError(rc, 0, myFile->XrdSfsp->error, 0);
       }
 
 // Check for static routing
@@ -2196,8 +2199,7 @@ int XrdXrootdProtocol::do_Truncate()
      //
         rc = fp->XrdSfsp->truncate(theOffset);
         TRACEP(FS, "trunc rc=" <<rc <<" sz=" <<theOffset <<" fh=" <<fh.handle);
-        if (SFS_OK != rc)
-           return Response.Send(kXR_FSError, fp->XrdSfsp->error.getErrText());
+        if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0);
 
    } else {
 
@@ -2244,9 +2246,9 @@ int XrdXrootdProtocol::do_Write()
    pathID   = static_cast<int>(Request.write.pathid);
 
 // Find the file object
-//
+//                                                                             .
    if (!FTab || !(myFile = FTab->Get(fh.handle)))
-      {if (argp) return do_WriteNone();
+      {if (argp && !pathID) return do_WriteNone();
        Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
        return Link->setEtext("write protcol violation");
       }
@@ -2271,8 +2273,10 @@ int XrdXrootdProtocol::do_Write()
       {if (myStalls > as_maxstalls) myStalls--;
           else if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
                   {if ((retc = aio_Write()) != -EAGAIN)
-                      {if (retc == -EIO) return do_WriteNone();
-                          else return retc;
+                      {if (retc != -EIO) return retc;
+                       myEInfo[0] = SFS_ERROR;
+                       myFile->XrdSfsp->error.setErrInfo(retc, "I/O error");
+                       return do_WriteNone();
                       }
                   }
        SI->AsyncRej++;
@@ -2313,8 +2317,8 @@ int XrdXrootdProtocol::do_WriteAll()
                 }
              return rc;
             }
-         if (myFile->XrdSfsp->write(myOffset, argp->buff, Quantum) < 0)
-            {myIOLen  = myIOLen-Quantum;
+         if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, Quantum)) < 0)
+            {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc;
              return do_WriteNone();
             }
          myOffset += Quantum; myIOLen -= Quantum;
@@ -2337,11 +2341,12 @@ int XrdXrootdProtocol::do_WriteAll()
   
 int XrdXrootdProtocol::do_WriteCont()
 {
+   int rc;
 
 // Write data that was finaly finished comming in
 //
-   if (myFile->XrdSfsp->write(myOffset, argp->buff, myBlast) < 0)
-      {myIOLen  = myIOLen-myBlast;
+   if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, myBlast)) < 0)
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
        return do_WriteNone();
       }
     myOffset += myBlast; myIOLen -= myBlast;
@@ -2377,6 +2382,9 @@ int XrdXrootdProtocol::do_WriteNone()
 
 // Send our the error message and return
 //
+   if (!myFile)
+      Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
+   if (myEInfo[0]) return fsError(myEInfo[0], 0, myFile->XrdSfsp->error, 0);
    return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
 }
   
