@@ -111,6 +111,7 @@ namespace XrdCl
     XrdOucEnv        *authEnv;
     StreamInfoVector  stream;
     std::string       streamName;
+    XrdSysMutex       mutex;
   };
 
   //----------------------------------------------------------------------------
@@ -202,6 +203,7 @@ namespace XrdCl
   void XRootDTransport::InitializeChannel( AnyObject &channelData )
   {
     XRootDChannelInfo *info = new XRootDChannelInfo();
+    XrdSysMutexHelper scopedLock( info->mutex );
     channelData.Set( info );
 
     Env *env = DefaultEnv::GetEnv();
@@ -226,6 +228,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
 
     if( info->stream.size() <= handShakeData->subStreamId )
     {
@@ -352,6 +355,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+
     XRootDStreamInfo &sInfo = info->stream[handShakeData->subStreamId];
 
     //--------------------------------------------------------------------------
@@ -426,6 +430,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
 
     //--------------------------------------------------------------------------
     // If we're not connected to a data server or we don't know that yet
@@ -548,6 +553,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
 
     if( info->serverFlags & kXR_isServer )
       return info->stream.size();
@@ -763,6 +769,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
     if( !info->stream.empty() )
     {
       XRootDStreamInfo &sInfo = info->stream[subStreamId];
@@ -779,6 +786,7 @@ namespace XrdCl
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
 
     switch( query )
     {
