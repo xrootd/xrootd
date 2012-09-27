@@ -81,6 +81,7 @@ namespace XrdCl
       log->Error( PostMasterMsg, "[%s] Unable to initialize socket: %s",
                                  pStreamName.c_str(),
                                  st.ToString().c_str() );
+      st.status = stFatal;
       return st;
     }
 
