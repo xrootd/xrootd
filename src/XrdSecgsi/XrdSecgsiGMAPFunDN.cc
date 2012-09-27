@@ -117,7 +117,7 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
       name = new char[mc->val.length() + 1];
       strcpy(name, mc->val.c_str());
    } else {
-      // Else scan the avaulable mappings
+      // Else scan the available mappings
       mc = new XrdSecgsiMapEntry_t(dn, "", kFull);
       gMappings.Apply(FindMatchingCondition, (void *)mc);
       if (mc->user.length() > 0) {
@@ -125,7 +125,11 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
          strcpy(name, mc->user.c_str());
       }
    }
-   DEBUG("mapping DN '"<<dn<<"' to '"<<name<<"'");
+   if (name) {
+      DEBUG("mapping DN '"<<dn<<"' to '"<<name<<"'");
+   } else {
+      DEBUG("no valid match found for DN '"<<dn<<"'");
+   }
   
    // Done
    return name;
