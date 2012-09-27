@@ -253,8 +253,7 @@ namespace XrdCl
                msg->GetDescription().c_str(), path.up, path.down );
 
     //--------------------------------------------------------------------------
-    // See if we can enable this path and, if no, whether there is another
-    // path available. If not, there is nothing else we can do here.
+    // Enable *a* path and insert the message to the right queue
     //--------------------------------------------------------------------------
     Status st = EnableLink( path );
     if( st.IsOK() )
@@ -263,6 +262,8 @@ namespace XrdCl
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 time(0)+timeout, stateful );
     }
+    else
+      st.status = stFatal;
     return st;
   }
 
