@@ -158,7 +158,8 @@ namespace
       masks["XRootDTransportMsg"] = XrdCl::XRootDTransportMsg;
       masks["TaskMgrMsg"]         = XrdCl::TaskMgrMsg;
       masks["XRootDMsg"]          = XrdCl::XRootDMsg;
-      masks["QueryMsg"]           = XrdCl::QueryMsg;
+      masks["FileSystemMsg"]      = XrdCl::FileSystemMsg;
+      masks["AsyncSockMsg"]       = XrdCl::AsyncSockMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -293,10 +294,10 @@ namespace
       log->SetTopicName( PollerMsg,          "Poller" );
       log->SetTopicName( PostMasterMsg,      "PostMaster" );
       log->SetTopicName( XRootDTransportMsg, "XRootDTransport" );
-      log->SetTopicName( TaskMgrMsg,         "TaskManager" );
-      log->SetTopicName( XRootDMsg,          "XRootDHandler" );
-      log->SetTopicName( QueryMsg,           "Query" );
-      log->SetTopicName( AsyncSockMsg,       "AsyncSocket" );
+      log->SetTopicName( TaskMgrMsg,         "TaskMgr" );
+      log->SetTopicName( XRootDMsg,          "XRootD" );
+      log->SetTopicName( FileSystemMsg,      "FileSystem" );
+      log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
     }
 
     //--------------------------------------------------------------------------

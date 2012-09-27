@@ -92,11 +92,15 @@ namespace XrdCl
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
 
+    HostList *list = 0;
     if( sendParams.hostList )
       msgHandler->SetHostList( sendParams.hostList );
-
-    if( sendParams.stateLock )
-      msgHandler->SetStateLock( sendParams.stateLock );
+    else
+    {
+      list = new HostList();
+      list->push_back( url );
+      msgHandler->SetHostList( list );
+    }
 
     //--------------------------------------------------------------------------
     // Send the messafe
@@ -109,6 +113,7 @@ namespace XrdCl
                   url.GetHostId().c_str(), msg->GetDescription().c_str(),
                   st.ToString().c_str() );
       delete msgHandler;
+      delete list;
       return st;
     }
     return Status();

@@ -34,7 +34,7 @@ namespace XrdCl
   const uint64_t XRootDTransportMsg = 0x0000000000000020ULL;
   const uint64_t TaskMgrMsg         = 0x0000000000000040ULL;
   const uint64_t XRootDMsg          = 0x0000000000000080ULL;
-  const uint64_t QueryMsg           = 0x0000000000000100ULL;
+  const uint64_t FileSystemMsg      = 0x0000000000000100ULL;
   const uint64_t AsyncSockMsg       = 0x0000000000000200ULL;
 
   //----------------------------------------------------------------------------

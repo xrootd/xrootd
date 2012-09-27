@@ -101,8 +101,8 @@ namespace XrdCl
       struct SendParams
       {
         SendParams():
-          timeout(0), expires(0), followRedirects(true), stateful(false),
-          userBuffer(0), userBufferSize(0), hostList(0), stateLock(0) {}
+          timeout(0), expires(0), followRedirects(true), stateful(true),
+          userBuffer(0), userBufferSize(0), hostList(0) {}
         uint16_t         timeout;
         time_t           expires;
         const HostInfo   loadBalancer;
@@ -111,7 +111,6 @@ namespace XrdCl
         char            *userBuffer;
         uint32_t         userBufferSize;
         HostList        *hostList;
-        XrdSysRecMutex  *stateLock;
       };
 
       //------------------------------------------------------------------------

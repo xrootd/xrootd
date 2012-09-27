@@ -131,7 +131,7 @@ namespace XrdCl
   Status AsyncSocketHandler::Close()
   {
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Closing the socket", pStreamName.c_str() );
+    log->Debug( AsyncSockMsg, "[%s] Closing the socket", pStreamName.c_str() );
 
     pTransport->Disconnect( *pChannelData, pStream->GetStreamNumber(),
                             pSubStreamNum );
@@ -215,8 +215,8 @@ namespace XrdCl
     // Check whether we were able to connect
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Async connection call returned",
-                               pStreamName.c_str() );
+    log->Debug( AsyncSockMsg, "[%s] Async connection call returned",
+                pStreamName.c_str() );
 
     int errorCode = 0;
     socklen_t optSize = sizeof( errorCode );
@@ -229,9 +229,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s] Unable to get the status of the "
-                                 "connect operation: %s",
-                                 pStreamName.c_str(), strerror( errno ) );
+      log->Error( AsyncSockMsg, "[%s] Unable to get the status of the "
+                  "connect operation: %s", pStreamName.c_str(),
+                  strerror( errno ) );
       pStream->OnConnectError( pSubStreamNum,
                                Status( stFatal, errSocketOptError, errno ) );
       return;
@@ -242,9 +242,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( errorCode )
     {
-      log->Error( PostMasterMsg, "[%s] Unable to connect: %s",
-                                 pStreamName.c_str(),
-                                 strerror( errorCode ) );
+      log->Error( AsyncSockMsg, "[%s] Unable to connect: %s",
+                  pStreamName.c_str(), strerror( errorCode ) );
       pStream->OnConnectError( pSubStreamNum,
                                Status( stError, errConnectionError ) );
       return;
@@ -266,8 +265,8 @@ namespace XrdCl
 
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s] Connection negotiation failed",
-                                  pStreamName.c_str() );
+      log->Error( AsyncSockMsg, "[%s] Connection negotiation failed",
+                  pStreamName.c_str() );
       pStream->OnConnectError( pSubStreamNum, st );
       return;
     }
@@ -396,9 +395,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have written the message successfully
     //--------------------------------------------------------------------------
-    log->Dump( PostMasterMsg, "[%s] Wrote a message of %d bytes",
-                              pStreamName.c_str(),
-                              pOutgoing->GetSize() );
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message of %d bytes",
+               pStreamName.c_str(), pOutgoing->GetSize() );
     return Status();
   }
 
@@ -505,8 +503,8 @@ namespace XrdCl
     if( st.IsOK() && st.code == suDone )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Dump( PostMasterMsg, "[%s] Received a message of %d bytes",
-                                pStreamName.c_str(), pIncoming->GetSize() );
+      log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
+                 pStreamName.c_str(), pIncoming->GetSize() );
     }
 
     return st;
@@ -518,9 +516,8 @@ namespace XrdCl
   void AsyncSocketHandler::OnFault( Status st )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Error( PostMasterMsg, "[%s] Socket error encountered: %s",
-                               pStreamName.c_str(),
-                               st.ToString().c_str() );
+    log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
+                pStreamName.c_str(), st.ToString().c_str() );
     delete pIncoming;
     pIncoming = 0;
     pOutgoing = 0;
@@ -534,9 +531,8 @@ namespace XrdCl
   void AsyncSocketHandler::OnFaultWhileHandshaking( Status st )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Error( PostMasterMsg, "[%s] Socket error while handshaking: %s",
-                               pStreamName.c_str(),
-                               st.ToString().c_str() );
+    log->Error( AsyncSockMsg, "[%s] Socket error while handshaking: %s",
+                pStreamName.c_str(), st.ToString().c_str() );
     delete pIncoming;
     delete pOutgoing;
     pIncoming = 0;

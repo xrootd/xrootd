@@ -75,15 +75,18 @@ namespace
         //----------------------------------------------------------------------
         if( !status->IsOK() )
         {
-          log->Dump( QueryMsg, "[DeepLocate] Got error response" );
+          log->Dump( FileSystemMsg, "[0x%x@DeepLocate(%s)] Got error "
+                     "response: %s", this, pPath.c_str(),
+                     status->ToStr().c_str() );
 
           //--------------------------------------------------------------------
           // We have failed with the first request
           //--------------------------------------------------------------------
           if( pFirstTime )
           {
-            log->Debug( QueryMsg, "[DeepLocate] Failed to get the initial "
-                                  "location list" );
+            log->Debug( FileSystemMsg, "[0x%x@DeepLocate(%s)] Failed to get "
+                        "the initial location list: %s", this, pPath.c_str(),
+                        status->ToStr().c_str() );
             pHandler->HandleResponse( status, response );
             delete this;
             return;
@@ -95,8 +98,9 @@ namespace
           //--------------------------------------------------------------------
           if( !pOutstanding )
           {
-            log->Debug( QueryMsg, "[DeepLocate] No outstanding requests, "
-                                  "give out what we've got" );
+            log->Debug( FileSystemMsg, "[0x%x@DeepLocate(%s)] No outstanding "
+                        "requests, give out what we've got", this,
+                        pPath.c_str() );
             HandleFinalResponse();
           }
           delete status;
@@ -111,8 +115,8 @@ namespace
         response->Get( info );
         LocationInfo::Iterator it;
 
-        log->Dump( QueryMsg, "[DeepLocate] Got %d locations",
-                             info->GetSize() );
+        log->Dump( FileSystemMsg, "[0x%x@DeepLocate(%s)] Got %d locations",
+                   this, pPath.c_str(), info->GetSize() );
 
         for( it = info->Begin(); it != info->End(); ++it )
         {
@@ -159,8 +163,8 @@ namespace
         if( !pLocations->GetSize() )
         {
           pHandler->HandleResponse( new XRootDStatus( stError, errErrorResponse,
-                                                 kXR_NotFound,
-                                                 "No valid location found" ),
+                                                   kXR_NotFound,
+                                                   "No valid location found" ),
                                     0 );
         }
         //----------------------------------------------------------------------
@@ -273,6 +277,11 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -345,6 +354,11 @@ namespace XrdCl
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -387,6 +401,12 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -430,6 +450,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -470,6 +495,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -513,6 +543,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -554,6 +589,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -595,6 +635,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -632,6 +677,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -671,6 +721,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -712,6 +767,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -750,6 +810,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )
@@ -789,6 +854,11 @@ namespace XrdCl
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
+               pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
+
     Status st = MessageUtils::SendMessage( *pUrl, msg, handler, params );
 
     if( !st.IsOK() )

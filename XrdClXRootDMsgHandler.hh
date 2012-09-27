@@ -62,7 +62,8 @@ namespace XrdCl
         pUserBuffer( 0 ),
         pUserBufferSize( 0 ),
         pHasLoadBalancer( false ),
-        pStateful( false )
+        pStateful( false ),
+        pCalledBack( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
       }
@@ -177,73 +178,72 @@ namespace XrdCl
         pHosts = hostList;
       }
 
-      //------------------------------------------------------------------------
-      //! Set the state lock
-      //------------------------------------------------------------------------
-      void SetStateLock( XrdSysRecMutex *stateLock )
-      {
-        pStateLock = stateLock;
-      }
-
-      //------------------------------------------------------------------------
-      //! Lock the state
-      //------------------------------------------------------------------------
-      virtual void Lock()
-      {
-        if( pStateLock )
-          pStateLock->Lock();
-      };
-
-      //------------------------------------------------------------------------
-      //! Unlock the state
-      //------------------------------------------------------------------------
-      virtual void UnLock()
-      {
-        if( pStateLock )
-          pStateLock->UnLock();
-      };
-
     private:
       //------------------------------------------------------------------------
-      // Retry the request at another server
+      //! Recover error
       //------------------------------------------------------------------------
-      void RetryAtServer( const URL &url );
+      void HandleError( Status status, Message *msg = 0 );
 
       //------------------------------------------------------------------------
-      // Unpack the message and call the response handler
+      //! Retry the request at another server
+      //------------------------------------------------------------------------
+      Status RetryAtServer( const URL &url );
+
+      //------------------------------------------------------------------------
+      //! Unpack the message and call the response handler
       //------------------------------------------------------------------------
       void HandleResponse();
 
       //------------------------------------------------------------------------
-      // Extract the status information from the stuff that we got
+      //! Extract the status information from the stuff that we got
       //------------------------------------------------------------------------
       XRootDStatus *ProcessStatus();
 
       //------------------------------------------------------------------------
-      // Parse the response and put it in an object that could be passed to
-      // the user
+      //! Parse the response and put it in an object that could be passed to
+      //! the user
       //------------------------------------------------------------------------
       AnyObject *ParseResponse();
 
       //------------------------------------------------------------------------
-      // Perform the changes to the original request needed by the redirect
-      // procedure - allocate new streamid, append redirection data and such
+      //! Perform the changes to the original request needed by the redirect
+      //! procedure - allocate new streamid, append redirection data and such
       //------------------------------------------------------------------------
-      Status RewriteRequestRedirect( const std::string &newCgi );
+      Status RewriteRequestRedirect( const URL::ParamsMap &newCgi );
 
       //------------------------------------------------------------------------
-      // Some requests need to be rewriten also after getting kXR_wait - sigh
+      //! Some requests need to be rewriten also after getting kXR_wait - sigh
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 
       //------------------------------------------------------------------------
-      // Unpack vector read
+      //! Unpack vector read
       //------------------------------------------------------------------------
       Status UnpackVectorRead( VectorReadInfo *vReadInfo,
                                char           *targetBuffer,
                                uint32_t        targetBufferSize,
                                char           *sourceBuffer,
                                uint32_t        sourceBufferSize );
+
+      //------------------------------------------------------------------------
+      //! Update the "tried=" part of the CGI of the current message
+      //------------------------------------------------------------------------
+      void UpdateTriedCGI();
+
+      //------------------------------------------------------------------------
+      //! Switch on the refresh flag for some requests
+      //------------------------------------------------------------------------
+      void SwitchOnRefreshFlag();
+
+      //------------------------------------------------------------------------
+      //! Merge CGI in the request
+      //!
+      //! @param newCgi  the new cgi
+      //! @param replace indicates whether, in case of a conflict, the new CGI
+      //!                parameter should replace an existing one or be
+      //!                appended to it using a comma
+      //------------------------------------------------------------------------
+      void MergeCGI( const URL::ParamsMap &newCgi, bool replace );
 
       Message                   *pRequest;
       Message                   *pResponse;
@@ -261,7 +261,7 @@ namespace XrdCl
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
       bool                       pStateful;
-      XrdSysRecMutex            *pStateLock;
+      bool                       pCalledBack;
   };
 }
 

@@ -283,11 +283,15 @@ namespace XrdCl
     pFileUrl = new URL( url );
     if( !pFileUrl->IsValid() )
     {
-      log->Error( FileMsg, "Trying to open invalid url: %s", url.c_str() );
+      log->Error( FileMsg, "[0x%x@%s] Trying to open invalid url: %s",
+                  this, pFileUrl->GetPath().c_str(), url.c_str() );
       pStatus    = XRootDStatus( stError, errInvalidArgs );
       pFileState = Error;
       return pStatus;
     }
+
+    log->Debug( FileMsg, "[0x%x@%s] Sending an open command", this,
+                pFileUrl->GetURL().c_str() );
 
     //--------------------------------------------------------------------------
     // Open the file
@@ -341,10 +345,15 @@ namespace XrdCl
       return XRootDStatus( stError, errInProgress );
 
     if( pFileState == OpenInProgress || pFileState == Closed ||
-        pFileState == Recovering )
+        pFileState == Recovering || !pInTheFly.empty() )
       return XRootDStatus( stError, errInvalidOp );
 
     pStatus = CloseInProgress;
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a close command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
     // Close the file
@@ -357,6 +366,7 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
 
     XRootDTransport::SetDescription( msg );
+    msg->SetSessionId( pSessionId );
     CloseHandler *closeHandler = new CloseHandler( this, handler );
     MessageUtils::SendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -366,6 +376,12 @@ namespace XrdCl
     if( !st.IsOK() )
     {
       delete closeHandler;
+      if( st.code == errInvalidSession && IsReadOnly() )
+      {
+        pFileState = Closed;
+        return Status();
+      }
+
       pStatus    = st;
       pFileState = Error;
       return st;
@@ -395,6 +411,11 @@ namespace XrdCl
       handler->HandleResponse( new XRootDStatus(), obj, new HostList() );
       return XRootDStatus();
     }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a stat command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
     // Issue a new stat request
@@ -435,6 +456,11 @@ namespace XrdCl
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a read command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
     Message           *msg;
     ClientReadRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -471,6 +497,11 @@ namespace XrdCl
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a write command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
     Message            *msg;
     ClientWriteRequest *req;
     MessageUtils::CreateRequest( msg, req, size );
@@ -503,6 +534,11 @@ namespace XrdCl
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
 
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a sync command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
     Message           *msg;
     ClientSyncRequest *req;
     MessageUtils::CreateRequest( msg, req );
@@ -532,6 +568,11 @@ namespace XrdCl
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a truncate command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
 
     Message               *msg;
     ClientTruncateRequest *req;
@@ -567,6 +608,11 @@ namespace XrdCl
 
     if( pFileState != Opened && pFileState != Recovering )
       return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a vector read command for handle "
+                "0x%x to %s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
     // Build the message
@@ -653,9 +699,8 @@ namespace XrdCl
     if( pDataServer )
       lastServer = pDataServer->GetHostId();
 
-    log->Dump( FileMsg, "[%s] Open for file %s has returned with status %s",
-               lastServer.c_str(), pFileUrl->GetURL().c_str(),
-               status->ToStr().c_str() );
+    log->Debug( FileMsg, "[0x%x@%s] Open has returned with status %s",
+                this, pFileUrl->GetURL().c_str(), status->ToStr().c_str() );
 
     //--------------------------------------------------------------------------
     // We have failed
@@ -663,8 +708,8 @@ namespace XrdCl
     pStatus = *status;
     if( !pStatus.IsOK() )
     {
-      log->Debug( FileMsg, "[%s] Error opening file %s: %s",
-                  lastServer.c_str(), pFileUrl->GetPath().c_str(),
+      log->Debug( FileMsg, "[0x%x@%s] Error while opening at %s: %s",
+                  this, pFileUrl->GetURL().c_str(), lastServer.c_str(),
                   pStatus.ToStr().c_str() );
       FailQueuedMessages( pStatus );
       pFileState = Error;
@@ -682,9 +727,9 @@ namespace XrdCl
         pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
       }
 
-      log->Debug( FileMsg, "[%s] File %s successfully opened with id 0x%x for "
-                  "session ID: %ld", pDataServer->GetHostId().c_str(),
-                  pFileUrl->GetPath().c_str(), *((uint32_t*)pFileHandle),
+      log->Debug( FileMsg, "[0x%x@%s] Successfuly opened at %s, handle: 0x%x, "
+                  "session id: %ld", this, pFileUrl->GetURL().c_str(),
+                  pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
                   pSessionId );
 
       ReSendQueuedMessages();
@@ -700,12 +745,12 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
-    log->Debug( FileMsg, "[%s] Closed file %s",
-                pDataServer->GetHostId().c_str(), pFileUrl->GetPath().c_str() );
+    log->Debug( FileMsg, "[0x%x@%s] Close returned from %s with: %s", this,
+                pFileUrl->GetURL().c_str(), pDataServer->GetHostId().c_str(),
+                status->ToStr().c_str() );
 
-    log->Dump( FileMsg, "[%s] File %s, in the fly items %d, queued for "
-               "recovery %d", pDataServer->GetHostId().c_str(),
-               pFileUrl->GetPath().c_str(), pInTheFly.size(),
+    log->Dump( FileMsg, "[0x%x@%s] Items in the fly %d, queued for recovery %d",
+               this, pFileUrl->GetURL().c_str(), pInTheFly.size(),
                pToBeRecovered.size() );
 
     pStatus    = *status;
@@ -724,21 +769,18 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
     pInTheFly.erase( message );
 
-    log->Dump( FileMsg, "[%s] File state error %s: Message %s returned with: "
-               "%s", pDataServer->GetHostId().c_str(),
-               pFileUrl->GetPath().c_str(), message->GetDescription().c_str(),
-               status->ToStr().c_str() );
+    log->Dump( FileMsg, "[0x%x@%s] File state error encountered. Message %s "
+               "returned with %s", this, pFileUrl->GetURL().c_str(),
+               message->GetDescription().c_str(), status->ToStr().c_str() );
 
     //--------------------------------------------------------------------------
     // The message is not recoverable
     //--------------------------------------------------------------------------
     if( !IsRecoverable( *status ) )
     {
-      log->Dump( FileMsg, "[%s] Fatal file state error %s: Message %s returned "
-                 "with: %s, recovery not possible",
-                 pDataServer->GetHostId().c_str(),
-                 pFileUrl->GetPath().c_str(), message->GetDescription().c_str(),
-                 status->ToStr().c_str() );
+      log->Error( FileMsg, "[0x%x@%s] Fatal file state error. Message %s "
+                 "returned with %s", this, pFileUrl->GetURL().c_str(),
+                 message->GetDescription().c_str(), status->ToStr().c_str() );
 
       FailMessage( RequestData( message, userHandler, sendParams ), *status );
       delete status;
@@ -776,8 +818,9 @@ namespace XrdCl
     Log    *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
 
-    log->Dump( FileMsg, "[%s] Got state response for message: %s",
-               pDataServer->GetHostId().c_str(),
+
+    log->Dump( FileMsg, "[0x%x@%s] Got state response for message %s",
+               this, pFileUrl->GetURL().c_str(),
                message->GetDescription().c_str() );
 
     //--------------------------------------------------------------------------
@@ -891,6 +934,12 @@ namespace XrdCl
                                            bool        callbackOnFailure )
   {
     pFileState = Recovering;
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileMsg, "[0x%x@%s] Putting message %s in the recovery list",
+               this, pFileUrl->GetURL().c_str(),
+               rd.request->GetDescription().c_str() );
+
     XRootDTransport::UnMarshallRequest( rd.request );
     Status st = RunRecovery();
     if( st.IsOK() )
@@ -915,6 +964,10 @@ namespace XrdCl
     if( !pInTheFly.empty() )
       return Status();
 
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Running the recovery procedure", this,
+                pFileUrl->GetURL().c_str() );
+
     Status st;
     if( IsReadOnly() && pLoadBalancer )
       st = ReOpenFileAtServer( *pLoadBalancer, 300 );
@@ -936,8 +989,8 @@ namespace XrdCl
   Status FileStateHandler::ReOpenFileAtServer( const URL &url, uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Info( FileMsg, "[%s] Trying to re-open file: %s",
-               url.GetHostId().c_str(), pFileUrl->GetPath().c_str() );
+    log->Dump( FileMsg, "[0x%x@%s] Sending a recovery open command to %s",
+               this, pFileUrl->GetURL().c_str(), url.GetHostId().c_str() );
 
     //--------------------------------------------------------------------------
     // Remove the kXR_delete and kXR_new flags, we don't want the recovery
@@ -973,12 +1026,18 @@ namespace XrdCl
   //------------------------------------------------------------------------
   void FileStateHandler::FailMessage( RequestData rd, XRootDStatus status )
   {
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileMsg, "[0x%x@%s] Failing message %s with %s",
+               this, pFileUrl->GetURL().c_str(),
+               rd.request->GetDescription().c_str(),
+               status.ToStr().c_str() );
+
     StatefulHandler *sh = dynamic_cast<StatefulHandler*>(rd.handler);
     if( !sh )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( FileMsg, "Internal error has occured while "
-                  "recovering: %s",
+      log->Error( FileMsg, "[0x%x@%s] Internal error while recovering %s",
+                  this, pFileUrl->GetURL().c_str(),
                   rd.request->GetDescription().c_str() );
       return;
     }
@@ -1058,5 +1117,11 @@ namespace XrdCl
         break;
       }
     }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( FileMsg, "[0x%x@%s] Rewritten file handle for %s to 0x%x",
+               this, pFileUrl->GetURL().c_str(), msg->GetDescription().c_str(),
+               *((uint32_t*)pFileHandle) );
+    XRootDTransport::SetDescription( msg );
   }
 }
