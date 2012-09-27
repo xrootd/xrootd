@@ -76,6 +76,11 @@ namespace XrdCl
                                     uint64_t                  type,
                                     const std::string        &hostId,
                                     std::vector<sockaddr_in> &addresses );
+
+      //------------------------------------------------------------------------
+      //! Convert timestamp to a string
+      //------------------------------------------------------------------------
+      static std::string TimeToString( time_t timestamp );
   };
 
   //----------------------------------------------------------------------------

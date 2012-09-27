@@ -76,4 +76,17 @@ namespace XrdCl
     log->Debug( type, "[%s] Found %d address(es): %s",
                       hostId.c_str(), addresses.size(), addrStr.c_str() );
   }
+
+  //----------------------------------------------------------------------------
+  // Convert timestamp to a string
+  //----------------------------------------------------------------------------
+  std::string Utils::TimeToString( time_t timestamp )
+  {
+    char   now[30];
+    tm     tsNow;
+    time_t ttNow = timestamp;
+    localtime_r( &ttNow, &tsNow );
+    strftime( now, 30, "%Y-%m-%d %H:%M:%S %z", &tsNow );
+    return now;
+  }
 }
