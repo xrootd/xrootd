@@ -78,9 +78,8 @@ namespace XrdCl
     Status st = pSocket->Initialize();
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s] Unable to initialize socket: %s",
-                                 pStreamName.c_str(),
-                                 st.ToString().c_str() );
+      log->Error( AsyncSockMsg, "[%s] Unable to initialize socket: %s",
+                  pStreamName.c_str(), st.ToString().c_str() );
       st.status = stFatal;
       return st;
     }
@@ -94,7 +93,7 @@ namespace XrdCl
     st = pSocket->SetSockOpt( SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int) );
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s] Unable disable SIGPIPEs on socket: %s",
+      log->Error( AsyncSockMsg, "[%s] Unable disable SIGPIPEs on socket: %s",
                   pStreamName.c_str(),  st.ToString().c_str() );
       pSocket->Close();
       st.status = stFatal;
@@ -109,14 +108,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     char nameBuff[256];
     XrdSysDNS::IPFormat( (sockaddr*)&pSockAddr, nameBuff, sizeof(nameBuff) );
-    log->Debug( PostMasterMsg, "[%s] Attempting connection to %s",
-                               pStreamName.c_str(), nameBuff );
+    log->Debug( AsyncSockMsg, "[%s] Attempting connection to %s",
+                pStreamName.c_str(), nameBuff );
 
     st = pSocket->ConnectToAddress( pSockAddr, 0 );
     if( !st.IsOK() )
     {
-      log->Error( PostMasterMsg, "[%s] Unable to initiate the connection: %s",
-                                 pStreamName.c_str(), st.ToString().c_str() );
+      log->Error( AsyncSockMsg, "[%s] Unable to initiate the connection: %s",
+                  pStreamName.c_str(), st.ToString().c_str() );
       return st;
     }
 
