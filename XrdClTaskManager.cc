@@ -18,6 +18,7 @@
 
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 
@@ -74,7 +75,7 @@ namespace XrdCl
     if( ret != 0 )
     {
       log->Error( TaskMgrMsg, "Unable to spawn the task runner thread: %s",
-                              strerror( errno ) );
+                  strerror( errno ) );
       return false;
     }
     pRunning = true;
@@ -99,7 +100,7 @@ namespace XrdCl
     if( ::pthread_cancel( pRunnerThread ) != 0 )
     {
       log->Error( TaskMgrMsg, "Unable to cancel the task runner thread: %s",
-                              strerror( errno ) );
+                  strerror( errno ) );
       return false;
     }
 
@@ -108,7 +109,7 @@ namespace XrdCl
     if( ret != 0 )
     {
       log->Error( TaskMgrMsg, "Failed to join the task runner thread: %s",
-                               strerror( errno ) );
+                  strerror( errno ) );
       return false;
     }
 
@@ -123,8 +124,9 @@ namespace XrdCl
   void TaskManager::RegisterTask( Task *task, time_t time )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Debug( TaskMgrMsg, "Registering task: \"%s\" to be run at: %d",
-                            task->GetName().c_str(), time );
+
+    log->Debug( TaskMgrMsg, "Registering task: \"%s\" to be run at: [%s]",
+                task->GetName().c_str(), Utils::TimeToString(time).c_str() );
 
     XrdSysMutexHelper scopedLock( pMutex );
     pTasks.insert( TaskHelper( task, time ) );
@@ -137,7 +139,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( TaskMgrMsg, "Requesting unregistration of: \"%s\"",
-                            task->GetName().c_str() );
+                task->GetName().c_str() );
     XrdSysMutexHelper scopedLock( pMutex );
     pToBeUnregistered.push_back( task );
   }
@@ -214,8 +216,9 @@ namespace XrdCl
         time_t schedule = (*listIt)->Run( now );
         if( schedule )
         {
-          log->Dump( TaskMgrMsg, "Will rerun task \"%s\" at %d",
-                     (*listIt)->GetName().c_str(), schedule );
+          log->Dump( TaskMgrMsg, "Will rerun task \"%s\" at [%s]",
+                     (*listIt)->GetName().c_str(),
+                     Utils::TimeToString(schedule).c_str() );
           pMutex.Lock();
           pTasks.insert( TaskHelper( *listIt, schedule ) );
           pMutex.UnLock();
