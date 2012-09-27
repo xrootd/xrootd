@@ -372,7 +372,8 @@ namespace XrdCl
 
     while( leftToBeWritten )
     {
-      int status = ::write( sock, msg->GetBufferAtCursor(), leftToBeWritten );
+      int status = ::send( sock, msg->GetBufferAtCursor(), leftToBeWritten,
+                           MSG_NOSIGNAL );
       if( status <= 0 )
       {
         //----------------------------------------------------------------------
