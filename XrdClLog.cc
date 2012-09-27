@@ -19,6 +19,7 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <iomanip>
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -90,7 +91,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Print an error message
   //----------------------------------------------------------------------------
-  void Log::Say( LogLevel level, uint64_t, const char *format, va_list list )
+  void Log::Say( LogLevel    level,
+                 uint64_t    topic,
+                 const char *format,
+                 va_list     list )
   {
     //--------------------------------------------------------------------------
     // Build the user message
@@ -131,10 +135,31 @@ namespace XrdCl
     char *line = 0;
     std::ostringstream out;
     while( (line = tok.GetLine()) )
-      out << "[" << now << "][" << LogLevelToString( level ) << "] " << line << std::endl;
+    {
+      out << "[" << now << "][" << LogLevelToString( level ) << "]";
+      out << "[" << TopicToString( topic ) << "] " << line << std::endl;
+    }
 
     pOutput->Write( out.str() );
     delete [] buffer;
+  }
+
+  //----------------------------------------------------------------------------
+  // Map a topic number to a string
+  //----------------------------------------------------------------------------
+  void Log::SetTopicName( uint64_t topic, std::string name )
+  {
+    uint32_t len = name.length();
+    if( len > pTopicMaxLength )
+    {
+      pTopicMaxLength = len;
+      TopicMap::iterator it;
+      for( it = pTopicMap.begin(); it != pTopicMap.end(); ++it )
+        it->second.append( len-it->second.length(), ' ' );
+    }
+    else
+      name.append( pTopicMaxLength-len, ' ' );
+    pTopicMap[topic] = name;
   }
 
   //----------------------------------------------------------------------------
@@ -171,5 +196,19 @@ namespace XrdCl
     else if( strLevel == "Dump" )    level = DumpMsg;
     else return false;
     return true;
+  }
+
+  //----------------------------------------------------------------------------
+  // Convert a topic number to a string
+  //----------------------------------------------------------------------------
+  std::string Log::TopicToString( uint64_t topic )
+  {
+    TopicMap::iterator it = pTopicMap.find( topic );
+    if( it != pTopicMap.end() )
+      return it->second;
+    std::ostringstream o;
+    o << "0x" << std::setw(pTopicMaxLength-2) << std::setfill( '0' );
+    o << std::setbase(16) << topic;
+    return o.str();
   }
 }

@@ -283,6 +283,20 @@ namespace
 
       logMask = getenv( "XRD_LOGMASK_DUMP" );
       if( logMask ) log->SetMask( Log::DumpMsg, translator.translateMask( logMask ) );
+
+      //------------------------------------------------------------------------
+      // Set up the topic strings
+      //------------------------------------------------------------------------
+      log->SetTopicName( AppMsg,             "App" );
+      log->SetTopicName( UtilityMsg,         "Utility" );
+      log->SetTopicName( FileMsg,            "File" );
+      log->SetTopicName( PollerMsg,          "Poller" );
+      log->SetTopicName( PostMasterMsg,      "PostMaster" );
+      log->SetTopicName( XRootDTransportMsg, "XRootDTransport" );
+      log->SetTopicName( TaskMgrMsg,         "TaskManager" );
+      log->SetTopicName( XRootDMsg,          "XRootDHandler" );
+      log->SetTopicName( QueryMsg,           "Query" );
+      log->SetTopicName( AsyncSockMsg,       "AsyncSocket" );
     }
 
     //--------------------------------------------------------------------------

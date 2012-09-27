@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <string>
+#include <map>
 #include <stdint.h>
 
 #include "XrdCl/XrdClOptimizers.hh"
@@ -100,7 +101,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( InfoMsg )
+      Log(): pLevel( InfoMsg ), pTopicMaxLength( 18 )
       {
         pOutput = new LogOutCerr();
         int maxMask = (int)DumpMsg+1;
@@ -119,85 +120,85 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Report an error
       //------------------------------------------------------------------------
-      void Error( uint64_t type, const char *format, ... )
+      void Error( uint64_t topic, const char *format, ... )
       {
         if( unlikely( pLevel < ErrorMsg ) )
           return;
 
-        if( unlikely( (type & pMask[ErrorMsg]) == 0 ) )
+        if( unlikely( (topic & pMask[ErrorMsg]) == 0 ) )
           return;
 
         va_list argList;
         va_start( argList, format );
-        Say( ErrorMsg, type, format, argList );
+        Say( ErrorMsg, topic, format, argList );
         va_end( argList );
       }
 
       //------------------------------------------------------------------------
       //! Report a warning
       //------------------------------------------------------------------------
-      void Warning( uint64_t type, const char *format, ... )
+      void Warning( uint64_t topic, const char *format, ... )
       {
         if( unlikely( pLevel < WarningMsg ) )
           return;
 
-        if( unlikely( (type & pMask[WarningMsg]) == 0 ) )
+        if( unlikely( (topic & pMask[WarningMsg]) == 0 ) )
           return;
 
         va_list argList;
         va_start( argList, format );
-        Say( WarningMsg, type, format, argList );
+        Say( WarningMsg, topic, format, argList );
         va_end( argList );
       }
 
       //------------------------------------------------------------------------
       //! Print an info
       //------------------------------------------------------------------------
-      void Info( uint64_t type, const char *format, ... )
+      void Info( uint64_t topic, const char *format, ... )
       {
         if( likely( pLevel < InfoMsg ) )
           return;
 
-        if( unlikely( (type & pMask[InfoMsg]) == 0 ) )
+        if( unlikely( (topic & pMask[InfoMsg]) == 0 ) )
           return;
 
         va_list argList;
         va_start( argList, format );
-        Say( InfoMsg, type, format, argList );
+        Say( InfoMsg, topic, format, argList );
         va_end( argList );
       }
 
       //------------------------------------------------------------------------
       //! Print a debug message
       //------------------------------------------------------------------------
-      void Debug( uint64_t type, const char *format, ... )
+      void Debug( uint64_t topic, const char *format, ... )
       {
         if( likely( pLevel < DebugMsg ) )
           return;
 
-        if( unlikely( (type & pMask[DebugMsg]) == 0 ) )
+        if( unlikely( (topic & pMask[DebugMsg]) == 0 ) )
           return;
 
         va_list argList;
         va_start( argList, format );
-        Say( DebugMsg, type, format, argList );
+        Say( DebugMsg, topic, format, argList );
         va_end( argList );
       }
 
       //------------------------------------------------------------------------
       //! Print a dump message
       //------------------------------------------------------------------------
-      void Dump( uint64_t type, const char *format, ... )
+      void Dump( uint64_t topic, const char *format, ... )
       {
         if( likely( pLevel < DumpMsg ) )
           return;
 
-        if( unlikely( (type & pMask[DumpMsg]) == 0 ) )
+        if( unlikely( (topic & pMask[DumpMsg]) == 0 ) )
           return;
 
         va_list argList;
         va_start( argList, format );
-        Say( DumpMsg, type, format, argList );
+        Say( DumpMsg, topic, format, argList );
         va_end( argList );
       }
 
@@ -205,11 +206,11 @@ namespace XrdCl
       //! Always print the message
       //!
       //! @param level  log level
-      //! @param type   type of the message
+      //! @param type   topic of the message
       //! @param format format string - the same as in printf
       //! @param list   list of arguments
       //------------------------------------------------------------------------
-      void Say( LogLevel level, uint64_t type, const char *format, va_list list );
+      void Say( LogLevel level, uint64_t topic, const char *format, va_list list );
 
       //------------------------------------------------------------------------
       //! Set the level of the messages that should be sent to the destination
@@ -239,7 +240,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Sets the mask for the types of messages that should be printed
+      //! Sets the mask for the topics of messages that should be printed
       //------------------------------------------------------------------------
       void SetMask( LogLevel level, uint64_t mask )
       {
@@ -247,7 +248,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Sets the mask for the types of messages that should be printed
+      //! Sets the mask for the topics of messages that should be printed
       //------------------------------------------------------------------------
       void SetMask( const std::string &level, uint64_t mask )
       {
@@ -256,13 +257,22 @@ namespace XrdCl
           pMask[lvl] = mask;
       }
 
+      //------------------------------------------------------------------------
+      //! Map a topic number to a string
+      //------------------------------------------------------------------------
+      void SetTopicName( uint64_t topic, std::string name );
+
     private:
+      typedef std::map<uint64_t, std::string> TopicMap;
       std::string LogLevelToString( LogLevel level );
       bool StringToLogLevel( const std::string &strLevel, LogLevel &level );
+      std::string TopicToString( uint64_t topic );
 
       LogLevel    pLevel;
       uint64_t    pMask[DumpMsg+1];
       LogOut     *pOutput;
+      TopicMap    pTopicMap;
+      uint32_t    pTopicMaxLength;
   };
 }
 
