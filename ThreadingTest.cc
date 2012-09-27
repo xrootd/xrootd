@@ -196,7 +196,7 @@ void ThreadingTest::ReadTestFunc()
     uint32_t remoteCRC32 = 0;
     CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
                                            cksResponse->ToString() ) );
-    CPPUNIT_ASSERT( remoteCRC32 == checkSums[i] );
+    CPPUNIT_ASSERT_MESSAGE( path[i], remoteCRC32 == checkSums[i] );
   }
 
   //----------------------------------------------------------------------------
