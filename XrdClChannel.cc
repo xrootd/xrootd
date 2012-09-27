@@ -37,8 +37,16 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       FilterHandler( XrdCl::MessageFilter *filter ):
-        pSem( 0 ), pFilter( filter ), pMsg( 0 )
+        pSem( new XrdSysSemaphore(0) ), pFilter( filter ), pMsg( 0 )
       {
+      }
+
+      //------------------------------------------------------------------------
+      // Destructor
+      //------------------------------------------------------------------------
+      ~FilterHandler()
+      {
+        delete pSem;
       }
 
       //------------------------------------------------------------------------
@@ -49,7 +57,7 @@ namespace
         if( pFilter->Filter( msg ) )
         {
           pMsg = msg;
-          pSem.Post();
+          pSem->Post();
           return Take | RemoveHandler;
         }
         return Ignore;
@@ -65,7 +73,7 @@ namespace
         if( event == Ready )
           return 0;
         pStatus = status;
-        pSem.Post();
+        pSem->Post();
         return RemoveHandler;
       }
 
@@ -74,7 +82,7 @@ namespace
       //------------------------------------------------------------------------
       XrdCl::Status WaitForStatus()
       {
-        pSem.Wait();
+        pSem->Wait();
         return pStatus;
       }
 
@@ -87,7 +95,7 @@ namespace
       }
 
     private:
-      XrdSysSemaphore       pSem;
+      XrdSysSemaphore      *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::Status         pStatus;
@@ -102,7 +110,17 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatusHandler( XrdCl::Message *msg ): pSem( 0 ), pMsg( msg ) {}
+      StatusHandler( XrdCl::Message *msg ):
+        pSem( new XrdSysSemaphore(0) ),
+        pMsg( msg ) {}
+
+      //------------------------------------------------------------------------
+      // Destructor
+      //------------------------------------------------------------------------
+      ~StatusHandler()
+      {
+        delete pSem;
+      }
 
       //------------------------------------------------------------------------
       // Handle the status information
@@ -112,22 +130,22 @@ namespace
       {
         if( pMsg == message )
           pStatus = status;
-        pSem.Post();
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
       // Wait for the status to be ready
       //------------------------------------------------------------------------
-      XrdCl:: Status WaitForStatus()
+      XrdCl::Status WaitForStatus()
       {
-        pSem.Wait();
+        pSem->Wait();
         return pStatus;
       }
       
     private:
-      XrdSysSemaphore     pSem;
-      XrdCl::Status   pStatus;
-      XrdCl::Message *pMsg;
+      XrdSysSemaphore *pSem;
+      XrdCl::Status    pStatus;
+      XrdCl::Message  *pMsg;
   };
 
   class TickGeneratorTask: public XrdCl::Task

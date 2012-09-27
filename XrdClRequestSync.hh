@@ -36,13 +36,22 @@ namespace XrdCl
       //! @param reqQuota number of requests to be run in parallel
       //------------------------------------------------------------------------
       RequestSync( uint32_t reqTotal, uint32_t reqQuota ):
-        pQuotaSem( reqQuota ),
-        pTotalSem( 0 ),
+        pQuotaSem( new XrdSysSemaphore( reqQuota ) ),
+        pTotalSem( new XrdSysSemaphore( 0 ) ),
         pRequestsLeft( reqTotal ),
         pFailureCounter( 0 )
       {
         if( !reqTotal )
-          pTotalSem.Post();
+          pTotalSem->Post();
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      ~RequestSync()
+      {
+        delete pQuotaSem;
+        delete pTotalSem;
       }
 
       //------------------------------------------------------------------------
@@ -50,7 +59,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void WaitForQuota()
       {
-        pQuotaSem.Wait();
+        pQuotaSem->Wait();
       }
 
       //------------------------------------------------------------------------
@@ -58,7 +67,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void WaitForAll()
       {
-        pTotalSem.Wait();
+        pTotalSem->Wait();
       }
 
       //------------------------------------------------------------------------
@@ -70,9 +79,9 @@ namespace XrdCl
         if( !success )
           ++pFailureCounter;
         --pRequestsLeft;
-        pQuotaSem.Post();
+        pQuotaSem->Post();
         if( !pRequestsLeft )
-          pTotalSem.Post();
+          pTotalSem->Post();
       }
 
       //------------------------------------------------------------------------
@@ -84,11 +93,11 @@ namespace XrdCl
       }
 
     private:
-      XrdSysMutex     pMutex;
-      XrdSysSemaphore pQuotaSem;
-      XrdSysSemaphore pTotalSem;
-      uint32_t        pRequestsLeft;
-      uint32_t        pFailureCounter;
+      XrdSysMutex      pMutex;
+      XrdSysSemaphore *pQuotaSem;
+      XrdSysSemaphore *pTotalSem;
+      uint32_t         pRequestsLeft;
+      uint32_t         pFailureCounter;
   };
 }
 

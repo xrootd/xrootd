@@ -36,7 +36,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      SyncResponseHandler(): pStatus(0), pResponse(0), pSem(0) {}
+      SyncResponseHandler():
+        pStatus(0),
+        pResponse(0),
+        pSem( new XrdSysSemaphore(0) ) {}
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~SyncResponseHandler()
+      {
+        delete pSem;
+      }
+
 
       //------------------------------------------------------------------------
       //! Handle the response
@@ -46,7 +58,7 @@ namespace XrdCl
       {
         pStatus = status;
         pResponse = response;
-        pSem.Post();
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
@@ -70,13 +82,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void WaitForResponse()
       {
-        pSem.Wait();
+        pSem->Wait();
       }
 
     private:
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
-      XrdSysSemaphore  pSem;
+      XrdSysSemaphore *pSem;
   };
 
   class MessageUtils
