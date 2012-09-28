@@ -211,7 +211,7 @@ void PostMasterTest::FunctionalTest()
   // reception timeout
   //----------------------------------------------------------------------------
   CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Receive( host, m2, &f1, 2 ),
-                              errSocketTimeout );
+                              errOperationExpired );
 
   //----------------------------------------------------------------------------
   // Send out some stuff to a location where nothing listens
