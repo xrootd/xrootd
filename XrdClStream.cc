@@ -299,7 +299,7 @@ namespace XrdCl
       q.GrabExpired( *(*it)->outQueue, now );
     pMutex.UnLock();
 
-    q.Report( Status( stError, errSocketTimeout ) );
+    q.Report( Status( stError, errOperationExpired ) );
     if( pStreamNum == 0 )
       pIncomingQueue->ReportTimeout( now );
   }

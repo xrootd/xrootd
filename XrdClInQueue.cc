@@ -124,7 +124,7 @@ namespace XrdCl
       if( it->second <= now )
       {
         it->first->OnStreamEvent( IncomingMsgHandler::Timeout, 0,
-                                  Status( stError, errSocketTimeout ) );
+                                  Status( stError, errOperationExpired ) );
         it = pHandlers.erase( it );
       }
       else
