@@ -55,6 +55,7 @@ namespace
     { errLoginFailed,        "Login failed"         },
     { errAuthFailed,         "Auth failed"          },
     { errQueryNotSupported,  "Query not supported"  },
+    { errOperationExpired,   "Operation expired"    },
     { errNoMoreFreeSIDs,     "No more free SIDs"    },
     { errInvalidRedirectURL, "Invalid redirect URL" },
     { errInvalidResponse,    "Invalid response"     },

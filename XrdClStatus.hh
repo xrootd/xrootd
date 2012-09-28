@@ -82,6 +82,7 @@ namespace XrdCl
   const uint16_t errLoginFailed        = 203;
   const uint16_t errAuthFailed         = 204;
   const uint16_t errQueryNotSupported  = 205;
+  const uint16_t errOperationExpired   = 206;
 
   //----------------------------------------------------------------------------
   // XRootD related errors
