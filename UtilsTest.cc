@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include <cppunit/extensions/HelperMacros.h>
+#include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClAnyObject.hh"
 #include "XrdCl/XrdClTaskManager.hh"
@@ -359,13 +360,27 @@ void UtilsTest::SIDManagerTest()
   uint8_t sid1[2];
   uint8_t sid2[2];
   uint8_t sid3[2];
+  uint8_t sid4[2];
+  uint8_t sid5[2];
 
-  CPPUNIT_ASSERT( manager.AllocateSID( sid1 ).IsOK() );
-  CPPUNIT_ASSERT( manager.AllocateSID( sid2 ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( manager.AllocateSID( sid1 ) );
+  CPPUNIT_ASSERT_XRDST( manager.AllocateSID( sid2 ) );
   manager.ReleaseSID( sid2 );
-  CPPUNIT_ASSERT( manager.AllocateSID( sid3 ).IsOK() );
+  CPPUNIT_ASSERT_XRDST( manager.AllocateSID( sid3 ) );
+  CPPUNIT_ASSERT_XRDST( manager.AllocateSID( sid4 ) );
+  CPPUNIT_ASSERT_XRDST( manager.AllocateSID( sid5 ) );
 
   CPPUNIT_ASSERT( (sid1[0] != sid2[0]) || (sid1[1] != sid2[1]) );
-  CPPUNIT_ASSERT( sid2[0] == sid3[0] );
-  CPPUNIT_ASSERT( sid1[1] == sid3[1] );
+  CPPUNIT_ASSERT( manager.NumberOfTimedOutSIDs() == 0 );
+  manager.TimeOutSID( sid4 );
+  manager.TimeOutSID( sid5 );
+  CPPUNIT_ASSERT( manager.NumberOfTimedOutSIDs() == 2 );
+  CPPUNIT_ASSERT( manager.IsTimedOut( sid3 ) == false );
+  CPPUNIT_ASSERT( manager.IsTimedOut( sid1 ) == false );
+  CPPUNIT_ASSERT( manager.IsTimedOut( sid4 ) == true );
+  CPPUNIT_ASSERT( manager.IsTimedOut( sid5 ) == true );
+  manager.ReleaseTimedOut( sid5 );
+  CPPUNIT_ASSERT( manager.IsTimedOut( sid5 ) == false );
+  manager.ReleaseAllTimedOut();
+  CPPUNIT_ASSERT( manager.NumberOfTimedOutSIDs() == 0 );
 }
