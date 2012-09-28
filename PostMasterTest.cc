@@ -100,6 +100,7 @@ void *TestThreadFunc( void *arg )
   //----------------------------------------------------------------------------
   // Send the ping messages
   //----------------------------------------------------------------------------
+  time_t expires = time(0)+1200;
   Message m;
   m.Allocate( sizeof( ClientPingRequest ) );
   ClientPingRequest *request = (ClientPingRequest *)m.GetBuffer();
@@ -111,7 +112,7 @@ void *TestThreadFunc( void *arg )
   for( int i = 0; i < 100; ++i )
   {
     request->streamid[1] = i;
-    CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &m, false, 1200 ) );
+    CPPUNIT_ASSERT_XRDST( a->pm->Send( host, &m, false, expires ) );
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +122,7 @@ void *TestThreadFunc( void *arg )
   {
     Message *m;
     f.streamId[1] = i;
-    CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, 1200 ) );
+    CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, expires ) );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
@@ -182,6 +183,7 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   // Send a message and wait for the answer
   //----------------------------------------------------------------------------
+  time_t    expires = ::time(0)+1200;
   Message   m1, *m2 = 0;
   XrdFilter f1( 1, 2 );
   URL       host( address );
@@ -196,9 +198,9 @@ void PostMasterTest::FunctionalTest()
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, expires ) );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, expires ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
@@ -217,9 +219,11 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "ConnectionWindow", 5 );
   env->PutInt( "ConnectionRetry", 3 );
   URL localhost1( "root://localhost:10101" );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false, 3 ),
-                              errSocketTimeout );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false,
+                                               ::time(0)+3 ),
+                              errOperationExpired );
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( localhost1, &m1, false,
+                                               expires ),
                               errConnectionError );
 
   //----------------------------------------------------------------------------
@@ -361,6 +365,7 @@ void PostMasterTest::MultiIPConnectionTest()
   std::string address;
   CPPUNIT_ASSERT( testEnv->GetString( "MultiIPServerURL", address ) );
 
+  time_t expires = ::time(0)+1200;
   URL url1( "nenexistent" );
   URL url2( address );
   URL url3( address );
@@ -371,13 +376,13 @@ void PostMasterTest::MultiIPConnectionTest()
   // Sent ping to a nonexistent host
   //----------------------------------------------------------------------------
   Message *m = CreatePing( 1, 2 );
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, false, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url1, m, false, expires ),
                               errInvalidAddr );
 
   //----------------------------------------------------------------------------
   // Try on the wrong port
   //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, false, 1200 ),
+  CPPUNIT_ASSERT_XRDST_NOTOK( postMaster.Send( url2, m, false, expires ),
                               errConnectionError );
 
   //----------------------------------------------------------------------------
@@ -386,8 +391,8 @@ void PostMasterTest::MultiIPConnectionTest()
   Message   *m2 = 0;
   XrdFilter  f1( 1, 2 );
 
-  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, false, 1200 ) );
-  CPPUNIT_ASSERT_XRDST( postMaster.Receive( url3, m2, &f1, 1200 ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( url3, m, false, expires ) );
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( url3, m2, &f1, expires ) );
   ServerResponse *resp = (ServerResponse *)m2->GetBuffer();
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
