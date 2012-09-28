@@ -243,10 +243,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message synchronously
   //----------------------------------------------------------------------------
-  Status Channel::Send( Message *msg, bool stateful, int32_t timeout )
+  Status Channel::Send( Message *msg, bool stateful, time_t expires )
   {
     StatusHandler sh( msg );
-    Status sc = Send( msg, &sh, stateful, timeout );
+    Status sc = Send( msg, &sh, stateful, expires );
     if( !sc.IsOK() )
       return sc;
     sc = sh.WaitForStatus();
@@ -259,11 +259,11 @@ namespace XrdCl
   Status Channel::Send( Message              *msg,
                         OutgoingMsgHandler   *handler,
                         bool                  stateful,
-                        int32_t               timeout )
+                        time_t                expires )
 
   {
     PathID path = pTransport->Multiplex( msg, pChannelData );
-    return pStreams[path.up]->Send( msg, handler, stateful, timeout );
+    return pStreams[path.up]->Send( msg, handler, stateful, expires );
   }
 
   //----------------------------------------------------------------------------
@@ -271,10 +271,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status Channel::Receive( Message       *&msg,
                            MessageFilter  *filter,
-                           uint16_t        timeout )
+                           time_t          expires )
   {
     FilterHandler fh( filter );
-    Status sc = Receive( &fh, timeout );
+    Status sc = Receive( &fh, expires );
     if( !sc.IsOK() )
       return sc;
 
@@ -287,10 +287,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Listen to incomming messages
   //----------------------------------------------------------------------------
-  Status Channel::Receive( IncomingMsgHandler *handler, uint16_t timeout )
+  Status Channel::Receive( IncomingMsgHandler *handler, time_t expires )
   {
-    time_t tm = ::time(0) + timeout;
-    pIncoming.AddMessageHandler( handler, tm );
+    pIncoming.AddMessageHandler( handler, expires );
     return Status();
   }
 

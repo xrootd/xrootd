@@ -86,15 +86,15 @@ namespace XrdCl
       //! @param url     recipient of the message
       //! @param msg     message to be sent
       //! @param statful physical stream disconnection causes an error
-      //! @param timeout timout after which a failure should be reported if
-      //!                sending was unsuccessful
+      //! @param expires unix timestamp after which a failure should be
+      //!                reported if sending was unsuccessful
       //! @return        success if the message has been pushed through the wire,
       //!                failure otherwise
       //------------------------------------------------------------------------
       Status Send( const URL &url,
                    Message   *msg,
                    bool       stateful,
-                   uint16_t   timeout );
+                   time_t     expires );
 
       //------------------------------------------------------------------------
       //! Send the message asynchronously - the message is inserted into the
@@ -106,8 +106,8 @@ namespace XrdCl
       //!
       //! @param url           recipient of the message
       //! @param msg           message to be sent
-      //! @param timeout       timeout after which a failure is reported to the
-      //!                      handler
+      //! @param expires       unix timestamp after which a failure is reported
+      //!                      to the handler
       //! @param handler       handler will be notified about the status
       //! @param stateful      physical stream disconnection causes an error
       //! @return              success if the message was successfuly inserted
@@ -117,7 +117,7 @@ namespace XrdCl
                    Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   uint16_t              timeout );
+                   time_t                expires );
 
       //------------------------------------------------------------------------
       //! Synchronously receive a message - blocks until a message maching
@@ -127,14 +127,14 @@ namespace XrdCl
       //! @param msg     reference to a message pointer, the pointer will
       //!                point to the received message
       //! @param filter  filter object defining what to look for
-      //! @param timeout timeout
+      //! @param expires expiration timestamp
       //! @return        success when the message has been received
       //!                successfuly, failure otherwise
       //------------------------------------------------------------------------
       Status Receive( const URL      &url,
                       Message       *&msg,
                       MessageFilter *filter,
-                      uint16_t       timeout );
+                      time_t         expires );
 
       //------------------------------------------------------------------------
       //! Listen to incomming messages, the listener is notified when a new
@@ -142,12 +142,12 @@ namespace XrdCl
       //!
       //! @param url     sender of the message
       //! @param handler handler to be notified about new messages
-      //! @param timeout timout
+      //! @param expires expiration timestamp
       //! @return        success when the listener has been inserted correctly
       //------------------------------------------------------------------------
       Status Receive( const URL          &url,
                       IncomingMsgHandler *handler,
-                      uint16_t            timeout );
+                      time_t              expires );
 
       //------------------------------------------------------------------------
       //! Query the transport handler for a given URL

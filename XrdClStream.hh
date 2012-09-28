@@ -77,7 +77,7 @@ namespace XrdCl
       Status Send( Message              *msg,
                    OutgoingMsgHandler   *handler,
                    bool                  stateful,
-                   uint32_t              timeout );
+                   time_t                expires );
 
       //------------------------------------------------------------------------
       //! Set the transport

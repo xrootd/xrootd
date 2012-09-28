@@ -223,7 +223,7 @@ namespace XrdCl
   Status Stream::Send( Message              *msg,
                        OutgoingMsgHandler   *handler,
                        bool                  stateful,
-                       uint32_t              timeout )
+                       time_t                expires )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -260,7 +260,7 @@ namespace XrdCl
     {
       pTransport->MultiplexSubStream( msg, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
-                                                time(0)+timeout, stateful );
+                                                expires, stateful );
     }
     else
       st.status = stFatal;

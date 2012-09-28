@@ -137,12 +137,12 @@ namespace XrdCl
   Status PostMaster::Send( const URL &url,
                            Message   *msg,
                            bool       stateful,
-                           uint16_t   timeout )
+                           time_t     expires )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Send( msg, stateful, timeout );
+    return channel->Send( msg, stateful, expires );
   }
 
   //----------------------------------------------------------------------------
@@ -152,12 +152,12 @@ namespace XrdCl
                            Message              *msg,
                            OutgoingMsgHandler   *handler,
                            bool                  stateful,
-                           uint16_t              timeout )
+                           time_t                expires )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Send( msg, handler, stateful, timeout );
+    return channel->Send( msg, handler, stateful, expires );
   }
 
   //----------------------------------------------------------------------------
@@ -166,12 +166,12 @@ namespace XrdCl
   Status PostMaster::Receive( const URL      &url,
                               Message       *&msg,
                               MessageFilter  *filter,
-                              uint16_t        timeout )
+                              time_t          expires )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Receive( msg, filter, timeout );
+    return channel->Receive( msg, filter, expires );
   }
 
   //----------------------------------------------------------------------------
@@ -179,12 +179,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status PostMaster::Receive( const URL          &url,
                               IncomingMsgHandler *handler,
-                              uint16_t            timeout )
+                              time_t              expires )
   {
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
-    return channel->Receive( handler, timeout );
+    return channel->Receive( handler, expires );
   }
 
   //----------------------------------------------------------------------------
