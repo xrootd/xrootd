@@ -305,8 +305,6 @@ namespace XrdCl
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
                    pRequest->GetDescription().c_str() );
-
-        // FIXME: we have to think of taking into account the new timeout value
         return Take;
       }
 
@@ -378,7 +376,7 @@ namespace XrdCl
     {
       log->Dump( XRootDMsg, "[%s] Message %s has been successfully sent.",
                  pUrl.GetHostId().c_str(), message->GetDescription().c_str() );
-      Status st = pPostMaster->Receive( pUrl, this, 300 );
+      Status st = pPostMaster->Receive( pUrl, this, pExpiration );
       if( st.IsOK() )
         return;
     }
@@ -945,7 +943,7 @@ namespace XrdCl
   {
     pUrl = url;
     pHosts->push_back( pUrl );
-    return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration-time(0) );
+    return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
   }
 
   //----------------------------------------------------------------------------

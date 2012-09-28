@@ -106,7 +106,7 @@ namespace XrdCl
     // Send the messafe
     //--------------------------------------------------------------------------
     st = postMaster->Send( url, msg, msgHandler, sendParams.stateful,
-                           sendParams.timeout );
+                           sendParams.expires );
     if( !st.IsOK() )
     {
       log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
