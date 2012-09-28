@@ -95,23 +95,21 @@ void FileTest::RedirectReturnTest()
   req->options   = kXR_open_read | kXR_retstat;
   req->dlen      = path.length();
   msg->Append( path.c_str(), path.length(), 24 );
-
-  XRootDTransport::MarshallRequest( msg );
+  XRootDTransport::SetDescription( msg );
 
   SyncResponseHandler *handler = new SyncResponseHandler();
-
-  XRootDMsgHandler *msgHandler;
-  msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
-  msgHandler->SetRedirectAsAnswer( true );
-
-  st = postMaster->Send( url, msg, msgHandler, false, 300 );
+  MessageUtils::SendParams params; params.followRedirects = false;
+  MessageUtils::ProcessSendParams( params );
+  st = MessageUtils::SendMessage( url, msg, handler, params );
   URL *response = 0;
   CPPUNIT_ASSERT( st.IsOK() );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
+  delete handler;
   CPPUNIT_ASSERT( st1.IsOK() );
   CPPUNIT_ASSERT( st1.code == suXRDRedirect );
   CPPUNIT_ASSERT( response );
   delete response;
+  delete msg;
 }
 
 //------------------------------------------------------------------------------
