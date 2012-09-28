@@ -61,4 +61,53 @@ namespace XrdCl
     memcpy( &relSID, sid, 2 );
     pFreeSIDs.push_back( relSID );
   }
+
+  //----------------------------------------------------------------------------
+  // Register a SID of a request that timed out
+  //----------------------------------------------------------------------------
+  void SIDManager::TimeOutSID( uint8_t sid[2] )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint16_t tiSID = 0;
+    memcpy( &tiSID, sid, 2 );
+    pTimeOutSIDs.insert( tiSID );
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if a SID is timed out
+  //----------------------------------------------------------------------------
+  bool SIDManager::IsTimedOut( uint8_t sid[2] )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint16_t tiSID = 0;
+    memcpy( &tiSID, sid, 2 );
+    std::set<uint16_t>::iterator it = pTimeOutSIDs.find( tiSID );
+    if( it != pTimeOutSIDs.end() )
+      return true;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Release a timed out SID
+  //-----------------------------------------------------------------------------
+  void SIDManager::ReleaseTimedOut( uint8_t sid[2] )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint16_t tiSID = 0;
+    memcpy( &tiSID, sid, 2 );
+    pTimeOutSIDs.erase( tiSID );
+    pFreeSIDs.push_back( tiSID );
+  }
+
+  //------------------------------------------------------------------------
+  // Release all timed out SIDs
+  //------------------------------------------------------------------------
+  void SIDManager::ReleaseAllTimedOut()
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    std::set<uint16_t>::iterator it;
+    for( it = pTimeOutSIDs.begin(); it != pTimeOutSIDs.end(); ++it )
+      pFreeSIDs.push_back( *it );
+    pTimeOutSIDs.clear();
+  }
 }

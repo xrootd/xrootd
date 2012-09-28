@@ -20,6 +20,7 @@
 #define __XRD_CL_SID_MANAGER_HH__
 
 #include <list>
+#include <set>
 #include <stdint.h>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClStatus.hh"
@@ -51,10 +52,40 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ReleaseSID( uint8_t sid[2] );
 
+      //------------------------------------------------------------------------
+      //! Register a SID of a request that timed out
+      //------------------------------------------------------------------------
+      void TimeOutSID( uint8_t sid[2] );
+
+      //------------------------------------------------------------------------
+      //! Check if a SID is timed out
+      //------------------------------------------------------------------------
+      bool IsTimedOut( uint8_t sid[2] );
+
+      //------------------------------------------------------------------------
+      //! Release a timed out SID
+      //------------------------------------------------------------------------
+      void ReleaseTimedOut( uint8_t sid[2] );
+
+      //------------------------------------------------------------------------
+      //! Release all timed out SIDs
+      //------------------------------------------------------------------------
+      void ReleaseAllTimedOut();
+
+      //------------------------------------------------------------------------
+      //! Number of timeoud sids
+      //------------------------------------------------------------------------
+      uint32_t NumberOfTimedOutSIDs() const
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        return pTimeOutSIDs.size();
+      }
+
     private:
-      std::list<uint16_t> pFreeSIDs;
-      uint16_t            pSIDCeiling;
-      XrdSysMutex         pMutex;
+      std::list<uint16_t>  pFreeSIDs;
+      std::set<uint16_t>   pTimeOutSIDs;
+      uint16_t             pSIDCeiling;
+      mutable XrdSysMutex  pMutex;
   };
 }
 
