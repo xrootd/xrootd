@@ -42,12 +42,14 @@ namespace
       //------------------------------------------------------------------------
       DeepLocateHandler( XrdCl::ResponseHandler *handler,
                          const std::string          &path,
-                         uint16_t                    flags ):
+                         uint16_t                    flags,
+                         time_t                      expires ):
         pFirstTime( true ),
         pOutstanding( 1 ),
         pHandler( handler ),
         pPath( path ),
-        pFlags( flags )
+        pFlags( flags ),
+        pExpires(expires)
       {
         pLocations = new XrdCl::LocationInfo();
       }
@@ -135,8 +137,7 @@ namespace
           if( it->IsManager() )
           {
             FileSystem fs( it->GetAddress() );
-            //!! FIXME timeout
-            if( fs.Locate( pPath, pFlags, this, 300 ).IsOK() )
+            if( fs.Locate( pPath, pFlags, this, pExpires-::time(0)).IsOK() )
               ++pOutstanding;
           }
         }
@@ -181,12 +182,13 @@ namespace
       }
 
     private:
-      bool                        pFirstTime;
-      uint16_t                    pOutstanding;
+      bool                    pFirstTime;
+      uint16_t                pOutstanding;
       XrdCl::ResponseHandler *pHandler;
       XrdCl::LocationInfo    *pLocations;
-      std::string                 pPath;
-      uint16_t                    pFlags;
+      std::string             pPath;
+      uint16_t                pFlags;
+      time_t                  pExpires;
   };
 
   //----------------------------------------------------------------------------
@@ -314,7 +316,10 @@ namespace XrdCl
                                        ResponseHandler   *handler,
                                        uint16_t           timeout )
   {
-    return Locate( path, flags, new DeepLocateHandler( handler, path, flags ), timeout );
+    return Locate( path, flags,
+                   new DeepLocateHandler( handler, path, flags,
+                                          ::time(0)+timeout ),
+                   timeout );
   }
 
   //----------------------------------------------------------------------------
