@@ -346,6 +346,8 @@ namespace XrdCl
   void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
   {
     msg->SetSessionId( pSessionId );
+    if( pTransport->Highjack( msg, *pChannelData ) )
+      return;
     pIncomingQueue->AddMessage( msg );
   }
 

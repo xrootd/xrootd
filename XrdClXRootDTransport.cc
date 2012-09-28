@@ -775,6 +775,9 @@ namespace XrdCl
       XRootDStreamInfo &sInfo = info->stream[subStreamId];
       sInfo.status = XRootDStreamInfo::Disconnected;
     }
+
+    if( subStreamId == 0 )
+      info->sidManager->ReleaseAllTimedOut();
   }
 
   //------------------------------------------------------------------------
@@ -819,6 +822,40 @@ namespace XrdCl
         return Status();
     };
     return Status( stError, errQueryNotSupported );
+  }
+
+  //------------------------------------------------------------------------
+  // Check whether the transport can highjack the message
+  //------------------------------------------------------------------------
+  bool XRootDTransport::Highjack( Message *msg, AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Check whether this message is a response to a request that has
+    // timed out, and if so, drop it
+    //--------------------------------------------------------------------------
+    ServerResponse *rsp = (ServerResponse*)msg->GetBuffer();
+    if( rsp->hdr.status == kXR_attn )
+    {
+      if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
+        return false;
+      rsp = (ServerResponse*)msg->GetBuffer(16);
+    }
+
+    if( info->sidManager->IsTimedOut( rsp->hdr.streamid ) )
+    {
+      log->Error( XRootDTransportMsg, "Message 0x%x, stream [%d, %d] is a "
+                  "response that we're no longer interested in (timed out)",
+                  msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
+      info->sidManager->ReleaseTimedOut( rsp->hdr.streamid );
+      delete msg;
+      return true;
+    }
+    return false;
   }
 
   //----------------------------------------------------------------------------

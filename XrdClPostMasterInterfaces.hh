@@ -290,12 +290,6 @@ namespace XrdCl
       virtual uint16_t SubStreamNumber( AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
-      //! Return the information whether a control connection needs to be
-      //! valid before establishing other connections
-      //------------------------------------------------------------------------
-      virtual bool NeedControlConnection() = 0;
-
-      //------------------------------------------------------------------------
       //! The stream has been disconnected, do the cleanups
       //------------------------------------------------------------------------
       virtual void Disconnect( AnyObject &channelData,
@@ -308,6 +302,11 @@ namespace XrdCl
       virtual Status Query( uint16_t   query,
                             AnyObject &result,
                             AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Check whether the transport can highjack the message
+      //------------------------------------------------------------------------
+      virtual bool Highjack( Message *msg, AnyObject &channelData ) = 0;
 
   };
 }

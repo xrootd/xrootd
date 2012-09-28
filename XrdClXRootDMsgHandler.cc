@@ -419,7 +419,10 @@ namespace XrdCl
     // Release the stream id
     //--------------------------------------------------------------------------
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-    pSidMgr->ReleaseSID( req->header.streamid );
+    if( !status->IsOK() && status->code == errSocketTimeout )
+      pSidMgr->TimeOutSID( req->header.streamid );
+    else
+      pSidMgr->ReleaseSID( req->header.streamid );
 
     pResponseHandler->HandleResponse( status, response, pHosts );
 

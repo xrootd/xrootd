@@ -177,6 +177,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static void SetDescription( Message *msg );
 
+      //------------------------------------------------------------------------
+      //! Check whether the transport can highjack the message
+      //------------------------------------------------------------------------
+      virtual bool Highjack( Message *msg, AnyObject &channelData );
+
     private:
 
       //------------------------------------------------------------------------
