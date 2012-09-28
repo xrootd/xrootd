@@ -231,23 +231,23 @@ namespace XrdCl
         }
 
         //----------------------------------------------------------------------
-        // Check if we need to return the URL as a response
-        //----------------------------------------------------------------------
-        if( pRedirectAsAnswer )
-        {
-          pStatus = Status( stOK, suXRDRedirect );
-          pResponse = msgPtr.release();
-          HandleResponse();
-          return Take | RemoveHandler;
-        }
-
-        //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
         Status st = RewriteRequestRedirect( cgiURL.GetParams() );
         if( !st.IsOK() )
         {
           pStatus = st;
+          HandleResponse();
+          return Take | RemoveHandler;
+        }
+
+        //----------------------------------------------------------------------
+        // Check if we need to return the URL as a response
+        //----------------------------------------------------------------------
+        if( pRedirectAsAnswer )
+        {
+          pStatus = Status( stOK, suXRDRedirect );
+          pResponse = msgPtr.release();
           HandleResponse();
           return Take | RemoveHandler;
         }

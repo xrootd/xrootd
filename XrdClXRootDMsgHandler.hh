@@ -73,7 +73,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
-        if( !pStateful )
+        if( !pStateful && !pRedirectAsAnswer )
           delete pRequest;
         delete pResponse;
         std::vector<Message *>::iterator it;
