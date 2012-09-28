@@ -894,7 +894,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
-    if( status.code == errSocketTimeout )
+    if( status.code == errOperationExpired )
       return false;
 
     if( status.code == errErrorResponse )

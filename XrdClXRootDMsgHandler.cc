@@ -417,7 +417,7 @@ namespace XrdCl
     // Release the stream id
     //--------------------------------------------------------------------------
     ClientRequest *req = (ClientRequest *)pRequest->GetBuffer();
-    if( !status->IsOK() && status->code == errSocketTimeout )
+    if( !status->IsOK() && status->code == errOperationExpired )
       pSidMgr->TimeOutSID( req->header.streamid );
     else
       pSidMgr->ReleaseSID( req->header.streamid );
@@ -900,7 +900,7 @@ namespace XrdCl
     // 2) has a non-zero session id
     // 3) if another error occured and the validity of the message expired
     //--------------------------------------------------------------------------
-    if( status.code == errSocketTimeout || pRequest->GetSessionId() ||
+    if( status.code == errOperationExpired || pRequest->GetSessionId() ||
         time(0) >= pExpiration )
     {
       log->Error( XRootDMsg, "[%s] Unable to get the response to request %s",
