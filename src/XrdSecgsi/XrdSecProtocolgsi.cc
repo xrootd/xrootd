@@ -43,20 +43,20 @@
 
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPriv.hh"
-#include <XrdOuc/XrdOucStream.hh>
+#include "XrdOuc/XrdOucStream.hh"
 
-#include <XrdSut/XrdSutCache.hh>
+#include "XrdSut/XrdSutCache.hh"
 
-#include <XrdCrypto/XrdCryptoMsgDigest.hh>
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
+#include "XrdCrypto/XrdCryptoMsgDigest.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
 
-#include <XrdSecgsi/XrdSecProtocolgsi.hh>
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
+#include "XrdSecgsi/XrdSecProtocolgsi.hh"
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
 
 
 /******************************************************************************/
@@ -183,6 +183,10 @@ XrdSutCache XrdSecProtocolgsi::cachePxy;  // Client proxies
 XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
+//
+// GMAP control vars
+int XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
+XrdSysMutex XrdSecProtocolgsi::mutexGMAP;  // Mutex to control GMAP reloads
 //
 // Running options / settings
 int  XrdSecProtocolgsi::Debug       = 0; // [CS] Debug level
@@ -4750,9 +4754,6 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
    // Returns 0 if successful, -1 if somethign went wrong
    EPNAME("LoadGMAP");
 
-   // Time of last check
-   static int lastCheck = -1;
-
    // We need a file to load
    if (GMAPFile.length() <= 0)
       return 0;
@@ -4764,11 +4765,14 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
       return -1;
    }
 
+   // This must be atomic
+   XrdSysMutexHelper guard(&mutexGMAP);
+
    // Check against current time
-   if (lastCheck > st.st_mtime)
+   if (lastGMAPCheck > st.st_mtime)
       // Nothing to do
       return 0;
-
+   
    // Init or reset the cache
    if (cacheGMAP.Empty()) {
       if (cacheGMAP.Init(100) != 0) {
@@ -4832,7 +4836,7 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
    cacheGMAP.Rehash(1);
 
    // Save the time
-   lastCheck = now;
+   lastGMAPCheck = now;
 
    // We are done
    return 0;

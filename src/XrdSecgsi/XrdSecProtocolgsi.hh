@@ -26,25 +26,25 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdSys/XrdSysPthread.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
 
-#include <XrdSut/XrdSutPFEntry.hh>
-#include <XrdSut/XrdSutPFile.hh>
-#include <XrdSut/XrdSutBuffer.hh>
-#include <XrdSut/XrdSutRndm.hh>
+#include "XrdSut/XrdSutPFEntry.hh"
+#include "XrdSut/XrdSutPFile.hh"
+#include "XrdSut/XrdSutBuffer.hh"
+#include "XrdSut/XrdSutRndm.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoCipher.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoCipher.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
+#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -363,6 +363,10 @@ private:
    static XrdSutCache      cacheGMAP; // Cache for gridmap entries
    static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
    static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   //
+   // GMAP control vars
+   static int              lastGMAPCheck; // time of last check on GMAP
+   static XrdSysMutex      mutexGMAP;     // mutex to control GMAP reloads
    //
    // Running options / settings
    static int              Debug;          // [CS] Debug level
