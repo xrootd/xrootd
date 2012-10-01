@@ -100,10 +100,20 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       CloseHandler( XrdCl::FileStateHandler *stateHandler,
-                    XrdCl::ResponseHandler  *userHandler ):
+                    XrdCl::ResponseHandler  *userHandler,
+                    XrdCl::Message          *message ):
         pStateHandler( stateHandler ),
-        pUserHandler( userHandler )
+        pUserHandler( userHandler ),
+        pMessage( message )
       {
+      }
+
+      //------------------------------------------------------------------------
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~CloseHandler()
+      {
+        delete pMessage;
       }
 
       //------------------------------------------------------------------------
@@ -129,6 +139,7 @@ namespace
     private:
       XrdCl::FileStateHandler *pStateHandler;
       XrdCl::ResponseHandler  *pUserHandler;
+      XrdCl::Message          *pMessage;
   };
 
   //----------------------------------------------------------------------------
@@ -392,8 +403,8 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     msg->SetSessionId( pSessionId );
-    CloseHandler *closeHandler = new CloseHandler( this, handler );
-    MessageUtils::SendParams params; params.timeout = timeout;
+    CloseHandler *closeHandler = new CloseHandler( this, handler, msg );
+    MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
@@ -1094,6 +1105,7 @@ namespace XrdCl
     ResponseHandler *userHandler = sh->GetUserHandler();
     userHandler->HandleResponse( new XRootDStatus( status ), 0,
                                  rd.params.hostList );
+    delete rd.request;
     delete sh;
   }
 
