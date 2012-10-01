@@ -572,7 +572,7 @@ void XrdXrootdAioReq::endRead()
 // we could not send the data to the client.
 //
    if (!numActive) 
-      {myFile->readCnt += aioTotal;
+      {myFile->Stats.rdOps(aioTotal);
        Recycle(1, aiop);
       }
       else {aiop->Next = aioFree, aioFree = aiop;
@@ -603,7 +603,7 @@ void XrdXrootdAioReq::endWrite()
 // Add in the bytes written. This is approzimate because it is done without
 // obtaining any kind of lock. Fortunately, it only statistical in nature.
 //
-   myFile->writeCnt += aioTotal;
+   myFile->Stats.wrOps(aioTotal);
 
 // We are done, simply recycle ouselves.
 //

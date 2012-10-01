@@ -38,6 +38,8 @@
 #include <malloc.h>
 #endif
 
+#include "XrdVersion.hh"
+
 #include "XrdNet/XrdNet.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -48,12 +50,13 @@
 
 #include "Xrd/XrdScheduler.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 
 /******************************************************************************/
 /*                     S t a t i c   A l l o c a t i o n                      */
 /******************************************************************************/
-  
+
 XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdSysError       *XrdXrootdMonitor::eDest      = 0;
 char              *XrdXrootdMonitor::idRec      = 0;
@@ -98,6 +101,8 @@ char               XrdXrootdMonitor::monREDR    = 0;
 char               XrdXrootdMonitor::monUSER    = 0;
 char               XrdXrootdMonitor::monAUTH    = 0;
 char               XrdXrootdMonitor::monACTIVE  = 0;
+char               XrdXrootdMonitor::monFSTAT   = 0;
+char               XrdXrootdMonitor::monCLOCK   = 0;
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -365,35 +370,6 @@ void XrdXrootdMonitor::Close(kXR_unt32 dictid, long long rTot, long long wTot)
 }
 
 /******************************************************************************/
-/*                                  D i s c                                   */
-/******************************************************************************/
-
-void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec, char Flags)
-{
-  XrdXrootdMonitorLock mLock(this);
-
-// Check if this should not be included in the io trace
-//
-   if (this != altMon && monUSER == 1 && altMon)
-      {altMon->Disc(dictid, csec); return;}
-
-// Fill out the monitor record (let compiler cast the data correctly)
-//
-   if (lastWindow != currWindow) Mark();
-      else if (nextEnt == lastEnt) Flush();
-   monBuff->info[nextEnt].arg0.rTot[0]  = 0;
-   monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_DISC;
-   monBuff->info[nextEnt].arg0.id[1]    = Flags;
-   monBuff->info[nextEnt].arg1.wTot     = htonl(csec);
-   monBuff->info[nextEnt++].arg2.dictid = dictid;
-
-// Check if we need to duplicate this entry
-//
-   if (altMon && this != altMon && monUSER == 3)
-      altMon->Dup(&monBuff->info[nextEnt-1]);
-}
-
-/******************************************************************************/
 /*                              D e f a u l t s                               */
 /******************************************************************************/
 
@@ -430,6 +406,11 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
    monREDR   = (mmode & XROOTD_MON_REDR ? 1 : 0);
    monUSER   = (mmode & XROOTD_MON_USER ? 1 : 0);
    monAUTH   = (mmode & XROOTD_MON_AUTH ? 1 : 0);
+   monFSTAT  = (mmode & XROOTD_MON_FSTA && monFSTAT ? 1 : 0);
+
+// Compute whether or not we need the clock running
+//
+   if (monREDR || (isEnabled > 0 && (monIO || monFILE))) monCLOCK = 1;
 
 // Check where user information should go
 //
@@ -453,7 +434,8 @@ void XrdXrootdMonitor::Defaults(char *dest1, int mode1, char *dest2, int mode2)
 /******************************************************************************/
 
 void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
-                                int flush, int flash, int idt, int rnm)
+                                int flush, int flash, int idt, int rnm,
+                                int fsint, int fsopt, int fsion)
 {
 
 // Set default window size and flush time
@@ -465,6 +447,11 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    rdrNum     = (rnm   <= 0 || rnm > rdrMax ? 3 : rnm);
    rdrWin     = (sizeWindow > 16777215 ? 16777215 : sizeWindow);
    rdrWin     = htonl(rdrWin);
+
+// Set the fstat defaults
+//
+   XrdXrootdMonFile::Defaults(fsint, fsopt, fsion);
+   monFSTAT = fsint != 0;
 
 // Set default monitor buffer size
 //
@@ -482,6 +469,35 @@ void XrdXrootdMonitor::Defaults(int msz,   int rsz,   int wsz,
    lastRnt = (rsz-(sizeof(XrdXrootdMonHeader) + 16))/sizeof(XrdXrootdMonRedir);
    monRlen =  (lastRnt*sizeof(XrdXrootdMonRedir))+sizeof(XrdXrootdMonHeader)+16;
    lastRnt--;
+}
+
+/******************************************************************************/
+/*                                  D i s c                                   */
+/******************************************************************************/
+
+void XrdXrootdMonitor::Disc(kXR_unt32 dictid, int csec, char Flags)
+{
+  XrdXrootdMonitorLock mLock(this);
+
+// Check if this should not be included in the io trace
+//
+   if (this != altMon && monUSER == 1 && altMon)
+      {altMon->Disc(dictid, csec); return;}
+
+// Fill out the monitor record (let compiler cast the data correctly)
+//
+   if (lastWindow != currWindow) Mark();
+      else if (nextEnt == lastEnt) Flush();
+   monBuff->info[nextEnt].arg0.rTot[0]  = 0;
+   monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_DISC;
+   monBuff->info[nextEnt].arg0.id[1]    = Flags;
+   monBuff->info[nextEnt].arg1.wTot     = htonl(csec);
+   monBuff->info[nextEnt++].arg2.dictid = dictid;
+
+// Check if we need to duplicate this entry
+//
+   if (altMon && this != altMon && monUSER == 3)
+      altMon->Dup(&monBuff->info[nextEnt-1]);
 }
   
 /******************************************************************************/
@@ -528,7 +544,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
    XrdXrootdMonMap *mP;
    XrdNet     myNetwork(errp, 0);
    XrdNetPeer monDest;
-   char      *etext, iBuff[1024], *sName, *cP;
+   char      *etext, iBuff[1024], iPuff[1024], *sName, *cP;
    int        i, Now = time(0);
 
 // Set static variables
@@ -539,8 +555,9 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 
 // Generate our server ID
 //
+   sprintf(iPuff, "%s&ver=%s", iProg, XrdVERSION);
    sName = XrdOucUtils::Ident(mySID, iBuff, sizeof(iBuff),
-                              iHost, iProg, iName, Port);
+                              iHost, iPuff, iName, Port);
    cP = (char *)&mySID; *cP = 0; *(cP+1) = 0;
    sidSize = strlen(sName);
    if (sidSize >= (int)sizeof(sidName)) sName[sizeof(sidName)-1] = 0;
@@ -583,7 +600,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 
 // Turn on the monitoring clock if we need it running all the time
 //
-   if (isEnabled > 0 || monREDR) startClock();
+   if (monCLOCK) startClock();
 
 // Create identification record
 //
@@ -598,6 +615,11 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 // Now schedule the first identification record
 //
    if (Sched && monIdent) Sched->Schedule((XrdJob *)&MonIdent);
+
+// If we are monitoring file stats then start that up
+//
+   if (!Sched || !monFSTAT) monFSTAT = 0;
+      else if (!XrdXrootdMonFile::Init(Sched, eDest)) return 0;
 
 // If we are not monitoring redirections, we are done!
 //
@@ -627,17 +649,14 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 }
 
 /******************************************************************************/
-/*                                   M a p                                    */
+/* Private:                    G e t D i c t I D                              */
 /******************************************************************************/
   
-kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
-                                const char *path)
+kXR_unt32 XrdXrootdMonitor::GetDictID()
 {
-     static XrdSysMutex  seqMutex;
-     static unsigned int monSeqID = 1;
-     XrdXrootdMonMap     map;
-     int                 size, montype;
-     unsigned int        mySeqID;
+   static XrdSysMutex  seqMutex;
+   static unsigned int monSeqID = 1;
+   unsigned int        mySeqID;
 
 // Assign a unique ID for this entry
 //
@@ -645,9 +664,24 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
    mySeqID = monSeqID++;
    seqMutex.UnLock();
 
+// Return the ID
+//
+   return htonl(mySeqID);
+}
+
+/******************************************************************************/
+/* Private:                          M a p                                    */
+/******************************************************************************/
+  
+kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
+                                const char *path)
+{
+   XrdXrootdMonMap     map;
+   int                 size, montype;
+
 // Copy in the username and path
 //
-   map.dictid = htonl(mySeqID);
+   map.dictid = GetDictID();
    strcpy(map.info, uInfo.Name);
    size = uInfo.Len;
    if (path)
@@ -672,7 +706,6 @@ kXR_unt32 XrdXrootdMonitor::Map(char  code, XrdXrootdMonitor::User &uInfo,
 //
    return map.dictid;
 }
-  
   
 /******************************************************************************/
 /*                                  O p e n                                   */

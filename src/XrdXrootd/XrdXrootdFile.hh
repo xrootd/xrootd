@@ -32,9 +32,10 @@
 #include <string.h>
 
 #include "XProtocol/XPtypes.hh"
+#include "XrdXrootd/XrdXrootdFileStats.hh"
 
 /******************************************************************************/
-/*                              x r d _ F i l e                               */
+/*                         X r d X r o o t d F i l e                          */
 /******************************************************************************/
 
 class XrdSfsFile;
@@ -47,22 +48,20 @@ public:
 
 XrdSfsFile  *XrdSfsp;           // -> Actual file object
 char        *mmAddr;            // Memory mapped location, if any
-long long    fSize;             // File size at time of object creation
-int          fdNum;             // File descriptor number if regular file
-kXR_unt32    FileID;            // Unique file id used for monitoring
 char         FileKey[34];       // -> Unique hash name for the file
 char         Reserved[2];
 char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode
 char         isMMapped;         // 1 -> file is memory mapped
 char         sfEnabled;         // 1 -> file is sendfile enabled
-char        *ID;                // File user
-long long    readCnt;
-long long    writeCnt;
+int          fdNum;             // File descriptor number if regular file
+const char  *ID;                // File user
+
+XrdXrootdFileStats Stats;       // File access statistics
 
 static void Init(XrdXrootdFileLock *lp, int sfok) {Locker = lp; sfOK = sfok;}
 
-           XrdXrootdFile(char *id, XrdSfsFile *fp, char mode='r', 
+           XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode='r',
                          char async='\0', int sfOK=0, struct stat *sP=0);
           ~XrdXrootdFile();
 
@@ -74,7 +73,7 @@ static const char        *TraceID;
 };
  
 /******************************************************************************/
-/*                      x r o o t d _ F i l e T a b l e                       */
+/*                    X r d X r o o t d F i l e T a b l e                     */
 /******************************************************************************/
 
 // The before define the structure of the file table. We will have FTABSIZE
@@ -105,14 +104,15 @@ inline XrdXrootdFile *Get(int fnum)
                           return (XrdXrootdFile *)0;
                          }
 
-       void            Recycle(XrdXrootdMonitor *monP=0, int doDel=1);
+       void           Recycle(XrdXrootdMonitor *monP=0, bool monF=false);
 
        XrdXrootdFileTable() {memset((void *)FTab, 0, sizeof(FTab));
                              FTfree = 0; XTab = 0; XTnum = XTfree = 0;
                             }
-      ~XrdXrootdFileTable() {Recycle(0, 0);}
 
 private:
+
+      ~XrdXrootdFileTable() {} // Always use Recycle() to delete this object!
 
 static const char *TraceID;
 

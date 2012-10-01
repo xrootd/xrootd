@@ -395,7 +395,8 @@ int XrdXrootdAdmin::do_Lsd()
              mlen[2] = sprintf(iobuff, fmt2a,inuse-1,pp->numFiles,pp->totReadP,
                                (pp->cumReadP + pp->numReadP),
                                inBytes, (pp->cumWrites+ pp->numWrites),
-                               outBytes,(pp->cumReads + pp->numReads),
+                               outBytes,(pp->cumReads + pp->numReads +
+                                         pp->cumReadV + pp->numReadV),
                                stalls, tardies);
              i = 3;
              if ((pp->Client) && pp->Client != &(pp->Entity))

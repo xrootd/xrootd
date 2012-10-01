@@ -53,6 +53,8 @@ putfCnt  = 0;     // Stats: Number of putfiles
 openCnt  = 0;     // Stats: Number of opens
 readCnt  = 0;     // Stats: Number of reads
 prerCnt  = 0;     // Stats: Number of reads
+rvecCnt  = 0;     // Stats: Number of readv
+rsegCnt  = 0;     // Stats: Number of readv segments
 writeCnt = 0;     // Stats: Number of writes
 syncCnt  = 0;     // Stats: Number of sync
 miscCnt  = 0;     // Stats: Number of miscellaneous
@@ -74,22 +76,35 @@ AuthBad  = 0;     // Stats: Number of authentication failures
 int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
 {
    static const char statfmt[] = "<stats id=\"xrootd\"><num>%d</num>"
-   "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr><wr>%lld</wr>"
+   "<ops><open>%d</open><rf>%d</rf><rd>%lld</rd><pr>%lld</pr>"
+   "<rv>%lld</rv><rs>%lld</rs><wr>%lld</wr>"
    "<sync>%d</sync><getf>%d</getf><putf>%d</putf><misc>%d</misc></ops>"
    "<aio><num>%lld</num><max>%d</max><rej>%lld</rej></aio>"
    "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
    "<lgn><num>%d</num><af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
+//                                   1 2 3 4 5 6 7 8
+   static const long long LLMax = 0x7fffffffffffffff;
+   static const int       INMax = 0x7fffffff;
    int len;
 
 // If no buffer, caller wants the maximum size we will generate
 //
-   if (!buff) return sizeof(statfmt) + (16*13) + (fsP ? fsP->getStats(0,0) : 0);
+   if (!buff)
+      {char dummy[4096]; // Almost any size will do
+       len = snprintf(dummy, sizeof(dummy), statfmt, INMax, INMax, INMax, LLMax,
+                      LLMax, LLMax, LLMax, LLMax, INMax, INMax,
+                      INMax, INMax,
+                      LLMax, INMax, LLMax, INMax, LLMax, INMax,
+                      INMax, INMax, INMax, INMax);
+       return len + (fsP ? fsP->getStats(0,0) : 0);
+      }
 
 // Format our statistics
 //
    statsMutex.Lock();
    len = snprintf(buff, blen, statfmt, Count, openCnt, Refresh, readCnt,
-                  prerCnt, writeCnt, syncCnt, getfCnt, putfCnt, miscCnt,
+                  prerCnt, rvecCnt, rsegCnt, writeCnt, syncCnt, getfCnt,
+                  putfCnt, miscCnt,
                   AsyncNum, AsyncMax, AsyncRej, errorCnt, redirCnt, stallCnt,
                   LoginAT, AuthBad, LoginAU, LoginUA);
    statsMutex.UnLock();

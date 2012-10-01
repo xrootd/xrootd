@@ -39,6 +39,7 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #define  TRACELINK this
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -64,8 +65,8 @@ extern XrdOucTrace      *XrdXrootdTrace;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async,
-                             int sfok, struct stat *sP)
+XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
+                             char async, int sfok, struct stat *sP)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
@@ -77,9 +78,8 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async,
     FileMode = mode;
     AsyncMode= async;
     ID       = id;
-    FileID   = 0;
-    readCnt  = 0;
-    writeCnt = 0;
+
+    Stats.Init();
 
 // Get the file descriptor number (none if not a regular file)
 //
@@ -91,14 +91,14 @@ XrdXrootdFile::XrdXrootdFile(char *id, XrdSfsFile *fp, char mode, char async,
 //
    if (fp->getMmap((void **)&mmAddr, mmSize) != SFS_OK) isMMapped = 0;
       else {isMMapped = (mmSize ? 1 : 0);
-            fSize = static_cast<long long>(mmSize);
+            Stats.fSize = static_cast<long long>(mmSize);
            }
 
 // Get file status information (we need it) and optionally return it to caller
 //
    if (!sP) sP = &buf;
    fp->stat(sP);
-   if (!isMMapped) fSize = static_cast<long long>(sP->st_size);
+   if (!isMMapped) Stats.fSize = static_cast<long long>(sP->st_size);
 
 // Develop a unique hash for this file. The key will not be longer than 33 bytes
 // including the null character.
@@ -220,7 +220,7 @@ void XrdXrootdFileTable::Del(int fnum)
 // be no active requests on link associated with this object at the time the
 // destructor is called. The same restrictions apply to Add() and Del().
 //
-void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, int doDel)
+void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, bool monF)
 {
    int i;
 
@@ -229,8 +229,10 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, int doDel)
    FTfree = 0;
    for (i = 0; i < XRD_FTABSIZE; i++)
        if (FTab[i])
-          {if (monP) monP->Close(FTab[i]->FileID,FTab[i]->readCnt,
-                                                 FTab[i]->writeCnt);
+          {if (monP) monP->Close(FTab[i]->Stats.FileID,
+                                 FTab[i]->Stats.xfr.read+FTab[i]->Stats.xfr.readv,
+                                 FTab[i]->Stats.xfr.write);
+           if (monF) XrdXrootdMonFile::Close(&(FTab[i]->Stats), true);
            delete FTab[i]; FTab[i] = 0;
           }
 
@@ -239,16 +241,18 @@ void XrdXrootdFileTable::Recycle(XrdXrootdMonitor *monP, int doDel)
 if (XTab)
   {for (i = 0; i < XTnum; i++)
        if (XTab[i])
-          {if (monP) monP->Close(XTab[i]->FileID,XTab[i]->readCnt,
-                                                 XTab[i]->writeCnt);
+          {if (monP) monP->Close(XTab[i]->Stats.FileID,
+                                 XTab[i]->Stats.xfr.read+XTab[i]->Stats.xfr.readv,
+                                 XTab[i]->Stats.xfr.write);
+           if (monF) XrdXrootdMonFile::Close(&(XTab[i]->Stats), true);
            delete XTab[i];
           }
        free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
 
-// Delete this object if not called from destructor
+// Delete this object
 //
-   if (doDel) delete this;
+   delete this;
 }
   
 /******************************************************************************/

@@ -45,6 +45,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdJob.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdPrepare.hh"
@@ -437,7 +438,13 @@ int XrdXrootdProtocol::do_Close()
 // If we are monitoring, insert a close entry
 //
    if (Monitor.Files())
-      Monitor.Agent->Close(fp->FileID, fp->readCnt, fp->writeCnt);
+      Monitor.Agent->Close(fp->Stats.FileID,
+                           fp->Stats.xfr.read + fp->Stats.xfr.readv,
+                           fp->Stats.xfr.write);
+
+// If fstream monitoring enabled, log it out there
+//
+   if (Monitor.Fstat()) XrdXrootdMonFile::Close(&(fp->Stats));
 
 // Do an explicit close of the file here; reflecting any errors
 //
@@ -1140,12 +1147,19 @@ int XrdXrootdProtocol::do_Open()
        resplen = sizeof(myResp) + retStat;
       }
 
-// If we are monitoring, send off a path to dictionary mapping
+// If we are monitoring, send off a path to dictionary mapping (must try 1st!)
 //
    if (Monitor.Files())
-      {xp->FileID = Monitor.MapPath(fn);
-       Monitor.Agent->Open(xp->FileID, statbuf.st_size);
+      {xp->Stats.FileID = Monitor.MapPath(fn);
+       if (!(xp->Stats.monLvl)) xp->Stats.monLvl = XrdXrootdFileStats::monOn;
+       Monitor.Agent->Open(xp->Stats.FileID, statbuf.st_size);
       }
+
+// Since file monitoring is deprecated, a dictid may not have been assigned.
+// But if fstream monitoring is enabled it will assign the dictid.
+//
+   if (Monitor.Fstat())
+      XrdXrootdMonFile::Open(&(xp->Stats), fn, Monitor.Did, usage == 'w');
 
 // Insert the file handle
 //
@@ -1626,8 +1640,9 @@ int XrdXrootdProtocol::do_Read()
 
 // If we are monitoring, insert a read entry
 //
-   if (Monitor.InOut()) Monitor.Agent->Add_rd(myFile->FileID, Request.read.rlen,
-                                              Request.read.offset);
+   if (Monitor.InOut())
+      Monitor.Agent->Add_rd(myFile->Stats.FileID, Request.read.rlen,
+                                                  Request.read.offset);
 
 // See if an alternate path is required, offload the read
 //
@@ -1655,21 +1670,21 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // transfer the requested data to minimize latency.
 //
    if (myFile->isMMapped)
-      {if (myOffset >= myFile->fSize) return Response.Send();
-       if (myOffset+myIOLen <= myFile->fSize)
-          {myFile->readCnt += myIOLen;
+      {if (myOffset >= myFile->Stats.fSize) return Response.Send();
+       if (myOffset+myIOLen <= myFile->Stats.fSize)
+          {myFile->Stats.rdOps(myIOLen);
            return Response.Send(myFile->mmAddr+myOffset, myIOLen);
           }
-       xframt = myFile->fSize -myOffset;
-       myFile->readCnt += xframt;
+       xframt = myFile->Stats.fSize -myOffset;
+       myFile->Stats.rdOps(xframt);
        return Response.Send(myFile->mmAddr+myOffset, xframt);
       }
 
 // If we are sendfile enabled, then just send the file if possible
 //
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
-   &&  myOffset+myIOLen <= myFile->fSize)
-      {myFile->readCnt += myIOLen;
+   &&  myOffset+myIOLen <= myFile->Stats.fSize)
+      {myFile->Stats.rdOps(myIOLen);
        return Response.Send(myFile->fdNum, myOffset, myIOLen);
       }
 
@@ -1688,10 +1703,11 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
       else if (hcNow < hcNext) hcNow++;
    buff = argp->buff;
 
-// Now read all of the data
+// Now read all of the data. For statistics, we need to record the orignal
+// amount of the request even if we really do not get to read that much!
 //
+   myFile->Stats.rdOps(myIOLen);
    do {if ((xframt = myFile->XrdSfsp->read(myOffset, buff, Quantum)) <= 0) break;
-       myFile->readCnt += xframt;
        if (xframt >= myIOLen) return Response.Send(buff, xframt);
        if (Response.Send(kXR_oksofar, buff, xframt) < 0) return -1;
        myOffset += xframt; myIOLen -= xframt;
@@ -1768,7 +1784,7 @@ int XrdXrootdProtocol::do_ReadV()
    struct readahead_list rdVec[maxRvecsz];
    long long totLen;
    int rdVecNum, rdVecLen = Request.header.dlen;
-   int i, k, rc, xframt, Quantum, Qleft, rdvamt;
+   int i, k, rc, xframt, Quantum, Qleft, rdvamt, segcnt;
    int rvMon = Monitor.InOut();
    int ioMon = (rvMon > 1);
    char *buffp;
@@ -1791,6 +1807,7 @@ int XrdXrootdProtocol::do_ReadV()
        return 0;
       }
    memcpy(rdVec, argp->buff, rdVecLen);
+   numReadV++; numSegsV += rdVecNum;
 
 // Run down the list and compute the total size of the read. No individual
 // read may be greater than the maximum transfer size.
@@ -1827,20 +1844,20 @@ int XrdXrootdProtocol::do_ReadV()
 // Run down the pre-read list. Each read element is prefixed by the verctor
 // element. We also break the reads into Quantum sized units. We do the
 //
-   Qleft = Quantum; buffp = argp->buff; k = 0; rdvamt = 0; rvSeq++;
+   Qleft = Quantum; buffp = argp->buff; k = 0; rdvamt = 0; segcnt = 0; rvSeq++;
    for (i = 0; i < rdVecNum; i++)
         // Every request could come from a different file
         //
        {currFH.Set(rdVec[i].fhandle);
         if (currFH.handle != lastFH.handle)
            {if (i && rvMon)
-               {Monitor.Agent->Add_rv(myFile->FileID, htonl(rdvamt),
-                                                      htons(i-k), rvSeq);
-                 myFile->readCnt += rdvamt; rdvamt = 0;
+               {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
+                                                            htons(i-k), rvSeq);
                 if (ioMon) for (; k < i; k++)
-                    Monitor.Agent->Add_rd(myFile->FileID, rdVec[k].rlen,
-                                                          rdVec[k].offset);
+                    Monitor.Agent->Add_rd(myFile->Stats.FileID,rdVec[k].rlen,
+                                                               rdVec[k].offset);
                }
+            if (i) {myFile->Stats.rvOps(rdvamt, segcnt); segcnt = rdvamt = 0;}
             if (!(myFile = FTab->Get(currFH.handle)))
                return Response.Send(kXR_FileNotOpen,
                                "readv does not refer to an open file");
@@ -1861,7 +1878,7 @@ int XrdXrootdProtocol::do_ReadV()
         TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
         if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
            break;
-        rdvamt += xframt; numReads++;
+        rdvamt += xframt; numReads++; segcnt++;
         rdVec[i].rlen = htonl(xframt);
         memcpy(buffp, &rdVec[i], hdrSZ);
         buffp += (xframt+hdrSZ); Qleft -= (xframt+hdrSZ);
@@ -1871,12 +1888,14 @@ int XrdXrootdProtocol::do_ReadV()
 //
    if (i >= rdVecNum)
       {if (i && rvMon)
-          {Monitor.Agent->Add_rv(myFile->FileID,htonl(rdvamt),htons(i-k),rvSeq);
-           myFile->readCnt += rdvamt;
+          {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
+                                                       htons(i-k), rvSeq);
            if (ioMon) for (; k < i; k++)
-              Monitor.Agent->Add_rd(myFile->FileID,rdVec[k].rlen,rdVec[k].offset);
+              Monitor.Agent->Add_rd(myFile->Stats.FileID, rdVec[k].rlen,
+                                                          rdVec[k].offset);
           }
-        return Response.Send(argp->buff, Quantum-Qleft);
+       myFile->Stats.rvOps(rdvamt, segcnt);
+       return Response.Send(argp->buff, Quantum-Qleft);
       }
    return fsError(xframt, 0, myFile->XrdSfsp->error, 0);
 }
@@ -2256,7 +2275,8 @@ int XrdXrootdProtocol::do_Write()
 // If we are monitoring, insert a write entry
 //
    if (Monitor.InOut())
-      Monitor.Agent->Add_wr(myFile->FileID,Request.write.dlen,Request.write.offset);
+      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.write.dlen,
+                                                  Request.write.offset);
 
 // If zero length write, simply return
 //
@@ -2284,7 +2304,7 @@ int XrdXrootdProtocol::do_Write()
 
 // Just to the i/o now
 //
-   myFile->writeCnt += myIOLen; // Optimistically correct
+   myFile->Stats.wrOps(myIOLen); // Optimistically correct
    return do_WriteAll();
 }
   

@@ -13,9 +13,12 @@ add_executable(
   XrdXrootd/XrdXrootdFile.cc            XrdXrootd/XrdXrootdFile.hh
                                         XrdXrootd/XrdXrootdFileLock.hh
   XrdXrootd/XrdXrootdFileLock1.cc       XrdXrootd/XrdXrootdFileLock1.hh
+                                        XrdXrootd/XrdXrootdFileStats.hh
   XrdXrootd/XrdXrootdJob.cc             XrdXrootd/XrdXrootdJob.hh
   XrdXrootd/XrdXrootdLoadLib.cc
                                         XrdXrootd/XrdXrootdMonData.hh
+  XrdXrootd/XrdXrootdMonFile.cc         XrdXrootd/XrdXrootdMonFile.hh
+  XrdXrootd/XrdXrootdMonFMap.cc         XrdXrootd/XrdXrootdMonFMap.hh
   XrdXrootd/XrdXrootdMonitor.cc         XrdXrootd/XrdXrootdMonitor.hh
 
   XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh

@@ -777,24 +777,33 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 /* Function: xmon
 
    Purpose:  Parse directive: monitor [all] [auth]  [flush [io] <sec>]
+                                      [fstat <sec> [lfn] [ops] [sdv] [xfr <n>]
                                       [ident <sec>] [mbuff <sz>] [rbuff <sz>]
                                       [rnums <cnt>] [window <sec>]
                                       dest [Events] <host:port>
 
-   Events: [files] [info] [io] [iov] [redir] [user]
+   Events: [files] [fstat] [info] [io] [iov] [redir] [user]
 
          all                enables monitoring for all connections.
          auth               add authentication information to "user".
          flush  [io] <sec>  time (seconds, M, H) between auto flushes. When
                             io is given applies only to i/o events.
+         fstat  <sec>       produces an "f" stream for open & close events
+                            <sec> specifies the flush interval (also see xfr)
+                            lfn    - adds lfn to the open event
+                            ops    - adds the ops record when the file is closed
+                            sdv    - computes the sigma for the ops record
+                            xfr <n>- inserts i/o stats for open files every
+                                     <sec>*<n>. Minimum is 1.
          ident  <sec>       time (seconds, M, H) between identification records.
          mbuff  <sz>        size of message buffer for event trace monitoring.
          rbuff  <sz>        size of message buffer for redirection monitoring.
-         rnums  <cnt.       bumber of redirections monitoring streams.
+         rnums  <cnt>       bumber of redirections monitoring streams.
          window <sec>       time (seconds, M, H) between timing marks.
          dest               specified routing information. Up to two dests
                             may be specified.
          files              only monitors file open/close events.
+         fstats             vectors the "f" stream to the destination
          info               monitors client appid and info requests.
          io                 monitors I/O requests, and files open/close events.
          iov                like I/O but also unwinds vector reads.
@@ -813,11 +822,12 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
     long long tempval;
     int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0;
     int    monIdent = 3600, xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
-    int    monRnums = 0;
+    int    monRnums = 0, monFSint = 0, monFSopt = 0, monFSion = 0;
+    int    haveWord = 0;
 
-    while((val = Config.GetWord()))
-
-         {     if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
+    while(haveWord || (val = Config.GetWord()))
+         {haveWord = 0;
+               if (!strcmp("all",  val)) xmode = XROOTD_MON_ALL;
           else if (!strcmp("auth",  val))
                   monMode[0] = monMode[1] = XROOTD_MON_AUTH;
           else if (!strcmp("flush", val))
@@ -831,6 +841,28 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                  if (XrdOuca2x::a2tm(eDest,"monitor flush",val,
                                            flushDest,1)) return 1;
                 }
+          else if (!strcmp("fstat",val))
+                  {if (!(val = Config.GetWord()))
+                      {eDest.Emsg("Config", "monitor fstat value not specified");
+                       return 1;
+                      }
+                   if (XrdOuca2x::a2tm(eDest,"monitor fstat",val,
+                                             &monFSint,0)) return 1;
+                   while((val = Config.GetWord()))
+                        if (!strcmp("lfn", val)) monFSopt |=  XROOTD_MON_FSLFN;
+                   else if (!strcmp("ops", val)) monFSopt |=  XROOTD_MON_FSOPS;
+                   else if (!strcmp("sdv", val)) monFSopt |=  XROOTD_MON_FSSDV;
+                   else if (!strcmp("xfr", val))
+                           {if (!(val = Config.GetWord()))
+                               {eDest.Emsg("Config", "monitor fstat xfr count not specified");
+                                return 1;
+                               }
+                            if (XrdOuca2x::a2i(eDest,"monitor fstat io count",
+                                               val, &monFSion,1)) return 1;
+                            monFSopt |=  XROOTD_MON_FSXFR;
+                           }
+                   else {haveWord = 1; break;}
+                  }
           else if (!strcmp("mbuff",val) || !strcmp("rbuff",val))
                   {mrType = (*val == 'r');
                    if (!(val = Config.GetWord()))
@@ -873,6 +905,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
         {if (strcmp("dest", val)) break;
          while((val = Config.GetWord()))
                    if (!strcmp("files",val)) monMode[i] |=  XROOTD_MON_FILE;
+              else if (!strcmp("fstat",val)) monMode[i] |=  XROOTD_MON_FSTA;
               else if (!strcmp("info", val)) monMode[i] |=  XROOTD_MON_INFO;
               else if (!strcmp("io",   val)) monMode[i] |=  XROOTD_MON_IO;
               else if (!strcmp("iov",  val)) monMode[i] |= (XROOTD_MON_IO
@@ -913,10 +946,13 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 // Set the monitor defaults
 //
    XrdXrootdMonitor::Defaults(monMBval, monRBval, monWWval,
-                              monFlush, monFlash, monIdent, monRnums);
+                              monFlush, monFlash, monIdent, monRnums,
+                              monFSint, monFSopt, monFSion);
+
    if (monDest[0]) monMode[0] |= (monMode[0] ? xmode : XROOTD_MON_FILE|xmode);
    if (monDest[1]) monMode[1] |= (monMode[1] ? xmode : XROOTD_MON_FILE|xmode);
    XrdXrootdMonitor::Defaults(monDest[0],monMode[0],monDest[1],monMode[1]);
+
    return 0;
 }
   

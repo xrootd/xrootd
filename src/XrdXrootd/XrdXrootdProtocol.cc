@@ -570,6 +570,10 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
        cumReads += numReads; numReads  = 0;
        SI->prerCnt += numReadP;
        cumReadP += numReadP; numReadP = 0;
+       SI->rvecCnt += numReadV;
+       cumReadV += numReadV; numReadV = 0;
+       SI->rsegCnt += numSegsV;
+       cumSegsV += numSegsV; numSegsV = 0;
        SI->writeCnt += numWrites;
        cumWrites+= numWrites;numWrites = 0;
        SI->statsMutex.UnLock();
@@ -625,7 +629,10 @@ void XrdXrootdProtocol::Cleanup()
 
 // Delete the FTab if we have it
 //
-   if (FTab) {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0); FTab = 0;}
+   if (FTab)
+      {FTab->Recycle(Monitor.Files() ? Monitor.Agent : 0, Monitor.Fstat());
+       FTab = 0;
+      }
 
 // Handle parallel stream cleanup. The session stream cannot be closed if
 // there is any queued activity on subordinate streams. A subordinate
@@ -704,10 +711,13 @@ void XrdXrootdProtocol::Reset()
    myAioReq           = 0;
    numReads           = 0;
    numReadP           = 0;
+   numReadV           = 0;
+   numSegsV           = 0;
    numWrites          = 0;
    numFiles           = 0;
    cumReads           = 0;
-   cumReadP           = 0;
+   cumReadV           = 0;
+   cumSegsV           = 0;
    cumWrites          = 0;
    totReadP           = 0;
    hcPrev             =13;
