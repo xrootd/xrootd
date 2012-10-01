@@ -33,10 +33,10 @@
 /* ************************************************************************** */
 #include <string.h>
 
-#include <XrdSut/XrdSutRndm.hh>
-#include <XrdCrypto/XrdCryptolocalCipher.hh>
-#include <XrdCrypto/PC1.hh>
-#include <XrdCrypto/PC3.hh>
+#include "XrdSut/XrdSutRndm.hh"
+#include "XrdCrypto/XrdCryptolocalCipher.hh"
+#include "XrdCrypto/PC1.hh"
+#include "XrdCrypto/PC3.hh"
 
 // ---------------------------------------------------------------------------//
 //

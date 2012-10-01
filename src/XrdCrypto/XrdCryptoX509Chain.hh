@@ -34,9 +34,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdCrypto/XrdCryptoX509.hh>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdCrypto/XrdCryptoX509.hh"
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
 // ---------------------------------------------------------------------------//
 //                                                                            //

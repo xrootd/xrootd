@@ -29,7 +29,7 @@
 /******************************************************************************/
 
 #ifndef __SUT_STRING_H__
-#include <XrdSut/XrdSutAux.hh>
+#include "XrdSut/XrdSutAux.hh"
 #endif
 
 class XrdOucString;

@@ -35,8 +35,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutCache.hh>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdSut/XrdSutCache.hh"
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
 // ---------------------------------------------------------------------------//
 //

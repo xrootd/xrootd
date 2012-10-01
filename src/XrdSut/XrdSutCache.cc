@@ -33,10 +33,10 @@
 #include <unistd.h>
 #include <time.h>
 
-#include <XrdSut/XrdSutCache.hh>
-#include <XrdSut/XrdSutPFile.hh>
-#include <XrdSut/XrdSutTrace.hh>
-#include <XrdSut/XrdSutAux.hh>
+#include "XrdSut/XrdSutCache.hh"
+#include "XrdSut/XrdSutPFile.hh"
+#include "XrdSut/XrdSutTrace.hh"
+#include "XrdSut/XrdSutAux.hh"
 
 /******************************************************************************/
 /*                                                                            */

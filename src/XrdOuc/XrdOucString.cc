@@ -30,7 +30,7 @@
 #include <string.h>
 #include <climits>
 
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdOuc/XrdOucString.hh"
 
 /******************************************************************************/
 /*                                                                            */

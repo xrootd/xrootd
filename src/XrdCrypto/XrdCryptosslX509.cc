@@ -36,10 +36,10 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <XrdCrypto/XrdCryptosslRSA.hh>
-#include <XrdCrypto/XrdCryptosslX509.hh>
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
+#include "XrdCrypto/XrdCryptosslRSA.hh"
+#include "XrdCrypto/XrdCryptosslX509.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
 
 #include <openssl/pem.h>
 

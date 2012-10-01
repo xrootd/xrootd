@@ -32,19 +32,19 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptosslFactory.hh>
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslCipher.hh>
-#include <XrdCrypto/XrdCryptosslMsgDigest.hh>
-#include <XrdCrypto/XrdCryptosslRSA.hh>
-#include <XrdCrypto/XrdCryptosslX509.hh>
-#include <XrdCrypto/XrdCryptosslX509Crl.hh>
-#include <XrdCrypto/XrdCryptosslX509Req.hh>
+#include "XrdCrypto/XrdCryptosslFactory.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslCipher.hh"
+#include "XrdCrypto/XrdCryptosslMsgDigest.hh"
+#include "XrdCrypto/XrdCryptosslRSA.hh"
+#include "XrdCrypto/XrdCryptosslX509.hh"
+#include "XrdCrypto/XrdCryptosslX509Crl.hh"
+#include "XrdCrypto/XrdCryptosslX509Req.hh"
 
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSut/XrdSutRndm.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSut/XrdSutRndm.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
 
 #include <openssl/rand.h>
 #include <openssl/ssl.h>

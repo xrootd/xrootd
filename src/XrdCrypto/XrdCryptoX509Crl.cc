@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 #include <time.h>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
 //_____________________________________________________________________________
 void XrdCryptoX509Crl::Dump()

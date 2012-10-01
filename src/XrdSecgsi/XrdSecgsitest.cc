@@ -37,23 +37,23 @@
 #include <sys/types.h>
 #include <pwd.h>
 
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
 
-#include <XrdSut/XrdSutAux.hh>
+#include "XrdSut/XrdSutAux.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
-#include <XrdCrypto/XrdCryptoX509.hh>
-#include <XrdCrypto/XrdCryptoX509Req.hh>
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptoX509.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
+#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
 
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
 
 #include <openssl/x509v3.h>
 #include <openssl/x509.h>

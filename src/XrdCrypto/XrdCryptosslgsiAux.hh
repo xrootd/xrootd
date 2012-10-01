@@ -33,10 +33,10 @@
 /* GSI utility functions                                                      */
 /*                                                                            */
 /* ************************************************************************** */
-#include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
-#include <XrdCrypto/XrdCryptoX509Req.hh>
-#include <XrdCrypto/XrdCryptoRSA.hh>
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
+#include "XrdCrypto/XrdCryptoRSA.hh"
+#include "XrdOuc/XrdOucString.hh"
 
 // The OID of the extension
 #define gsiProxyCertInfo_OID "1.3.6.1.4.1.3536.1.222"

@@ -36,8 +36,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdCrypto/XrdCryptoBasic.hh>
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdCrypto/XrdCryptoBasic.hh"
 
 // ---------------------------------------------------------------------------//
 //

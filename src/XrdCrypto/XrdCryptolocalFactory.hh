@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoFactory.hh>
+#include "XrdCrypto/XrdCryptoFactory.hh"
 
 // The ID must be a unique number
 #define XrdCryptolocalFactoryID  0

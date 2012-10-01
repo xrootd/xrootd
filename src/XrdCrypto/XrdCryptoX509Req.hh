@@ -36,8 +36,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdCrypto/XrdCryptoRSA.hh>
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdCrypto/XrdCryptoRSA.hh"
 
 typedef void * XrdCryptoX509Reqdata;
 

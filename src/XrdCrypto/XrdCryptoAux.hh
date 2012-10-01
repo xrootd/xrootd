@@ -33,7 +33,7 @@
 #ifndef WIN32
 #include "XrdSys/XrdSysHeaders.hh"
 #endif
-#include <XProtocol/XProtocol.hh>
+#include "XProtocol/XProtocol.hh"
 
 /******************************************************************************/
 /*                 M i s c e l l a n e o u s   D e f i n e s                  */

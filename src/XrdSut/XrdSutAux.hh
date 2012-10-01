@@ -32,7 +32,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #endif
 #ifndef __XPROTOCOL_H
-#include <XProtocol/XProtocol.hh>
+#include "XProtocol/XProtocol.hh"
 #endif
 
 class XrdCryptoFactory;
@@ -217,7 +217,7 @@ int XrdSutMkdir(const char *dir, unsigned int mode = 0777,
 /*        'm'     for minutes                                                 */
 /*        's'     for seconds                                                 */
 /*  (e.g. "34d:10h:20s")                                                      */
-/*  If opt == 1, assume a string in the form "<hh>[:<ss>[:<mm>]]"             */
+/*  If opt == 1, assume a string in the form ".hh"[:<ss>[:<mm>]]"             */
 /*  (e.g. "12:24:35" for 12 hours, 24 minutes and 35 secs)                    */
 /*  Return the corresponding number of seconds                                */
 /******************************************************************************/

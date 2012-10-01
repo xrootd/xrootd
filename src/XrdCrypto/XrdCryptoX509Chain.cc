@@ -28,8 +28,8 @@
 #include <time.h>
 #include <string.h>
 
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 // ---------------------------------------------------------------------------//
 //                                                                            //

@@ -36,7 +36,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoAux.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
 
 #define MAXFACTORYNAMELEN  10
 // ---------------------------------------------------------------------------//

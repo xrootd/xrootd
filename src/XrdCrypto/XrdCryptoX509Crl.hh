@@ -36,7 +36,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoX509.hh>
+#include "XrdCrypto/XrdCryptoX509.hh"
 
 typedef void * XrdCryptoX509Crldata;
 

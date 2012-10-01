@@ -26,11 +26,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 //
 // For error logging and tracing

@@ -28,7 +28,7 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <XrdOuc/XrdOucTrace.hh>
+#include "XrdOuc/XrdOucTrace.hh"
 
 #ifndef NODEBUG
 

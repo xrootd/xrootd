@@ -36,7 +36,7 @@
 
 #include <openssl/evp.h>
 
-#include <XrdCrypto/XrdCryptoMsgDigest.hh>
+#include "XrdCrypto/XrdCryptoMsgDigest.hh"
 
 // ---------------------------------------------------------------------------//
 //

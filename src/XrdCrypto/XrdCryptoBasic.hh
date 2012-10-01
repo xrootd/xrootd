@@ -36,8 +36,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XProtocol/XProtocol.hh>
-#include <XrdSut/XrdSutBucket.hh>
+#include "XProtocol/XProtocol.hh"
+#include "XrdSut/XrdSutBucket.hh"
 
 // ---------------------------------------------------------------------------//
 //

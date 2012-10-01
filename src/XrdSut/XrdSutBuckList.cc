@@ -27,7 +27,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <XrdSut/XrdSutBuckList.hh>
+#include "XrdSut/XrdSutBuckList.hh"
 
 /******************************************************************************/
 /*                                                                            */

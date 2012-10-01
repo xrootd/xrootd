@@ -63,17 +63,17 @@ void      ka_StringToKey(char *str, char *cell,
 #include "XrdVersion.hh"
 
 #include "XrdSys/XrdSysHeaders.hh"
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSys/XrdSysPwd.hh>
-#include <XrdOuc/XrdOucStream.hh>
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPwd.hh"
+#include "XrdOuc/XrdOucStream.hh"
 
-#include <XrdSys/XrdSysPriv.hh>
+#include "XrdSys/XrdSysPriv.hh"
 
-#include <XrdSut/XrdSutCache.hh>
+#include "XrdSut/XrdSutCache.hh"
 
-#include <XrdSecpwd/XrdSecProtocolpwd.hh>
-#include <XrdSecpwd/XrdSecpwdPlatform.hh>
+#include "XrdSecpwd/XrdSecProtocolpwd.hh"
+#include "XrdSecpwd/XrdSecpwdPlatform.hh"
 
 /******************************************************************************/
 /*                           S t a t i c   D a t a                            */

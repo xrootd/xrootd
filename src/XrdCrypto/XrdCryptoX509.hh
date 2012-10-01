@@ -36,9 +36,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XProtocol/XPtypes.hh>
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdCrypto/XrdCryptoRSA.hh>
+#include "XProtocol/XPtypes.hh"
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdCrypto/XrdCryptoRSA.hh"
 
 typedef void * XrdCryptoX509data;
 

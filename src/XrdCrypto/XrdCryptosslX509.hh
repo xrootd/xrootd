@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoX509.hh>
+#include "XrdCrypto/XrdCryptoX509.hh"
 
 #include <openssl/x509v3.h>
 #include <openssl/bio.h>

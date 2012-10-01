@@ -37,11 +37,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslRSA.hh>
-#include <XrdCrypto/XrdCryptosslX509.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslRSA.hh"
+#include "XrdCrypto/XrdCryptosslX509.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
 #include <openssl/pem.h>
 
 // Error code from verification set by verify callback function

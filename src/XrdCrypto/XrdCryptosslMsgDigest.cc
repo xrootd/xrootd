@@ -32,9 +32,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
-#include <XrdCrypto/XrdCryptosslMsgDigest.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
+#include "XrdCrypto/XrdCryptosslMsgDigest.hh"
 
 //_____________________________________________________________________________
 XrdCryptosslMsgDigest::XrdCryptosslMsgDigest(const char *dgst) : 

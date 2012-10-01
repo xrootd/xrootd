@@ -29,9 +29,9 @@
 #include <string.h>
 #include <time.h>
 
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
-#include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 // ---------------------------------------------------------------------------//
 //                                                                            //

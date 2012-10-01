@@ -43,13 +43,13 @@
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
 
-#include <XrdSut/XrdSutRndm.hh>
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslRSA.hh>
-#include <XrdCrypto/XrdCryptosslX509.hh>
-#include <XrdCrypto/XrdCryptosslX509Req.hh>
+#include "XrdSut/XrdSutRndm.hh"
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslRSA.hh"
+#include "XrdCrypto/XrdCryptosslX509.hh"
+#include "XrdCrypto/XrdCryptosslX509Req.hh"
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 //                                                                           //

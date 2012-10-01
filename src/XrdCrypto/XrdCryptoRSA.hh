@@ -36,9 +36,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdCrypto/XrdCryptoAux.hh>
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdCrypto/XrdCryptoAux.hh"
 
 typedef void * XrdCryptoRSAdata;
 

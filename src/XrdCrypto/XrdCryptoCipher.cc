@@ -36,8 +36,8 @@
 
 #include <string.h>
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoCipher.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoCipher.hh"
 
 //_____________________________________________________________________________
 bool XrdCryptoCipher::Finalize(char *, int, const char *)

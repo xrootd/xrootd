@@ -33,9 +33,9 @@
 /* ************************************************************************** */
 #include <string.h>
 
-#include <XrdSut/XrdSutRndm.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
-#include <XrdCrypto/XrdCryptosslCipher.hh>
+#include "XrdSut/XrdSutRndm.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
+#include "XrdCrypto/XrdCryptosslCipher.hh"
 
 //#include <openssl/dsa.h>
 #include <openssl/bio.h>

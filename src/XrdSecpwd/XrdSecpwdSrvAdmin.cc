@@ -84,15 +84,15 @@
 #include <pwd.h>
 #include <dirent.h>
 
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdOuc/XrdOucString.hh"
 
-#include <XrdSut/XrdSutAux.hh>
-#include <XrdSut/XrdSutPFEntry.hh>
-#include <XrdSut/XrdSutPFile.hh>
-#include <XrdSut/XrdSutRndm.hh>
+#include "XrdSut/XrdSutAux.hh"
+#include "XrdSut/XrdSutPFEntry.hh"
+#include "XrdSut/XrdSutPFile.hh"
+#include "XrdSut/XrdSutRndm.hh"
 
-#include <XrdCrypto/XrdCryptoCipher.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
+#include "XrdCrypto/XrdCryptoCipher.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
 
 //
 // enum

@@ -29,13 +29,13 @@
 /******************************************************************************/
 
 #ifndef __XPROTOCOL_H
-#include <XProtocol/XProtocol.hh>
+#include "XProtocol/XProtocol.hh"
 #endif
 #ifndef __OOUC_HASH__
-#include <XrdOuc/XrdOucHash.hh>
+#include "XrdOuc/XrdOucHash.hh"
 #endif
 #ifndef __OUC_STRING_H__
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdOuc/XrdOucString.hh"
 #endif
 
 /******************************************************************************/

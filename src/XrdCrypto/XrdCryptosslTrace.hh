@@ -28,8 +28,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdCrypto/XrdCryptoAux.hh>
+#include "XrdOuc/XrdOucTrace.hh"
+#include "XrdCrypto/XrdCryptoAux.hh"
 
 #ifndef NODEBUG
 

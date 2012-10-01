@@ -36,12 +36,12 @@
 #include <string.h>
 #include <dlfcn.h>
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
-#include <XrdCrypto/XrdCryptolocalFactory.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptolocalFactory.hh"
 
-#include <XrdSys/XrdSysPlatform.hh>
+#include "XrdSys/XrdSysPlatform.hh"
 
 // We have always an instance of the simple RSA implementation
 static XrdCryptolocalFactory localCryptoFactory;

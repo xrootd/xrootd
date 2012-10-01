@@ -38,8 +38,8 @@
 /* ************************************************************************** */
 #include <time.h>
 
-#include <XrdCrypto/XrdCryptoX509.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/XrdCryptoX509.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 const char *XrdCryptoX509::ctype[4] = { "Unknown", "CA", "EEC", "Proxy" };
 

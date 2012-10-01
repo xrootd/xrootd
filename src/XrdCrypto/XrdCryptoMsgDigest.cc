@@ -36,8 +36,8 @@
 
 #include <string.h>
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoMsgDigest.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoMsgDigest.hh"
 
 //_____________________________________________________________________________
 bool XrdCryptoMsgDigest::IsValid()

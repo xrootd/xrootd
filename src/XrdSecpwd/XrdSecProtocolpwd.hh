@@ -26,22 +26,22 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdSys/XrdSysPthread.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdSec/XrdSecTrace.hh>
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecTrace.hh"
 
-#include <XrdSut/XrdSutPFEntry.hh>
-#include <XrdSut/XrdSutPFile.hh>
-#include <XrdSut/XrdSutBuffer.hh>
-#include <XrdSut/XrdSutRndm.hh>
+#include "XrdSut/XrdSutPFEntry.hh"
+#include "XrdSut/XrdSutPFile.hh"
+#include "XrdSut/XrdSutBuffer.hh"
+#include "XrdSut/XrdSutRndm.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoCipher.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoCipher.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */

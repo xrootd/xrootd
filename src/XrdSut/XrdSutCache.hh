@@ -28,11 +28,11 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <XProtocol/XPtypes.hh>
-#include <XrdSut/XrdSutPFEntry.hh>
-#include <XrdOuc/XrdOucHash.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSys/XrdSysPthread.hh>
+#include "XProtocol/XPtypes.hh"
+#include "XrdSut/XrdSutPFEntry.hh"
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                                                                            */

@@ -34,17 +34,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdOuc/XrdOucString.hh"
 
-#include <XrdSut/XrdSutAux.hh>
-#include <XrdSut/XrdSutBucket.hh>
+#include "XrdSut/XrdSutAux.hh"
+#include "XrdSut/XrdSutBucket.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
-#include <XrdCrypto/XrdCryptoCipher.hh>
-#include <XrdCrypto/XrdCryptoMsgDigest.hh>
-#include <XrdCrypto/XrdCryptoRSA.hh>
-#include <XrdCrypto/XrdCryptoX509.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptoCipher.hh"
+#include "XrdCrypto/XrdCryptoMsgDigest.hh"
+#include "XrdCrypto/XrdCryptoRSA.hh"
+#include "XrdCrypto/XrdCryptoX509.hh"
 
 //
 // Globals 

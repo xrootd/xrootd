@@ -38,13 +38,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSys/XrdSysPwd.hh>
-#include <XrdOuc/XrdOucString.hh>
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPwd.hh"
+#include "XrdOuc/XrdOucString.hh"
 
-#include <XrdSut/XrdSutAux.hh>
-#include <XrdSut/XrdSutTrace.hh>
+#include "XrdSut/XrdSutAux.hh"
+#include "XrdSut/XrdSutTrace.hh"
 
 static const char *gXRSBucketTypes[] = {
    "kXRS_none",
@@ -536,7 +536,7 @@ int XrdSutParseTime(const char *tstr, int opt)
    //       'm'     for minutes
    //       's'     for seconds
    // (e.g. "34d:10h:20s")
-   // If opt == 1, assume a string in the form "<hh>[:<ss>[:<mm>]]"
+   // If opt == 1, assume a string in the form ".hh"[:<ss>[:<mm>]]"
    // (e.g. "12:24:35" for 12 hours, 24 minutes and 35 secs)
    // Return the corresponding number of seconds
    EPNAME("ParseTime");

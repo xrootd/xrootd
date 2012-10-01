@@ -32,10 +32,10 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/PC1.hh>
-#include <XrdCrypto/XrdCryptolocalCipher.hh>
-#include <XrdCrypto/XrdCryptolocalFactory.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/PC1.hh"
+#include "XrdCrypto/XrdCryptolocalCipher.hh"
+#include "XrdCrypto/XrdCryptolocalFactory.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 #include <string.h>
 #include <stdlib.h>

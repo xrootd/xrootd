@@ -34,8 +34,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoX509Req.hh>
-#include <XrdCrypto/XrdCryptoTrace.hh>
+#include "XrdCrypto/XrdCryptoX509Req.hh"
+#include "XrdCrypto/XrdCryptoTrace.hh"
 
 //_____________________________________________________________________________
 void XrdCryptoX509Req::Dump()

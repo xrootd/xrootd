@@ -34,7 +34,7 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoRSA.hh>
+#include "XrdCrypto/XrdCryptoRSA.hh"
 
 #include <openssl/evp.h>
 

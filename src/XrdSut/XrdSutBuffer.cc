@@ -31,10 +31,10 @@
 #include <string.h>
 #include <errno.h>
 
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSut/XrdSutBuffer.hh>
-#include <XrdSut/XrdSutTrace.hh>
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSut/XrdSutBuffer.hh"
+#include "XrdSut/XrdSutTrace.hh"
 
 /******************************************************************************/
 /*                                                                            */

@@ -68,14 +68,14 @@
 #include <string.h>
 #include <errno.h>
 
-#include <XrdCrypto/XrdCryptosslAux.hh>
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
-#include <XrdCrypto/XrdCryptoX509.hh>
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSec/XrdSecEntity.hh>
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
-#include <XrdSut/XrdSutBucket.hh>
+#include "XrdCrypto/XrdCryptosslAux.hh"
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptoX509.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
+#include "XrdSut/XrdSutBucket.hh"
 
 extern XrdOucTrace *gsiTrace;
 

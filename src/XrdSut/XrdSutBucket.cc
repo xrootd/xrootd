@@ -30,9 +30,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSut/XrdSutBucket.hh>
-#include <XrdSut/XrdSutTrace.hh>
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSut/XrdSutBucket.hh"
+#include "XrdSut/XrdSutTrace.hh"
 
 /******************************************************************************/
 /*             M a s k s  f o r   A S C I I  c h a r a c t e r s              */

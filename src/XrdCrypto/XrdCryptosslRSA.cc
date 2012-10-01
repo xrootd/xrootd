@@ -32,9 +32,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdSut/XrdSutRndm.hh>
-#include <XrdCrypto/XrdCryptosslTrace.hh>
-#include <XrdCrypto/XrdCryptosslRSA.hh>
+#include "XrdSut/XrdSutRndm.hh"
+#include "XrdCrypto/XrdCryptosslTrace.hh"
+#include "XrdCrypto/XrdCryptosslRSA.hh"
 
 #include <string.h>
 

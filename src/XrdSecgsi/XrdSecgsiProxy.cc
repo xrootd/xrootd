@@ -43,24 +43,24 @@
 #include <time.h>
 
 
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSys/XrdSysLogger.hh>
-#include <XrdSys/XrdSysError.hh>
-#include <XrdSys/XrdSysPwd.hh>
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPwd.hh"
 
-#include <XrdSut/XrdSutAux.hh>
+#include "XrdSut/XrdSutAux.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
-#include <XrdCrypto/XrdCryptoX509.hh>
-#include <XrdCrypto/XrdCryptoX509Req.hh>
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
-#include <XrdCrypto/XrdCryptoX509Crl.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptoX509.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
+#include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include <XrdCrypto/XrdCryptosslgsiX509Chain.hh>
-#include <XrdCrypto/XrdCryptosslgsiAux.hh>
+#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptosslgsiAux.hh"
 
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
 
 #define PRT(x) {cerr <<x <<endl;}
 
@@ -592,8 +592,7 @@ int ParseArguments(int argc, char **argv)
       // Check permissions
       if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
           (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
-          (st.st_mode & (S_IRGRP | S_IROTH)) != 0 ||
-          (st.st_mode & (S_IWUSR)) != 0) {
+          (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
           PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
           PRT("+ Wrong permissions for file: "<<EEkey.c_str()<< " (should be 0600)");
           PRT("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");

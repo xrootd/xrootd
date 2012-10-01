@@ -36,9 +36,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <XrdSut/XrdSutAux.hh>
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoBasic.hh>
+#include "XrdSut/XrdSutAux.hh"
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoBasic.hh"
 
 // ---------------------------------------------------------------------------//
 //

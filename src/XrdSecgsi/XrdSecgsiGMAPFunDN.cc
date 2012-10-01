@@ -37,9 +37,9 @@
 #include <string.h>
 #include <errno.h>
 
-#include <XrdOuc/XrdOucHash.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdSecgsi/XrdSecgsiTrace.hh>
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdSecgsi/XrdSecgsiTrace.hh"
 
 extern XrdOucTrace *gsiTrace;
 

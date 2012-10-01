@@ -34,8 +34,8 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoX509Chain.hh>
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoX509Chain.hh"
 #include <openssl/asn1.h>
 
 #define kSslKDFunDefLen  24
