@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Implement new "f" stream monitoring.
+   * Add new summary counters for readv and readv segs.
    * Add boiler plate comments indicating the all software is licensed under
    * LGPL. No functional source code was modified by this patch.
    * Add GPL and LGPL license text.
