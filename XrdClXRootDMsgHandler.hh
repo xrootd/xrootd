@@ -62,10 +62,12 @@ namespace XrdCl
         pUserBuffer( 0 ),
         pUserBufferSize( 0 ),
         pHasLoadBalancer( false ),
-        pStateful( false ),
+        pHasSessionId( false ),
         pCalledBack( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
+        if( msg->GetSessionId() )
+          pHasSessionId = true;
       }
 
       //------------------------------------------------------------------------
@@ -73,7 +75,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       ~XRootDMsgHandler()
       {
-        if( !pStateful && !pRedirectAsAnswer )
+        if( !pHasSessionId )
           delete pRequest;
         delete pResponse;
         std::vector<Message *>::iterator it;
@@ -159,14 +161,6 @@ namespace XrdCl
           return;
         pLoadBalancer    = loadBalancer;
         pHasLoadBalancer = true;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set stateful status
-      //------------------------------------------------------------------------
-      void SetStateful( bool stateful )
-      {
-        pStateful = stateful;
       }
 
       //------------------------------------------------------------------------
@@ -260,7 +254,7 @@ namespace XrdCl
       uint32_t                   pUserBufferSize;
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
-      bool                       pStateful;
+      bool                       pHasSessionId;
       bool                       pCalledBack;
   };
 }
