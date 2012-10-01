@@ -31,10 +31,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message
   //----------------------------------------------------------------------------
-  Status MessageUtils::SendMessage( const URL        &url,
-                                    Message          *msg,
-                                    ResponseHandler  *handler,
-                                    const SendParams &sendParams )
+  Status MessageUtils::SendMessage( const URL               &url,
+                                    Message                 *msg,
+                                    ResponseHandler         *handler,
+                                    const MessageSendParams &sendParams )
   {
     //--------------------------------------------------------------------------
     // Get the stuff needed to send the message
@@ -86,7 +86,6 @@ namespace XrdCl
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
-    msgHandler->SetStateful( sendParams.stateful );
     msgHandler->SetUserBuffer( sendParams.userBuffer,
                                sendParams.userBufferSize );
     if( sendParams.loadBalancer.url.IsValid() )
@@ -122,7 +121,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Process sending params
   //----------------------------------------------------------------------------
-  void MessageUtils::ProcessSendParams( SendParams &sendParams )
+  void MessageUtils::ProcessSendParams( MessageSendParams &sendParams )
   {
     if( sendParams.timeout == 0 )
     {

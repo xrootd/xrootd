@@ -91,28 +91,27 @@ namespace XrdCl
       XrdSysSemaphore *pSem;
   };
 
+  //----------------------------------------------------------------------------
+  // Sending parameters
+  //----------------------------------------------------------------------------
+  struct MessageSendParams
+  {
+    MessageSendParams():
+      timeout(0), expires(0), followRedirects(true), stateful(true),
+      userBuffer(0), userBufferSize(0), hostList(0) {}
+    uint16_t         timeout;
+    time_t           expires;
+    const HostInfo   loadBalancer;
+    bool             followRedirects;
+    bool             stateful;
+    char            *userBuffer;
+    uint32_t         userBufferSize;
+    HostList        *hostList;
+  };
+
   class MessageUtils
   {
     public:
-
-      //------------------------------------------------------------------------
-      //! Sending parameters
-      //------------------------------------------------------------------------
-      struct SendParams
-      {
-        SendParams():
-          timeout(0), expires(0), followRedirects(true), stateful(true),
-          userBuffer(0), userBufferSize(0), hostList(0) {}
-        uint16_t         timeout;
-        time_t           expires;
-        const HostInfo   loadBalancer;
-        bool             followRedirects;
-        bool             stateful;
-        char            *userBuffer;
-        uint32_t         userBufferSize;
-        HostList        *hostList;
-      };
-
       //------------------------------------------------------------------------
       //! Wait and return the status of the query
       //------------------------------------------------------------------------
@@ -169,15 +168,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Send message
       //------------------------------------------------------------------------
-      static Status SendMessage( const URL        &url,
-                                 Message          *msg,
-                                 ResponseHandler  *handler,
-                                 const SendParams &sendParams );
+      static Status SendMessage( const URL               &url,
+                                 Message                 *msg,
+                                 ResponseHandler         *handler,
+                                 const MessageSendParams &sendParams );
 
       //------------------------------------------------------------------------
       //! Process sending params
       //------------------------------------------------------------------------
-      static void ProcessSendParams( SendParams &sendParams );
+      static void ProcessSendParams( MessageSendParams &sendParams );
   };
 }
 
