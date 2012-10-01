@@ -806,6 +806,24 @@ namespace XrdCl
   typedef std::vector<HostInfo> HostList;
 
   //----------------------------------------------------------------------------
+  //! Describe the redirection information
+  //----------------------------------------------------------------------------
+  struct RedirectInfo
+  {
+    //--------------------------------------------------------------------------
+    //! Constructor
+    //--------------------------------------------------------------------------
+    RedirectInfo( const std::string &h,
+                  uint16_t           p,
+                  const std::string &c ):
+      host(h), port(p), cgi(c) {};
+
+    std::string host;  //!< host the request has been redirected to
+    uint16_t    port;  //!< host port
+    std::string cgi;   //!< the cgi that should be appended to the request
+  };
+
+  //----------------------------------------------------------------------------
   //! Handle an async response
   //----------------------------------------------------------------------------
   class ResponseHandler
