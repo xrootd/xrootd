@@ -233,7 +233,9 @@ namespace XrdCl
     pFileHandle( 0 ),
     pOpenMode( 0 ),
     pOpenFlags( 0 ),
-    pSessionId( 0 )
+    pSessionId( 0 ),
+    pDoRecoverRead( true ),
+    pDoRecoverWrite( true )
   {
     pFileHandle = new uint8_t[4];
   }
@@ -290,12 +292,35 @@ namespace XrdCl
       return pStatus;
     }
 
-    log->Debug( FileMsg, "[0x%x@%s] Sending an open command", this,
-                pFileUrl->GetURL().c_str() );
+    //--------------------------------------------------------------------------
+    // Check if the recovery procedures should be enables
+    //--------------------------------------------------------------------------
+    const URL::ParamsMap &urlParams = pFileUrl->GetParams();
+    URL::ParamsMap::const_iterator it;
+    it = urlParams.find( "xrdcl.recover-reads" );
+    if( (it != urlParams.end() && it->second == "false") ||
+        !pDoRecoverRead )
+    {
+      pDoRecoverRead = false;
+      log->Debug( FileMsg, "[0x%x@%s] Read recovery procedures are disabled",
+                  this, pFileUrl->GetURL().c_str() );
+    }
+
+    it = urlParams.find( "xrdcl.recover-writes" );
+    if( (it != urlParams.end() && it->second == "false") ||
+        !pDoRecoverWrite )
+    {
+      pDoRecoverWrite = false;
+      log->Debug( FileMsg, "[0x%x@%s] Write recovery procedures are disabled",
+                  this, pFileUrl->GetURL().c_str() );
+    }
 
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
+    log->Debug( FileMsg, "[0x%x@%s] Sending an open command", this,
+                pFileUrl->GetURL().c_str() );
+
     pOpenMode  = mode;
     pOpenFlags = flags;
 
@@ -379,7 +404,7 @@ namespace XrdCl
       if( st.code == errInvalidSession && IsReadOnly() )
       {
         pFileState = Closed;
-        return Status();
+        return st;
       }
 
       pStatus    = st;
@@ -667,6 +692,26 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Enable/disable state recovery procedures while the file is open for
+  // reading
+  //----------------------------------------------------------------------------
+  void FileStateHandler::EnableReadRecovery( bool enable )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    pDoRecoverRead = enable;
+  }
+
+  //------------------------------------------------------------------------
+  //! Enable/disable state recovery procedures while the file is open for
+  //! writing or read/write
+  //------------------------------------------------------------------------
+  void FileStateHandler::EnableWriteRecovery( bool enable )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    pDoRecoverWrite = enable;
+  }
+
+  //----------------------------------------------------------------------------
   // Process the results of the opening operation
   //----------------------------------------------------------------------------
   void FileStateHandler::OnOpen( const XRootDStatus *status,
@@ -895,6 +940,12 @@ namespace XrdCl
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
     if( status.code == errOperationExpired )
+      return false;
+
+    if( IsReadOnly() && !pDoRecoverRead )
+      return false;
+
+    if( !IsReadOnly() && !pDoRecoverWrite )
       return false;
 
     if( status.code == errErrorResponse )

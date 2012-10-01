@@ -224,6 +224,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool IsOpen() const;
 
+      //------------------------------------------------------------------------
+      //! Enable/disable state recovery procedures while the file is open for
+      //! reading
+      //------------------------------------------------------------------------
+      void EnableReadRecovery( bool enable );
+
+      //------------------------------------------------------------------------
+      //! Enable/disable state recovery procedures while the file is open for
+      //! writing or read/write
+      //------------------------------------------------------------------------
+      void EnableWriteRecovery( bool enable );
+
     private:
       //------------------------------------------------------------------------
       // Helper for queueing messages
@@ -311,6 +323,8 @@ namespace XrdCl
       RequestList             pToBeRecovered;
       std::set<Message*>      pInTheFly;
       uint64_t                pSessionId;
+      bool                    pDoRecoverRead;
+      bool                    pDoRecoverWrite;
   };
 }
 

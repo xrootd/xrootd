@@ -266,4 +266,22 @@ namespace XrdCl
   {
     return pStateHandler->IsOpen();
   }
+
+  //----------------------------------------------------------------------------
+  // Enable/disable state recovery procedures while the file is open for
+  // reading
+  //----------------------------------------------------------------------------
+  void File::EnableReadRecovery( bool enable )
+  {
+    pStateHandler->EnableReadRecovery( enable );
+  }
+
+  //----------------------------------------------------------------------------
+  // Enable/disable state recovery procedures while the file is open for
+  // writing or read/write
+  //----------------------------------------------------------------------------
+  void File::EnableWriteRecovery( bool enable )
+  {
+    pStateHandler->EnableWriteRecovery( enable );
+  }
 }

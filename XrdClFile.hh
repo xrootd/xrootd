@@ -276,6 +276,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool IsOpen() const;
 
+      //------------------------------------------------------------------------
+      //! Enable/disable state recovery procedures while the file is open for
+      //! reading
+      //------------------------------------------------------------------------
+      void EnableReadRecovery( bool enable = true );
+
+      //------------------------------------------------------------------------
+      //! Enable/disable state recovery procedures while the file is open for
+      //! writing or read/write
+      //------------------------------------------------------------------------
+      void EnableWriteRecovery( bool enable = true );
+
     private:
       FileStateHandler *pStateHandler;
   };
