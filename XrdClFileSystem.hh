@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
 #include <string>
 #include <vector>
@@ -30,7 +31,7 @@ namespace XrdCl
 {
   class PostMaster;
   class Message;
-
+  struct MessageSendParams;
 
   //----------------------------------------------------------------------------
   //! XRootD query request codes
@@ -150,6 +151,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   class FileSystem
   {
+    friend class AssignLBHandler;
     public:
       typedef std::vector<LocationInfo> LocationList; //!< Location list
 
@@ -556,7 +558,22 @@ namespace XrdCl
                             uint16_t           timeout = 0 );
 
     private:
-      URL *pUrl;
+
+      //------------------------------------------------------------------------
+      // Send a message in a locked environment
+      //------------------------------------------------------------------------
+      Status Send( Message                 *msg,
+                   ResponseHandler         *handler,
+                   const MessageSendParams &params );
+
+      //------------------------------------------------------------------------
+      // Assign a loadbalancer if it has not already been assigned
+      //------------------------------------------------------------------------
+      void AssignLoadBalancer( const URL &url );
+
+      XrdSysMutex  pMutex;
+      bool         pLoadBalancerLookupDone;
+      URL         *pUrl;
   };
 }
 
