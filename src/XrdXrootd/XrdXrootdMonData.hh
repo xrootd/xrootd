@@ -159,7 +159,7 @@ enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
                hasSDV  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSDV
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
-               hasRW   =0x02, // If recFlag == isOpen  file opened r/w
+               hasRW   =0x02  // If recFlag == isOpen  file opened r/w
               };
 
 char      recType;  // RecTval: isClose | isOpen | isTime | isXfr
