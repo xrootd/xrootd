@@ -83,7 +83,7 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
    "<err>%d</err><rdr>%lld</rdr><dly>%d</dly>"
    "<lgn><num>%d</num><af>%d</af><au>%d</au><ua>%d</ua></lgn></stats>";
 //                                   1 2 3 4 5 6 7 8
-   static const long long LLMax = 0x7fffffffffffffff;
+   static const long long LLMax = 0x7fffffffffffffffLL;
    static const int       INMax = 0x7fffffff;
    int len;
 
