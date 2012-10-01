@@ -101,7 +101,7 @@ void FileTest::RedirectReturnTest()
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   st = MessageUtils::SendMessage( url, msg, handler, params );
-  URL *response = 0;
+  RedirectInfo *response = 0;
   CPPUNIT_ASSERT( st.IsOK() );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
@@ -109,7 +109,6 @@ void FileTest::RedirectReturnTest()
   CPPUNIT_ASSERT( st1.code == suXRDRedirect );
   CPPUNIT_ASSERT( response );
   delete response;
-  delete msg;
 }
 
 //------------------------------------------------------------------------------
