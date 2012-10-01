@@ -198,18 +198,18 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Handle an error while sending a stateful message
       //------------------------------------------------------------------------
-      void OnStateError( XRootDStatus             *status,
-                         Message                  *message,
-                         ResponseHandler          *userHandler,
-                         MessageUtils::SendParams &sendParams );
+      void OnStateError( XRootDStatus        *status,
+                         Message             *message,
+                         ResponseHandler     *userHandler,
+                         MessageSendParams   &sendParams );
 
       //------------------------------------------------------------------------
       //! Handle stateful redirect
       //------------------------------------------------------------------------
-      void OnStateRedirection( URL                      *targetUrl,
-                               Message                  *message,
-                               ResponseHandler          *userHandler,
-                               MessageUtils::SendParams &sendParams );
+      void OnStateRedirection( URL               *targetUrl,
+                               Message           *message,
+                               ResponseHandler   *userHandler,
+                               MessageSendParams &sendParams );
 
       //------------------------------------------------------------------------
       //! Handle stateful response
@@ -244,21 +244,21 @@ namespace XrdCl
       {
         RequestData(): request(0), handler(0) {}
         RequestData( Message *r, ResponseHandler *h,
-                     const MessageUtils::SendParams &p ):
+                     const MessageSendParams &p ):
           request(r), handler(h), params(p) {}
-        Message                  *request;
-        ResponseHandler          *handler;
-        MessageUtils::SendParams  params;
+        Message           *request;
+        ResponseHandler   *handler;
+        MessageSendParams  params;
       };
       typedef std::list<RequestData> RequestList;
 
       //------------------------------------------------------------------------
       //! Send a message to a host or put it in the recovery queue
       //------------------------------------------------------------------------
-      Status SendOrQueue( const URL                &url,
-                          Message                  *msg,
-                          ResponseHandler          *handler,
-                          MessageUtils::SendParams &sendParams );
+      Status SendOrQueue( const URL         &url,
+                          Message           *msg,
+                          ResponseHandler   *handler,
+                          MessageSendParams &sendParams );
 
       //------------------------------------------------------------------------
       //! Check if the stateful error is recoverable

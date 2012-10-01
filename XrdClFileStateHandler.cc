@@ -140,10 +140,10 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      StatefulHandler( XrdCl::FileStateHandler               *stateHandler,
-                       XrdCl::ResponseHandler                *userHandler,
-                       XrdCl::Message                        *message,
-                       const XrdCl::MessageUtils::SendParams &sendParams ):
+      StatefulHandler( XrdCl::FileStateHandler        *stateHandler,
+                       XrdCl::ResponseHandler         *userHandler,
+                       XrdCl::Message                 *message,
+                       const XrdCl::MessageSendParams &sendParams ):
         pStateHandler( stateHandler ),
         pUserHandler( userHandler ),
         pMessage( message ),
@@ -212,10 +212,10 @@ namespace
       }
 
     private:
-      XrdCl::FileStateHandler         *pStateHandler;
-      XrdCl::ResponseHandler          *pUserHandler;
-      XrdCl::Message                  *pMessage;
-      XrdCl::MessageUtils::SendParams  pSendParams;
+      XrdCl::FileStateHandler  *pStateHandler;
+      XrdCl::ResponseHandler   *pUserHandler;
+      XrdCl::Message           *pMessage;
+      XrdCl::MessageSendParams  pSendParams;
   };
 }
 
@@ -337,7 +337,7 @@ namespace XrdCl
 
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
-    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
@@ -456,7 +456,7 @@ namespace XrdCl
     req->dlen = path.length();
     msg->Append( path.c_str(), req->dlen, 24 );
 
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -496,7 +496,7 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
 
     XRootDTransport::SetDescription( msg );
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -537,7 +537,7 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
     msg->Append( (char*)buffer, size, 24 );
 
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -571,7 +571,7 @@ namespace XrdCl
     req->requestid = kXR_sync;
     memcpy( req->fhandle, pFileHandle, 4 );
 
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -607,7 +607,7 @@ namespace XrdCl
     memcpy( req->fhandle, pFileHandle, 4 );
     req->offset = size;
 
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -666,7 +666,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Send the message
     //--------------------------------------------------------------------------
-    MessageUtils::SendParams params;
+    MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
@@ -805,10 +805,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle an error while sending a stateful message
   //----------------------------------------------------------------------------
-  void FileStateHandler::OnStateError( XRootDStatus             *status,
-                                       Message                  *message,
-                                       ResponseHandler          *userHandler,
-                                       MessageUtils::SendParams &sendParams )
+  void FileStateHandler::OnStateError( XRootDStatus      *status,
+                                       Message           *message,
+                                       ResponseHandler   *userHandler,
+                                       MessageSendParams &sendParams )
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -843,10 +843,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle stateful redirect
   //----------------------------------------------------------------------------
-  void FileStateHandler::OnStateRedirection( URL                      *targetUrl,
-                                             Message                  *message,
-                                             ResponseHandler          *userHandler,
-                                             MessageUtils::SendParams &sendParams )
+  void FileStateHandler::OnStateRedirection( URL               *targetUrl,
+                                             Message           *message,
+                                             ResponseHandler   *userHandler,
+                                             MessageSendParams &sendParams )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     pInTheFly.erase( message );
@@ -862,7 +862,6 @@ namespace XrdCl
   {
     Log    *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
-
 
     log->Dump( FileMsg, "[0x%x@%s] Got state response for message %s",
                this, pFileUrl->GetURL().c_str(),
@@ -899,10 +898,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message to a host or put it in the recovery queue
   //----------------------------------------------------------------------------
-  Status FileStateHandler::SendOrQueue( const URL                &url,
-                                        Message                  *msg,
-                                        ResponseHandler          *handler,
-                                        MessageUtils::SendParams &sendParams )
+  Status FileStateHandler::SendOrQueue( const URL         &url,
+                                        Message           *msg,
+                                        ResponseHandler   *handler,
+                                        MessageSendParams &sendParams )
   {
     //--------------------------------------------------------------------------
     // Recovering
@@ -1063,7 +1062,7 @@ namespace XrdCl
     msg->Append( path.c_str(), path.length(), 24 );
 
     OpenHandler *openHandler = new OpenHandler( this, 0 );
-    MessageUtils::SendParams params; params.timeout = timeout;
+    MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
     XRootDTransport::SetDescription( msg );
     Status st = MessageUtils::SendMessage( url, msg, openHandler, params );
