@@ -228,6 +228,18 @@ namespace XrdCl
           o << "fake://fake:111//fake?";
           o << urlComponents[1];
           cgiURL = URL( o.str() );
+          pRedirectCgi = urlComponents[1];
+        }
+
+        //----------------------------------------------------------------------
+        // Check if we need to return the URL as a response
+        //----------------------------------------------------------------------
+        if( pRedirectAsAnswer )
+        {
+          pStatus   = Status( stOK, suXRDRedirect );
+          pResponse = msgPtr.release();
+          HandleResponse();
+          return Take | RemoveHandler;
         }
 
         //----------------------------------------------------------------------
@@ -237,17 +249,6 @@ namespace XrdCl
         if( !st.IsOK() )
         {
           pStatus = st;
-          HandleResponse();
-          return Take | RemoveHandler;
-        }
-
-        //----------------------------------------------------------------------
-        // Check if we need to return the URL as a response
-        //----------------------------------------------------------------------
-        if( pRedirectAsAnswer )
-        {
-          pStatus = Status( stOK, suXRDRedirect );
-          pResponse = msgPtr.release();
           HandleResponse();
           return Take | RemoveHandler;
         }
@@ -366,7 +367,6 @@ namespace XrdCl
   void XRootDMsgHandler::OnStatusReady( const Message *message,
                                         Status         status )
   {
-    pCalledBack = true;
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
@@ -473,11 +473,13 @@ namespace XrdCl
                     "answer even though this has never been requested" );
         return 0;
       }
-      log->Dump( XRootDMsg, "Returning the redirection url as a response to "
-                 "%s", pRequest->GetDescription().c_str() );
-      AnyObject *obj = new AnyObject();
-      URL       *url = new URL( pUrl );
-      obj->Set( url );
+      log->Dump( XRootDMsg, "Parsing the response to %s as RedirectInfo",
+                 pRequest->GetDescription().c_str() );
+      AnyObject    *obj  = new AnyObject();
+      RedirectInfo *info = new RedirectInfo( pUrl.GetHostName(),
+                                             pUrl.GetPort(),
+                                             pRedirectCgi );
+      obj->Set( info );
       return obj;
     }
 

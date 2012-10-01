@@ -62,8 +62,7 @@ namespace XrdCl
         pUserBuffer( 0 ),
         pUserBufferSize( 0 ),
         pHasLoadBalancer( false ),
-        pHasSessionId( false ),
-        pCalledBack( false )
+        pHasSessionId( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -255,7 +254,7 @@ namespace XrdCl
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
       bool                       pHasSessionId;
-      bool                       pCalledBack;
+      std::string                pRedirectCgi;
   };
 }
 
