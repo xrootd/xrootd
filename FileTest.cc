@@ -98,7 +98,7 @@ void FileTest::RedirectReturnTest()
   XRootDTransport::SetDescription( msg );
 
   SyncResponseHandler *handler = new SyncResponseHandler();
-  MessageUtils::SendParams params; params.followRedirects = false;
+  MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
   st = MessageUtils::SendMessage( url, msg, handler, params );
   URL *response = 0;
