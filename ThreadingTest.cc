@@ -23,23 +23,10 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include <pthread.h>
-
-//------------------------------------------------------------------------------
-// Declaration
-//------------------------------------------------------------------------------
-class ThreadingTest: public CppUnit::TestCase
-{
-  public:
-    CPPUNIT_TEST_SUITE( ThreadingTest );
-      CPPUNIT_TEST( ReadTest );
-      CPPUNIT_TEST( MultiStreamReadTest );
-    CPPUNIT_TEST_SUITE_END();
-    void ReadTestFunc();
-    void ReadTest();
-    void MultiStreamReadTest();
-};
-
-CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
+#include <unistd.h>
+#include <cstdlib>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 //------------------------------------------------------------------------------
 // Thread helper struct
@@ -47,12 +34,39 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
 struct ThreadData
 {
   ThreadData():
-    file( 0 ), startOffset( 0 ), length( 0 ), checkSum( 0 ) {}
+    file( 0 ), startOffset( 0 ), length( 0 ), checkSum( 0 ),
+    firstBlockChecksum(0) {}
   XrdCl::File *file;
-  uint64_t         startOffset;
-  uint64_t         length;
-  uint32_t         checkSum;
+  uint64_t     startOffset;
+  uint64_t     length;
+  uint32_t     checkSum;
+  uint32_t     firstBlockChecksum;
 };
+
+const uint32_t MB = 1024*1024;
+
+//------------------------------------------------------------------------------
+// Declaration
+//------------------------------------------------------------------------------
+class ThreadingTest: public CppUnit::TestCase
+{
+  public:
+    typedef void (*TransferCallback)( ThreadData *data );
+    CPPUNIT_TEST_SUITE( ThreadingTest );
+      CPPUNIT_TEST( ReadTest );
+      CPPUNIT_TEST( MultiStreamReadTest );
+      CPPUNIT_TEST( ReadForkTest );
+      CPPUNIT_TEST( MultiStreamReadForkTest );
+    CPPUNIT_TEST_SUITE_END();
+    void ReadTestFunc( TransferCallback transferCallback );
+    void ReadTest();
+    void MultiStreamReadTest();
+    void ReadForkTest();
+    void MultiStreamReadForkTest();
+};
+
+CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
+
 
 //------------------------------------------------------------------------------
 // Reader thread
@@ -65,7 +79,6 @@ void *DataReader( void *arg )
   uint64_t  dataLeft  = td->length;
   uint64_t  chunkSize = 0;
   uint32_t  bytesRead = 0;
-  uint32_t  MB        = 1024*1024;
   char     *buffer    = new char[4*MB];
 
   while( 1 )
@@ -93,7 +106,7 @@ void *DataReader( void *arg )
 //------------------------------------------------------------------------------
 // Read test
 //------------------------------------------------------------------------------
-void ThreadingTest::ReadTestFunc()
+void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
 {
   using namespace XrdCl;
 
@@ -144,6 +157,21 @@ void ThreadingTest::ReadTestFunc()
       threadData[j*5+i].startOffset = j*step;
       threadData[j*5+i].length      = step;
       threadData[j*5+i].checkSum    = Utils::GetInitialCRC32();
+
+
+      //------------------------------------------------------------------------
+      // Get the checksum of the first 4MB block at the startOffser - this
+      // will be verified by the forking test
+      //------------------------------------------------------------------------
+      uint64_t  offset = threadData[j*5+i].startOffset;
+      char     *buffer    = new char[4*MB];
+      uint32_t  bytesRead = 0;
+
+      CPPUNIT_ASSERT_XRDST( f->Read( offset, 4*MB, buffer, bytesRead ) );
+      CPPUNIT_ASSERT( bytesRead == 4*MB );
+      threadData[j*5+i].firstBlockChecksum =
+        Utils::ComputeCRC32( buffer, 4*MB );
+      delete [] buffer;
     }
 
     threadData[15+i].length = si->GetSize() - threadData[15+i].startOffset;
@@ -157,6 +185,9 @@ void ThreadingTest::ReadTestFunc()
   for( int i = 0; i < 20; ++i )
     CPPUNIT_ASSERT_PTHREAD( pthread_create( &(thread[i]), 0,
                             ::DataReader, &(threadData[i]) ) );
+
+  if( transferCallback )
+    (*transferCallback)( threadData );
 
   for( int i = 0; i < 20; ++i )
     CPPUNIT_ASSERT_PTHREAD( pthread_join( thread[i], 0 ) );
@@ -209,12 +240,13 @@ void ThreadingTest::ReadTestFunc()
   }
 }
 
+
 //------------------------------------------------------------------------------
 // Read test
 //------------------------------------------------------------------------------
 void ThreadingTest::ReadTest()
 {
-  ReadTestFunc();
+  ReadTestFunc(0);
 }
 
 //------------------------------------------------------------------------------
@@ -224,5 +256,81 @@ void ThreadingTest::MultiStreamReadTest()
 {
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt( "SubStreamsPerChannel", 4 );
-  ReadTestFunc();
+  ReadTestFunc(0);
+}
+
+//------------------------------------------------------------------------------
+// Child - read some data from each of the open files and close them
+//------------------------------------------------------------------------------
+int runChild( ThreadData *td )
+{
+  XrdCl::Log *log = TestEnv::GetLog();
+  log->Debug( 1, "Running the child" );
+
+  for( int i = 0; i < 20; ++i )
+  {
+    uint64_t  offset    = td[i].startOffset;
+    char     *buffer    = new char[4*MB];
+    uint32_t  bytesRead = 0;
+
+    CPPUNIT_ASSERT_XRDST( td[i].file->Read( offset, 4*MB, buffer, bytesRead ) );
+    CPPUNIT_ASSERT( bytesRead == 4*MB );
+    CPPUNIT_ASSERT( td[i].firstBlockChecksum ==
+                    Utils::ComputeCRC32( buffer, 4*MB ) );
+    delete [] buffer;
+  }
+
+  for( int i = 0; i < 5; ++i )
+  {
+    CPPUNIT_ASSERT_XRDST( td[i].file->Close() );
+    delete td[i].file;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Forking function
+//------------------------------------------------------------------------------
+void forkAndRead( ThreadData *data )
+{
+  XrdCl::Log *log = TestEnv::GetLog();
+  for( int chld = 0; chld < 5; ++chld )
+  {
+    sleep(10);
+    pid_t pid;
+    log->Debug( 1, "About to fork" );
+    CPPUNIT_ASSERT_ERRNO( (pid=fork()) != -1 );
+
+    if( !pid )  _exit( runChild( data ) );
+
+    log->Debug( 1, "Forked successfully, pid of the child: %d", pid );
+    int status;
+    log->Debug( 1, "Waiting for the child" );
+    CPPUNIT_ASSERT_ERRNO( waitpid( pid, &status, 0 ) != -1 );
+    log->Debug( 1, "Wait done, status: %d", status );
+    CPPUNIT_ASSERT( WIFEXITED( status ) );
+    CPPUNIT_ASSERT( WEXITSTATUS( status ) == 0 );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Read fork test
+//------------------------------------------------------------------------------
+void ThreadingTest::ReadForkTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "RunForkHandler", 1 );
+  ReadTestFunc(&forkAndRead);
+}
+
+//------------------------------------------------------------------------------
+// Multistream read fork test
+//------------------------------------------------------------------------------
+void ThreadingTest::MultiStreamReadForkTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutInt( "SubStreamsPerChannel", 4 );
+  env->PutInt( "RunForkHandler", 1 );
+  ReadTestFunc(&forkAndRead);
 }

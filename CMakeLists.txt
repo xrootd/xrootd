@@ -69,3 +69,5 @@ ADD_TEST( MultiStrDownloadTest      ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./li
 ADD_TEST( UploadTest                ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/FileCopyTest/FileCopyTest::UploadTest")
 ADD_TEST( ThreadingReadTest         ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::ReadTest")
 ADD_TEST( MultiStrThreadingReadTest ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::MultiStreamReadTest")
+ADD_TEST( ThreadingReadForkTest     ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::ReadForkTest")
+ADD_TEST( MultiStrThreadingReadForkTest ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::MultiStreamReadForkTest")
