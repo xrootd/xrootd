@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Allow multiple comma separated protocols in XrdSecPROTOCOL client-side
+     envar. This allows the client to select 1 of n protocols.
    * Implement new "f" stream monitoring.
    * Add new summary counters for readv and readv segs.
    * Add boiler plate comments indicating the all software is licensed under
