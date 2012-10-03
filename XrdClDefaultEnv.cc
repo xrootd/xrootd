@@ -20,124 +20,14 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClForkHandler.hh"
 #include "XrdCl/XrdClUtils.hh"
 
 #include <map>
-#include <iostream>
+#include <pthread.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-namespace XrdCl
-{
-  XrdSysMutex  DefaultEnv::sEnvMutex;
-  Env         *DefaultEnv::sEnv             = 0;
-  XrdSysMutex  DefaultEnv::sPostMasterMutex;
-  PostMaster  *DefaultEnv::sPostMaster      = 0;
-  Log         *DefaultEnv::sLog             = 0;
-
-  //----------------------------------------------------------------------------
-  // Constructor
-  //----------------------------------------------------------------------------
-  DefaultEnv::DefaultEnv()
-  {
-    PutInt( "ConnectionWindow",     DefaultConnectionWindow  );
-    PutInt( "ConnectionRetry",      DefaultConnectionRetry   );
-    PutInt( "RequestTimeout",       DefaultRequestTimeout    );
-    PutInt( "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
-    PutInt( "TimeoutResolution",    DefaultTimeoutResolution );
-    PutInt( "StreamErrorWindow",    DefaultStreamErrorWindow );
-    PutString( "PollerPreference",  DefaultPollerPreference  );
-
-    ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
-    ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
-    ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
-    ImportInt(    "SubStreamsPerChannel", "XRD_SUBSTREAMSPERCHANNEL" );
-    ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
-    ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
-    ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
-  }
-
-  //----------------------------------------------------------------------------
-  // Get default client environment
-  //----------------------------------------------------------------------------
-  Env *DefaultEnv::GetEnv()
-  {
-    if( !sEnv )
-    {
-      XrdSysMutexHelper scopedLock( sEnvMutex );
-      if( sEnv )
-        return sEnv;
-      sEnv = new DefaultEnv();
-    }
-    return sEnv;
-  }
-
-  //----------------------------------------------------------------------------
-  // Get default post master
-  //----------------------------------------------------------------------------
-  PostMaster *DefaultEnv::GetPostMaster()
-  {
-    if( !sPostMaster )
-    {
-      XrdSysMutexHelper scopedLock( sPostMasterMutex );
-      if( sPostMaster )
-        return sPostMaster;
-      sPostMaster = new PostMaster();
-
-      if( !sPostMaster->Initialize() )
-      {
-        delete sPostMaster;
-        sPostMaster = 0;
-        return 0;
-      }
-
-      if( !sPostMaster->Start() )
-      {
-        sPostMaster->Finalize();
-        delete sPostMaster;
-        sPostMaster = 0;
-        return 0;
-      }
-    }
-    return sPostMaster;
-  }
-
-  Log *DefaultEnv::GetLog()
-  {
-    //--------------------------------------------------------------------------
-    // This is actually thread safe because it is first called from
-    // a static initializer in a thread safe context
-    //--------------------------------------------------------------------------
-    if( unlikely( !sLog ) )
-      sLog = new Log();
-    return sLog;
-  }
-
-  //----------------------------------------------------------------------------
-  // Release the environment
-  //----------------------------------------------------------------------------
-  void DefaultEnv::Release()
-  {
-    if( sEnv )
-    {
-      delete sEnv;
-      sEnv = 0;
-    }
-
-    if( sPostMaster )
-    {
-      sPostMaster->Stop();
-      sPostMaster->Finalize();
-      delete sPostMaster;
-      sPostMaster = 0;
-    }
-
-    delete sLog;
-    sLog = 0;
-  }
-}
-
-//------------------------------------------------------------------------------
-// Finalizer
-//------------------------------------------------------------------------------
 namespace
 {
   //----------------------------------------------------------------------------
@@ -219,6 +109,308 @@ namespace
 
     std::map<std::string, uint64_t> masks;
   };
+}
+
+namespace XrdCl
+{
+  Env         *DefaultEnv::sEnv             = 0;
+  XrdSysMutex  DefaultEnv::sPostMasterMutex;
+  PostMaster  *DefaultEnv::sPostMaster      = 0;
+  Log         *DefaultEnv::sLog             = 0;
+  ForkHandler *DefaultEnv::sForkHandler     = 0;
+
+  //----------------------------------------------------------------------------
+  // Constructor
+  //----------------------------------------------------------------------------
+  DefaultEnv::DefaultEnv()
+  {
+    PutInt( "ConnectionWindow",     DefaultConnectionWindow  );
+    PutInt( "ConnectionRetry",      DefaultConnectionRetry   );
+    PutInt( "RequestTimeout",       DefaultRequestTimeout    );
+    PutInt( "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
+    PutInt( "TimeoutResolution",    DefaultTimeoutResolution );
+    PutInt( "StreamErrorWindow",    DefaultStreamErrorWindow );
+    PutInt( "RunForkHandler",       DefaultRunForkHandler    );
+    PutString( "PollerPreference",  DefaultPollerPreference  );
+
+    ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
+    ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
+    ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
+    ImportInt(    "SubStreamsPerChannel", "XRD_SUBSTREAMSPERCHANNEL" );
+    ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
+    ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
+    ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
+    ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get default client environment
+  //----------------------------------------------------------------------------
+  Env *DefaultEnv::GetEnv()
+  {
+    return sEnv;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get default post master
+  //----------------------------------------------------------------------------
+  PostMaster *DefaultEnv::GetPostMaster()
+  {
+    if( unlikely(!sPostMaster) )
+    {
+      XrdSysMutexHelper scopedLock( sPostMasterMutex );
+      if( sPostMaster )
+        return sPostMaster;
+      sPostMaster = new PostMaster();
+
+      if( !sPostMaster->Initialize() )
+      {
+        delete sPostMaster;
+        sPostMaster = 0;
+        return 0;
+      }
+
+      if( !sPostMaster->Start() )
+      {
+        sPostMaster->Finalize();
+        delete sPostMaster;
+        sPostMaster = 0;
+        return 0;
+      }
+      sForkHandler->RegisterPostMaster( sPostMaster );
+    }
+    return sPostMaster;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get log
+  //----------------------------------------------------------------------------
+  Log *DefaultEnv::GetLog()
+  {
+    return sLog;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get fork handler
+  //----------------------------------------------------------------------------
+  ForkHandler *DefaultEnv::GetForkHandler()
+  {
+    return sForkHandler;
+  }
+
+  //----------------------------------------------------------------------------
+  // Initialize the environment
+  //----------------------------------------------------------------------------
+  void DefaultEnv::Initialize()
+  {
+    sEnv         = new DefaultEnv();
+    sLog         = new Log();
+    sForkHandler = new ForkHandler();
+
+    SetUpLog();
+  }
+
+  //----------------------------------------------------------------------------
+  // Finalize the environment
+  //----------------------------------------------------------------------------
+  void DefaultEnv::Finalize()
+  {
+    if( sPostMaster )
+    {
+      sPostMaster->Stop();
+      sPostMaster->Finalize();
+      delete sPostMaster;
+      sPostMaster = 0;
+    }
+
+    delete sLog;
+    sLog = 0;
+
+    delete sForkHandler;
+    sForkHandler = 0;
+
+    delete sEnv;
+    sEnv = 0;
+  }
+
+  //----------------------------------------------------------------------------
+  // Re-initialize the logging
+  //----------------------------------------------------------------------------
+  void DefaultEnv::ReInitializeLogging()
+  {
+    delete sLog;
+    sLog = new Log();
+    SetUpLog();
+  }
+
+  //----------------------------------------------------------------------------
+  // Set up the log
+  //----------------------------------------------------------------------------
+  void DefaultEnv::SetUpLog()
+  {
+    Log *log = GetLog();
+
+    //--------------------------------------------------------------------------
+    // Check if the log level has been defined in the environment
+    //--------------------------------------------------------------------------
+    char *level = getenv( "XRD_LOGLEVEL" );
+    if( level )
+      log->SetLevel( level );
+
+    //--------------------------------------------------------------------------
+    // Check if we need to log to a file
+    //--------------------------------------------------------------------------
+    char *file = getenv( "XRD_LOGFILE" );
+    if( file )
+    {
+      LogOutFile *out = new LogOutFile();
+      if( out->Open( file ) )
+        log->SetOutput( out );
+      else
+        delete out;
+    }
+
+    //--------------------------------------------------------------------------
+    // Log mask defaults
+    //--------------------------------------------------------------------------
+    MaskTranslator translator;
+    log->SetMask( Log::DumpMsg, translator.translateMask( "All|^PollerMsg" ) );
+
+    //--------------------------------------------------------------------------
+    // Initialize the topic mask
+    //--------------------------------------------------------------------------
+    char *logMask = getenv( "XRD_LOGMASK" );
+    if( logMask )
+    {
+      uint64_t mask = translator.translateMask( logMask );
+      log->SetMask( Log::ErrorMsg,   mask );
+      log->SetMask( Log::WarningMsg, mask );
+      log->SetMask( Log::InfoMsg,    mask );
+      log->SetMask( Log::DebugMsg,   mask );
+      log->SetMask( Log::DumpMsg,    mask );
+    }
+
+    logMask = getenv( "XRD_LOGMASK_ERROR" );
+    if( logMask ) log->SetMask( Log::ErrorMsg, translator.translateMask( logMask ) );
+
+    logMask = getenv( "XRD_LOGMASK_WARNING" );
+    if( logMask ) log->SetMask( Log::WarningMsg, translator.translateMask( logMask ) );
+
+    logMask = getenv( "XRD_LOGMASK_INFO" );
+    if( logMask ) log->SetMask( Log::InfoMsg, translator.translateMask( logMask ) );
+
+    logMask = getenv( "XRD_LOGMASK_DEBUG" );
+    if( logMask ) log->SetMask( Log::DebugMsg, translator.translateMask( logMask ) );
+
+    logMask = getenv( "XRD_LOGMASK_DUMP" );
+    if( logMask ) log->SetMask( Log::DumpMsg, translator.translateMask( logMask ) );
+
+    //--------------------------------------------------------------------------
+    // Set up the topic strings
+    //--------------------------------------------------------------------------
+    log->SetTopicName( AppMsg,             "App" );
+    log->SetTopicName( UtilityMsg,         "Utility" );
+    log->SetTopicName( FileMsg,            "File" );
+    log->SetTopicName( PollerMsg,          "Poller" );
+    log->SetTopicName( PostMasterMsg,      "PostMaster" );
+    log->SetTopicName( XRootDTransportMsg, "XRootDTransport" );
+    log->SetTopicName( TaskMgrMsg,         "TaskMgr" );
+    log->SetTopicName( XRootDMsg,          "XRootD" );
+    log->SetTopicName( FileSystemMsg,      "FileSystem" );
+    log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
+  }
+}
+
+//------------------------------------------------------------------------------
+// Forking functions
+//------------------------------------------------------------------------------
+extern "C"
+{
+  //----------------------------------------------------------------------------
+  // Prepare for the forking
+  //----------------------------------------------------------------------------
+  static void prepare()
+  {
+    //--------------------------------------------------------------------------
+    // Prepare
+    //--------------------------------------------------------------------------
+    using namespace XrdCl;
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+
+    log->Debug( UtilityMsg, "In the prepare fork handler for process %d",
+                getpid() );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+      forkHandler->Prepare();
+    env->WriteLock();
+  }
+
+  //----------------------------------------------------------------------------
+  // Parent handler
+  //----------------------------------------------------------------------------
+  static void parent()
+  {
+    //--------------------------------------------------------------------------
+    // Prepare
+    //--------------------------------------------------------------------------
+    using namespace XrdCl;
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+    env->UnLock();
+
+    log->Debug( UtilityMsg, "In the parent fork handler for process %d",
+                getpid() );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+      forkHandler->Parent();
+  }
+
+  //----------------------------------------------------------------------------
+  // Child handler
+  //----------------------------------------------------------------------------
+  static void child()
+  {
+    //--------------------------------------------------------------------------
+    // Prepare
+    //--------------------------------------------------------------------------
+    using namespace XrdCl;
+    DefaultEnv::ReInitializeLogging();
+    Log         *log         = DefaultEnv::GetLog();
+    Env         *env         = DefaultEnv::GetEnv();
+    ForkHandler *forkHandler = DefaultEnv::GetForkHandler();
+    env->ReInitializeLock();
+
+    log->Debug( UtilityMsg, "In the child fork handler for process %d",
+                getpid() );
+
+    //--------------------------------------------------------------------------
+    // Run the fork handler if it's enabled
+    //--------------------------------------------------------------------------
+    int runForkHandler = DefaultRunForkHandler;
+    env->GetInt( "RunForkHandler", runForkHandler );
+    if( runForkHandler )
+      forkHandler->Child();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Static initialization and finalization
+//------------------------------------------------------------------------------
+namespace
+{
 
   static struct EnvInitializer
   {
@@ -227,77 +419,8 @@ namespace
     //--------------------------------------------------------------------------
     EnvInitializer()
     {
-      using namespace XrdCl;
-      Log *log = DefaultEnv::GetLog();
-
-      //------------------------------------------------------------------------
-      // Check if the log level has been defined in the environment
-      //------------------------------------------------------------------------
-      char *level = getenv( "XRD_LOGLEVEL" );
-      if( level )
-        log->SetLevel( level );
-
-      //------------------------------------------------------------------------
-      // Check if we need to log to a file
-      //------------------------------------------------------------------------
-      char *file = getenv( "XRD_LOGFILE" );
-      if( file )
-      {
-        LogOutFile *out = new LogOutFile();
-        if( out->Open( file ) )
-          log->SetOutput( out );
-        else
-          delete out;
-      }
-
-      //------------------------------------------------------------------------
-      // Log mask defaults
-      //------------------------------------------------------------------------
-      MaskTranslator translator;
-      log->SetMask( Log::DumpMsg, translator.translateMask( "All|^PollerMsg" ) );
-
-      //------------------------------------------------------------------------
-      // Initialize the topic mask
-      //------------------------------------------------------------------------
-      char *logMask = getenv( "XRD_LOGMASK" );
-      if( logMask )
-      {
-        uint64_t mask = translator.translateMask( logMask );
-        log->SetMask( Log::ErrorMsg,   mask );
-        log->SetMask( Log::WarningMsg, mask );
-        log->SetMask( Log::InfoMsg,    mask );
-        log->SetMask( Log::DebugMsg,   mask );
-        log->SetMask( Log::DumpMsg,    mask );
-      }
-
-      logMask = getenv( "XRD_LOGMASK_ERROR" );
-      if( logMask ) log->SetMask( Log::ErrorMsg, translator.translateMask( logMask ) );
-
-      logMask = getenv( "XRD_LOGMASK_WARNING" );
-      if( logMask ) log->SetMask( Log::WarningMsg, translator.translateMask( logMask ) );
-
-      logMask = getenv( "XRD_LOGMASK_INFO" );
-      if( logMask ) log->SetMask( Log::InfoMsg, translator.translateMask( logMask ) );
-
-      logMask = getenv( "XRD_LOGMASK_DEBUG" );
-      if( logMask ) log->SetMask( Log::DebugMsg, translator.translateMask( logMask ) );
-
-      logMask = getenv( "XRD_LOGMASK_DUMP" );
-      if( logMask ) log->SetMask( Log::DumpMsg, translator.translateMask( logMask ) );
-
-      //------------------------------------------------------------------------
-      // Set up the topic strings
-      //------------------------------------------------------------------------
-      log->SetTopicName( AppMsg,             "App" );
-      log->SetTopicName( UtilityMsg,         "Utility" );
-      log->SetTopicName( FileMsg,            "File" );
-      log->SetTopicName( PollerMsg,          "Poller" );
-      log->SetTopicName( PostMasterMsg,      "PostMaster" );
-      log->SetTopicName( XRootDTransportMsg, "XRootDTransport" );
-      log->SetTopicName( TaskMgrMsg,         "TaskMgr" );
-      log->SetTopicName( XRootDMsg,          "XRootD" );
-      log->SetTopicName( FileSystemMsg,      "FileSystem" );
-      log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
+      XrdCl::DefaultEnv::Initialize();
+      pthread_atfork( prepare, parent, child );
     }
 
     //--------------------------------------------------------------------------
@@ -305,7 +428,7 @@ namespace
     //--------------------------------------------------------------------------
     ~EnvInitializer()
     {
-      XrdCl::DefaultEnv::Release();
+      XrdCl::DefaultEnv::Finalize();
     }
   } finalizer;
 }

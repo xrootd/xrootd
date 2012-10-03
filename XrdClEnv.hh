@@ -85,6 +85,30 @@ namespace XrdCl
       //------------------------------------------------------------------------
       bool ImportString( const std::string &key, const std::string &shellKey );
 
+      //------------------------------------------------------------------------
+      // Lock the environment for writing
+      //------------------------------------------------------------------------
+      void WriteLock()
+      {
+        pLock.WriteLock();
+      }
+
+      //------------------------------------------------------------------------
+      // Unlock the environment
+      //------------------------------------------------------------------------
+      void UnLock()
+      {
+        pLock.UnLock();
+      }
+
+      //------------------------------------------------------------------------
+      // Re-initialize the lock
+      //------------------------------------------------------------------------
+      void ReInitializeLock()
+      {
+        pLock.ReInitialize();
+      }
+
     private:
       std::string GetEnv( const std::string &key );
       typedef std::map<std::string, std::pair<std::string, bool> > StringMap;

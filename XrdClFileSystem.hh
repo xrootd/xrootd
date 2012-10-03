@@ -152,6 +152,8 @@ namespace XrdCl
   class FileSystem
   {
     friend class AssignLBHandler;
+    friend class ForkHandler;
+
     public:
       typedef std::vector<LocationInfo> LocationList; //!< Location list
 
@@ -570,6 +572,22 @@ namespace XrdCl
       // Assign a loadbalancer if it has not already been assigned
       //------------------------------------------------------------------------
       void AssignLoadBalancer( const URL &url );
+
+      //------------------------------------------------------------------------
+      // Lock the internal lock
+      //------------------------------------------------------------------------
+      void Lock()
+      {
+        pMutex.Lock();
+      }
+
+      //------------------------------------------------------------------------
+      // Unlock the internal lock
+      //------------------------------------------------------------------------
+      void UnLock()
+      {
+        pMutex.UnLock();
+      }
 
       XrdSysMutex  pMutex;
       bool         pLoadBalancerLookupDone;

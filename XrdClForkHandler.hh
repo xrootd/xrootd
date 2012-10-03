@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
@@ -16,75 +16,92 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_DEFAULT_ENV_HH__
-#define __XRD_CL_DEFAULT_ENV_HH__
+#ifndef __XRD_CL_FORK_HANDLER_HH__
+#define __XRD_CL_FORK_HANDLER_HH__
 
-#include "XrdSys/XrdSysPthread.hh"
-#include "XrdCl/XrdClEnv.hh"
+#include <XrdSys/XrdSysPthread.hh>
+#include <set>
 
 namespace XrdCl
 {
+  class FileStateHandler;
+  class FileSystem;
   class PostMaster;
-  class Log;
-  class ForkHandler;
 
   //----------------------------------------------------------------------------
-  //! Default environment for the client. Responsible for setting/importing
-  //! defaults for the variables used by the client. And holding other
-  //! global stuff.
+  // Helper class for handling forking
   //----------------------------------------------------------------------------
-  class DefaultEnv: public Env
+  class ForkHandler
   {
     public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      DefaultEnv();
+      ForkHandler();
 
       //------------------------------------------------------------------------
-      //! Get default client environment
+      //! Register a file object
       //------------------------------------------------------------------------
-      static Env *GetEnv();
+      void RegisterFileObject( FileStateHandler *file )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pFileObjects.insert( file );
+      }
 
       //------------------------------------------------------------------------
-      //! Get default post master
+      // Un-register a file object
       //------------------------------------------------------------------------
-      static PostMaster *GetPostMaster();
+      void UnRegisterFileObject( FileStateHandler *file )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pFileObjects.erase( file );
+      }
 
       //------------------------------------------------------------------------
-      //! Get default log
+      // Register a file system object
       //------------------------------------------------------------------------
-      static Log *GetLog();
+      void RegisterFileSystemObject( FileSystem *fs )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pFileSystemObjects.insert( fs );
+      }
 
       //------------------------------------------------------------------------
-      //! Get the fork handler
+      //! Un-register a file system object
       //------------------------------------------------------------------------
-      static ForkHandler *GetForkHandler();
+      void UnRegisterFileSystemObject( FileSystem *fs )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pFileSystemObjects.erase( fs );
+      }
 
       //------------------------------------------------------------------------
-      //! Initialize the environemnt
+      //! Register a post master object
       //------------------------------------------------------------------------
-      static void Initialize();
+      void RegisterPostMaster( PostMaster *postMaster )
+      {
+        XrdSysMutexHelper scopedLock( pMutex );
+        pPostMaster = postMaster;
+      }
 
       //------------------------------------------------------------------------
-      //! Finalize the environment
+      //! Handle the preparation part of the forking process
       //------------------------------------------------------------------------
-      static void Finalize();
+      void Prepare();
 
       //------------------------------------------------------------------------
-      //! Re-initialize the logging
+      //! Handle the parent post-fork
       //------------------------------------------------------------------------
-      static void ReInitializeLogging();
+      void Parent();
+
+      //------------------------------------------------------------------------
+      //! Handler the child post-fork
+      //------------------------------------------------------------------------
+      void Child();
 
     private:
-      static void SetUpLog();
-
-      static Env         *sEnv;
-      static XrdSysMutex  sPostMasterMutex;
-      static PostMaster  *sPostMaster;
-      static Log         *sLog;
-      static ForkHandler *sForkHandler;;
+      std::set<FileStateHandler*>  pFileObjects;
+      std::set<FileSystem*>        pFileSystemObjects;
+      PostMaster                  *pPostMaster;
+      XrdSysMutex                  pMutex;
   };
 }
 
-#endif // __XRD_CL_DEFAULT_ENV_HH__
+#endif // __XRD_CL_FORK_HANDLER_HH__

@@ -52,6 +52,7 @@ add_library(
   XrdClThirdPartyCopyJob.cc   XrdClThirdPartyCopyJob.hh
   XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
   XrdClChannelHandlerList.cc  XrdClChannelHandlerList.hh
+  XrdClForkHandler.cc         XrdClForkHandler.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

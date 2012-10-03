@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClForkHandler.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
@@ -249,6 +250,7 @@ namespace XrdCl
     pDoRecoverWrite( true )
   {
     pFileHandle = new uint8_t[4];
+    DefaultEnv::GetForkHandler()->RegisterFileObject( this );
   }
 
   //----------------------------------------------------------------------------
@@ -256,6 +258,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
+    DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
     delete pStatInfo;
     delete pFileUrl;
     delete pDataServer;
@@ -907,6 +910,29 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Called in the child process after the fork
+  //----------------------------------------------------------------------------
+  void FileStateHandler::AfterForkChild()
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    if( pFileState == Closed || pFileState == Error )
+      return;
+
+    if( (IsReadOnly() && pDoRecoverRead) ||
+        (!IsReadOnly() && pDoRecoverWrite) )
+    {
+      log->Debug( FileMsg, "[0x%x@%s] Putting the file in recovery state in "
+                  "process %d", this, pFileUrl->GetURL().c_str(), getpid() );
+      pFileState = Recovering;
+      pInTheFly.clear();
+      pToBeRecovered.clear();
+    }
+    else
+      pFileState = Error;
+  }
+
+  //----------------------------------------------------------------------------
   // Send a message to a host or put it in the recovery queue
   //----------------------------------------------------------------------------
   Status FileStateHandler::SendOrQueue( const URL         &url,
@@ -918,7 +944,10 @@ namespace XrdCl
     // Recovering
     //--------------------------------------------------------------------------
     if( pFileState == Recovering )
+    {
+      XRootDTransport::MarshallRequest( msg );
       return RecoverMessage( RequestData( msg, handler, sendParams ), false );
+    }
 
     //--------------------------------------------------------------------------
     // Trying to send

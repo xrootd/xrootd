@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClRequestSync.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
+#include "XrdCl/XrdClForkHandler.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <memory>
@@ -290,6 +291,7 @@ namespace XrdCl
   FileSystem::FileSystem( const URL &url ): pLoadBalancerLookupDone( false )
   {
     pUrl = new URL( url.GetURL() );
+    DefaultEnv::GetForkHandler()->RegisterFileSystemObject( this );
   }
 
   //----------------------------------------------------------------------------
@@ -297,6 +299,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileSystem::~FileSystem()
   {
+    DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
     delete pUrl;
   }
 

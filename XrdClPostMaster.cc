@@ -116,9 +116,9 @@ namespace XrdCl
   {
     if( !pInitialized )
       return true;
-    if( !pPoller->Stop() )
-      return false;
     if( !pTaskManager->Stop() )
+      return false;
+    if( !pPoller->Stop() )
       return false;
     return true;
   }
