@@ -149,8 +149,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_error:
       {
-        log->Dump( XRootDMsg, "[%s] Got akXR_error response to request %s [%d] "
-                   "%s", pUrl.GetHostId().c_str(),
+        log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request %s "
+                   "[%d] %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str(), rsp->body.error.errnum,
                    rsp->body.error.errmsg );
 
