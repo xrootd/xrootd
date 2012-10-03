@@ -250,6 +250,34 @@ void PostMasterTest::FunctionalTest()
 
   postMaster.Stop();
   postMaster.Finalize();
+
+  //----------------------------------------------------------------------------
+  // Reinitialize and try to do something
+  //----------------------------------------------------------------------------
+  postMaster.Initialize();
+  postMaster.Start();
+
+  m2 = 0;
+  m1.Zero();
+
+  request = (ClientPingRequest *)m1.GetBuffer();
+  request->streamid[0] = 1;
+  request->streamid[1] = 2;
+  request->requestid   = kXR_ping;
+  request->dlen        = 0;
+  XRootDTransport::MarshallRequest( &m1 );
+
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, expires ) );
+
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, expires ) );
+  resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  postMaster.Stop();
+  postMaster.Finalize();
+
 }
 
 
