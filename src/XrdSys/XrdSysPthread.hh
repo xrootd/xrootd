@@ -242,6 +242,12 @@ inline void UnLock() {pthread_rwlock_unlock(&lock);}
         XrdSysRWLock() {pthread_rwlock_init(&lock, NULL);}
        ~XrdSysRWLock() {pthread_rwlock_destroy(&lock);}
 
+inline void ReInitialize()
+{
+  pthread_rwlock_destroy(&lock);
+  pthread_rwlock_init(&lock, NULL);
+}
+
 protected:
 
 pthread_rwlock_t lock;
