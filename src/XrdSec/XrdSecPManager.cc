@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -135,6 +136,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                                     XrdSecParameters &secparm)
 {
    char secbuff[4096], *nscan, *pname, *pargs, *bp = secbuff;
+   char pcomp[XrdSecPROTOIDSIZE+4], *compProt;
    const char *wantProt = getenv("XrdSecPROTOCOL");
    XrdSecProtList *pl;
    XrdSecProtocol *pp;
@@ -144,6 +146,16 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
 // We only scan the buffer once
 //
    if (secparm.size <= 0) return (XrdSecProtocol *)0;
+
+// Copy out the wanted protocols and frame them for easy comparison
+//
+   if (wantProt)
+      {i = strlen(wantProt);
+       compProt = (char *)malloc(i+3);
+       *compProt = ',';
+       strcpy(compProt+1, wantProt);
+       compProt[i+1] = ','; compProt[i+2] = 0; *pcomp = ',';
+      } else compProt = 0;
 
 // Copy the string into a local buffer so that we can simplify some comparisons
 // and isolate ourselves from server protocol errors.
@@ -168,7 +180,12 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                               else nscan = 0;
                           }
                   }
-         if (!wantProt or !strcmp(pname, wantProt))
+         if (wantProt)
+            {strncpy(pcomp+1, pname, XrdSecPROTOIDSIZE);
+             pcomp[XrdSecPROTOIDSIZE+1] = 0;
+             strcat(pcomp, ",");
+            }
+         if (!wantProt || strstr(compProt, pcomp))
             {if ((pl = Lookup(pname)) || (pl = ldPO(&erp, 'c', pname)))
                 {DEBUG("Using " <<pname <<" protocol, args='"
                        <<(pargs ? pargs : "") <<"'");
@@ -176,6 +193,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                     {if (nscan) {i = nscan - secbuff;
                                  secparm.buffer += i; secparm.size -= i;
                                 } else secparm.size = -1;
+                     if (compProt) free(compProt);
                      return pp;
                     }
                 }
@@ -185,6 +203,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
          *nscan = '&'; bp = nscan;
          }
     secparm.size = -1;
+    if (compProt) free(compProt);
     return (XrdSecProtocol *)0;
 }
  
