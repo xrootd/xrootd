@@ -30,7 +30,7 @@ namespace
 
   ErrorMap errors[] = {
     { errUnknown,            "Unknown error"        },
-    { errInvalidOp,          "Invalid operaion"     },
+    { errInvalidOp,          "Invalid operation"    },
     { errFcntl,              "Fcntl error"          },
     { errPoll,               "Poll error"           },
     { errConfig,             "Configuration error"  },
