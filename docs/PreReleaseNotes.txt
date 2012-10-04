@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Provide an ABI-compatible interface to obtain a default cmsd client
+     object. This patch does not change the definition of the XrdCmsClient
+     object and is ABI compatible with all previous releases (DPM support).
    * Allow multiple comma separated protocols in XrdSecPROTOCOL client-side
      envar. This allows the client to select 1 of n protocols.
    * Implement new "f" stream monitoring.
