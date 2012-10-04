@@ -6,6 +6,14 @@ Release Notes
 =============
 
 -------------
+Version 3.2.5
+-------------
++ **Major bug fixes**
+   * Make realoading gridmapfile atomic (protect from segfault)
+   * Propagate to clients proper range of errors during read/write operations
+   * Fix segfault when handling writes to files that have not been opened
+
+-------------
 Version 3.2.4
 -------------
 + **Major bug fixes**
