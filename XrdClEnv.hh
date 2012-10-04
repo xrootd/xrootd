@@ -106,6 +106,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ReInitializeLock()
       {
+        // this is really shaky, but seems to work on linux and fork safety
+        // is probably not required anywhere else
+        pLock.UnLock();
         pLock.ReInitialize();
       }
 
