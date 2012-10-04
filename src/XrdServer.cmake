@@ -83,7 +83,7 @@ add_library(
   XrdCms/XrdCmsClientMan.cc       XrdCms/XrdCmsClientMan.hh
   XrdCms/XrdCmsClientMsg.cc       XrdCms/XrdCmsClientMsg.hh
   XrdCms/XrdCmsFinder.cc          XrdCms/XrdCmsFinder.hh
-                                  XrdCms/XrdCmsClient.hh
+  XrdCms/XrdCmsClient.cc          XrdCms/XrdCmsClient.hh
   XrdCms/XrdCmsResp.cc            XrdCms/XrdCmsResp.hh
   XrdCms/XrdCmsReq.cc             XrdCms/XrdCmsReq.hh
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh

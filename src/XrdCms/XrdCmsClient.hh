@@ -35,6 +35,7 @@ class  XrdOucErrInfo;
 class  XrdOucLogger;
 class  XrdOucTList;
 struct XrdSfsPrep;
+class  XrdSysLogger;
 
 /******************************************************************************/
 /*                    R e t u r n   C o n v e n t i o n s                     */
@@ -391,6 +392,7 @@ enum  {IsProxy  = 1, //!< The role is proxy  {plus one or more of the below}
 //!
 //! @param  myPort -> The server's port number.
 //! @param  theSS  -> The object that implements he underlying storage system.
+//!                   This object may be passed for historic reasons.
 //!
 //! @return Success: a pointer to the appropriate object (IsRedir or IsTarget).
 //!
@@ -399,9 +401,32 @@ enum  {IsProxy  = 1, //!< The role is proxy  {plus one or more of the below}
 
 /*! extern "C" XrdCmsClient *XrdCmsGetClient(XrdSysLogger *Logger,
                                              int           opMode,
-                                             int           myPort,
+                                             int           myPort
                                              XrdOss       *theSS);
 */
+
+//------------------------------------------------------------------------------
+//! Obtain an instance of a default unconfigured XrdCmsClient.
+//!
+//! The following function may be called to obtain an instance of the default
+//! XrdCmsClient object. The Configure() method is *not* called before the
+//! object is returned. The parameters are the same as those for the function
+//! XrdCmsGetClient(), above. Note that you need not supply a pointer to the
+//! underlying storage system, as this is historic in nature.
+//!
+//! @return Success: a pointer to the appropriate object (IsRedir or IsTarget).
+//!
+//!         Failure: a null pointer, neither ISRedir nor IsTarget has been
+//!                  specified or there is insufficient memory.
+//------------------------------------------------------------------------------
+
+namespace XrdCms
+{
+          XrdCmsClient *GetDefaultClient(XrdSysLogger *Logger,
+                                         int           opMode,
+                                         int           myPort
+                                        );
+};
 
 //------------------------------------------------------------------------------
 //! Declare compilation version.
