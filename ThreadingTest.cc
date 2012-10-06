@@ -57,12 +57,14 @@ class ThreadingTest: public CppUnit::TestCase
       CPPUNIT_TEST( MultiStreamReadTest );
       CPPUNIT_TEST( ReadForkTest );
       CPPUNIT_TEST( MultiStreamReadForkTest );
+      CPPUNIT_TEST( MultiStreamReadMonitorTest );
     CPPUNIT_TEST_SUITE_END();
     void ReadTestFunc( TransferCallback transferCallback );
     void ReadTest();
     void MultiStreamReadTest();
     void ReadForkTest();
     void MultiStreamReadForkTest();
+    void MultiStreamReadMonitorTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
@@ -333,4 +335,15 @@ void ThreadingTest::MultiStreamReadForkTest()
   env->PutInt( "SubStreamsPerChannel", 4 );
   env->PutInt( "RunForkHandler", 1 );
   ReadTestFunc(&forkAndRead);
+}
+
+//------------------------------------------------------------------------------
+// Multistream read monitor
+//------------------------------------------------------------------------------
+void ThreadingTest::MultiStreamReadMonitorTest()
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  env->PutString( "ClientMonitor", "./libXrdClTestMonitor.so" );
+  env->PutString( "ClientMonitorParam", "TestParam" );
+  ReadTestFunc(0);
 }

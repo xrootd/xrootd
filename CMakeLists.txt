@@ -3,11 +3,23 @@ include_directories( ../ ${XROOTD_INCLUDES}  )
 link_directories( ${XROOTD_LIB_DIR} )
 
 add_library(
-  XrdClTests MODULE
+  XrdClTestsHelper SHARED
   Server.cc              Server.hh
   Utils.cc               Utils.hh
   TestEnv.cc             TestEnv.hh
   CppUnitXrdHelpers.hh
+)
+
+target_link_libraries(
+  XrdClTestsHelper
+  pthread
+  ${CPPUNIT_LIBRARIES}
+  ${ZLIB_LIBRARY}
+  XrdCl )
+
+
+add_library(
+  XrdClTests MODULE
   UtilsTest.cc
   SocketTest.cc
   PollerTest.cc
@@ -20,9 +32,20 @@ add_library(
 
 target_link_libraries(
   XrdClTests
+  XrdClTestsHelper
   pthread
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
+  XrdCl )
+
+add_library(
+  XrdClTestMonitor MODULE
+  MonitorTestLib.cc
+)
+
+target_link_libraries(
+  XrdClTestMonitor
+  XrdClTestsHelper
   XrdCl )
 
 add_executable( text-runner TextRunner.cc PathProcessor.hh )
