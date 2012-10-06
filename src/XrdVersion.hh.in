@@ -74,7 +74,7 @@ struct XrdVersionInfo {int vNum; const char vOpt; const char vPfx[3];\
 //
 #define XrdVERSIONINFODEF(x,y,vn,vs) \
         XrdVersionInfo x = \
-        {vn, (sizeof(#y)-1) & 0x0f,'@','V',':', #y " " vs}
+        {vn, (sizeof(#y)-1) & 0x0f,{'@','V',':'}, #y " " vs}
 
 // The following macro defines an externally referencable structure that records
 // the version used to compile code. It is used by the plugin loader. Parms:
