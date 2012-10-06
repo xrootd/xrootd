@@ -48,7 +48,9 @@ namespace XrdCl
   const int DefaultStreamErrorWindow    = 1800;
   const int DefaultRunForkHandler       = 0;
 
-  const char * const DefaultPollerPreference = "libevent,built-in";
+  const char * const DefaultPollerPreference   = "libevent,built-in";
+  const char * const DefaultClientMonitor      = "";
+  const char * const DefaultClientMonitorParam = "";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__

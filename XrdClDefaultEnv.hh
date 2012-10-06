@@ -21,12 +21,16 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
+#include "XrdVersion.hh"
+
+class XrdSysPlugin;
 
 namespace XrdCl
 {
   class PostMaster;
   class Log;
   class ForkHandler;
+  class Monitor;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -62,6 +66,11 @@ namespace XrdCl
       static ForkHandler *GetForkHandler();
 
       //------------------------------------------------------------------------
+      //! Get the monitor object
+      //------------------------------------------------------------------------
+      static Monitor *GetMonitor();
+
+      //------------------------------------------------------------------------
       //! Initialize the environemnt
       //------------------------------------------------------------------------
       static void Initialize();
@@ -79,11 +88,15 @@ namespace XrdCl
     private:
       static void SetUpLog();
 
-      static Env         *sEnv;
-      static XrdSysMutex  sPostMasterMutex;
-      static PostMaster  *sPostMaster;
-      static Log         *sLog;
-      static ForkHandler *sForkHandler;;
+      static Env            *sEnv;
+      static XrdSysMutex     sPostMasterMutex;
+      static PostMaster     *sPostMaster;
+      static Log            *sLog;
+      static ForkHandler    *sForkHandler;
+      static Monitor        *sMonitor;
+      static XrdSysPlugin   *sMonitorLibHandle;
+      static XrdSysMutex     sMonitorMutex;
+      static bool            sMonitorInitialized;
   };
 }
 

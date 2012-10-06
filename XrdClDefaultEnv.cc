@@ -22,11 +22,16 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClForkHandler.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClMonitor.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 #include <map>
 #include <pthread.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+XrdVERSIONINFO( XrdCl, client );
 
 namespace
 {
@@ -113,25 +118,34 @@ namespace
 
 namespace XrdCl
 {
-  Env         *DefaultEnv::sEnv             = 0;
-  XrdSysMutex  DefaultEnv::sPostMasterMutex;
-  PostMaster  *DefaultEnv::sPostMaster      = 0;
-  Log         *DefaultEnv::sLog             = 0;
-  ForkHandler *DefaultEnv::sForkHandler     = 0;
+  //----------------------------------------------------------------------------
+  // Statics
+  //----------------------------------------------------------------------------
+  Env            *DefaultEnv::sEnv                = 0;
+  XrdSysMutex     DefaultEnv::sPostMasterMutex;
+  PostMaster     *DefaultEnv::sPostMaster         = 0;
+  Log            *DefaultEnv::sLog                = 0;
+  ForkHandler    *DefaultEnv::sForkHandler        = 0;
+  Monitor        *DefaultEnv::sMonitor            = 0;
+  XrdSysPlugin   *DefaultEnv::sMonitorLibHandle   = 0;
+  XrdSysMutex     DefaultEnv::sMonitorMutex;
+  bool            DefaultEnv::sMonitorInitialized = false;
 
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
   DefaultEnv::DefaultEnv()
   {
-    PutInt( "ConnectionWindow",     DefaultConnectionWindow  );
-    PutInt( "ConnectionRetry",      DefaultConnectionRetry   );
-    PutInt( "RequestTimeout",       DefaultRequestTimeout    );
-    PutInt( "SubStreamsPerChannel", DefaultSubStreamsPerChannel );
-    PutInt( "TimeoutResolution",    DefaultTimeoutResolution );
-    PutInt( "StreamErrorWindow",    DefaultStreamErrorWindow );
-    PutInt( "RunForkHandler",       DefaultRunForkHandler    );
-    PutString( "PollerPreference",  DefaultPollerPreference  );
+    PutInt( "ConnectionWindow",      DefaultConnectionWindow     );
+    PutInt( "ConnectionRetry",       DefaultConnectionRetry      );
+    PutInt( "RequestTimeout",        DefaultRequestTimeout       );
+    PutInt( "SubStreamsPerChannel",  DefaultSubStreamsPerChannel );
+    PutInt( "TimeoutResolution",     DefaultTimeoutResolution    );
+    PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
+    PutInt( "RunForkHandler",        DefaultRunForkHandler       );
+    PutString( "PollerPreference",   DefaultPollerPreference     );
+    PutString( "ClientMonitor",      DefaultClientMonitor        );
+    PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
 
     ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
     ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
@@ -141,6 +155,8 @@ namespace XrdCl
     ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
     ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
+    ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
+    ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
   }
 
   //----------------------------------------------------------------------------
@@ -199,6 +215,80 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get the monitor object
+  //----------------------------------------------------------------------------
+  Monitor *DefaultEnv::GetMonitor()
+  {
+    if( unlikely( !sMonitorInitialized ) )
+    {
+      XrdSysMutexHelper scopedLock( sMonitorMutex );
+      if( !sMonitorInitialized )
+      {
+        //----------------------------------------------------------------------
+        // Check the environment settings
+        //----------------------------------------------------------------------
+        Env *env = GetEnv();
+        Log *log = GetLog();
+        sMonitorInitialized = true;
+        std::string monitorLib = DefaultClientMonitor;
+        env->GetString( "ClientMonitor", monitorLib );
+        if( monitorLib.empty() )
+        {
+          log->Debug( UtilityMsg, "Monitor library name not set. No "
+                      "monitoring" );
+          return 0;
+        }
+
+        std::string monitorParam = DefaultClientMonitorParam;
+        env->GetString( "ClientMonitorParam", monitorParam );
+
+        log->Debug( UtilityMsg, "Initializing monitoring, lib: %s, param: %s",
+                    monitorLib.c_str(), monitorParam.c_str() );
+
+        //----------------------------------------------------------------------
+        // Loading the plugin
+        //----------------------------------------------------------------------
+        char *errBuffer = new char[4000];
+        sMonitorLibHandle = new XrdSysPlugin(
+                                 errBuffer, 4000, monitorLib.c_str(),
+                                 monitorLib.c_str(),
+                                 &XrdVERSIONINFOVAR( XrdCl ) );
+
+        typedef XrdCl::Monitor *(*MonLoader)(const char *, const char *);
+        MonLoader loader;
+        loader = (MonLoader)sMonitorLibHandle->getPlugin( "XrdClGetMonitor" );
+        if( !loader )
+        {
+          log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
+                      errBuffer );
+          delete [] errBuffer;
+          delete sMonitorLibHandle; sMonitorLibHandle = 0;
+          return 0;
+        }
+
+        //----------------------------------------------------------------------
+        // Instantiating the monitor object
+        //----------------------------------------------------------------------
+        const char *param = monitorParam.empty() ? 0 : monitorParam.c_str();
+        sMonitor = (*loader)( XrdSysUtils::ExecName(), param );
+
+        if( !sMonitor )
+        {
+          log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
+                      errBuffer );
+          delete [] errBuffer;
+          delete sMonitorLibHandle; sMonitorLibHandle = 0;
+          return 0;
+        }
+        log->Debug( UtilityMsg, "Successfully initialized monitoring from: %s",
+                    monitorLib.c_str() );
+        delete [] errBuffer;
+      }
+    }
+    return sMonitor;
+  }
+
+  //----------------------------------------------------------------------------
   // Initialize the environment
   //----------------------------------------------------------------------------
   void DefaultEnv::Initialize()
@@ -206,7 +296,6 @@ namespace XrdCl
     sEnv         = new DefaultEnv();
     sLog         = new Log();
     sForkHandler = new ForkHandler();
-
     SetUpLog();
   }
 
@@ -231,6 +320,12 @@ namespace XrdCl
 
     delete sEnv;
     sEnv = 0;
+
+    delete sMonitor;
+    sMonitor = 0;
+
+    delete sMonitorLibHandle;
+    sMonitorLibHandle = 0;
   }
 
   //----------------------------------------------------------------------------
