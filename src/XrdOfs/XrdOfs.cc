@@ -1262,6 +1262,12 @@ int XrdOfs::chksum(      csFunc            Func,   // In
    XTRACE(stat, Path, csName);
    AUTHORIZE(client,&cksEnv,AOP_Stat,"checksum",Path,einfo);
 
+// If we are a menager then we need to redirect the client to where the file is
+//
+   if (Finder && Finder->isRemote() 
+   &&  (rc = Finder->Locate(einfo, Path, SFS_O_RDONLY, &cksEnv)))
+      return fsError(einfo, rc);
+
 // At this point we need to convert the lfn to a pfn
 //
    if (!(Path = XrdOfsOss->Lfn2Pfn(Path, buff, MAXPATHLEN, rc)))

@@ -334,7 +334,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 
 // Check if we support this operation
 //
-   if (!JobQCS && !JobCKS)
+   if (!JobCKT || (!JobLCL && !JobCKS))
       return Response.Send(kXR_Unsupported, "query chksum is not supported");
 
 // Prescreen the path
@@ -351,7 +351,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 
 // If we are allowed to locally query the checksum to avoid computation, do it
 //
-   if (JobQCS && (rc = do_CKsum(argp->buff, opaque)) <= 0) return rc;
+   if (JobLCL && (rc = do_CKsum(argp->buff, opaque)) <= 0) return rc;
 
 // Just make absolutely sure we can continue with a calculation
 //
@@ -383,11 +383,7 @@ int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
 
 // Diagnose any hard errors
 //
-   if (rc)
-      {if (!JobLCL && JobCKS) return 1;
-       SI->errorCnt++;
-       return Response.Send((XErrorCode) XProtocol::mapError(ec), csData);
-      }
+   if (rc) return fsError(rc, 0, myError, Path);
 
 // Return result if it is actually available
 //
@@ -2473,7 +2469,8 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACEI(STALL, Response.ID() <<"stalling client for " <<rc <<" sec");
-       return (rc = Response.Send(kXR_wait, rc, eMsg)) ? rc : 1;
+       return Response.Send(kXR_wait, rc, eMsg);
+//?    return (rc = Response.Send(kXR_wait, rc, eMsg)) ? rc : 1;
       }
 
 // Unknown conditions, report it

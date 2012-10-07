@@ -258,9 +258,9 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
           fwdTRUNC.Reset();
          }
 
-// Configure checksums if we are not a manager
+// Configure checksums even for managers
 //
-   if (!(Options & isManager) && !NoGo)
+   if (!NoGo)
       NoGo |= (Cks = CksConfig->Configure(0, CksRdsz)) == 0;
    delete CksConfig;
    CksConfig = 0;

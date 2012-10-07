@@ -236,7 +236,6 @@ static char               *Notify;
 static char                isRedir;
 static char                chkfsV;
 static char                JobLCL;
-static char                JobQCS;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
 

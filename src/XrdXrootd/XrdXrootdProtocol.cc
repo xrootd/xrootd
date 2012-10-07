@@ -78,7 +78,6 @@ int                   XrdXrootdProtocol::WANWindow;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::chkfsV  = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
-char                  XrdXrootdProtocol::JobQCS  = 0;
 XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now

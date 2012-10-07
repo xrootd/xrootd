@@ -136,7 +136,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    XrdXrootdXPath *xp;
    void *secGetProt = 0;
    char *adminp, *fsver, *rdf, *bP, *tmp, c, buff[1024];
-   int i, n, deper = 0, iamaMan = 0;
+   int i, n, deper = 0;
 
 // Copy out the special info we want to use at top level
 //
@@ -268,10 +268,9 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Check if we are going to be processing checksums locally
 //
-   if (JobCKT)
+   if (JobCKT && JobLCL)
       {XrdOucErrInfo myError("Config");
-       JobQCS = (osFS->chksum(XrdSfsFileSystem::csSize,JobCKT,0,myError) ? 0:1);
-       if (!JobQCS && (JobLCL || !JobCKS))
+       if (osFS->chksum(XrdSfsFileSystem::csSize,JobCKT,0,myError))
           {eDest.Emsg("Config", JobCKT, " checksum is not natively supported.");
            return 0;
           }
@@ -311,7 +310,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if ((rdf = getenv("XRDREDIRECT"))
    && (!strcmp(rdf, "R") || !strcmp(rdf, "M")))
       {isRedir = *rdf;
-       myRole = kXR_isManager; myRolf = kXR_LBalServer; iamaMan = 1;
+       myRole = kXR_isManager; myRolf = kXR_LBalServer;
        if (!strcmp(rdf, "M"))  myRole |=kXR_attrMeta;
       } 
    if (getenv("XRDREDPROXY"))  myRole |=kXR_attrProxy;
@@ -333,7 +332,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
       {int k;
        const char *cgi1, *cgi2;
        char buff[1024], xCgi[RD_Num] = {0};
-       if (iamaMan) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
+       if (isRedir) {cgi1 = "+"; cgi2 = getenv("XRDCMSCLUSTERID");}
           else      {cgi1 = "";  cgi2 = pi->myName;}
        do {k = xp->Opts();
            sprintf(buff, " to %s:%d", Route[k].Host, Route[k].Port);
