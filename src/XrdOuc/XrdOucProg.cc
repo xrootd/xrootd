@@ -208,9 +208,15 @@ int XrdOucProg::Run(char *outBuff, int outBsz,
 /******************************************************************************/
 /*                               R u n D o n e                                */
 /******************************************************************************/
+
 int XrdOucProg::RunDone(XrdOucStream &cmd)
 {
    int rc;
+
+// If this is an inline program then just return 0. There is no external process
+// and the return code was returned at the time the inline process was run.
+//
+   if (myProc) return 0;
 
 // Drain the command
 //
