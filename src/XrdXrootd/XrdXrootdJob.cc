@@ -133,7 +133,7 @@ void XrdXrootdJob2Do::DoIt()
 {
    XrdXrootdJob2Do *jp = 0;
    char *lp = 0;
-   int i;
+   int i, rc = 0;
 
 // Obtain a lock to prevent status changes
 //
@@ -147,12 +147,14 @@ void XrdXrootdJob2Do::DoIt()
                                 theArgs[3], theArgs[4])) Status = Job_Cancel;
           else {theJob->myMutex.UnLock();
                 lp = jobStream.GetLine();
+                rc = theJob->theProg->RunDone(jobStream);
                 theJob->myMutex.Lock();
-                if (Status != Job_Cancel)
-                   {Status = Job_Done;
-                    for (i = 0; i < numClients; i++)
-                        if (!Client[i].isSync) {sendResult(lp); break;}
-                   }
+                if (rc) Status = Job_Cancel;
+                   else if (Status != Job_Cancel)
+                           {Status = Job_Done;
+                            for (i = 0; i < numClients; i++)
+                                if (!Client[i].isSync) {sendResult(lp); break;}
+                           }
                }
        }
 
@@ -169,7 +171,7 @@ void XrdXrootdJob2Do::DoIt()
 // will delete ourselves and, if cancelled, send a notofication to everyone
 //
    if (Status != Job_Cancel && numClients) theResult = lp;
-      else {if (Status == Job_Cancel) sendResult(0, 1);
+      else {if (Status == Job_Cancel) sendResult(0, (rc ? 0 : 1));
             jp = theJob->JobTable.Remove(JobNum);
            }
 
