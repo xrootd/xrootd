@@ -55,6 +55,11 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Properly detect external process failure and report correct error status
+     to a client.  This also fixes bug report #91141.
+   * Fully integrate checksum processing into a manager node. When configured,
+     it does not matter whether a client directs a checksum request to a manager
+     or a server.  This also fixes bug report #93388.
    * Make sure to reflect proper range of errors during read/write operations.
      This also provides filesystem plugins full range of allowed return codes.
    * Initialize the rMon toggle to avoid valgrind complaint.
