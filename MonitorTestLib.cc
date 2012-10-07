@@ -75,12 +75,16 @@ class MonitorTest: public XrdCl::Monitor
     bool        pInitialized;
 };
 
+//------------------------------------------------------------------------------
+// C-mangled symbol for dlopen
+//------------------------------------------------------------------------------
 extern "C"
 {
   void *XrdClGetMonitor( const char *exec, const char *param )
   {
+    XrdCl::Log *log = TestEnv::GetLog();
     log->Debug( 2, "Constructing monitoring, exec %s, param %s",
-                exec.c_str(), param.c_str() );
+                exec, param );
     return new MonitorTest( exec, param );
   }
 }
