@@ -163,8 +163,8 @@ void XrdXrootdJob2Do::DoIt()
 // perform the actual function and get the result and send to any async clients
 //
    if (Status != Job_Cancel)
-      {if (theJob->theProg->Run(&jobStream, theArgs[1], theArgs[2],
-                                theArgs[3], theArgs[4])) Status = Job_Cancel;
+      {if ((rc = theJob->theProg->Run(&jobStream, theArgs[1], theArgs[2],
+                         theArgs[3], theArgs[4]))) Status = Job_Cancel;
           else {theJob->myMutex.UnLock();
                 lp = jobStream.GetLine();
                 rc = theJob->theProg->RunDone(jobStream);
