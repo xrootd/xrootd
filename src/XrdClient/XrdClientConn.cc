@@ -338,7 +338,7 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
     // cmd the size is known, while for the kXR_getfile cmd is not.
 
     int len;
-   
+    bool addOpaque = false;
 
     size_t TotalBlkSize = 0;
 
@@ -347,19 +347,17 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
 
     XrdClientMessage *xmsg = 0;
 
+    // Check for a redrive of an open from a previous redirect
+    //
+   if (req->header.requestid == kXR_open && fRedirOpaque.length())
+      addOpaque = true;
+
     // In the case of an abort due to errors, better to return
     // a blank struct. Also checks the validity of the pointer.
     // memset(answhdr, 0, sizeof(answhdr));
 
     // Cycle for redirections...
     do {
-
-
-      
-
-
-
-
 	// Send to the server the request
 	len = sizeof(ClientRequest);
 
@@ -369,7 +367,22 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
 	// same as before, not valid anymore
 	SetSID(req->header.streamid);
 
-	errorType = WriteToServer(req, reqMoreData, fLogConnID, substreamid);
+// Check for redirections of a filename
+//
+   if (addOpaque)
+      {string new_fname;
+       int oldlen = req->header.dlen;
+       new_fname.assign((const char *)reqMoreData);
+       if (new_fname.find('?') == string::npos) new_fname += "?";
+          else new_fname += "&";
+       new_fname += string(fRedirOpaque.c_str());
+       req->open.dlen = new_fname.length();
+       fRedirOpaque.erase(); addOpaque = false;
+       errorType = WriteToServer(req, new_fname.c_str(), fLogConnID, substreamid);
+       req->header.dlen = oldlen;
+      } else {
+       errorType = WriteToServer(req, reqMoreData, fLogConnID, substreamid);
+      }
       
 	// Read from server the answer
 	// Note that the answer can be composed by many reads, in the case that
@@ -415,6 +428,19 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
 	
 	} while (xmsg && (xmsg->HeaderStatus() == kXR_oksofar));
 
+   if (xmsg && (xmsg->HeaderStatus() == kXR_redirect) && fRedirOpaque.length()
+   && ( req->header.requestid == kXR_open
+   ||  (req->header.requestid == kXR_stat     && req->header.dlen)
+   ||   req->header.requestid == kXR_dirlist
+   ||   req->header.requestid == kXR_locate
+   ||   req->header.requestid == kXR_mkdir
+   ||   req->header.requestid == kXR_rm
+   ||   req->header.requestid == kXR_rmdir
+   ||  (req->header.requestid == kXR_truncate && req->header.dlen)
+   ||   req->header.requestid == kXR_mv
+   ||   req->header.requestid == kXR_chmod))
+      addOpaque = true;
+
     } while ((fGlobalRedirCnt < fMaxGlobalRedirCnt) &&
              !IsOpTimeLimitElapsed(time(0)) &&
 	     xmsg && (xmsg->HeaderStatus() == kXR_redirect)); 
@@ -444,18 +470,10 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
     short retry = 0;
     bool resp = FALSE, abortcmd = FALSE;
 
-    string orig_fname,new_fname;
-    if (req->header.requestid == kXR_open && reqMoreData)
-      orig_fname.assign((const char *)reqMoreData);
-
     // if we're going to open a file for the 2nd time we should reset fOpenError, 
     // just in case...
     if (req->header.requestid == kXR_open)
 	fOpenError = (XErrorCode)0;
-
-
-
-
 
     while (!abortcmd && !resp) {
 	abortcmd = FALSE;
@@ -479,29 +497,10 @@ bool XrdClientConn::SendGenCommand(ClientRequest *req, const void *reqMoreData,
 	    ". kXR_retstat is now disabled. Current open options: " << req->open.options);
         }
 
- 
-        kXR_int32 oldlen = 0;
-        if (req->header.requestid == kXR_open && reqMoreData) {
-          oldlen = req->open.dlen;
-          new_fname = orig_fname;
-          if (fRedirOpaque.length()) {
-            new_fname += "?";
-            new_fname += string(fRedirOpaque.c_str());
-          }
-          reqMoreData = new_fname.c_str();
-          req->open.dlen = new_fname.length();
-        }
-
         XrdClientMessage *cmdrespMex = ClientServerCmd(req, reqMoreData,
                                                        answMoreDataAllocated,
                                                        answMoreData, HasToAlloc,
                                                        substreamid);
-
-        if (req->header.requestid == kXR_open && reqMoreData) {
-          req->open.dlen = oldlen;
-        }
-
-
 	// Save server response header if requested
 	if (cmdrespMex)
 	    memcpy(&LastServerResp, &cmdrespMex->fHdr,sizeof(struct ServerResponseHeader));
