@@ -30,6 +30,9 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Make sure redirect opaque information is passed along for all filename
+     based requests. This is required for DPM and EOS N2N services to work
+     in all cases (most importantly, stat).
    * Properly check for errors when client read returns 0 and reflect true
      status. This only affects the Posix client interface.
    * Make sure read statistics are updated for sendfile() and mmap I/O.
