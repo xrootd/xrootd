@@ -134,4 +134,93 @@ namespace XrdCl
     if( sendParams.expires == 0 )
       sendParams.expires = ::time(0)+sendParams.timeout;
   }
+
+  //----------------------------------------------------------------------------
+  //! Append cgi to the one already present in the message
+  //----------------------------------------------------------------------------
+  void MessageUtils::AppendCGI( Message              *msg,
+                                const URL::ParamsMap &newCgi,
+                                bool                  replace )
+  {
+    ClientRequest  *req = (ClientRequest *)msg->GetBuffer();
+    switch( req->header.requestid )
+    {
+      case kXR_chmod:
+      case kXR_mkdir:
+      case kXR_mv:
+      case kXR_open:
+      case kXR_rm:
+      case kXR_rmdir:
+      case kXR_stat:
+      case kXR_truncate:
+      {
+        //----------------------------------------------------------------------
+        // Get the pointer to the appropriate path
+        //----------------------------------------------------------------------
+        char *path = msg->GetBuffer( 24 );
+        size_t length = req->header.dlen;
+        if( req->header.requestid == kXR_mv )
+        {
+          for( int i = 0; i < req->header.dlen; ++i, ++path, --length )
+            if( *path == ' ' )
+              break;
+          ++path;
+          --length;
+        }
+
+        //----------------------------------------------------------------------
+        // Create a fake URL from an existing CGI
+        //----------------------------------------------------------------------
+        char *pathWithNull = new char[length+1];
+        memcpy( pathWithNull, path, length );
+        pathWithNull[length] = 0;
+        std::ostringstream o;
+        o << "fake://fake:111/" << pathWithNull;
+
+        URL currentPath( o.str() );
+        URL::ParamsMap &currentCgi = currentPath.GetParams();
+
+        //----------------------------------------------------------------------
+        // Process the CGI
+        //----------------------------------------------------------------------
+        URL::ParamsMap::const_iterator it;
+        for( it = newCgi.begin(); it != newCgi.end(); ++it )
+        {
+          if( replace || currentCgi.find( it->first ) == currentCgi.end() )
+            currentCgi[it->first] = it->second;
+          else
+          {
+            std::string &v = currentCgi[it->first];
+            if( v.empty() )
+              v = it->second;
+            else
+            {
+              v += ',';
+              v += it->second;
+            }
+          }
+        }
+        std::string newPath = currentPath.GetPathWithParams();
+
+        //----------------------------------------------------------------------
+        // Write the path with the new cgi appended to the message
+        //----------------------------------------------------------------------
+        uint32_t newDlen = req->header.dlen - length + newPath.size();
+        msg->ReAllocate( 24+newDlen );
+        req  = (ClientRequest *)msg->GetBuffer();
+        path = msg->GetBuffer( 24 );
+        if( req->header.requestid == kXR_mv )
+        {
+          for( int i = 0; i < req->header.dlen; ++i, ++path )
+            if( *path == ' ' )
+              break;
+          ++path;
+        }
+        memcpy( path, newPath.c_str(), newPath.size() );
+        req->header.dlen = newDlen;
+        break;
+      }
+    }
+    XRootDTransport::SetDescription( msg );
+  }
 }

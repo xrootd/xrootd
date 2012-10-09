@@ -224,16 +224,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SwitchOnRefreshFlag();
 
-      //------------------------------------------------------------------------
-      //! Merge CGI in the request
-      //!
-      //! @param newCgi  the new cgi
-      //! @param replace indicates whether, in case of a conflict, the new CGI
-      //!                parameter should replace an existing one or be
-      //!                appended to it using a comma
-      //------------------------------------------------------------------------
-      void MergeCGI( const URL::ParamsMap &newCgi, bool replace );
-
       Message                   *pRequest;
       Message                   *pResponse;
       std::vector<Message *>     pPartialResps;

@@ -176,6 +176,19 @@ namespace XrdCl
       //! Process sending params
       //------------------------------------------------------------------------
       static void ProcessSendParams( MessageSendParams &sendParams );
+
+      //------------------------------------------------------------------------
+      //! Append cgi to the on already present in the message
+      //!
+      //! @param msg     message concerned
+      //! @param newCgi  the new cgi
+      //! @param replace indicates whether, in case of a conflict, the new CGI
+      //!                parameter should replace an existing one or be
+      //!                appended to it using a comma
+      //------------------------------------------------------------------------
+      static void AppendCGI( Message              *msg,
+                             const URL::ParamsMap &newCgi,
+                             bool                  replace );
   };
 }
 

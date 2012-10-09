@@ -26,6 +26,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
+#include "XrdCl/XrdClMessageUtils.hh"
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
@@ -789,7 +790,9 @@ namespace XrdCl
     if( newCgi.empty() )
       return Status();
 
-    MergeCGI( newCgi, false );
+    XRootDTransport::UnMarshallRequest( pRequest );
+    MessageUtils::AppendCGI( pRequest, newCgi, false );
+    XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
 
@@ -1011,7 +1014,9 @@ namespace XrdCl
   {
     URL::ParamsMap cgi;
     cgi["tried"] = pUrl.GetHostName();
-    MergeCGI( cgi, false );
+    XRootDTransport::UnMarshallRequest( pRequest );
+    MessageUtils::AppendCGI( pRequest, cgi, false );
+    XRootDTransport::MarshallRequest( pRequest );
   }
 
   //----------------------------------------------------------------------------
@@ -1032,95 +1037,6 @@ namespace XrdCl
       case kXR_open:
       {
         req->locate.options |= kXR_refresh;
-        break;
-      }
-    }
-    XRootDTransport::SetDescription( pRequest );
-    XRootDTransport::MarshallRequest( pRequest );
-  }
-
-  //----------------------------------------------------------------------------
-  // Merge CGI in the request
-  //----------------------------------------------------------------------------
-  void XRootDMsgHandler::MergeCGI( const URL::ParamsMap &newCgi, bool replace )
-  {
-    XRootDTransport::UnMarshallRequest( pRequest );
-    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
-    switch( req->header.requestid )
-    {
-      case kXR_chmod:
-      case kXR_mkdir:
-      case kXR_mv:
-      case kXR_open:
-      case kXR_rm:
-      case kXR_rmdir:
-      case kXR_stat:
-      case kXR_truncate:
-      {
-        //----------------------------------------------------------------------
-        // Get the pointer to the appropriate path
-        //----------------------------------------------------------------------
-        char *path = pRequest->GetBuffer( 24 );
-        size_t length = req->header.dlen;
-        if( req->header.requestid == kXR_mv )
-        {
-          for( int i = 0; i < req->header.dlen; ++i, ++path, --length )
-            if( *path == ' ' )
-              break;
-          ++path;
-          --length;
-        }
-
-        //----------------------------------------------------------------------
-        // Create a fake URL from an existing CGI
-        //----------------------------------------------------------------------
-        char *pathWithNull = new char[length+1];
-        memcpy( pathWithNull, path, length );
-        pathWithNull[length] = 0;
-        std::ostringstream o;
-        o << "fake://fake:111/" << pathWithNull;
-
-        URL currentPath( o.str() );
-        URL::ParamsMap &currentCgi = currentPath.GetParams();
-
-        //----------------------------------------------------------------------
-        // Process the CGI
-        //----------------------------------------------------------------------
-        URL::ParamsMap::const_iterator it;
-        for( it = newCgi.begin(); it != newCgi.end(); ++it )
-        {
-          if( replace || currentCgi.find( it->first ) == currentCgi.end() )
-            currentCgi[it->first] = it->second;
-          else
-          {
-            std::string &v = currentCgi[it->first];
-            if( v.empty() )
-              v = it->second;
-            else
-            {
-              v += ',';
-              v += it->second;
-            }
-          }
-        }
-        std::string newPath = currentPath.GetPathWithParams();
-
-        //----------------------------------------------------------------------
-        // Write the path with the new cgi appended to the message
-        //----------------------------------------------------------------------
-        uint32_t newDlen = req->header.dlen - length + newPath.size();
-        pRequest->ReAllocate( 24+newDlen );
-        req  = (ClientRequest *)pRequest->GetBuffer();
-        path = pRequest->GetBuffer( 24 );
-        if( req->header.requestid == kXR_mv )
-        {
-          for( int i = 0; i < req->header.dlen; ++i, ++path )
-            if( *path == ' ' )
-              break;
-          ++path;
-        }
-        memcpy( path, newPath.c_str(), newPath.size() );
-        req->header.dlen = newDlen;
         break;
       }
     }
