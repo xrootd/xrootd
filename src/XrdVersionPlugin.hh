@@ -112,5 +112,6 @@
         XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolunixInit        )\
         XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolunixObject      )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSfsGetFileSystem           )\
+        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdClGetMonitor               )\
                              {       0,  0,  0, 0}
 #endif
