@@ -345,5 +345,6 @@ void ThreadingTest::MultiStreamReadMonitorTest()
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
   env->PutString( "ClientMonitor", "./libXrdClTestMonitor.so" );
   env->PutString( "ClientMonitorParam", "TestParam" );
+  env->PutInt( "SubStreamsPerChannel", 4 );
   ReadTestFunc(0);
 }
