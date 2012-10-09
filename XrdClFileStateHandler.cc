@@ -202,9 +202,9 @@ namespace
         //----------------------------------------------------------------------
         if( status->IsOK() && status->code == suXRDRedirect )
         {
-          URL *target = 0;
-          response->Get( target );
-          pStateHandler->OnStateRedirection( target, pMessage, this,
+          RedirectInfo *redirInfo = 0;
+          response->Get( redirInfo );
+          pStateHandler->OnStateRedirection( redirInfo, pMessage, this,
                                              pSendParams );
           return;
         }
@@ -955,13 +955,30 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle stateful redirect
   //----------------------------------------------------------------------------
-  void FileStateHandler::OnStateRedirection( URL               *targetUrl,
+  void FileStateHandler::OnStateRedirection( RedirectInfo      *redirectInfo,
                                              Message           *message,
                                              ResponseHandler   *userHandler,
                                              MessageSendParams &sendParams )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     pInTheFly.erase( message );
+
+    //--------------------------------------------------------------------------
+    // Register the state redirect url and append the new cgi information to
+    // the file URL
+    //--------------------------------------------------------------------------
+    if( !pStateRedirect )
+    {
+      std::ostringstream o;
+      o << redirectInfo->host << ":" << redirectInfo->port << "//fakepath?";
+      o << redirectInfo->cgi;
+      pStateRedirect = new URL( o.str() );
+      MessageUtils::MergeCGI( pFileUrl->GetParams(),
+                              pStateRedirect->GetParams(),
+                              false );
+    }
+
+    RecoverMessage( RequestData( message, userHandler, sendParams ) );
   }
 
   //----------------------------------------------------------------------------
@@ -1189,7 +1206,12 @@ namespace XrdCl
                 pFileUrl->GetURL().c_str() );
 
     Status st;
-    if( IsReadOnly() && pLoadBalancer )
+    if( pStateRedirect )
+    {
+      st = ReOpenFileAtServer( *pStateRedirect, 300 );
+      delete pStateRedirect; pStateRedirect = 0;
+    }
+    else if( IsReadOnly() && pLoadBalancer )
       st = ReOpenFileAtServer( *pLoadBalancer, 300 );
     else
       st = ReOpenFileAtServer( *pDataServer, 300 );

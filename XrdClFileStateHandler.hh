@@ -206,7 +206,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Handle stateful redirect
       //------------------------------------------------------------------------
-      void OnStateRedirection( URL               *targetUrl,
+      void OnStateRedirection( RedirectInfo      *redirectInfo,
                                Message           *message,
                                ResponseHandler   *userHandler,
                                MessageSendParams &sendParams );
@@ -365,6 +365,7 @@ namespace XrdCl
       URL                    *pFileUrl;
       URL                    *pDataServer;
       URL                    *pLoadBalancer;
+      URL                    *pStateRedirect;
       uint8_t                *pFileHandle;
       uint16_t                pOpenMode;
       uint16_t                pOpenFlags;
