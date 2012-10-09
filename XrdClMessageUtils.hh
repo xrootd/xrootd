@@ -98,7 +98,7 @@ namespace XrdCl
   {
     MessageSendParams():
       timeout(0), expires(0), followRedirects(true), stateful(true),
-      userBuffer(0), userBufferSize(0), hostList(0) {}
+      userBuffer(0), userBufferSize(0), hostList(0), chunkList(0) {}
     uint16_t         timeout;
     time_t           expires;
     const HostInfo   loadBalancer;
@@ -107,6 +107,7 @@ namespace XrdCl
     char            *userBuffer;
     uint32_t         userBufferSize;
     HostList        *hostList;
+    ChunkList       *chunkList;
   };
 
   class MessageUtils

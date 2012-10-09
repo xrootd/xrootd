@@ -244,8 +244,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - async
       //!
-      //! @param chunks    list of the chunks to be read
-      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //! @param chunks    list of the chunks to be read and buffers to put
+      //!                  the data in
+      //! @param buffer    if zero the buffer pointers in the chunk list
+      //!                  will be used, otherwise it needs to point to a
+      //!                  buffer big enough to hold the requested data
       //! @param handler   handler to be notified when the response arrives
       //! @param timeout   timeout value, if 0 then the environment default
       //!                  will be used
@@ -259,8 +262,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Read scattered data chunks in one operation - sync
       //!
-      //! @param chunks    list of the chunks to be read
-      //! @param buffer    a pointer to a buffer big enough to hold the data
+      //! @param chunks    list of the chunks to be read and buffers to put
+      //!                  the data in
+      //! @param buffer    if zero the buffer pointers in the chunk list
+      //!                  will be used, otherwise it needs to point to a
+      //!                  buffer big enough to hold the requested data
       //! @param vReadInfo buffer size and chunk information
       //! @param timeout   timeout value, if 0 then the environment default
       //!                  will be used

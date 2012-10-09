@@ -172,6 +172,7 @@ namespace
       virtual ~StatefulHandler()
       {
         delete pMessage;
+        delete pSendParams.chunkList;
       }
 
       //------------------------------------------------------------------------
@@ -675,7 +676,8 @@ namespace XrdCl
     req->requestid = kXR_readv;
     req->dlen      = sizeof(readahead_list)*chunks.size();
 
-    uint32_t size  = 0;
+    ChunkList *list   = new ChunkList();
+    char      *cursor = (char*)buffer;
 
     //--------------------------------------------------------------------------
     // Copy the chunk info
@@ -686,7 +688,19 @@ namespace XrdCl
       dataChunk[i].rlen   = chunks[i].length;
       dataChunk[i].offset = chunks[i].offset;
       memcpy( dataChunk[i].fhandle, pFileHandle, 4 );
-      size       += chunks[i].length;
+
+      void *chunkBuffer;
+      if( cursor )
+      {
+        chunkBuffer  = cursor;
+        cursor      += chunks[i].length;
+      }
+      else
+        chunkBuffer = chunks[i].buffer;
+
+      list->push_back( ChunkInfo( chunks[i].offset,
+                                  chunks[i].length,
+                                  chunkBuffer ) );
     }
 
     //--------------------------------------------------------------------------
@@ -696,8 +710,7 @@ namespace XrdCl
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
-    params.userBuffer      = (char*)buffer;
-    params.userBufferSize  = size;
+    params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );

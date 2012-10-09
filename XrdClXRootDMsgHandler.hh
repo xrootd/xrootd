@@ -62,7 +62,8 @@ namespace XrdCl
         pUserBuffer( 0 ),
         pUserBufferSize( 0 ),
         pHasLoadBalancer( false ),
-        pHasSessionId( false )
+        pHasSessionId( false ),
+        pChunkList( 0 )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -171,6 +172,14 @@ namespace XrdCl
         pHosts = hostList;
       }
 
+      //------------------------------------------------------------------------
+      //! Set the chunk list
+      //------------------------------------------------------------------------
+      void SetChunkList( ChunkList *chunkList )
+      {
+        pChunkList = chunkList;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Recover error
@@ -213,8 +222,7 @@ namespace XrdCl
       //! Unpack vector read
       //------------------------------------------------------------------------
       Status UnpackVectorRead( VectorReadInfo *vReadInfo,
-                               char           *targetBuffer,
-                               uint32_t        targetBufferSize,
+                               ChunkList      *list,
                                char           *sourceBuffer,
                                uint32_t        sourceBufferSize );
 
@@ -255,6 +263,7 @@ namespace XrdCl
       HostInfo                   pLoadBalancer;
       bool                       pHasSessionId;
       std::string                pRedirectCgi;
+      ChunkList                 *pChunkList;
   };
 }
 

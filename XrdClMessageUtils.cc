@@ -86,6 +86,7 @@ namespace XrdCl
     msgHandler = new XRootDMsgHandler( msg, handler, &url, sidMgr );
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
+    msgHandler->SetChunkList( sendParams.chunkList );
     msgHandler->SetUserBuffer( sendParams.userBuffer,
                                sendParams.userBufferSize );
     if( sendParams.loadBalancer.url.IsValid() )

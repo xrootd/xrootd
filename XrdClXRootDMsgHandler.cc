@@ -693,7 +693,7 @@ namespace XrdCl
                    pRequest->GetDescription().c_str() );
 
         VectorReadInfo *info = new VectorReadInfo();
-        UnpackVectorRead( info, pUserBuffer, pUserBufferSize, buffer, length );
+        UnpackVectorRead( info, pChunkList, buffer, length );
 
         AnyObject *obj = new AnyObject();
         obj->Set( info );
@@ -807,43 +807,75 @@ namespace XrdCl
   // Unpack vector read - crazy stuff
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::UnpackVectorRead( VectorReadInfo *vReadInfo,
-                                             char           *targetBuffer,
-                                             uint32_t        targetBufferSize,
+                                             ChunkList      *list,
                                              char           *sourceBuffer,
                                              uint32_t        sourceBufferSize )
   {
     Log *log = DefaultEnv::GetLog();
+    char     *cursorSource = sourceBuffer;
     int64_t   len          = sourceBufferSize;
     uint32_t  offset       = 0;
-    char     *cursorSource = sourceBuffer;
-    char     *cursorTarget = targetBuffer;
     uint32_t  size         = 0;
+
+    uint32_t  reqChunks  = list->size();
+    uint32_t  reqCurrent = 0;
 
     while( 1 )
     {
+      //------------------------------------------------------------------------
+      // Check whether we should stop
+      //------------------------------------------------------------------------
       if( offset > len-16 )
         break;
 
+      if( reqCurrent >= reqChunks )
+      {
+        log->Error( XRootDMsg, "[%s] Handling response to %s: the server "
+                    "responded with more chunks than it has been asked for.",
+                    pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str() );
+        return Status( stFatal, errInvalidResponse );
+      }
+
+      //------------------------------------------------------------------------
+      // Extract and check the validity of the chunk
+      //------------------------------------------------------------------------
       readahead_list *chunk = (readahead_list*)(cursorSource);
       chunk->rlen   = ntohl( chunk->rlen );
       chunk->offset = ntohll( chunk->offset );
       size += chunk->rlen;
-      vReadInfo->GetChunks().push_back( ChunkInfo( chunk->offset, chunk->rlen ) );
 
-      if( size > targetBufferSize )
+      if( (uint32_t)chunk->rlen != (*list)[reqCurrent].length ||
+          (uint64_t)chunk->offset != (*list)[reqCurrent].offset )
       {
-        log->Error( XRootDMsg, "[%s] Handling response to %s: user "
-                    "supplied buffer is to small: %d bytes; got %d bytes of "
-                    "response data", pUrl.GetHostId().c_str(),
-                    pRequest->GetDescription().c_str(), targetBufferSize,
-                    size );
-        return Status( stError, errInvalidResponse );;
+        log->Error( XRootDMsg, "[%s] Handling response to %s: the response "
+                    "chunk doesn't match the requested one.",
+                    pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str() );
+        return Status( stFatal, errInvalidResponse );
       }
 
-      memcpy( cursorTarget, cursorSource+16, chunk->rlen );
-      cursorTarget += chunk->rlen;
+      //------------------------------------------------------------------------
+      // Extract the data
+      //------------------------------------------------------------------------
+      if( !(*list)[reqCurrent].buffer )
+      {
+        log->Error( XRootDMsg, "[%s] Handling response to %s: the user "
+                    "supplied buffer is 0, discarding the data",
+                    pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str() );
+      }
+      else
+        memcpy( (*list)[reqCurrent].buffer, cursorSource+16, chunk->rlen );
+
+      vReadInfo->GetChunks().push_back(
+                      ChunkInfo( chunk->offset,
+                                 chunk->rlen,
+                                 (*list)[reqCurrent].buffer ) );
+
       offset += 16 + chunk->rlen;
       cursorSource = sourceBuffer+offset;
+      ++reqCurrent;
     }
     vReadInfo->SetSize( size );
     return Status();
