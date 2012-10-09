@@ -189,6 +189,19 @@ namespace XrdCl
       static void AppendCGI( Message              *msg,
                              const URL::ParamsMap &newCgi,
                              bool                  replace );
+
+      //------------------------------------------------------------------------
+      //! Merge cgi2 into cgi1
+      //!
+      //! @param cgi1    cgi to be merged into
+      //! @param cgi2    cgi to be merged in
+      //! @param replace indicates whether, in case of a conflict, the new CGI
+      //!                parameter should replace an existing one or be
+      //!                appended to it using a comma
+      //------------------------------------------------------------------------
+      static void MergeCGI( URL::ParamsMap       &cgi1,
+                            const URL::ParamsMap &cgi2,
+                            bool                  replace );                             
   };
 }
 

@@ -179,27 +179,7 @@ namespace XrdCl
 
         URL currentPath( o.str() );
         URL::ParamsMap &currentCgi = currentPath.GetParams();
-
-        //----------------------------------------------------------------------
-        // Process the CGI
-        //----------------------------------------------------------------------
-        URL::ParamsMap::const_iterator it;
-        for( it = newCgi.begin(); it != newCgi.end(); ++it )
-        {
-          if( replace || currentCgi.find( it->first ) == currentCgi.end() )
-            currentCgi[it->first] = it->second;
-          else
-          {
-            std::string &v = currentCgi[it->first];
-            if( v.empty() )
-              v = it->second;
-            else
-            {
-              v += ',';
-              v += it->second;
-            }
-          }
-        }
+        MergeCGI( currentCgi, newCgi, replace );
         std::string newPath = currentPath.GetPathWithParams();
 
         //----------------------------------------------------------------------
@@ -222,5 +202,31 @@ namespace XrdCl
       }
     }
     XRootDTransport::SetDescription( msg );
+  }
+
+  //------------------------------------------------------------------------
+  //! Merge cgi2 into cgi1
+  //------------------------------------------------------------------------
+  void MessageUtils::MergeCGI( URL::ParamsMap       &cgi1,
+                               const URL::ParamsMap &cgi2,
+                               bool                  replace )
+  {
+    URL::ParamsMap::const_iterator it;
+    for( it = cgi2.begin(); it != cgi2.end(); ++it )
+    {
+      if( replace || cgi1.find( it->first ) == cgi1.end() )
+        cgi1[it->first] = it->second;
+      else
+      {
+        std::string &v = cgi1[it->first];
+        if( v.empty() )
+          v = it->second;
+        else
+        {
+          v += ',';
+          v += it->second;
+        }
+      }
+    }
   }
 }
