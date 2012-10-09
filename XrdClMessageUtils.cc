@@ -87,8 +87,7 @@ namespace XrdCl
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetChunkList( sendParams.chunkList );
-    msgHandler->SetUserBuffer( sendParams.userBuffer,
-                               sendParams.userBufferSize );
+
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
 

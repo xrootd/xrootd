@@ -666,19 +666,21 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
-        if( pUserBufferSize < length )
+        ChunkInfo info = pChunkList->front();
+
+        if( info.length < length )
         {
           log->Error( XRootDMsg, "[%s] Handling response to %s: user "
                       "supplied buffer is to small: %d bytes; got %d bytes "
                       "of response data", pUrl.GetHostId().c_str(),
-                      pRequest->GetDescription().c_str(), pUserBufferSize,
+                      pRequest->GetDescription().c_str(), info.length,
                       length );
           return 0;
         }
-        memcpy( pUserBuffer, buffer, length );
+        memcpy( info.buffer, buffer, length );
 
         AnyObject *obj   = new AnyObject();
-        ChunkInfo *chunk = new ChunkInfo( req->read.offset, length );
+        ChunkInfo *chunk = new ChunkInfo( info.offset, length, info.buffer );
         obj->Set( chunk );
         return obj;
       }

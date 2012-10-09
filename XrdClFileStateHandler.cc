@@ -522,13 +522,15 @@ namespace XrdCl
     req->rlen       = size;
     memcpy( req->fhandle, pFileHandle, 4 );
 
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( offset, size, buffer ) );
+
     XRootDTransport::SetDescription( msg );
     MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
-    params.userBuffer      = (char*)buffer;
-    params.userBufferSize  = size;
+    params.chunkList       = list;
     MessageUtils::ProcessSendParams( params );
 
     StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );

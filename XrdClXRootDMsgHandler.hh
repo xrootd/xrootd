@@ -59,8 +59,6 @@ namespace XrdCl
         pExpiration( 0 ),
         pRedirectAsAnswer( false ),
         pHosts( 0 ),
-        pUserBuffer( 0 ),
-        pUserBufferSize( 0 ),
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
         pChunkList( 0 )
@@ -132,16 +130,6 @@ namespace XrdCl
       void SetRedirectAsAnswer( bool redirectAsAnswer )
       {
         pRedirectAsAnswer = redirectAsAnswer;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set user buffer that will be used as a destination for read and
-      //! readv requests
-      //------------------------------------------------------------------------
-      void SetUserBuffer( char *buffer, uint32_t size )
-      {
-        pUserBuffer     = buffer;
-        pUserBufferSize = size;
       }
 
       //------------------------------------------------------------------------
@@ -257,8 +245,6 @@ namespace XrdCl
       time_t                     pExpiration;
       bool                       pRedirectAsAnswer;
       HostList                  *pHosts;
-      char                      *pUserBuffer;
-      uint32_t                   pUserBufferSize;
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
       bool                       pHasSessionId;
