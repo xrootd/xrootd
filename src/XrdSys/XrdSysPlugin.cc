@@ -102,7 +102,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 #if    defined(__macos__)
        flags = RTLD_FIRST;
 #elif  defined(__linux__)
-       flags = RTLD_NOW | RTLD_NODELETE;
+       flags = RTLD_NOW;
 #else
        flags = RTLD_NOW;
 #endif
