@@ -75,8 +75,8 @@ void TestEnv::Release()
 {
   delete sEnv;
   sEnv = 0;
-  delete sLog;
-  sLog = 0;
+//  delete sLog;
+//  sLog = 0;
 }
 
 //------------------------------------------------------------------------------
