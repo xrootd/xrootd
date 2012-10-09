@@ -24,6 +24,7 @@
 #include "XrdVersion.hh"
 
 class XrdSysPlugin;
+class XrdCks;
 
 namespace XrdCl
 {
@@ -71,6 +72,11 @@ namespace XrdCl
       static Monitor *GetMonitor();
 
       //------------------------------------------------------------------------
+      //! Get checksum manager
+      //------------------------------------------------------------------------
+      static XrdCks *GetCheckSumManager();
+
+      //------------------------------------------------------------------------
       //! Initialize the environemnt
       //------------------------------------------------------------------------
       static void Initialize();
@@ -88,15 +94,16 @@ namespace XrdCl
     private:
       static void SetUpLog();
 
+      static XrdSysMutex     sInitMutex;
       static Env            *sEnv;
-      static XrdSysMutex     sPostMasterMutex;
       static PostMaster     *sPostMaster;
       static Log            *sLog;
       static ForkHandler    *sForkHandler;
       static Monitor        *sMonitor;
       static XrdSysPlugin   *sMonitorLibHandle;
-      static XrdSysMutex     sMonitorMutex;
       static bool            sMonitorInitialized;
+      static XrdCks         *sCheckSumManager;
+      static bool            sCheckSumManagerInitialized;
   };
 }
 

@@ -288,6 +288,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void EnableWriteRecovery( bool enable = true );
 
+      //------------------------------------------------------------------------
+      //! Get the data server the file is accessed at
+      //------------------------------------------------------------------------
+      std::string GetDataServer() const;
+
     private:
       FileStateHandler *pStateHandler;
   };

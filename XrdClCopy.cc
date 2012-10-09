@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClCopyProcess.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <iostream>
 #include <iomanip>
@@ -144,6 +145,22 @@ int main( int argc, char **argv )
     process.SetForce( true );
   if( config.Want( XrdCpConfig::DoTpc ) )
     process.SetThirdPartyCopy( true );
+  if( config.Want( XrdCpConfig::DoCksum ) )
+  {
+    std::vector<std::string> ckSumParams;
+    std::string              ckSumPreset;
+    bool                     ckSumPrint = false;
+    Utils::splitString( ckSumParams, config.CksVal, ":" );
+    if( ckSumParams.size() > 1 )
+    {
+      if( ckSumParams[1] == "print" )
+        ckSumPrint = true;
+      else
+       ckSumPreset = ckSumParams[1];
+    }
+    process.EnableCheckSumPrint( ckSumPrint );
+    process.EnableCheckSumVerification( ckSumParams[0], ckSumPreset );
+  }
 
   if( config.Dlvl )
   {

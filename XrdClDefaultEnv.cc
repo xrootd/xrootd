@@ -25,6 +25,8 @@
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysUtils.hh"
+#include "XrdSys/XrdSysLogger.hh"
+#include "XrdCks/XrdCksManager.hh"
 
 #include <map>
 #include <pthread.h>
@@ -121,15 +123,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Statics
   //----------------------------------------------------------------------------
+  XrdSysMutex     DefaultEnv::sInitMutex;
   Env            *DefaultEnv::sEnv                = 0;
-  XrdSysMutex     DefaultEnv::sPostMasterMutex;
   PostMaster     *DefaultEnv::sPostMaster         = 0;
   Log            *DefaultEnv::sLog                = 0;
   ForkHandler    *DefaultEnv::sForkHandler        = 0;
   Monitor        *DefaultEnv::sMonitor            = 0;
   XrdSysPlugin   *DefaultEnv::sMonitorLibHandle   = 0;
-  XrdSysMutex     DefaultEnv::sMonitorMutex;
   bool            DefaultEnv::sMonitorInitialized = false;
+  XrdCks         *DefaultEnv::sCheckSumManager    = 0;
+  bool            DefaultEnv::sCheckSumManagerInitialized = false;
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -174,7 +177,7 @@ namespace XrdCl
   {
     if( unlikely(!sPostMaster) )
     {
-      XrdSysMutexHelper scopedLock( sPostMasterMutex );
+      XrdSysMutexHelper scopedLock( sInitMutex );
       if( sPostMaster )
         return sPostMaster;
       sPostMaster = new PostMaster();
@@ -221,7 +224,7 @@ namespace XrdCl
   {
     if( unlikely( !sMonitorInitialized ) )
     {
-      XrdSysMutexHelper scopedLock( sMonitorMutex );
+      XrdSysMutexHelper scopedLock( sInitMutex );
       if( !sMonitorInitialized )
       {
         //----------------------------------------------------------------------
@@ -289,12 +292,40 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  //! Get checksum manager
+  //----------------------------------------------------------------------------
+  XrdCks *DefaultEnv::GetCheckSumManager()
+  {
+    static XrdSysLogger logger;
+    static XrdSysError  eDest( &logger, "" );
+    if( unlikely( !sCheckSumManagerInitialized ) )
+    {
+      XrdSysMutexHelper scopedLock( sInitMutex );
+      if( !sCheckSumManagerInitialized )
+      {
+        sCheckSumManagerInitialized = true;
+        sCheckSumManager = new XrdCksManager( &eDest, 0,
+                                           &XrdVERSIONINFOVAR( XrdCl ) );
+        if( !(sCheckSumManager->Init("")) )
+        {
+          delete sCheckSumManager;
+          sCheckSumManager = 0;
+          Log *log = GetLog();
+          log->Error( UtilityMsg, "Unable to initialize the checksum manager" );
+          return 0;
+        }
+      }
+    }
+    return sCheckSumManager;
+  }
+
+  //----------------------------------------------------------------------------
   // Initialize the environment
   //----------------------------------------------------------------------------
   void DefaultEnv::Initialize()
   {
-    sEnv         = new DefaultEnv();
     sLog         = new Log();
+    sEnv         = new DefaultEnv();
     sForkHandler = new ForkHandler();
     SetUpLog();
   }
@@ -312,8 +343,11 @@ namespace XrdCl
       sPostMaster = 0;
     }
 
-    delete sLog;
-    sLog = 0;
+    delete sMonitor;
+    sMonitor = 0;
+
+    delete sMonitorLibHandle;
+    sMonitorLibHandle = 0;
 
     delete sForkHandler;
     sForkHandler = 0;
@@ -321,11 +355,9 @@ namespace XrdCl
     delete sEnv;
     sEnv = 0;
 
-    delete sMonitor;
-    sMonitor = 0;
+    delete sLog;
+    sLog = 0;
 
-    delete sMonitorLibHandle;
-    sMonitorLibHandle = 0;
   }
 
   //----------------------------------------------------------------------------

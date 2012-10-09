@@ -111,6 +111,7 @@ namespace XrdCl
     XrdOucEnv        *authEnv;
     StreamInfoVector  stream;
     std::string       streamName;
+    std::string       authProtocolName;
     XrdSysMutex       mutex;
   };
 
@@ -801,6 +802,13 @@ namespace XrdCl
         return Status();
 
       //------------------------------------------------------------------------
+      // Authentication
+      //------------------------------------------------------------------------
+      case TransportQuery::Auth:
+        result.Set( new std::string( info->authProtocolName ), false );
+        return Status();
+
+      //------------------------------------------------------------------------
       // SID Manager object
       //------------------------------------------------------------------------
       case XRootDQuery::SIDManager:
@@ -1204,6 +1212,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( rsp->hdr.status == kXR_ok )
         {
+          info->authProtocolName = info->authProtocol->Entity.prot;
           log->Debug( XRootDTransportMsg,
                       "[%s] Authenticated with %s.", hsData->streamName.c_str(),
                       protocolName.c_str() );

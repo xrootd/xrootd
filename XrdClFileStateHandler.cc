@@ -26,7 +26,10 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClMonitor.hh"
+
 #include <sstream>
+#include <sys/time.h>
 
 namespace
 {
@@ -250,6 +253,7 @@ namespace XrdCl
     pDoRecoverWrite( true )
   {
     pFileHandle = new uint8_t[4];
+    ResetMonitoringVars();
     DefaultEnv::GetForkHandler()->RegisterFileObject( this );
   }
 
@@ -259,6 +263,14 @@ namespace XrdCl
   FileStateHandler::~FileStateHandler()
   {
     DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
+
+    if( pFileState != Closed )
+    {
+      XRootDStatus st;
+      MonitorClose( &st );
+      ResetMonitoringVars();
+    }
+
     delete pStatInfo;
     delete pFileUrl;
     delete pDataServer;
@@ -715,14 +727,25 @@ namespace XrdCl
     pDoRecoverRead = enable;
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   //! Enable/disable state recovery procedures while the file is open for
   //! writing or read/write
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void FileStateHandler::EnableWriteRecovery( bool enable )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     pDoRecoverWrite = enable;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get the data server the file is accessed at
+  //----------------------------------------------------------------------------
+  std::string FileStateHandler::GetDataServer() const
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    if( pDataServer )
+      return pDataServer->GetHostId();
+    return "";
   }
 
   //----------------------------------------------------------------------------
@@ -772,12 +795,28 @@ namespace XrdCl
                   pStatus.ToStr().c_str() );
       FailQueuedMessages( pStatus );
       pFileState = Error;
+
+      //------------------------------------------------------------------------
+      // Report to monitoring
+      //------------------------------------------------------------------------
+      Monitor *mon = DefaultEnv::GetMonitor();
+      if( mon )
+      {
+        Monitor::ErrorInfo i;
+        i.file   = pFileUrl;
+        i.status = status;
+        i.opCode = Monitor::ErrorInfo::ErrOpen;
+        mon->Event( Monitor::EvErrIO, &i );
+      }
     }
     //--------------------------------------------------------------------------
     // We have succeeded
     //--------------------------------------------------------------------------
     else
     {
+      //------------------------------------------------------------------------
+      // Store the response info
+      //------------------------------------------------------------------------
       openInfo->GetFileHandle( pFileHandle );
       pSessionId = openInfo->GetSessionId();
       if( openInfo->GetStatInfo() )
@@ -791,6 +830,24 @@ namespace XrdCl
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
                   pSessionId );
 
+      //------------------------------------------------------------------------
+      // Inform the monitoring about opening success
+      //------------------------------------------------------------------------
+      gettimeofday( &pOpenTime, 0 );
+      Monitor *mon = DefaultEnv::GetMonitor();
+      if( mon )
+      {
+        Monitor::OpenInfo i;
+        i.file       = pFileUrl;
+        i.dataServer = pDataServer->GetHostId();
+        i.oFlags     = pOpenFlags;
+        i.fSize      = pStatInfo ? pStatInfo->GetSize() : 0;
+        mon->Event( Monitor::EvOpen, &i );
+      }
+
+      //------------------------------------------------------------------------
+      // Resend the queued messages if any
+      //------------------------------------------------------------------------
       ReSendQueuedMessages();
       pFileState  = Opened;
     }
@@ -811,6 +868,9 @@ namespace XrdCl
     log->Dump( FileMsg, "[0x%x@%s] Items in the fly %d, queued for recovery %d",
                this, pFileUrl->GetURL().c_str(), pInTheFly.size(),
                pToBeRecovered.size() );
+
+    MonitorClose( status );
+    ResetMonitoringVars();
 
     pStatus    = *status;
     pFileState = Closed;
@@ -833,6 +893,28 @@ namespace XrdCl
                message->GetDescription().c_str(), status->ToStr().c_str() );
 
     //--------------------------------------------------------------------------
+    // Report to monitoring
+    //--------------------------------------------------------------------------
+    Monitor *mon = DefaultEnv::GetMonitor();
+    if( mon )
+    {
+      Monitor::ErrorInfo i;
+      i.file   = pFileUrl;
+      i.status = status;
+
+      ClientRequest *req = (ClientRequest*)message->GetBuffer();
+      switch( req->header.requestid )
+      {
+        case kXR_read:  i.opCode = Monitor::ErrorInfo::ErrRead;  break;
+        case kXR_readv: i.opCode = Monitor::ErrorInfo::ErrReadV; break;
+        case kXR_write: i.opCode = Monitor::ErrorInfo::ErrWrite; break;
+        default: i.opCode = Monitor::ErrorInfo::ErrUnc;
+      }
+
+      mon->Event( Monitor::EvErrIO, &i );
+    }
+
+    //--------------------------------------------------------------------------
     // The message is not recoverable
     //--------------------------------------------------------------------------
     if( !IsRecoverable( *status ) )
@@ -850,6 +932,7 @@ namespace XrdCl
     // Insert the message to the recovery queue and start the recovery
     // procedure if we don't have any more message in the fly
     //--------------------------------------------------------------------------
+    pCloseReason = *status;
     RecoverMessage( RequestData( message, userHandler, sendParams ) );
     delete status;
   }
@@ -892,7 +975,6 @@ namespace XrdCl
     // Play with the actual response before returning it. This is a good
     // place to do caching in the future.
     //--------------------------------------------------------------------------
-    XRootDTransport::UnMarshallRequest( message );
     ClientRequest *req = (ClientRequest*)message->GetBuffer();
     switch( req->header.requestid )
     {
@@ -905,6 +987,41 @@ namespace XrdCl
         response->Get( info );
         delete pStatInfo;
         pStatInfo = new StatInfo( *info );
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle read response
+      //------------------------------------------------------------------------
+      case kXR_read:
+      {
+        ++pRCount;
+        pRBytes += req->read.rlen;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle readv response
+      //------------------------------------------------------------------------
+      case kXR_readv:
+      {
+        ++pVCount;
+        size_t segs = req->header.dlen/sizeof(readahead_list);
+        readahead_list *dataChunk = (readahead_list*)message->GetBuffer( 24 );
+        for( size_t i = 0; i < segs; ++i )
+          pVBytes += dataChunk[i].rlen;
+        pVSegs += segs;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Handle write response
+      //------------------------------------------------------------------------
+      case kXR_write:
+      {
+        ++pWCount;
+        pWBytes += req->write.dlen;
+        break;
       }
     };
   }
@@ -945,7 +1062,6 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pFileState == Recovering )
     {
-      XRootDTransport::MarshallRequest( msg );
       return RecoverMessage( RequestData( msg, handler, sendParams ), false );
     }
 
@@ -1030,7 +1146,6 @@ namespace XrdCl
                this, pFileUrl->GetURL().c_str(),
                rd.request->GetDescription().c_str() );
 
-    XRootDTransport::UnMarshallRequest( rd.request );
     Status st = RunRecovery();
     if( st.IsOK() )
     {
@@ -1214,5 +1329,29 @@ namespace XrdCl
                this, pFileUrl->GetURL().c_str(), msg->GetDescription().c_str(),
                *((uint32_t*)pFileHandle) );
     XRootDTransport::SetDescription( msg );
+  }
+
+  //----------------------------------------------------------------------------
+  // Dispatch monitoring information on close
+  //----------------------------------------------------------------------------
+  void FileStateHandler::MonitorClose( const XRootDStatus *status )
+  {
+    Monitor *mon = DefaultEnv::GetMonitor();
+    if( mon )
+    {
+      Monitor::CloseInfo i;
+      i.file = pFileUrl;
+      i.oTOD = pOpenTime;
+      gettimeofday( &i.cTOD, 0 );
+      i.rBytes = pRBytes;
+      i.vBytes = pVBytes;
+      i.wBytes = pWBytes;
+      i.vSegs  = pVSegs;
+      i.rCount = pRCount;
+      i.vCount = pVCount;
+      i.wCount = pWCount;
+      i.status = status;
+      mon->Event( Monitor::EvClose, &i );
+    }
   }
 }

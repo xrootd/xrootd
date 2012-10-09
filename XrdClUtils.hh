@@ -25,6 +25,9 @@
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+
+#include <sys/time.h>
 
 namespace XrdCl
 {
@@ -81,6 +84,26 @@ namespace XrdCl
       //! Convert timestamp to a string
       //------------------------------------------------------------------------
       static std::string TimeToString( time_t timestamp );
+
+      //------------------------------------------------------------------------
+      //! Get the elapsed mictoseconds between two timevals
+      //------------------------------------------------------------------------
+      static uint64_t GetElapsedMicroSecs( timeval start, timeval end );
+
+      //------------------------------------------------------------------------
+      //! Get a checksum from a remote xrootd server
+      //------------------------------------------------------------------------
+      static XRootDStatus GetRemoteCheckSum( std::string       &checkSum,
+                                             const std::string &checkSumType,
+                                             const std::string &server,
+                                             const std::string &path );
+
+      //------------------------------------------------------------------------
+      //! Get a checksum from local file
+      //------------------------------------------------------------------------
+      static XRootDStatus GetLocalCheckSum( std::string       &checkSum,
+                                            const std::string &checkSumType,
+                                            const std::string &path );
   };
 
   //----------------------------------------------------------------------------

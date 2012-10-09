@@ -60,6 +60,7 @@ namespace XrdCl
   const uint16_t errInProgress     = 10;
   const uint16_t errUninitialized  = 11;
   const uint16_t errOSError        = 12;
+  const uint16_t errNotSupported   = 13;
 
   //----------------------------------------------------------------------------
   // Socket related errors
@@ -91,6 +92,7 @@ namespace XrdCl
   const uint16_t errInvalidRedirectURL = 302;
   const uint16_t errInvalidResponse    = 303;
   const uint16_t errNotFound           = 304;
+  const uint16_t errCheckSumError      = 305;
 
   const uint16_t errErrorResponse      = 400;
 

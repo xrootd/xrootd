@@ -237,6 +237,12 @@ namespace XrdCl
       void EnableWriteRecovery( bool enable );
 
       //------------------------------------------------------------------------
+      //! Get the data server the file is accessed at
+      //------------------------------------------------------------------------
+      std::string GetDataServer() const;
+
+
+      //------------------------------------------------------------------------
       //! Lock the internal lock
       //------------------------------------------------------------------------
       void Lock()
@@ -331,6 +337,27 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void ReWriteFileHandle( Message *msg );
 
+      //------------------------------------------------------------------------
+      //! Reset monitoring vars
+      //------------------------------------------------------------------------
+      void ResetMonitoringVars()
+      {
+        pOpenTime.tv_sec = 0; pOpenTime.tv_usec = 0;
+        pRBytes      = 0;
+        pVBytes      = 0;
+        pWBytes      = 0;
+        pVSegs       = 0;
+        pRCount      = 0;
+        pVCount      = 0;
+        pWCount      = 0;
+        pCloseReason = Status();
+      }
+
+      //------------------------------------------------------------------------
+      //! Dispatch monitoring information on close
+      //------------------------------------------------------------------------
+      void MonitorClose( const XRootDStatus *status );
+
       mutable XrdSysMutex     pMutex;
       FileStatus              pFileState;
       XRootDStatus            pStatus;
@@ -346,6 +373,19 @@ namespace XrdCl
       uint64_t                pSessionId;
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
+
+      //------------------------------------------------------------------------
+      // Monitoring variables
+      //------------------------------------------------------------------------
+      timeval                  pOpenTime;
+      uint64_t                 pRBytes;
+      uint64_t                 pVBytes;
+      uint64_t                 pWBytes;
+      uint64_t                 pVSegs;
+      uint64_t                 pRCount;
+      uint64_t                 pVCount;
+      uint64_t                 pWCount;
+      XRootDStatus             pCloseReason;
   };
 }
 

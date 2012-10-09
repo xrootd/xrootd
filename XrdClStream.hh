@@ -224,8 +224,16 @@ namespace XrdCl
                          Status             status,
                          XrdSysMutexHelper &lock );
 
+      //------------------------------------------------------------------------
+      //! Inform the monitoring about disconnection
+      //------------------------------------------------------------------------
+      void MonitorDisconnection( Status status );
+
       typedef std::vector<SubStreamData*> SubStreamList;
 
+      //------------------------------------------------------------------------
+      // Data members
+      //------------------------------------------------------------------------
       const URL                     *pUrl;
       uint16_t                       pStreamNum;
       std::string                    pStreamName;
@@ -245,6 +253,14 @@ namespace XrdCl
       std::vector<sockaddr_in>       pAddresses;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
+
+      //------------------------------------------------------------------------
+      // Monitoring info
+      //------------------------------------------------------------------------
+      timeval                        pConnectionStarted;
+      timeval                        pConnectionDone;
+      uint64_t                       pBytesSent;
+      uint64_t                       pBytesReceived;
   };
 }
 

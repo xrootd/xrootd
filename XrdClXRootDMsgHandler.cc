@@ -407,6 +407,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Process the response and notify the listener
     //--------------------------------------------------------------------------
+    XRootDTransport::UnMarshallRequest( pRequest );
     XRootDStatus *status   = ProcessStatus();
     AnyObject    *response = 0;
 
@@ -459,8 +460,6 @@ namespace XrdCl
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
     Log            *log = DefaultEnv::GetLog();
-
-    XRootDTransport::UnMarshallRequest( pRequest );
 
     //--------------------------------------------------------------------------
     // Handle redirect as an answer

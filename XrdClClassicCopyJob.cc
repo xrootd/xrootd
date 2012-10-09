@@ -21,8 +21,11 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <memory>
+#include <iostream>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -64,6 +67,12 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus GetChunk( XrdCl::Buffer    &buffer,
                                             XrdCl::ChunkInfo &ci ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType ) = 0;
   };
 
   //----------------------------------------------------------------------------
@@ -97,6 +106,12 @@ namespace
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus PutChunk( const XrdCl::Buffer    &buffer,
                                             const XrdCl::ChunkInfo &ci ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType ) = 0;
 
       //------------------------------------------------------------------------
       //! Set POSC
@@ -219,6 +234,16 @@ namespace
         return XRootDStatus( stOK, suContinue );
       }
 
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pPath );
+      }
+
+
     private:
       std::string pPath;
       int         pFD;
@@ -245,6 +270,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDSource()
       {
+        pFile->Close();
         delete pFile;
       }
 
@@ -323,6 +349,18 @@ namespace
 
         return XRootDStatus( stOK, suContinue );
       }
+
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
+                                                pFile->GetDataServer(),
+                                                pUrl->GetPath() );
+      }
+
     private:
       const XrdCl::URL *pUrl;
       XrdCl::File      *pFile;
@@ -412,6 +450,15 @@ namespace
         return XRootDStatus();
       }
 
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pPath );
+      }
+
     private:
       std::string pPath;
       int         pFD;
@@ -478,6 +525,17 @@ namespace
         return pFile->Write( ci.offset, ci.length, buffer.GetBuffer() );
       }
 
+      //------------------------------------------------------------------------
+      //! Get check sum
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
+                                               std::string &checkSumType )
+      {
+        return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
+                                                pFile->GetDataServer(),
+                                                pUrl->GetPath() );
+      }
+
     private:
       const XrdCl::URL *pUrl;
       XrdCl::File      *pFile;
@@ -505,6 +563,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus ClassicCopyJob::Run( CopyProgressHandler *progress )
   {
+    Log *log = DefaultEnv::GetLog();
+
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
@@ -538,7 +598,7 @@ namespace XrdCl
     if( !st.IsOK() ) return st;
 
     //--------------------------------------------------------------------------
-    // Copy the chunks and exit
+    // Copy the chunks
     //--------------------------------------------------------------------------
     Buffer    buff;
     ChunkInfo chunkInfo;
@@ -547,13 +607,92 @@ namespace XrdCl
     while( 1 )
     {
       st = src->GetChunk( buff, chunkInfo );
-      if( !st.IsOK() || (st.IsOK() && st.code == suDone) )
-        return st;
-      st = dest->PutChunk( buff, chunkInfo );
       if( !st.IsOK() )
         return st;
+
+      if( st.IsOK() && st.code == suDone )
+        break;
+
+      st = dest->PutChunk( buff, chunkInfo );
+
+      if( !st.IsOK() )
+        return st;
+
       processed += chunkInfo.length;
       if( progress ) progress->JobProgress( processed, size );
+    }
+
+    //--------------------------------------------------------------------------
+    // Verify the checksums if needed
+    //--------------------------------------------------------------------------
+    if( !pCheckSumType.empty() )
+    {
+      log->Debug( UtilityMsg, "Attempring checksum calculation." );
+
+      //------------------------------------------------------------------------
+      // Get the check sum at source
+      //------------------------------------------------------------------------
+      timeval oStart, oEnd;
+      std::string sourceCheckSum;
+      XRootDStatus st;
+      gettimeofday( &oStart, 0 );
+      if( !pCheckSumPreset.empty() )
+      {
+        sourceCheckSum  = pCheckSumType + ":";
+        sourceCheckSum += pCheckSumPreset;
+      }
+      else
+      {
+        st = src->GetCheckSum( sourceCheckSum, pCheckSumType );
+      }
+      gettimeofday( &oEnd, 0 );
+
+      //------------------------------------------------------------------------
+      // Print the checksum if so requested and exit
+      //------------------------------------------------------------------------
+      if( pCheckSumPrint )
+      {
+        if( sourceCheckSum.empty() ) sourceCheckSum = st.ToStr();
+        std::cerr << std::endl << "CheckSum: " << sourceCheckSum << std::endl;
+        return XRootDStatus();
+      }
+
+      if( !st.IsOK() )
+        return st;
+
+      //------------------------------------------------------------------------
+      // Get the check sum at destination
+      //------------------------------------------------------------------------
+      timeval tStart, tEnd;
+      std::string destCheckSum;
+      gettimeofday( &tStart, 0 );
+      st = dest->GetCheckSum( destCheckSum, pCheckSumType );
+      if( !st.IsOK() )
+        return st;
+      gettimeofday( &tEnd, 0 );
+
+      //------------------------------------------------------------------------
+      // Compare and inform monitoring
+      //------------------------------------------------------------------------
+      bool match = false;
+      if( sourceCheckSum == destCheckSum )
+        match = true;
+
+      Monitor *mon = DefaultEnv::GetMonitor();
+      if( mon )
+      {
+        Monitor::CheckSumInfo i;
+        i.transfer.origin = pSource;
+        i.transfer.target = pDestination;
+        i.cksum           = sourceCheckSum;
+        i.oTime           = Utils::GetElapsedMicroSecs( oStart, oEnd );
+        i.tTime           = Utils::GetElapsedMicroSecs( tStart, tEnd );
+        i.isOK            = match;
+        mon->Event( Monitor::EvCheckSum, &i );
+      }
+
+      if( !match )
+        return XRootDStatus( stError, errCheckSumError, 0 );
     }
 
     return XRootDStatus();

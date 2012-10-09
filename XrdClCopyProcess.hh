@@ -139,11 +139,40 @@ namespace XrdCl
         pPosc = posc;
       }
 
+      //------------------------------------------------------------------------
+      //! Get the actual number of source
+      //------------------------------------------------------------------------
+      virtual uint16_t GetNumberOfSources()
+      {
+        return 1;
+      }
+
+      //------------------------------------------------------------------------
+      //! Enable checksum printing to stderr
+      //------------------------------------------------------------------------
+      void EnableCheckSumPrint( bool print )
+      {
+          pCheckSumPrint = print;
+      }
+
+      //------------------------------------------------------------------------
+      //! Enable checksum verification
+      //------------------------------------------------------------------------
+      void EnableCheckSumVerification( const std::string &type,
+                                       const std::string &preset )
+      {
+        pCheckSumType   = type;
+        pCheckSumPreset = preset;
+      }
+
     protected:
-      const URL *pSource;
-      const URL *pDestination;
-      bool       pForce;
-      bool       pPosc;
+      const URL   *pSource;
+      const URL   *pDestination;
+      bool         pForce;
+      bool         pPosc;
+      bool         pCheckSumPrint;
+      std::string  pCheckSumType;
+      std::string  pCheckSumPreset;
   };
 
   //----------------------------------------------------------------------------
@@ -163,7 +192,9 @@ namespace XrdCl
         pPosc( false ),
         pSourceLimit( 1 ),
         pRootOffset( 0 ),
-        pProgressHandler( 0 ) {}
+        pProgressHandler( 0 ),
+        pCheckSumPrint( false )
+      {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -244,6 +275,27 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Verify the checksum
+      //!
+      //! @param type   type of the checksum that should be verified
+      //! @param preset if set, it will be used instead source checksum
+      //------------------------------------------------------------------------
+      void EnableCheckSumVerification( const std::string &type,
+                                       const std::string &preset = "" )
+      {
+        pCheckSumType   = type;
+        pCheckSumPreset = preset;
+      }
+
+      //------------------------------------------------------------------------
+      //! Print checksum
+      //------------------------------------------------------------------------
+      void EnableCheckSumPrint( bool print )
+      {
+        pCheckSumPrint = print;
+      }
+
+      //------------------------------------------------------------------------
       // Prepare the copy jobs
       //------------------------------------------------------------------------
       XRootDStatus Prepare();
@@ -265,6 +317,9 @@ namespace XrdCl
       uint16_t             pSourceLimit;
       uint16_t             pRootOffset;
       CopyProgressHandler *pProgressHandler;
+      std::string          pCheckSumType;
+      std::string          pCheckSumPreset;
+      bool                 pCheckSumPrint;
   };
 }
 

@@ -23,6 +23,9 @@
 #include "XrdCl/XrdClClassicCopyJob.hh"
 #include "XrdCl/XrdClThirdPartyCopyJob.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClMonitor.hh"
+
+#include <sys/time.h>
 
 namespace XrdCl
 {
@@ -150,6 +153,10 @@ namespace XrdCl
       pJobs.push_back( job );
       job->SetForce( pForce );
       job->SetPosc( pPosc );
+
+      job->EnableCheckSumPrint( pCheckSumPrint );
+      if( !pCheckSumType.empty() )
+        job->EnableCheckSumVerification( pCheckSumType, pCheckSumPreset );
     }
     //--------------------------------------------------------------------------
     // Many jobs
@@ -195,6 +202,10 @@ namespace XrdCl
         pJobs.push_back( job );
         job->SetForce( pForce );
         job->SetPosc( pPosc );
+
+        job->EnableCheckSumPrint( pCheckSumPrint );
+        if( !pCheckSumType.empty() )
+          job->EnableCheckSumVerification( pCheckSumType, pCheckSumPreset );
       }
     }
 
@@ -209,13 +220,50 @@ namespace XrdCl
     std::list<CopyJob *>::iterator it;
     uint16_t currentJob = 1;
     uint16_t totalJobs  = pJobs.size();
+
+    Monitor *mon = DefaultEnv::GetMonitor();
+    timeval bTOD;
+
     for( it = pJobs.begin(); it != pJobs.end(); ++it )
     {
+      //------------------------------------------------------------------------
+      // Report beginning of the copy
+      //------------------------------------------------------------------------
       if( pProgressHandler )
         pProgressHandler->BeginJob( currentJob, totalJobs,
                                     (*it)->GetSource(),
                                     (*it)->GetDestination() );
+
+      if( mon )
+      {
+        Monitor::CopyBInfo i;
+        i.transfer.origin = (*it)->GetSource();
+        i.transfer.target = (*it)->GetDestination();
+        mon->Event( Monitor::EvCopyBeg, &i );
+      }
+
+      gettimeofday( &bTOD, 0 );
+
+      //------------------------------------------------------------------------
+      // Do the copy
+      //------------------------------------------------------------------------
       XRootDStatus st = (*it)->Run( pProgressHandler );
+
+      //------------------------------------------------------------------------
+      // Report end of the copy
+      //------------------------------------------------------------------------
+      if( mon )
+      {
+        Monitor::CopyEInfo i;
+        i.transfer.origin = (*it)->GetSource();
+        i.transfer.target = (*it)->GetDestination();
+        i.sources         = (*it)->GetNumberOfSources();
+        i.bTOD            = bTOD;
+        gettimeofday( &i.eTOD, 0 );
+        i.status          = &st;
+        mon->Event( Monitor::EvCopyEnd, &i );
+      }
+
       if( pProgressHandler )
         pProgressHandler->EndJob( st );
       if( !st.IsOK() ) return st;

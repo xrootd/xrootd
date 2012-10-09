@@ -210,6 +210,7 @@ namespace XrdCl
   struct TransportQuery
   {
     static const uint16_t Name = 1; //!< Transport name, returns const char *
+    static const uint16_t Auth = 2; //!< Transport name, returns std::string *
   };
 
   //----------------------------------------------------------------------------

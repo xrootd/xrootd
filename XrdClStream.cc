@@ -25,11 +25,13 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClOutQueue.hh"
+#include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
 #include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 namespace XrdCl
 {
@@ -87,8 +89,13 @@ namespace XrdCl
     pLastStreamError( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
-    pSessionId( 0 )
+    pSessionId( 0 ),
+    pBytesSent( 0 ),
+    pBytesReceived( 0 )
   {
+    pConnectionStarted.tv_sec = 0; pConnectionStarted.tv_usec = 0;
+    pConnectionDone.tv_sec = 0;    pConnectionDone.tv_usec = 0;
+
     std::ostringstream o;
     o << pUrl->GetHostId() << " #" << pStreamNum;
     pStreamName = o.str();
@@ -113,6 +120,13 @@ namespace XrdCl
   Stream::~Stream()
   {
     Disconnect( true );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( PostMasterMsg, "[%s] Destructing stream",
+                pStreamName.c_str() );
+
+    MonitorDisconnection( Status() );
+
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       delete *it;
@@ -185,6 +199,7 @@ namespace XrdCl
     if( now-pLastStreamError < pStreamErrorWindow )
       return Status( stFatal, errConnectionError );
 
+    gettimeofday( &pConnectionStarted, 0 );
     pConnectionInitTime = now;
     ++pConnectionCount;
 
@@ -346,6 +361,7 @@ namespace XrdCl
   void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
   {
     msg->SetSessionId( pSessionId );
+    pBytesReceived += msg->GetSize();
     if( pTransport->Highjack( msg, *pChannelData ) )
       return;
     pIncomingQueue->AddMessage( msg );
@@ -383,6 +399,7 @@ namespace XrdCl
   void Stream::OnMessageSent( uint16_t subStream, Message *msg )
   {
     OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    pBytesSent += h.msg->GetSize();
     if( h.handler )
       h.handler->OnStatusReady( msg, Status() );
     pSubStreams[subStream]->msgHelper.Reset();
@@ -444,6 +461,30 @@ namespace XrdCl
             pSubStreams[i]->status = Socket::Connecting;
           }
         }
+      }
+
+      //------------------------------------------------------------------------
+      // Inform monitoring
+      //------------------------------------------------------------------------
+      pBytesSent     = 0;
+      pBytesReceived = 0;
+      gettimeofday( &pConnectionDone, 0 );
+      Monitor *mon = DefaultEnv::GetMonitor();
+      if( mon )
+      {
+        Monitor::ConnectInfo i;
+        i.server  = pUrl->GetHostId();
+        i.sTOD    = pConnectionStarted;
+        i.eTOD    = pConnectionDone;
+        i.streams = pSubStreams.size();
+
+        AnyObject    qryResult;
+        std::string *qryResponse = 0;
+        pTransport->Query( TransportQuery::Auth, qryResult, *pChannelData );
+        qryResult.Get( qryResponse );
+        i.auth    = *qryResponse;
+        delete qryResponse;
+        mon->Event( Monitor::EvConnect, &i );
       }
     }
   }
@@ -604,6 +645,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( subStream == 0 )
     {
+      MonitorDisconnection( status );
+
       SubStreamList::iterator it;
       size_t outstanding = 0;
       for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
@@ -668,6 +711,24 @@ namespace XrdCl
     pChannelEvHandlers.ReportEvent( ChannelEventHandler::FatalError, status,
                                     pStreamNum );
 
+  }
+
+  //----------------------------------------------------------------------------
+  // Inform monitoring about disconnection
+  //----------------------------------------------------------------------------
+  void Stream::MonitorDisconnection( Status status )
+  {
+    Monitor *mon = DefaultEnv::GetMonitor();
+    if( mon )
+    {
+      Monitor::DisconnectInfo i;
+      i.server = pUrl->GetHostId();
+      i.rBytes = pBytesReceived;
+      i.sBytes = pBytesSent;
+      i.cTime  = ::time(0) - pConnectionDone.tv_sec;
+      i.status = status;
+      mon->Event( Monitor::EvDisconnect, &i );
+    }
   }
 
   //----------------------------------------------------------------------------

@@ -60,6 +60,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   AsyncSocketHandler::~AsyncSocketHandler()
   {
+    Close();
     delete pSocket;
   }
 

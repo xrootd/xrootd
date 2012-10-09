@@ -64,72 +64,11 @@ namespace XrdCl
       virtual ~Monitor() {}
 
       //------------------------------------------------------------------------
-      //! Describe the transfer
-      //------------------------------------------------------------------------
-      struct TransferInfo
-      {
-        const URL *origin;  //!< URL of the origin
-        const URL *target;  //!< URL of the target
-      };
-
-      //------------------------------------------------------------------------
-      //! Describe a checksum event
-      //------------------------------------------------------------------------
-      struct CheckSumInfo
-      {
-        TransferInfo transfer;  //!< The transfer in question
-        std::string  cksum;     //!< Checksum as <type>:<value>
-        uint64_t     sTime;     //!< Microseconds to obtain cksum from origin
-        uint64_t     tTime;     //!< Microseconds to obtain cksum from target
-        bool         isOK;      //!< True if checksum matched, false otherwise
-      };
-
-      //------------------------------------------------------------------------
-      //! Describe a start of copy event. Copy events are sequential by nature.
-      //! a copybeg event is followed by a number of open and close events. When
-      //! the copy finishes, all files are closed and a copyend event occurs.
-      //------------------------------------------------------------------------
-      struct CopyBInfo
-      {
-        TransferInfo transfer; //!< The transfer in question
-        int          sources;  //!< Number of sources requested for the copy
-      };
-
-      //------------------------------------------------------------------------
-      //! Describe an end  of copy event
-      //------------------------------------------------------------------------
-      struct CopyEInfo
-      {
-        TransferInfo transfer; //!< The transfer in question
-        int          sources;  //!< Number of sources used for the copy
-        bool         copyOK;   //!< True if copy succeeded; false otherwise
-      };
-
-      //------------------------------------------------------------------------
-      //! Describe an encountered file-based error
-      //------------------------------------------------------------------------
-      struct ErrorInfo
-      {
-        enum Operation
-        {
-          ErrClose = 0, //!< Close encountered an error
-          ErrOpen,      //!< Open (ditto)
-          ErrRead,      //!< Read
-          ErrReadv,     //!< Readv
-          ErrWrite,     //!< Write
-          ErrUnc        //!< Unclassified operation
-        };
-        const URL    *file;    //!< The file in question
-        XRootDStatus  status;  //!< Status code
-        Operation     opCode;  //!< The associated operation
-      };
-
-      //------------------------------------------------------------------------
       //! Describe a server login event
       //------------------------------------------------------------------------
       struct ConnectInfo
       {
-        ConnectInfo()
+        ConnectInfo(): streams( 0 )
         {
           sTOD.tv_sec = 0; sTOD.tv_usec = 0;
           eTOD.tv_sec = 0; eTOD.tv_usec = 0;
@@ -138,6 +77,7 @@ namespace XrdCl
         std::string auth;    //!< authentication protocol used or empty if none
         timeval     sTOD;    //!< gettimeofday() when login started
         timeval     eTOD;    //!< gettimeofday() when login ended
+        uint16_t    streams; //!< Number of streams
       };
 
       //------------------------------------------------------------------------
@@ -145,12 +85,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct DisconnectInfo
       {
-        DisconnectInfo(): rBytes(0), sBytes(0), cTime(0), isSlow(false) {}
+        DisconnectInfo(): rBytes(0), sBytes(0), cTime(0)
+        {}
         std::string server;  //!< user@host:port
         uint64_t    rBytes;  //!< Number of bytes received
         uint64_t    sBytes;  //!< Number of bytes sent
         time_t      cTime;   //!< Seconds connected to the server
-        bool        isSlow;  //!< True if logout due to slow server
+        Status      status;  //!< Disconnection status
       };
 
       //------------------------------------------------------------------------
@@ -171,20 +112,91 @@ namespace XrdCl
       struct CloseInfo
       {
         CloseInfo():
-          file(0), fSize(0), ioTime(0), rBytes(0), vBytes(0), wBytes(0),
-          vSegs(0), rCount(0), vCount(0), wCount(0) {}
-        const URL *file;    //!< The file in question
-        timeval    oTOD;    //!< gettimeofday() when file was opened
-        timeval    cTOD;    //!< gettimeofday() when file was closed
-        uint64_t   fSize;   //!< Final file size in bytes (derived)
-        uint64_t   ioTime;  //!< Actual microseconds performing I/O
-        uint64_t   rBytes;  //!< Total number of bytes read via read
-        uint64_t   vBytes;  //!< Total number of bytes read via readv
-        uint64_t   wBytes;  //!< Total number of bytes written
-        uint64_t   vSegs;   //!< Total count  of readv segments
-        uint32_t   rCount;  //!< Total count  of reads
-        uint32_t   vCount;  //!< Total count  of readv
-        uint32_t   wCount;  //!< Total count  of writes
+          file(0), rBytes(0), vBytes(0), wBytes(0), vSegs(0), rCount(0),
+          vCount(0), wCount(0), status(0)
+        {
+          oTOD.tv_sec = 0; oTOD.tv_usec = 0;
+          cTOD.tv_sec = 0; cTOD.tv_usec = 0;
+        }
+        const URL          *file;    //!< The file in question
+        timeval             oTOD;    //!< gettimeofday() when file was opened
+        timeval             cTOD;    //!< gettimeofday() when file was closed
+        uint64_t            rBytes;  //!< Total number of bytes read via read
+        uint64_t            vBytes;  //!< Total number of bytes read via readv
+        uint64_t            wBytes;  //!< Total number of bytes written
+        uint64_t            vSegs;   //!< Total count  of readv segments
+        uint32_t            rCount;  //!< Total count  of reads
+        uint32_t            vCount;  //!< Total count  of readv
+        uint32_t            wCount;  //!< Total count  of writes
+        const XRootDStatus *status;  //!< Close status
+      };
+
+      //------------------------------------------------------------------------
+      //! Describe an encountered file-based error
+      //------------------------------------------------------------------------
+      struct ErrorInfo
+      {
+        enum Operation
+        {
+          ErrOpen = 0,  //!< Open (ditto)
+          ErrRead,      //!< Read
+          ErrReadV,     //!< Readv
+          ErrWrite,     //!< Write
+          ErrUnc        //!< Unclassified operation
+        };
+
+        ErrorInfo(): file(0), opCode( ErrUnc ) {}
+        const URL          *file;    //!< The file in question
+        const XRootDStatus *status;  //!< Status code
+        Operation           opCode;  //!< The associated operation
+      };
+
+      //------------------------------------------------------------------------
+      //! Describe the transfer
+      //------------------------------------------------------------------------
+      struct TransferInfo
+      {
+        const URL *origin;  //!< URL of the origin
+        const URL *target;  //!< URL of the target
+      };
+
+      //------------------------------------------------------------------------
+      //! Describe a start of copy event. Copy events are sequential by nature.
+      //! a copybeg event is followed by a number of open and close events. When
+      //! the copy finishes, all files are closed and a copyend event occurs.
+      //------------------------------------------------------------------------
+      struct CopyBInfo
+      {
+        TransferInfo transfer; //!< The transfer in question
+      };
+
+      //------------------------------------------------------------------------
+      //! Describe an end  of copy event
+      //------------------------------------------------------------------------
+      struct CopyEInfo
+      {
+        CopyEInfo(): sources(0), status(0)
+        {
+          bTOD.tv_sec = 0; bTOD.tv_usec = 0;
+          eTOD.tv_sec = 0; eTOD.tv_usec = 0;
+        }
+        TransferInfo        transfer; //!< The transfer in question
+        int                 sources;  //!< Number of sources used for the copy
+        timeval             bTOD;     //!< Copy start time
+        timeval             eTOD;     //!< Copy end time
+        const XRootDStatus *status;   //!< Status of the copy
+      };
+
+      //------------------------------------------------------------------------
+      //! Describe a checksum event
+      //------------------------------------------------------------------------
+      struct CheckSumInfo
+      {
+        TransferInfo transfer;  //!< The transfer in question
+        std::string  cksum;     //!< Checksum as <type>:<value>
+        uint64_t     oTime;     //!< Microseconds to obtain cksum from origin
+        uint64_t     tTime;     //!< Microseconds to obtain cksum from target
+        bool         isOK;      //!< True if checksum matched, false otherwise
       };
 
       //------------------------------------------------------------------------
@@ -193,14 +205,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum EventCode
       {
-        EvCheckSum,       //!< CheckSumInfo: File checksummed
-        EvClose,          //!< CloseInfo: File closed
         EvCopyBeg,        //!< CopyBInfo: Copy operation started
         EvCopyEnd,        //!< CopyEInfo: Copy operation ended
+        EvCheckSum,       //!< CheckSumInfo: File checksummed
+        EvOpen,           //!< OpenInfo: File opened
+        EvClose,          //!< CloseInfo: File closed
         EvErrIO,          //!< ErrorInfo: An I/O error occured
         EvConnect,        //!< ConnectInfo: Login  into a server
-        EvDisconnect,     //!< DisconnectInfo: Logout from a server
-        EvOpen            //!< OpenInfo: File opened
+        EvDisconnect      //!< DisconnectInfo: Logout from a server
+
       };
 
       //------------------------------------------------------------------------

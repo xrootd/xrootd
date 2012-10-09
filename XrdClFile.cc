@@ -284,4 +284,12 @@ namespace XrdCl
   {
     pStateHandler->EnableWriteRecovery( enable );
   }
+
+  //----------------------------------------------------------------------------
+  // Get the data server the file is accessed at
+  //----------------------------------------------------------------------------
+  std::string File::GetDataServer() const
+  {
+    return pStateHandler->GetDataServer();
+  }
 }
