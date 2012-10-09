@@ -412,7 +412,15 @@ namespace XrdCl
     AnyObject    *response = 0;
 
     if( status->IsOK() )
-      response = ParseResponse();
+    {
+      Status st = ParseResponse( response );
+      if( !st.IsOK() )
+      {
+        delete status;
+        status   = new XRootDStatus( st );
+        response = 0;
+      }
+    }
 
     //--------------------------------------------------------------------------
     // Release the stream id
@@ -455,7 +463,7 @@ namespace XrdCl
   // Parse the response and put it in an object that could be passed to
   // the user
   //------------------------------------------------------------------------
-  AnyObject *XRootDMsgHandler::ParseResponse()
+  Status XRootDMsgHandler::ParseResponse( AnyObject *&response )
   {
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
@@ -479,7 +487,8 @@ namespace XrdCl
                                              pUrl.GetPort(),
                                              pRedirectCgi );
       obj->Set( info );
-      return obj;
+      response = obj;
+      return Status();
     }
 
     //--------------------------------------------------------------------------
@@ -543,7 +552,7 @@ namespace XrdCl
       case kXR_close:
       case kXR_write:
       case kXR_sync:
-        return 0;
+        return Status();
 
       //------------------------------------------------------------------------
       // kXR_locate
@@ -556,7 +565,8 @@ namespace XrdCl
                    pRequest->GetDescription().c_str(), buffer );
         LocationInfo *data = new LocationInfo( buffer );
         obj->Set( data );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -565,6 +575,7 @@ namespace XrdCl
       case kXR_stat:
       {
         AnyObject *obj = new AnyObject();
+
         //----------------------------------------------------------------------
         // Virtual File System stat (kXR_vfs)
         //----------------------------------------------------------------------
@@ -590,7 +601,8 @@ namespace XrdCl
           obj->Set( data );
         }
 
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -606,7 +618,8 @@ namespace XrdCl
         ProtocolInfo *data = new ProtocolInfo( rsp->body.protocol.pval,
                                                rsp->body.protocol.flags );
         obj->Set( data );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -626,7 +639,8 @@ namespace XrdCl
                                                  length ? buffer : 0 );
         delete [] path;
         obj->Set( data );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -654,7 +668,8 @@ namespace XrdCl
                                        pResponse->GetSessionId(),
                                        statInfo );
         obj->Set( data );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -675,14 +690,15 @@ namespace XrdCl
                       "of response data", pUrl.GetHostId().c_str(),
                       pRequest->GetDescription().c_str(), info.length,
                       length );
-          return 0;
+          return Status( stError, errInvalidResponse );
         }
         memcpy( info.buffer, buffer, length );
 
         AnyObject *obj   = new AnyObject();
         ChunkInfo *chunk = new ChunkInfo( info.offset, length, info.buffer );
         obj->Set( chunk );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -695,11 +711,17 @@ namespace XrdCl
                    pRequest->GetDescription().c_str() );
 
         VectorReadInfo *info = new VectorReadInfo();
-        UnpackVectorRead( info, pChunkList, buffer, length );
+        Status st = UnpackVectorRead( info, pChunkList, buffer, length );
+        if( !st.IsOK() )
+        {
+          delete info;
+          return st;
+        }
 
         AnyObject *obj = new AnyObject();
         obj->Set( info );
-        return obj;
+        response = obj;
+        return Status();
       }
 
       //------------------------------------------------------------------------
@@ -717,10 +739,11 @@ namespace XrdCl
         data->Allocate( length );
         data->Append( buffer, length );
         obj->Set( data );
-        return obj;
+        response = obj;
+        return Status();
       }
     };
-    return 0;
+    return Status( stError, errInvalidMessage );
   }
 
   //----------------------------------------------------------------------------

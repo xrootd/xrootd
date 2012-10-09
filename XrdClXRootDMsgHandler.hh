@@ -193,7 +193,7 @@ namespace XrdCl
       //! Parse the response and put it in an object that could be passed to
       //! the user
       //------------------------------------------------------------------------
-      AnyObject *ParseResponse();
+      Status ParseResponse( AnyObject *&response );
 
       //------------------------------------------------------------------------
       //! Perform the changes to the original request needed by the redirect
