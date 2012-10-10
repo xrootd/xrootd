@@ -24,6 +24,15 @@
 #define kSslKDFunDefLen  24
 
 //
+// Control whether RSA key check is actually done; the check is broken in OpenSSL
+// 1.0.0x (problem with BN): we need to skip it to be able to build on SL(C)6
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10000100L
+#define XrdCryptosslSkipKeyCheck 1
+#else
+#define XrdCryptosslSkipKeyCheck 0
+#endif
+
+//
 // Password-Based Key Derivation Function 2, specified in PKCS #5
 //
 int XrdCryptosslKDFunLen(); // default buffer length

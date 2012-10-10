@@ -123,7 +123,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
          if (PEM_read_PrivateKey(fk,&evpp,0,0)) {
             DEBUG("RSA key completed ");
             // Test consistency
-            if (RSA_check_key(evpp->pkey.rsa) != 0) {
+            if (XrdCryptosslSkipKeyCheck || RSA_check_key(evpp->pkey.rsa) != 0) {
                // Save it in pki
                pki = new XrdCryptosslRSA(evpp);
             }

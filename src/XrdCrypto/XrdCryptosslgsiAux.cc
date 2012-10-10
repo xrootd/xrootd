@@ -536,7 +536,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
    }
    fclose(fk);
    // Check key consistency
-   if (RSA_check_key(ekEEC->pkey.rsa) == 0) {
+   if ((!XrdCryptosslSkipKeyCheck && RSA_check_key(ekEEC->pkey.rsa) == 0)) {
       PRINT("inconsistent key loaded");
       return -kErrPX_BadEECkey;
    }
