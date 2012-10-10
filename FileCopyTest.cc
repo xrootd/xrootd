@@ -18,7 +18,6 @@
 
 #include <cppunit/extensions/HelperMacros.h>
 #include "TestEnv.hh"
-#include "Utils.hh"
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
@@ -28,6 +27,11 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
+#include "XrdCl/XrdClUtils.hh"
+
+#include "XrdCks/XrdCks.hh"
+#include "XrdCks/XrdCksCalc.hh"
+#include "XrdCks/XrdCksData.hh"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -95,9 +99,12 @@ void FileCopyTest::DownloadTestFunc()
   //----------------------------------------------------------------------------
   // Fetch the data
   //----------------------------------------------------------------------------
-  uint64_t totalRead = 0;
-  uint32_t bytesRead = 0;
-  uint32_t computedCRC32 = Utils::GetInitialCRC32();
+  uint64_t    totalRead = 0;
+  uint32_t    bytesRead = 0;
+
+  XrdCks     *calc = DefaultEnv::GetCheckSumManager();
+  XrdCksCalc *crc32Sum = calc->Object("crc32");
+  CPPUNIT_ASSERT( crc32Sum );
 
   while( 1 )
   {
@@ -105,43 +112,21 @@ void FileCopyTest::DownloadTestFunc()
     if( bytesRead == 0 )
       break;
     totalRead += bytesRead;
-    computedCRC32 = Utils::UpdateCRC32( computedCRC32, buffer, bytesRead );
+    crc32Sum->Update( buffer, bytesRead );
   }
 
   //----------------------------------------------------------------------------
-  // Verify checksums and close the file
+  // Compare the checksums
   //----------------------------------------------------------------------------
-  Buffer  arg;
-  Buffer *cksResponse = 0;
-  arg.FromString( remoteFile );
-  FileSystem fs( url );
+  char crcBuff[9];
+  XrdCksData crc; crc.Set( (const void *)crc32Sum->Final(), 4 ); crc.Get( crcBuff, 9 );
+  std::string transferSum = "crc32:"; transferSum += crcBuff;
 
-  //----------------------------------------------------------------------------
-  // Locate a disk server containing the file
-  //----------------------------------------------------------------------------
-  LocationInfo *locations = 0;
-  CPPUNIT_ASSERT_XRDST( fs.DeepLocate( remoteFile, OpenFlags::Refresh, locations ) );
-  CPPUNIT_ASSERT( locations );
-  CPPUNIT_ASSERT( locations->GetSize() != 0 );
-  FileSystem fs1( locations->Begin()->GetAddress() );
-  delete locations;
-
-  //----------------------------------------------------------------------------
-  // Get the checksum
-  //----------------------------------------------------------------------------
-  CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum,
-                                   arg, cksResponse ) );
-  CPPUNIT_ASSERT( cksResponse );
-
-  uint32_t remoteCRC32 = 0;
-  CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
-                                         cksResponse->ToString() ) );
-  CPPUNIT_ASSERT( remoteCRC32 == computedCRC32 );
-  CPPUNIT_ASSERT( totalRead == stat->GetSize() );
-  CPPUNIT_ASSERT_XRDST( f.Close() );
-  delete [] buffer;
-  delete stat;
-  delete cksResponse;
+  std::string remoteSum;
+  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "crc32",
+                                                  f.GetDataServer(),
+                                                  remoteFile ) );
+  CPPUNIT_ASSERT( remoteSum == transferSum );
 }
 
 //------------------------------------------------------------------------------
@@ -187,11 +172,14 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   uint64_t offset        = 0;
   ssize_t  bytesRead;
-  uint32_t computedCRC32 = Utils::GetInitialCRC32();
+
+  XrdCks     *calc = DefaultEnv::GetCheckSumManager();
+  XrdCksCalc *crc32Sum = calc->Object("crc32");
+  CPPUNIT_ASSERT( crc32Sum );
 
   while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )
   {
-    computedCRC32 = Utils::UpdateCRC32( computedCRC32, buffer, bytesRead );
+    crc32Sum->Update( buffer, bytesRead );
     CPPUNIT_ASSERT_XRDST( f.Write( offset, bytesRead, buffer ) );
     offset += bytesRead;
   }
@@ -222,20 +210,17 @@ void FileCopyTest::UploadTestFunc()
   delete stat;
 
   //----------------------------------------------------------------------------
-  // Verify checksums
+  // Compare the checksums
   //----------------------------------------------------------------------------
-  Buffer  arg;
-  Buffer *cksResponse = 0;
-  arg.FromString( remoteFile );
+  char crcBuff[9];
+  XrdCksData crc; crc.Set( (const void *)crc32Sum->Final(), 4 ); crc.Get( crcBuff, 9 );
+  std::string transferSum = "crc32:"; transferSum += crcBuff;
 
-  CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum, arg, cksResponse ) );
-  CPPUNIT_ASSERT( cksResponse );
-  uint32_t remoteCRC32 = 0;
-  CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
-                                         cksResponse->ToString() ) );
-  CPPUNIT_ASSERT( remoteCRC32 == computedCRC32 );
-
-  delete cksResponse;
+  std::string remoteSum;
+  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "crc32",
+                                                  f.GetDataServer(),
+                                                  remoteFile ) );
+  CPPUNIT_ASSERT( remoteSum == transferSum );
 
   //----------------------------------------------------------------------------
   // Delete the file
