@@ -1205,6 +1205,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       else
       {
+        info->authProtocolName = info->authProtocol->Entity.prot;
         CleanUpAuthentication( info );
 
         //----------------------------------------------------------------------
@@ -1212,7 +1213,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( rsp->hdr.status == kXR_ok )
         {
-          info->authProtocolName = info->authProtocol->Entity.prot;
           log->Debug( XRootDTransportMsg,
                       "[%s] Authenticated with %s.", hsData->streamName.c_str(),
                       protocolName.c_str() );
