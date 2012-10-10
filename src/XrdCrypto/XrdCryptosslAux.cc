@@ -465,7 +465,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
 #endif
                         DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
-                        int rc = RSA_check_key(evpp->pkey.rsa);
+                        int rc = XrdCryptosslSkipKeyCheck ? 1 : RSA_check_key(evpp->pkey.rsa);
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
@@ -583,7 +583,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
                      if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
                         DEBUG("RSA key completed ");
                         // Test consistency
-                        int rc = RSA_check_key(evpp->pkey.rsa);
+                        int rc = XrdCryptosslSkipKeyCheck ? 1 : RSA_check_key(evpp->pkey.rsa);
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
