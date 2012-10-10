@@ -87,6 +87,7 @@ namespace XrdCl
     msgHandler->SetExpiration( sendParams.expires );
     msgHandler->SetRedirectAsAnswer( !sendParams.followRedirects );
     msgHandler->SetChunkList( sendParams.chunkList );
+    msgHandler->SetRedirectCounter( sendParams.redirectLimit );
 
     if( sendParams.loadBalancer.url.IsValid() )
       msgHandler->SetLoadBalancer( sendParams.loadBalancer );
@@ -123,9 +124,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void MessageUtils::ProcessSendParams( MessageSendParams &sendParams )
   {
+    //--------------------------------------------------------------------------
+    // Timeout
+    //--------------------------------------------------------------------------
+    Env *env = DefaultEnv::GetEnv();
     if( sendParams.timeout == 0 )
     {
-      Env *env = DefaultEnv::GetEnv();
       int requestTimeout = DefaultRequestTimeout;
       env->GetInt( "RequestTimeout", requestTimeout );
       sendParams.timeout = requestTimeout;
@@ -133,6 +137,16 @@ namespace XrdCl
 
     if( sendParams.expires == 0 )
       sendParams.expires = ::time(0)+sendParams.timeout;
+
+    //--------------------------------------------------------------------------
+    // Redirect limit
+    //--------------------------------------------------------------------------
+    if( sendParams.redirectLimit == 0 )
+    {
+      int redirectLimit = DefaultRedirectLimit;
+      env->GetInt( "RedirectLimit", redirectLimit );
+      sendParams.redirectLimit = redirectLimit;
+    }
   }
 
   //----------------------------------------------------------------------------

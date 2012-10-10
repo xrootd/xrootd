@@ -53,6 +53,7 @@ namespace
     { errInvalidMessage,     "Invalid message"      },
     { errNotFound,           "Resource not found"   },
     { errCheckSumError,      "CheckSum error"       },
+    { errRedirectLimit,      "Redirect limit has been reached" },
     { errHandShakeFailed,    "Hand shake failed"    },
     { errLoginFailed,        "Login failed"         },
     { errAuthFailed,         "Auth failed"          },

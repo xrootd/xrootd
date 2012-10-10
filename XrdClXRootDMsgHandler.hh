@@ -61,7 +61,8 @@ namespace XrdCl
         pHosts( 0 ),
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
-        pChunkList( 0 )
+        pChunkList( 0 ),
+        pRedirectCounter( 0 )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -168,6 +169,14 @@ namespace XrdCl
         pChunkList = chunkList;
       }
 
+      //------------------------------------------------------------------------
+      //! Set the redirect coutner
+      //------------------------------------------------------------------------
+      void SetRedirectCounter( uint16_t redirectCounter )
+      {
+        pRedirectCounter = redirectCounter;
+      }
+
     private:
       //------------------------------------------------------------------------
       //! Recover error
@@ -240,6 +249,7 @@ namespace XrdCl
       bool                       pHasSessionId;
       std::string                pRedirectCgi;
       ChunkList                 *pChunkList;
+      uint16_t                   pRedirectCounter;
   };
 }
 

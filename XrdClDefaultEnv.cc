@@ -146,6 +146,7 @@ namespace XrdCl
     PutInt( "TimeoutResolution",     DefaultTimeoutResolution    );
     PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
     PutInt( "RunForkHandler",        DefaultRunForkHandler       );
+    PutInt( "RedirectLimit",         DefaultRedirectLimit       );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
@@ -157,6 +158,7 @@ namespace XrdCl
     ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
     ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
     ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
+    ImportInt(    "RedirectLimit",        "XRD_REDIRECTLIMIT"        );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );

@@ -1129,6 +1129,9 @@ namespace XrdCl
     if( status.code == errOperationExpired )
       return false;
 
+    if( status.code == errRedirectLimit )
+      return false;
+
     if( IsReadOnly() && !pDoRecoverRead )
       return false;
 

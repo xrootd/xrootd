@@ -176,6 +176,21 @@ namespace XrdCl
                    rsp->body.redirect.port );
 
         //----------------------------------------------------------------------
+        // Check if we can proceed
+        //----------------------------------------------------------------------
+        if( !pRedirectCounter )
+        {
+          log->Dump( XRootDMsg, "[%s] Redirect limit has been reached for"
+                     "message %s", pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str() );
+
+          pStatus = Status( stFatal, errRedirectLimit );
+          HandleResponse();
+          return Take | RemoveHandler;
+        }
+        --pRedirectCounter;
+
+        //----------------------------------------------------------------------
         // Keep the info about this server if we still need to find a load
         // balancer
         //----------------------------------------------------------------------

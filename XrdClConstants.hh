@@ -47,6 +47,7 @@ namespace XrdCl
   const int DefaultTimeoutResolution    = 15;
   const int DefaultStreamErrorWindow    = 1800;
   const int DefaultRunForkHandler       = 0;
+  const int DefaultRedirectLimit        = 16;
 
   const char * const DefaultPollerPreference   = "libevent,built-in";
   const char * const DefaultClientMonitor      = "";
