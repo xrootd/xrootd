@@ -17,6 +17,10 @@ endif()
 
 include( XrdClient )
 
+if( ENABLE_XRDCL )
+  add_subdirectory( XrdCl )
+endif()
+
 include( XrdOfs )
 include( XrdServer )
 include( XrdDaemons )

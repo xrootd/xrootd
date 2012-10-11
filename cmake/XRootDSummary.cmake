@@ -1,11 +1,15 @@
 #-------------------------------------------------------------------------------
 # Print the configuration summary
 #-------------------------------------------------------------------------------
+set( TRUE_VAR TRUE )
 component_status( READLINE ENABLE_READLINE READLINE_FOUND )
 component_status( FUSE     BUILD_FUSE      FUSE_FOUND )
 component_status( CRYPTO   BUILD_CRYPTO    OPENSSL_FOUND )
 component_status( KRB5     BUILD_KRB5      KERBEROS5_FOUND )
 component_status( PERL     BUILD_PERL      PERLLIBS_FOUND )
+component_status( LIBEVENT BUILD_LIBEVENT  LIBEVENT_FOUND )
+component_status( XRDCL    ENABLE_XRDCL    TRUE_VAR )
+component_status( TESTS    BUILD_TESTS     CPPUNIT_FOUND )
 
 message( STATUS "----------------------------------------" )
 message( STATUS "Installation path: " ${CMAKE_INSTALL_PREFIX} )
@@ -18,4 +22,7 @@ message( STATUS "Fuse support:      " ${STATUS_FUSE} )
 message( STATUS "Crypto support:    " ${STATUS_CRYPTO} )
 message( STATUS "Kerberos5 support: " ${STATUS_KRB5} )
 message( STATUS "Perl support:      " ${STATUS_PERL} )
+message( STATUS "XrdCl:             " ${STATUS_XRDCL} )
+message( STATUS "LibEvent support:  " ${STATUS_LIBEVENT} )
+message( STATUS "Tests:             " ${STATUS_TESTS} )
 message( STATUS "----------------------------------------" )

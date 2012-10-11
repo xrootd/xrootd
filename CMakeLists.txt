@@ -39,4 +39,9 @@ endmacro()
 #-------------------------------------------------------------------------------
 add_subdirectory( src )
 
+if( BUILD_TESTS )
+  ENABLE_TESTING()
+  add_subdirectory( tests )
+endif()
+
 include( XRootDSummary )
