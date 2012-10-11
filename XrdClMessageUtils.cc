@@ -109,6 +109,7 @@ namespace XrdCl
                            sendParams.expires );
     if( !st.IsOK() )
     {
+      XRootDTransport::UnMarshallRequest( msg );
       log->Error( XRootDMsg, "[%s] Unable to send the message %s: %s",
                   url.GetHostId().c_str(), msg->GetDescription().c_str(),
                   st.ToString().c_str() );
