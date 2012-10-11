@@ -30,6 +30,9 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Use correct variable to hold osslib parameters. This patch fixes commit
+     2e27f87a (version checking) and without this patch makes it impossible
+     to load an oss plug-in.
    * Make sure redirect opaque information is passed along for all filename
      based requests. This is required for DPM and EOS N2N services to work
      in all cases (most importantly, stat).
