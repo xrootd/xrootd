@@ -58,6 +58,28 @@ Requires: %{name}-client = %{epoch}:%{version}-%{release}
 Headers for compiling against xrootd-client
 
 #-------------------------------------------------------------------------------
+# new client
+#-------------------------------------------------------------------------------
+%package cl
+Summary: The new XRootD client
+Group:   System Environment/Applications
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+%description cl
+The new XRootD client software.
+
+#-------------------------------------------------------------------------------
+# new client devel
+#-------------------------------------------------------------------------------
+%package cl-devel
+Summary: Headers for compiling against xrootd-cl
+Group:   System Environment/Libraries
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+Requires: %{name}-libs-devel = %{epoch}:%{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
+%description cl-devel
+Headers for compiling against xrootd-cl
+
+#-------------------------------------------------------------------------------
 # fuse
 #-------------------------------------------------------------------------------
 %package fuse
@@ -328,6 +350,16 @@ exit 0
 %{_includedir}/%{name}/XrdClient
 %{_includedir}/%{name}/XrdPosix
 %{_includedir}/%{name}/XrdFfs
+
+%files cl
+%defattr(-,root,root,-)
+%{_libdir}/libXrdCl.so*
+%{_bindir}/xrdcopy
+%{_bindir}/xrdfs
+
+%files cl-devel
+%defattr(-,root,root,-)
+%{_includedir}/%{name}/XrdCl
 
 %files fuse
 %defattr(-,root,root,-)
