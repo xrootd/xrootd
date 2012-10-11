@@ -447,7 +447,7 @@ namespace XrdCl
     else
       pSidMgr->ReleaseSID( req->header.streamid );
 
-    pResponseHandler->HandleResponse( status, response, pHosts );
+    pResponseHandler->HandleResponseWithHosts( status, response, pHosts );
 
     //--------------------------------------------------------------------------
     // As much as I hate to say this, we cannot do more, so we commit

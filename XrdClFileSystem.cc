@@ -261,13 +261,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Response callback
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response,
-                                   HostList     *hostList )
+      virtual void HandleResponseWithHosts( XRootDStatus *status,
+                                            AnyObject    *response,
+                                            HostList     *hostList )
       {
         if( status->IsOK() )
         {
-          HostList::const_reverse_iterator it;
+          HostList::reverse_iterator it;
           for( it = hostList->rbegin(); it != hostList->rend(); ++it )
           if( it->loadBalancer )
           {
@@ -275,7 +275,7 @@ namespace XrdCl
             break;
           }
         }
-        pUserHandler->HandleResponse( status, response, hostList );
+        pUserHandler->HandleResponseWithHosts( status, response, hostList );
         delete this;
       }
 

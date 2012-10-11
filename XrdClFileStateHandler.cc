@@ -53,9 +53,9 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdCl::XRootDStatus *status,
-                                   XrdCl::AnyObject    *response,
-                                   XrdCl::HostList     *hostList )
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
 
@@ -79,7 +79,7 @@ namespace
         pStateHandler->OnOpen( status, openInfo, hostList );
         delete response;
         if( pUserHandler )
-          pUserHandler->HandleResponse( status, 0, hostList );
+          pUserHandler->HandleResponseWithHosts( status, 0, hostList );
         else
         {
           delete status;
@@ -123,13 +123,13 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdCl::XRootDStatus *status,
-                                   XrdCl::AnyObject    *response,
-                                   XrdCl::HostList     *hostList )
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
       {
         pStateHandler->OnClose( status );
         if( pUserHandler )
-          pUserHandler->HandleResponse( status, response, hostList );
+          pUserHandler->HandleResponseWithHosts( status, response, hostList );
         else
         {
           delete response;
@@ -178,9 +178,9 @@ namespace
       //------------------------------------------------------------------------
       // Handle the response
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XrdCl::XRootDStatus *status,
-                                   XrdCl::AnyObject    *response,
-                                   XrdCl::HostList     *hostList )
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
         std::auto_ptr<XRootDStatus>    statusPtr( status );
@@ -215,7 +215,7 @@ namespace
         statusPtr.release();
         responsePtr.release();
         pStateHandler->OnStateResponse( status, pMessage, response, hostList );
-        pUserHandler->HandleResponse( status, response, hostList );
+        pUserHandler->HandleResponseWithHosts( status, response, hostList );
         delete this;
       }
 
@@ -460,7 +460,8 @@ namespace XrdCl
     {
       AnyObject *obj = new AnyObject();
       obj->Set( new StatInfo( *pStatInfo ) );
-      handler->HandleResponse( new XRootDStatus(), obj, new HostList() );
+      handler->HandleResponseWithHosts( new XRootDStatus(), obj,
+                                        new HostList() );
       return XRootDStatus();
     }
 
@@ -1287,8 +1288,8 @@ namespace XrdCl
       return;
     }
     ResponseHandler *userHandler = sh->GetUserHandler();
-    userHandler->HandleResponse( new XRootDStatus( status ), 0,
-                                 rd.params.hostList );
+    userHandler->HandleResponseWithHosts( new XRootDStatus( status ), 0,
+                                          rd.params.hostList );
     delete rd.request;
     delete sh;
   }

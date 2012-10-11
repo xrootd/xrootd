@@ -842,9 +842,9 @@ namespace XrdCl
       //!                 (request dependent)
       //! @param urlList  list of hosts the request was redirected to
       //------------------------------------------------------------------------
-      virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response,
-                                   HostList     *hostList )
+      virtual void HandleResponseWithHosts( XRootDStatus *status,
+                                            AnyObject    *response,
+                                            HostList     *hostList )
       {
         delete hostList;
         HandleResponse( status, response );
