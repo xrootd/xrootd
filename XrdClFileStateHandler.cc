@@ -246,6 +246,7 @@ namespace XrdCl
     pFileUrl( 0 ),
     pDataServer( 0 ),
     pLoadBalancer( 0 ),
+    pStateRedirect( 0 ),
     pFileHandle( 0 ),
     pOpenMode( 0 ),
     pOpenFlags( 0 ),
