@@ -237,7 +237,7 @@ namespace XrdCl
       log->Error( XRootDTransportMsg,
                   "[%s] Iternal error: not enough substreams",
                   handShakeData->streamName.c_str() );
-      return Status( stError, errInternal );
+      return Status( stFatal, errInternal );
     }
 
     if( handShakeData->subStreamId == 0 )
@@ -958,8 +958,9 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    if( !UnMarshallBody( hsData->in, kXR_protocol ).IsOK() )
-      return Status( stFatal, errHandShakeFailed );
+    Status st = UnMarshallBody( hsData->in, kXR_protocol );
+    if( !st.IsOK() )
+      return st;
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
@@ -1015,8 +1016,9 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    if( !UnMarshallBody( hsData->in, kXR_bind ).IsOK() )
-      return Status( stFatal, errHandShakeFailed );
+    Status st = UnMarshallBody( hsData->in, kXR_bind );
+    if( !st.IsOK() )
+      return st;
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
@@ -1079,8 +1081,9 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    if( !UnMarshallBody( hsData->in, kXR_login ).IsOK() )
-      return Status( stFatal, errLoginFailed );
+    Status st = UnMarshallBody( hsData->in, kXR_login );
+    if( !st.IsOK() )
+      return st;
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
 
@@ -1229,7 +1232,7 @@ namespace XrdCl
                       hsData->streamName.c_str(), protocolName.c_str(),
                       rsp->body.error.errmsg );
 
-          return Status( stError, errAuthFailed );
+          return Status( stFatal, errAuthFailed );
         }
 
         //----------------------------------------------------------------------
@@ -1238,7 +1241,7 @@ namespace XrdCl
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: unexpected answer",
                     hsData->streamName.c_str(), protocolName.c_str() );
-        return Status( stError, errAuthFailed );
+        return Status( stFatal, errAuthFailed );
       }
     }
 

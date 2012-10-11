@@ -286,7 +286,7 @@ namespace XrdCl
     if( !pPoller->EnableReadNotification( pSocket, true, pTimeoutResolution ) )
     {
       pStream->OnConnectError( pSubStreamNum,
-                               Status( stError, errPollerError ) );
+                               Status( stFatal, errPollerError ) );
       return;
     }
   }

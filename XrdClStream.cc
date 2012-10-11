@@ -492,7 +492,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // On connect error
   //----------------------------------------------------------------------------
-  void Stream::OnConnectError( uint16_t subStream, Status st )
+  void Stream::OnConnectError( uint16_t subStream, Status status )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -518,7 +518,7 @@ namespace XrdCl
       if( pSubStreams[0]->status == Socket::Connecting )
         return;
 
-      OnFatalError( subStream, st, scopedLock );
+      OnFatalError( subStream, status, scopedLock );
       return;
     }
 
@@ -548,7 +548,7 @@ namespace XrdCl
       // If we still can retry with the same host name, we sleep until the end
       // of the connection window and try
       //------------------------------------------------------------------------
-      else if( pConnectionCount < pConnectionRetry )
+      else if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
       {
         log->Info( PostMasterMsg, "[%s] Attempting reconnection in %d "
                    "seconds.", pStreamName.c_str(), pConnectionWindow-elapsed );
@@ -561,8 +561,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Nothing can be done, we declare a failure
       //------------------------------------------------------------------------
-      OnFatalError( subStream, Status( stFatal, errConnectionError ),
-                    scopedLock );
+      OnFatalError( subStream, status, scopedLock );
       return;
     }
 
@@ -570,23 +569,21 @@ namespace XrdCl
     // We are out of the connection window, the only thing we can do here
     // is re-resolving the host name and retrying if we still can
     //--------------------------------------------------------------------------
-    if( pConnectionCount < pConnectionRetry )
+    if( pConnectionCount < pConnectionRetry && !status.IsFatal() )
     {
       pAddresses.clear();
       pSubStreams[0]->status = Socket::Disconnected;
       PathID path( 0, 0 );
-      st = EnableLink( path );
+      Status st = EnableLink( path );
       if( !st.IsOK() )
-        OnFatalError( subStream, Status( stFatal, errConnectionError ),
-                      scopedLock );
+        OnFatalError( subStream, st, scopedLock );
       return;
     }
 
     //--------------------------------------------------------------------------
     // Else, we fail
     //--------------------------------------------------------------------------
-    OnFatalError( subStream, Status( stFatal, errConnectionError ),
-                  scopedLock );
+    OnFatalError( subStream, status, scopedLock );
   }
 
   //----------------------------------------------------------------------------
