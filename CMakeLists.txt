@@ -1,9 +1,14 @@
-if( LIBEVENT_FOUND )
-  include_directories( ${LIBEVENT_INCLUDE_DIR} )
-endif()
 
-include_directories( ../ ${XROOTD_INCLUDES} ${LIBEVENT_INCLUDE_DIR} )
-link_directories( ${XROOTD_LIB_DIR} )
+include( XRootDCommon )
+
+if( BUILD_LIBEVENT )
+  include_directories( ${LIBEVENT_INCLUDE_DIR} )
+  set( LIBEVENT_POLLER_FILES
+       XrdClPollerLibEvent.cc
+       XrdClPollerLibEvent.hh )
+else()
+  set( LIBEVENT_POLLER_FILES "" )
+endif()
 
 #-------------------------------------------------------------------------------
 # Shared library version
