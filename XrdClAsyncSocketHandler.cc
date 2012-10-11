@@ -85,23 +85,6 @@ namespace XrdCl
       return st;
     }
 
-    //--------------------------------------------------------------------------
-    // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux, on MacOSX
-    // we set SO_NOSIGPIPE option
-    //--------------------------------------------------------------------------
-#ifdef __APPLE__
-    int set = 1;
-    st = pSocket->SetSockOpt( SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int) );
-    if( !st.IsOK() )
-    {
-      log->Error( AsyncSockMsg, "[%s] Unable disable SIGPIPEs on socket: %s",
-                  pStreamName.c_str(),  st.ToString().c_str() );
-      pSocket->Close();
-      st.status = stFatal;
-      return st;
-    }
-#endif
-
     pHandShakeDone = false;
 
     //--------------------------------------------------------------------------
@@ -382,22 +365,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Try to write down the current message
     //--------------------------------------------------------------------------
-    int       sock            = pSocket->GetFD();
     Message  *msg             = pOutgoing;
     uint32_t  leftToBeWritten = msg->GetSize()-msg->GetCursor();
 
     while( leftToBeWritten )
     {
-      //------------------------------------------------------------------------
-      // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux, on MacOSX
-      // we set SO_NOSIGPIPE option
-      //------------------------------------------------------------------------
-#ifndef __APPLE__
-      int status = ::send( sock, msg->GetBufferAtCursor(), leftToBeWritten,
-                           MSG_NOSIGNAL );
-#else
-      int status = ::write( sock, msg->GetBufferAtCursor(), leftToBeWritten );
-#endif
+      int status = pSocket->Send( msg->GetBufferAtCursor(), leftToBeWritten );
       if( status <= 0 )
       {
         //----------------------------------------------------------------------

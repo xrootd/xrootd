@@ -28,6 +28,7 @@
 #include <ctime>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <signal.h>
 #include <cstdlib>
 #include <cstring>
 
@@ -60,6 +61,25 @@ namespace XrdCl
       Close();
       return Status( stError, errFcntl, errno );
     }
+
+    //--------------------------------------------------------------------------
+    // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux, on MacOSX
+    // we set SO_NOSIGPIPE option, on Solaris we ignore the SIGPIPE
+    //--------------------------------------------------------------------------
+#ifdef __APPLE__
+    int set = 1;
+    Status st = SetSockOpt( SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int) );
+    if( !st.IsOK() )
+    {
+      Close();
+      return st;
+    }
+#elif __solaris__
+    struct sigaction act;
+    act.sa_handler = SIG_IGN;
+    sigaction( SIGPIPE, &act, NULL );
+#endif
+
     return Status();
   }
 
@@ -389,6 +409,21 @@ namespace XrdCl
       return Status( stError, errSocketTimeout );
 
     return Status( stOK );
+  }
+
+  //------------------------------------------------------------------------
+  // Portable wrapper around SIGPIPE free send
+  //----------------------------------------------------------------------------
+  ssize_t Socket::Send( void *buffer, uint32_t size )
+  {
+    //--------------------------------------------------------------------------
+    // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux
+    //--------------------------------------------------------------------------
+#ifdef __linux__
+    return ::send( pSocket, buffer, size, MSG_NOSIGNAL );
+#else
+    return ::write( pSocket, buffer, size );
+#endif
   }
 
   //----------------------------------------------------------------------------
