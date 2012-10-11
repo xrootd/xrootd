@@ -1291,7 +1291,6 @@ namespace XrdCl
     ResponseHandler *userHandler = sh->GetUserHandler();
     userHandler->HandleResponseWithHosts( new XRootDStatus( status ), 0,
                                           rd.params.hostList );
-    delete rd.request;
     delete sh;
   }
 
