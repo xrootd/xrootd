@@ -156,6 +156,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct TransferInfo
       {
+        TransferInfo(): origin(0), target(0) {}
         const URL *origin;  //!< URL of the origin
         const URL *target;  //!< URL of the target
       };
@@ -192,6 +193,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       struct CheckSumInfo
       {
+        CheckSumInfo(): oTime(0), tTime(0), isOK(false) {}
         TransferInfo transfer;  //!< The transfer in question
         std::string  cksum;     //!< Checksum as <type>:<value>
         uint64_t     oTime;     //!< Microseconds to obtain cksum from origin
