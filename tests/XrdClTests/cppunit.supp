@@ -1,0 +1,17 @@
+{
+   CPPUnit typeinfo leak
+   Memcheck:Leak
+   fun:_Znwm
+   fun:_ZNSs4_Rep9_S_createEmmRKSaIcE
+   fun:_ZNSs12_S_constructIPcEES0_T_S1_RKSaIcESt20forward_iterator_tag
+   fun:_ZNSsC1ERKSsmm
+   fun:_ZN7CppUnit14TypeInfoHelper12getClassNameERKSt9type_info
+   fun:_ZN7CppUnit9TestNamerC1ERKSt9type_info
+}
+
+{
+   CPPUnit factory registry leak
+   Memcheck:Leak
+   fun:_Znwm
+   fun:_ZN7CppUnit19TestFactoryRegistry8makeTestEv
+}
