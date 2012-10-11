@@ -31,12 +31,15 @@ namespace
   struct PollerHelper
   {
     PollerHelper():
-      channel(0), callBack(0), readEnabled(false), writeEnabled(false)
+      channel(0), callBack(0), readEnabled(false), writeEnabled(false),
+      readTimeout(0), writeTimeout(0)
     {}
     XrdSys::IOEvents::Channel  *channel;
     XrdSys::IOEvents::CallBack *callBack;
     bool                        readEnabled;
     bool                        writeEnabled;
+    uint16_t                    readTimeout;
+    uint16_t                    writeTimeout;
   };
 
   //----------------------------------------------------------------------------
@@ -90,6 +93,19 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool PollerBuiltIn::Finalize()
   {
+    //--------------------------------------------------------------------------
+    // Clean up the channels
+    //--------------------------------------------------------------------------
+    SocketMap::iterator it;
+    for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
+    {
+      PollerHelper *helper = (PollerHelper*)it->second;
+      delete helper->channel;
+      delete helper->callBack;
+      delete helper;
+    }
+    pSocketMap.clear();
+
     return true;
   }
 
@@ -98,7 +114,11 @@ namespace XrdCl
   //------------------------------------------------------------------------
   bool PollerBuiltIn::Start()
   {
+    //--------------------------------------------------------------------------
+    // Start the poller
+    //--------------------------------------------------------------------------
     using namespace XrdSys;
+
     Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Creating and starting the built-in poller..." );
     int         errNum = 0;
@@ -109,6 +129,45 @@ namespace XrdCl
       log->Error( PollerMsg, "Unable to create the interal poller object: ",
                              "%s (%s)", strerror( errno ), errMsg );
       return false;
+    }
+
+    //--------------------------------------------------------------------------
+    // Check if we have any descriptors to reinsert from the last time we
+    // were started
+    //--------------------------------------------------------------------------
+    SocketMap::iterator it;
+    for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
+    {
+      PollerHelper *helper = (PollerHelper*)it->second;
+      Socket       *socket = it->first;
+      delete helper->channel;
+      helper->channel = new IOEvents::Channel( pPoller, socket->GetFD(),
+                                               helper->callBack );
+      if( helper->readEnabled )
+      {
+        bool status = helper->channel->Enable( IOEvents::Channel::readEvents,
+                                               helper->readTimeout, &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "Unable to enable read notifications ",
+                      "while re-starting %s (%s)", strerror( errno ), errMsg );
+
+          return false;
+        }
+      }
+
+      if( helper->writeEnabled )
+      {
+        bool status = helper->channel->Enable( IOEvents::Channel::writeEvents,
+                                               helper->writeTimeout, &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "Unable to enable write notifications ",
+                      "while re-starting %s (%s)", strerror( errno ), errMsg );
+
+          return false;
+        }
+      }
     }
     return true;
   }
@@ -129,6 +188,8 @@ namespace XrdCl
     pPoller->Stop();
     delete pPoller;
     pPoller = 0;
+
+
     return true;
   }
 
@@ -255,6 +316,7 @@ namespace XrdCl
     {
       if( helper->readEnabled )
         return true;
+      helper->readTimeout = timeout;
 
       log->Dump( PollerMsg, "%s Enable read notifications",
                             socket->GetName().c_str() );
@@ -332,6 +394,8 @@ namespace XrdCl
       if( helper->writeEnabled )
         return true;
 
+      helper->writeTimeout = timeout;
+
       log->Dump( PollerMsg, "%s Enable write notifications",
                             socket->GetName().c_str() );
 
@@ -373,10 +437,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check whether the socket is registered with the poller
   //----------------------------------------------------------------------------
-  bool PollerBuiltIn::IsRegistered( const Socket *socket )
+  bool PollerBuiltIn::IsRegistered( Socket *socket )
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    SocketMap::const_iterator it = pSocketMap.find( socket );
+    SocketMap::iterator it = pSocketMap.find( socket );
     return it != pSocketMap.end();
   }
 }

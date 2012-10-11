@@ -656,7 +656,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check whether the socket is registered with the poller
   //----------------------------------------------------------------------------
-  bool PollerLibEvent::IsRegistered( const Socket *socket )
+  bool PollerLibEvent::IsRegistered( Socket *socket )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     SocketMap::const_iterator it = pSocketMap.find( socket );

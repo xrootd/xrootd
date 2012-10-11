@@ -151,7 +151,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check whether the socket is registered with the poller
       //------------------------------------------------------------------------
-      virtual bool IsRegistered( const Socket *socket )  = 0;
+      virtual bool IsRegistered( Socket *socket )  = 0;
 
       //------------------------------------------------------------------------
       //! Is the event loop running?
