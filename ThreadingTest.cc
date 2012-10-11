@@ -22,11 +22,13 @@
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include <pthread.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include "XrdCks/XrdCksData.hh"
 
 //------------------------------------------------------------------------------
 // Thread helper struct
@@ -75,6 +77,8 @@ CPPUNIT_TEST_SUITE_REGISTRATION( ThreadingTest );
 //------------------------------------------------------------------------------
 void *DataReader( void *arg )
 {
+  using namespace XrdClTests;
+
   ThreadData *td = (ThreadData*)arg;
 
   uint64_t  offset    = td->startOffset;
@@ -115,7 +119,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Env *testEnv = TestEnv::GetEnv();
+  Env *testEnv = XrdClTests::TestEnv::GetEnv();
 
   std::string address;
   std::string dataPath;
@@ -158,7 +162,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
       threadData[j*5+i].file        = f;
       threadData[j*5+i].startOffset = j*step;
       threadData[j*5+i].length      = step;
-      threadData[j*5+i].checkSum    = Utils::GetInitialCRC32();
+      threadData[j*5+i].checkSum    = XrdClTests::Utils::GetInitialCRC32();
 
 
       //------------------------------------------------------------------------
@@ -172,7 +176,7 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
       CPPUNIT_ASSERT_XRDST( f->Read( offset, 4*MB, buffer, bytesRead ) );
       CPPUNIT_ASSERT( bytesRead == 4*MB );
       threadData[j*5+i].firstBlockChecksum =
-        Utils::ComputeCRC32( buffer, 4*MB );
+        XrdClTests::Utils::ComputeCRC32( buffer, 4*MB );
       delete [] buffer;
     }
 
@@ -200,36 +204,30 @@ void ThreadingTest::ReadTestFunc( TransferCallback transferCallback )
   uint32_t checkSums[5];
   for( int i = 0; i < 5; ++i )
   {
+    //--------------------------------------------------------------------------
+    // Calculate the local check sum
+    //--------------------------------------------------------------------------
     checkSums[i] = threadData[i].checkSum;
     for( int j = 1; j < 4; ++j )
     {
-      checkSums[i] = Utils::CombineCRC32( checkSums[i],
+      checkSums[i] = XrdClTests::Utils::CombineCRC32( checkSums[i],
                                           threadData[j*5+i].checkSum,
                                           threadData[j*5+i].length );
     }
 
-    //--------------------------------------------------------------------------
-    // Locate the file
-    //--------------------------------------------------------------------------
-    FileSystem  fs( url );
-    LocationInfo *locations = 0;
-    CPPUNIT_ASSERT_XRDST( fs.DeepLocate( path[i], OpenFlags::Refresh, locations ) );
-    CPPUNIT_ASSERT( locations );
-    CPPUNIT_ASSERT( locations->GetSize() != 0 );
-    FileSystem fs1( locations->Begin()->GetAddress() );
-    delete locations;
+    char crcBuff[9];
+    XrdCksData crc; crc.Set( &checkSums[i], 4 ); crc.Get( crcBuff, 9 );
+    std::string transferSum = "zcrc32:"; transferSum += crcBuff;
 
     //--------------------------------------------------------------------------
     // Get the checksum
     //--------------------------------------------------------------------------
-    Buffer  arg; arg.FromString( path[i] );
-    Buffer *cksResponse = 0;
-    CPPUNIT_ASSERT_XRDST( fs1.Query( QueryCode::Checksum, arg, cksResponse ) );
-    CPPUNIT_ASSERT( cksResponse );
-    uint32_t remoteCRC32 = 0;
-    CPPUNIT_ASSERT( Utils::CRC32TextToInt( remoteCRC32,
-                                           cksResponse->ToString() ) );
-    CPPUNIT_ASSERT_MESSAGE( path[i], remoteCRC32 == checkSums[i] );
+    std::string remoteSum;
+    CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum(
+                            remoteSum, "zcrc32",
+                            threadData[i].file->GetDataServer(), path[i] ) );
+    CPPUNIT_ASSERT( remoteSum == transferSum );
+    CPPUNIT_ASSERT_MESSAGE( path[i], remoteSum == transferSum );
   }
 
   //----------------------------------------------------------------------------
@@ -266,7 +264,7 @@ void ThreadingTest::MultiStreamReadTest()
 //------------------------------------------------------------------------------
 int runChild( ThreadData *td )
 {
-  XrdCl::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
   log->Debug( 1, "Running the child" );
 
   for( int i = 0; i < 20; ++i )
@@ -278,7 +276,7 @@ int runChild( ThreadData *td )
     CPPUNIT_ASSERT_XRDST( td[i].file->Read( offset, 4*MB, buffer, bytesRead ) );
     CPPUNIT_ASSERT( bytesRead == 4*MB );
     CPPUNIT_ASSERT( td[i].firstBlockChecksum ==
-                    Utils::ComputeCRC32( buffer, 4*MB ) );
+                    XrdClTests::Utils::ComputeCRC32( buffer, 4*MB ) );
     delete [] buffer;
   }
 
@@ -296,7 +294,7 @@ int runChild( ThreadData *td )
 //------------------------------------------------------------------------------
 void forkAndRead( ThreadData *data )
 {
-  XrdCl::Log *log = TestEnv::GetLog();
+  XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
   for( int chld = 0; chld < 5; ++chld )
   {
     sleep(10);

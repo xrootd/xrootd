@@ -29,6 +29,8 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 
+using namespace XrdClTests;
+
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------

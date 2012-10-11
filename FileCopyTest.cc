@@ -37,6 +37,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+using namespace XrdClTests;
+
 //------------------------------------------------------------------------------
 // Declaration
 //------------------------------------------------------------------------------
@@ -103,7 +105,7 @@ void FileCopyTest::DownloadTestFunc()
   uint32_t    bytesRead = 0;
 
   XrdCks     *calc = DefaultEnv::GetCheckSumManager();
-  XrdCksCalc *crc32Sum = calc->Object("crc32");
+  XrdCksCalc *crc32Sum = calc->Object("zcrc32");
   CPPUNIT_ASSERT( crc32Sum );
 
   while( 1 )
@@ -120,10 +122,10 @@ void FileCopyTest::DownloadTestFunc()
   //----------------------------------------------------------------------------
   char crcBuff[9];
   XrdCksData crc; crc.Set( (const void *)crc32Sum->Final(), 4 ); crc.Get( crcBuff, 9 );
-  std::string transferSum = "crc32:"; transferSum += crcBuff;
+  std::string transferSum = "zcrc32:"; transferSum += crcBuff;
 
   std::string remoteSum;
-  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "crc32",
+  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
                                                   f.GetDataServer(),
                                                   remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );
@@ -174,7 +176,7 @@ void FileCopyTest::UploadTestFunc()
   ssize_t  bytesRead;
 
   XrdCks     *calc = DefaultEnv::GetCheckSumManager();
-  XrdCksCalc *crc32Sum = calc->Object("crc32");
+  XrdCksCalc *crc32Sum = calc->Object("zcrc32");
   CPPUNIT_ASSERT( crc32Sum );
 
   while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )
@@ -214,10 +216,10 @@ void FileCopyTest::UploadTestFunc()
   //----------------------------------------------------------------------------
   char crcBuff[9];
   XrdCksData crc; crc.Set( (const void *)crc32Sum->Final(), 4 ); crc.Get( crcBuff, 9 );
-  std::string transferSum = "crc32:"; transferSum += crcBuff;
+  std::string transferSum = "zcrc32:"; transferSum += crcBuff;
 
   std::string remoteSum;
-  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "crc32",
+  CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
                                                   f.GetDataServer(),
                                                   remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );

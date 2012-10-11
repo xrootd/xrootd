@@ -18,6 +18,8 @@
 
 #include "TestEnv.hh"
 
+namespace XrdClTests {
+
 XrdSysMutex     TestEnv::sEnvMutex;
 XrdCl::Env *TestEnv::sEnv       = 0;
 XrdCl::Log *TestEnv::sLog       = 0;
@@ -78,6 +80,7 @@ void TestEnv::Release()
 //  delete sLog;
 //  sLog = 0;
 }
+}
 
 //------------------------------------------------------------------------------
 // Finalizer
@@ -92,7 +95,7 @@ namespace
     EnvInitializer()
     {
       using namespace XrdCl;
-      Log *log = TestEnv::GetLog();
+      Log *log = XrdClTests::TestEnv::GetLog();
       char *level = getenv( "XRDTEST_LOGLEVEL" );
       if( level )
         log->SetLevel( level );
@@ -103,7 +106,7 @@ namespace
     //--------------------------------------------------------------------------
     ~EnvInitializer()
     {
-      TestEnv::Release();
+      XrdClTests::TestEnv::Release();
     }
   } initializer;
 }

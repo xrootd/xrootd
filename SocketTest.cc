@@ -25,6 +25,8 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
 
+using namespace XrdClTests;
+
 //------------------------------------------------------------------------------
 // Client handler
 //------------------------------------------------------------------------------

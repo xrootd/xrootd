@@ -24,6 +24,8 @@
 #include <zlib.h>
 #include <string>
 
+namespace XrdClTests {
+
 //------------------------------------------------------------------------------
 //! A bunch of useful functions
 //------------------------------------------------------------------------------
@@ -90,6 +92,7 @@ class Utils
     {
       return crc32_combine( crc1, crc2, len2 );
     }
+};
 };
 
 #endif // UTILS_HH

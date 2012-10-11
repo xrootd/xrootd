@@ -28,16 +28,20 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-//------------------------------------------------------------------------------
-// Define the client helper
-//------------------------------------------------------------------------------
-struct ClientHelper
+
+namespace XrdClTests
 {
-  ClientHandler  *handler;
-  int             socket;
-  pthread_t       thread;
-  std::string     name;
-};
+  //----------------------------------------------------------------------------
+  // Define the client helper
+  //----------------------------------------------------------------------------
+  struct ClientHelper
+  {
+    ClientHandler  *handler;
+    int             socket;
+    pthread_t       thread;
+    std::string     name;
+  };
+}
 
 //------------------------------------------------------------------------------
 // Stuff that needs C linkage
@@ -46,18 +50,20 @@ extern "C"
 {
   void *HandleConnections( void *arg )
   {
-    Server *srv = (Server*)arg;
+    XrdClTests::Server *srv = (XrdClTests::Server*)arg;
     long ret = srv->HandleConnections();
     return (void *)ret;
   }
 
   void *HandleClient( void *arg )
   {
-    ClientHelper *helper = (ClientHelper*)arg;
+    XrdClTests::ClientHelper *helper = (XrdClTests::ClientHelper*)arg;
     helper->handler->HandleConnection( helper->socket );
     return 0;
   }
 }
+
+namespace XrdClTests {
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -310,4 +316,6 @@ int Server::HandleConnections()
     delete *it;
   }
   return 0;
+}
+
 }

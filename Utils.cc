@@ -24,6 +24,8 @@
 #include <vector>
 #include <cstdlib>
 
+namespace XrdClTests {
+
 //------------------------------------------------------------------------------
 // Convert text CRC32 to int
 //------------------------------------------------------------------------------
@@ -62,4 +64,6 @@ ssize_t Utils::GetRandomBytes( char *buffer, size_t size )
   close( fileFD );
 
   return size-toRead;;
+}
+
 }

@@ -23,6 +23,8 @@
 #include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClLog.hh"
 
+namespace XrdClTests {
+
 //------------------------------------------------------------------------------
 //! Envornment holding the variables for tests
 //------------------------------------------------------------------------------
@@ -54,5 +56,7 @@ class TestEnv: public XrdCl::Env
     static XrdCl::Env *sEnv;
     static XrdCl::Log *sLog;
 };
+
+}
 
 #endif // __TEST_ENV_HH__

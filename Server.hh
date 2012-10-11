@@ -26,6 +26,8 @@
 #include <stdint.h>
 #include <pthread.h>
 
+namespace XrdClTests {
+
 //------------------------------------------------------------------------------
 //! Interface for the client handler
 //------------------------------------------------------------------------------
@@ -184,5 +186,7 @@ class Server
     int                         pListenSocket;
     ClientHandlerFactory       *pHandlerFactory;
 };
+
+}
 
 #endif // SERVER_HH

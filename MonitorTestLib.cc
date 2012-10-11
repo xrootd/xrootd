@@ -36,7 +36,7 @@ class MonitorTest: public XrdCl::Monitor
       pParam( param ),
       pInitialized(false)
     {
-      XrdCl::Log *log = TestEnv::GetLog();
+      XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
       log->Debug( 2, "Constructed monitoring, exec %s, param %s",
                       exec.c_str(), param.c_str() );
     }
@@ -52,6 +52,8 @@ class MonitorTest: public XrdCl::Monitor
     virtual void Event( EventCode evCode, void *evData )
     {
       using namespace XrdCl;
+      using namespace XrdClTests;
+
       Log *log = TestEnv::GetLog();
       switch( evCode )
       {
@@ -202,7 +204,7 @@ extern "C"
 {
   void *XrdClGetMonitor( const char *exec, const char *param )
   {
-    XrdCl::Log *log = TestEnv::GetLog();
+    XrdCl::Log *log = XrdClTests::TestEnv::GetLog();
     log->Debug( 2, "Constructing monitoring, exec %s, param %s",
                 exec, param ? param : "" );
     return new MonitorTest( exec, param ? param : "" );
