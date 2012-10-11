@@ -111,7 +111,7 @@ namespace XrdCl
       GX = kXR_gx,         //!< group executable/browsable
       OR = kXR_or,         //!< world readable
       OW = kXR_ow,         //!< world writeable
-      OX = kXR_ox,         //!< world executable/browsable
+      OX = kXR_ox          //!< world executable/browsable
     };
   };
 

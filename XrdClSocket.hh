@@ -41,7 +41,7 @@ namespace XrdCl
       {
         Disconnected  = 1,      //!< The socket is disconnected
         Connected     = 2,      //!< The socket is connected
-        Connecting    = 3,       //!< The connection process is in progress
+        Connecting    = 3       //!< The connection process is in progress
       };
 
       //------------------------------------------------------------------------

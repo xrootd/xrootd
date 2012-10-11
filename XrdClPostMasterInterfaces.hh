@@ -73,7 +73,7 @@ namespace XrdCl
         Ready      = 1, //!< The stream has become connected
         Broken     = 2, //!< The stream is broken
         Timeout    = 3, //!< The declared timeout has occured
-        FatalError = 4, //!< Stream has been broken and won't be recovered
+        FatalError = 4  //!< Stream has been broken and won't be recovered
       };
 
       //------------------------------------------------------------------------
@@ -146,7 +146,7 @@ namespace XrdCl
       {
         StreamReady  = 1, //!< The stream has become connected
         StreamBroken = 2, //!< The stream is broken
-        FatalError   = 4, //!< Stream has been broken and won't be recovered
+        FatalError   = 4  //!< Stream has been broken and won't be recovered
       };
 
       //------------------------------------------------------------------------

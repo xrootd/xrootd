@@ -282,7 +282,7 @@ namespace XrdCl
         IsServer  = kXR_isServer,    //!< Data server
         AttrMeta  = kXR_attrMeta,    //!< Meta attribute
         AttrProxy = kXR_attrProxy,   //!< Proxy attribute
-        AttrSuper = kXR_attrSuper,   //!< Supervisor attribute
+        AttrSuper = kXR_attrSuper    //!< Supervisor attribute
       };
 
       //------------------------------------------------------------------------
@@ -338,7 +338,7 @@ namespace XrdCl
         POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
                                       //!< successfuly closed
         IsReadable   = kXR_readable,  //!< Read access is alowed
-        IsWritable   = kXR_writable,  //!< Write access is allowed
+        IsWritable   = kXR_writable   //!< Write access is allowed
       };
 
       //------------------------------------------------------------------------
