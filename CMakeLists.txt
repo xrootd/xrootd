@@ -1,6 +1,6 @@
+
+include( XRootDCommon )
 include_directories( ${CPPUNIT_INCLUDE_DIRS} )
-include_directories( ../ ${XROOTD_INCLUDES}  )
-link_directories( ${XROOTD_LIB_DIR} )
 
 add_library(
   XrdClTestsHelper SHARED
