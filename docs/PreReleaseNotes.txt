@@ -86,6 +86,8 @@ Prerelease Notes
    * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
+   * Do not repudiate file existence on an "cancelled" error during open.
+     This patch addresses overloaded dCache pool nodes.
    * Add port to prepare request struct as documented in 2.9.9.
    * Add pathid to readv request struct as documented in 2.9.9.
 
