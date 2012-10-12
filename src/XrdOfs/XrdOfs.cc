@@ -543,7 +543,8 @@ int XrdOfsFile::open(const char          *path,      // In
            return XrdOfsFS->fsError(error, SFS_STARTED);
           }
        if (retc == -ETXTBSY) return XrdOfsFS->Stall(error, -1, path);
-       if (XrdOfsFS->Balancer) XrdOfsFS->Balancer->Removed(path);
+       if (XrdOfsFS->Balancer && retc != -ECANCELED)
+          XrdOfsFS->Balancer->Removed(path);
        return XrdOfsFS->Emsg(epname, error, retc, "open", path);
       }
 
