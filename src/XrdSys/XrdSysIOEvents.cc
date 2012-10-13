@@ -613,14 +613,14 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 //
    cP->chStat = Channel::isCBMode;
    chDead     = false;
-   cP->chMutex.UnLock();
+   cbkMHelp.UnLock();
    cbok = cP->chCB->Event(cP,cP->chCBA, events);
 
 // If channel destroyed by the callback, bail really fast. Otherwise, regain
 // the channel lock.
 //
    if (chDead) return true;
-   cP->chMutex.Lock();
+   cbkMHelp.Lock(&(cP->chMutex));
 
 // If the channel is being destroyed; then another thread must have done so.
 // Tell it the callback has finished and just return.
