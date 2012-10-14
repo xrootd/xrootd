@@ -367,9 +367,9 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
               }
            hcNow = hcPrev; halfBSize = argp->bsize >> 1;
           }
+       argp->buff[Request.header.dlen] = '\0';
        if ((rc = getData("arg", argp->buff, Request.header.dlen)))
           {Resume = &XrdXrootdProtocol::Process2; return rc;}
-       argp->buff[Request.header.dlen] = '\0';
       }
 
 // Continue with request processing at the resume point
