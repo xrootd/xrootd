@@ -30,6 +30,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Make sure buffer ends with null byte before read suspension. This only
+     occurs on very heavily loaded connections.
    * Properly disarm the mutex helper when the mustex object is deleted.
    * Use correct variable to hold osslib parameters. This patch fixes commit
      2e27f87a (version checking) and without this patch makes it impossible
