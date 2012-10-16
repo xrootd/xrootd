@@ -40,6 +40,7 @@ add_library(
   XrdOss/XrdOssAio.cc
                                XrdOss/XrdOssTrace.hh
                                XrdOss/XrdOssError.hh
+                               XrdOss/XrdOssDefaultSS.hh
   XrdOss/XrdOssApi.cc          XrdOss/XrdOssApi.hh
   XrdOss/XrdOssCache.cc        XrdOss/XrdOssCache.hh
   XrdOss/XrdOssConfig.cc       XrdOss/XrdOssConfig.hh
