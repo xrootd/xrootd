@@ -1521,6 +1521,7 @@ void XrdPosixXrootd::initEnv()
 // Now we must check if we have a new cache over-ride
 //
    if ((evar = getenv("XRDPOSIX_CACHE")) && *evar) initEnv(evar);
+      else if (myCache) {char ebuf[] = {0};        initEnv(ebuf);}
 }
 
 /******************************************************************************/
