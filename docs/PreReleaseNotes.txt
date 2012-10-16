@@ -66,6 +66,7 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Make sure to return a usable path string via XrdOucCacheIO::Path().
    * Make sure to use a supplied cache even when no cache directives given.
    * Properly detect external process failure and report correct error status
      to a client.  This also fixes bug report #91141.
