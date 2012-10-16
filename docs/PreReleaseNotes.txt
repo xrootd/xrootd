@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Define a standard supported mechanism to obtain the default storage
+     system object.
    * Provide an ABI-compatible interface to obtain a default cmsd client
      object. This patch does not change the definition of the XrdCmsClient
      object and is ABI compatible with all previous releases (DPM support).
