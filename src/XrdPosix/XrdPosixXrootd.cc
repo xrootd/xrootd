@@ -119,7 +119,7 @@ long long  addOffset(long long offs, int updtSz=0)
 
 long long   FSize() {return stat.size;}
 
-const char *Path() {return XClient->GetCurrentUrl().GetUrl().c_str();}
+const char *Path();
 
 int         Read (char *Buff, long long Offs, int Len)
                 {return XClient->Read (Buff, Offs, Len);}
@@ -149,6 +149,7 @@ void       OpenComplete(XrdClientAbs *clientP, void *cbArg, bool res)
 XrdClientStatInfo stat;
 XrdPosixCallBack *theCB;
 XrdPosixFile     *Next;
+char             *fPath;
 int               FD;
 int               cbResult;
 
@@ -352,6 +353,7 @@ XrdPosixFile::XrdPosixFile(int fd, const char *path, int oMode,
              : XCio((XrdOucCacheIO *)this),
                theCB(cbP),
                Next(0),
+               fPath(0),
                FD(fd),
                cbResult(0),
                currOffset(0),
@@ -396,6 +398,7 @@ XrdPosixFile::~XrdPosixFile()
        delete cP;
       }
    if (FD >= 0 && fdClose) close(FD);
+   if (fPath) free(fPath);
 }
 
 /******************************************************************************/
@@ -414,6 +417,16 @@ void XrdPosixFile::isOpen()
 // Indicate file needs to be closed
 //
    doClose = 1;
+}
+
+/******************************************************************************/
+/*                                  P a t h                                   */
+/******************************************************************************/
+  
+const char *XrdPosixFile::Path()
+{
+   if (!fPath) fPath = strdup(XClient->GetCurrentUrl().GetUrl().c_str());
+   return fPath;
 }
 
 /******************************************************************************/
