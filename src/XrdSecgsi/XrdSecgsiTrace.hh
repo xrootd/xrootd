@@ -38,7 +38,8 @@
 #define PRINT(y)    {if (gsiTrace) {gsiTrace->Beg(epname); \
                                        cerr <<y; gsiTrace->End();}}
 #define TRACE(act,x) if (QTRACE(act)) PRINT(x)
-#define DEBUG(y)     TRACE(Debug,y)
+#define NOTIFY(y)    TRACE(Debug,y)
+#define DEBUG(y)     TRACE(Authen,y)
 #define EPNAME(x)    static const char *epname = x;
 
 #else
@@ -46,14 +47,15 @@
 #define QTRACE(x)
 #define  PRINT(x)
 #define  TRACE(x,y)
+#define NOTIFY(x)
 #define  DEBUG(x)
 #define EPNAME(x)
 
 #endif
 
 #define TRACE_ALL      0x000f
-#define TRACE_Authenxx 0x0007
-#define TRACE_Authen   0x0004
+#define TRACE_Dump     0x0004
+#define TRACE_Authen   0x0002
 #define TRACE_Debug    0x0001
 
 //
