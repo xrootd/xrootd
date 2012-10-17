@@ -93,6 +93,9 @@ Prerelease Notes
    * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
 
 + **Miscellaneous**
+   * Remove superfluous includes or other move includes to eliminate
+     unnecessary dependencies in ".hh" files. This patch is required
+     to create an EPEL conformable include directory.
    * Do not repudiate file existence on an "cancelled" error during open.
      this patch addresses overloaded dCache pool nodes.
    * Add port to prepare request struct as documented in 2.9.9.
