@@ -6,6 +6,7 @@
 /* (c) 2005 G. Ganis / CERN                                                   */
 /*                                                                            */
 /******************************************************************************/
+#include <time.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -185,7 +186,7 @@ class XrdSecProtocolgsi;
 class gsiHSVars {
 public:
    int               Iter;          // iteration number
-   int               TimeStamp;     // Time of last call
+   time_t            TimeStamp;     // Time of last call
    String            CryptoMod;     // crypto module in use
    int               RemVers;       // Version run by remote counterpart
    XrdCryptoCipher  *Rcip;          // reference cipher
@@ -344,7 +345,7 @@ private:
    static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
    //
    // GMAP control vars
-   static int              lastGMAPCheck; // time of last check on GMAP
+   static time_t           lastGMAPCheck; // time of last check on GMAP
    static XrdSysMutex      mutexGMAP;     // mutex to control GMAP reloads
    //
    // Running options / settings
@@ -402,7 +403,7 @@ private:
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
    bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdCryptoFactory *cf, int timestamp, String &cal);
+   static XrdSutPFEntry *GetSrvCertEnt(XrdCryptoFactory *cf, time_t timestamp, String &cal);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
@@ -410,7 +411,7 @@ private:
 
    // Updating proxies
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,
-                             XrdCryptoFactory *cf, int timestamp,
+                             XrdCryptoFactory *cf, time_t timestamp,
                              ProxyIn_t *pi, ProxyOut_t *po);
    static int     InitProxy(ProxyIn_t *pi,
                             X509Chain *ch = 0, XrdCryptoRSA **key = 0);

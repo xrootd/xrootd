@@ -27,6 +27,7 @@
 #include "XrdSys/XrdSysPriv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
+#include "XrdSut/XrdSutAux.hh"
 #include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
@@ -34,8 +35,6 @@
 #include "XrdCrypto/XrdCryptosslgsiAux.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
-#include "XrdSecgsi/XrdSecgsiTrace.hh"
-
 
 /******************************************************************************/
 /*                 T r a c i n g  I n i t  O p t i o n s                      */
@@ -161,7 +160,7 @@ XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
 //
 // GMAP control vars
-int XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
+time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
 XrdSysMutex XrdSecProtocolgsi::mutexGMAP;  // Mutex to control GMAP reloads
 //
 // Running options / settings
@@ -265,7 +264,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       // Local handshake variables
       hs->Tty = (isatty(0) == 0 || isatty(1) == 0) ? 0 : 1;
    } else {
-      DEBUG("could not create handshake vars object");
+      PRINT("could not create handshake vars object");
    }
 
    // Set host name
@@ -329,7 +328,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
 
    //
    // Time stamp of initialization
-   int timestamp = (int)time(0);
+   time_t timestamp = time(0);
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
@@ -341,16 +340,22 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       return Parms;
    }
    // Set debug mask ... also for auxilliary libs
-   int trace = 0;
+   int trace = 0, traceSut = 0, traceCrypto = 0;
    if (Debug >= 3) {
       trace = cryptoTRACE_Dump;
+      traceSut = sutTRACE_Dump;
+      traceCrypto = cryptoTRACE_Dump;
       GSITrace->What = TRACE_ALL;
    } else if (Debug >= 2) {
       trace = cryptoTRACE_Debug;
+      traceSut = sutTRACE_Debug;
+      traceCrypto = cryptoTRACE_Debug;
       GSITrace->What = TRACE_Debug;
       GSITrace->What |= TRACE_Authen;
    } else if (Debug >= 1) {
       trace = cryptoTRACE_Debug;
+      traceSut = sutTRACE_Notify;
+      traceCrypto = cryptoTRACE_Notify;
       GSITrace->What = TRACE_Debug;
    }
 
@@ -684,7 +689,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                   return Parms;
                }
             } else {
-               DEBUG("Grid map file: "<<GMAPFile<<" cannot be 'access'ed: do not use");
+               NOTIFY("Grid map file: "<<GMAPFile<<" cannot be 'access'ed: do not use");
             }
          } else {
             DEBUG("using grid map file: "<<GMAPFile);
@@ -754,7 +759,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                const char *ccfmt[] = { "raw", "PEM base64" };
                DEBUG("authzfun: proxy certificate format: "<<ccfmt[AuthzCertFmt]);
             } else {
-               DEBUG("authzfun: proxy certificate format: unknown (code: "<<AuthzCertFmt<<")");
+               NOTIFY("authzfun: proxy certificate format: unknown (code: "<<AuthzCertFmt<<")");
             }
             // Init or reset the cache
             if (cacheAuthzFun.Empty()) {
@@ -834,9 +839,31 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       // VOMS attributes switch
       // vomsat = 0  do not look for
       //          1  extract if any (fill 'vorg', 'role'; the full string in 'endorsements');
-      VOMSAttrOpt = opt.vomsat;
-      const char *cvomsat = (VOMSAttrOpt == 1) ? "'extract'" : "'ignore'";
-      DEBUG("VOMS attributes options: "<<cvomsat);
+      //          2  require (fill 'vorg', 'role'; the full string in 'endorsements');
+      VOMSAttrOpt = (opt.vomsat <= 2 && opt.vomsat >= 0) ? opt.vomsat : VOMSAttrOpt;
+
+      //
+      // Alternative VOMS extraction function
+      if (opt.vomsfun) {
+         if (!(VOMSFun = LoadVOMSFun((const char *) opt.vomsfun,
+                                     (const char *) opt.vomsfunparms, VOMSCertFmt))) {
+            ErrF(erp, kGSErrError, "VOMS plug-in could not be loaded", opt.vomsfun); 
+            PRINT(erp->getErrText());
+            return Parms;
+         } else {
+            // We at least check VOMS attributes if we have a function ...
+            if (VOMSAttrOpt < 1) VOMSAttrOpt = 1;
+            // Notify certificate format
+            if (VOMSCertFmt >= 0 && VOMSCertFmt <= 1) {
+               const char *ccfmt[] = { "raw", "PEM base64" };
+               DEBUG("vomsfun: proxy certificate format: "<<ccfmt[VOMSCertFmt]);
+            } else {
+               NOTIFY("vomsfun: proxy certificate format: unknown (code: "<<VOMSCertFmt<<")");
+            }
+         }
+      }
+      const char *cvomsat[3] = { "ignore", "extract", "require" };
+      DEBUG("VOMS attributes options: "<<cvomsat[VOMSAttrOpt]);
 
       //
       // Default moninfo option
@@ -885,7 +912,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       // use default dir $(HOME)/.<prefix>
       struct passwd *pw = getpwuid(getuid());
       if (!pw) {
-         DEBUG("WARNING: cannot get user information (uid:"<<getuid()<<")");
+         NOTIFY("WARNING: cannot get user information (uid:"<<getuid()<<")");
       }
       //
       // Define user proxy file
@@ -1379,7 +1406,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    }
    stepstr = ServerStepStr(step);
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       XrdOucString msg("IN: ");
       msg += stepstr;
       bpar->Dump(msg.c_str());
@@ -1391,7 +1418,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       return ErrC(ei,bpar,bmai,0,kGSErrParseBuffer,Emsg.c_str(),stepstr);
    }
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       if (bmai)
          bmai->Dump("IN: main");
     }
@@ -1550,7 +1577,7 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       DEBUG("returned " << nser <<" bytes of credentials");
       return new XrdSecCredentials(bser, nser);
    } else {
-      DEBUG("problems with final serialization");
+      NOTIFY("problems with final serialization");
       return (XrdSecCredentials *)0;
    }
 }
@@ -1627,7 +1654,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    step = bpar->GetStep();
    stepstr = ClientStepStr(step);
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       XrdOucString msg("IN: ");
       msg += stepstr;
       bpar->Dump(msg.c_str());
@@ -1707,7 +1734,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                PRINT("ERROR: user mapping required, but lookup failed - failure");
                break;
             } else {
-               DEBUG("WARNING: user mapping lookup failed - use DN or DN-hash as name");
+               NOTIFY("WARNING: user mapping lookup failed - use DN or DN-hash as name");
             }
          } else {
             //
@@ -1764,11 +1791,38 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          
       // Extract the VOMS attrbutes, if required
       if (VOMSAttrOpt > 0) {
-         ExtractVOMS(hs->Chain, Entity);
-         DEBUG("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
-         DEBUG("VOMS: Entity.grps:         "<< (Entity.grps ? Entity.grps : "<none>"));
-         DEBUG("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));
-         DEBUG("VOMS: Entity.endorsements: "<< (Entity.endorsements ? Entity.endorsements : "<none>"));
+         if (VOMSFun) {
+            // Fill the information needed by the external function
+            if (VOMSCertFmt == 1) {
+               // PEM base64
+               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy->ToString(spxy);
+               Entity.creds = strdup(spxy.c_str());
+               Entity.credslen = spxy.length();
+            } else {
+               // Raw (opaque) format, to be used with XrdCrypto
+               Entity.creds = (char *) hs->Chain;
+               Entity.credslen = 0;
+            }
+            if ((*VOMSFun)(Entity) != 0 && VOMSAttrOpt == 2) {
+               // Error
+               kS_rc = kgST_error;
+               PRINT("ERROR: the VOMS extraction plug-in reported a failure for this handshake");
+               break;
+            }
+         } else {
+            // Lite version (no validations whatsover
+            if (ExtractVOMS(hs->Chain, Entity) != 0 && VOMSAttrOpt == 2) {
+               // Error
+               kS_rc = kgST_error;
+               PRINT("ERROR: VOMS attributes required but not found (default lite-extraction technology)");
+               break;
+            }
+         }
+         NOTIFY("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
+         NOTIFY("VOMS: Entity.grps:         "<< (Entity.grps ? Entity.grps : "<none>"));
+         NOTIFY("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));
+         NOTIFY("VOMS: Entity.endorsements: "<< (Entity.endorsements ? Entity.endorsements : "<none>"));
       }
 
       // Here prepare/extract the information for authorization
@@ -1797,7 +1851,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             break;
          }
          const char *dn = (const char *)key;
-         int now = hs->TimeStamp;
+         time_t now = hs->TimeStamp;
          // We may have it in the cache
          XrdSutPFEntry *cent = cacheAuthzFun.Get(dn);
          // Check expiration, if required
@@ -1881,9 +1935,9 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             Entity.endorsements = strdup(spxy.c_str());
          }
          delete bpxy;
-         DEBUG("Entity.endorsements: "<<(void *)Entity.endorsements);
-         DEBUG("Entity.creds:        "<<(void *)Entity.creds);
-         DEBUG("Entity.credslen:     "<<Entity.credslen);
+         NOTIFY("Entity.endorsements: "<<(void *)Entity.endorsements);
+         NOTIFY("Entity.creds:        "<<(void *)Entity.creds);
+         NOTIFY("Entity.credslen:     "<<Entity.credslen);
 
       } else if (bpxy) {
          // Cleanup
@@ -1921,7 +1975,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       // Add message to client
       if (ClntMsg.length() > 0)
          if (bmai->AddBucket(ClntMsg,kXRS_message) != 0) {
-            DEBUG("problems adding bucket with message for client");
+            NOTIFY("problems adding bucket with message for client");
          }
       //
       // Serialize, encrypt and add to the global list
@@ -2047,7 +2101,7 @@ void XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
       }
       if (rc != 0) {
          if (rc > 0) {
-            DEBUG("No VOMS attributes in proxy chain");
+            NOTIFY("No VOMS attributes in proxy chain");
          } else {
             PRINT("ERROR: problem extracting VOMS attributes");
          }
@@ -2117,7 +2171,7 @@ XrdOucTrace *XrdSecProtocolgsi::EnableTracing()
 }
 
 /******************************************************************************/
-/*                        E n a b l e T r a c i n g                           */
+/*                     g s i O p t i o n s :: P r i n t                       */
 /******************************************************************************/
 
 void gsiOptions::Print(XrdOucTrace *t)
@@ -2573,7 +2627,7 @@ char *XrdSecProtocolgsiInit(const char mode,
 
 
 /******************************************************************************/
-/*              X r d S e c P r o t o c o l p w d O b j e c t                 */
+/*              X r d S e c P r o t o c o l g s i O b j e c t                 */
 /******************************************************************************/
 
 extern "C"
@@ -2621,7 +2675,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    EPNAME("AddSerialized");
 
    if (!bls || !buf || (opt != 0 && opt != 'c' && opt != 's')) {
-      DEBUG("invalid inputs ("
+      PRINT("invalid inputs ("
             <<bls<<","<<buf<<","<<opt<<")"
             <<" - type: "<<XrdSutBuckStr(type));
       return -1;
@@ -2643,7 +2697,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
       //
       // Encrypt random tag with session cipher
       if (sessionKsig->EncryptPrivate(*brt) <= 0) {
-         DEBUG("error encrypting random tag");
+         PRINT("error encrypting random tag");
          return -1;
       }
       //
@@ -2661,14 +2715,14 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    // Get bucket
    brt = 0;
    if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
-      DEBUG("error creating random tag bucket");
+      PRINT("error creating random tag bucket");
       return -1;
    }
    buf->AddBucket(brt);
    //
    // Get cache entry
    if (!hs->Cref) {
-      DEBUG("cache entry not found: protocol error");
+      PRINT("cache entry not found: protocol error");
       return -1;
    }
    //
@@ -2685,7 +2739,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    if (!(bck = bls->GetBucket(type))) {
       // or create new bucket, if not existing
       if (!(bck = new XrdSutBucket(bser,nser,type))) {
-         DEBUG("error creating bucket "
+         PRINT("error creating bucket "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
       }
@@ -2699,7 +2753,7 @@ int XrdSecProtocolgsi::AddSerialized(char opt, kXR_int32 step, String ID,
    // Encrypted the bucket
    if (cip) {
       if (cip->Encrypt(*bck) == 0) {
-         DEBUG("error encrypting bucket - cipher "
+         PRINT("error encrypting bucket - cipher "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
       }
@@ -2718,7 +2772,7 @@ int XrdSecProtocolgsi::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
-      DEBUG("invalid inputs ("<<br<<","<<bm<<")");
+      PRINT("invalid inputs ("<<br<<","<<bm<<")");
       cmsg = "invalid inputs";
       return -1;
    }
@@ -2802,7 +2856,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
       clist.assign(opts, ii+2);
       clist.erase(clist.find(','));
    } else {
-      DEBUG("Crypto list missing: protocol error? (use defaults)");
+      NOTIFY("Crypto list missing: protocol error? (use defaults)");
       clist = DefCrypto;
    }
    // Parse the list loading the first we can
@@ -2828,15 +2882,15 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    //
    // Resolve place-holders in cert, key and proxy file paths, if any
    if (XrdSutResolve(UsrCert, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      DEBUG("Problems resolving templates in "<<UsrCert);
+      PRINT("Problems resolving templates in "<<UsrCert);
       return -1;
    }
    if (XrdSutResolve(UsrKey, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      DEBUG("Problems resolving templates in "<<UsrKey);
+      PRINT("Problems resolving templates in "<<UsrKey);
       return -1;
    }
    if (XrdSutResolve(UsrProxy, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      DEBUG("Problems resolving templates in "<<UsrProxy);
+      PRINT("Problems resolving templates in "<<UsrProxy);
       return -1;
    }
    //
@@ -2913,7 +2967,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
          // COmmunicate to server
          br->UpdateBucket(cip, kXRS_cipher_alg);
    } else {
-      DEBUG("WARNING: list of ciphers supported by server missing"
+      NOTIFY("WARNING: list of ciphers supported by server missing"
             " - using default");
    }
 
@@ -2929,7 +2983,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    SafeDelete(sessionKey);
    if (!(sessionKey =
          sessionCF->Cipher(0,bck->buffer,bck->size,cip.c_str()))) {
-            DEBUG("could not instantiate session cipher "
+            PRINT("could not instantiate session cipher "
                   "using cipher public info from server");
             emsg = "could not instantiate session cipher ";
    }
@@ -3005,7 +3059,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
          md = "";
       }
    } else {
-      DEBUG("WARNING: list of digests supported by server missing"
+      NOTIFY("WARNING: list of digests supported by server missing"
             " - using default");
       md = "md5";
    }
@@ -3151,7 +3205,7 @@ int XrdSecProtocolgsi::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
-      DEBUG("invalid inputs ("<<br<<","<<bm<<")");
+      PRINT("invalid inputs ("<<br<<","<<bm<<")");
       cmsg = "invalid inputs";
       return -1;
    }
@@ -3309,7 +3363,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       // Deactivate the bucket
       br->Deactivate(kXRS_cipher_alg);
    } else {
-      DEBUG("WARNING: client choice for cipher missing"
+      NOTIFY("WARNING: client choice for cipher missing"
             " - using default");
    }
 
@@ -3456,16 +3510,16 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
                // Add it to the main list
                if ((*bm)->AddBucket(bckr) != 0) {
                   SafeDelete(hs->PxyChain);
-                  DEBUG("WARNING: proxy req: problem adding bucket to main buffer");
+                  NOTIFY("WARNING: proxy req: problem adding bucket to main buffer");
                }
             } else {
                SafeDelete(hs->PxyChain);
-               DEBUG("WARNING: proxy req: problem creating request");
+               NOTIFY("WARNING: proxy req: problem creating request");
             }
          }
       } else {
          SafeDelete(hs->PxyChain);
-         DEBUG("WARNING: proxy req: wrong number of certificates");
+         NOTIFY("WARNING: proxy req: wrong number of certificates");
       }
    }
 
@@ -3493,7 +3547,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
       // Deactivate
       br->Deactivate(kXRS_md_alg);
    } else {
-      DEBUG("WARNING: client choice for digests missing"
+      NOTIFY("WARNING: client choice for digests missing"
             " - using default");
       md = "md5";
    }
@@ -3623,7 +3677,7 @@ int XrdSecProtocolgsi::ServerDoSigpxy(XrdSutBuffer *br,  XrdSutBuffer **bm,
          }
          if (XrdSutResolve(pxfile, Entity.host,
                            Entity.vorg, Entity.grps, name.c_str()) != 0) {
-            DEBUG("Problems resolving templates in "<<pxfile);
+            PRINT("Problems resolving templates in "<<pxfile);
             return 0;
          }
          // Replace <uid> placeholder
@@ -3815,7 +3869,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
 
    // make sure we got what we need
    if (!xca || !CF) {
-      DEBUG("Invalid inputs");
+      PRINT("Invalid inputs");
       return crl;
    }
 
@@ -3914,7 +3968,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       DEBUG("target file: "<<crlurl);
       FILE *furl = fopen(crlurl.c_str(), "r");
       if (!furl) {
-         DEBUG("could not open file: "<<crlurl);
+         PRINT("could not open file: "<<crlurl);
          continue;
       }
       char line[2048];
@@ -3952,7 +4006,7 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
       // Open directory
       DIR *dd = opendir(crldir.c_str());
       if (!dd) {
-         DEBUG("could not open directory: "<<crldir<<" (errno: "<<errno<<")");
+         PRINT("could not open directory: "<<crldir<<" (errno: "<<errno<<")");
          continue;
       }
       // Read the content
@@ -4039,14 +4093,14 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
 
    // We nust have got a chain
    if (!cca) {
-      DEBUG("Invalid input ");
+      PRINT("Invalid input ");
       return 0;
    }
 
    // Get the parse function
    XrdCryptoX509ParseFile_t ParseFile = CF->X509ParseFile();
    if (!ParseFile) {
-      DEBUG("Cannot attach to the ParseFile function");
+      PRINT("Cannot attach to the ParseFile function");
       return 0;
    }
 
@@ -4104,13 +4158,22 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          verified = 1;
          // Notify if some sort of check was required
          if (opt == 1) {
-            DEBUG("Warning: CA certificate not self-signed:"
-                  " integrity not checked, assuming OK ("<<xc->SubjectHash()<<")");
+            NOTIFY("Warning: CA certificate not self-signed and"
+                  " integrity not checked: assuming OK ("<<xc->SubjectHash()<<")");
          }
       }
-   } else if (CACheck > 0) {
-      // Check self-signature
-      verified = cca->CheckCA();
+   } else {
+      if (CACheck > 0) {
+         // Check self-signature
+         if (!(verified = cca->CheckCA()))
+            PRINT("CA certificate self-signed: integrity check failed ("<<xc->SubjectHash()<<")");
+      } else {
+         // Set OK in any case
+         verified = 1;
+         // Notify if some sort of check was required
+         NOTIFY("Warning: CA certificate self-signed but"
+               " integrity not checked: assuming OK ("<<xc->SubjectHash()<<")");
+      }
    }
 
    // Set the status in the chain
@@ -4133,12 +4196,12 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 
    // We nust have got a CA hash
    if (!cahash || !cf) {
-      DEBUG("Invalid input ");
+      PRINT("Invalid input ");
       return -1;
    }
 
    // Timestamp
-   int timestamp = (hs) ? hs->TimeStamp : time(0);
+   time_t timestamp = (hs) ? hs->TimeStamp : time(0);
 
    // The tag
    String tag(cahash,20);
@@ -4177,7 +4240,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // Create chain
    X509Chain *chain = new X509Chain();
    if (!chain ) {
-      DEBUG("could not create new GSI chain");
+      PRINT("could not create new GSI chain");
       return -1;
    }
 
@@ -4201,10 +4264,10 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
                   // Good CA
                   ok = 1;
                } else {
-                  DEBUG("CRL is expired (CRLCheck: "<<CRLCheck<<")");
+                  NOTIFY("CRL is expired (CRLCheck: "<<CRLCheck<<")");
                }
             } else {
-               DEBUG("CRL is missing (CRLCheck: "<<CRLCheck<<")");
+               NOTIFY("CRL is missing (CRLCheck: "<<CRLCheck<<")");
             }
          }
          //
@@ -4232,7 +4295,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             return -2;
          }
       } else {
-         DEBUG("certificate not found or invalid (nci: "<<nci<<", CA: "<<
+         NOTIFY("certificate not found or invalid (nci: "<<nci<<", CA: "<<
                (int)(verified)<<")");
          return -1;
       }
@@ -4257,7 +4320,7 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
 
    // We must be able to get an answer
    if (isatty(0) == 0 || isatty(1) == 0) {
-      DEBUG("Not a tty: cannot prompt for proxies - do nothing ");
+      NOTIFY("Not a tty: cannot prompt for proxies - do nothing ");
       return -1;
    }
 
@@ -4267,7 +4330,7 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
    //
    // Make sure we got a chain and a key to fill
    if (!ch || !kp) {
-      DEBUG("chain or key container undefined");
+      PRINT("chain or key container undefined");
       return -1;
    }
    // Check existence and permission of the key file
@@ -4364,7 +4427,7 @@ int XrdSecProtocolgsi::ParseCAlist(String calist)
 
    // Check inputs
    if (calist.length() <= 0) {
-      DEBUG("nothing to parse");
+      PRINT("nothing to parse");
       return -1;
    }
    DEBUG("parsing list: "<<calist);
@@ -4402,7 +4465,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
 
    // Check inputs
    if (clist.length() <= 0) {
-      DEBUG("empty list: nothing to parse");
+      NOTIFY("empty list: nothing to parse");
       return -1;
    }
    DEBUG("parsing list: "<<clist);
@@ -4453,7 +4516,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
 //__________________________________________________________________________
 int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
                                   const char *tag, XrdCryptoFactory *cf,
-                                  int timestamp, ProxyIn_t *pi, ProxyOut_t *po)
+                                  time_t timestamp, ProxyIn_t *pi, ProxyOut_t *po)
 {
    // Query users proxies, initializing if needed
    EPNAME("QueryProxy");
@@ -4498,7 +4561,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
    if (!(po->chain))
       po->chain = new X509Chain();
    if (!(po->chain)) {
-      DEBUG("cannot create new chain!");
+      PRINT("cannot create new chain!");
       return -1;
    }
    int ntry = 3;
@@ -4515,7 +4578,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          po->chain->Cleanup();
 
          if (InitProxy(pi, po->chain, &(po->ksig)) != 0) {
-            DEBUG("problems initializing proxy via external shell");
+            NOTIFY("problems initializing proxy via external shell");
             ntry--;
             continue;
          }
@@ -4525,7 +4588,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          // Chain is already loaded if we used the internal function
          // to initialize the proxies
          parsefile = 0;
-         timestamp = (int)(time(0));
+         timestamp = time(0);
 #endif
       }
       ntry--;
@@ -4542,12 +4605,12 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
             po->cbck->SetBuf(cbuf, strlen(cbuf));
             // Parse the bucket
             if (!(ParseBucket = cf->X509ParseBucket())) {
-               DEBUG("cannot attach to ParseBucket function!");
+               PRINT("cannot attach to ParseBucket function!");
                continue;
             }
             int nci = (*ParseBucket)(po->cbck, po->chain);
             if (nci < 2) {
-               DEBUG("proxy bucket must have at least two certificates"
+               NOTIFY("proxy bucket must have at least two certificates"
                      " (found: "<<nci<<")");
                continue;
             }
@@ -4560,7 +4623,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          if (parsefile) {
             if (!ParseFile) {
                if (!(ParseFile = cf->X509ParseFile())) {
-                  DEBUG("cannot attach to ParseFile function!");
+                  PRINT("cannot attach to ParseFile function!");
                   continue;
                }
             }
@@ -4580,26 +4643,26 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 
       // Check validity in time
       if (po->chain->CheckValidity(1, timestamp) != 0) {
-         DEBUG("proxy files contains expired certificates");
+         NOTIFY("proxy files contains expired certificates");
          continue;
       }
 
       // Reorder chain
       if (po->chain->Reorder() != 0) {
-         DEBUG("proxy files contains inconsistent certificates");
+         NOTIFY("proxy files contains inconsistent certificates");
          continue;
       }
 
       // Check key
       po->ksig = po->chain->End()->PKI();
       if (po->ksig->status != XrdCryptoRSA::kComplete) {
-         DEBUG("proxy files contain invalid key pair");
+         NOTIFY("proxy files contain invalid key pair");
          continue;
       }
 
       XrdCryptoX509ExportChain_t ExportChain = cf->X509ExportChain();
       if (!ExportChain) {
-         DEBUG("cannot attach to ExportChain function!");
+         PRINT("cannot attach to ExportChain function!");
          continue;
       }
 
@@ -4607,14 +4670,14 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       if (exportbucket) {
          po->cbck = (*ExportChain)(po->chain, 0);
          if (!(po->cbck)) {
-            DEBUG("could not create bucket for export");
+            PRINT("could not create bucket for export");
             continue;
          }
       }
 
       // Get attach an entry in cache
       if (!(cent = cache->Add(tag))) {
-         DEBUG("could not create entry in cache");
+         PRINT("could not create entry in cache");
          continue;
       }
 
@@ -4815,7 +4878,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
 
    // Try also the map file, if any
    if (LoadGMAP(now) != 0) {
-      DEBUG("error loading/ refreshing grid map file");
+      NOTIFY("error loading/ refreshing grid map file");
       return;
    }
 
@@ -5089,7 +5152,7 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
 
 //_____________________________________________________________________________
 XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
-                                                int timestamp, String &certcalist)
+                                                time_t timestamp, String &certcalist)
 {
    // Get cache entry for server certificate. This function checks the cache
    // and loads or re-loads the certificate form the specified files if required.
@@ -5097,7 +5160,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
    EPNAME("GetSrvCertEnt");
 
    if (!cf) {
-      DEBUG("Invalid inputs");
+      PRINT("Invalid inputs");
       return (XrdSutPFEntry *)0;
    }
 
