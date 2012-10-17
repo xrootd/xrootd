@@ -140,11 +140,11 @@ int DumpPhyConn(const char *key,
 {
 
   if (!p) {
-    Info(XrdClientDebug::kUSERDEBUG, "DumpPhyConn", "Phyconn entry, key=NULL");
+    Info(XrdClientDebug::kDUMPDEBUG, "DumpPhyConn", "Phyconn entry, key=NULL");
     return 0;
   }
   
-  Info(XrdClientDebug::kUSERDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
+  Info(XrdClientDebug::kDUMPDEBUG, "DumpPhyConn", "Phyconn entry, key='" <<
        (key ? key : "***def***") <<
        "', LogCnt=" << p->GetLogConnCnt() << (p->IsValid() ? " Valid" : " NotValid") )
 
