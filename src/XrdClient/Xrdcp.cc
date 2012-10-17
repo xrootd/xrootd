@@ -32,6 +32,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "XrdClient/XrdClientUrlInfo.hh"
+#include "XrdClient/XrdClientReadCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"

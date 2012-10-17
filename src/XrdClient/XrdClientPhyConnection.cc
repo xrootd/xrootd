@@ -41,6 +41,8 @@
 #include "XrdClient/XrdClientMessage.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientSid.hh"
+#include "XrdClient/XrdClientPSock.hh"
+#include "XrdClient/XrdClientThread.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #ifndef WIN32
 #include <sys/socket.h>

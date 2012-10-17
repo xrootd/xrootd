@@ -34,10 +34,12 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+#include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientMStream.hh"
 #include "XrdClient/XrdClientLogConnection.hh"
 #include "XrdClient/XrdClientEnv.hh"
 #include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientThread.hh"
 
 // This has to be a socket id pool which the server will never assign by itself
 // Moreover, socketids are local to an instance of XrdClientPSock

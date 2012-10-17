@@ -41,7 +41,6 @@
 #endif
 
 #include "XrdNet/XrdNetBuffer.hh"
-#include "XrdOuc/XrdOucChain.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPthread.hh"
 

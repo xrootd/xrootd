@@ -51,6 +51,8 @@
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 
+#include "XrdOss/XrdOss.hh"
+
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysError.hh"

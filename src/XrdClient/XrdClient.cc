@@ -36,6 +36,7 @@
 
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientDebug.hh"
+#include "XrdClient/XrdClientThread.hh"
 #include "XrdClient/XrdClientUrlSet.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -1981,6 +1982,15 @@ bool XrdClient::GetCounters( XrdClientCounters *cnt ) {
 }
 
 
+void XrdClient:: RemoveAllDataFromCache()
+{   if (fConnModule) fConnModule->RemoveAllDataFromCache();}
+
+void XrdClient::RemoveDataFromCache(long long begin_offs,
+                                    long long end_offs,
+                                    bool remove_overlapped)
+{      if (fConnModule)
+          fConnModule->RemoveDataFromCache(begin_offs, end_offs, remove_overlapped);
+}
 
 void XrdClient::PrintCounters() {
 

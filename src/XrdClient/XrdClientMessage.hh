@@ -37,8 +37,8 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-#include "XrdClient/XrdClientProtocol.hh"
-#include "XrdClient/XrdClientSock.hh"
+//#include "XrdClient/XrdClientProtocol.hh"
+#include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #ifndef WIN32

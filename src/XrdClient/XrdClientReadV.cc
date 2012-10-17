@@ -31,9 +31,12 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+#include "XrdClient/XrdClientProtocol.hh"
 #include "XrdClient/XrdClientReadV.hh"
 #include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientDebug.hh"
+
+#include "XrdSys/XrdSysPlatform.hh"
 
 #include <memory.h>
 

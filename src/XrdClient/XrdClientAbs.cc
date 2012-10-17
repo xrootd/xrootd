@@ -35,8 +35,35 @@
 //////////////////////////////////////////////////////////////////////////
 
 #include "XrdClient/XrdClientAbs.hh"
+#include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientEnv.hh"
+
+#include "XProtocol/XProtocol.hh"
+
+//_____________________________________________________________________________
+XrdClientUrlInfo XrdClientAbs::GetCurrentUrl()
+{
+      if (fConnModule) return fConnModule->GetCurrentUrl();
+         else {XrdClientUrlInfo empty;
+               return empty;
+              }
+}
+
+//_____________________________________________________________________________
+struct ServerResponseBody_Error *XrdClientAbs::LastServerError()
+{
+      if (fConnModule) return &fConnModule->LastServerError;
+      else return 0;
+}
+
+//_____________________________________________________________________________
+struct ServerResponseHeader *XrdClientAbs::LastServerResp()
+{
+      IsOpen_wait();
+      if (fConnModule) return &fConnModule->LastServerResp;
+      else return 0;
+}
 
 //_____________________________________________________________________________
 void XrdClientAbs::SetParm(const char *parm, int val) 

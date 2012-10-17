@@ -40,6 +40,7 @@
 #endif
 
 #include "XrdNet/XrdNet.hh"
+#include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetPeer.hh"
 #include "XrdNet/XrdNetSecurity.hh"

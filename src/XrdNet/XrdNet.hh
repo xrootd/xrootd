@@ -40,9 +40,9 @@
 #include <Winsock2.h>
 #endif
 
-#include "XrdNet/XrdNetBuffer.hh"
 #include "XrdNet/XrdNetOpts.hh"
 
+class XrdNetBufferQ;
 class XrdNetPeer;
 class XrdNetSecurity;
 class XrdSysError;

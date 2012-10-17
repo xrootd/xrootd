@@ -36,10 +36,16 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+#include <string.h>
+
 #include "XrdClient/XrdClientUnsolMsg.hh"
-#include "XrdClient/XrdClientConn.hh"
+#include "XrdClient/XrdClientUrlInfo.hh"
+
+#include "XProtocol/XPtypes.hh"
+//?#include "XrdClient/XrdClientConn.hh"
 
 class XrdClientCallback;
+class XrdClientConn;
 
 class XrdClientAbs: public XrdClientAbsUnsolMsgHandler {
 
@@ -85,26 +91,12 @@ public:
    // Hook to the open connection (needed by TXNetFile)
    XrdClientConn              *GetClientConn() const { return fConnModule; }
 
-   inline XrdClientUrlInfo GetCurrentUrl() {
-      if (fConnModule)
-	 return fConnModule->GetCurrentUrl();
-      else {
-	 XrdClientUrlInfo empty;
-	 return empty;
-      }
-   }
+   XrdClientUrlInfo GetCurrentUrl();
 
    // The last response got from a non-async request
-   struct ServerResponseHeader *LastServerResp() {
-     IsOpen_wait();
-      if (fConnModule) return &fConnModule->LastServerResp;
-      else return 0;
-   }
+   struct ServerResponseHeader *LastServerResp();
 
-   struct ServerResponseBody_Error *LastServerError() {
-      if (fConnModule) return &fConnModule->LastServerError;
-      else return 0;
-   }
+   struct ServerResponseBody_Error *LastServerError();
 
    // Asks for the value of some parameter
    //---------------------------------------------------------------------------

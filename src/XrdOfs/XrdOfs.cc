@@ -48,6 +48,7 @@
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
+#include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"

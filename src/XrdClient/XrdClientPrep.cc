@@ -39,6 +39,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdClient/XrdClientAdmin.hh"
+#include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
   
 /******************************************************************************/

@@ -59,15 +59,18 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
+#include "XProtocol/XProtocol.hh"
+
 #include "XrdClient/XrdClientAbs.hh"
+#include "XrdClient/XrdClientConst.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdClient/XrdClientThread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 #include "XrdVersion.hh"
 #include <vector>
 #include <string>
 
 class XrdClientReadAheadMgr;
+class XrdClientThread;
 
 struct XrdClientOpenInfo {
     bool      inprogress;
@@ -276,20 +279,15 @@ public:
     bool                        Stat(struct XrdClientStatInfo *stinfo, bool force = false);
 
     // On-the-fly enabling/disabling of the cache
-    bool                        UseCache(bool u = TRUE);
+    bool                        UseCache(bool u = true);
 
     // To instantly remove all the chunks in the cache
-    void                        RemoveAllDataFromCache() {
-        if (fConnModule)
-            fConnModule->RemoveAllDataFromCache();
-    }
+    void                        RemoveAllDataFromCache();
 
     // To remove pieces of data from the cache
     void                        RemoveDataFromCache(long long begin_offs,
-                                                    long long end_offs, bool remove_overlapped = false) {
-       if (fConnModule)
-          fConnModule->RemoveDataFromCache(begin_offs, end_offs, remove_overlapped);
-    }
+                                                    long long end_offs,
+                                       bool remove_overlapped = false);
 
     // To set at run time the cache/readahead parameters for this instance only
     // If a parameter is < 0 then it's left untouched.

@@ -35,15 +35,14 @@
   
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOuc/XrdOucPList.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCms/XrdCmsClient.hh"
 
 class XrdOfsEvs;
 class XrdOfsPocq;
 class XrdOss;
+class XrdOssDF;
 class XrdOssDir;
 class XrdOucEnv;
 class XrdSysError;

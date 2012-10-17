@@ -33,6 +33,7 @@
 #include <strings.h>
   
 #include "XrdAcc/XrdAccAccess.hh"
+#include "XrdOuc/XrdOucPList.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPC.hh"
