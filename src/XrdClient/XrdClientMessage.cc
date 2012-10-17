@@ -40,6 +40,8 @@
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdClientPhyConnection.hh"
 
+#include "XrdSys/XrdSysPlatform.hh"
+
 #include <stdlib.h> // for malloc
 #include <string.h> // for memcpy
 
