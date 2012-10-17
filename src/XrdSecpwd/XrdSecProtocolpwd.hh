@@ -8,22 +8,23 @@
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC03-76-SFO0515 with the Department of Energy              */
 /******************************************************************************/
-#include <XrdOuc/XrdOucErrInfo.hh>
-#include <XrdSys/XrdSysPthread.hh>
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
 
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdSec/XrdSecTrace.hh>
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucString.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
 
-#include <XrdSut/XrdSutPFEntry.hh>
-#include <XrdSut/XrdSutPFile.hh>
-#include <XrdSut/XrdSutBuffer.hh>
-#include <XrdSut/XrdSutRndm.hh>
+#include "XrdSec/XrdSecInterface.hh"
+#include "XrdSecpwd/XrdSecpwdTrace.hh"
 
-#include <XrdCrypto/XrdCryptoAux.hh>
-#include <XrdCrypto/XrdCryptoCipher.hh>
-#include <XrdCrypto/XrdCryptoFactory.hh>
+#include "XrdSut/XrdSutPFEntry.hh"
+#include "XrdSut/XrdSutPFile.hh"
+#include "XrdSut/XrdSutBuffer.hh"
+#include "XrdSut/XrdSutRndm.hh"
+
+#include "XrdCrypto/XrdCryptoAux.hh"
+#include "XrdCrypto/XrdCryptoCipher.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -178,13 +179,13 @@ typedef struct {
 #define REL1(x)     { if (x) delete x; }
 #define REL2(x,y)   { if (x) delete x; if (y) delete y; }
 #define REL3(x,y,z) { if (x) delete x; if (y) delete y; if (z) delete z; }
-
+#if 0
 #ifndef NODEBUG
 #define PRINT(y) {{SecTrace->Beg(epname); cerr <<y; SecTrace->End();}}
 #else
 #define PRINT(y) { }
 #endif
-
+#endif
 #define SafeDelete(x) { if (x) delete x ; x = 0; }
 #define SafeDelArray(x) { if (x) delete [] x ; x = 0; }
 
@@ -212,13 +213,15 @@ public:
    char  *srvpuk;       // [c] file with server puks [$HOME/.xrd/pwdsrvpuk]
    short  keepcreds;    // [s] keep / do-not-keep client credentials 
    char  *expcreds;     // [s] (template for) file with exported creds
+   int    expfmt;       // [s] formta for exported credentials
 
    pwdOptions() { debug = -1; mode = 's'; areg = -1; upwd = -1; alog = -1;
                   verisrv = -1; vericlnt = -1;
                   syspwd = -1; lifecreds = -1; maxprompts = -1; maxfailures = -1;
                   clist = 0; dir = 0; udir = 0; cpass = 0;
-                  alogfile = 0; srvpuk = 0; keepcreds = 0; expcreds = 0;}
+                  alogfile = 0; srvpuk = 0; keepcreds = 0; expcreds = 0; expfmt = 0;}
    virtual ~pwdOptions() { } // Cleanup inside XrdSecProtocolpwdInit
+   void Print(XrdOucTrace *t); // Print summary of pwd option status
 };
 
 class pwdHSVars {
@@ -280,7 +283,10 @@ public:
 
         void              Delete();
 
-   static void       PrintTimeStat();
+        static void       PrintTimeStat();
+
+        // Enable tracing
+        static XrdOucTrace *EnableTracing();
 
 private:
 
@@ -326,11 +332,12 @@ private:
    static int              AutoLogin;      // [C] do-not-check/check/update autolog info
    static int              TimeSkew;       // [CS] Allowed skew in secs for time stamps 
    static bool             KeepCreds;      // [S] Keep / Do-Not-Keep client creds
+   static int              FmtExpCreds;    // [S] Format for the exported credentials 
    //
    // for error logging and tracing
    static XrdSysLogger     Logger;
    static XrdSysError      eDest;
-   static XrdOucTrace     *SecTrace;
+   static XrdOucTrace     *PWDTrace;
 
    // Information local to this instance
    int                     options;

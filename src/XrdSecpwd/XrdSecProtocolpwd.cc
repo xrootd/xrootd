@@ -56,6 +56,15 @@ void      ka_StringToKey(char *str, char *cell,
 #include <XrdSecpwd/XrdSecpwdPlatform.hh>
 
 /******************************************************************************/
+/*                 T r a c i n g  I n i t  O p t i o n s                      */
+/******************************************************************************/
+#ifndef NODEBUG
+#define POPTS(t,y)    {if (t) {t->Beg(epname); cerr <<y; t->End();}}
+#else
+#define POPTS(t,y)
+#endif
+
+/******************************************************************************/
 /*                           S t a t i c   D a t a                            */
 /******************************************************************************/
   
@@ -191,11 +200,14 @@ int  XrdSecProtocolpwd::MaxFailures = 10;// [S] Max passwd failures before block
 int  XrdSecProtocolpwd::AutoLogin   = 0; // [C] do-not-check/check/update autologin info
 int  XrdSecProtocolpwd::TimeSkew    = 300; // [CS] Allowed skew in secs for time stamps 
 bool XrdSecProtocolpwd::KeepCreds   = 0; // [S] Keep / Do-Not-Keep client creds 
+int  XrdSecProtocolpwd::FmtExpCreds = 0; // [S] Format for exported credentials 
 //
 // Debug an tracing
 XrdSysError    XrdSecProtocolpwd::eDest(0, "secpwd_");
 XrdSysLogger   XrdSecProtocolpwd::Logger;
-XrdOucTrace   *XrdSecProtocolpwd::SecTrace = 0;
+XrdOucTrace   *XrdSecProtocolpwd::PWDTrace = 0;
+
+XrdOucTrace *pwdTrace = 0;
 
 /******************************************************************************/
 /*                    S t a t i c   F u n c t i o n s                         */
@@ -267,7 +279,7 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
       hs->Step = 0;             // Current step
       hs->LastStep = 0;         // Step required at previous iteration
    } else {
-      DEBUG("could not create handshake vars object");
+      PRINT("could not create handshake vars object");
    }
 
    // Used by servers to store forwarded credentials
@@ -277,7 +289,7 @@ XrdSecProtocolpwd::XrdSecProtocolpwd(int opts, const char *hname,
    if (hname) {
       Entity.host = strdup(hname);
    } else {
-      DEBUG("warning: host name undefined");
+      NOTIFY("warning: host name undefined");
    }
    // Save host addr
    memcpy(&hostaddr, ipadd, sizeof(hostaddr));
@@ -336,22 +348,37 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
-   // Initiate error logging and tracing
-   eDest.logger(&Logger);
-   SecTrace    = new XrdOucTrace(&eDest);
+
+   // We must have the tracing object at this point
+   // (initialized in XrdSecProtocolgsiInit)
+   if (!pwdTrace) {
+      ErrF(erp,kPWErrInit,"tracing object (pwdTrace) not initialized! cannot continue");
+      return Parms;
+   }
+
    // Set debug mask ... also for auxilliary libs
-   int trace = 0;
+   int trace = 0, traceSut = 0, traceCrypto = 0;
    if (Debug >= 3) {
       trace = cryptoTRACE_Dump;
-      SecTrace->What |= TRACE_Authen;
-      SecTrace->What |= TRACE_Debug;
+      traceSut = sutTRACE_Dump;
+      traceCrypto = cryptoTRACE_Dump;
+      PWDTrace->What = TRACE_ALL;
+   } else if (Debug >= 2) {
+      trace = cryptoTRACE_Debug;
+      traceSut = sutTRACE_Debug;
+      traceCrypto = cryptoTRACE_Debug;
+      PWDTrace->What = TRACE_Debug;
+      PWDTrace->What |= TRACE_Authen;
    } else if (Debug >= 1) {
       trace = cryptoTRACE_Debug;
-      SecTrace->What = TRACE_Debug;
+      traceSut = sutTRACE_Notify;
+      traceCrypto = cryptoTRACE_Notify;
+      PWDTrace->What = TRACE_Debug;
    }
+
    // ... also for auxilliary libs
-   XrdSutSetTrace(trace);
-   XrdCryptoSetTrace(trace);
+   XrdSutSetTrace(traceSut);
+   XrdCryptoSetTrace(traceCrypto);
 
    // Get user info
    struct passwd *pw;
@@ -619,14 +646,18 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       //
       // Whether to save client creds
       KeepCreds = (opt.keepcreds > -1) ? opt.keepcreds : KeepCreds;
-      if (KeepCreds)
-         PRINT("Exporting client creds to internal buffer");
+      if (KeepCreds > 0)
+         NOTIFY("Exporting client creds to internal buffer");
 
       //
       // Whether to export client creds to a file
       FileExpCreds = (opt.expcreds) ? opt.expcreds : FileExpCreds;
-      if (FileExpCreds.length() > 0)
-         PRINT("Exporting client creds to files "<<FileExpCreds);
+      if (FileExpCreds.length() > 0) {
+         // Export format
+         FmtExpCreds = opt.expfmt;
+         const char *efmts[4] = {"PFile", "hex", "raw", "raw/nokeyword"};
+         NOTIFY("Exporting client creds (fmt:"<<efmts[FmtExpCreds]<<") to files "<<FileExpCreds);
+      }
 
       //
       // Priority option field
@@ -656,27 +687,27 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       }
 
       // Some notification
-      DEBUG("using FileAdmin: "<<FileAdmin);
-      DEBUG("server ID: "<<SrvID);
-      DEBUG("contact e-mail: "<<SrvEmail);
-      DEBUG("auto-registration mode: "<<AutoReg);
-      DEBUG("verify client mode: "<<VeriClnt);
-      DEBUG("available crypto modules: "<<cryptlist);
+      NOTIFY("using FileAdmin: "<<FileAdmin);
+      NOTIFY("server ID: "<<SrvID);
+      NOTIFY("contact e-mail: "<<SrvEmail);
+      NOTIFY("auto-registration mode: "<<AutoReg);
+      NOTIFY("verify client mode: "<<VeriClnt);
+      NOTIFY("available crypto modules: "<<cryptlist);
       if (UserPwd > 0) {
-         DEBUG("using private pwd files: $(HOME)"<<FileUser);
+         NOTIFY("using private pwd files: $(HOME)"<<FileUser);
          if (UserPwd > 1) {
-            DEBUG("using private crypt-hash files: $(HOME)"<<FileCrypt);
+            NOTIFY("using private crypt-hash files: $(HOME)"<<FileCrypt);
          }
       }
       if (SysPwd) {
 #ifndef R__AFS
-         DEBUG("using system pwd information");
+         NOTIFY("using system pwd information");
 #else
-         DEBUG("using AFS information");
+         NOTIFY("using AFS information");
 #endif
       }
       if (KeepCreds) {
-         DEBUG("client credentials will be kept");
+         NOTIFY("client credentials will be kept");
       }
    }
 
@@ -714,7 +745,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                dir.erase(dir.rfind('/')+1);
                DEBUG("asserting dir: "<<dir);
                if (XrdSutMkdir(dir.c_str(),0777) != 0) {
-                  DEBUG("cannot create dir for srvpuk(errno: "<<errno<<")");
+                  PRINT("cannot create dir for srvpuk(errno: "<<errno<<")");
                   ErrF(erp,kPWErrInit,"cannot create dir for server public key file- exit");
                   return Parms;
                }
@@ -752,7 +783,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
       //
       // Whether to search for autologin information
       AutoLogin = (opt.alog > -1) ? opt.alog : AutoLogin;
-      DEBUG("AutoLogin level: "<<AutoLogin);
+      NOTIFY("AutoLogin level: "<<AutoLogin);
       //
       // Max number of re-prompts (for inconsistent inputs)
       MaxPrompts = (opt.maxprompts > -1) ? opt.maxprompts : MaxPrompts;
@@ -807,7 +838,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
          //
          // Notify if not found
          if (!filefound) {
-            DEBUG("could not init properly autologin - switch off ");
+            NOTIFY("could not init properly autologin - switch off ");
             AutoLogin = 0;
          }
       }
@@ -924,7 +955,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    hs->Step = (bpar->GetStep()) ? bpar->GetStep() : kXPS_init;
    stepstr = ServerStepStr(hs->Step);
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       bpar->Dump(stepstr);
    }
    //
@@ -934,7 +965,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    //
    // Parse input buffer
    if (ParseClientInput(bpar, &bmai, Emsg) == -1) {
-      DEBUG(Emsg);
+      PRINT(Emsg);
       return ErrC(ei,bpar,bmai,0,kPWErrParseBuffer,Emsg.c_str(),stepstr);
    }
    //
@@ -942,7 +973,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    DEBUG("version run by server: "<< hs->RemVers);
    //
    // Dump what we got
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       bmai->Dump("Main IN");
    }
    //
@@ -1101,7 +1132,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    memcpy(pst,&SessionSt,sizeof(pwdStatus_t));
    *pst = htonl(*pst);
    if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
-      DEBUG("problems adding bucket kXRS_status");
+      PRINT("problems adding bucket kXRS_status");
    }
    //
    // Serialize and encrypt
@@ -1114,7 +1145,7 @@ XrdSecCredentials *XrdSecProtocolpwd::getCredentials(XrdSecParameters *parm,
    char *bser = 0;
    int nser = bpar->Serialized(&bser,'f');
 
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       bpar->Dump(ClientStepStr(bpar->GetStep()));
       bmai->Dump("Main OUT");
    }
@@ -1210,7 +1241,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    hs->Step = bpar->GetStep();
    stepstr = ClientStepStr(hs->Step);
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       bpar->Dump(stepstr);
    }
 
@@ -1221,7 +1252,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    //
    // Parse input buffer
    if (ParseServerInput(bpar, &bmai, ClntMsg) == -1) {
-      DEBUG(ClntMsg);
+      PRINT(ClntMsg);
       return ErrS(hs->ID,ei,bpar,bmai,0,kPWErrParseBuffer,ClntMsg.c_str(),stepstr);
    }
    //
@@ -1233,7 +1264,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       memcpy(&SessionSt, &pst, sizeof(pwdStatus_t));
       bmai->Deactivate(kXRS_status);
    } else {
-      DEBUG("no bucket kXRS_status found in main buffer");
+      NOTIFY("no bucket kXRS_status found in main buffer");
    }   
    hs->Tty = SessionSt.options & kOptsClntTty;
    //
@@ -1250,7 +1281,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    DEBUG("version run by client: "<< hs->RemVers);
    //
    // Dump, if requested
-   if (QTRACE(Authen)) {
+   if (QTRACE(Dump)) {
       bmai->Dump("main IN");
    }
    //
@@ -1433,7 +1464,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             XrdSysPrivGuard priv(getuid(), getgid());
             if (priv.Valid()) {
                if (cacheAdmin.Flush() != 0) {
-                  DEBUG("WARNING: some problem flushing to admin"
+                  PRINT("WARNING: some problem flushing to admin"
                         " file after updating "<<hs->Pent->name);
                }
             }
@@ -1450,7 +1481,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
             XrdSysPrivGuard priv(getuid(), getgid());
             if (priv.Valid()) {
                if (cacheAdmin.Flush() != 0) {
-                  DEBUG("WARNING: some problem flushing to admin"
+                  PRINT("WARNING: some problem flushing to admin"
                         " file after updating "<<hs->Pent->name);
                }
             }
@@ -1491,7 +1522,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
          // Export creds to a file, if required
          if (FileExpCreds.length() > 0) {
             if (ExportCreds(bck) != 0)
-               DEBUG("WARNING: some problem exporting creds to file;"
+               PRINT("WARNING: some problem exporting creds to file;"
                      " template is :"<<FileExpCreds);
          }
       }
@@ -1517,7 +1548,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
    //
    // If we need additional info but the client caa not reply, just fail
    if (kS_rc == kpST_more && !(hs->Tty)) {
-      DEBUG("client cannot reply to additional request: failure");
+      PRINT("client cannot reply to additional request: failure");
       // Deactivate everything
       bpar->Deactivate(-1);
       bmai->Deactivate(-1);
@@ -1529,7 +1560,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       // Add message to client
       if (ClntMsg.length() > 0)
          if (bmai->AddBucket(ClntMsg,kXRS_message) != 0) {
-            DEBUG("problems adding bucket with message for client");
+            PRINT("problems adding bucket with message for client");
          }
       //
       // We set some options in the option field of a pwdStatus_t structure
@@ -1537,7 +1568,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       memcpy(pst,&SessionSt,sizeof(pwdStatus_t));
       *pst = htonl(*pst);
       if (bmai->AddBucket((char *)pst,sizeof(pwdStatus_t), kXRS_status) != 0) {
-         DEBUG("problems adding bucket kXRS_status");
+         PRINT("problems adding bucket kXRS_status");
       }
       //
       // Serialize, encrypt and add to the global list
@@ -1551,7 +1582,7 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
       int nser = bpar->Serialized(&bser,'f');
       //
       // Dump, if requested
-      if (QTRACE(Authen)) {
+      if (QTRACE(Dump)) {
          bpar->Dump(ServerStepStr(bpar->GetStep()));
          bmai->Dump("Main OUT");
       }
@@ -1572,6 +1603,71 @@ int XrdSecProtocolpwd::Authenticate(XrdSecCredentials *cred,
 }
 
 /******************************************************************************/
+/*                        E n a b l e T r a c i n g                           */
+/******************************************************************************/
+
+XrdOucTrace *XrdSecProtocolpwd::EnableTracing()
+{
+   // Initiate error logging and tracing
+   EPNAME("EnableTracing");
+
+   eDest.logger(&Logger);
+   PWDTrace = new XrdOucTrace(&eDest);
+   return PWDTrace;
+}
+
+/******************************************************************************/
+/*                     p w d O p t i o n s :: P r i n t                       */
+/******************************************************************************/
+
+void pwdOptions::Print(XrdOucTrace *t)
+{
+   // Dump summary of GSI init options
+   EPNAME("InitOpts");
+
+   // For clients print only if really required (for servers we notified it
+   // always once for all)
+   if ((mode == 'c') && debug <= 0) return;
+   
+   POPTS(t, "*** ------------------------------------------------------------ ***");
+   POPTS(t, " Mode: "<< ((mode == 'c') ? "client" : "server"));
+   POPTS(t, " Debug: "<< debug);
+   if (mode == 'c') {
+      POPTS(t, " Check user's autologin info: " << (alog != 0) ? "yes" : "no");
+      POPTS(t, " Verification level of server ownership on public key: " << verisrv);
+      POPTS(t, " Max number of empty prompts:" << maxprompts);
+      if (alogfile)
+         POPTS(t, " Autologin file:" << alogfile);
+      if (srvpuk)
+         POPTS(t, " File with known servers public keys:" << srvpuk);
+      POPTS(t, " Update auto-login info option:" << areg);
+   } else {
+      POPTS(t, " Check pwd file in user's home: " << (upwd != 0) ? "yes" : "no");
+      POPTS(t, " Verification level of client ownership on public key: " << vericlnt);
+      POPTS(t, " Autoregistration option:" << areg);
+      POPTS(t, " Check system pwd file option: " << syspwd);
+      POPTS(t, " Credentials lifetime (seconds): " << lifecreds);
+      POPTS(t, " Max number of failures: " << maxfailures);
+      if (clist)
+         POPTS(t, " List of supported crypto modules: " << clist);
+      if (dir)
+         POPTS(t, " Directory with admin pwd files: " << dir);
+      if (udir)
+         POPTS(t, " User's sub-directory with pwd files: " << udir);
+      if (cpass)
+         POPTS(t, " User's crypt hash pwd file: " << cpass);
+      POPTS(t, " Keep client credentials in memory: " << (keepcreds != 0) ? "yes" : "no");
+      if (expcreds) {
+         POPTS(t, " File for exported client credentials: " << expcreds);
+         POPTS(t, " Format for exported client credentials: " << expfmt);
+      } else {
+         POPTS(t, " Client credentials not exported to file");
+      }
+   }
+   POPTS(t, "*** ------------------------------------------------------------ ***");
+}
+
+/******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d I n i t                     */
 /******************************************************************************/
   
@@ -1585,9 +1681,14 @@ char *XrdSecProtocolpwdInit(const char mode,
    // For clients (mode == 'c') we use values in envs.
    // For servers (mode == 's') the command line options are passed through
    // parms.
+   EPNAME("ProtocolpwdInit");
+
    pwdOptions opts;
    char *rc = (char *)"";
    char *cenv = 0;
+
+   // Initiate error logging and tracing
+   pwdTrace = XrdSecProtocolpwd::EnableTracing();
 
    //
    // Clients first
@@ -1614,7 +1715,12 @@ char *XrdSecProtocolpwdInit(const char mode,
       // debug
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
-         if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);  
+         if (cenv[0] >= 49 && cenv[0] <= 51) {
+            opts.debug = atoi(cenv);
+         } else {
+            PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
+            opts.debug = 1;
+         }
 
       // server verification
       cenv = getenv("XrdSecPWDVERIFYSRV");
@@ -1641,6 +1747,10 @@ char *XrdSecProtocolpwdInit(const char mode,
       //
       // Setup the object with the chosen options
       rc = XrdSecProtocolpwd::Init(opts,erp);
+
+      // Notify init options, if required or in case of init errors
+      if (!rc) opts.debug = 1;
+      opts.Print(pwdTrace);
 
       // Some cleanup
       if (opts.srvpuk) free(opts.srvpuk);
@@ -1679,6 +1789,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       //              [-maxfail:<max_number_of_failures>]
       //              [-keepcreds]
       //              [-expcreds:<creds_file_name>]
+      //              [-expfmt:<creds_exp_format>]
       //
       // <user_pwd_opt> = 0 (do-not-use), 1 (use), 2 (also-crypt-hash)
       // <debug_level> = 0 (none), 1 (low), 2 (medium), 3 (high)   [0]
@@ -1688,6 +1799,8 @@ char *XrdSecProtocolpwdInit(const char mode,
       // <creds_file_name> = can be a fully specified path or in the templated form
       //                     /path/<user>/file, with <user> expanded at the moment
       //                     of use with the login name.
+      // <creds_exp_format> = 0 (XrdSutPFEntry in dedicated file),
+      //                      1 (hex form), 2 (plain), 3 (plain, no keywords) [0]
       //
       int debug = -1;
       int areg = -1;
@@ -1702,6 +1815,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       String cpass = "";
       int keepcreds = -1;
       String expcreds = "";
+      int expfmt = 0;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -1731,6 +1845,8 @@ char *XrdSecProtocolpwdInit(const char mode,
                keepcreds = 1;
             } else if (!strncmp(op, "-expcreds:",10)) {
                expcreds = (const char *)(op+10);
+            } else if (!strncmp(op, "-expfmt:",8)) {
+               expfmt =  atoi(op+8);
             }
          }
          // Check inputs
@@ -1748,6 +1864,7 @@ char *XrdSecProtocolpwdInit(const char mode,
       opts.syspwd = syspwd;
       opts.lifecreds = lifetime;
       opts.maxfailures = maxfail;
+      opts.expfmt = expfmt;
       if (dir.length() > 0)
          opts.dir = (char *)dir.c_str();
       if (udir.length() > 0)
@@ -1759,10 +1876,16 @@ char *XrdSecProtocolpwdInit(const char mode,
       opts.keepcreds = keepcreds;
       if (expcreds.length() > 0)
          opts.expcreds = (char *)expcreds.c_str();
+
+      // Notify init options, if required
+      opts.Print(pwdTrace);
       //
       // Setup the plug-in with the chosen options
       return XrdSecProtocolpwd::Init(opts,erp);
    }
+
+   // Notify init options, if required
+   opts.Print(pwdTrace);
    //
    // Setup the plug-in with the defaults
    return XrdSecProtocolpwd::Init(opts,erp);
@@ -1772,7 +1895,9 @@ char *XrdSecProtocolpwdInit(const char mode,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d O b j e c t                 */
 /******************************************************************************/
-  
+
+XrdVERSIONINFO(XrdSecProtocolpwdObject,secpwd);
+ 
 extern "C"
 {
 XrdSecProtocol *XrdSecProtocolpwdObject(const char              mode,
@@ -1820,7 +1945,7 @@ int XrdSecProtocolpwd::ParseCrypto(XrdSutBuffer *buf)
 
    // Check inputs
    if (!buf) {
-      DEBUG("invalid input ("<<buf<<")");
+      PRINT("invalid input ("<<buf<<")");
       return -1;
    }
 
@@ -1843,14 +1968,14 @@ int XrdSecProtocolpwd::ParseCrypto(XrdSutBuffer *buf)
          clist.assign(opts, ii+2);
          clist.erase(clist.find(','));
       } else {
-         DEBUG("crypto information not found in options");
+         PRINT("crypto information not found in options");
          return -1;
       }
    } else {
       //
       // Extract crypto module name from the buffer
       if (!(bck = buf->GetBucket(kXRS_cryptomod))) {
-         DEBUG("cryptomod buffer missing");
+         PRINT("cryptomod buffer missing");
          return -1;
       }
       bck->ToString(clist);
@@ -1876,7 +2001,7 @@ int XrdSecProtocolpwd::ParseCrypto(XrdSutBuffer *buf)
                }
                if (i >= ncrypt) {
                   if (ncrypt == XrdCryptoMax) {
-                     DEBUG("max number of crypto slots reached - do nothing");
+                     PRINT("max number of crypto slots reached - do nothing");
                      return 0;
                   } else {
                      // Add new entry
@@ -1905,13 +2030,13 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
  
    // Check inputs
    if (!hs->CF || !creds || !hs->Pent) {
-      DEBUG("Invalid inputs ("<<hs->CF<<","<<creds<<","<<hs->Pent<<")");
+      PRINT("Invalid inputs ("<<hs->CF<<","<<creds<<","<<hs->Pent<<")");
       return match;
    }
    // Make sure there is something to check against
    if (ctype != kpCT_afs && ctype != kpCT_afsenc &&
       (!(hs->Pent->buf1.buf) || hs->Pent->buf1.len <= 0)) {
-      DEBUG("Cached information about creds missing");
+      NOTIFY("Cached information about creds missing");
       return match;
    }
    //
@@ -1926,7 +2051,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       // Create a bucket for the salt to easy encryption
       XrdSutBucket *tmps = new XrdSutBucket();
       if (!tmps) {
-         DEBUG("Could not allocate working buckets area for the salt");
+         PRINT("Could not allocate working buckets area for the salt");
          return match;
       }
       tmps->SetBuf(hs->Pent->buf1.buf, hs->Pent->buf1.len);
@@ -1970,7 +2095,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       match = CheckCredsAFS(creds, ctype);
 #endif
 #else
-      DEBUG("Crypt-like passwords (via crypt(...)) not supported");
+      NOTIFY("Crypt-like passwords (via crypt(...)) not supported");
       match = 0;
 #endif
    }
@@ -2094,7 +2219,7 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
 
    // Check inputs
    if ((hs->User.length() <= 0) || !hs->CF || !creds) {
-      DEBUG("Bad inputs ("<<hs->User.length()<<","<<hs->CF<<","
+      PRINT("Bad inputs ("<<hs->User.length()<<","<<hs->CF<<","
                           <<creds<<")");
       return -1;
    }
@@ -2104,18 +2229,18 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    // Update entry in cache, if there, or add one
    XrdSutPFEntry *cent = cacheAdmin.Add(wTag.c_str());
    if (!cent) {
-      DEBUG("Could not get entry in cache");
+      PRINT("Could not get entry in cache");
       return -1;
    }
    // Generate a salt and fill it in
    char *tmps = XrdSutRndm::GetBuffer(8,3);
    if (!tmps) {
-      DEBUG("Could not generate salt: out-of-memory");
+      PRINT("Could not generate salt: out-of-memory");
       return -1;
    }
    XrdSutBucket *salt = new XrdSutBucket(tmps,8);
    if (!salt) {
-      DEBUG("Could not create salt bucket");
+      PRINT("Could not create salt bucket");
       return -1;
    }
    cent->buf1.SetBuf(salt->buffer,salt->size);
@@ -2137,7 +2262,7 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    XrdSysPrivGuard priv(getuid(), getgid());
    if (priv.Valid()) {
       if (cacheAdmin.Flush() != 0) {
-         DEBUG("WARNING: some problem flushing to admin file after updating "<<wTag);
+         PRINT("WARNING: some problem flushing to admin file after updating "<<wTag);
       }
    }
    //
@@ -2155,14 +2280,14 @@ int XrdSecProtocolpwd::ExportCreds(XrdSutBucket *creds)
 
    // Check inputs
    if ((hs->User.length() <= 0) || !hs->CF || !creds) {
-      DEBUG("Bad inputs ("<<hs->User.length()<<","<<hs->CF<<","
+      PRINT("Bad inputs ("<<hs->User.length()<<","<<hs->CF<<","
                           <<creds<<")");
       return -1;
    }
 
    // Check inputs
    if (FileExpCreds.length() <= 0) {
-      DEBUG("File (template) undefined - do nothing");
+      PRINT("File (template) undefined - do nothing");
       return -1;
    }
 
@@ -2170,40 +2295,117 @@ int XrdSecProtocolpwd::ExportCreds(XrdSutBucket *creds)
    String filecreds = FileExpCreds;
    // Resolve place-holders, if any
    if (XrdSutResolve(filecreds, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      DEBUG("Problems resolving templates in "<<filecreds);
+      PRINT("Problems resolving templates in "<<filecreds);
       return -1;
    }
    DEBUG("Exporting client creds to: "<<filecreds);
+   
+   // Make sure the directory exists
+   int lsl = filecreds.rfind('/');
+   PRINT("Exporting client creds to: "<<filecreds<<"   "<<lsl);
+   if (lsl != STR_NPOS) {
+      String dir(filecreds, 0, lsl-1);
+      PRINT("asserting dir: "<<dir);
+      if (XrdSutMkdir(dir.c_str(), 0700) != 0) {
+         PRINT("Problems creating directory "<<dir);
+         return -1;
+      }
+   }
 
-   // Attach or create the file
-   XrdSutPFile pfcreds(filecreds.c_str());
-   if (!pfcreds.IsValid()) {
-      DEBUG("Problem attaching / creating file "<<filecreds);
-      return -1;
-   }
-   //
-   // Build effective tag
-   String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
-   //
-   // Create and fill a new entry
-   XrdSutPFEntry ent;
-   ent.SetName(wTag.c_str());
-   ent.status = kPFE_ok;
-   ent.cnt    = 0;
-   if (!strncmp(creds->buffer, "pwd:", 4)) {
-      // Skip initial "pwd:"
-      ent.buf1.SetBuf(creds->buffer+4, creds->size-4);
+   if (FmtExpCreds == 0) {
+      // Attach or create the file
+      XrdSutPFile pfcreds(filecreds.c_str());
+      if (!pfcreds.IsValid()) {
+         PRINT("Problem attaching / creating file "<<filecreds);
+         return -1;
+      }
+      //
+      // Build effective tag
+      String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
+      //
+      // Create and fill a new entry
+      XrdSutPFEntry ent;
+      ent.SetName(wTag.c_str());
+      ent.status = kPFE_ok;
+      ent.cnt    = 0;
+      if (!strncmp(creds->buffer, "pwd:", 4)) {
+         // Skip initial "pwd:"
+         ent.buf1.SetBuf(creds->buffer+4, creds->size-4);
+      } else {
+         // For crypt and AFS we keep that to be able to distinguish
+         // later on
+         ent.buf1.SetBuf(creds->buffer,creds->size);
+      }
+      //
+      // Write entry
+      ent.mtime = time(0);
+      pfcreds.WriteEntry(ent);
+      DEBUG("New entry for "<<wTag<<" successfully written to file: "
+                     <<filecreds);
    } else {
-      // For crypt and AFS we keep that to be able to distinguish
-      // later on
-      ent.buf1.SetBuf(creds->buffer,creds->size);
+      char *buf = 0, *out = 0;
+      int sz = -1;
+      // Create buffer to keep the credentials, if not already done
+      sz = creds->size + 5;
+      if ((buf = (char *) malloc(sz))) {
+         memcpy(buf, "&pwd", 4);
+         buf[4] = 0;
+         memcpy(buf+5, creds->buffer, creds->size);
+         // Put in hex
+         if (FmtExpCreds == 1) {
+            out = new char[2*sz+1];
+            XrdSutToHex(buf, sz, out);
+         }
+      } else {
+         PRINT("Problem creating buffer for exported credentials!");
+         return -1;
+      }
+
+      // Open the file, truncating if already existing
+      int fd = open(filecreds.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+      if (fd < 0) {
+         PRINT("problems creating file - errno: " << errno);
+         if (buf) free(buf); buf = 0;
+         SafeDelete(out);
+         return -1;
+      }
+
+      const char *pw = 0;
+      int lw = -1;
+      if (FmtExpCreds == 1) {
+         // Hex form
+         pw = (const char *)out;
+         lw = 2*sz + 1;
+      } else if (FmtExpCreds == 3) {
+         // Ignore keywords
+         int offs = (hs->SysPwd == 2) ? 9 : 5;
+         pw = (const char *)(buf + offs);
+         lw = sz - offs;
+      } else {
+         pw = (const char *)buf;
+         lw = sz;
+      }
+      // Write out now
+      int nw = 0, written = 0;
+      while (lw) {
+         if ((nw = write(fd, pw + written, lw)) < 0) {
+            if (errno == EINTR) {
+               errno = 0;
+               continue;
+            } else {
+               break;
+            }
+         }
+         // Count
+         written += nw;
+         lw -= nw;
+      }
+    
+      // Cleanup temporary buffers
+      if (buf) free(buf); buf = 0;
+      SafeDelete(out);
+      close(fd);
    }
-   //
-   // Write entry
-   ent.mtime = time(0);
-   pfcreds.WriteEntry(ent);
-   DEBUG("New entry for "<<wTag<<" successfully written to file: "
-                  <<filecreds);
    // We are done
    return 0;
 }
@@ -2217,7 +2419,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
 
    // Check inputs
    if (!bm || !hs->CF || hs->Tag.length() <= 0) {
-      DEBUG("bad inputs ("<<bm<<","<<hs->CF<<","<<hs->Tag.length()<<")");
+      PRINT("bad inputs ("<<bm<<","<<hs->CF<<","<<hs->Tag.length()<<")");
       return (XrdSutBucket *)0;
    }
 
@@ -2232,7 +2434,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    // Output bucket
    XrdSutBucket *creds = new XrdSutBucket();
    if (!creds) {
-      DEBUG("Could allocate bucket for creds");
+      PRINT("Could allocate bucket for creds");
       return (XrdSutBucket *)0;
    }
    creds->type = kXRS_creds;
@@ -2315,7 +2517,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       // Make sure cache it is up-to-date
       if (PFAlog.IsValid()) {
          if (cacheAlog.Refresh() != 0) {
-            DEBUG("problems assuring cache update for file alog ");
+            PRINT("problems assuring cache update for file alog ");
          }
       }
       //
@@ -2372,7 +2574,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
             // We are done
             return creds;
          } else {
-            DEBUG("Could create new entry in cache");
+            PRINT("Could create new entry in cache");
             return (XrdSutBucket *)0;
          }
       }
@@ -2380,7 +2582,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    //
    // Create or Fill entry in cache
    if (!(hs->Pent) && !(hs->Pent = cacheAlog.Add(wTag.c_str()))) {
-      DEBUG("Could create new entry in cache");
+      PRINT("Could create new entry in cache");
       return (XrdSutBucket *)0;
    }
 
@@ -2451,7 +2653,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    // From now we need to prompt the user: we can do this only if
    // connected to a terminal
    if (!(hs->Tty)) {
-      DEBUG("Not connected to tty: cannot prompt user for credentials");
+      NOTIFY("Not connected to tty: cannot prompt user for credentials");
       return (XrdSutBucket *)0;
    }
 
@@ -2544,12 +2746,12 @@ int XrdSecProtocolpwd::UpdateAlog()
 
    // Check inputs
    if (hs->Tag.length() <= 0) {
-      DEBUG("Tag undefined - do nothing");
+      PRINT("Tag undefined - do nothing");
       return -1;
    }
    // Check inputs
    if (!(hs->Pent) || !(hs->Pent->buf1.buf)) {
-      DEBUG("Nothing to do");
+      NOTIFY("Nothing to do");
       return 0;
    }
    //
@@ -2574,7 +2776,7 @@ int XrdSecProtocolpwd::UpdateAlog()
    //
    // Flush cache content to source file
    if (cacheAlog.Flush() != 0) {
-      DEBUG("WARNING: some problem flushing to alog file after updating "<<wTag);
+      PRINT("WARNING: some problem flushing to alog file after updating "<<wTag);
    }
    //
    // We are done
@@ -2591,7 +2793,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
 
    // Check inputs
    if (hs->User.length() <= 0 || !hs->CF || !hs->Cref) {
-      DEBUG("Invalid inputs ("<<hs->User.length()<<","<<hs->CF<<","<<hs->Cref<<")");
+      PRINT("Invalid inputs ("<<hs->User.length()<<","<<hs->CF<<","<<hs->Cref<<")");
       return -1;
    }
    //
@@ -2707,7 +2909,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
       XrdSysPrivGuard priv(getuid(), getgid());
       if (priv.Valid()) {
          if (cacheAdmin.Refresh() != 0) {
-            DEBUG("problems assuring cache update for file admin ");
+            PRINT("problems assuring cache update for file admin ");
             return -1;
          }
       }
@@ -2802,7 +3004,7 @@ int XrdSecProtocolpwd::GetUserHost(String &user, String &host)
       //
       // Make sure somebody can be prompted
       if (!(hs->Tty)) {
-         DEBUG("user not defined:"
+         NOTIFY("user not defined:"
                "not tty: cannot prompt for user");
          return -1;
       }
@@ -2835,7 +3037,7 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
    EPNAME("AddSerialized");
 
    if (!bls || !buf || (opt != 0 && opt != 'c' && opt != 's')) {
-      DEBUG("invalid inputs ("
+      PRINT("invalid inputs ("
             <<bls<<","<<buf<<","<<opt<<")"
             <<" - type: "<<XrdSutBuckStr(type));
       return -1;
@@ -2857,7 +3059,7 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
       //
       // Encrypt random tag with session cipher
       if (cip->Encrypt(*brt) == 0) {
-         DEBUG("error encrypting random tag");
+         PRINT("error encrypting random tag");
          return -1;
       }
       //
@@ -2870,7 +3072,7 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
       //
       // Add bucket with our timestamp to the main list
       if (buf->MarshalBucket(kXRS_timestamp,(kXR_int32)(hs->TimeStamp)) != 0) {
-         DEBUG("error adding bucket with time stamp");
+         PRINT("error adding bucket with time stamp");
          return -1;
       }
    }
@@ -2885,14 +3087,14 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
       //
       // Get bucket
       if (!(brt = new XrdSutBucket(RndmTag,kXRS_rtag))) {
-         DEBUG("error creating random tag bucket");
+         PRINT("error creating random tag bucket");
          return -1;
       }
       buf->AddBucket(brt);
       //
       // Get cache entry
       if (!hs->Cref) {
-         DEBUG("cache entry not found: protocol error");
+         PRINT("cache entry not found: protocol error");
          return -1;
       }
       //
@@ -2910,7 +3112,7 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
    if (!(bck = bls->GetBucket(type))) {
       // or create new bucket, if not existing
       if (!(bck = new XrdSutBucket(bser,nser,type))) {
-         DEBUG("error creating bucket "
+         PRINT("error creating bucket "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
       }
@@ -2924,7 +3126,7 @@ int XrdSecProtocolpwd::AddSerialized(char opt, kXR_int32 step, String ID,
    // Encrypted the bucket
    if (cip) {
       if (cip->Encrypt(*bck) == 0) {
-         DEBUG("error encrypting bucket - cipher "
+         PRINT("error encrypting bucket - cipher "
                <<" - type: "<<XrdSutBuckStr(type));
          return -1;
       }
@@ -2945,7 +3147,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
-      DEBUG("invalid inputs ("<<br<<","<<bm<<")");
+      PRINT("invalid inputs ("<<br<<","<<bm<<")");
       emsg = "invalid inputs";
       return -1;
    }
@@ -3036,7 +3238,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
             SafeDelete(hs->Hcip);
             if (!(hs->Hcip =
                   hs->CF->Cipher(0,ent->buf1.buf,ent->buf1.len))) {
-                     DEBUG("could not instantiate session cipher "
+                     PRINT("could not instantiate session cipher "
                            "using cipher public info from server");
                      emsg = "could not instantiate session cipher ";
             } else {
@@ -3128,7 +3330,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
                SafeDelete(hs->Hcip);
                if (!(hs->Hcip =
                      hs->CF->Cipher(0,ent->buf1.buf,ent->buf1.len))) {
-                        DEBUG("could not instantiate session cipher "
+                        PRINT("could not instantiate session cipher "
                               "using cipher public info from server");
                         emsg = "could not instantiate session cipher ";
                } else {
@@ -3137,7 +3339,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
             }
         } else {
             // Autoreg is the only alternative at this point ...
-            DEBUG("could not create entry in cache - tag: "<<ptag);
+            PRINT("could not create entry in cache - tag: "<<ptag);
          }
       }
       // Get next
@@ -3164,7 +3366,7 @@ int XrdSecProtocolpwd::ParseServerInput(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
-      DEBUG("invalid inputs ("<<br<<","<<bm<<")");
+      PRINT("invalid inputs ("<<br<<","<<bm<<")");
       cmsg = "invalid inputs";
       return -1;
    }
@@ -3313,10 +3515,10 @@ void XrdSecProtocolpwd::ErrF(XrdOucErrInfo *einfo, kXR_int32 ecode,
          bout[0] = 0;
          for (k = 0; k < i; k++)
             sprintf(bout,"%s%s",bout,msgv[k]);
-         DEBUG(bout);
+         PRINT(bout);
       } else {
          for (k = 0; k < i; k++)
-            DEBUG(msgv[k]);
+            PRINT(msgv[k]);
       }
    }
 }
@@ -3376,13 +3578,13 @@ int XrdSecProtocolpwd::DoubleHash(XrdCryptoFactory *cf, XrdSutBucket *bck,
    //
    // Check inputs
    if (!cf || !bck) {
-      DEBUG("Bad inputs "<<cf<<","<<bck<<")");
+      PRINT("Bad inputs "<<cf<<","<<bck<<")");
       return -1;
    }
    //
    // At least one salt must be defined
    if ((!s1 || s1->size <= 0) && (!s2 || s2->size <= 0)) {
-      DEBUG("Both salts undefined - do nothing");
+      PRINT("Both salts undefined - do nothing");
       return 0;
    }
    //
@@ -3393,7 +3595,7 @@ int XrdSecProtocolpwd::DoubleHash(XrdCryptoFactory *cf, XrdSutBucket *bck,
    XrdCryptoKDFun_t KDFun = cf->KDFun();
    XrdCryptoKDFunLen_t KDFunLen = cf->KDFunLen();
    if (!KDFun || !KDFunLen) {
-      DEBUG("Could not get hooks to one-way hash functions ("
+      PRINT("Could not get hooks to one-way hash functions ("
             <<KDFun<<","<<KDFunLen<<")");
       return -1;
    }
@@ -3403,12 +3605,12 @@ int XrdSecProtocolpwd::DoubleHash(XrdCryptoFactory *cf, XrdSutBucket *bck,
    int nhlen = bck->size;
    if (s1 && s1->size > 0) {
       if (!(nhash = new char[(*KDFunLen)() + ltag])) {
-         DEBUG("Could not allocate memory for hash - s1");
+         PRINT("Could not allocate memory for hash - s1");
          return -1;
       }
       if ((nhlen = (*KDFun)(thash,nhlen,
                             s1->buffer,s1->size,nhash+ltag,0)) <= 0) {
-         DEBUG("Problems hashing - s1");
+         PRINT("Problems hashing - s1");
          delete[] nhash;
          return -1;
       }
@@ -3418,13 +3620,13 @@ int XrdSecProtocolpwd::DoubleHash(XrdCryptoFactory *cf, XrdSutBucket *bck,
    // Apply second salt, if defined
    if (s2 && s2->size > 0) {
       if (!(nhash = new char[(*KDFunLen)() + ltag])) {
-         DEBUG("Could not allocate memory for hash - s2");
+         PRINT("Could not allocate memory for hash - s2");
          return -1;
       }
       if (thash && thash != bck->buffer) thash += ltag;
       if ((nhlen = (*KDFun)(thash,nhlen,
                             s2->buffer,s2->size,nhash+ltag,0)) <= 0) {
-         DEBUG("Problems hashing - s2");
+         PRINT("Problems hashing - s2");
          delete[] nhash;
          if (thash && thash != bck->buffer) delete[] thash;
          return -1;
@@ -3470,7 +3672,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
    struct passwd *pw;
    XrdSysPwd thePwd(hs->User.c_str(), &pw);
    if (!pw) {
-      DEBUG("Cannot get pwnam structure for user "<<hs->User);
+      PRINT("Cannot get pwnam structure for user "<<hs->User);
       return -1;
    }
    //
@@ -3484,7 +3686,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       XrdSysPrivGuard priv(uid, pw->pw_gid);
       bool go = priv.Valid();
       if (!go) {
-         DEBUG("problems acquiring temporarly identity: "<<hs->User);
+         PRINT("problems acquiring temporarly identity: "<<hs->User);
       }
 
       // The file
@@ -3498,10 +3700,10 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       struct stat st;
       if (go && stat(fpw.c_str(), &st) == -1) {
          if (errno != ENOENT) {
-            DEBUG("cannot stat password file "<<fpw<<" (errno:"<<errno<<")");
+            PRINT("cannot stat password file "<<fpw<<" (errno:"<<errno<<")");
             rc = -1;
          } else {
-            DEBUG("file "<<fpw<<" does not exist");
+            PRINT("file "<<fpw<<" does not exist");
             rc = 0;
          }
          go = 0;
@@ -3509,7 +3711,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       if (go &&
          (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
           (st.st_mode & (S_IWGRP | S_IWOTH | S_IRGRP | S_IROTH)) != 0)) {
-         DEBUG("pass file "<<fpw<<": wrong permissions "<<
+         PRINT("pass file "<<fpw<<": wrong permissions "<<
                (st.st_mode & 0777) << " (should be 0600)");
          rc = -2;
          go = 0;
@@ -3517,7 +3719,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 
       // Open the file
       if (go && (fid = open(fpw.c_str(), O_RDONLY)) == -1) {
-         DEBUG("cannot open file "<<fpw<<" (errno:"<<errno<<")");
+         PRINT("cannot open file "<<fpw<<" (errno:"<<errno<<")");
          rc = -1;
          go = 0;
       }
@@ -3526,7 +3728,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
       char pass[128];
       if (go && (n = read(fid, pass, sizeof(pass)-1)) <= 0) {
          close(fid);
-         DEBUG("cannot read file "<<fpw<<" (errno:"<<errno<<")");
+         PRINT("cannot read file "<<fpw<<" (errno:"<<errno<<")");
          rc = -1;
          go = 0;
       }
@@ -3565,11 +3767,11 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
          struct spwd *spw = 0;
          // System V Rel 4 style shadow passwords
          if ((spw = getspnam(hs->User.c_str())) == 0) {
-            DEBUG("shadow passwd not accessible to this application");
+            NOTIFY("shadow passwd not accessible to this application");
          } else
             pwhash = spw->sp_pwdp;
       } else {
-         DEBUG("problems acquiring temporarly superuser privileges");
+         NOTIFY("problems acquiring temporarly superuser privileges");
       }
    }
 #else
@@ -3581,7 +3783,7 @@ int XrdSecProtocolpwd::QueryCrypt(String &fn, String &pwhash)
 #endif
    // Check if successful
    if ((rc = pwhash.length()) <= 2) {
-      DEBUG("passwd hash not available for user "<<hs->User);
+      NOTIFY("passwd hash not available for user "<<hs->User);
       pwhash = "";
       fn = "";
       rc = -1;
@@ -3612,12 +3814,12 @@ int XrdSecProtocolpwd::QueryNetRc(String host, String &passwd, int &status)
    // Make sure a file name is defined
    String fnrc = getenv("XrdSecNETRC");
    if (fnrc.length() <= 0) {
-      DEBUG("File name undefined");
+      PRINT("File name undefined");
       return -1;
    }
    // Resolve place-holders, if any
    if (XrdSutResolve(fnrc, Entity.host, Entity.vorg, Entity.grps, Entity.name) != 0) {
-      DEBUG("Problems resolving templates in "<<fnrc);
+      PRINT("Problems resolving templates in "<<fnrc);
       return -1;
    }
    DEBUG("checking file "<<fnrc<<" for user "<<hs->User);
@@ -3626,22 +3828,22 @@ int XrdSecProtocolpwd::QueryNetRc(String host, String &passwd, int &status)
    struct stat st;
    if (stat(fnrc.c_str(), &st) == -1) {
       if (errno != ENOENT) {
-         DEBUG("cannot stat password file "<<fnrc<<" (errno:"<<errno<<")");
+         PRINT("cannot stat password file "<<fnrc<<" (errno:"<<errno<<")");
       } else {
-         DEBUG("file "<<fnrc<<" does not exist");
+         PRINT("file "<<fnrc<<" does not exist");
       }
       return -1;
    }
    if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
        (st.st_mode & (S_IWGRP | S_IWOTH | S_IRGRP | S_IROTH)) != 0) {
-      DEBUG("pass file "<<fnrc<<": wrong permissions "<<
+      PRINT("pass file "<<fnrc<<": wrong permissions "<<
             (st.st_mode & 0777) << " (should be 0600)");
       return -2;
    }
    // Open the file
    FILE *fid = fopen(fnrc.c_str(), "r");
    if (!fid) {
-      DEBUG("cannot open file "<<fnrc<<" (errno:"<<errno<<")");
+      PRINT("cannot open file "<<fnrc<<" (errno:"<<errno<<")");
       return -1;
    }
    char line[512];
@@ -3705,7 +3907,7 @@ bool XrdSecProtocolpwd::CheckTimeStamp(XrdSutBuffer *bm, int skew, String &emsg)
    // We check only if requested and a stronger check has not been done
    // successfully already
    if (hs->RtagOK || VeriClnt != 1) {
-      DEBUG("Nothing to do");
+      NOTIFY("Nothing to do");
       // Deactivate the buffer, if there
       if (bm->GetBucket(kXRS_timestamp))
           bm->Deactivate(kXRS_timestamp);
@@ -3784,7 +3986,7 @@ bool XrdSecProtocolpwd::CheckRtag(XrdSutBuffer *bm, String &emsg)
       bm->Deactivate(kXRS_signed_rtag);
       DEBUG("Random tag successfully checked");
    } else {
-      DEBUG("Nothing to check");
+      NOTIFY("Nothing to check");
    }
 
    // We are done
