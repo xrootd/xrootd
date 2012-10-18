@@ -54,6 +54,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysDNS.hh"
@@ -158,6 +159,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    PortWAN  = 0;
    ConfigFN = 0;
    myInsName= 0;
+   mySitName= 0;
    AdminPath= strdup("/tmp");
    AdminMode= 0700;
    Police   = 0;
@@ -247,7 +249,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:s:"))
+      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:s:S:"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -285,6 +287,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 's': pidFN = optarg;
                  break;
+       case 'S': mySitName = optarg;
+                 break;
 
        default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
                     {Log.Emsg("Config", argv[optind-1],
@@ -296,6 +300,10 @@ int XrdConfig::Configure(int argc, char **argv)
                     argv[aP++] = argv[optind++];
        }
      }
+
+// Set the site name if we have one
+//
+   if (mySitName) mySitName = XrdOucSiteName::Set(mySitName);
 
 // Drop into non-privileged state if so requested
 //
@@ -463,6 +471,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    TS_Xeq("port",          xport);
    TS_Xeq("protocol",      xprot);
    TS_Xeq("report",        xrep);
+   TS_Xeq("sitename",      xsit);
    TS_Xeq("timeout",       xtmo);
    }
 
@@ -549,7 +558,8 @@ int XrdConfig::ConfigProc()
 //
    while((var = Config.GetMyFirstWord()))
         if (!strncmp(var, "xrd.", 4)
-        ||  !strcmp (var, "all.adminpath"))
+        ||  !strcmp (var, "all.adminpath")
+        ||  !strcmp (var, "all.sitename" ))
            if (ConfigXeq(var+4, Config)) {Config.Echo(); NoGo = 1;}
 
 // Now check if any errors occured during file i/o
@@ -797,7 +807,8 @@ void XrdConfig::Usage(int rc)
   if (rc < 0) cerr <<XrdLicense;
      else
      cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-k {n|sz}] [-l <fn>] "
-            "[-L] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [<prot_options>]" <<endl;
+            "[-L] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [-S site] "
+            "[<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
 
@@ -1329,6 +1340,34 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
 //
    Sched.setParms(V_mint, V_maxt, V_avlt, V_idle);
    return 0;
+}
+
+/******************************************************************************/
+/*                                  x s i t                                   */
+/******************************************************************************/
+
+/* Function: xsit
+
+   Purpose:  To parse directive: sitename <name>
+
+             <name>   is the 1- to 15-character site name to be included in
+                      monitoring information. This can also come from the
+                      command line -N option. The first such name is used.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
+{
+    char *val;
+
+    if (!(val = Config.GetWord()))
+       {eDest->Emsg("Config", "sitename value not specified"); return 1;}
+
+    if (mySitName) eDest->Emsg("Config", "sitename already specified, using '",
+                               mySitName, "'.");
+       else mySitName = XrdOucSiteName::Set(val);
+    return 0;
 }
 
 /******************************************************************************/

@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
 #include "XrdOuc/XrdOucProg.hh"
+#include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -154,6 +155,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 // Preset all variables with common defaults
 //
    myVersion= &myVer;
+   mySite   = 0;
    vOpts    = vopts;
    uInfo    = uinfo;
    ssID     = ss;
@@ -308,6 +310,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                  break;
        case 's': pidFN = optarg;
                  break;
+       case 'S': mySite= optarg;
+                 break;
        default:  sprintf(buff,"'%c'", optopt);
                  if (c == ':') Say.Emsg("Config", buff, "value not specified.");
                     else Say.Emsg("Config", buff, "option is invalid");
@@ -315,6 +319,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        }
      nextArg = optind;
      }
+
+// Set the site name if we have it at this point
+//
+   if (mySite) mySite = XrdOucSiteName::Set(mySite);
 
 // If we are an agent without a logfile and one is actually defined for the
 // underlying system, use the directory of the underlying system.
@@ -1025,6 +1033,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
        if (!strcmp(var, "qcheck"        )) return xqchk();
        if (isAgent) return 0;           // Server-oriented directives
 
+       if (!strcmp(var, "all.sitename"  )) return xsit();
        if (!strcmp(var, "ofs.osslib"    )) return Grab(var, &ossLib,    0);
        if (!strcmp(var, "oss.cache"     )) return xspace(0,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
@@ -1046,6 +1055,7 @@ int XrdFrmConfig::ConfigXeq(char *var, int mbok)
 
    if (ssID == ssPurg)
       {
+       if (!strcmp(var, "all.sitename"  )) return xsit();
        if (!strcmp(var, "dirhold"       )) return xdpol();
        if (!strcmp(var, "oss.cache"     )) return xspace(1,0);
        if (!strcmp(var, "oss.localroot" )) return Grab(var, &LocalRoot, 0);
@@ -1960,6 +1970,34 @@ int XrdFrmConfig::xqchk()
    if (QPath) free(QPath);
    QPath = strdup(val);
    return 0;
+}
+
+/******************************************************************************/
+/*                                  x s i t                                   */
+/******************************************************************************/
+
+/* Function: xsit
+
+   Purpose:  To parse directive: sitename <name>
+
+             <name>   is the 1- to 15-character site name to be included in
+                      monitoring information. This can also come from the
+                      command line -N option. The first such name is used.
+
+   Output: 0 upon success or 1 upon failure.
+*/
+
+int XrdFrmConfig::xsit()
+{
+    char *val;
+
+    if (!(val = cFile->GetWord()))
+       {Say.Emsg("Config", "sitename value not specified"); return 1;}
+
+    if (mySite) Say.Emsg("Config", "sitename already specified, using '",
+                         mySite, "'.");
+       else mySite = XrdOucSiteName::Set(val);
+    return 0;
 }
 
 /******************************************************************************/

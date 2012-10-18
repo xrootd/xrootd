@@ -276,6 +276,7 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
                          const char *iHost, const char *iProg,
                          const char *iName, int Port)
 {
+   const char *sP;
    char sName[64], uName[256];
    long long urSID;
    int  n, myPid;
@@ -285,6 +286,7 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
    myPid   = static_cast<int>(getpid());
    urSID   = static_cast<long long>(myPid)<<16ll | Port;
    sprintf(sName, "%lld", urSID);
+   if (!(sP = getenv("XRDSITE"))) sP = "";
 
 // Get our username
 //
@@ -293,8 +295,8 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
 
 // Create identification record
 //
-   snprintf(iBuff, iBlen, "%s.%d:%s@%s\n&pgm=%s&inst=%s&port=%d",
-                          uName, myPid, sName, iHost, iProg, iName, Port);
+   snprintf(iBuff, iBlen, "%s.%d:%s@%s\n&pgm=%s&inst=%s&port=%d&site=%s",
+                          uName, myPid, sName, iHost, iProg, iName, Port, sP);
 
 // Return a copy of the sid
 //

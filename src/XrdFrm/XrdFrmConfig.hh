@@ -56,6 +56,7 @@ public:
 const char         *myProg;
 const char         *myName;
 const char         *myInst;
+const char         *mySite;
 const char         *myFrmid;
 const char         *myFrmID;
 const char         *lockFN;
@@ -204,6 +205,7 @@ int          xoss();
 int          xpol();
 int          xpolprog();
 int          xqchk();
+int          xsit();
 int          xspace(int isPrg=0, int isXA=1);
 void         xspaceBuild(char *grp, char *fn, int isxa);
 int          xxfr();

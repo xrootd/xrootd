@@ -30,11 +30,11 @@
 
 /* This is the "main" part of the frm_purge command. Syntax is:
 */
-static const char *XrdFrmOpts  = ":bc:dfhk:l:n:O:s:Tv";
+static const char *XrdFrmOpts  = ":bc:dfhk:l:n:O:s:S:Tv";
 static const char *XrdFrmUsage =
 
   " [-b] [-c <cfgfile>] [-d] [-f] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name]"
-  " [-O free[,hold]] [-s pidfile] [-T] [-v] [<spaces>] [<paths>]\n";
+  " [-O free[,hold]] [-s pidfile] [-S site] [-T] [-v] [<spaces>] [<paths>]\n";
 /*
 Where:
 
@@ -56,6 +56,10 @@ Where:
 
    -O     Run this one time only as a command. The parms are:
           {free% | sz{k|m|g}[,hold]
+
+   -s     The pidfile name.
+
+   -S     The site name.
 
    -T     Runs in test mode (no actual purge will occur).
 
