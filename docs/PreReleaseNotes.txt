@@ -5,6 +5,9 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Include optional site name in server identification record if the
+     site name was specified on the command line (-S) or via config
+     file (all.sitename directive).
    * Define a standard supported mechanism to obtain the default storage
      system object.
    * Provide an ABI-compatible interface to obtain a default cmsd client
