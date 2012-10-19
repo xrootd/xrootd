@@ -35,6 +35,8 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   * Fix the fast response queue so that it doesn't run out of response
+     slots causing a big performance penalty. This is a high priority fix.
    * Make sure buffer ends with null byte before read suspension. This only
      occurs on very heavily loaded connections.
    * Properly disarm the mutex helper when the mustex object is deleted.
