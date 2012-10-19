@@ -221,47 +221,35 @@ int XrdCmsRRQ::Ready(int Snum, const void *Key, SMask_t mask1, SMask_t mask2)
 void *XrdCmsRRQ::Respond()
 {
 // EPNAME("RRQ Respond");
-   static const int ovhd = sizeof(kXR_unt32);
-   XrdCmsRRQSlot *lupQ, *sp, *cp;
-   int rdFast = 0, rdSlow = 0, luFast = 0, luSlow = 0;
-   int n, doredir, port, hlen;
+   XrdCmsRRQSlot *sp;
 
 // In an endless loop, process all ready elements
 //
    do {isReady.Wait();     // DEBUG("responder awoken");
    do {myMutex.Lock();
-       lupQ = 0;
        Stats.rdFast += rdFast; Stats.rdSlow += rdSlow;
        Stats.luFast += luFast; Stats.luSlow += luSlow;
-       rdFast = rdSlow = luFast = luSlow = 0;
        if (readyQ.Singleton()) {myMutex.UnLock(); break;}
        sp = readyQ.Next()->Item(); sp->Link.Remove(); sp->Expire = 0;
        myMutex.UnLock();
-       if (sp->Info.isLU) {lupQ = sp;
-                           if (!(sp = sp->Cont)) break;
-                           sp->Arg1 = lupQ->Arg1; sp->Arg2 = lupQ->Arg2;
-                          } else lupQ = sp->LkUp;
-       if ((doredir = (sp->Arg1 && Cluster.Select(sp->Info.isRW, sp->Info.actR,
-                                                  sp->Arg1,
-                                                  port, hostbuff, hlen))))
-          {redrResp.Val = htonl(port);
-           redrResp.Hdr.datalen = htons(static_cast<unsigned short>(hlen+ovhd));
-           redr_iov[1].iov_len  = hlen;
-           hlen += ovhd + sizeof(redrResp.Hdr);
+
+    // A locate request can be pggy-backed on a select request and vice-versa
+    // We separate the two queues here as each has a different response.
+    //
+       if (sp->Info.isLU)
+          {if (sp->Cont)
+              {sp->Cont->Arg1 = sp->Arg1;
+               sendRedResp(sp->Cont);
+              }
+           sendLocResp(sp);
+          } else {
+           if (sp->LkUp)
+              {sp->LkUp->Arg1 = sp->Arg1; sp->LkUp->Arg2 = sp->Arg2;
+               sendLocResp(sp->LkUp);
+              }
+           sendRedResp(sp);
           }
-       sendResponse(&sp->Info, doredir, hlen); n = 1;
-       cp = sp->Cont;
-       while(cp) {sendResponse(&cp->Info, doredir, hlen); n++; cp = cp->Cont;}
-       sp->Recycle();
-       if (doredir) rdFast = n;
-          else      rdSlow = n;
       } while(1);
-       if (lupQ) {lupQ->Cont = lupQ->LkUp;
-                  n = sendLocResp(lupQ);
-                  lupQ->Recycle();
-                  if (n > 0) luFast =  n;
-                     else    luSlow = -n;
-                 }
       } while(1);
 
 // Keep the compiler happy
@@ -273,18 +261,19 @@ void *XrdCmsRRQ::Respond()
 /*                           s e n d L o c R e s p                            */
 /******************************************************************************/
   
-int XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
+void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 {
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
+   XrdCmsRRQSlot *mP;
    XrdCmsNode *nP;
    int bytes, n = 0;
 
 // Send a delay if we timed out
 //
    if (!(lP->Arg1))
-      {do {sendResponse(&lP->Info, 0); n++; lP = lP->Cont;} while(lP);
-       return -n;
+      {sendLwtResp(lP);
+       return;
       }
 
 // Get the list of servers that have this file. If none found, then force the
@@ -292,8 +281,8 @@ int XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 //
    if (!(sP = Cluster.List(lP->Arg1, XrdCmsCluster::LS_IPO))
    || (!(bytes = XrdCmsNode::do_LocFmt(databuff,sP,lP->Arg2,lP->Info.rwVec))))
-      {while(lP) {sendResponse(&lP->Info, 0); n++; lP = lP->Cont;}
-       return -n;
+      {sendLwtResp(lP);
+       return;
       }
 
 // Complete the I/O vector
@@ -306,41 +295,78 @@ int XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 
 // Send the reply to each waiting redirector
 //
-   while(lP)
-        {RTable.Lock();
-         if ((nP = RTable.Find(lP->Info.Rnum, lP->Info.Rinst)))
-            {dataResp.Hdr.streamid = lP->Info.ID;
-             nP->Send(data_iov, iov_cnt, bytes);
-            }
-         RTable.UnLock();
-         lP = lP->Cont; n++;
-        }
-   return n;
+   RTable.Lock();
+   do {if ((nP = RTable.Find(lP->Info.Rnum, lP->Info.Rinst)))
+          {dataResp.Hdr.streamid = lP->Info.ID;
+           nP->Send(data_iov, iov_cnt, bytes);
+          }
+       mP = lP->LkUp; lP->Recycle(); luFast++;
+      } while((lP = mP));
+   RTable.UnLock();
 }
 
 /******************************************************************************/
-/*                          s e n d R e s p o n s e                           */
+/*                           s e n d L w t R e s p                            */
 /******************************************************************************/
   
-void XrdCmsRRQ::sendResponse(XrdCmsRRQInfo *Info, int doredir, int totlen)
+void XrdCmsRRQ::sendLwtResp(XrdCmsRRQSlot *rP)
 {
-// EPNAME("sendResponse");
+// EPNAME("sendLwtResp");
    XrdCmsNode *nP;
+   XrdCmsRRQSlot *sP;
 
-// Find the redirector and send the message
+// For each request, find the redirector and ask it to send a wait
 //
    RTable.Lock();
-   if ((nP = RTable.Find(Info->Rnum, Info->Rinst)))
-      {if (doredir){redrResp.Hdr.streamid = Info->ID;
-                    nP->Send(redr_iov, iov_cnt, totlen);
+do{if ((nP = RTable.Find(rP->Info.Rnum, rP->Info.Rinst)))
+      {waitResp.Hdr.streamid = rP->Info.ID; luSlow++;
+       nP->Send((char *)&waitResp, sizeof(waitResp));
+//     DEBUG("Redirect delay " <<nP->Name() <<' ' <<Tdelay);
+      }
+//    else {DEBUG("redirector " <<Info->Rnum <<'.' <<Info->Rinst <<"not found");}
+   sP = rP->LkUp; rP->Recycle();
+  } while((rP = sP));
+   RTable.UnLock();
+}
+  
+/******************************************************************************/
+/*                           s e n d R e d R e s p                            */
+/******************************************************************************/
+  
+void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
+{
+// EPNAME("sendRedResp");
+   static const int ovhd = sizeof(kXR_unt32);
+   XrdCmsNode *nP;
+   XrdCmsRRQSlot *sP;
+   int doredir, port, hlen;
+
+// Determine where the client should be redirected
+//
+   if ((doredir = (rP->Arg1 && Cluster.Select(rP->Info.isRW, rP->Info.actR,
+                                              rP->Arg1, port, hostbuff, hlen))))
+      {redrResp.Val = htonl(port);
+       redrResp.Hdr.datalen = htons(static_cast<unsigned short>(hlen+ovhd));
+       redr_iov[1].iov_len  = hlen;
+       hlen += ovhd + sizeof(redrResp.Hdr);
+      }
+
+// For each request, find the redirector and ask it to send the message
+//
+   RTable.Lock();
+do{if ((nP = RTable.Find(rP->Info.Rnum, rP->Info.Rinst)))
+      {if (doredir){redrResp.Hdr.streamid = rP->Info.ID; rdFast++;
+                    nP->Send(redr_iov, iov_cnt, hlen);
 //                  DEBUG("Fast redirect " <<nP->Name() <<" -> " <<hostbuff);
                    }
-              else {waitResp.Hdr.streamid = Info->ID;
+              else {waitResp.Hdr.streamid = rP->Info.ID; rdSlow++;
                     nP->Send((char *)&waitResp, sizeof(waitResp));
 //                  DEBUG("Redirect delay " <<nP->Name() <<' ' <<Tdelay);
                    }
       } 
 //    else {DEBUG("redirector " <<Info->Rnum <<'.' <<Info->Rinst <<"not found");}
+   sP = rP->Cont; rP->Recycle();
+  } while((rP = sP));
    RTable.UnLock();
 }
 
@@ -418,6 +444,7 @@ XrdCmsRRQSlot *XrdCmsRRQSlot::Alloc(XrdCmsRRQInfo *theInfo)
        sp->LkUp = 0;
        sp->Arg1 = 0;
        sp->Arg2 = 0;
+sp->initSlot--; cerr <<"RRQ alloc n=" <<sp->initSlot <<endl;
       }
    myMutex.UnLock();
    return sp;
@@ -442,5 +469,6 @@ void XrdCmsRRQSlot::Recycle()
    Info.Key = 0;
    Cont     = freeSlot;
    freeSlot = this;
+sp->initSlot++; cerr <<"RRQ free  n=" <<sp->initSlot <<endl;
    myMutex.UnLock();
 }
