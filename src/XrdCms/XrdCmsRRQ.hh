@@ -129,14 +129,16 @@ void  Statistics(Info &Data) {myMutex.Lock(); Data = Stats; myMutex.UnLock();}
 
 void *TimeOut();
 
-      XrdCmsRRQ() : isWaiting(0), isReady(0), Tslice(178),
-                    Tdelay(5),    myClock(0) {}
+      XrdCmsRRQ() : isWaiting(0), isReady(0),
+                    luFast(0),    luSlow(0),  rdFast(0), rdSlow(0),
+                    Tslice(178),  Tdelay(5),  myClock(0) {}
      ~XrdCmsRRQ() {}
 
 private:
 
-int  sendLocResp(XrdCmsRRQSlot *lP);
-void sendResponse(XrdCmsRRQInfo *Info, int doredir, int totlen = 0);
+void sendLocResp(XrdCmsRRQSlot *lP);
+void sendLwtResp(XrdCmsRRQSlot *rP);
+void sendRedResp(XrdCmsRRQSlot *rP);
 static const int numSlots = 1024;
 
          XrdSysMutex                   myMutex;
@@ -156,6 +158,10 @@ union   {char                          hostbuff[288];
                                                *STMax];
         };
          Info                          Stats;
+         int                           luFast;
+         int                           luSlow;
+         int                           rdFast;
+         int                           rdSlow;
          int                           Tslice;
          int                           Tdelay;
 unsigned int                           myClock;
