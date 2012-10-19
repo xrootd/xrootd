@@ -444,7 +444,6 @@ XrdCmsRRQSlot *XrdCmsRRQSlot::Alloc(XrdCmsRRQInfo *theInfo)
        sp->LkUp = 0;
        sp->Arg1 = 0;
        sp->Arg2 = 0;
-sp->initSlot--; cerr <<"RRQ alloc n=" <<sp->initSlot <<endl;
       }
    myMutex.UnLock();
    return sp;
@@ -469,6 +468,5 @@ void XrdCmsRRQSlot::Recycle()
    Info.Key = 0;
    Cont     = freeSlot;
    freeSlot = this;
-sp->initSlot++; cerr <<"RRQ free  n=" <<sp->initSlot <<endl;
    myMutex.UnLock();
 }
