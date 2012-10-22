@@ -733,7 +733,7 @@ int XrdConfig::Setup(char *dfltp)
 //
    ProtInfo.Stats = new XrdStats(&Log, &Sched, &BuffPool,
                                  ProtInfo.myName, POrder->port,
-                                 ProtInfo.myInst, ProtInfo.myProg);
+                                 ProtInfo.myInst, ProtInfo.myProg, mySitName);
 
 // Allocate a WAN port number of we need to
 //

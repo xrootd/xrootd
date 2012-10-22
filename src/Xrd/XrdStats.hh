@@ -61,7 +61,8 @@ const char *Stats(int opts);
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
       XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
-               const char *hn, int port, const char *in, const char *pn);
+               const char *hn, int port, const char *in, const char *pn,
+               const char *sn);
 
      ~XrdStats() {if (buff) free(buff);}
 

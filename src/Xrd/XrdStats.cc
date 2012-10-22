@@ -81,11 +81,12 @@ int           iVal;
   
 XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                    const char *hname, int port,
-                   const char *iname, const char *pname)
+                   const char *iname, const char *pname, const char *site)
 {
    static const char *head =
           "<statistics tod=\"%%ld\" ver=\"" XrdVERSION "\" src=\"%s:%d\" "
-                      "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\">";
+                      "tos=\"%ld\" pgm=\"%s\" ins=\"%s\" pid=\"%d\" "
+                      "site=\"%s\">";
    char myBuff[1024];
 
    XrdLog   = eP;
@@ -93,7 +94,7 @@ XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
    BuffPool = bP;
 
    Hlen = sprintf(myBuff, head, hname, port, tBoot, pname, iname,
-                          static_cast<int>(getpid()));
+                          static_cast<int>(getpid()), (site ? site : ""));
    Head = strdup(myBuff);
    buff = 0;
    blen = 0;
