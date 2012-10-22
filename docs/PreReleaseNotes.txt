@@ -5,6 +5,7 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Include optional site name in summary monitoring records.
    * Include optional site name in server identification record if the
      site name was specified on the command line (-S) or via config
      file (all.sitename directive).
