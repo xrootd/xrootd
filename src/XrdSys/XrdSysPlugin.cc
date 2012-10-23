@@ -59,6 +59,12 @@
 #include "XrdVersionPlugin.hh"
  
 /******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+
+struct XrdSysPlugin::PLlist *XrdSysPlugin::plList = 0;
+
+/******************************************************************************/
 /*                            D e s t r u c t o r                             */
 /******************************************************************************/
   
@@ -66,83 +72,6 @@ XrdSysPlugin::~XrdSysPlugin()
 {
    if (libHandle) dlclose(libHandle);
    if (libPath)   free(libPath);
-}
-
-/******************************************************************************/
-/*                             g e t P l u g i n                              */
-/******************************************************************************/
-
-void *XrdSysPlugin::getPlugin(const char *pname, int optional)
-{
-   return getPlugin(pname, optional, false);
-}
-
-void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
-{
-   XrdVERSIONINFODEF(urInfo, unknown, XrdVNUMUNK, "");
-   void *ep;
-   cvResult cvRC;
-
-// Open the plugin library if not already opened
-//
-   int flags = RTLD_NOW;
-#ifndef WIN32
-   flags |= global ? RTLD_GLOBAL : RTLD_LOCAL;
-#else
-   if (global)
-      if (eDest) eDest->Emsg("getPlugin",
-                  "request for global symbols unsupported under Windows - ignored");
-#endif
-
-// If no path is given then we want to just search the executable. This is easy
-// for some platforms and more difficult for others. So, we do the best we can.
-//
-   if (libPath)
-      {
-#if    defined(__macos__)
-       flags = RTLD_FIRST;
-#elif  defined(__linux__)
-       flags = RTLD_NOW;
-#else
-       flags = RTLD_NOW;
-#endif
-      }
-
-// Open whatever it is we need to open
-//
-   if (!libHandle && !(libHandle = dlopen(libPath, flags)))
-      {libMsg(dlerror(), " loading "); return 0;}
-
-// Get the symbol. In the environment we have defined, null values are not
-// allowed and we will issue an error.
-//
-   if (!(ep = dlsym(libHandle, pname)))
-      {if (!optional) libMsg(dlerror(), " plugin %s in ", pname);
-       return 0;
-      }
-
-// Check if we need to verify version compatability
-//
-   if ((cvRC = chkVersion(urInfo, pname)) == cvBad) return 0;
-
-// Print the loaded version unless message is suppressed or not needed
-//
-   if (libPath && optional < 2 && msgCnt
-   &&  (cvRC == cvClean || cvRC == cvMissing))
-      {char buff[128];
-       msgSuffix(" from ", buff, sizeof(buff));
-       msgCnt--;
-            if (cvRC == cvClean)
-               {const char *wTxt=(urInfo.vNum == XrdVNUMUNK ? "unreleased ":0);
-                Inform("loaded ", wTxt, urInfo.vStr, buff, libPath);
-               }
-       else if (cvRC == cvMissing)
-               {Inform("loaded unversioned ", pname, buff, libPath);}
-      }
-
-// All done
-//
-   return ep;
 }
 
 /******************************************************************************/
@@ -269,6 +198,110 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 }
 
 /******************************************************************************/
+/* Private:                      D L F l a g s                                */
+/******************************************************************************/
+  
+int XrdSysPlugin::DLflags()
+{
+#if    defined(__macos__)
+       return RTLD_FIRST;
+#elif  defined(__linux__)
+       return RTLD_NOW;
+#else
+       return RTLD_NOW;
+#endif
+}
+
+/******************************************************************************/
+/* Private:                         F i n d                                   */
+/******************************************************************************/
+  
+void *XrdSysPlugin::Find(const char *libpath)
+{
+   struct PLlist *plP = plList;
+
+// Find the library in the preload list
+//
+   while(plP && strcmp(libpath, plP->libPath)) plP = plP->next;
+
+// Return result
+//
+  return (plP ? plP->libHandle : 0);
+}
+
+/******************************************************************************/
+/*                             g e t P l u g i n                              */
+/******************************************************************************/
+
+void *XrdSysPlugin::getPlugin(const char *pname, int optional)
+{
+   return getPlugin(pname, optional, false);
+}
+
+void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
+{
+   XrdVERSIONINFODEF(urInfo, unknown, XrdVNUMUNK, "");
+   void *ep, *myHandle;
+   cvResult cvRC;
+   int flags;
+
+// If no path is given then we want to just search the executable. This is easy
+// for some platforms and more difficult for others. So, we do the best we can.
+//
+   if (libPath) flags = DLflags();
+      else {    flags = RTLD_NOW;
+#ifndef WIN32
+                flags|= global ? RTLD_GLOBAL : RTLD_LOCAL;
+#else
+            if (global && eDest) eDest->Emsg("getPlugin",
+               "request for global symbols unsupported under Windows - ignored");
+#endif
+      }
+
+// Check if we should use the preload list
+//
+   if (!(myHandle = libHandle) && plList) myHandle = Find(libPath);
+
+// Open whatever it is we need to open
+//
+   if (!myHandle)
+      {if ((myHandle = dlopen(libPath, flags))) libHandle = myHandle;
+          else {libMsg(dlerror(), " loading "); return 0;}
+      }
+
+// Get the symbol. In the environment we have defined, null values are not
+// allowed and we will issue an error.
+//
+   if (!(ep = dlsym(myHandle, pname)))
+      {if (!optional) libMsg(dlerror(), " plugin %s in ", pname);
+       return 0;
+      }
+
+// Check if we need to verify version compatability
+//
+   if ((cvRC = chkVersion(urInfo, pname)) == cvBad) return 0;
+
+// Print the loaded version unless message is suppressed or not needed
+//
+   if (libPath && optional < 2 && msgCnt
+   &&  (cvRC == cvClean || cvRC == cvMissing))
+      {char buff[128];
+       msgSuffix(" from ", buff, sizeof(buff));
+       msgCnt--;
+            if (cvRC == cvClean)
+               {const char *wTxt=(urInfo.vNum == XrdVNUMUNK ? "unreleased ":0);
+                Inform("loaded ", wTxt, urInfo.vStr, buff, libPath);
+               }
+       else if (cvRC == cvMissing)
+               {Inform("loaded unversioned ", pname, buff, libPath);}
+      }
+
+// All done
+//
+   return ep;
+}
+
+/******************************************************************************/
 /* Private:                       I n f o r m                                 */
 /******************************************************************************/
 
@@ -333,7 +366,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::libMsg(const char *txt1, const char *txt2,
 }
 
 /******************************************************************************/
-/*                             m s g S u f f i x                              */
+/* Private:                    m s g S u f f i x                              */
 /******************************************************************************/
 
 const char *XrdSysPlugin::msgSuffix(const char *Word, char *buff, int bsz)
@@ -343,6 +376,43 @@ const char *XrdSysPlugin::msgSuffix(const char *Word, char *buff, int bsz)
    return (libPath ? libPath : "");
 }
   
+/******************************************************************************/
+/*                               P r e l o a d                                */
+/******************************************************************************/
+  
+bool XrdSysPlugin::Preload(const char *path,  char *ebuff, int eblen)
+{
+   struct PLlist *plP;
+   void *myHandle;
+
+// First see if this is already in the preload list
+//
+   if (Find(path)) return true;
+
+// Try to open the library
+//
+   if (!(myHandle = dlopen(path, DLflags())))
+      {if (ebuff && eblen > 0)
+          {const char *dlMsg = dlerror();
+           snprintf(ebuff, eblen, "Plugin unable to load %; %s", path,
+                                  (dlMsg ? dlMsg : "unknown system error"));
+          }
+       return false;
+      }
+
+// Add the library handle
+//
+   plP = new PLlist;
+   plP->libHandle = myHandle;
+   plP->libPath   = strdup(path);
+   plP->next      = plList;
+   plList         = plP;
+
+// All done
+//
+   return true;
+}
+
 /******************************************************************************/
 /*                                V e r C m p                                 */
 /******************************************************************************/
