@@ -1063,7 +1063,7 @@ int XrdXrootdProtocol::xred(XrdOucStream &Config)
            }
         for (k = static_cast<int>(RD_open1); k < RD_Num; k++)
             if (!Route[k].Host
-            || (strcmp(Route[k].Host, rHost) && Route[k].Port == rPort)) break;
+            || (!strcmp(Route[k].Host, rHost) && Route[k].Port == rPort)) break;
         if (k >= RD_Num)
            {eDest.Emsg("Config", "too many diffrent path redirects"); return 1;}
         xred_set(RD_func(k), rHost, rPort);
