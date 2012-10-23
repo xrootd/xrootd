@@ -203,7 +203,7 @@ private:
 enum            cvResult {cvBad = 0, cvNone, cvMissing, cvClean, cvDirty};
 
 cvResult        badVersion(XrdVersionInfo &urInfo,char mmv,int majv,int minv);
-cvResult        chkVersion(XrdVersionInfo &urInfo, const char *pname);
+cvResult        chkVersion(XrdVersionInfo &urInfo, const char *pname, void *lh);
 static int      DLflags();
 static void    *Find(const char *libname);
 void            Inform(const char *txt1,   const char *txt2=0, const char *txt3=0,

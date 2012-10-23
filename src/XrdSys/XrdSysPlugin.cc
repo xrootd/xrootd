@@ -101,7 +101,8 @@ XrdSysPlugin::cvResult XrdSysPlugin::badVersion(XrdVersionInfo &urInfo,
 /******************************************************************************/
   
 XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
-                                                const char     *pname)
+                                                const char     *pname,
+                                                void           *lHandle)
 {
    static XrdVersionPlugin vInfo[] = {XrdVERSIONPLUGINRULES};
    char buff[1024], vName[256];
@@ -128,7 +129,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 
 // Find the version number
 //
-   if (!(vP = dlsym(libHandle, vName)))
+   if (!(vP = dlsym(lHandle, vName)))
       {if (vInfo[i].vProcess != XrdVERSIONPLUGIN_Required) return cvMissing;
        return libMsg(dlerror()," required version information for %s in ",pname);
       }
@@ -279,7 +280,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 
 // Check if we need to verify version compatability
 //
-   if ((cvRC = chkVersion(urInfo, pname)) == cvBad) return 0;
+   if ((cvRC = chkVersion(urInfo, pname, myHandle)) == cvBad) return 0;
 
 // Print the loaded version unless message is suppressed or not needed
 //
@@ -308,7 +309,9 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
                           const char *txt4, const char *txt5, int noHush)
 {
+   const char *eTxt[] = {"Plugin ",txt1, txt2, txt3, txt3, txt5, 0};
    char *bP;
+   int n, i, bL;
 
 // Check if we should hush this messages (largely for client-side usage)
 //
@@ -316,15 +319,23 @@ void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
 
 // If we have a messaging object, use that
 //
-   if (eDest) {eDest->Say("Plugin ", txt1, txt2, txt3, txt4, txt5); return;}
+   if (eDest)
+      {char buff[2048];
+       i = 1; bL = sizeof(buff);
+       while(bL > 1 && eTxt[i])
+            {n = snprintf(bP, bL, "%s ", eTxt[i]);
+             bP += n; bL -= n; i++;
+            }
+       eDest->Say("Plugin ", buff);
+       return;
+      }
 
 // If we have a buffer, set message in the buffer
 //
    if ((bP = eBuff))
-      {const char *eTxt[] = {"Plugin ",txt1, txt2, txt3, txt3, txt5, 0};
-       int n, i = 0, bL = eBLen;
+      {i = 0; bL = eBLen;
        while(bL > 1 && eTxt[i])
-            {n = snprintf(bP, bL, "%s", eTxt[i]);
+            {n = snprintf(bP, bL, "%s ", eTxt[i]);
              bP += n; bL -= n; i++;
             }
       }
