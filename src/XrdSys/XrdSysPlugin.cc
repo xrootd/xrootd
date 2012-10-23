@@ -405,7 +405,7 @@ bool XrdSysPlugin::Preload(const char *path,  char *ebuff, int eblen)
    if (!(myHandle = dlopen(path, DLflags())))
       {if (ebuff && eblen > 0)
           {const char *dlMsg = dlerror();
-           snprintf(ebuff, eblen, "Plugin unable to load %; %s", path,
+           snprintf(ebuff, eblen, "Plugin unable to load %s; %s", path,
                                   (dlMsg ? dlMsg : "unknown system error"));
           }
        return false;
