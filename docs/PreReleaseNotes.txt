@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Allow plugin libraries to be preloaded. This feature is only meant
+     for MacOS.
    * Include optional site name in summary monitoring records.
    * Include optional site name in server identification record if the
      site name was specified on the command line (-S) or via config
