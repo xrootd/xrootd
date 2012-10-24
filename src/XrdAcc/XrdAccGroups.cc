@@ -178,7 +178,7 @@ char *Gtab[NGROUPS_MAX];
 // Group_Build_Context mutex, obtained after we get the pwd entry.
 //
    XrdSysPwd thePwd(user, &pw);
-   if ( (pw == NULL) ) return (XrdAccGroupList *)0;
+   if (pw == NULL) return (XrdAccGroupList *)0;
 
 // Build first entry for the primary group. We will ignore the primary group
 // listing later. We do this to ensure that the user has at least one group

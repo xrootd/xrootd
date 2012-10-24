@@ -2358,11 +2358,10 @@ char *XrdSecProtocolgsiInit(const char mode,
       // debug
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
-         if (cenv[0] >= 49 && cenv[0] <= 51) {
-            opts.debug = atoi(cenv);
-         } else {
-            PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
-            opts.debug = 1;
+         {if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
+             else {PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
+                   opts.debug = 1;
+                  }
          }
 
       // directory with CA certificates

@@ -781,9 +781,10 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
    if (!NoGo)
       {if (StageRealTime)
           {if ((numt = xfrthreads - xfrtcount) > 0) while(numt--)
-               if ((retc = XrdSysThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
+              {if ((retc = XrdSysThread::Run(&tid,XrdOssxfr,(void *)0,0,"staging")))
                   Eroute.Emsg("Config", retc, "create staging thread");
                   else xfrtcount++;
+              }
           } else NoGo = StageProg->Start();
       }
 

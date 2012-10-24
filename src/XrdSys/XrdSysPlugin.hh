@@ -98,6 +98,28 @@ void *getPlugin(const char *pname, int optional, bool global);
 void *Persist() {void *lHan = libHandle; libHandle = 0; return lHan;}
 
 //------------------------------------------------------------------------------
+//! Preload a shared library. This method is meant for those threading models
+//! that require libraries to be opened in the main thread (e.g. MacOS). This
+//! method is meant to be called before therads start and is not thread-safe.
+//!
+//! @param  path     -> to the library path, typically this should just be the
+//!                     library filename so that LD_LIBRARY_PATH is used to
+//!                     discover the directory path. This allows getPlugin()
+//!                     to properly match preloaded libraries.
+//! @param  ebuff    -> buffer where eror message is to be placed. The mesage
+//!                     will always end with a null byte. If no error buffer
+//!                     is supplied, any error messages are discarded.
+//! @param  eblen    -> length of the supplied buffer, eBuff.
+//!
+//! @return True      The library was preloaded.
+//!         False     The library could not be preloaded, ebuff, if supplied,
+//!                   contains the error message text.
+//------------------------------------------------------------------------------
+
+static
+bool  Preload(const char *path,  char *ebuff=0, int eblen=0);
+
+//------------------------------------------------------------------------------
 //! Compare two versions for compatability, optionally printing a warning.
 //!
 //! @param  vInf1 -> Version information for source.
@@ -181,7 +203,9 @@ private:
 enum            cvResult {cvBad = 0, cvNone, cvMissing, cvClean, cvDirty};
 
 cvResult        badVersion(XrdVersionInfo &urInfo,char mmv,int majv,int minv);
-cvResult        chkVersion(XrdVersionInfo &urInfo, const char *pname);
+cvResult        chkVersion(XrdVersionInfo &urInfo, const char *pname, void *lh);
+static int      DLflags();
+static void    *Find(const char *libname);
 void            Inform(const char *txt1,   const char *txt2=0, const char *txt3=0,
                        const char *txt4=0, const char *txt5=0, int noHush=0);
 cvResult        libMsg(const char *txt1, const char *txt2, const char *mSym=0);
@@ -195,5 +219,12 @@ XrdVersionInfo *myInfo;
 char           *eBuff;
 int             eBLen;
 int             msgCnt;
+
+struct PLlist {PLlist  *next;
+               char    *libPath;
+               void    *libHandle;
+              };
+
+static PLlist *plList;
 };
 #endif

@@ -41,8 +41,6 @@
 
 #include <string.h>
 
-using namespace std;
-
 #define EnvGetLong(x) XrdClientEnv::Instance()->ShellGetInt(x)
 #define EnvGetString(x) XrdClientEnv::Instance()->ShellGet(x)
 #define EnvPutString(name, val) XrdClientEnv::Instance()->Put(name, val)
