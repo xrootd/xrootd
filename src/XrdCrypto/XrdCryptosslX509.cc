@@ -43,6 +43,8 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
    issuer = "";     // issuer;
    subjecthash = ""; // hash of subject;
    issuerhash = "";  // hash of issuer;
+   subjectoldhash = ""; // hash of subject (md5 algorithm);
+   issueroldhash = "";  // hash of issuer (md5 algorithm);
    srcfile = "";    // source file;
    bucket = 0;      // bucket for serialization
    pki = 0;         // PKI of the certificate
@@ -156,6 +158,8 @@ XrdCryptosslX509::XrdCryptosslX509(XrdSutBucket *buck) : XrdCryptoX509()
    issuer = "";     // issuer;
    subjecthash = ""; // hash of subject;
    issuerhash = "";  // hash of issuer;
+   subjectoldhash = ""; // hash of subject (md5 algorithm);
+   issueroldhash = "";  // hash of issuer (md5 algorithm);
    srcfile = "";    // source file;
    bucket = 0;      // bucket for serialization
    pki = 0;         // PKI of the certificate
@@ -230,6 +234,8 @@ XrdCryptosslX509::XrdCryptosslX509(X509 *xc) : XrdCryptoX509()
    issuer = "";     // issuer;
    subjecthash = ""; // hash of subject;
    issuerhash = "";  // hash of issuer;
+   subjectoldhash = ""; // hash of subject (md5 algorithm);
+   issueroldhash = "";  // hash of issuer (md5 algorithm);
    srcfile = "";    // source file;
    bucket = 0;      // bucket for serialization
    pki = 0;         // PKI of the certificate
@@ -375,6 +381,7 @@ const char *XrdCryptosslX509::Issuer()
    return (issuer.length() > 0) ? issuer.c_str() : (const char *)0;
 }
 
+#if 0
 //_____________________________________________________________________________
 const char *XrdCryptosslX509::IssuerHash()
 {
@@ -386,11 +393,10 @@ const char *XrdCryptosslX509::IssuerHash()
 
       // Make sure we have a certificate
       if (cert) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(cert->cert_info->issuer));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(cert->cert_info->issuer));
+         char chash[15] = {0};
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+         if (hashalg == 0) // md5 based
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->issuer));
 #endif
          issuerhash = chash;
       } else {
@@ -403,7 +409,7 @@ const char *XrdCryptosslX509::IssuerHash()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptosslX509::SubjectHash()
+const char *XrdCryptosslX509::SubjectHash(int alg)
 {
    // Return issuer name
    EPNAME("X509::SubjectHash");
@@ -413,11 +419,10 @@ const char *XrdCryptosslX509::SubjectHash()
 
       // Make sure we have a certificate
       if (cert) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(cert->cert_info->subject));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(cert->cert_info->subject));
+         char chash[15] = {0};
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+         if (alg == 1) // md5 based
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->subject));
 #endif
          subjecthash = chash;
       } else {
@@ -428,6 +433,101 @@ const char *XrdCryptosslX509::SubjectHash()
    // return what we have
    return (subjecthash.length() > 0) ? subjecthash.c_str() : (const char *)0;
 }
+#else
+
+//_____________________________________________________________________________
+const char *XrdCryptosslX509::IssuerHash(int alg)
+{
+   // Return hash of issuer name
+   // Use default algorithm (X509_NAME_hash) for alg = 0, old algorithm
+   // (for v>=1.0.0) when alg = 1
+   EPNAME("X509::IssuerHash");
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+   if (alg == 1) {
+      // md5 based
+      if (issueroldhash.length() <= 0) {
+         // Make sure we have a certificate
+         if (cert) {
+            char chash[15] = {0};
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->issuer));
+            issueroldhash = chash;
+         } else {
+            DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
+         }
+      }
+      // return what we have
+      return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
+   }
+#else
+   if (alg == 1) return (const char *)0;
+#endif
+
+   // If we do not have it already, try extraction
+   if (issuerhash.length() <= 0) {
+
+      // Make sure we have a certificate
+      if (cert) {
+         char chash[15] = {0};
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(cert->cert_info->issuer));
+         issuerhash = chash;
+      } else {
+         DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");
+      }
+   }
+
+   // return what we have
+   return (issuerhash.length() > 0) ? issuerhash.c_str() : (const char *)0;
+}
+
+//_____________________________________________________________________________
+const char *XrdCryptosslX509::SubjectHash(int alg)
+{
+   // Return hash of subject name
+   // Use default algorithm (X509_NAME_hash) for alg = 0, old algorithm
+   // (for v>=1.0.0) when alg = 1
+   EPNAME("X509::SubjectHash");
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+   if (alg == 1) {
+      // md5 based
+      if (subjectoldhash.length() <= 0) {
+         // Make sure we have a certificate
+         if (cert) {
+            char chash[15] = {0};
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->subject));
+            subjectoldhash = chash;
+         } else {
+            DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
+         }
+      }
+      // return what we have
+      return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
+   }
+#else
+   if (alg == 1) return (const char *)0;
+#endif
+
+   // If we do not have it already, try extraction
+   if (subjecthash.length() <= 0) {
+
+      // Make sure we have a certificate
+      if (cert) {
+         char chash[15] = {0};
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(cert->cert_info->subject));
+         subjecthash = chash;
+      } else {
+         DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");
+      }
+   }
+
+   // return what we have
+   return (subjecthash.length() > 0) ? subjecthash.c_str() : (const char *)0;
+}
+
+#endif
 
 //_____________________________________________________________________________
 kXR_int64 XrdCryptosslX509::SerialNumber()

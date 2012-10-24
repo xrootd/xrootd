@@ -37,6 +37,7 @@ XrdCryptosslX509Req::XrdCryptosslX509Req(XrdSutBucket *buck) : XrdCryptoX509Req(
    creq = 0;        // The certificate object
    subject = "";    // subject;
    subjecthash = ""; // hash of subject;
+   subjectoldhash = ""; // hash of subject (md5 algorithm);
    bucket = 0;      // bucket for serialization
    pki = 0;         // PKI of the certificate
 
@@ -95,6 +96,7 @@ XrdCryptosslX509Req::XrdCryptosslX509Req(X509_REQ *xc) : XrdCryptoX509Req()
    creq = 0;        // The certificate object
    subject = "";    // subject;
    subjecthash = ""; // hash of subject;
+   subjectoldhash = ""; // hash of subject (md5 algorithm);
    bucket = 0;      // bucket for serialization
    pki = 0;         // PKI of the certificate
 
@@ -157,25 +159,44 @@ const char *XrdCryptosslX509Req::Subject()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptosslX509Req::SubjectHash()
+const char *XrdCryptosslX509Req::SubjectHash(int alg)
 {
-   // Return issuer name
-   EPNAME("X509Req::SubjectHash");
+   // Return hash of subject name
+   // Use default algorithm (X509_NAME_hash) for alg = 0, old algorithm
+   // (for v>=1.0.0) when alg = 1
+   EPNAME("X509::SubjectHash");
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+   if (alg == 1) {
+      // md5 based
+      if (subjectoldhash.length() <= 0) {
+         // Make sure we have a certificate
+         if (creq) {
+            char chash[15] = {0};
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
+            subjectoldhash = chash;
+         } else {
+            DEBUG("WARNING: no certificate available - cannot extract subject hash (md5)");
+         }
+      }
+      // return what we have
+      return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
+   }
+#else
+   if (alg == 1) return (const char *)0;
+#endif
 
    // If we do not have it already, try extraction
    if (subjecthash.length() <= 0) {
 
       // Make sure we have a certificate
       if (creq) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(creq->req_info->subject));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
-#endif
+         char chash[15] = {0};
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(creq->req_info->subject));
          subjecthash = chash;
       } else {
-         DEBUG("WARNING: no certificate available - cannot extract subject hash");
+         DEBUG("WARNING: no certificate available - cannot extract subject hash (default)");
       }
    }
 

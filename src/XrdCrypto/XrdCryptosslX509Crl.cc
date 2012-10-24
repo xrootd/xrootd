@@ -453,25 +453,44 @@ const char *XrdCryptosslX509Crl::Issuer()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptosslX509Crl::IssuerHash()
+const char *XrdCryptosslX509Crl::IssuerHash(int alg)
 {
-   // Return issuer name
-   EPNAME("X509Crl::IssuerHash");
+   // Return hash of issuer name
+   // Use default algorithm (X509_NAME_hash) for alg = 0, old algorithm
+   // (for v>=1.0.0) when alg = 1
+   EPNAME("X509::IssuerHash");
+
+#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
+   if (alg == 1) {
+      // md5 based
+      if (issueroldhash.length() <= 0) {
+         // Make sure we have a certificate
+         if (crl) {
+            char chash[15] = {0};
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
+            issueroldhash = chash;
+         } else {
+            DEBUG("WARNING: no certificate available - cannot extract issuer hash (md5)");
+         }
+      }
+      // return what we have
+      return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
+   }
+#else
+   if (alg == 1) return (const char *)0;
+#endif
 
    // If we do not have it already, try extraction
    if (issuerhash.length() <= 0) {
 
-      // Make sure we have a CRL
+      // Make sure we have a certificate
       if (crl) {
-         char chash[15];
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-         sprintf(chash,"%08lx.0",X509_NAME_hash_old(crl->crl->issuer));
-#else
-         sprintf(chash,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
-#endif
+         char chash[15] = {0};
+         if (chash[0] == 0)
+            snprintf(chash,15,"%08lx.0",X509_NAME_hash(crl->crl->issuer));
          issuerhash = chash;
       } else {
-         DEBUG("WARNING: no CRL available - cannot extract issuer hash");
+         DEBUG("WARNING: no certificate available - cannot extract issuer hash (default)");
       }
    }
 
@@ -596,7 +615,7 @@ void XrdCryptosslX509Crl::Dump()
    PRINT("+ File:    "<<ParentFile());
    PRINT("+");
    PRINT("+ Issuer:  "<<Issuer());
-   PRINT("+ Issuer hash:  "<<IssuerHash());
+   PRINT("+ Issuer hash:  "<<IssuerHash(0));
    PRINT("+");
    if (IsExpired()) {
       PRINT("+ Validity: (expired!)");

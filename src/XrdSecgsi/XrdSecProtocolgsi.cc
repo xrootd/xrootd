@@ -143,6 +143,7 @@ int    XrdSecProtocolgsi::AuthzCacheTimeOut = 43200;  // 12h, default
 String XrdSecProtocolgsi::SrvAllowedNames;
 int    XrdSecProtocolgsi::VOMSAttrOpt = 1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
+bool   XrdSecProtocolgsi::HashCompatibility = 1;
 //
 // Crypto related info
 int  XrdSecProtocolgsi::ncrypt    = 0;                 // Number of factories
@@ -354,8 +355,11 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    }
 
    // ... also for auxilliary libs
-   XrdSutSetTrace(trace);
-   XrdCryptoSetTrace(trace);
+   XrdSutSetTrace(traceSut);
+   XrdCryptoSetTrace(traceCrypto);
+   
+   // Name hashing algorithm compatibility
+   if (opt.hashcomp == 0) HashCompatibility = 0;
 
    //
    // Operation mode
@@ -1425,15 +1429,23 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       //
       // Add our issuer hash
       c = hs->PxyChain->Begin();
-      if (c->type == XrdCryptoX509::kCA)
+      if (c->type == XrdCryptoX509::kCA) {
         issuerHash = c->SubjectHash();
-      else
+        if (HashCompatibility && c->SubjectHash(1)) {
+           issuerHash += "|"; issuerHash += c->SubjectHash(1); }
+      } else {
         issuerHash = c->IssuerHash();
+        if (HashCompatibility && c->IssuerHash(1)) {
+           issuerHash += "|"; issuerHash += c->IssuerHash(1); }
+      }
       while ((c = hs->PxyChain->Next()) != 0) {
         if (c->type != XrdCryptoX509::kCA)
           break;
         issuerHash = c->SubjectHash();
+        if (HashCompatibility && c->SubjectHash(1)) {
+           issuerHash += "|"; issuerHash += c->SubjectHash(1); }
       }
+      
       DEBUG("Client issuer hash: " << issuerHash);
       if (bpar->AddBucket(issuerHash,kXRS_issuer_hash) != 0)
             return ErrC(ei,bpar,bmai,0, kGSErrCreateBucket,
@@ -2161,6 +2173,8 @@ void gsiOptions::Print(XrdOucTrace *t)
       POPTS(t, " Client proxy availability in XrdSecEntity.endorsement: "<< authzpxy);
       POPTS(t, " VOMS option: "<< vomsat);
       POPTS(t, " MonInfo option: "<< moninfo);
+      if (!hashcomp)
+         POPTS(t, " Name hashing algorithm compatibility OFF");
    }
    // Crypto options
    POPTS(t, " Crypto modules: "<< (clist ? clist : XrdSecProtocolgsi::DefCrypto));
@@ -2240,6 +2254,8 @@ char *XrdSecProtocolgsiInit(const char mode,
       //                                     explicitely denied by these, or it is
       //                                     not in the form "*/<hostname>", the
       //                                     handshake fails.
+      //             "XrdSecGSIUSEDEFAULTHASH" If this variable is set only the default
+      //                                     name hashing algorithm is used
 
       //
       opts.mode = mode;
@@ -2333,6 +2349,11 @@ char *XrdSecProtocolgsiInit(const char mode,
       if (cenv)
          opts.srvnames = strdup(cenv);
 
+      // Name hashing algorithm
+      cenv = getenv("XrdSecGSIUSEDEFAULTHASH");
+      if (cenv)
+         opts.hashcomp = 0;
+
       //
       // Setup the object with the chosen options
       rc = XrdSecProtocolgsi::Init(opts,erp);
@@ -2395,6 +2416,10 @@ char *XrdSecProtocolgsiInit(const char mode,
       //              [-dlgpxy:<proxy_req_option>]
       //              [-exppxy:<filetemplate>]
       //              [-authzpxy]
+      //              [-vomsat:<voms_option>]
+      //              [-vomsfun:<voms_function>]
+      //              [-vomsfunparms:<voms_function_init_parameters>]
+      //              [-defaulthash]
       //
       int debug = -1;
       String clist = "";
@@ -2421,6 +2446,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int authzpxy = 0;
       int vomsat = 1;
       int moninfo = 0;
+      int hashcomp = 1;
       char *op = 0;
       while (inParms.GetLine()) { 
          while ((op = inParms.GetToken())) {
@@ -2478,6 +2504,8 @@ char *XrdSecProtocolgsiInit(const char mode,
                moninfo = 1;
             } else if (!strncmp(op, "-moninfo:",9)) {
                moninfo = atoi(op+9);
+            } else if (!strcmp(op, "-defaulthash")) {
+               hashcomp = 0;
             } else {
                PRINT("ignoring unknown switch: "<<op);
             }
@@ -2498,6 +2526,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       opts.authzpxy = authzpxy;
       opts.vomsat = vomsat;
       opts.moninfo = moninfo;
+      opts.hashcomp = hashcomp;
       if (clist.length() > 0)
          opts.clist = (char *)clist.c_str();
       if (certdir.length() > 0)
@@ -3772,7 +3801,7 @@ bool XrdSecProtocolgsi::CheckRtag(XrdSutBuffer *bm, String &emsg)
 }
 
 //______________________________________________________________________________
-XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
+XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *subjhash,
                                              XrdCryptoFactory *CF, int dwld)
 {
    // Scan crldir for a valid CRL certificate associated to CA whose
@@ -3791,7 +3820,10 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
    }
 
    // Get the CA hash
-   String cahash = xca->SubjectHash();
+//   String cahash = xca->SubjectHash();
+   String cahash(subjhash);
+   int hashalg = 0;
+   if (strcmp(subjhash, xca->SubjectHash())) hashalg = 1;
    // Drop the extension (".0")
    String caroot(cahash, 0, cahash.find(".0")-1);
 
@@ -3810,15 +3842,16 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
       // Try to init a crl
       if ((crl = CF->X509Crl(crlfile.c_str()))) {
          // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash();
+         String casigfile = crldir + crl->IssuerHash(hashalg);
          DEBUG("CA signing certificate file = "<<casigfile);
          // Try to get signing certificate
          if (!(xcasig = CF->X509(casigfile.c_str()))) {
             if (CRLCheck >= 2) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+                     ") could not be loaded - exit");
                SafeDelete(crl);
             } else {
-               DEBUG("CA certificate to verify the signature could not be loaded - verification  skipped");
+               DEBUG("CA certificate to verify the signature could not be loaded - verification skipped");
             }
             // We are done anyhow
             return crl;
@@ -3851,11 +3884,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
    // Try to retrieve it from the URI in the CA certificate, if any
    if ((crl = CF->X509Crl(xca))) {
       // Signing certificate file
-      String casigfile = crldir + crl->IssuerHash();
+      String casigfile = crldir + crl->IssuerHash(hashalg);
       DEBUG("CA signing certificate file = "<<casigfile);
       // Try to get signing certificate
       if (!(xcasig = CF->X509(casigfile.c_str()))) {
-         PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+         PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+               ") could not be loaded - exit");
       } else {
          // Verify signature
          if (crl->Verify(xcasig)) {
@@ -3888,11 +3922,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
          if (line[strlen(line) - 1] == '\n') line[strlen(line) - 1] = 0;
          if ((crl = CF->X509Crl(line, 1))) {
             // Signing certificate file
-            String casigfile = crldir + crl->IssuerHash();
+            String casigfile = crldir + crl->IssuerHash(hashalg);
             DEBUG("CA signing certificate file = "<<casigfile);
             // Try to get signing certificate
             if (!(xcasig = CF->X509(casigfile.c_str()))) {
-               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+               PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+                     ") could not be loaded - exit");
             } else {
                // Verify signature
                if (crl->Verify(xcasig)) {
@@ -3935,11 +3970,12 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca,
          if (!crl) continue;
 
          // Signing certificate file
-         String casigfile = crldir + crl->IssuerHash();
+         String casigfile = crldir + crl->IssuerHash(hashalg);
          DEBUG("CA signing certificate file = "<<casigfile);
          // Try to get signing certificate
          if (!(xcasig = CF->X509(casigfile.c_str()))) {
-            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash()<<") could not be loaded - exit");
+            PRINT("CA certificate to verify the signature ("<<crl->IssuerHash(hashalg)<<
+                  ") could not be loaded - exit");
          } else {
             // Verify signature
             if (crl->Verify(xcasig)) {
@@ -4157,7 +4193,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
          if (verified) {
             // Get CRL, if required
             if (CRLCheck > 0)
-               crl = LoadCRL(chain->Begin(), cf, CRLDownload);
+               crl = LoadCRL(chain->Begin(), cahash, cf, CRLDownload);
             // Apply requirements
             if (CRLCheck < 2 || crl) {
                if (CRLCheck < 3 ||
@@ -4190,6 +4226,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
             if (hs) {
                hs->Chain = chain;
                hs->Crl = crl;
+               if (strcmp(cahash, chain->Begin()->SubjectHash())) hs->HashAlg = 1;
             }
          } else {
             return -2;
@@ -5181,9 +5218,15 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
          cent->buf3.len = 0;  // just a flag
          // Save CA hash in list to communicate to clients
          if (certcalist.find(xsrv->IssuerHash()) == STR_NPOS) {
-            if (certcalist.length() > 0)
-               certcalist += "|";
+            if (certcalist.length() > 0) certcalist += "|";
             certcalist += xsrv->IssuerHash();
+         }
+         // Save also old CA hash in list to communicate to clients, if relevant
+         if (HashCompatibility && xsrv->IssuerHash(1)) {
+            if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
+               if (certcalist.length() > 0) certcalist += "|";
+               certcalist += xsrv->IssuerHash(1);
+            }
          }
       }
    }

@@ -77,7 +77,7 @@ const char *XrdCryptoX509Crl::Issuer()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptoX509Crl::IssuerHash()
+const char *XrdCryptoX509Crl::IssuerHash(int)
 {
    // Return issuer name
    ABSTRACTMETHOD("XrdCryptoX509Crl::IssuerHash");

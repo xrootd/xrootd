@@ -53,7 +53,7 @@ public:
 
    // Issuer of top certificate
    const char *Issuer();
-   const char *IssuerHash();   // hash 
+   const char *IssuerHash(int);   // hash 
 
    // Chec certificate revocation
    bool IsRevoked(int serialnumber, int when = 0);
@@ -67,7 +67,8 @@ private:
    int          lastupdate; // time of last update
    int          nextupdate; // time of next update
    XrdOucString issuer;     // issuer name;
-   XrdOucString issuerhash; // hash of issuer name;
+   XrdOucString issuerhash; // hash of issuer name (default algorithm);
+   XrdOucString issueroldhash; // hash of issuer name (md5 algorithm);
    XrdOucString srcfile;    // source file name, if any;
    XrdOucString crluri;     // URI from where to get the CRL file, if any;
 
