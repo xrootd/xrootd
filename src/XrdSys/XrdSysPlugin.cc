@@ -321,7 +321,7 @@ void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
 //
    if (eDest)
       {char buff[2048];
-       i = 1; bL = sizeof(buff);
+       i = 1; bP = buff; bL = sizeof(buff);
        while(bL > 1 && eTxt[i])
             {n = snprintf(bP, bL, "%s ", eTxt[i]);
              bP += n; bL -= n; i++;
