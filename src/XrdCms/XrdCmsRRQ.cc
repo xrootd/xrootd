@@ -249,6 +249,7 @@ void *XrdCmsRRQ::Respond()
               }
            sendRedResp(sp);
           }
+       sp->Recycle();
       } while(1);
       } while(1);
 
@@ -265,7 +266,6 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 {
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
-   XrdCmsRRQSlot *mP;
    XrdCmsNode *nP;
    int bytes, n = 0;
 
@@ -300,8 +300,8 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
           {dataResp.Hdr.streamid = lP->Info.ID;
            nP->Send(data_iov, iov_cnt, bytes);
           }
-       mP = lP->LkUp; lP->Recycle(); luFast++;
-      } while((lP = mP));
+       luFast++;
+      } while((lP = lP->LkUp));
    RTable.UnLock();
 }
 
@@ -313,7 +313,6 @@ void XrdCmsRRQ::sendLwtResp(XrdCmsRRQSlot *rP)
 {
 // EPNAME("sendLwtResp");
    XrdCmsNode *nP;
-   XrdCmsRRQSlot *sP;
 
 // For each request, find the redirector and ask it to send a wait
 //
@@ -324,8 +323,7 @@ do{if ((nP = RTable.Find(rP->Info.Rnum, rP->Info.Rinst)))
 //     DEBUG("Redirect delay " <<nP->Name() <<' ' <<Tdelay);
       }
 //    else {DEBUG("redirector " <<Info->Rnum <<'.' <<Info->Rinst <<"not found");}
-   sP = rP->LkUp; rP->Recycle();
-  } while((rP = sP));
+  } while((rP = rP->LkUp));
    RTable.UnLock();
 }
   
@@ -338,7 +336,6 @@ void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
 // EPNAME("sendRedResp");
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsNode *nP;
-   XrdCmsRRQSlot *sP;
    int doredir, port, hlen;
 
 // Determine where the client should be redirected
@@ -365,8 +362,7 @@ do{if ((nP = RTable.Find(rP->Info.Rnum, rP->Info.Rinst)))
                    }
       } 
 //    else {DEBUG("redirector " <<Info->Rnum <<'.' <<Info->Rinst <<"not found");}
-   sP = rP->Cont; rP->Recycle();
-  } while((rP = sP));
+  } while((rP = rP->Cont));
    RTable.UnLock();
 }
 
@@ -455,16 +451,33 @@ XrdCmsRRQSlot *XrdCmsRRQSlot::Alloc(XrdCmsRRQInfo *theInfo)
   
 void XrdCmsRRQSlot::Recycle()
 {
-   XrdCmsRRQSlot *sp, *np = Cont;
+   XrdCmsRRQSlot *sp, *np;
 
    myMutex.Lock();
    if (!Link.Singleton()) Link.Remove();
+
+// Remove items in the lookup chain first
+//
+   np = LkUp;
+   while((sp = np))
+        {np           = sp->LkUp;
+         sp->Cont     = freeSlot;
+         freeSlot     = sp;
+         sp->Info.Key = 0;
+        }
+
+// Now remove items in the select chain
+//
+   np = Cont;
    while((sp = np))
         {np           = sp->Cont;
          sp->Cont     = freeSlot;
          freeSlot     = sp;
          sp->Info.Key = 0;
         }
+
+// Now put this item in the free chain
+//
    Info.Key = 0;
    Cont     = freeSlot;
    freeSlot = this;
