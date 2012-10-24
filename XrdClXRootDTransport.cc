@@ -1414,7 +1414,7 @@ namespace
   //----------------------------------------------------------------------------
   // Extract file name from a request
   //----------------------------------------------------------------------------
-  char *GetPath( XrdCl::Message *msg )
+  char *GetDataAsString( XrdCl::Message *msg )
   {
     ClientRequestHdr *req = (ClientRequestHdr*)msg->GetBuffer();
     char *fn = new char[req->dlen+1];
@@ -1442,7 +1442,7 @@ namespace XrdCl
       {
         ClientOpenRequest *sreq = (ClientOpenRequest *)msg->GetBuffer();
         o << "kXR_open (";
-        char *fn = GetPath( msg );
+        char *fn = GetDataAsString( msg );
         o << "file: " << fn << ", ";
         delete [] fn;
         o << "mode: 0" << std::setbase(8) << sreq->mode << ", ";
@@ -1502,7 +1502,7 @@ namespace XrdCl
         o << "kXR_stat (";
         if( sreq->dlen )
         {
-          char *fn = GetPath( msg );;
+          char *fn = GetDataAsString( msg );;
           o << "path: " << fn << ", ";
           delete [] fn;
         }
@@ -1576,7 +1576,7 @@ namespace XrdCl
           o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
         else
         {
-          char *fn = GetPath( msg );;
+          char *fn = GetDataAsString( msg );;
           o << "file: " << fn;
           delete [] fn;
         }
@@ -1617,7 +1617,7 @@ namespace XrdCl
       case kXR_locate:
       {
         ClientLocateRequest *sreq = (ClientLocateRequest *)msg->GetBuffer();
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "kXR_locate (";
         o << "path: " << fn << ", ";
         delete [] fn;
@@ -1639,7 +1639,7 @@ namespace XrdCl
       case kXR_mv:
       {
         ClientMvRequest *sreq = (ClientMvRequest *)msg->GetBuffer();
-        char *fn = GetPath( msg );
+        char *fn = GetDataAsString( msg );
         char *fn1 = 0;
         for( uint16_t i = 0; i < sreq->dlen; ++i )
         {
@@ -1690,7 +1690,7 @@ namespace XrdCl
       case kXR_rm:
       {
         o << "kXR_rm (";
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "path: " << fn << ")";
         delete [] fn;
         break;
@@ -1703,7 +1703,7 @@ namespace XrdCl
       {
         ClientMkdirRequest *sreq = (ClientMkdirRequest *)msg->GetBuffer();
         o << "kXR_mkdir (";
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "path: " << fn << ", ";
         delete [] fn;
         o << "mode: 0" << std::setbase(8) << sreq->mode << ", ";
@@ -1726,7 +1726,7 @@ namespace XrdCl
       case kXR_rmdir:
       {
         o << "kXR_rmdir (";
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "path: " << fn << ")";
         delete [] fn;
         break;
@@ -1739,7 +1739,7 @@ namespace XrdCl
       {
         ClientChmodRequest *sreq = (ClientChmodRequest *)msg->GetBuffer();
         o << "kXR_chmod (";
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "path: " << fn << ", ";
         delete [] fn;
         o << "mode: 0" << std::setbase(8) << sreq->mode << ")";
