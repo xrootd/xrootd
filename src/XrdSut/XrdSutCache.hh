@@ -23,6 +23,34 @@
 /*                                                                            */
 /******************************************************************************/
 
+class XrdSutCacheRef
+{
+public:
+
+inline void Lock(XrdSysMutex *Mutex)
+                {if (mtx) {if (mtx != Mutex) mtx->UnLock();
+                              else return;
+                          }
+                 Mutex->Lock();
+                 mtx = Mutex;
+                };
+
+inline void Set(XrdSysMutex *Mutex)
+               {if (mtx) {if (mtx != Mutex) mtx->UnLock();
+                             else return;
+                         }
+                mtx = Mutex;
+               };
+
+inline void UnLock() {if (mtx) {mtx->UnLock(); mtx = 0;}}
+
+            XrdSutCacheRef() : mtx(0) {}
+
+           ~XrdSutCacheRef() {if (mtx) UnLock();}
+protected:
+XrdSysMutex *mtx;
+};
+
 class XrdSutCache
 {
 private:
@@ -35,6 +63,12 @@ private:
    XrdOucHash<kXR_int32> hashtable; // Reflects the file index structure
    kXR_int32       htmtime;   // time at which hash table was last rebuild
    XrdOucString    pfile;   // file name (if loaded from file)
+
+   XrdSutPFEntry  *Get(const char *ID, bool *wild);
+   bool            Delete(XrdSutPFEntry *pfEnt);
+
+   static const int maxTries = 100; // Max time to try getting a lock
+   static const int retryMSW = 300; // Milliseconds to wait to get lock
 
 public:
    XrdSutCache() { cachemx = -1; cachesz = 0; cachent = 0; lifetime = 300;
@@ -57,8 +91,8 @@ public:
    // Cache management
    XrdSutPFEntry *Get(int i) const { return (i<=cachemx) ? cachent[i] :
                                                           (XrdSutPFEntry *)0; }
-   XrdSutPFEntry *Get(const char *ID, bool *wild = 0);
-   XrdSutPFEntry *Add(const char *ID, bool force = 0);
+   XrdSutPFEntry *Get(XrdSutCacheRef &urRef, const char *ID, bool *wild = 0);
+   XrdSutPFEntry *Add(XrdSutCacheRef &urRef, const char *ID, bool force = 0);
    bool           Remove(const char *ID, int opt = 1);
    int            Trim(int lifet = 0);
 

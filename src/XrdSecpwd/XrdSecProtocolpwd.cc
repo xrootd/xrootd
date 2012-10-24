@@ -344,6 +344,7 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
    // Static method to the configure the static part of the protocol
    // Called once by XrdSecProtocolpwdInit
    EPNAME("Init");
+   XrdSutCacheRef pfeRef;
    char *Parms = 0;
    //
    // Debug an tracing
@@ -531,14 +532,17 @@ char *XrdSecProtocolpwd::Init(pwdOptions opt, XrdOucErrInfo *erp)
                      return Parms;
                   }
                   if (QTRACE(Authen)) { cacheAdmin.Dump(); }
-                  XrdSutPFEntry *ent = cacheAdmin.Get("+++SrvID");
+                  XrdSutPFEntry *ent = cacheAdmin.Get(pfeRef, "+++SrvID");
                   if (ent)
-                     SrvID.insert(ent->buf1.buf, 0, ent->buf1.len);
-                  ent = cacheAdmin.Get("+++SrvEmail");
+                     {SrvID.insert(ent->buf1.buf, 0, ent->buf1.len);
+                      pfeRef.UnLock();
+                     }
+                  ent = cacheAdmin.Get(pfeRef, "+++SrvEmail");
                   if (ent)
                      SrvEmail.insert(ent->buf1.buf, 0, ent->buf1.len);
                   // Default error message
                   DefError += SrvEmail;
+                  pfeRef.UnLock();
                }
                DEBUG("server ID: "<<SrvID);
                DEBUG("contact e-mail: "<<SrvEmail);
@@ -2216,6 +2220,7 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    // Save credentials in creds in the password file
    // Returns 0 if ok, -1 otherwise
    EPNAME("SaveCreds");
+   XrdSutCacheRef pfeRef;
 
    // Check inputs
    if ((hs->User.length() <= 0) || !hs->CF || !creds) {
@@ -2227,7 +2232,7 @@ int XrdSecProtocolpwd::SaveCreds(XrdSutBucket *creds)
    String wTag = hs->Tag + '_'; wTag += hs->CF->ID();
    //
    // Update entry in cache, if there, or add one
-   XrdSutPFEntry *cent = cacheAdmin.Add(wTag.c_str());
+   XrdSutPFEntry *cent = cacheAdmin.Add(pfeRef, wTag.c_str());
    if (!cent) {
       PRINT("Could not get entry in cache");
       return -1;
@@ -2416,6 +2421,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
 {
    // Get credential information to be sent to the server
    EPNAME("QueryCreds");
+   XrdSutCacheRef pfeRef;
 
    // Check inputs
    if (!bm || !hs->CF || hs->Tag.length() <= 0) {
@@ -2465,7 +2471,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
             if (len > 0) {
                DEBUG("using "<<len<<" bytes of creds from the environment; pfx: "<<pfx);
                // Create or Fill entry in cache
-               hs->Pent = cacheAlog.Add(wTag.c_str());
+               hs->Pent = cacheAlog.Add(pfeRef, wTag.c_str());
                if (hs->Pent) {
                  // Try only once
                   if (hs->Pent->cnt == 0) {
@@ -2501,6 +2507,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
          }
       }
    }
+   pfeRef.UnLock(); // Unlock pointer if we got a lock on it!
 
    //
    // Extract AFS info (the cell), if any
@@ -2523,7 +2530,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
       //
       // We may already have an entry in the cache
       bool wild = 0;
-      hs->Pent = cacheAlog.Get(wTag.c_str(),&wild);
+      hs->Pent = cacheAlog.Get(pfeRef, wTag.c_str(),&wild);
       // Retrieve pwd information if ok 
       if (hs->Pent && hs->Pent->buf1.buf) {
          if (hs->Pent->cnt == 0) {
@@ -2556,13 +2563,14 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
             hs->Pent->buf1.SetBuf();
          }
       }
+      pfeRef.UnLock(); // In case we have the lock release it.
 
       // for crypt-like, look also into a .netrc-like file, if any
       String passwd;
       String host(hs->Tag,hs->Tag.find("@",0)+1,hs->Tag.find(":",0)-1);
       if (QueryNetRc(host, passwd, status) == 0) {
          // Create or Fill entry in cache
-         if ((hs->Pent = cacheAlog.Add(wTag.c_str()))) {
+         if ((hs->Pent = cacheAlog.Add(pfeRef, wTag.c_str()))) {
             // Fill entry
             hs->Pent->status = kPFE_crypt;
             hs->Pent->mtime = hs->TimeStamp;
@@ -2581,7 +2589,7 @@ XrdSutBucket *XrdSecProtocolpwd::QueryCreds(XrdSutBuffer *bm,
    }
    //
    // Create or Fill entry in cache
-   if (!(hs->Pent) && !(hs->Pent = cacheAlog.Add(wTag.c_str()))) {
+   if (!(hs->Pent) && !(hs->Pent = cacheAlog.Add(pfeRef, wTag.c_str()))) {
       PRINT("Could create new entry in cache");
       return (XrdSutBucket *)0;
    }
@@ -2788,6 +2796,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
 {
    // Check that info about the defined user is available
    EPNAME("QueryUser");
+   XrdSutCacheRef pfeRef;
 
    DEBUG("Enter: " << hs->User);
 
@@ -2834,9 +2843,9 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
       if (rcst == 0) {
          //
          // Check cache first
-         hs->Pent = cacheUser.Get(wTag.c_str());
+         hs->Pent = cacheUser.Get(pfeRef, wTag.c_str());
          if (!hs->Pent || (hs->Pent->mtime < mtime)) {
-            hs->Pent = (hs->Pent) ? hs->Pent : cacheUser.Add(wTag.c_str());
+            if (!(hs->Pent)) hs->Pent = cacheUser.Add(pfeRef, wTag.c_str());
             if (hs->Pent) {
                //
                // Try the files
@@ -2890,7 +2899,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
          bad = 0;
          status = kPFE_crypt;
          // Fill entry
-         hs->Pent = cacheUser.Add(wTag.c_str());
+         hs->Pent = cacheUser.Add(pfeRef, wTag.c_str());
          hs->Pent->mtime = hs->TimeStamp;
          hs->Pent->status = status;
          hs->Pent->cnt = 0;
@@ -2913,7 +2922,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
             return -1;
          }
       }
-      hs->Pent = cacheAdmin.Get(wTag.c_str());
+      hs->Pent = cacheAdmin.Get(pfeRef, wTag.c_str());
       // Retrieve pwd information
       if (hs->Pent) {
          bad = 0;
@@ -2941,6 +2950,7 @@ int XrdSecProtocolpwd::QueryUser(int &status, String &cmsg)
                return 0;
          }
       }
+   pfeRef.UnLock(); // Unlock hs->Pent if we ever got a lock on it!
    }
 
    //
@@ -3144,6 +3154,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
    // cipher and server public keys, if there
    // Result used to fill the handshake local variables
    EPNAME("ParseClientInput");
+   XrdSutCacheRef pfeRef;
 
    // Space for pointer to main buffer must be already allocated
    if (!br || !bm) {
@@ -3232,7 +3243,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
       if (ptag) {
          sprintf(ptag,"%s:%s_%d",host.c_str(),srvid.c_str(),hs->CF->ID());
          bool wild = 0;
-         XrdSutPFEntry *ent = cacheSrvPuk.Get((const char *)ptag, &wild);
+         XrdSutPFEntry *ent = cacheSrvPuk.Get(pfeRef, (const char *)ptag, &wild);
          if (ent) {
             // Initialize cipher
             SafeDelete(hs->Hcip);
@@ -3244,6 +3255,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
             } else {
                DEBUG("hsHcip: 0x"<<hs->Hcip->AsHexString());
             }
+            pfeRef.UnLock();
          } else {
             // Autoreg is the only alternative at this point ...
             emsg = "server puk not found in cache - tag: ";
@@ -3320,7 +3332,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
          ptag += '_';
          ptag += cid;
          // Update or create new entry
-         XrdSutPFEntry *ent = cacheSrvPuk.Add(ptag.c_str());
+         XrdSutPFEntry *ent = cacheSrvPuk.Add(pfeRef, ptag.c_str());
          if (ent) {
             // Set buffer
             ent->buf1.SetBuf((bp->buffer)+5,(bp->size)-5);
@@ -3337,6 +3349,7 @@ int XrdSecProtocolpwd::ParseClientInput(XrdSutBuffer *br, XrdSutBuffer **bm,
                   DEBUG("hsHcip: 0x"<<hs->Hcip->AsHexString());
                }
             }
+         pfeRef.UnLock();
         } else {
             // Autoreg is the only alternative at this point ...
             PRINT("could not create entry in cache - tag: "<<ptag);

@@ -403,7 +403,9 @@ private:
    static String  GetCApath(const char *cahash);
    static bool    VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *cf);
    bool           ServerCertNameOK(const char *subject, String &e);
-   static XrdSutPFEntry *GetSrvCertEnt(XrdCryptoFactory *cf, time_t timestamp, String &cal);
+   static XrdSutPFEntry *GetSrvCertEnt(XrdSutCacheRef   &pfeRef,
+                                       XrdCryptoFactory *cf,
+                                       time_t timestamp, String &cal);
 
    // Load CRLs
    static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
