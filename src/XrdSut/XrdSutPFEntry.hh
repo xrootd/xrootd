@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include "XProtocol/XProtocol.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                                                                            */
@@ -84,6 +85,7 @@ public:
    XrdSutPFBuf  buf2;
    XrdSutPFBuf  buf3;
    XrdSutPFBuf  buf4;
+   XrdSysMutex  pfeMutex;      // Locked when reference is outstanding
    XrdSutPFEntry(const char *n = 0, short st = 0, short cn = 0,
                  kXR_int32 mt = 0);
    XrdSutPFEntry(const XrdSutPFEntry &e);

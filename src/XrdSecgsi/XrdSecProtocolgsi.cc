@@ -652,13 +652,16 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
       int i = 0;
       String certcalist = "";   // list of CA for server certificates
+      XrdSutCacheRef pfeRef;
       for (; i<ncrypt; i++) {
-         if (!GetSrvCertEnt(cryptF[i], time(0), certcalist)) {
+         if (!GetSrvCertEnt(pfeRef, cryptF[i], time(0), certcalist)) {
             PRINT("problems loading srv cert");
+            pfeRef.UnLock();
             continue;
          }
       }
       // Rehash cache
+      pfeRef.UnLock();
       cacheCert.Rehash(1);
       //
       // We must have got at least one valid certificate
@@ -1626,6 +1629,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check if we have any credentials or if no credentials really needed.
    // In either case, use host name as client name
    EPNAME("Authenticate");
+   XrdSutCacheRef pfeRef;
 
    //
    // If cred buffer is two small or empty assume host protocol
@@ -1889,7 +1893,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          const char *dn = (const char *)key;
          time_t now = hs->TimeStamp;
          // We may have it in the cache
-         XrdSutPFEntry *cent = cacheAuthzFun.Get(dn);
+         XrdSutPFEntry *cent = cacheAuthzFun.Get(pfeRef, dn);
          // Check expiration, if required
          if (cent) {
             bool expired = 0;
@@ -1901,6 +1905,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                FreeEntity((XrdSecEntity *) cent->buf1.buf);
                SafeDelete(cent->buf1.buf);
                SafeDelete(cent->buf2.buf);
+               cent->status = kPFE_disabled; // Prevent use after unlock!
+               pfeRef.UnLock();              // Discarding cent!
                cacheAuthzFun.Remove(dn);
                cent = 0;
             }
@@ -1914,7 +1920,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                SafeDelete(key);
                break;
             } else {
-               if ((cent = cacheAuthzFun.Add(dn))) {
+               if ((cent = cacheAuthzFun.Add(pfeRef, dn))) {
                   cent->status = kPFE_ok;
                   // Save a copy of the relevant Entity fields
                   XrdSecEntity *se = new XrdSecEntity();
@@ -3302,6 +3308,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    // Server side: process a kXGC_certreq message.
    // Return 0 on success, -1 on error. If the case, a message is returned
    // in cmsg.
+   XrdSutCacheRef pfeRef;
    XrdSutBucket *bck = 0;
    XrdSutBucket *bckm = 0;
 
@@ -3350,7 +3357,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    // Find our certificate in cache
    String cadum;
-   XrdSutPFEntry *cent = GetSrvCertEnt(sessionCF, hs->TimeStamp, cadum);
+   XrdSutPFEntry *cent = GetSrvCertEnt(pfeRef, sessionCF, hs->TimeStamp, cadum);
    if (!cent) {
       cmsg = "cannot find certificate: corruption?";
       return -1;
@@ -4247,6 +4254,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    // If 'hs' is defined, store pointers to chain and crl into 'hs'. 
    // Return 0 if ok, -1 if not available, -2 if CRL not ok
    EPNAME("GetCA");
+   XrdSutCacheRef pfeRef;
 
    // We nust have got a CA hash
    if (!cahash || !cf) {
@@ -4265,7 +4273,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
          ", refresh fq:"<< CRLRefresh <<")");
 
    // Try first the cache
-   XrdSutPFEntry *cent = cacheCA.Get(tag.c_str());
+   XrdSutPFEntry *cent = cacheCA.Get(pfeRef, tag.c_str());
 
    // If found, we are done
    if (cent) {
@@ -4286,6 +4294,10 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
          }
       }
    }
+
+   // This is the last time we use cent so release the lock and zero the ptr
+   //
+   if (cent) {cent = 0; pfeRef.UnLock();}
 
    // If not, prepare the file name
    String fnam = GetCApath(cahash);
@@ -4327,7 +4339,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
          //
          if (ok) {
             // Add to the cache
-            cent = cacheCA.Add(tag.c_str());
+            cent = cacheCA.Add(pfeRef, tag.c_str());
             if (cent) {
                cent->buf1.buf = (char *)(chain);
                cent->buf1.len = 0;      // Just a flag
@@ -4574,12 +4586,13 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 {
    // Query users proxies, initializing if needed
    EPNAME("QueryProxy");
+   XrdSutCacheRef pfeRef;
 
    bool hasproxy = 0;
    // We may already loaded valid proxies
    XrdSutPFEntry *cent = 0;
    if (checkcache) {
-      cent = cache->Get(tag);
+      cent = cache->Get(pfeRef, tag);
       if (cent && cent->buf1.buf) {
          //
          po->chain = (X509Chain *)(cent->buf1.buf);
@@ -4607,6 +4620,11 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          }
       }
    }
+
+   // This is the last use of cent so we should remove the lock prior to
+   // entry the proxy refresh loop if we have a valid pointer.
+   //
+   if (cent) {cent = 0; pfeRef.UnLock();}
 
    //
    // We do not have good proxies, try load (user may have initialized
@@ -4730,7 +4748,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       }
 
       // Get attach an entry in cache
-      if (!(cent = cache->Add(tag))) {
+      if (!(cent = cache->Add(pfeRef, tag))) {
          PRINT("could not create entry in cache");
          continue;
       }
@@ -4748,6 +4766,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       // The export bucket
       cent->buf3.buf = (char *)(po->cbck);
       cent->buf3.len = 0;      // Just a flag
+      pfeRef.UnLock();
 
       // Rehash cache
       cache->Rehash(1);
@@ -4775,6 +4794,7 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
    // access.
    // Returns 0 if successful, -1 if somethign went wrong
    EPNAME("LoadGMAP");
+   XrdSutCacheRef pfeRef;
 
    // We need a file to load
    if (GMAPFile.length() <= 0)
@@ -4840,7 +4860,7 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
       DEBUG("Found: udn: "<<udn<<", usr: "<<usr);
 
       // Ok: save it into the cache
-      XrdSutPFEntry *cent = cacheGMAP.Add(udn.c_str());
+      XrdSutPFEntry *cent = cacheGMAP.Add(pfeRef, udn.c_str());
       if (cent) {
          cent->status = kPFE_ok;
          cent->cnt = 0;
@@ -4875,6 +4895,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    // On return, an empty string in 'usrs' indicates failure.
    // Note that 'usrs' can be a comma-separated list of usernames. 
    EPNAME("QueryGMAP");
+   XrdSutCacheRef pfeRef;
 
    // List of user names attached to the entity
    usrs = "";
@@ -4892,18 +4913,19 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
    XrdOucString s;
    if (GMAPFun) {
       // We may have it in the cache
-      cent = cacheGMAPFun.Get(dn);
+      cent = cacheGMAPFun.Get(pfeRef, dn);
       // Check expiration, if required
       if (GMAPCacheTimeOut > 0 &&
          (cent && (now - cent->mtime) > GMAPCacheTimeOut)) {
          // Invalidate the entry
+         pfeRef.UnLock();
          cacheGMAPFun.Remove(dn);
          cent = 0;
       }
       // Run the search via the external function
       if (!cent) {
          char *name = (*GMAPFun)(dn, now);
-         if ((cent = cacheGMAPFun.Add(dn))) {
+         if ((cent = cacheGMAPFun.Add(pfeRef, dn))) {
             if (name) {
                cent->status = kPFE_ok;
                // Add username
@@ -4923,7 +4945,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
       }
       // This means that the previous search did not return success
       if (cent && (cent->status != kPFE_ok))
-         cent = 0;
+         {cent = 0; pfeRef.UnLock();}
    }
 
    // Save the result, if any
@@ -4936,8 +4958,10 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
       return;
    }
 
-   // Lookup for 'dn' in the cache
-   cent = cacheGMAP.Get(dn);
+   // Lookup for 'dn' in the cache. We are reusing the cent pointer so unlock
+   // any previous reference via cent.
+   pfeRef.UnLock();
+   cent = cacheGMAP.Get(pfeRef, dn);
 
    // Add / Save the result, if any
    if (cent) {
@@ -5300,7 +5324,8 @@ bool XrdSecProtocolgsi::ServerCertNameOK(const char *subject, XrdOucString &emsg
 }
 
 //_____________________________________________________________________________
-XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
+XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
+                                                XrdCryptoFactory  *cf,
                                                 time_t timestamp, String &certcalist)
 {
    // Get cache entry for server certificate. This function checks the cache
@@ -5313,9 +5338,11 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       return (XrdSutPFEntry *)0;
    }
 
-   XrdSutPFEntry *cent = cacheCert.Get(cf->Name());
+   XrdSutPFEntry *cent = cacheCert.Get(pfeRef, cf->Name());
 
-   // If there is already one valid, we are done
+   // If there is already one valid, we are done. Note that the caller has
+   // lock ownership of the pointer should it be returned.
+   //
    if (cent && cent->mtime >= timestamp) return cent;
 
    if (cent) PRINT("entry has expired: trying to renew ...");
@@ -5331,6 +5358,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       ProxyOut_t po = {ch, k, b };
       if (QueryProxy(0, &cacheCert, cf->Name(), cf, timestamp, &pi, &po) != 0) {
          PRINT("proxy expired and cannot be renewed");
+         pfeRef.UnLock();
          return (XrdSutPFEntry *)0;
       }
    }
@@ -5341,6 +5369,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       cent->buf2.buf = 0;
       SafeDelete(cent->buf3.buf);
       cent->Reset();
+      pfeRef.UnLock(); // Note we throw away the pointer just below!
    }
    cent = 0;
 
@@ -5411,7 +5440,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdCryptoFactory *cf,
       }
       // Ok: save it into the cache
       String tag = cf->Name();
-      cent = cacheCert.Add(tag.c_str());
+      cent = cacheCert.Add(pfeRef, tag.c_str());
       if (cent) {
          cent->status = kPFE_ok;
          cent->cnt = 0;
