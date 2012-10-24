@@ -65,7 +65,7 @@ public:
    const char *Subject();  // get subject name
 
    // Relevant hashes
-   const char *SubjectHash();  // get hash of subject name
+   const char *SubjectHash(int);  // get hash of subject name
 
    // Retrieve a given extension if there (in opaque form)
    XrdCryptoX509Reqdata GetExtension(const char *oid);
@@ -76,7 +76,8 @@ public:
 private:
    X509_REQ    *creq;       // The certificate request object
    XrdOucString subject;    // subject;
-   XrdOucString subjecthash; // hash of subject;
+   XrdOucString subjecthash; // hash of subject (default algorithm);
+   XrdOucString subjectoldhash; // hash of subject (md5 algorithm);
    XrdSutBucket *bucket;    // Bucket for export operations
    XrdCryptoRSA *pki;       // PKI of the certificate
 };

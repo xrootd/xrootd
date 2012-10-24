@@ -190,7 +190,7 @@ public:
    char  *vomsfun;// [s] file with the function to fill VOMS [0]
    char  *vomsfunparms;// [s] parameters for the function to fill VOMS [0]
    int    moninfo; // [s] 0 do not look for; 1 use DN as default
-   int    sslhash; // [cs] 1 use current hashing algorithm; 0 use the old one [1]
+   int    hashcomp; // [cs] 1 send hash names with both algorithms; 0 send only the default [1]
 
    gsiOptions() { debug = -1; mode = 's'; clist = 0; 
                   certdir = 0; crldir = 0; crlext = 0; cert = 0; key = 0;
@@ -200,7 +200,7 @@ public:
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
-                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; sslhash = 1; }
+                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; }
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -224,13 +224,14 @@ public:
    bool              Tty;           // Terminal attached / not attached
    int               LastStep;      // Step required at previous iteration
    int               Options;       // Handshake options;
+   int               HashAlg;       // Hash algorithm of peer hash name;
    XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
 
    gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
                  RemVers = -1; Rcip = 0;
                  Cbck = 0;
                  ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
-                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; Parms = 0;}
+                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; HashAlg = 0; Parms = 0;}
 
    ~gsiHSVars() { SafeDelete(Cref);
                   if (Options & kOptsDelChn) {
@@ -348,7 +349,8 @@ private:
    static XrdSysPlugin    *VOMSPlugin;
    static XrdSecgsiVOMS_t  VOMSFun;
    static int              VOMSCertFmt; 
-   static int              MonInfoOpt; 
+   static int              MonInfoOpt;
+   static bool             HashCompatibility;
    //
    // Crypto related info
    static int              ncrypt;                  // Number of factories
@@ -427,7 +429,7 @@ private:
    static XrdSutPFEntry *GetSrvCertEnt(XrdCryptoFactory *cf, time_t timestamp, String &cal);
 
    // Load CRLs
-   static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca,
+   static XrdCryptoX509Crl *LoadCRL(XrdCryptoX509 *xca, const char *sjhash,
                                     XrdCryptoFactory *CF, int dwld);
 
    // Updating proxies

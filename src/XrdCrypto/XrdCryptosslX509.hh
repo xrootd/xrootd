@@ -83,8 +83,8 @@ public:
    const char *Issuer();   // get issuer name
 
    // Relevant hashes
-   const char *SubjectHash();  // get hash of subject name
-   const char *IssuerHash();   // get hash of issuer name 
+   const char *SubjectHash(int = 0);  // get hash of subject name
+   const char *IssuerHash(int = 0);   // get hash of issuer name 
 
    // Retrieve a given extension if there (in opaque form)
    XrdCryptoX509data GetExtension(const char *oid);
@@ -98,8 +98,10 @@ private:
    int          notafter;   // end-validity time in secs since Epoch
    XrdOucString subject;    // subject;
    XrdOucString issuer;     // issuer name;
-   XrdOucString subjecthash; // hash of subject;
-   XrdOucString issuerhash;  // hash of issuer name;
+   XrdOucString subjecthash; // Default hash of subject;
+   XrdOucString issuerhash;  // Default hash of issuer name;
+   XrdOucString subjectoldhash; // Old (md5) hash of subject if v >= 1.0.0;
+   XrdOucString issueroldhash;  // Old (md5) hash of issuer name if v >= 1.0.0;
    XrdOucString srcfile;    // source file name, if any;
    XrdSutBucket *bucket;    // Bucket for export operations
    XrdCryptoRSA *pki;       // PKI of the certificate

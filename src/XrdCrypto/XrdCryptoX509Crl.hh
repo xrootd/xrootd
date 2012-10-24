@@ -69,7 +69,8 @@ public:
 
    // Issuer of top certificate
    virtual const char *Issuer();
-   virtual const char *IssuerHash();   // hash 
+   virtual const char *IssuerHash(int);   // hash 
+   const char *IssuerHash() { return IssuerHash(0); }   // hash 
 
    // Chec certificate revocation
    virtual bool IsRevoked(int serialnumber, int when);

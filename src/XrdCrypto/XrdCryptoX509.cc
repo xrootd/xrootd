@@ -71,9 +71,9 @@ void XrdCryptoX509::Dump()
    PRINT("+ Type: "<<Type());
    PRINT("+ Serial Number: "<<SerialNumber());
    PRINT("+ Subject: "<<Subject());
-   PRINT("+ Subject hash: "<<SubjectHash());
+   PRINT("+ Subject hash: "<<SubjectHash(0));
    PRINT("+ Issuer:  "<<Issuer());
-   PRINT("+ Issuer hash:  "<<IssuerHash());
+   PRINT("+ Issuer hash:  "<<IssuerHash(0));
    PRINT("+");
    if (IsExpired()) {
       PRINT("+ Validity: (expired!)");
@@ -166,7 +166,7 @@ const char *XrdCryptoX509::Issuer()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptoX509::SubjectHash()
+const char *XrdCryptoX509::SubjectHash(int)
 {
    // Return subject name
    ABSTRACTMETHOD("XrdCryptoX509::SubjectHash");
@@ -174,7 +174,7 @@ const char *XrdCryptoX509::SubjectHash()
 }
 
 //_____________________________________________________________________________
-const char *XrdCryptoX509::IssuerHash()
+const char *XrdCryptoX509::IssuerHash(int)
 {
    // Return issuer name
    ABSTRACTMETHOD("XrdCryptoX509::IssuerHash");
