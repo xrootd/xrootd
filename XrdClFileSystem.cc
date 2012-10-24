@@ -912,6 +912,45 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Send info to the server - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendInfo( const std::string &info,
+                                     ResponseHandler   *handler,
+                                     uint16_t           timeout )
+  {
+    Message          *msg;
+    ClientSetRequest *req;
+    const char *prefix    = "monitor info ";
+    size_t      prefixLen = strlen( prefix );
+    MessageUtils::CreateRequest( msg, req, info.length()+prefixLen );
+
+    req->requestid  = kXR_set;
+    req->dlen       = info.length()+prefixLen;
+    msg->Append( prefix, prefixLen, 24 );
+    msg->Append( info.c_str(), info.length(), 24+prefixLen );
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return Send( msg, handler, params );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Send info to the server - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendInfo( const std::string  &info,
+                                     Buffer            *&response,
+                                     uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = SendInfo( info, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Assign a loadbalancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )

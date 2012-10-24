@@ -559,6 +559,34 @@ namespace XrdCl
                             DirectoryList    *&response,
                             uint16_t           timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Send info to the server (up to 1024 characters)- async
+      //!
+      //! @param info      the info string to be sent
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successfull
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SendInfo( const std::string &info,
+                             ResponseHandler   *handler,
+                             uint16_t           timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Send info to the server (up to 1024 characters) - sync
+      //!
+      //! @param info      the info string to be sent
+      //! @param response  the response (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus SendInfo( const std::string  &info,
+                             Buffer            *&response,
+                             uint16_t            timeout = 0 );
+
     private:
 
       //------------------------------------------------------------------------

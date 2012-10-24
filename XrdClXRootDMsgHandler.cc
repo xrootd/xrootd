@@ -744,6 +744,7 @@ namespace XrdCl
       // kXR_query
       //------------------------------------------------------------------------
       case kXR_query:
+      case kXR_set:
       default:
       {
         AnyObject *obj = new AnyObject();

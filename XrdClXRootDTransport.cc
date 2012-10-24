@@ -1772,12 +1772,23 @@ namespace XrdCl
       case kXR_dirlist:
       {
         o << "kXR_dirlist (";
-        char *fn = GetPath( msg );;
+        char *fn = GetDataAsString( msg );;
         o << "path: " << fn << ")";
         delete [] fn;
         break;
       }
 
+      //------------------------------------------------------------------------
+      // kXR_set
+      //------------------------------------------------------------------------
+      case kXR_set:
+      {
+        o << "kXR_set (";
+        char *fn = GetDataAsString( msg );;
+        o << "data: " << fn << ")";
+        delete [] fn;
+        break;
+      }
     };
     msg->SetDescription( o.str() );
   }
