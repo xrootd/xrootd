@@ -46,6 +46,7 @@ class FileSystemTest: public CppUnit::TestCase
       CPPUNIT_TEST( ProtocolTest );
       CPPUNIT_TEST( DeepLocateTest );
       CPPUNIT_TEST( DirListTest );
+      CPPUNIT_TEST( SendInfoTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -59,6 +60,7 @@ class FileSystemTest: public CppUnit::TestCase
     void ProtocolTest();
     void DeepLocateTest();
     void DirListTest();
+    void SendInfoTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemTest );
@@ -423,4 +425,33 @@ void FileSystemTest::DirListTest()
   CPPUNIT_ASSERT( list->GetSize() == 40000 );
 
   delete list;
+}
+
+
+//------------------------------------------------------------------------------
+// Set
+//------------------------------------------------------------------------------
+void FileSystemTest::SendInfoTest()
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Get the environment variables
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string address;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "MainServerURL", address ) );
+  URL url( address );
+  CPPUNIT_ASSERT( url.IsValid() );
+
+  FileSystem fs( url );
+
+  Buffer *id = 0;
+  CPPUNIT_ASSERT_XRDST( fs.SendInfo( "test stuff", id ) );
+  CPPUNIT_ASSERT( id );
+  CPPUNIT_ASSERT( id->GetSize() == 4 );
+  delete id;
 }
