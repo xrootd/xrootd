@@ -61,7 +61,7 @@ void remFD(XrdLink *lp, unsigned int events);
    static const int ePollOneShot = 0;
 #endif
    static const int ePollEvents = EPOLLIN  | EPOLLHUP | EPOLLPRI | EPOLLERR |
-                                  ePollOneShot;
+                                  EPOLLRDHUP | ePollOneShot;
 
 struct epoll_event *PollTab;
        int          PollDfd;
