@@ -32,6 +32,10 @@
 #include <sys/epoll.h>
 
 #include "Xrd/XrdPoll.hh"
+
+#ifndef EPOLLRDHUP
+#define EPOLLRDHUP 0
+#endif
   
 class XrdPollE : public XrdPoll
 {
