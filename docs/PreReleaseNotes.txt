@@ -74,6 +74,8 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Add EPOLLRDHUP to avoid leaving sockets in CLOSE_WAIT with a one-shot
+     poll framework.
    * Actually support 4 different redirect destinations.
    * Make sure to return a usable path string via XrdOucCacheIO::Path().
    * Make sure to use a supplied cache even when no cache directives given.
