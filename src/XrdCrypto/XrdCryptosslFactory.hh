@@ -38,6 +38,9 @@ public:
 
    // Set trace flags
    void SetTrace(kXR_int32 trace);
+   
+   // Any possible notification
+   void Notify();
 
    // Hook to Key Derivation Function (PBKDF2)
    XrdCryptoKDFunLen_t KDFunLen(); // Default Length of buffer

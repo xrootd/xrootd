@@ -118,6 +118,18 @@ XrdCryptosslFactory::XrdCryptosslFactory() :
 }
 
 //______________________________________________________________________________
+void XrdCryptosslFactory::Notify()
+{
+   // Notify what relevant about us
+   EPNAME("sslFactory::Notify");
+   if (XrdCryptosslSkipKeyCheck) {
+      PRINT(" ++++++++++++++++ ssl crypto factory ++++++++++++++++++++++++++++++++++++ ");
+      PRINT(" + WARNING: RSA key check skipped because broken (openSSL vers 1.0.0x)  +"); 
+      PRINT(" ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ");
+   } 
+}
+
+//______________________________________________________________________________
 void XrdCryptosslFactory::SetTrace(kXR_int32 trace)
 {
    // Set trace flags according to 'trace'

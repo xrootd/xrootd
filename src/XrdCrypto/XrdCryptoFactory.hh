@@ -84,6 +84,9 @@ public:
 
    // Get the right factory
    static XrdCryptoFactory *GetCryptoFactory(const char *factoryname);
+   
+   // Any possible notification
+   virtual void Notify() { }
 
    // Hook to a Key Derivation Function (PBKDF2 when possible)
    virtual XrdCryptoKDFunLen_t KDFunLen(); // Length of buffer
