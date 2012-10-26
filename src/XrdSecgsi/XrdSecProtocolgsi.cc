@@ -539,6 +539,7 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
                   cryptID[ncrypt] = cf->ID();
                   cryptName[ncrypt].insert(cf->Name(),0,strlen(cf->Name())+1);
                   cf->SetTrace(trace);
+                  cf->Notify();
                   // Ref cipher
                   if (!(refcip[ncrypt] = cf->Cipher(0,0,0))) {
                      PRINT("ref cipher for module "<<ncpt<<
@@ -1580,8 +1581,6 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
    // Serialize and encrypt
    if (AddSerialized('c', nextstep, hs->ID,
                      bpar, bmai, kXRS_main, sessionKey) != 0) {
-      // Remove to avoid destruction
-      bmai->Remove(hs->Cbck);
       return ErrC(ei,bpar,bmai,0,
                   kGSErrSerialBuffer,"main",stepstr);
    }
@@ -1597,9 +1596,6 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       msg.replace(ClientStepStr(bpar->GetStep()), "main");
       bmai->Dump(msg.c_str());
    }
-   //
-   // Remove to avoid destruction
-   bmai->Remove(hs->Cbck);
    //
    // We may release the buffers now
    REL2(bpar,bmai);
@@ -2023,8 +2019,6 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       // Serialize, encrypt and add to the global list
       if (AddSerialized('s', nextstep, hs->ID,
                         bpar, bmai, kXRS_main, sessionKey) != 0) {
-         // Remove to avoid destruction
-         bpar->Remove(hs->Cbck);
          return ErrS(hs->ID,ei,bpar,bmai,0, kGSErrSerialBuffer,
                      "main / session cipher",stepstr);
       }
@@ -2044,14 +2038,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       //
       // Create buffer for client
       *parms = new XrdSecParameters(bser,nser);
-      //
-      // Remove to avoid destruction
-      bpar->Remove(hs->Cbck);
 
    } else {
-      //
-      // Remove to avoid destruction
-      bpar->Remove(hs->Cbck);
       //
       // Cleanup handshake vars
       SafeDelete(hs);
@@ -2966,7 +2954,7 @@ int XrdSecProtocolgsi::ClientDoInit(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    // Save the result
    hs->PxyChain = po.chain;
-   hs->Cbck = po.cbck;
+   hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(po.cbck)));
    if (!(sessionKsig = sessionCF->RSA(*(po.ksig)))) {
       emsg = "could not get a copy of the signing key:";
       hs->Chain = 0;
@@ -3365,7 +3353,7 @@ int XrdSecProtocolgsi::ServerDoCertreq(XrdSutBuffer *br, XrdSutBuffer **bm,
 
    // Fill some relevant handshake variables
    sessionKsig = sessionCF->RSA(*((XrdCryptoRSA *)(cent->buf2.buf)));
-   hs->Cbck = (XrdSutBucket *)(cent->buf3.buf);
+   hs->Cbck = new XrdSutBucket(*((XrdSutBucket *)(cent->buf3.buf)));
 
    // Create a handshake cache 
    if (!(hs->Cref = new XrdSutPFEntry(hs->ID.c_str()))) {
@@ -4549,6 +4537,7 @@ int XrdSecProtocolgsi::ParseCrypto(String clist)
          if ((sessionCF = 
               XrdCryptoFactory::GetCryptoFactory(hs->CryptoMod.c_str()))) {
             sessionCF->SetTrace(GSITrace->What);
+            if (QTRACE(Debug)) sessionCF->Notify();
             int fid = sessionCF->ID();
             int i = 0;
             // Retrieve the index in local table
@@ -4672,15 +4661,15 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          char *cbuf = getenv("XrdSecCREDS");
          if (cbuf) {
             // Import into a bucket
-            po->cbck = new XrdSutBucket(0, 0, kXRS_x509);
+            XrdSutBucket xbck(0, 0, kXRS_x509);
             // Fill bucket
-            po->cbck->SetBuf(cbuf, strlen(cbuf));
+            xbck.SetBuf(cbuf, strlen(cbuf));
             // Parse the bucket
             if (!(ParseBucket = cf->X509ParseBucket())) {
                PRINT("cannot attach to ParseBucket function!");
                continue;
             }
-            int nci = (*ParseBucket)(po->cbck, po->chain);
+            int nci = (*ParseBucket)(&xbck, po->chain);
             if (nci < 2) {
                NOTIFY("proxy bucket must have at least two certificates"
                      " (found: "<<nci<<")");
@@ -5365,11 +5354,13 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
 
    if (cent) {
       // Reset the entry
-      SafeDelete(cent->buf1.buf); // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+      delete (XrdCryptoX509 *) cent->buf1.buf; // Destroys also xsrv->PKI() pointed in cent->buf2.buf
+      delete (XrdSutBucket *) cent->buf3.buf;
+      cent->buf1.buf = 0;
       cent->buf2.buf = 0;
-      SafeDelete(cent->buf3.buf);
+      cent->buf3.buf = 0;
       cent->Reset();
-      pfeRef.UnLock(); // Note we throw away the pointer just below!
+      pfeRef.UnLock(); // Note we throw away the pointer just below!/
    }
    cent = 0;
 
@@ -5446,7 +5437,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
          cent->cnt = 0;
          cent->mtime = xsrv->NotAfter(); // expiration time
          // Save pointer to certificate (destroys also xsrv->PKI())
-         SafeDelete(cent->buf1.buf);
+         if (cent->buf1.buf) delete (XrdCryptoX509 *) cent->buf1.buf;
          cent->buf1.buf = (char *)xsrv;
          cent->buf1.len = 0;  // just a flag
          // Save pointer to key
@@ -5454,7 +5445,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
          cent->buf2.buf = (char *)(xsrv->PKI());
          cent->buf2.len = 0;  // just a flag
          // Save pointer to bucket
-         SafeDelete(cent->buf3.buf);
+         if (cent->buf3.buf) delete (XrdSutBucket *) cent->buf3.buf;
          cent->buf3.buf = (char *)(xbck);
          cent->buf3.len = 0;  // just a flag
          // Save CA hash in list to communicate to clients
@@ -5469,6 +5460,10 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
                certcalist += xsrv->IssuerHash(1);
             }
          }
+      } else {
+         // Cleanup
+         SafeDelete(xsrv);
+         SafeDelete(xbck);
       }
    }
    // Done
