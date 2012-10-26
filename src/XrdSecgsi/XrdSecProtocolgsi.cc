@@ -1938,6 +1938,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                   cent->cnt = 0;
                   cent->mtime = now; // creation time
                   // Rehash cache
+                  pfeRef.UnLock();   // cent can no longer be used
                   cacheAuthzFun.Rehash(1);
                   // Notify
                   DEBUG("Saved Entity to cacheAuthzFun ("<<slen<<" bytes)");
@@ -4368,6 +4369,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    }
 
    // Rehash cache
+   pfeRef.UnLock();  // Make sure pointer is not locked
    cacheCA.Rehash(1);
 
    // We are done
@@ -4769,6 +4771,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
       pfeRef.UnLock();
 
       // Rehash cache
+      pfeRef.UnLock();  // cent can no longer be used
       cache->Rehash(1);
 
       // Set the positive flag
@@ -4875,6 +4878,7 @@ int XrdSecProtocolgsi::LoadGMAP(int now)
    fclose(fm);
 
    // Rehash cache
+   pfeRef.UnLock();  // cent can no longer be used
    cacheGMAP.Rehash(1);
 
    // Save the time
@@ -4923,7 +4927,8 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
          cent = 0;
       }
       // Run the search via the external function
-      if (!cent) {
+      if (cent) {usrs=(const char *)(cent->buf1.buf); pfeRef.UnLock(); cent=0;}
+         else {
          char *name = (*GMAPFun)(dn, now);
          if ((cent = cacheGMAPFun.Add(pfeRef, dn))) {
             if (name) {
@@ -4932,6 +4937,7 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
                SafeDelArray(cent->buf1.buf);
                cent->buf1.buf = name;
                cent->buf1.len = strlen(name);
+               usrs = (const char *)name;
             } else {
                // We cache the resul to avoid repeating the search
                cent->status = kPFE_allowed;
@@ -4940,17 +4946,12 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
             cent->cnt = 0;
             cent->mtime = now; // creation time
             // Rehash cache
+            pfeRef.UnLock();   // cent can no longer be used
+            cent = 0;
             cacheGMAPFun.Rehash(1);
          }
       }
-      // This means that the previous search did not return success
-      if (cent && (cent->status != kPFE_ok))
-         {cent = 0; pfeRef.UnLock();}
    }
-
-   // Save the result, if any
-   if (cent)
-      usrs = (const char *)(cent->buf1.buf);
 
    // Try also the map file, if any
    if (LoadGMAP(now) != 0) {
