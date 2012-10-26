@@ -1783,7 +1783,7 @@ int XrdXrootdProtocol::do_ReadV()
    int i, k, rc, xframt, Quantum, Qleft, rdvamt, segcnt;
    int rvMon = Monitor.InOut();
    int ioMon = (rvMon > 1);
-   char *buffp;
+   char *buffp, vType = (ioMon ? XROOTD_MON_READU : XROOTD_MON_READV);
 
 // Compute number of elements in the read vector and make sure we have no
 // partial elements.
@@ -1848,7 +1848,7 @@ int XrdXrootdProtocol::do_ReadV()
         if (currFH.handle != lastFH.handle)
            {if (i && rvMon)
                {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
-                                                            htons(i-k), rvSeq);
+                                              htons(i-k), rvSeq, vType);
                 if (ioMon) for (; k < i; k++)
                     Monitor.Agent->Add_rd(myFile->Stats.FileID,rdVec[k].rlen,
                                                                rdVec[k].offset);
@@ -1885,7 +1885,7 @@ int XrdXrootdProtocol::do_ReadV()
    if (i >= rdVecNum)
       {if (i && rvMon)
           {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
-                                                       htons(i-k), rvSeq);
+                                         htons(i-k), rvSeq, vType);
            if (ioMon) for (; k < i; k++)
               Monitor.Agent->Add_rd(myFile->Stats.FileID, rdVec[k].rlen,
                                                           rdVec[k].offset);

@@ -5,6 +5,7 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Differentiate between packed and unpacked readv monitoring records.
    * Allow plugin libraries to be preloaded. This feature is only meant
      for MacOS.
    * Include optional site name in summary monitoring records.
@@ -38,6 +39,7 @@ Prerelease Notes
    * Add third party copy statistics to the summary record.
 
 + **Major bug fixes**
+   *  Serialize access to cache entries to prevent SEGV's.
    * Fix the fast response queue so that it doesn't run out of response
      slots causing a big performance penalty. This is a high priority fix.
    * Make sure buffer ends with null byte before read suspension. This only
@@ -74,6 +76,8 @@ Prerelease Notes
      query and only redirect clients to a stageable server if the file is not found. 
 
 + **Minor bug fixes**
+   * Add EPOLLRDHUP to avoid leaving sockets in CLOSE_WAIT with a one-shot
+     poll framework.
    * Actually support 4 different redirect destinations.
    * Make sure to return a usable path string via XrdOucCacheIO::Path().
    * Make sure to use a supplied cache even when no cache directives given.

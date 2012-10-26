@@ -197,7 +197,7 @@ void XrdPollE::remFD(XrdLink *lp, unsigned int events)
 // remove the fd from the set and assume the logic was actually correct. If it
 // wasn't then the client will eventually timeout and retry the request.
 //
-   if (events & EPOLLHUP) why = "Sever";
+   if (events & (EPOLLHUP | EPOLLRDHUP)) why = "Sever";
       else if (events & EPOLLERR) why = "Error";
               else why = "Disabled";
    XrdLog->Emsg("Poll", why, "event occured for", lp->ID);
@@ -269,7 +269,7 @@ const char *XrdPollE::x2Text(unsigned int events, char *buff)
 {
    if (events & EPOLLERR) return "socket error";
 
-   if (events & EPOLLHUP) return "client disconnected";
+   if (events & (EPOLLHUP | EPOLLRDHUP)) return "client disconnected";
 
    sprintf(buff, "unusual event (%.4x)", events);
    return buff;
