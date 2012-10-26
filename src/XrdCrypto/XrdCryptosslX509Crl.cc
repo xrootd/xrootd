@@ -391,6 +391,7 @@ int XrdCryptosslX509Crl::LoadCache()
    }
 
    // rehash the cache
+   pfeRef.UnLock(); // Prevent lock inversion (though it doesn't matter here)
    cache.Rehash(1);
 
    return 0;
