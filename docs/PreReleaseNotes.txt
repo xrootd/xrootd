@@ -5,6 +5,7 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Differentiate between packed and unpacked readv monitoring records.
    * Allow plugin libraries to be preloaded. This feature is only meant
      for MacOS.
    * Include optional site name in summary monitoring records.
