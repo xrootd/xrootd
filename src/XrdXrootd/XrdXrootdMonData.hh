@@ -88,6 +88,7 @@ const kXR_char XROOTD_MON_CLOSE         = 0xc0;
 const kXR_char XROOTD_MON_DISC          = 0xd0;
 const kXR_char XROOTD_MON_OPEN          = 0x80;
 const kXR_char XROOTD_MON_READV         = 0x90;
+const kXR_char XROOTD_MON_READU         = 0x91;
 const kXR_char XROOTD_MON_REDHOST       = 0xf0; // No   Modifier
 const kXR_char XROOTD_MON_WINDOW        = 0xe0;
 

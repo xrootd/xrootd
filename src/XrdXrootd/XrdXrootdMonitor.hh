@@ -85,10 +85,11 @@ inline void              Add_rd(kXR_unt32 dictid,
 inline void              Add_rv(kXR_unt32 dictid,
                                 kXR_int32 rlen,
                                 kXR_int16 vcnt,
-                                kXR_char  vseq)
+                                kXR_char  vseq,
+                                kXR_char  vtype)
                                {if (lastWindow != currWindow) Mark();
                                    else if (nextEnt == lastEnt) Flush();
-                                monBuff->info[nextEnt].arg0.id[0]    = XROOTD_MON_READV;
+                                monBuff->info[nextEnt].arg0.id[0]    = vtype;
                                 monBuff->info[nextEnt].arg0.id[1]    = vseq;
                                 monBuff->info[nextEnt].arg0.sVal[1]  = vcnt;
                                 monBuff->info[nextEnt].arg0.rTot[1]  = 0;
