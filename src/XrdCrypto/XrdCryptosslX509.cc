@@ -136,6 +136,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
          DEBUG("cannot open file "<<kf<<" (errno: "<<errno<<")");
          return;
       }
+      // This call fills the full key, i.e. also the public part (not really documented, though)
       if ((evpp = PEM_read_PrivateKey(fk,0,0,0))) {
          DEBUG("RSA key completed ");
          // Test consistency
