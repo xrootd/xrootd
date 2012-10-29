@@ -153,7 +153,7 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
    // If there were no private key or we did not manage to import it
    // init pki with the partial key
    if (!pki)
-      pki = new XrdCryptosslRSA(evpp, 0);
+      pki = new XrdCryptosslRSA(X509_get_pubkey(cert), 0);
 }
 
 //_____________________________________________________________________________
