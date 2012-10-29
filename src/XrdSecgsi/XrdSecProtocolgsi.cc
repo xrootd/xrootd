@@ -5272,14 +5272,19 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       // We must have the issuing CA certificate
       int rcgetca = 0;
       if ((rcgetca = GetCA(xsrv->IssuerHash(), cf)) != 0) {
-         if (rcgetca == -1) {
-            PRINT("do not have certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
-         } else {
-            PRINT("failed to initialized CRL for issuing CA '"<<xsrv->IssuerHash()<<"'");
+         // Try different name hash, if it makes sense
+         if (xsrv->IssuerHash(1)) rcgetca = GetCA(xsrv->IssuerHash(1), cf);
+         if (rcgetca != 0) {
+            // We really do not have it ...
+            if (rcgetca == -1) {
+               PRINT("do not have certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
+            } else {
+               PRINT("failed to load certificate for the issuing CA '"<<xsrv->IssuerHash()<<"'");
+            }
+            SafeDelete(xsrv);
+            SafeDelete(xbck);
+            return cent;
          }
-         SafeDelete(xsrv);
-         SafeDelete(xbck);
-         return cent;
       }
       // Ok: save it into the cache
       String tag = cf->Name();
