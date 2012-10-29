@@ -517,13 +517,14 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
 
    //
    // Get EEC private key from fnk
-   EVP_PKEY *ekEEC;
+   EVP_PKEY *ekEEC = 0;
    FILE *fk = fopen(fnk, "r");
    if (fk) {
       // Read out the private key
-      ekEEC = X509_get_pubkey(xEEC);
-      PRINT("Your identity: "<<X509_NAME_oneline(X509_get_subject_name(xEEC),0,0));
-      if (PEM_read_PrivateKey(fk, &ekEEC, 0, 0)) {
+      XrdOucString sbj;
+      XrdCryptosslNameOneLine(X509_get_subject_name(xEEC), sbj);
+      PRINT("Your identity: "<<sbj);
+      if ((ekEEC = PEM_read_PrivateKey(fk, &ekEEC, 0, 0))) {
          DEBUG("EEC private key loaded from file: "<<fnk);
       } else {
          PRINT("unable to load EEC private key from file: "<<fnk);
@@ -536,7 +537,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
    }
    fclose(fk);
    // Check key consistency
-   if ((!XrdCryptosslSkipKeyCheck && RSA_check_key(ekEEC->pkey.rsa) == 0)) {
+   if ((RSA_check_key(ekEEC->pkey.rsa) == 0)) {
       PRINT("inconsistent key loaded");
       return -kErrPX_BadEECkey;
    }
@@ -1056,8 +1057,9 @@ int XrdSslgsiX509SignProxyReq(XrdCryptoX509 *xcpi, XrdCryptoRSA *kcpi,
    X509_REQ *xri = (X509_REQ *)(xcri->Opaque());
 
    // Extract subject names
-   XrdOucString psbj = X509_NAME_oneline(X509_get_subject_name(xpi), 0, 0);
-   XrdOucString rsbj = X509_NAME_oneline(X509_REQ_get_subject_name(xri), 0, 0);
+   XrdOucString psbj, rsbj;
+   XrdCryptosslNameOneLine(X509_get_subject_name(xpi), psbj);
+   XrdCryptosslNameOneLine(X509_REQ_get_subject_name(xri), rsbj);
    if (psbj.length() <= 0 || rsbj.length() <= 0) {
       PRINT("names undefined");
       return -kErrPX_BadNames;

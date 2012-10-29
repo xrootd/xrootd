@@ -433,7 +433,7 @@ int XrdCryptosslX509ParseFile(const char *fname,
 #endif
                         DEBUG("RSA key completed for '"<<cert->Subject()<<"'");
                         // Test consistency
-                        int rc = XrdCryptosslSkipKeyCheck ? 1 : RSA_check_key(evpp->pkey.rsa);
+                        int rc = RSA_check_key(evpp->pkey.rsa);
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
@@ -551,7 +551,7 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *chain)
                      if (PEM_read_bio_PrivateKey(bkey,&evpp,0,0)) {
                         DEBUG("RSA key completed ");
                         // Test consistency
-                        int rc = XrdCryptosslSkipKeyCheck ? 1 : RSA_check_key(evpp->pkey.rsa);
+                        int rc = RSA_check_key(evpp->pkey.rsa);
                         if (rc != 0) {
                            // Update PKI in certificate
                            cert->SetPKI((XrdCryptoX509data)evpp);
@@ -634,3 +634,27 @@ int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1)
    // We are done
    return etime;
 } 
+
+//____________________________________________________________________________
+void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s)
+{
+   // Function to convert X509_NAME into a one-line human readable string
+
+#ifndef USEX509NAMEONELINE
+   BIO *mbio = BIO_new(BIO_s_mem());
+   X509_NAME_print_ex(mbio, nm, 0, XN_FLAG_COMPAT);
+   char *data = 0;
+   long len = BIO_get_mem_data(mbio, &data);
+   s = "/";
+   s.insert(data, 1, len);
+   BIO_free(mbio);
+   s.replace(", ", "/");
+#else
+   char *xn = X509_NAME_oneline(nm, 0, 0);
+   s = xn;
+   OPENSSL_free(xn);
+#endif
+
+   // Done
+   return;
+}

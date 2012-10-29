@@ -100,48 +100,43 @@ XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
          type = kEEC;
    }
    // Get the public key
-   EVP_PKEY *evpp = X509_get_pubkey(cert);
-   //
-   if (evpp) {
-      // Read the private key file, if specified
-      if (kf) {
-         if (stat(kf, &st) == -1) {
-            DEBUG("cannot stat private key file "<<kf<<" (errno:"<<errno<<")");
-            return;
-         }
-         if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
-             (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
-             (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
-            DEBUG("private key file "<<kf<<" has wrong permissions "<<
-                  (st.st_mode & 0777) << " (should be 0600)");
-            return;
-         }
-         // Open file in read mode
-         FILE *fk = fopen(kf, "r");
-         if (!fk) {
-            DEBUG("cannot open file "<<kf<<" (errno: "<<errno<<")");
-            return;
-         }
-         if (PEM_read_PrivateKey(fk,&evpp,0,0)) {
-            DEBUG("RSA key completed ");
-            // Test consistency
-            if (XrdCryptosslSkipKeyCheck || RSA_check_key(evpp->pkey.rsa) != 0) {
-               // Save it in pki
-               pki = new XrdCryptosslRSA(evpp);
-            }
-         } else {
-            DEBUG("cannot read the key from file");
-         }
-         // Close the file
-         fclose(fk);
+   EVP_PKEY *evpp = 0;
+   // Read the private key file, if specified
+   if (kf) {
+      if (stat(kf, &st) == -1) {
+         DEBUG("cannot stat private key file "<<kf<<" (errno:"<<errno<<")");
+         return;
       }
-      // If there were no private key or we did not manage to import it
-      // init pki with the partial key
-      if (!pki)
-         pki = new XrdCryptosslRSA(evpp, 0);
-   } else {
-      DEBUG("could not access the public key");
+      if (!S_ISREG(st.st_mode) || S_ISDIR(st.st_mode) ||
+            (st.st_mode & (S_IWGRP | S_IWOTH)) != 0 ||
+            (st.st_mode & (S_IRGRP | S_IROTH)) != 0) {
+         DEBUG("private key file "<<kf<<" has wrong permissions "<<
+               (st.st_mode & 0777) << " (should be 0600)");
+         return;
+      }
+      // Open file in read mode
+      FILE *fk = fopen(kf, "r");
+      if (!fk) {
+         DEBUG("cannot open file "<<kf<<" (errno: "<<errno<<")");
+         return;
+      }
+      if ((evpp = PEM_read_PrivateKey(fk,0,0,0))) {
+         DEBUG("RSA key completed ");
+         // Test consistency
+         if (RSA_check_key(evpp->pkey.rsa) != 0) {
+            // Save it in pki
+            pki = new XrdCryptosslRSA(evpp);
+         }
+      } else {
+         DEBUG("cannot read the key from file");
+      }
+      // Close the file
+      fclose(fk);
    }
+   // If there were no private key or we did not manage to import it
+   // init pki with the partial key
+   if (!pki)
+      pki = new XrdCryptosslRSA(evpp, 0);
 }
 
 //_____________________________________________________________________________
@@ -347,9 +342,7 @@ const char *XrdCryptosslX509::Subject()
       }
 
       // Extract subject name
-      char *xname = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
-      subject = xname;
-      OPENSSL_free(xname);
+      XrdCryptosslNameOneLine(X509_get_subject_name(cert), subject);
    }
 
    // return what we have
@@ -372,68 +365,12 @@ const char *XrdCryptosslX509::Issuer()
       }
 
       // Extract issuer name
-      char *xname = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
-      issuer = xname;
-      OPENSSL_free(xname);
+      XrdCryptosslNameOneLine(X509_get_issuer_name(cert), issuer);
    }
 
    // return what we have
    return (issuer.length() > 0) ? issuer.c_str() : (const char *)0;
 }
-
-#if 0
-//_____________________________________________________________________________
-const char *XrdCryptosslX509::IssuerHash()
-{
-   // Return issuer name
-   EPNAME("X509::IssuerHash");
-
-   // If we do not have it already, try extraction
-   if (issuerhash.length() <= 0) {
-
-      // Make sure we have a certificate
-      if (cert) {
-         char chash[15] = {0};
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
-         if (hashalg == 0) // md5 based
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->issuer));
-#endif
-         issuerhash = chash;
-      } else {
-         DEBUG("WARNING: no certificate available - cannot extract issuer hash");
-      }
-   }
-
-   // return what we have
-   return (issuerhash.length() > 0) ? issuerhash.c_str() : (const char *)0;
-}
-
-//_____________________________________________________________________________
-const char *XrdCryptosslX509::SubjectHash(int alg)
-{
-   // Return issuer name
-   EPNAME("X509::SubjectHash");
-
-   // If we do not have it already, try extraction
-   if (subjecthash.length() <= 0) {
-
-      // Make sure we have a certificate
-      if (cert) {
-         char chash[15] = {0};
-#if (OPENSSL_VERSION_NUMBER >= 0x10000000L)
-         if (alg == 1) // md5 based
-            snprintf(chash,15,"%08lx.0",X509_NAME_hash_old(cert->cert_info->subject));
-#endif
-         subjecthash = chash;
-      } else {
-         DEBUG("WARNING: no certificate available - cannot extract subject hash");
-      }
-   }
-
-   // return what we have
-   return (subjecthash.length() > 0) ? subjecthash.c_str() : (const char *)0;
-}
-#else
 
 //_____________________________________________________________________________
 const char *XrdCryptosslX509::IssuerHash(int alg)
@@ -526,8 +463,6 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
    // return what we have
    return (subjecthash.length() > 0) ? subjecthash.c_str() : (const char *)0;
 }
-
-#endif
 
 //_____________________________________________________________________________
 kXR_int64 XrdCryptosslX509::SerialNumber()
