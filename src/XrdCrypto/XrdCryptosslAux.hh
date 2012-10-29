@@ -41,15 +41,6 @@
 #define kSslKDFunDefLen  24
 
 //
-// Control whether RSA key check is actually done; the check is broken in OpenSSL
-// 1.0.0x (problem with BN): we need to skip it to be able to build on SL(C)6
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L && OPENSSL_VERSION_NUMBER < 0x10000100L
-#define XrdCryptosslSkipKeyCheck 1
-#else
-#define XrdCryptosslSkipKeyCheck 0
-#endif
-
-//
 // Password-Based Key Derivation Function 2, specified in PKCS #5
 //
 int XrdCryptosslKDFunLen(); // default buffer length
@@ -71,6 +62,9 @@ int XrdCryptosslX509ParseBucket(XrdSutBucket *b, XrdCryptoX509Chain *c);
 //
 // Function to convert from ASN1 time format into UTC since Epoch (Jan 1, 1970) 
 int XrdCryptosslASN1toUTC(ASN1_TIME *tsn1);
+
+// Function to convert X509_NAME into a one-line human readable string
+void XrdCryptosslNameOneLine(X509_NAME *nm, XrdOucString &s);
 
 /******************************************************************************/
 /*          E r r o r   L o g g i n g / T r a c i n g   F l a g s             */

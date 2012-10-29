@@ -167,7 +167,7 @@ const char *XrdCryptosslX509Req::Subject()
       }
       
       // Extract subject name
-      subject = X509_NAME_oneline(X509_REQ_get_subject_name(creq), 0, 0);
+      XrdCryptosslNameOneLine(X509_REQ_get_subject_name(creq), subject);
    }
 
    // return what we have

@@ -75,7 +75,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(int bits, int exp)
 
    // Update status flag
    if (fRSA) {
-      if (XrdCryptosslSkipKeyCheck || RSA_check_key(fRSA) != 0) {
+      if (RSA_check_key(fRSA) != 0) {
          status = kComplete;
          DEBUG("basic length: "<<RSA_size(fRSA)<<" bytes");
          // Set the key
@@ -123,7 +123,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(EVP_PKEY *key, bool check)
 
    if (check) {
       // Check consistency
-      if (XrdCryptosslSkipKeyCheck || RSA_check_key(key->pkey.rsa) != 0) {
+      if (RSA_check_key(key->pkey.rsa) != 0) {
          fEVP = key;
          // Update status
          status = kComplete;
@@ -177,7 +177,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r)
           } else {
             if ((fEVP = PEM_read_bio_PrivateKey(bcpy,0,0,0))) {
                // Check consistency
-               if (XrdCryptosslSkipKeyCheck || RSA_check_key(fEVP->pkey.rsa) != 0) {
+               if (RSA_check_key(fEVP->pkey.rsa) != 0) {
                   // Update status
                   status = kComplete;
                }
