@@ -80,6 +80,7 @@ private:
    XrdOucHash<kXR_int32> hashtable; // Reflects the file index structure
    kXR_int32       htmtime;   // time at which hash table was last rebuild
    XrdOucString    pfile;   // file name (if loaded from file)
+   bool            isinit;  // true if already initialized
 
    XrdSutPFEntry  *Get(const char *ID, bool *wild);
    bool            Delete(XrdSutPFEntry *pfEnt);
@@ -89,7 +90,7 @@ private:
 
 public:
    XrdSutCache() { cachemx = -1; cachesz = 0; cachent = 0; lifetime = 300;
-                   utime = -1; htmtime = -1; pfile = "";}
+                   utime = -1; htmtime = -1; pfile = ""; isinit = 0; }
    virtual ~XrdSutCache();
 
    // Status

@@ -79,13 +79,20 @@ int XrdSutCache::Init(int capacity, bool lock)
 
    // Lock for writing
    if (lock) rwlock.WriteLock();
-   
+
+   // Nothing to do if already done
+   if (isinit) {
+      if (lock) rwlock.UnLock();
+      return 0;
+   }
+
    // Make sure capacity makes sense; use a default, if not
    capacity = (capacity > 0) ? capacity : 100;
 
    // Allocate
    cachent = new XrdSutPFEntry *[capacity];
    if (cachent) {
+      for (int i = 0; i < capacity; i++) { cachent[i] = 0; }
       cachesz = capacity;
       DEBUG("cache allocated for "<<cachesz<<" entries");
 
@@ -102,6 +109,10 @@ int XrdSutCache::Init(int capacity, bool lock)
 
    } else
       DEBUG("could not allocate cache - out-of-resources ");
+
+   // Flag has initialized
+   isinit = 1;
+
    // UnLock
    if (lock) rwlock.UnLock();
    return -1;
@@ -461,6 +472,7 @@ int XrdSutCache::Reset(int newsz, bool lock)
       cachent = 0;
       cachesz = 0;      
       cachemx = -1;
+      isinit = 0;
       rc = Init(newsz, 0);
    }
 
