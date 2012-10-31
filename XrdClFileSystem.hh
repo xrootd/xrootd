@@ -147,6 +147,23 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  //! Prepare flags
+  //----------------------------------------------------------------------------
+  struct PrepareFlags
+  {
+    enum Flags
+    {
+      Colocate    = kXR_coloc,    //!< co-locate staged files, if possible
+      Fresh       = kXR_fresh,    //!< refresh file access time even if
+                                  //!< the location is known
+      Stage       = kXR_stage,    //!< stage the file to disk if it is not
+                                  //!< online
+      WriteMode   = kXR_wmode     //!< the file will be accessed for
+                                  //!< modification
+    };
+  };
+
+  //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
   //----------------------------------------------------------------------------
   class FileSystem
@@ -586,6 +603,42 @@ namespace XrdCl
       XRootDStatus SendInfo( const std::string  &info,
                              Buffer            *&response,
                              uint16_t            timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Prepare one or more files for access - async
+      //!
+      //! @param fileList  list of files to be prepared
+      //! @param flags     PrepareFlags::Flags
+      //! @param priority  priority of the request 0 (lowest) - 3 (highest)
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successfull
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Prepare( const std::vector<std::string> &fileList,
+                            uint8_t                         flags,
+                            uint8_t                         priority,
+                            ResponseHandler                *handler,
+                            uint16_t                        timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Prepare one or more files for access - sync
+      //!
+      //! @param fileList  list of files to be prepared
+      //! @param flags     PrepareFlags::Flags
+      //! @param priority  priority of the request 0 (lowest) - 3 (highest)
+      //! @param response  the response (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Prepare( const std::vector<std::string>  &fileList,
+                            uint8_t                          flags,
+                            uint8_t                          priority,
+                            Buffer                         *&response,
+                            uint16_t                         timeout = 0 );
 
     private:
 

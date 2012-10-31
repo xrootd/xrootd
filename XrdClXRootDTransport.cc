@@ -1789,6 +1789,50 @@ namespace XrdCl
         delete [] fn;
         break;
       }
+
+      //------------------------------------------------------------------------
+      // kXR_prepare
+      //------------------------------------------------------------------------
+      case kXR_prepare:
+      {
+        ClientPrepareRequest *sreq = (ClientPrepareRequest *)msg->GetBuffer();
+        o << "kXR_prepare (";
+        o << "flags: ";
+
+        if( sreq->options == 0 )
+          o << "none";
+        else
+        {
+          if( sreq->options & kXR_stage )
+            o << "kXR_stage ";
+          if( sreq->options & kXR_wmode )
+            o << "kXR_wmode ";
+          if( sreq->options & kXR_coloc )
+            o << "kXR_coloc ";
+          if( sreq->options & kXR_fresh )
+            o << "kXR_fresh ";
+        }
+
+        o << ", priority: " << (int) sreq->prty << ", ";
+
+        char *fn = GetDataAsString( msg );
+        char *cursor;
+        for( cursor = fn; *cursor; ++cursor )
+          if( *cursor == '\n' ) *cursor = ' ';
+
+        o << "paths: " << fn << ")";
+        delete [] fn;
+        break;
+      }
+
+      //------------------------------------------------------------------------
+      // Default
+      //------------------------------------------------------------------------
+      default:
+      {
+        o << "kXR_unknown (length: " << req->dlen << ")";
+        break;
+      }
     };
     msg->SetDescription( o.str() );
   }

@@ -951,6 +951,60 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Prepare one or more files for access - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::Prepare( const std::vector<std::string> &fileList,
+                                    uint8_t                         flags,
+                                    uint8_t                         priority,
+                                    ResponseHandler                *handler,
+                                    uint16_t                        timeout )
+  {
+
+    std::vector<std::string>::const_iterator it;
+    std::string                              list;
+    for( it = fileList.begin(); it != fileList.end(); ++it )
+    {
+      list += *it;
+      list += "\n";
+    }
+    list.erase( list.length()-1, 1 );
+
+    Message              *msg;
+    ClientPrepareRequest *req;
+    MessageUtils::CreateRequest( msg, req, list.length() );
+
+    req->requestid  = kXR_prepare;
+    req->options    = flags;
+    req->prty       = priority;
+    req->dlen       = list.length();
+
+    msg->Append( list.c_str(), list.length(), 24 );
+
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return Send( msg, handler, params );
+  }
+
+  //------------------------------------------------------------------------
+  //! Prepare one or more files for access - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::Prepare( const std::vector<std::string>  &fileList,
+                                    uint8_t                          flags,
+                                    uint8_t                          priority,
+                                    Buffer                         *&response,
+                                    uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Prepare( fileList, flags, priority, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Assign a loadbalancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )
