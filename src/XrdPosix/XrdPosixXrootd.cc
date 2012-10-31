@@ -1293,7 +1293,7 @@ int XrdPosixXrootd::Statfs(const char *path, struct statfs *buf)
 
 // The vfs structure and fs structures should be size compatible (not really)
 //
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statfs));
    buf->f_bsize   = myVfs.f_bsize;
    buf->f_blocks  = myVfs.f_blocks;
    buf->f_bfree   = myVfs.f_bfree;
@@ -1360,7 +1360,7 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 
 // Return what little we can
 //
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statvfs));
    buf->f_bsize   = 1024*1024;
    buf->f_frsize  = 1024*1024;
    buf->f_blocks  = static_cast<fsblkcnt_t>(rwBlks);
