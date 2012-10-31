@@ -75,7 +75,7 @@ Summary: Headers for compiling against xrootd-cl
 Group:   System Environment/Libraries
 Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 Requires: %{name}-libs-devel = %{epoch}:%{version}-%{release}
-Requires: %{name}-client = %{epoch}:%{version}-%{release}
+Requires: %{name}-cl = %{epoch}:%{version}-%{release}
 %description cl-devel
 Headers for compiling against xrootd-cl
 
