@@ -63,6 +63,11 @@ int          Run(char *outBuff, int outBsz,
                  const char *arg1=0, const char *arg2=0,
                  const char *arg3=0, const char *arg4=0);
 
+// RunDone should be called to drain the output stream and get the ending
+// status of the running process.
+//
+int          RunDone(XrdOucStream &cmd);
+
 // Start executes the command that was passed via Setup(). The started
 // program is expected to linger so that you can send directives to it
 // via its standard in. Use Feed() to do this. If the output of the command
@@ -84,7 +89,6 @@ int          Setup(const char *prog,
 /******************************************************************************/
   
 private:
-  int           RunDone(XrdOucStream &cmd);
   int           Restart();
   XrdSysError  *eDest;
   XrdOucStream *myStream;
