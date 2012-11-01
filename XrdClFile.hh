@@ -165,6 +165,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Write a data chank at a given offset - async
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
@@ -182,6 +185,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - sync
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
