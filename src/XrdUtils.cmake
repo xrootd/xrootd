@@ -178,7 +178,8 @@ add_library(
 
 target_link_libraries(
   XrdCksCalczcrc32
-  XrdUtils )
+  XrdUtils
+  ${ZLIB_LIBRARY} )
 
 set_target_properties(
   XrdCksCalczcrc32
