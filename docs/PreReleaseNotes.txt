@@ -5,6 +5,8 @@ XRootD
 Prerelease Notes
 ================
 + **New Features**
+   * Add the altds directive to allow pairing a cmsd with an alternate data
+     server.
    * Differentiate between packed and unpacked readv monitoring records.
    * Allow plugin libraries to be preloaded. This feature is only meant
      for MacOS.
