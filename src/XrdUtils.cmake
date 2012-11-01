@@ -8,6 +8,8 @@ set( XRD_UTILS_VERSION   1.0.0 )
 set( XRD_UTILS_SOVERSION 1 )
 set( XRD_MAIN_VERSION    1.0.0 )
 set( XRD_MAIN_SOVERSION  1 )
+set( XRD_ZCRC32_VERSION   1.0.0 )
+set( XRD_ZCRC32_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdSys library
@@ -167,6 +169,25 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# libz compatible CRC32
+#-------------------------------------------------------------------------------
+add_library(
+  XrdCksCalczcrc32
+  SHARED
+  XrdCks/XrdCksCalczcrc32.cc )
+
+target_link_libraries(
+  XrdCksCalczcrc32
+  XrdUtils )
+
+set_target_properties(
+  XrdCksCalczcrc32
+  PROPERTIES
+  VERSION   ${XRD_ZCRC32_VERSION}
+  SOVERSION ${XRD_ZCRC32_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # The helper lib
 #-------------------------------------------------------------------------------
 add_library(
@@ -187,7 +208,7 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils XrdMain
+  TARGETS XrdUtils XrdMain XrdCksCalczcrc32
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(

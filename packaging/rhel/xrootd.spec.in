@@ -305,6 +305,7 @@ exit 0
 %{_libdir}/libXrdSec*.so*
 %{_libdir}/libXrdCrypto*.so*
 %{_libdir}/libXrdUtils.so*
+%{_libdir}/libXrdCksCalc*.so*
 %{_libdir}/libXrdMain.so*
 %{_libdir}/libXrdAppUtils.so*
 
