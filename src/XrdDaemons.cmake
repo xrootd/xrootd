@@ -77,7 +77,8 @@ target_link_libraries(
   XrdMain
   XrdUtils
   pthread
-  ${EXTRA_LIBS} )
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install
