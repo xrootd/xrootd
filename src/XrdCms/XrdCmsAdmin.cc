@@ -31,8 +31,11 @@
 #include <stdio.h>
 #include <limits.h>
 #include <unistd.h>
+#include <inttypes.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 
+#include "XProtocol/XProtocol.hh"
 #include "XProtocol/YProtocol.hh"
 
 #include "XrdCms/XrdCmsAdmin.hh"
@@ -46,6 +49,7 @@
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 using namespace XrdCms;
  
@@ -132,6 +136,12 @@ void *XrdCmsAdminLogin(void *carg)
        delete Admin;
        return (void *)0;
       }
+  
+void *XrdCmsAdminMonAds(void *carg)
+      {XrdCmsAdmin *Admin = (XrdCmsAdmin *)carg;
+       Admin->MonAds();
+       return (void *)0;
+      }
 
 void *XrdCmsAdminSend(void *carg)
       {XrdCmsAdmin::Relay(0,0);
@@ -196,6 +206,39 @@ void XrdCmsAdmin::Login(int socknum)
    return;
 }
 
+/******************************************************************************/
+/*                                M o n A d s                                 */
+/******************************************************************************/
+  
+void XrdCmsAdmin::MonAds()
+{
+   const char *epname = "MonAds";
+   int sFD, rc;
+   char buff[256], pname[64];
+
+// Indicate what we are doing
+//
+   sprintf(pname, "'altds@localhost:%d'.", Config.adsPort);
+   Say.Emsg(epname, "Monitoring", pname);
+
+// Create a socket and to connect to the alternate data server then monitor it
+// draining any data that might be sent.
+//
+do{sFD = Con2Ads(pname);
+
+   do {do {rc = read(sFD, buff, sizeof(buff));} while(rc > 0);
+      } while(rc < 0 && errno == EINTR);
+
+   if (rc < 0) Say.Emsg(epname, errno, "maintain contact with", pname);
+      else     Say.Emsg(epname,"Lost contact with", pname);
+
+   CmsState.Update(XrdCmsState::FrontEnd, 0, -1);
+   close(sFD);
+   XrdSysTimer::Snooze(15);
+
+  } while(1);
+}
+  
 /******************************************************************************/
 /*                                 N o t e s                                  */
 /******************************************************************************/
@@ -320,7 +363,9 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 // If we are in independent mode then let the caller continue
 //
    if (Config.doWait)
-      {Say.Emsg(epname, "Waiting for primary server to login.");}
+      {if (Config.adsPort) BegAds();
+          else Say.Emsg(epname, "Waiting for primary server to login.");
+      }
        else if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
 
 // Accept connections in an endless loop
@@ -338,6 +383,97 @@ void *XrdCmsAdmin::Start(XrdNetSocket *AdminSock)
 /******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                                B e g A d s                                 */
+/******************************************************************************/
+
+void XrdCmsAdmin::BegAds()
+{
+   const char *epname = "BegAds";
+   pthread_t tid;
+
+// If we don't need to monitor he alternate data server then we are all set
+//
+   if (!Config.adsMon)
+      {Say.Emsg(epname, "Assuming alternate data server is functional.");
+       CmsState.Update(XrdCmsState::FrontEnd, 1, Config.adsPort);
+       if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
+       return;
+      }
+
+// Start the connection/ping thread for the alternate data server
+//
+   if (XrdSysThread::Run(&tid,XrdCmsAdminMonAds,(void *)this))
+      Say.Emsg(epname, errno, "start alternate data server monitor");
+}
+  
+/******************************************************************************/
+/*                               C o n 2 A d s                                */
+/******************************************************************************/
+  
+int XrdCmsAdmin::Con2Ads(const char *pname)
+{
+   const char *epname = "Con2Ads";
+   static ClientInitHandShake hsVal = {0, 0, 0, htonl(4), htonl(2012)};
+   static ClientLoginRequest loginReq = {{0, 0},
+                                         htons(kXR_login), htonl(getpid()),
+                                         {'c', 'm', 's', 'd', 0, 0, 0, 0},
+                                         {0, 0}, 0, 0, 0};
+   struct {kXR_int32 siHS[4];} hsRsp;
+   XrdNetSocket adsSocket;
+   int ecode, snum;
+   char ecnt = 10;
+
+// Create a socket and to connect to the alternate data server
+//
+do{while((snum = adsSocket.Open("localhost", Config.adsPort)) < 0)
+        {if (ecnt >= 10)
+            {ecode = adsSocket.LastError();
+             Say.Emsg(epname, ecode, "connect to", pname);
+             ecnt = 1;
+            } else ecnt++;
+         XrdSysTimer::Snooze(3);
+        }
+
+// Write the handshake to make sure the connection went fine
+//
+   if (write(snum, &hsVal, sizeof(hsVal)) < 0)
+      {Say.Emsg(epname, errno, "send handshake to", pname);
+       close(snum); continue;
+      }
+
+// Read the mandatory response
+//
+   if (recv(snum, &hsRsp, sizeof(hsRsp), MSG_WAITALL) < 0)
+      {Say.Emsg(epname, errno, "recv handshake from", pname);
+       close(snum); continue;
+      }
+
+// Now we need to send the login request
+//
+   if (write(snum, &loginReq, sizeof(loginReq)) < 0)
+      {Say.Emsg(epname, errno, "send login to", pname);
+       close(snum); continue;
+      } else break;
+
+  } while(1);
+
+// Indicate what we just did
+//
+   Say.Emsg(epname, "Logged into", pname);
+
+// We connected, so we indicate that the alternate is ok
+//
+   myMutex.Lock();
+   CmsState.Update(XrdCmsState::FrontEnd, 1, Config.adsPort);
+   if (SyncUp) {SyncUp->Post(); SyncUp = 0;}
+   myMutex.UnLock();
+
+// All done
+//
+   return adsSocket.Detach();
+}
+  
 /******************************************************************************/
 /*                              d o _ L o g i n                               */
 /******************************************************************************/
@@ -370,6 +506,12 @@ int XrdCmsAdmin::do_Login()
        return 0;
       } else Ltype = *tp;
 
+   if (Config.adsPort && Ltype != 'u')
+      {Say.Emsg("do_login", Stype, " login rejected; configured for an "
+                                   "alternate data server.");
+       return 0;
+      }
+
    if (!(tp = Stream.GetToken()))
       {Say.Emsg("do_Login", "login name not specified");
        return 0;
@@ -392,7 +534,8 @@ int XrdCmsAdmin::do_Login()
         }
 
 // If this is not a primary, we are done. Otherwise there is much more. We
-// must make sure we are compatible with the login
+// must make sure we are compatible with the login. Note that for alternate
+// data servers we already screened out primary logins, so we will return.
 //
    if (Ltype != 'p' && Ltype != 'P') return 1;
         if (Ltype == 'p' &&  Config.asProxy()) emsg = "only accepts proxies";

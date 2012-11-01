@@ -46,6 +46,8 @@ public:
 
        void  Login(int socknum);
 
+       void  MonAds();
+
 static void  setSync(XrdSysSemaphore  *sync)  {SyncUp = sync;}
 
        void *Notes(XrdNetSocket *AdminSock);
@@ -61,6 +63,8 @@ static void  Relay(int setSock, int newSock);
 
 private:
 
+void  BegAds();
+int   Con2Ads(const char *pname);
 int   do_Login();
 void  do_RmDid(int dotrim=0);
 void  do_RmDud(int dotrim=0);

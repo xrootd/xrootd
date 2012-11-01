@@ -458,6 +458,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    {
    TS_Xeq("adminpath",     xapath);  // Any,     non-dynamic
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
+   TS_Xeq("altds",         xaltds);  // Server,  non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
    TS_Xeq("dfs",           xdfs);    // Any,     non-dynamic
    TS_Xeq("export",        xexpo);   // Any,     non-dynamic
@@ -509,6 +510,7 @@ void XrdCmsConfig::DoIt()
 // Why? Because we never get a primary login if we are a mere manager.
 //
    if (isManager && !isServer && !ManList) doWait = 0;
+      else if (isServer && adsMon)         doWait = 1;
 
 // Start the notification thread if we need to
 //
@@ -708,6 +710,9 @@ void XrdCmsConfig::ConfigDefaults(void)
    ossParms    = 0;
    ossFS       = 0;
    myVInfo     = &myVer;
+   adsPort     = 0;
+   adsMon      = 0;
+   adsProt     = 0;
 
 // Compute the time zone we are in
 //
@@ -1229,6 +1234,62 @@ int XrdCmsConfig::xallow(XrdSysError *eDest, XrdOucStream &CFile)
     if (!Police) Police = new XrdNetSecurity();
     if (ishost)  Police->AddHost(val);
        else      Police->AddNetGroup(val);
+
+    return 0;
+}
+  
+/******************************************************************************/
+/*                                x a l t d s                                 */
+/******************************************************************************/
+
+/* Function: xaltds
+
+   Purpose:  To parse the directive: altds xroot <port> [[no]monitor]
+
+             xroot  The protocol used by the alternate data server.
+             <port> The port being used by the alternate data server.
+               mon  Actively monitor alternate data server by connecting to it.
+                    This is the default.
+             nomon  Do not monitor the alternate data server.
+                    it and if <sec> is greater than zero, send "ping" requests
+                    every <sec> seconds. Zero merely connects.
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xaltds(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    char *val;
+
+    if (isManager) return CFile.noEcho();
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "protocol not specified"); return 1;}
+
+    if (strcmp(val, "xroot"))
+       {eDest->Emsg("Config", "unsupported protocol, '", val, "'."); return 1;}
+    if (adsProt) free(adsProt);
+    adsProt = strdup(val);
+
+    if (!(val = CFile.GetWord()))
+       {eDest->Emsg("Config", "data server port not specified"); return 1;}
+
+    if (isdigit(*val))
+       {if (XrdOuca2x::a2i(*eDest,"data server port",val,&adsPort,1,65535))
+           return 1;
+       }
+       else if (!(adsPort = XrdSysDNS::getPort(val, "tcp")))
+               {eDest->Emsg("Config", "Unable to find tcp service '",val,"'.");
+                return 1;
+               }
+
+         if (!(val = CFile.GetWord()) || !strcmp(val, "monitor")) adsMon  = 1;
+    else if (!strcmp(val, "nomonitor")) adsMon  = 0;
+    else    {eDest->Emsg("Config", "invalid option, '", val, "'.");
+             return 1;
+            }
 
     return 0;
 }
