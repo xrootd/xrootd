@@ -95,3 +95,11 @@ ADD_TEST( MultiStrThreadingReadTest ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./li
 ADD_TEST( ThreadingReadForkTest     ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::ReadForkTest")
 ADD_TEST( MultiStrThreadingReadForkTest ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::MultiStreamReadForkTest")
 ADD_TEST( MultiStrThreadingReadMonitorTest ${CMAKE_CURRENT_BINARY_DIR}/text-runner ./libXrdClTests.so "All Tests/ThreadingTest/ThreadingTest::MultiStreamReadMonitorTest")
+
+#-------------------------------------------------------------------------------
+# Install
+#-------------------------------------------------------------------------------
+install(
+  TARGETS XrdClTests XrdClTestsHelper XrdClTestMonitor text-runner
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
