@@ -845,27 +845,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       //          1  extract if any (fill 'vorg', 'role'; the full string in 'endorsements');
       //          2  require (fill 'vorg', 'role'; the full string in 'endorsements');
       VOMSAttrOpt = (opt.vomsat <= 2 && opt.vomsat >= 0) ? opt.vomsat : VOMSAttrOpt;
-
-      //
-      // Alternative VOMS extraction function
-      if (opt.vomsfun) {
-         if (!(VOMSFun = LoadVOMSFun((const char *) opt.vomsfun,
-                                     (const char *) opt.vomsfunparms, VOMSCertFmt))) {
-            ErrF(erp, kGSErrError, "VOMS plug-in could not be loaded", opt.vomsfun); 
-            PRINT(erp->getErrText());
-            return Parms;
-         } else {
-            // We at least check VOMS attributes if we have a function ...
-            if (VOMSAttrOpt < 1) VOMSAttrOpt = 1;
-            // Notify certificate format
-            if (VOMSCertFmt >= 0 && VOMSCertFmt <= 1) {
-               const char *ccfmt[] = { "raw", "PEM base64" };
-               DEBUG("vomsfun: proxy certificate format: "<<ccfmt[VOMSCertFmt]);
-            } else {
-               NOTIFY("vomsfun: proxy certificate format: unknown (code: "<<VOMSCertFmt<<")");
-            }
-         }
-      }
       const char *cvomsat[3] = { "ignore", "extract", "require" };
       DEBUG("VOMS attributes options: "<<cvomsat[VOMSAttrOpt]);
 
@@ -1791,34 +1770,8 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
          
       // Extract the VOMS attrbutes, if required
       if (VOMSAttrOpt > 0) {
-         if (VOMSFun) {
-            // Fill the information needed by the external function
-            if (VOMSCertFmt == 1) {
-               // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
-               bpxy->ToString(spxy);
-               Entity.creds = strdup(spxy.c_str());
-               Entity.credslen = spxy.length();
-            } else {
-               // Raw (opaque) format, to be used with XrdCrypto
-               Entity.creds = (char *) hs->Chain;
-               Entity.credslen = 0;
-            }
-            if ((*VOMSFun)(Entity) != 0 && VOMSAttrOpt == 2) {
-               // Error
-               kS_rc = kgST_error;
-               PRINT("ERROR: the VOMS extraction plug-in reported a failure for this handshake");
-               break;
-            }
-         } else {
-            // Lite version (no validations whatsover
-            if (ExtractVOMS(hs->Chain, Entity) != 0 && VOMSAttrOpt == 2) {
-               // Error
-               kS_rc = kgST_error;
-               PRINT("ERROR: VOMS attributes required but not found (default lite-extraction technology)");
-               break;
-            }
-         }
+         // Lite version (no validations whatsover
+         ExtractVOMS(hs->Chain, Entity);
          NOTIFY("VOMS: Entity.vorg:         "<< (Entity.vorg ? Entity.vorg : "<none>"));
          NOTIFY("VOMS: Entity.grps:         "<< (Entity.grps ? Entity.grps : "<none>"));
          NOTIFY("VOMS: Entity.role:         "<< (Entity.role ? Entity.role : "<none>"));

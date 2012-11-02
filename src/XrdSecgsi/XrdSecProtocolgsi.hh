@@ -177,7 +177,7 @@ public:
                   gmapfun = 0; gmapfunparms = 0; authzfun = 0; authzfunparms = 0; authzto = -1;
                   ogmap = 1; dlgpxy = 0; sigpxy = 1; srvnames = 0;
                   exppxy = 0; authzpxy = 0;
-                  vomsat = 1; vomsfun = 0; vomsfunparms = 0; moninfo = 0; hashcomp = 1; }
+                  vomsat = 1; moninfo = 0; hashcomp = 1; }
    virtual ~gsiOptions() { } // Cleanup inside XrdSecProtocolgsiInit
    void Print(XrdOucTrace *t); // Print summary of gsi option status
 };
@@ -324,8 +324,6 @@ private:
    static String           SrvAllowedNames;
    static int              VOMSAttrOpt; 
    static XrdSysPlugin    *VOMSPlugin;
-   static XrdSecgsiVOMS_t  VOMSFun;
-   static int              VOMSCertFmt; 
    static int              MonInfoOpt;
    static bool             HashCompatibility;
    //

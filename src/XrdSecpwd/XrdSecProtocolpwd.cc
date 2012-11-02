@@ -1899,8 +1899,6 @@ char *XrdSecProtocolpwdInit(const char mode,
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l p w d O b j e c t                 */
 /******************************************************************************/
-
-XrdVERSIONINFO(XrdSecProtocolpwdObject,secpwd);
  
 extern "C"
 {
