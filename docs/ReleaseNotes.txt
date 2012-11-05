@@ -6,6 +6,42 @@ Release Notes
 =============
 
 -------------
+Version 3.2.6
+-------------
++ **Major bug fixes**
+   * GSI authentication: fix possible race condition while re-loading CA
+     certificates; fix also related memory leaks.
+   * GSI authentication: make sure the CA cache is not initialized twice (e.g.
+     server and client inside there), and that the cache entry pointers are
+     always initialized.
+   * Crypto OpenSSL modules: use more appropriate way to read the RSA complete key,
+     solving various issues for RH6 and derivations, included SL(C)6.
+   * Make sure redirect opaque information is passed along for all filename
+     based requests. This is required for DPM and EOS N2N services to work
+     in all cases (most importantly, stat).
+   * Make sure buffer ends with null byte before read suspension. This only
+     occurs on very heavily loaded connections.
+   * Fix the fast response queue so that it doesn't run out of response
+     slots causing a big performance penalty. This is a high priority fix.
+
++ **Minor bug fixes**
+   * Properly detect external process failure and report correct error status
+     to a client.  This also fixes bug report #91141.
+   * [XRootDPosix] Make sure to use a supplied cache even when no cache
+     directives given.
+   * Make sure to return a usable path string via XrdOucCacheIO::Path().
+   * Actually support 4 different redirect destinations.
+
++ **Miscellaneous**
+   * Transparent support for new name hashing algorithm adopted in openssl
+     1.0.0x (GSI authentication protocol)
+   * Verbosity levels revised for GSI and PWD authentication protocols.
+   * Notification of initialization option for GSI and PWD authentication
+     protocols.
+   * Do not repudiate file existence on an "cancelled" error during open.
+     this patch addresses overloaded dCache pool nodes.
+
+-------------
 Version 3.2.5
 -------------
 + **Major bug fixes**
