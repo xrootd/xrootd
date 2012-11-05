@@ -32,6 +32,10 @@ BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 BuildRequires: perl-devel
 %endif
 
+%if %{?_with_tests:1}%{!?_with_tests:0}
+BuildRequires: cppunit-devel
+%endif
+
 %description
 %{summary}
 
