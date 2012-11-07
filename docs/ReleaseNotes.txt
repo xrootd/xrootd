@@ -15,6 +15,7 @@ Version 3.3.0
      include files are also installed in private subdirectory.
    * New asynchronous and thread-safe client libraries and executables
      (XrdCl). The ABI compatibility is not guaranteed until 4.0.0.
+   * Build the xrootd protocol plugin as a shared library.
    * Add the altds directive to allow pairing a cmsd with an alternate data
      server.
    * Differentiate between packed and unpacked readv monitoring records.
