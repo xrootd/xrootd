@@ -423,6 +423,7 @@ exit 0
 %{_libdir}/libXrdPss*.so*
 %{_libdir}/libXrdOfs*.so*
 %{_libdir}/libXrdServer.so*
+%{_libdir}/libXrdXrootd.so*
 %doc %{_mandir}/man8/*
 
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
