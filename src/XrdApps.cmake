@@ -112,13 +112,6 @@ install(
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
-  DIRECTORY      XrdApps/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdApps
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )
-
-install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/mpxstats.8
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man8 )

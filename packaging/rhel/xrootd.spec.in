@@ -451,6 +451,7 @@ exit 0
 %{_includedir}/%{name}/XrdPss
 %{_includedir}/%{name}/XrdFrc
 %{_includedir}/%{name}/XrdSfs
+%{_includedir}/%{name}/XrdXrootd
 
 %files client-admin-perl
 %defattr(-,root,root,-)

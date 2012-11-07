@@ -64,10 +64,3 @@ set_target_properties(
 install(
   TARGETS XrdPosix XrdPosixPreload
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  DIRECTORY      XrdPosix/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdPosix
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )

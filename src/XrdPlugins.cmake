@@ -66,17 +66,3 @@ set_target_properties(
 install(
   TARGETS XrdPss XrdBwm
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  DIRECTORY      XrdPss/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdPss
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )
-
-install(
-  DIRECTORY      XrdBwm/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdBwm
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )

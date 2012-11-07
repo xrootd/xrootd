@@ -48,10 +48,3 @@ set_target_properties(
 install(
   TARGETS XrdOfs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
-
-install(
-  DIRECTORY      XrdOfs/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdOfs
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc" )

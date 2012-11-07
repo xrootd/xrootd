@@ -194,14 +194,6 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrdstagetool.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
-install(
-  DIRECTORY      XrdClient/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdClient
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc"
-  PATTERN "XrdClientAdmin_c.hh" EXCLUDE )
-
 #-------------------------------------------------------------------------------
 # Install the perl bindings
 #-------------------------------------------------------------------------------

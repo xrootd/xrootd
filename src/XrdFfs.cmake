@@ -68,11 +68,3 @@ if( BUILD_FUSE )
     ${PROJECT_SOURCE_DIR}/docs/man/xrootdfs.1
     DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 endif()
-
-install(
-  DIRECTORY      XrdFfs/
-  DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdFfs
-  FILES_MATCHING
-  PATTERN "*.hh"
-  PATTERN "*.icc"
-  PATTERN "XrdFfsPosix.hh" EXCLUDE )
