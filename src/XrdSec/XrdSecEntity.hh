@@ -42,6 +42,9 @@
 // "fix" for this problem would require protocols to define a derived private
 // destructor for this object which is more hassle than it's worth.
 //
+
+#include <string.h>
+
 #define XrdSecPROTOIDSIZE 8
 
 class  XrdSecEntity
