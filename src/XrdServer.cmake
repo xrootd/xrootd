@@ -6,6 +6,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_SERVER_VERSION   1.0.0 )
 set( XRD_SERVER_SOVERSION 1 )
+set( XRD_XROOTD_VERSION   1.0.0 )
+set( XRD_XROOTD_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdClient lib
@@ -93,13 +95,6 @@ add_library(
   XrdCms/XrdCmsXmiReq.cc          XrdCms/XrdCmsXmiReq.hh
 )
 
-# OSS
-# FIXME: aio (librt)
-
-# FIXME: defines
-#XrdOssAio.cc:#if defined(_POSIX_ASYNCHRONOUS_IO) && !defined(HAVE_SIGWTI)
-#XrdOssAio.cc:#if defined( _POSIX_ASYNCHRONOUS_IO) && !defined(HAVE_SIGWTI)
-
 target_link_libraries(
   XrdServer
   XrdUtils
@@ -115,8 +110,57 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# XrdXrootd
+#-------------------------------------------------------------------------------
+add_library(
+  XrdXrootd
+  SHARED
+  XrdXrootd/XrdXrootdAdmin.cc           XrdXrootd/XrdXrootdAdmin.hh
+  XrdXrootd/XrdXrootdAio.cc             XrdXrootd/XrdXrootdAio.hh
+  XrdXrootd/XrdXrootdCallBack.cc        XrdXrootd/XrdXrootdCallBack.hh
+  XrdXrootd/XrdXrootdConfig.cc
+  XrdXrootd/XrdXrootdFile.cc            XrdXrootd/XrdXrootdFile.hh
+                                        XrdXrootd/XrdXrootdFileLock.hh
+  XrdXrootd/XrdXrootdFileLock1.cc       XrdXrootd/XrdXrootdFileLock1.hh
+                                        XrdXrootd/XrdXrootdFileStats.hh
+  XrdXrootd/XrdXrootdJob.cc             XrdXrootd/XrdXrootdJob.hh
+  XrdXrootd/XrdXrootdLoadLib.cc
+                                        XrdXrootd/XrdXrootdMonData.hh
+  XrdXrootd/XrdXrootdMonFile.cc         XrdXrootd/XrdXrootdMonFile.hh
+  XrdXrootd/XrdXrootdMonFMap.cc         XrdXrootd/XrdXrootdMonFMap.hh
+  XrdXrootd/XrdXrootdMonitor.cc         XrdXrootd/XrdXrootdMonitor.hh
+
+  XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh
+  XrdXrootd/XrdXrootdPrepare.cc         XrdXrootd/XrdXrootdPrepare.hh
+  XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh
+  XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
+                                        XrdXrootd/XrdXrootdStat.icc
+  XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
+  XrdXrootd/XrdXrootdXeq.cc
+  XrdXrootd/XrdXrootdXeqAio.cc
+                                        XrdXrootd/XrdXrootdTrace.hh
+                                        XrdXrootd/XrdXrootdXPath.hh
+                                        XrdXrootd/XrdXrootdReqID.hh )
+
+target_link_libraries(
+  XrdXrootd
+  XrdOfs
+  XrdUtils
+  dl
+  pthread
+  ${EXTRA_LIBS}
+  ${SOCKET_LIBRARY} )
+
+set_target_properties(
+  XrdXrootd
+  PROPERTIES
+  VERSION   ${XRD_XROOTD_VERSION}
+  SOVERSION ${XRD_XROOTD_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdServer
+  TARGETS XrdServer XrdXrootd
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
