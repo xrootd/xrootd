@@ -114,10 +114,13 @@ install(
     XrdClAnyObject.hh
     XrdClBuffer.hh
     XrdClConstants.hh
+    XrdClCopyProcess.hh
     XrdClDefaultEnv.hh
     XrdClEnv.hh
     XrdClFile.hh
     XrdClFileSystem.hh
+    XrdClMessage.hh
+    XrdClMonitor.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
     XrdClStatus.hh

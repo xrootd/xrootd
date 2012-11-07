@@ -165,6 +165,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Write a data chank at a given offset - async
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
@@ -182,6 +185,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Write a data chunk at a given offset - sync
+      //! The call interprets and returns the server response, which may be
+      //! either a success or a failure, it does not contain the number
+      //! of bytes that were actually written.
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
@@ -245,7 +251,11 @@ namespace XrdCl
       //! Read scattered data chunks in one operation - async
       //!
       //! @param chunks    list of the chunks to be read and buffers to put
-      //!                  the data in
+      //!                  the data in. The default maximum chunk size is
+      //!                  2097136 bytes and the default maximum number
+      //!                  of chunks per request is 1024. The server
+      //!                  may be queried using FileSystem::Query for the
+      //!                  actual settings.
       //! @param buffer    if zero the buffer pointers in the chunk list
       //!                  will be used, otherwise it needs to point to a
       //!                  buffer big enough to hold the requested data
@@ -263,7 +273,11 @@ namespace XrdCl
       //! Read scattered data chunks in one operation - sync
       //!
       //! @param chunks    list of the chunks to be read and buffers to put
-      //!                  the data in
+      //!                  the data in. The default maximum chunk size is
+      //!                  2097136 bytes and the default maximum number
+      //!                  of chunks per request is 1024. The server
+      //!                  may be queried using FileSystem::Query for the
+      //!                  actual settings.
       //! @param buffer    if zero the buffer pointers in the chunk list
       //!                  will be used, otherwise it needs to point to a
       //!                  buffer big enough to hold the requested data

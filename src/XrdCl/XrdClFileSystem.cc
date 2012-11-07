@@ -912,6 +912,99 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Send info to the server - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendInfo( const std::string &info,
+                                     ResponseHandler   *handler,
+                                     uint16_t           timeout )
+  {
+    Message          *msg;
+    ClientSetRequest *req;
+    const char *prefix    = "monitor info ";
+    size_t      prefixLen = strlen( prefix );
+    MessageUtils::CreateRequest( msg, req, info.length()+prefixLen );
+
+    req->requestid  = kXR_set;
+    req->dlen       = info.length()+prefixLen;
+    msg->Append( prefix, prefixLen, 24 );
+    msg->Append( info.c_str(), info.length(), 24+prefixLen );
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return Send( msg, handler, params );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Send info to the server - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::SendInfo( const std::string  &info,
+                                     Buffer            *&response,
+                                     uint16_t            timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = SendInfo( info, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
+  // Prepare one or more files for access - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileSystem::Prepare( const std::vector<std::string> &fileList,
+                                    uint8_t                         flags,
+                                    uint8_t                         priority,
+                                    ResponseHandler                *handler,
+                                    uint16_t                        timeout )
+  {
+
+    std::vector<std::string>::const_iterator it;
+    std::string                              list;
+    for( it = fileList.begin(); it != fileList.end(); ++it )
+    {
+      list += *it;
+      list += "\n";
+    }
+    list.erase( list.length()-1, 1 );
+
+    Message              *msg;
+    ClientPrepareRequest *req;
+    MessageUtils::CreateRequest( msg, req, list.length() );
+
+    req->requestid  = kXR_prepare;
+    req->options    = flags;
+    req->prty       = priority;
+    req->dlen       = list.length();
+
+    msg->Append( list.c_str(), list.length(), 24 );
+
+    MessageSendParams params; params.timeout = timeout;
+    MessageUtils::ProcessSendParams( params );
+    XRootDTransport::SetDescription( msg );
+
+    return Send( msg, handler, params );
+  }
+
+  //------------------------------------------------------------------------
+  //! Prepare one or more files for access - sync
+  //------------------------------------------------------------------------
+  XRootDStatus FileSystem::Prepare( const std::vector<std::string>  &fileList,
+                                    uint8_t                          flags,
+                                    uint8_t                          priority,
+                                    Buffer                         *&response,
+                                    uint16_t                         timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Prepare( fileList, flags, priority, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Assign a loadbalancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )
