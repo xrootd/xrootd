@@ -6,6 +6,199 @@ Release Notes
 =============
 
 -------------
+Version 3.3.0
+-------------
++ **New Features**
+   * Stable interfaces immutable in minor releases (except XrdCl). Only
+     public header files are installed in the usual include directory.
+     In order to ease up transition of some clients some of the private
+     include files are also installed in private subdirectory.
+   * New asynchronous and thread-safe client libraries and executables
+     (XrdCl). The ABI compatibility is not guaranteed until 4.0.0.
+   * Add the altds directive to allow pairing a cmsd with an alternate data
+     server.
+   * Differentiate between packed and unpacked readv monitoring records.
+   * Allow plugin libraries to be preloaded. This feature is only meant
+     for MacOS.
+   * Include optional site name in summary monitoring records.
+   * Include optional site name in server identification record if the
+     site name was specified on the command line (-S) or via config
+     file (all.sitename directive).
+   * Define a standard supported mechanism to obtain the default storage
+     system object.
+   * Provide an ABI-compatible interface to obtain a default cmsd client
+     object. This patch does not change the definition of the XrdCmsClient
+     object and is ABI compatible with all previous releases (DPM support).
+   * Allow multiple comma separated protocols in XrdSecPROTOCOL client-side
+     envar. This allows the client to select 1 of n protocols.
+   * Implement new "f" stream monitoring.
+   * Add new summary counters for readv and readv segs.
+   * Add boiler plate comments indicating the all software is licensed under
+     LGPL. No functional source code was modified by this patch.
+   * Add GPL and LGPL license text.
+   * Liberlize locking structure to prevent lock inversion relative to
+     external locks.
+   * Provide libevent replacement for Linux (epoll), Solaris (poll_create),
+     and others (poll). Note: versions of Solaris less than 10 are no longer
+     supported and they will no longer compile with this update!
+   * Provide a libevent type replacement package.
+   * Allow tracker files (e.g. ".fail") to be placed in a shadow directory.
+     This is controlled by the new fdir option on the oss.xfr directive.
+   * Allow meta-files (i.e. .fail file) to be relocated to a shadow directory
+     using the oss.xfr directive. This avoids polluting the exported name
+     space when an frm transfer operation fails.
+   * Create a general place for platform dependent utility methods.
+   * Add third party copy statistics to the summary record.
+   * zlib compatible checksum plugin
+
++ **Major bug fixes**
+   * Serialize access to cache entries to prevent SEGV's.
+   * Fix the fast response queue so that it doesn't run out of response
+     slots causing a big performance penalty. This is a high priority fix.
+   * Properly disarm the mutex helper when the mustex object is deleted.
+   * Use correct variable to hold osslib parameters. This patch fixes commit
+     2e27f87a (version checking) and without this patch makes it impossible
+     to load an oss plug-in.
+   * Properly check for errors when client read returns 0 and reflect true
+     status. This only affects the Posix client interface.
+   * Remove redundant flag indicating a running poller. This may cause the
+     poller to never be woken up when a timeout value changes.
+   * Fix <exp> tag in ofs statistics. It is improperly terminated and may
+     cause certain xml parsers to fail; rendering monitoring useless.
+   * Undo the side-effect of commit ff8bdbd6 that prevented the frm from
+     sending stage notifications to xrootd; causing opens and xrdstagetool
+     to hang with dynamic staging enabled.
+   * Make sure the id buffer is large enough to hold all id combinations.
+   * Avoid deadlock when closing a Posix File with an active preread.
+   * For concurrent queries for the same file allow servers to respond to the
+     query and only redirect clients to a stageable server if the file is not found. 
+
++ **Minor bug fixes**
+   * Add EPOLLRDHUP to avoid leaving sockets in CLOSE_WAIT with a one-shot
+     poll framework.
+   * Fully integrate checksum processing into a manager node. When configured,
+     it does not matter whether a client directs a checksum request to a manager
+     or a server.  This also fixes bug report #93388.
+   * Make sure to reflect proper range of errors during read/write operations.
+     This also provides filesystem plugins full range of allowed return codes.
+   * Initialize the rMon toggle to avoid valgrind complaint.
+   * Fix minor issues reported by Coverity.
+   * Make sure opendir() returns a null pointer when the directory doesn't
+     exist.
+   * Make sure that XrootdFS returns ENOENT when opendir() returns a null.
+   * Make sure to use correct time to set mtime/atime after a physical reloc.
+   * Prevent hangs when doing exterme copy from server to server.
+   * Fix the -force option to really work for the mark subcommand.
+   * Pass through error code returned by the N2N plug-in. This only affects
+     the proxy server and caused feature interference.
+   * Automatically exclude originating server/cluster on an enoent static
+     redirect.
+   * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
+
++ **Miscellaneous**
+   * Remove superfluous includes or other move includes to eliminate
+     unnecessary dependencies in ".hh" files. This patch is required
+     to create an EPEL conformable include directory.
+   * Add port to prepare request struct as documented in 2.9.9.
+   * Add pathid to readv request struct as documented in 2.9.9.
+
+-------------
+Version 3.2.6
+-------------
++ **Major bug fixes**
+   * GSI authentication: fix possible race condition while re-loading CA
+     certificates; fix also related memory leaks.
+   * GSI authentication: make sure the CA cache is not initialized twice (e.g.
+     server and client inside there), and that the cache entry pointers are
+     always initialized.
+   * Crypto OpenSSL modules: use more appropriate way to read the RSA complete key,
+     solving various issues for RH6 and derivations, included SL(C)6.
+   * Make sure redirect opaque information is passed along for all filename
+     based requests. This is required for DPM and EOS N2N services to work
+     in all cases (most importantly, stat).
+   * Make sure buffer ends with null byte before read suspension. This only
+     occurs on very heavily loaded connections.
+   * Fix the fast response queue so that it doesn't run out of response
+     slots causing a big performance penalty. This is a high priority fix.
+
++ **Minor bug fixes**
+   * Properly detect external process failure and report correct error status
+     to a client.  This also fixes bug report #91141.
+   * [XRootDPosix] Make sure to use a supplied cache even when no cache
+     directives given.
+   * Make sure to return a usable path string via XrdOucCacheIO::Path().
+   * Actually support 4 different redirect destinations.
+
++ **Miscellaneous**
+   * Transparent support for new name hashing algorithm adopted in openssl
+     1.0.0x (GSI authentication protocol)
+   * Verbosity levels revised for GSI and PWD authentication protocols.
+   * Notification of initialization option for GSI and PWD authentication
+     protocols.
+   * Do not repudiate file existence on an "cancelled" error during open.
+     this patch addresses overloaded dCache pool nodes.
+
+-------------
+Version 3.2.5
+-------------
++ **Major bug fixes**
+   * Make realoading gridmapfile atomic (protect from segfault)
+   * Propagate to clients proper range of errors during read/write operations
+   * Fix segfault when handling writes to files that have not been opened
+
+-------------
+Version 3.2.4
+-------------
++ **Major bug fixes**
+   * Work around a dead-lock in the client fork handlers.
+
+-------------
+Version 3.2.3
+-------------
++ **Major bug fixes**
+   * Make sure read statistics are updated for sendfile() and mmap I/O.
+   * Make sure refresh thread is dead before deleting deleting the keytab to
+     avoid SEGV's.
+   * Add missing include for compiling with gcc-4.7 (from Sebastien Binet).
+     This patch is required for successful compilation.
+   * Avoid segfaults when limiting number of redirections caused by failed
+     authorization.
+   * Avoid deadlock in the client fork handlers.
+
++ **Minor bug fixes**
+   * Correct monitor initialization test to start monitor under all configs.
+   * Fix a memory leak in the client handshake algorithm.
+
++ **Miscellaneous**
+   * Make RHEL6-created SRPMs buildable on RHEL5 by forcing RPM to use MD5
+     digests.
+   * Fuse: Use default TTL values for data server connection and load
+     balance server connection.
+
+-------------
+Version 3.2.2
+-------------
++ **Major bug fixes**
+   * Correct test whether or not to initialize redirect monitoring. The old
+     code never initialized it this disabling redirect monitoring.
+   * Backport frm notification fix that stalled stage-in requests from commit
+     69e38cfd6b8bb024dd34f8eb28a666fbf97f346b
+   * Prevent SEGV when xrd.monitor rbuff value not specified
+   * Prevent xrdcp hangs when doing exterme copy from server to server.
+   * In case of 'limited proxy' look for VOMS attributes also in the parent
+     proxy.
+   * Correct log processing for sites that use the root directory as the
+     stomping ground for newly created files.
+
+-------------
+Version 3.2.1
+-------------
++ **Major bug fixes**
+   * Don't build sendfile support on MacOSX because it doesn't work
+   * Prevent double-free abort when more than 16 files have been opened by a
+     client and the client terminates the session without closing the 17th one.
+
+-------------
 Version 3.2.0
 -------------
 + **New Features**
@@ -16,8 +209,8 @@ Version 3.2.0
    * Add the pss.cachelib directive to specify a cache plugin.
    * Implement ultralow overhead redirect monitoring.
      WARNING: ofs plugin writers will need to recompile their plugin interface
-              to be fully compatible with this commit due to additional
-              information passed to the ofs object "new" methods.
+     to be fully compatible with this commit due to additional
+     information passed to the ofs object "new" methods.
    * Allow the XrdCmsClient interface (a.k.a Finder) to be a plug-in.
    * Add ofs.cmslib directive to specify the XrdCmsClient plug-in.
    * Add new class, XrdOucCallBack, to simplify using callbacks in the
@@ -35,8 +228,8 @@ Version 3.2.0
    * Uniformly pass the execution environment to all oss and cms client
      methods. This is largely for DPM support.
      WARNING: While this update is binary backwad compatible to existing oss
-              plug-ins it is not source compatible. Plug-in writers will need
-              to modify their oss methods to successfully compile.
+     plug-ins it is not source compatible. Plug-in writers will need
+     to modify their oss methods to successfully compile.
    * Allow an automatic redirect when a file operation ends with ENOENT.
      Allow redirects for chsum and trunc operations.
      Both of the above are controlled via the xrootd.redirect directive.
@@ -97,7 +290,7 @@ Version 3.1.1
    * Add possibility to switch off automatic download of CRL from the web;
      default is OFF; to enable it multiply by 10 the relevant CRL options
      (i.e. 12 and 13 are like 2 and 3 but trying download if the file is not
-      found).
+     found).
    * Add refresh frequency time for CRL's; default 1 day .
 
 + **Major bug fixes**
