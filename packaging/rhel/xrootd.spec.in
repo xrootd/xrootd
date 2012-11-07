@@ -147,6 +147,16 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 Headers for compiling against xrootd-libs
 
 #-------------------------------------------------------------------------------
+# private devel
+#-------------------------------------------------------------------------------
+%package private-devel
+Summary: Transitional package holding some private headers
+Group:   System Environment/Libraries
+Requires: %{name}-libs = %{epoch}:%{version}-%{release}
+%description private-devel
+Transitional package holding some private headers
+
+#-------------------------------------------------------------------------------
 # admin perl
 #-------------------------------------------------------------------------------
 %package client-admin-perl
@@ -336,17 +346,16 @@ exit 0
 %{_includedir}/%{name}/XrdVersion.hh
 %{_includedir}/%{name}/XrdVersionPlugin.hh
 %{_includedir}/%{name}/XrdSec
-%{_includedir}/%{name}/XrdSecsss
-%{_includedir}/%{name}/XrdSecgsi
-%{_includedir}/%{name}/XrdCrypto
-%{_includedir}/%{name}/XrdSut
 %{_includedir}/%{name}/XrdNet
 %{_includedir}/%{name}/XrdOuc
 %{_includedir}/%{name}/XrdSys
 %{_includedir}/%{name}/Xrd
 %{_includedir}/%{name}/XProtocol
 %{_includedir}/%{name}/XrdCks
-%{_includedir}/%{name}/XrdApps
+
+%files private-devel
+%defattr(-,root,root,-)
+%{_includedir}/%{name}/private
 
 %files client
 %defattr(-,root,root,-)
@@ -372,7 +381,6 @@ exit 0
 %defattr(-,root,root,-)
 %{_includedir}/%{name}/XrdClient
 %{_includedir}/%{name}/XrdPosix
-%{_includedir}/%{name}/XrdFfs
 
 %files cl
 %defattr(-,root,root,-)
@@ -444,12 +452,8 @@ exit 0
 %files server-devel
 %defattr(-,root,root,-)
 %{_includedir}/%{name}/XrdAcc
-%{_includedir}/%{name}/XrdBwm
 %{_includedir}/%{name}/XrdCms
-%{_includedir}/%{name}/XrdOfs
 %{_includedir}/%{name}/XrdOss
-%{_includedir}/%{name}/XrdPss
-%{_includedir}/%{name}/XrdFrc
 %{_includedir}/%{name}/XrdSfs
 %{_includedir}/%{name}/XrdXrootd
 
