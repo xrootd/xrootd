@@ -458,6 +458,7 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    // Process common items
    //
    TS_Xeq("buffers",       xbuf);
+   TS_Xeq("throttle",      xthrottle);
    TS_Xeq("network",       xnet);
    TS_Xeq("sched",         xsched);
    TS_Xeq("trace",         xtrace);
@@ -929,7 +930,53 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
        if (XrdOuca2x::a2tm(*eDest,"reshape interval", val, &bint, 300))
           return 1;
 
-    BuffPool.Set((int)blim, bint);
+    BuffPool.SetBuffers((int)blim, bint);
+    return 0;
+}
+
+/******************************************************************************/
+/*                            x t h r o t t l e                               */
+/******************************************************************************/
+
+/* Function: xthrottle
+
+   Purpose:  To parse the directive: throttle [data <drate>] [iops <irate>] [interval <rint>]
+
+             <drate>    maximum bytes per second through the server.
+             <irate>    maximum IOPS per second through the server.
+             <rint>     minimum interval between throttle re-computing.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
+{
+    int rint = -1;
+    long long drate = -1, irate = -1;
+    char *val;
+
+    while ((val = Config.GetWord()))
+    {
+       if (strcmp("data", val) == 0)
+       {
+          if (!(val = Config.GetWord()))
+             {eDest->Emsg("Config", "data throttle limit not specified."); return 1;}
+          if (XrdOuca2x::a2sz(*eDest,"data throttle value",val,&drate,1)) return 1;
+       }
+       else if (strcmp("iops", val))
+       {
+          if (!(val = Config.GetWord()))
+             {eDest->Emsg("Config", "IOPS throttle limit not specified."); return 1;}
+          if (XrdOuca2x::a2sz(*eDest,"IOPS throttle value",val,&irate,1)) return 1;
+       }
+       else if (strcmp("rint", val))
+       {
+          if (!(val = Config.GetWord()))
+             {eDest->Emsg("Config", "recompute interval not specified."); return 1;}
+          if (XrdOuca2x::a2tm(*eDest,"recompute interval value",val,&rint,1)) return 1;
+       }
+    }
+
+    BuffPool.SetThrottles(drate, irate, rint);
     return 0;
 }
 

@@ -38,7 +38,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdThrottleManager.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -1695,7 +1695,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // Make sure we have a large enough buffer
 //
    if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
-      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
+      {if ((rc = getBuff(1, Quantum, myIOLen, 1)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
    buff = argp->buff;
 
@@ -1828,7 +1828,7 @@ int XrdXrootdProtocol::do_ReadV()
 // Now obtain the right size buffer
 //
    if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
-      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
+      {if ((rc = getBuff(1, Quantum, totLen, rdVecNum)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 
 // Check that we really have at least one file open. This needs to be done 
@@ -2319,7 +2319,7 @@ int XrdXrootdProtocol::do_WriteAll()
 // Make sure we have a large enough buffer
 //
    if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
-      {if ((rc = getBuff(0, Quantum)) <= 0) return rc;}
+      {if ((rc = getBuff(0, Quantum, myIOLen, 1)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 
 // Now write all of the data (XrdXrootdProtocol.C defines getData())
@@ -2487,13 +2487,14 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 /*                               g e t B u f f                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
+int XrdXrootdProtocol::getBuff(const int isRead, int Quantum, int dsize, int ops)
 {
 
 // Check if we need to really get a new buffer
+// Note we cannot short-circuit the buffer selection if we are throttling
 //
    if (!argp || Quantum > argp->bsize) hcNow = hcPrev;
-      else if (Quantum >= halfBSize || hcNow-- > 0) return 1;
+      else if ((Quantum >= halfBSize || hcNow-- > 0) && (!BPool->IsThrottling())) return 1;
               else if (hcNext >= hcMax) hcNow = hcMax;
                       else {int tmp = hcPrev;
                             hcNow   = hcNext;
@@ -2504,7 +2505,7 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 // Get a new buffer
 //
    if (argp) BPool->Release(argp);
-   if ((argp = BPool->Obtain(Quantum))) halfBSize = argp->bsize >> 1;
+   if ((argp = BPool->Obtain(Quantum, dsize, ops, 0))) halfBSize = argp->bsize >> 1;
       else return Response.Send(kXR_NoMemory, (isRead ?
                                 "insufficient memory to read file" :
                                 "insufficient memory to write file"));

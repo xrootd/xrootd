@@ -33,13 +33,19 @@ void        Init();
 
 XrdBuffer  *Obtain(int bsz, int reqsize, int reqops, int uid);
 
-int         Recalc(int bsz);
+int         Recalc(int bsz) {return m_pool.Recalc(bsz);}
 
 void        Release(XrdBuffer *bp);
 
 int         MaxSize() {return m_pool.MaxSize();}
 
-void        Set(int reqbyterate, int reqoprate, int interval=1, int maxmem=-1, int minw=-1);
+bool        IsThrottling() {return (m_ops_per_second > 0) || (m_bytes_per_second > 0);}
+
+void        SetBuffers(int maxmem=-1, int minw=-1) {m_pool.Set(maxmem, minw);}
+
+void        SetThrottles(float reqbyterate, float reqoprate, float interval_length)
+            {m_interval_length_seconds = interval_length; m_bytes_per_second = reqbyterate;
+             m_ops_per_second = reqoprate;}
 
 int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
 

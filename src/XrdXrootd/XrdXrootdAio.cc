@@ -30,7 +30,7 @@
   
 #include <unistd.h>
 
-#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdThrottleManager.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -46,7 +46,7 @@
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
   
-XrdBuffManager           *XrdXrootdAio::BPool;
+XrdThrottleManager       *XrdXrootdAio::BPool;
 XrdScheduler             *XrdXrootdAio::Sched;
 XrdXrootdStats           *XrdXrootdAio::SI;
 
@@ -88,7 +88,7 @@ XrdXrootdAio *XrdXrootdAio::Alloc(XrdXrootdAioReq *arp, int bsize)
 // Allocate a buffer for this object
 //
    if (aiop)
-      {if (bsize && (aiop->buffp = BPool->Obtain(bsize)))
+      {if (bsize && (aiop->buffp = BPool->Obtain(bsize, aiop->sfsAio.aio_nbytes, 1, 0)))
           {aiop->sfsAio.aio_buf = (void *)(aiop->buffp->buff);
            aiop->aioReq = arp;
            aiop->TIdent = arp->Link->ID;

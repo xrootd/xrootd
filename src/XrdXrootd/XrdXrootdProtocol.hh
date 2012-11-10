@@ -170,7 +170,7 @@ static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
-       int   getBuff(const int isRead, int Quantum);
+       int   getBuff(const int isRead, int Quantum, int dsize, int ops);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
        void  MonAuth();

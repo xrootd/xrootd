@@ -45,7 +45,7 @@
 // arguments to the sfs file object to effect asynchronous I/O.
 
 class XrdBuffer;
-class XrdBuffManager;
+class XrdThrottleManager;
 class XrdSysError;
 class XrdXrootdAioReq;
 class XrdXrootdStats;
@@ -72,7 +72,7 @@ static  XrdXrootdAio    *Alloc(XrdXrootdAioReq *arp, int bsize=0);
 static  XrdXrootdAio    *addBlock();
 
 static  const char      *TraceID;
-static  XrdBuffManager  *BPool;   // -> Buffer Manager
+static  XrdThrottleManager *BPool;   // -> Buffer Throttle Manager
 static  XrdScheduler    *Sched;   // -> System Scheduler
 static  XrdXrootdStats  *SI;      // -> System Statistics
 static  XrdSysMutex      fqMutex; // Locks static data

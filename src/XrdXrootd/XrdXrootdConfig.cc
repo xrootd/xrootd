@@ -70,7 +70,7 @@
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
-#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdThrottleManager.hh"
 
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
