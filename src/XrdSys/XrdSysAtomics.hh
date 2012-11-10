@@ -60,6 +60,6 @@
 #define AtomicGet(x)        x
 #define AtomicInc(x)        x++
 #define AtomicISM(x, y)     if (y == x++) y = x
-#define AtomicSub(x, y)     x -= y
+#define AtomicSub(x, y)     x; x -= y
 #endif
 #endif

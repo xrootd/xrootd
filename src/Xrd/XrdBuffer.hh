@@ -84,8 +84,6 @@ void        Release(XrdBuffer *bp);
 
 int         MaxSize() {return maxsz;}
 
-void        Reshape();
-
 void        Set(int maxmem=-1, int minw=-1);
 
 int         Stats(char *buff, int blen, int do_sync=0);
@@ -95,6 +93,11 @@ int         Stats(char *buff, int blen, int do_sync=0);
            ~XrdBuffManager() {} // The buffmanager is never deleted
 
 private:
+
+void        Reshape();
+
+static
+void *      XrdReshaper(void *pp);
 
 XrdOucTrace *XrdTrace;
 XrdSysError *XrdLog;
