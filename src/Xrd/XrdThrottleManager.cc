@@ -105,7 +105,7 @@ XrdThrottleManager::Obtain(int bsz, int reqsize, int reqops, int uid)
       }
    }
 
-   return m_pool.Obtain(bsz);
+   return bsz ? m_pool.Obtain(bsz) : NULL;
 }
 
 void

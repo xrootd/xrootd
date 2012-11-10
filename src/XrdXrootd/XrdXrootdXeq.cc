@@ -1666,7 +1666,8 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // transfer the requested data to minimize latency.
 //
    if (myFile->isMMapped)
-      {if (myOffset >= myFile->Stats.fSize) return Response.Send();
+      {getBuff(1, 0, myIOLen, 1); // Fake request to throttle
+       if (myOffset >= myFile->Stats.fSize) return Response.Send();
        if (myOffset+myIOLen <= myFile->Stats.fSize)
           {myFile->Stats.rdOps(myIOLen);
            return Response.Send(myFile->mmAddr+myOffset, myIOLen);
@@ -1680,7 +1681,8 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 //
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
-      {myFile->Stats.rdOps(myIOLen);
+      {getBuff(1, 0, myIOLen, 1); // Fake request to throttle.
+       myFile->Stats.rdOps(myIOLen);
        return Response.Send(myFile->fdNum, myOffset, myIOLen);
       }
 
@@ -2489,6 +2491,8 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
   
 int XrdXrootdProtocol::getBuff(const int isRead, int Quantum, int dsize, int ops)
 {
+// Sometimes we just want to enforce the throttle, but not actually allocate memory
+   if (!Quantum) BPool->Obtain(0, dsize, ops, myFile ? myFile->throttleUID : 0);
 
 // Check if we need to really get a new buffer
 // Note we cannot short-circuit the buffer selection if we are throttling
@@ -2505,7 +2509,7 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum, int dsize, int ops
 // Get a new buffer
 //
    if (argp) BPool->Release(argp);
-   if ((argp = BPool->Obtain(Quantum, dsize, ops, 0))) halfBSize = argp->bsize >> 1;
+   if ((argp = BPool->Obtain(Quantum, dsize, ops, myFile ? myFile->throttleUID : 0))) halfBSize = argp->bsize >> 1;
       else return Response.Send(kXR_NoMemory, (isRead ?
                                 "insufficient memory to read file" :
                                 "insufficient memory to write file"));

@@ -56,6 +56,7 @@ char         isMMapped;         // 1 -> file is memory mapped
 char         sfEnabled;         // 1 -> file is sendfile enabled
 int          fdNum;             // File descriptor number if regular file
 const char  *ID;                // File user
+int          throttleUID;       // User ID for the throttle
 
 XrdXrootdFileStats Stats;       // File access statistics
 

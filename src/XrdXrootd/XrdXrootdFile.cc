@@ -66,7 +66,8 @@ extern XrdOucTrace      *XrdXrootdTrace;
 /******************************************************************************/
   
 XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
-                             char async, int sfok, struct stat *sP)
+                             char async, int sfok, struct stat *sP) :
+    throttleUID(0)
 {
     static XrdSysMutex seqMutex;
     struct stat buf;
