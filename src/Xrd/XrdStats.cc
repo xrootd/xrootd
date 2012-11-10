@@ -35,7 +35,7 @@
 #include <sys/resource.h>
   
 #include "XrdVersion.hh"
-#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdThrottleManager.hh"
 #include "Xrd/XrdJob.hh"
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
@@ -79,7 +79,7 @@ int           iVal;
 /*                           C o n s t r c u t o r                            */
 /******************************************************************************/
   
-XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
+XrdStats::XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdThrottleManager *bP,
                    const char *hname, int port,
                    const char *iname, const char *pname, const char *site)
 {

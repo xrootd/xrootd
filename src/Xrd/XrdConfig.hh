@@ -29,7 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdThrottleManager.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -88,7 +88,7 @@ XrdSysLogger        Logger;
 XrdSysError         Log;
 XrdOucTrace         Trace;
 XrdScheduler        Sched;
-XrdBuffManager      BuffPool;
+XrdThrottleManager  BuffPool;
 XrdNetSecurity     *Police;
 const char         *myProg;
 const char         *myName;

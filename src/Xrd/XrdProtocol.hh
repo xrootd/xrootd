@@ -42,7 +42,7 @@
 
 class XrdSysError;
 class XrdOucTrace;
-class XrdBuffManager;
+class XrdThrottleManager;
 class XrdInet;
 class XrdScheduler;
 class XrdStats;
@@ -57,7 +57,7 @@ public:
 //
 XrdSysError    *eDest;       // Stable -> Error Message/Logging Handler
 XrdInet        *NetTCP;      // Stable -> Network Object    (@ XrdgetProtocol)
-XrdBuffManager *BPool;       // Stable -> Buffer Pool Manager
+XrdThrottleManager *BPool;       // Stable -> Buffer Pool Manager
 XrdScheduler   *Sched;       // Stable -> System Scheduler
 XrdStats       *Stats;       // Stable -> System Statistics (@ XrdgetProtocol)
 void           *Reserved;    // Stable -> Previously, the thread manager

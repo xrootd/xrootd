@@ -41,7 +41,7 @@ int         MaxSize() {return m_pool.MaxSize();}
 
 void        Set(int reqbyterate, int reqoprate, int interval=1, int maxmem=-1, int minw=-1);
 
-int         Stats(char *buff, int blen, int do_sync=0);
+int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
 
 int         GetUid(char *username);
 
