@@ -90,6 +90,8 @@ std::vector<int> m_primary_ops_shares;
 std::vector<int> m_secondary_ops_shares;
 int         m_last_round_allocation;
 
+static const char *TraceID;
+
 };
 
 #endif

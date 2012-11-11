@@ -944,14 +944,13 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
              <drate>    maximum bytes per second through the server.
              <irate>    maximum IOPS per second through the server.
-             <rint>     minimum interval between throttle re-computing.
+             <rint>     minimum interval in milliseconds between throttle re-computing.
 
    Output: 0 upon success or !0 upon failure.
 */
 int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
 {
-    int rint = -1;
-    long long drate = -1, irate = -1;
+    long long drate = -1, irate = -1, rint = 1000;
     char *val;
 
     while ((val = Config.GetWord()))
@@ -972,11 +971,11 @@ int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
        {
           if (!(val = Config.GetWord()))
              {eDest->Emsg("Config", "recompute interval not specified."); return 1;}
-          if (XrdOuca2x::a2tm(*eDest,"recompute interval value",val,&rint,1)) return 1;
+          if (XrdOuca2x::a2sp(*eDest,"recompute interval value",val,&rint,10)) return 1;
        }
     }
 
-    BuffPool.SetThrottles(drate, irate, rint);
+    BuffPool.SetThrottles(drate, irate, static_cast<float>(rint)/1000.0);
     return 0;
 }
 
@@ -1517,7 +1516,8 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
         {"net",      TRACE_NET},
         {"poll",     TRACE_POLL},
         {"protocol", TRACE_PROT},
-        {"sched",    TRACE_SCHED}
+        {"sched",    TRACE_SCHED},
+        {"throttle", TRACE_THROTTLE}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 

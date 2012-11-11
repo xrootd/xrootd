@@ -1696,7 +1696,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize || BPool->IsThrottling())
       {if ((rc = getBuff(1, Quantum, myIOLen, 1)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
    buff = argp->buff;
@@ -1829,7 +1829,7 @@ int XrdXrootdProtocol::do_ReadV()
    
 // Now obtain the right size buffer
 //
-   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
+   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize || BPool->IsThrottling())
       {if ((rc = getBuff(1, Quantum, totLen, rdVecNum)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 
@@ -2320,7 +2320,7 @@ int XrdXrootdProtocol::do_WriteAll()
 
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize || BPool->IsThrottling())
       {if ((rc = getBuff(0, Quantum, myIOLen, 1)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 

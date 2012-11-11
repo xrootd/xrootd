@@ -88,8 +88,8 @@ XrdXrootdAio *XrdXrootdAio::Alloc(XrdXrootdAioReq *arp, int bsize)
 // Allocate a buffer for this object
 //
    if (aiop)
-      {int uid = aiop->aioReq->myFile->throttleUID;
-       if (bsize && (aiop->buffp = BPool->Obtain(bsize, aiop->sfsAio.aio_nbytes, 1, uid)))
+      {int uid = arp->myFile->throttleUID;
+       if (bsize && (aiop->buffp = BPool->Obtain(bsize, 0, 0, uid)))
           {aiop->sfsAio.aio_buf = (void *)(aiop->buffp->buff);
            aiop->aioReq = arp;
            aiop->TIdent = arp->Link->ID;
@@ -275,6 +275,22 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
               if (iolen % myQuantum) cntaio++;
              }
 
+// Complete the request information
+// Done before allocating aio objects, as they will want to access the
+// the completed arp.
+//
+   if (iotype != 'w') prot->Link->setRef(1);
+   arp->Instance   = prot->Link->Inst();
+   arp->myIOLen    = iolen;  // Amount that is left to send
+   arp->myOffset   = prot->myOffset;
+   arp->myFile     = prot->myFile;
+   arp->Response   = prot->Response;
+   arp->aioType    = iotype;
+
+// Fake a buffer request.
+//
+   prot->BPool->Obtain(0, iolen, 1, prot->myFile->throttleUID);
+
 // Get appropriate number of aio objects
 //
    i = (maxAioPR < cntaio ? maxAioPR : cntaio);
@@ -285,16 +301,6 @@ XrdXrootdAioReq *XrdXrootdAioReq::Alloc(XrdXrootdProtocol *prot,
 //
    if (i && (maxAioPR - i) < 2 && cntaio > 1)
       {arp->Recycle(0); return (XrdXrootdAioReq *)0;}
-
-// Complete the request information
-//
-   if (iotype != 'w') prot->Link->setRef(1);
-   arp->Instance   = prot->Link->Inst();
-   arp->myIOLen    = iolen;  // Amount that is left to send
-   arp->myOffset   = prot->myOffset;
-   arp->myFile     = prot->myFile;
-   arp->Response   = prot->Response;
-   arp->aioType    = iotype;
 
 // Return what we have
 //

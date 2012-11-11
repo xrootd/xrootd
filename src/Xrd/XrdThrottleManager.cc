@@ -4,11 +4,17 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+#define XRD_TRACE m_trace->
+#include "Xrd/XrdTrace.hh"
+
+const char *
+XrdThrottleManager::TraceID = "ThrottleManager";
+
 XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP, int minrst) :
    m_trace(tP),
    m_log(lP),
    m_pool(lP, tP, minrst),
-   m_interval_length_seconds(.1),
+   m_interval_length_seconds(1.0),
    m_bytes_per_second(-1),
    m_ops_per_second(-1),
    m_max_users(1024),
@@ -19,6 +25,7 @@ XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP, int min
 void
 XrdThrottleManager::Init()
 {
+   TRACE(THROTTLE, "Initializing the throttle manager.");
    // Initialize all our shares to zero.
    m_primary_bytes_shares.reserve(m_max_users);
    m_secondary_bytes_shares.reserve(m_max_users);
@@ -34,7 +41,8 @@ XrdThrottleManager::Init()
    }
 
    int rc;
-   if ((rc = XrdSysThread::Run(NULL, XrdThrottleManager::RecomputeBootstrap, static_cast<void *>(this), 0, "Buffer Manager throttle")))
+   pthread_t tid;
+   if ((rc = XrdSysThread::Run(&tid, XrdThrottleManager::RecomputeBootstrap, static_cast<void *>(this), 0, "Buffer Manager throttle")))
       m_log->Emsg("ThrottleManager", rc, "create throttle thread");
 
    m_pool.Init();
@@ -62,12 +70,14 @@ void
 XrdThrottleManager::StealShares(int uid, int &reqsize, int &reqops)
 {
    if (!reqsize && !reqops) return;
+   TRACE(THROTTLE, "Stealing shares to fill request of " << reqsize << " bytes, " << reqops << " ops.");
 
    for (int i=uid+1; i % m_max_users == uid; i++)
    {
       if (reqsize) GetShares(m_secondary_bytes_shares[i % m_max_users], reqsize);
       if (reqops)  GetShares(m_secondary_ops_shares[  i % m_max_users], reqops);
    }
+   TRACE(THROTTLE, "After stealing shares, " << reqsize << " of request bytes remain.");
 }
 
 /*
@@ -88,7 +98,13 @@ XrdThrottleManager::Obtain(int bsz, int reqsize, int reqops, int uid)
       GetShares(m_primary_bytes_shares[uid], reqsize);
       if (reqsize)
       {
+         TRACE(THROTTLE, "Using secondary shares; request has " << reqsize << " bytes left.");
          GetShares(m_secondary_bytes_shares[uid], reqsize);
+         TRACE(THROTTLE, "Finished with secondary shares; request has " << reqsize << " bytes left.");
+      }
+      else
+      {
+         TRACE(THROTTLE, "Filled byte shares out of primary; " << m_primary_bytes_shares[uid] << " left.");
       }
       GetShares(m_primary_ops_shares[uid], reqops);
       if (reqops)
@@ -100,7 +116,7 @@ XrdThrottleManager::Obtain(int bsz, int reqsize, int reqops, int uid)
 
       if (reqsize || reqops)
       {
-         XrdSysCondVarHelper sentry(m_compute_var);
+         TRACE(THROTTLE, "Sleeping to wait for throttle fairshare.");
          m_compute_var.Wait();
       }
    }
@@ -125,11 +141,12 @@ XrdThrottleManager::RecomputeBootstrap(void *instance)
 void
 XrdThrottleManager::Recompute()
 {
-   XrdSysTimer Timer;
    while (1)
    {
+      TRACE(THROTTLE, "Recomputing fairshares for throttle.");
       RecomputeInternal();
-      Timer.Wait(1000/m_interval_length_seconds);
+      TRACE(THROTTLE, "Finished recomputing fairshares for throttle; sleeping for " << m_interval_length_seconds << " seconds.");
+      XrdSysTimer::Wait(1000*m_interval_length_seconds);
    }
 }
 
@@ -162,16 +179,25 @@ XrdThrottleManager::RecomputeInternal()
    // any primary share during the last interval;
    AtomicBeg(m_compute_var);
    float active_users = 0;
+   long bytes_used = 0;
    for (int i=0; i<m_max_users; i++)
    {
       int primary = AtomicFAZ(m_primary_bytes_shares[i]);
       if (primary != m_last_round_allocation)
       {
          active_users++;
-         m_secondary_bytes_shares[i] = primary;
+         if (primary >= 0)
+            m_secondary_bytes_shares[i] = primary;
          primary = AtomicFAZ(m_primary_ops_shares[i]);
-         m_secondary_ops_shares[i] = primary;
+         if (primary >= 0)
+             m_secondary_ops_shares[i] = primary;
+         bytes_used += (primary < 0) ? m_last_round_allocation : (m_last_round_allocation-primary);
       }
+   }
+
+   if (active_users == 0)
+   {
+      active_users++;
    }
 
    // Note we allocate the same number of shares to *all* users, not
@@ -179,12 +205,12 @@ XrdThrottleManager::RecomputeInternal()
    // interval, we'll go over our bandwidth budget just a bit.
    m_last_round_allocation = (total_bytes_shares / active_users);
    int ops_shares = (total_ops_shares / active_users);
+   TRACE(THROTTLE, "Round byte allocation " << m_last_round_allocation << "; ops allocation " << ops_shares << " ; last round used " << bytes_used << ".");
    for (int i=0; i<m_max_users; i++)
    {
       m_primary_bytes_shares[i] = m_last_round_allocation;
       m_primary_ops_shares[i] = ops_shares;
    }
    AtomicEnd(m_compute_var);
-   XrdSysCondVarHelper sentry(m_compute_var);
    m_compute_var.Broadcast();
 }
