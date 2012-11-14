@@ -43,6 +43,7 @@ XrdProtocol_Config::XrdProtocol_Config(XrdProtocol_Config &rhs)
 eDest     = rhs.eDest;
 NetTCP    = rhs.NetTCP;
 BPool     = rhs.BPool;
+Throttle  = rhs.Throttle;
 Sched     = rhs.Sched;
 Stats     = rhs.Stats;
 Trace     = rhs.Trace;

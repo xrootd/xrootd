@@ -2,9 +2,9 @@
 /*
  * XrdThrottleManager
  *
- * This class provides an implementation of a throttled buffer
- * manager.  The throttled manager will only give out a buffer at
- * particular rate, both in terms of IOPS and bandwidth.
+ * This class provides an implementation of a throttle manager.
+ * The throttled manager purposely pause if the bandwidth or IOPS
+ * rate is sustained above a certain level.
  *
  * The XrdThrottleManager is user-aware and provides fairshare.
  *
@@ -22,7 +22,9 @@
 #include <vector>
 
 #include "XrdSys/XrdSysPthread.hh"
-#include "Xrd/XrdBuffer.hh"
+
+class XrdSysError;
+class XrdOucTrace;
 
 class XrdThrottleManager
 {
@@ -31,27 +33,20 @@ public:
 
 void        Init();
 
-XrdBuffer  *Obtain(int bsz, int reqsize, int reqops, int uid);
-
-int         Recalc(int bsz) {return m_pool.Recalc(bsz);}
-
-void        Release(XrdBuffer *bp);
-
-int         MaxSize() {return m_pool.MaxSize();}
+void        Apply(int reqsize, int reqops, int uid);
 
 bool        IsThrottling() {return (m_ops_per_second > 0) || (m_bytes_per_second > 0);}
-
-void        SetBuffers(int maxmem=-1, int minw=-1) {m_pool.Set(maxmem, minw);}
 
 void        SetThrottles(float reqbyterate, float reqoprate, float interval_length)
             {m_interval_length_seconds = interval_length; m_bytes_per_second = reqbyterate;
              m_ops_per_second = reqoprate;}
 
-int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
+//int         Stats(char *buff, int blen, int do_sync=0) {return m_pool.Stats(buff, blen, do_sync);}
 
-int         GetUid(char *username);
+static
+int         GetUid(const char *username);
 
-            XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP, int minrst=20*60);
+            XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP);
 
            ~XrdThrottleManager() {} // The buffmanager is never deleted
 
@@ -73,8 +68,6 @@ void        StealShares(int uid, int &reqsize, int &reqops);
 XrdOucTrace * m_trace;
 XrdSysError * m_log;
 
-XrdBuffManager m_pool;
-
 XrdSysCondVar m_compute_var;
 
 // Controls for the various rates.
@@ -83,6 +76,7 @@ float       m_bytes_per_second;
 float       m_ops_per_second;
 
 // Maintain the shares
+static const
 int         m_max_users;
 std::vector<int> m_primary_bytes_shares;
 std::vector<int> m_secondary_bytes_shares;

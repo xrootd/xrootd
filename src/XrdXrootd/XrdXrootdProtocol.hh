@@ -170,7 +170,7 @@ static int   CheckSum(XrdOucStream *, char **, int);
        void  Cleanup();
 static int   Config(const char *fn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
-       int   getBuff(const int isRead, int Quantum, int dsize, int ops);
+       int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
        void  MonAuth();
@@ -208,7 +208,8 @@ static XrdSfsFileSystem     *osFS;      // The filesystem
 static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
-static XrdThrottleManager   *BPool;     // Buffer manager
+static XrdBuffManager       *BPool;     // Buffer manager
+static XrdThrottleManager   *Throttle;  // Throttle manager
 static XrdSysError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;

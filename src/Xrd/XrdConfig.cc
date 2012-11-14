@@ -149,7 +149,8 @@ const char   *mememe;
 /******************************************************************************/
   
 XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
-                         BuffPool(&Log, &Trace)
+                         BuffPool(&Log, &Trace),
+                         Throttle(&Log, &Trace)
 {
 
 // Preset all variables with common defaults
@@ -180,6 +181,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.eDest   = &Log;             // Stable -> Error Message/Logging Handler
    ProtInfo.NetTCP  = 0;                // Stable -> Network Object
    ProtInfo.BPool   = &BuffPool;        // Stable -> Buffer Pool Manager
+   ProtInfo.Throttle= &Throttle;        // Stable -> Throttle
    ProtInfo.Sched   = &Sched;           // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
@@ -682,6 +684,10 @@ int XrdConfig::Setup(char *dfltp)
 //
    BuffPool.Init();
 
+// Initialize the throttle
+//
+   Throttle.Init();
+
 // Start the scheduler
 //
    Sched.Start();
@@ -930,7 +936,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
        if (XrdOuca2x::a2tm(*eDest,"reshape interval", val, &bint, 300))
           return 1;
 
-    BuffPool.SetBuffers((int)blim, bint);
+    BuffPool.Set((int)blim, bint);
     return 0;
 }
 
@@ -975,7 +981,7 @@ int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
        }
     }
 
-    BuffPool.SetThrottles(drate, irate, static_cast<float>(rint)/1000.0);
+    Throttle.SetThrottles(drate, irate, static_cast<float>(rint)/1000.0);
     return 0;
 }
 

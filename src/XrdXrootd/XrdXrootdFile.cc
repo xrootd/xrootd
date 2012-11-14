@@ -43,6 +43,7 @@
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #define  TRACELINK this
 #include "XrdXrootd/XrdXrootdTrace.hh"
+#include "Xrd/XrdThrottleManager.hh"
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -67,7 +68,7 @@ extern XrdOucTrace      *XrdXrootdTrace;
   
 XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
                              char async, int sfok, struct stat *sP) :
-    throttleUID(0)
+    throttleUID(XrdThrottleManager::GetUid(id))
 {
     static XrdSysMutex seqMutex;
     struct stat buf;

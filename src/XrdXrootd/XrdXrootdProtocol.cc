@@ -30,7 +30,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "Xrd/XrdThrottleManager.hh"
+#include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -62,7 +62,8 @@ XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
 char                 *XrdXrootdProtocol::pidPath  = strdup("/tmp");
 XrdScheduler         *XrdXrootdProtocol::Sched;
-XrdThrottleManager   *XrdXrootdProtocol::BPool;
+XrdBuffManager       *XrdXrootdProtocol::BPool;
+XrdThrottleManager   *XrdXrootdProtocol::Throttle;
 XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
@@ -361,8 +362,7 @@ int XrdXrootdProtocol::Process(XrdLink *lp) // We ignore the argument here
    if (Request.header.requestid != kXR_write && Request.header.dlen)
       {if (!argp || Request.header.dlen+1 > argp->bsize)
           {if (argp) BPool->Release(argp);
-           // As we are arguments from the network, we do not count it against the throttles.
-           if (!(argp = BPool->Obtain(Request.header.dlen+1, 0, 0, 0)))
+           if (!(argp = BPool->Obtain(Request.header.dlen+1)))
               {Response.Send(kXR_ArgTooLong, "Request argument is too long");
                return 0;
               }

@@ -38,6 +38,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdThrottleManager.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
@@ -1662,12 +1663,13 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
    char *buff;
 
+   Throttle->Apply(myIOLen, 1, myFile->throttleUID);
+
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
 //
    if (myFile->isMMapped)
-      {getBuff(1, 0, myIOLen, 1); // Fake request to throttle
-       if (myOffset >= myFile->Stats.fSize) return Response.Send();
+      {if (myOffset >= myFile->Stats.fSize) return Response.Send();
        if (myOffset+myIOLen <= myFile->Stats.fSize)
           {myFile->Stats.rdOps(myIOLen);
            return Response.Send(myFile->mmAddr+myOffset, myIOLen);
@@ -1681,8 +1683,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 //
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
-      {getBuff(1, 0, myIOLen, 1); // Fake request to throttle.
-       myFile->Stats.rdOps(myIOLen);
+      {myFile->Stats.rdOps(myIOLen);
        return Response.Send(myFile->fdNum, myOffset, myIOLen);
       }
 
@@ -1696,8 +1697,8 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum < halfBSize || Quantum > argp->bsize || BPool->IsThrottling())
-      {if ((rc = getBuff(1, Quantum, myIOLen, 1)) <= 0) return rc;}
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
    buff = argp->buff;
 
@@ -1819,6 +1820,9 @@ int XrdXrootdProtocol::do_ReadV()
            }
        }
 
+// Apply throttles
+   Throttle->Apply(totLen, rdVecNum, myFile->throttleUID);
+
 // We limit the total size of the read to be 2GB for convenience
 //
    if (totLen > 0x7fffffffLL)
@@ -1829,8 +1833,8 @@ int XrdXrootdProtocol::do_ReadV()
    
 // Now obtain the right size buffer
 //
-   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize || BPool->IsThrottling())
-      {if ((rc = getBuff(1, Quantum, totLen, rdVecNum)) <= 0) return rc;}
+   if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
+      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 
 // Check that we really have at least one file open. This needs to be done 
@@ -2318,10 +2322,14 @@ int XrdXrootdProtocol::do_WriteAll()
 {
    int rc, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
 
+// Apply throttle
+//
+   Throttle->Apply(myIOLen, 1, myFile->throttleUID);
+
 // Make sure we have a large enough buffer
 //
-   if (!argp || Quantum < halfBSize || Quantum > argp->bsize || BPool->IsThrottling())
-      {if ((rc = getBuff(0, Quantum, myIOLen, 1)) <= 0) return rc;}
+   if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
+      {if ((rc = getBuff(0, Quantum)) <= 0) return rc;}
       else if (hcNow < hcNext) hcNow++;
 
 // Now write all of the data (XrdXrootdProtocol.C defines getData())
@@ -2489,16 +2497,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
 /*                               g e t B u f f                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::getBuff(const int isRead, int Quantum, int dsize, int ops)
+int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 {
-// Sometimes we just want to enforce the throttle, but not actually allocate memory
-   if (!Quantum) BPool->Obtain(0, dsize, ops, myFile ? myFile->throttleUID : 0);
 
 // Check if we need to really get a new buffer
-// Note we cannot short-circuit the buffer selection if we are throttling
 //
    if (!argp || Quantum > argp->bsize) hcNow = hcPrev;
-      else if ((Quantum >= halfBSize || hcNow-- > 0) && (!BPool->IsThrottling())) return 1;
+      else if (Quantum >= halfBSize || hcNow-- > 0) return 1;
               else if (hcNext >= hcMax) hcNow = hcMax;
                       else {int tmp = hcPrev;
                             hcNow   = hcNext;
@@ -2509,7 +2514,7 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum, int dsize, int ops
 // Get a new buffer
 //
    if (argp) BPool->Release(argp);
-   if ((argp = BPool->Obtain(Quantum, dsize, ops, myFile ? myFile->throttleUID : 0))) halfBSize = argp->bsize >> 1;
+   if ((argp = BPool->Obtain(Quantum))) halfBSize = argp->bsize >> 1;
       else return Response.Send(kXR_NoMemory, (isRead ?
                                 "insufficient memory to read file" :
                                 "insufficient memory to write file"));

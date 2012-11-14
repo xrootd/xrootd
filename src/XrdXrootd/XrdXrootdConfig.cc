@@ -70,7 +70,7 @@
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
-#include "Xrd/XrdThrottleManager.hh"
+#include "Xrd/XrdBuffer.hh"
 
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
@@ -145,6 +145,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    SI           = new XrdXrootdStats(pi->Stats);
    Sched        = pi->Sched;
    BPool        = pi->BPool;
+   Throttle     = pi->Throttle;
    hailWait     = pi->hailWait;
    readWait     = pi->readWait;
    Port         = pi->Port;

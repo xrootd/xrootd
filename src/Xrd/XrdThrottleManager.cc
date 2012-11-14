@@ -10,14 +10,15 @@
 const char *
 XrdThrottleManager::TraceID = "ThrottleManager";
 
-XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP, int minrst) :
+const
+int XrdThrottleManager::m_max_users = 1024;
+
+XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_trace(tP),
    m_log(lP),
-   m_pool(lP, tP, minrst),
    m_interval_length_seconds(1.0),
    m_bytes_per_second(-1),
    m_ops_per_second(-1),
-   m_max_users(1024),
    m_last_round_allocation(100*1024)
 {
 }
@@ -45,7 +46,6 @@ XrdThrottleManager::Init()
    if ((rc = XrdSysThread::Run(&tid, XrdThrottleManager::RecomputeBootstrap, static_cast<void *>(this), 0, "Buffer Manager throttle")))
       m_log->Emsg("ThrottleManager", rc, "create throttle thread");
 
-   m_pool.Init();
 }
 
 /*
@@ -81,11 +81,11 @@ XrdThrottleManager::StealShares(int uid, int &reqsize, int &reqops)
 }
 
 /*
- * Obtain a buffer of a given size in order to satisfy a request of a given size
- * and a certain number of operations.
+ * Apply the throttle.  If there are no limits set, returns immediately.  Otherwise,
+ * this applies the limits as best possible, stalling the thread if necessary.
  */
-XrdBuffer *
-XrdThrottleManager::Obtain(int bsz, int reqsize, int reqops, int uid)
+void
+XrdThrottleManager::Apply(int reqsize, int reqops, int uid)
 {
    if (m_bytes_per_second < 0)
       reqsize = 0;
@@ -121,13 +121,6 @@ XrdThrottleManager::Obtain(int bsz, int reqsize, int reqops, int uid)
       }
    }
 
-   return bsz ? m_pool.Obtain(bsz) : NULL;
-}
-
-void
-XrdThrottleManager::Release(XrdBuffer *bp)
-{
-   m_pool.Release(bp);
 }
 
 void *
@@ -213,4 +206,22 @@ XrdThrottleManager::RecomputeInternal()
    }
    AtomicEnd(m_compute_var);
    m_compute_var.Broadcast();
+}
+
+/*
+ * Do a simple hash across the username.
+ */
+int
+XrdThrottleManager::GetUid(const char *username)
+{
+   const char *cur = username;
+   int hval = 0;
+   while (*cur && *cur != '@' && *cur != '.')
+   {
+      hval += *cur;
+      hval %= m_max_users;
+      cur++;
+   }
+   //cerr << "Calculated UID " << hval << " for " << username << endl;
+   return hval;
 }

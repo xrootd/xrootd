@@ -46,7 +46,7 @@
 #define XRD_STATS_SYNCA  0x20000000
 
 class XrdScheduler;
-class XrdThrottleManager;
+class XrdBuffManager;
 
 class XrdStats
 {
@@ -60,7 +60,7 @@ const char *Stats(int opts);
 
 void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
 
-      XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdThrottleManager *bP,
+      XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                const char *hn, int port, const char *in, const char *pn,
                const char *sn);
 
@@ -75,7 +75,7 @@ static long     tBoot;       // Time at boot time
 
 XrdScheduler   *XrdSched;
 XrdSysError    *XrdLog;
-XrdThrottleManager *BuffPool;
+XrdBuffManager *BuffPool;
 XrdSysMutex     statsMutex;
 
 char       *buff;        // Used by all callers
