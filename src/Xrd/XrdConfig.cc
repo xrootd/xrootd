@@ -967,13 +967,13 @@ int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
              {eDest->Emsg("Config", "data throttle limit not specified."); return 1;}
           if (XrdOuca2x::a2sz(*eDest,"data throttle value",val,&drate,1)) return 1;
        }
-       else if (strcmp("iops", val))
+       else if (strcmp("iops", val) == 0)
        {
           if (!(val = Config.GetWord()))
              {eDest->Emsg("Config", "IOPS throttle limit not specified."); return 1;}
           if (XrdOuca2x::a2sz(*eDest,"IOPS throttle value",val,&irate,1)) return 1;
        }
-       else if (strcmp("rint", val))
+       else if (strcmp("rint", val) == 0)
        {
           if (!(val = Config.GetWord()))
              {eDest->Emsg("Config", "recompute interval not specified."); return 1;}
