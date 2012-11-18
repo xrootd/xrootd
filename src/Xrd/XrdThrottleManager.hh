@@ -185,7 +185,7 @@ XrdThrottleTimer(XrdThrottleManager & manager) :
    if (unlikely(retval == -1))
    {
       m_timer.tv_sec = 0;
-      m_timer.tv_nsec = -1;
+      m_timer.tv_nsec = 0;
    }
 }
 

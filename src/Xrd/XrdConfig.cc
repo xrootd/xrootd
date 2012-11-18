@@ -983,7 +983,7 @@ int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
              {eDest->Emsg("Config", "recompute interval not specified."); return 1;}
           if (XrdOuca2x::a2sp(*eDest,"recompute interval value",val,&rint,10)) return 1;
        }
-       else if (strcmp("climit", val) == 0)
+       else if (strcmp("concurrency", val) == 0)
        {
           if (!(val = Config.GetWord()))
              {eDest->Emsg("Config", "Concurrency limit not specified."); return 1;}

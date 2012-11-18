@@ -226,21 +226,23 @@ XrdThrottleManager::RecomputeInternal()
    }
 
    // Reset the loadshed limit counter.
-   AtomicFAZ(m_loadshed_limit_hit);
+   int limit_hit = AtomicFAZ(m_loadshed_limit_hit);
+   TRACE(THROTTLE, "Throttle limit hit " << limit_hit << " times during last interval.");
 
    AtomicEnd(m_compute_var);
 
    // Update the IO counters
    m_compute_var.Lock();
-   m_stable_io_counter = AtomicFAZ(m_io_counter);
-   m_stable_io_wait.tv_sec = AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second;
-   m_stable_io_wait.tv_nsec = AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second;
+   m_stable_io_counter = AtomicGet(m_io_counter);
+   m_stable_io_wait.tv_sec += AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second;
+   m_stable_io_wait.tv_nsec += AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second;
    while (m_stable_io_wait.tv_nsec > 1e9)
    {
       m_stable_io_wait.tv_nsec -= 1e9;
       m_stable_io_wait.tv_nsec --;
    }
    m_compute_var.UnLock();
+   TRACE(THROTTLE, "Current IO counter is " << m_stable_io_counter << "; total IO wait time is " << (m_stable_io_wait.tv_sec*1000+m_stable_io_wait.tv_nsec/1e6) << "ms.");
    m_compute_var.Broadcast();
 }
 
@@ -275,10 +277,11 @@ XrdThrottleManager::StartIOTimer()
    {
       AtomicBeg(m_compute_var);
       AtomicInc(m_loadshed_limit_hit);
+      AtomicDec(m_io_counter);
       AtomicEnd(m_compute_var);
       m_compute_var.Wait();
       AtomicBeg(m_compute_var);
-      cur_counter = AtomicGet(m_io_counter);
+      cur_counter = AtomicInc(m_io_counter);
       AtomicEnd(m_compute_var);
    }
    return XrdThrottleTimer(*this);
