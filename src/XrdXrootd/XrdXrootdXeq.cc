@@ -99,6 +99,7 @@ struct XrdXrootdSessID
       unsigned port; \
       std::string host; \
       Throttle->PerformLoadShed(myFile->loadshedOpaque, host, port); \
+      eDest.Emsg("Xeq", "Performing load-shed for client", myFile->ID); \
       return Response.Send(kXR_redirect, port, host.c_str()); \
    }
 
