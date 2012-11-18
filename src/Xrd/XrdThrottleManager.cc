@@ -4,6 +4,8 @@
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
+#include "XrdOuc/XrdOucEnv.hh"
+
 #define XRD_TRACE m_trace->
 #include "Xrd/XrdTrace.hh"
 
@@ -13,13 +15,25 @@ XrdThrottleManager::TraceID = "ThrottleManager";
 const
 int XrdThrottleManager::m_max_users = 1024;
 
+#if defined(__linux__)
+int XrdThrottleTimer::clock_id = clock_getcpuclockid(0) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
+#else
+int XrdThrottleTimer::clock_id = 0;
+#endif
+
 XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_trace(tP),
    m_log(lP),
    m_interval_length_seconds(1.0),
    m_bytes_per_second(-1),
    m_ops_per_second(-1),
-   m_last_round_allocation(100*1024)
+   m_concurrency_limit(-1),
+   m_last_round_allocation(100*1024),
+   m_io_counter(0),
+   m_loadshed_host(""),
+   m_loadshed_port(0),
+   m_loadshed_frequency(0),
+   m_loadshed_limit_hit(0)
 {
 }
 
@@ -40,6 +54,9 @@ XrdThrottleManager::Init()
       m_primary_ops_shares[i] = 10;
       m_secondary_ops_shares[i] = 0;
    }
+
+   m_io_wait.tv_sec = 0;
+   m_io_wait.tv_nsec = 0;
 
    int rc;
    pthread_t tid;
@@ -118,6 +135,9 @@ XrdThrottleManager::Apply(int reqsize, int reqops, int uid)
       {
          TRACE(THROTTLE, "Sleeping to wait for throttle fairshare.");
          m_compute_var.Wait();
+         AtomicBeg(m_compute_var);
+         AtomicInc(m_loadshed_limit_hit);
+         AtomicEnd(m_compute_var);
       }
    }
 
@@ -204,7 +224,23 @@ XrdThrottleManager::RecomputeInternal()
       m_primary_bytes_shares[i] = m_last_round_allocation;
       m_primary_ops_shares[i] = ops_shares;
    }
+
+   // Reset the loadshed limit counter.
+   AtomicFAZ(m_loadshed_limit_hit);
+
    AtomicEnd(m_compute_var);
+
+   // Update the IO counters
+   m_compute_var.Lock();
+   m_stable_io_counter = AtomicFAZ(m_io_counter);
+   m_stable_io_wait.tv_sec = AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second;
+   m_stable_io_wait.tv_nsec = AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second;
+   while (m_stable_io_wait.tv_nsec > 1e9)
+   {
+      m_stable_io_wait.tv_nsec -= 1e9;
+      m_stable_io_wait.tv_nsec --;
+   }
+   m_compute_var.UnLock();
    m_compute_var.Broadcast();
 }
 
@@ -224,4 +260,102 @@ XrdThrottleManager::GetUid(const char *username)
    }
    //cerr << "Calculated UID " << hval << " for " << username << endl;
    return hval;
+}
+
+/*
+ * Create an IO timer object; increment the number of outstanding IOs.
+ */
+XrdThrottleTimer
+XrdThrottleManager::StartIOTimer()
+{
+   AtomicBeg(m_compute_var);
+   int cur_counter = AtomicInc(m_io_counter);
+   AtomicEnd(m_compute_var);
+   while (m_concurrency_limit >= 0 && cur_counter > m_concurrency_limit)
+   {
+      AtomicBeg(m_compute_var);
+      AtomicInc(m_loadshed_limit_hit);
+      AtomicEnd(m_compute_var);
+      m_compute_var.Wait();
+      AtomicBeg(m_compute_var);
+      cur_counter = AtomicGet(m_io_counter);
+      AtomicEnd(m_compute_var);
+   }
+   return XrdThrottleTimer(*this);
+}
+
+/*
+ * Finish recording an IO timer.
+ */
+void
+XrdThrottleManager::StopIOTimer(struct timespec timer)
+{
+   AtomicBeg(m_compute_var);
+   AtomicDec(m_io_counter);
+   AtomicAdd(m_io_wait.tv_sec, timer.tv_sec);
+   // Note this may result in tv_nsec > 1e9
+   AtomicAdd(m_io_wait.tv_nsec, timer.tv_nsec);
+   AtomicEnd(m_compute_var);
+}
+
+/*
+ * Check the counters to see if we have hit any throttle limits in the
+ * current time period.  If so, shed the client randomly.
+ *
+ * If the client has already been load-shedded once and reconnected to this
+ * server, then do not load-shed it again.
+ */
+bool
+XrdThrottleManager::CheckLoadShed(const std::string &opaque)
+{
+   if (m_loadshed_port == 0)
+   {
+      return false;
+   }
+   if (AtomicGet(m_loadshed_limit_hit) == 0)
+   {
+      return false;
+   }
+   if (rand() % 100 > m_loadshed_frequency)
+   {
+      return false;
+   }
+   if (opaque.empty())
+   {
+      return false;
+   }
+   return true;
+}
+
+void
+XrdThrottleManager::PrepLoadShed(const char * opaque, std::string &lsOpaque)
+{
+   if (m_loadshed_port == 0)
+   {
+      return;
+   }
+   if (opaque && opaque[0])
+   {
+      XrdOucEnv env(opaque);
+      // Do not load shed client if it has already been done once.
+      if (env.Get("throttle.shed") != 0)
+      {
+         return;
+      }
+      lsOpaque = opaque;
+      lsOpaque += "&throttle.shed=1";
+   }
+   else
+   {
+      lsOpaque = "throttle.shed=1";
+   }
+}
+
+void
+XrdThrottleManager::PerformLoadShed(const std::string &opaque, std::string &host, unsigned &port)
+{
+   host = m_loadshed_host;
+   host += "?";
+   host += opaque;
+   port = m_loadshed_port;
 }

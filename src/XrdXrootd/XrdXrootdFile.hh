@@ -29,6 +29,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <string>
 #include <string.h>
 
 #include "XProtocol/XPtypes.hh"
@@ -57,6 +58,7 @@ char         sfEnabled;         // 1 -> file is sendfile enabled
 int          fdNum;             // File descriptor number if regular file
 const char  *ID;                // File user
 int          throttleUID;       // User ID for the throttle
+std::string  loadshedOpaque;    // Opaque information used when load-shedding.
 
 XrdXrootdFileStats Stats;       // File access statistics
 

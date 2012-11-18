@@ -52,7 +52,7 @@
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
-#define AtomicAdd(x, y)     x += y
+#define AtomicAdd(x, y)     x; x += y
 #define AtomicCAS(x, y, z)  if (x == y) x = z
 #define AtomicDTZ(x)        if (!(x--)) x = 0
 #define AtomicDec(x)        x--

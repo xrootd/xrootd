@@ -177,7 +177,7 @@ static int   mapMode(int mode);
 static void  PidFile();
        int   Process2();
        void  Reset();
-static int   rpCheck(char *fn, const char **opaque);
+static int   rpCheck(const char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
        int   vpEmsg(const char *op, char *fn);
 static int   Squash(char *);
