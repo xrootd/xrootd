@@ -16,7 +16,7 @@ const
 int XrdThrottleManager::m_max_users = 1024;
 
 #if defined(__linux__)
-int XrdThrottleTimer::clock_id = clock_getcpuclockid(0) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
+int XrdThrottleTimer::clock_id = clock_getcpuclockid(0, NULL) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
 #else
 int XrdThrottleTimer::clock_id = 0;
 #endif
@@ -159,7 +159,7 @@ XrdThrottleManager::Recompute()
       TRACE(THROTTLE, "Recomputing fairshares for throttle.");
       RecomputeInternal();
       TRACE(THROTTLE, "Finished recomputing fairshares for throttle; sleeping for " << m_interval_length_seconds << " seconds.");
-      XrdSysTimer::Wait(1000*m_interval_length_seconds);
+      XrdSysTimer::Wait(static_cast<int>(1000*m_interval_length_seconds));
    }
 }
 
@@ -216,8 +216,8 @@ XrdThrottleManager::RecomputeInternal()
    // Note we allocate the same number of shares to *all* users, not
    // just the active ones.  If a new user becomes active in the next
    // interval, we'll go over our bandwidth budget just a bit.
-   m_last_round_allocation = (total_bytes_shares / active_users);
-   int ops_shares = (total_ops_shares / active_users);
+   m_last_round_allocation = static_cast<int>(total_bytes_shares / active_users);
+   int ops_shares = static_cast<int>(total_ops_shares / active_users);
    TRACE(THROTTLE, "Round byte allocation " << m_last_round_allocation << "; ops allocation " << ops_shares << " ; last round used " << bytes_used << ".");
    for (int i=0; i<m_max_users; i++)
    {
@@ -234,15 +234,15 @@ XrdThrottleManager::RecomputeInternal()
    // Update the IO counters
    m_compute_var.Lock();
    m_stable_io_counter = AtomicGet(m_io_counter);
-   m_stable_io_wait.tv_sec += AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second;
-   m_stable_io_wait.tv_nsec += AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second;
-   while (m_stable_io_wait.tv_nsec > 1e9)
+   m_stable_io_wait.tv_sec += static_cast<long>(AtomicFAZ(m_io_wait.tv_sec) * intervals_per_second);
+   m_stable_io_wait.tv_nsec += static_cast<long>(AtomicFAZ(m_io_wait.tv_nsec) * intervals_per_second);
+   while (m_stable_io_wait.tv_nsec > 1000000000)
    {
-      m_stable_io_wait.tv_nsec -= 1e9;
+      m_stable_io_wait.tv_nsec -= 1000000000;
       m_stable_io_wait.tv_nsec --;
    }
    m_compute_var.UnLock();
-   TRACE(THROTTLE, "Current IO counter is " << m_stable_io_counter << "; total IO wait time is " << (m_stable_io_wait.tv_sec*1000+m_stable_io_wait.tv_nsec/1e6) << "ms.");
+   TRACE(THROTTLE, "Current IO counter is " << m_stable_io_counter << "; total IO wait time is " << (m_stable_io_wait.tv_sec*1000+m_stable_io_wait.tv_nsec/1000000) << "ms.");
    m_compute_var.Broadcast();
 }
 

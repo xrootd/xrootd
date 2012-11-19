@@ -153,7 +153,7 @@ void StopTimer()
       if (end_timer.tv_nsec < 0)
       {
          end_timer.tv_sec--;
-         end_timer.tv_nsec += 1e9;
+         end_timer.tv_nsec += 1000000000;
       }
    }
    if (m_timer.tv_nsec != -1)
