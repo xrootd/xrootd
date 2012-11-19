@@ -2608,7 +2608,7 @@ void XrdXrootdProtocol::MonAuth()
 /*                               r p C h e c k                                */
 /******************************************************************************/
   
-int XrdXrootdProtocol::rpCheck(const char *fn, const char **opaque)
+int XrdXrootdProtocol::rpCheck(char *fn, const char **opaque)
 {
    char *cp;
 
