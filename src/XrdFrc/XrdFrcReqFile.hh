@@ -69,6 +69,8 @@ int    FileLock(LockType ltype=lkExcl);
 int    reqRead(void *Buff, int Offs);
 int    reqWrite(void *Buff, int Offs, int updthdr=1);
 
+XrdSysMutex flMutex;
+
 struct FileHdr
 {
 int    First;
