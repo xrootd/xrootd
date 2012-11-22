@@ -198,7 +198,7 @@ XrdCryptosslX509::XrdCryptosslX509(XrdSutBucket *buck) : XrdCryptoX509()
    }
 
    // Get certificate from BIO
-   if (!PEM_read_bio_X509(bmem,&cert,0,0)) {
+   if (!(cert = PEM_read_bio_X509(bmem,0,0,0))) {
       DEBUG("unable to read certificate to memory BIO");
       return;
    }
@@ -414,7 +414,7 @@ const char *XrdCryptosslX509::IssuerHash(int alg)
       return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
    }
 #else
-   if (alg == 1) return (const char *)0;
+   if (alg == 1) { }
 #endif
 
    // If we do not have it already, try extraction
@@ -460,7 +460,7 @@ const char *XrdCryptosslX509::SubjectHash(int alg)
       return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
    }
 #else
-   if (alg == 1) return (const char *)0;
+   if (alg == 1) { }
 #endif
 
    // If we do not have it already, try extraction
