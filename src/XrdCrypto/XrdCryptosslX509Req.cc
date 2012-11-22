@@ -199,7 +199,7 @@ const char *XrdCryptosslX509Req::SubjectHash(int alg)
       return (subjectoldhash.length() > 0) ? subjectoldhash.c_str() : (const char *)0;
    }
 #else
-   if (alg == 1) return (const char *)0;
+   if (alg == 1) { }
 #endif
 
    // If we do not have it already, try extraction

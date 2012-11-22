@@ -1495,14 +1495,16 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
            issuerHash += "|"; issuerHash += c->SubjectHash(1); }
       } else {
         issuerHash = c->IssuerHash();
-        if (HashCompatibility && c->IssuerHash(1)) {
+        if (HashCompatibility && c->IssuerHash(1)
+                              && strcmp(c->IssuerHash(1),c->IssuerHash())) {
            issuerHash += "|"; issuerHash += c->IssuerHash(1); }
       }
       while ((c = hs->PxyChain->Next()) != 0) {
         if (c->type != XrdCryptoX509::kCA)
           break;
         issuerHash = c->SubjectHash();
-        if (HashCompatibility && c->SubjectHash(1)) {
+        if (HashCompatibility && c->SubjectHash(1)
+                              && strcmp(c->IssuerHash(1),c->IssuerHash())) {
            issuerHash += "|"; issuerHash += c->SubjectHash(1); }
       }
       
@@ -3923,7 +3925,6 @@ XrdCryptoX509Crl *XrdSecProtocolgsi::LoadCRL(XrdCryptoX509 *xca, const char *sub
    }
 
    // Get the CA hash
-//   String cahash = xca->SubjectHash();
    String cahash(subjhash);
    int hashalg = 0;
    if (strcmp(subjhash, xca->SubjectHash())) hashalg = 1;
@@ -4165,10 +4166,16 @@ bool XrdSecProtocolgsi::VerifyCA(int opt, X509Chain *cca, XrdCryptoFactory *CF)
          // We need to load the issuer(s) CA(s)
          XrdCryptoX509 *xd = xc;
          while (notdone) {
-            inam = GetCApath(xd->IssuerHash());
-            if (inam.length() <= 0) break;
-            X509Chain *ch = new X509Chain();
-            int ncis = (*ParseFile)(inam.c_str(), ch);
+            X509Chain *ch = 0;
+            int ncis = -1;
+            for (int ha = 0; ha < 2; ha++) {
+               inam = GetCApath(xd->IssuerHash(ha));
+               if (inam.length() <= 0) continue;
+               ch = new X509Chain();
+               ncis = (*ParseFile)(inam.c_str(), ch);
+               if (ncis >= 1) break;
+               SafeDelete(ch);
+            }
             if (ncis < 1) break;
             XrdCryptoX509 *xi = ch->Begin();
             while (xi) {
@@ -5423,7 +5430,7 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
       if ((rcgetca = GetCA(xsrv->IssuerHash(), cf)) != 0) {
          String emsg(xsrv->IssuerHash());
          // Try different name hash, if it makes sense
-         if (xsrv->IssuerHash(1)) {
+         if (strcmp(xsrv->IssuerHash(1), xsrv->IssuerHash(0))) {
             if ((rcgetca = GetCA(xsrv->IssuerHash(1), cf)) != 0) {
                emsg += "|";
                emsg += xsrv->IssuerHash(1);
@@ -5466,7 +5473,8 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
             certcalist += xsrv->IssuerHash();
          }
          // Save also old CA hash in list to communicate to clients, if relevant
-         if (HashCompatibility && xsrv->IssuerHash(1)) {
+         if (HashCompatibility && xsrv->IssuerHash(1) &&
+                                  strcmp(xsrv->IssuerHash(1),xsrv->IssuerHash())) {
             if (certcalist.find(xsrv->IssuerHash(1)) == STR_NPOS) {
                if (certcalist.length() > 0) certcalist += "|";
                certcalist += xsrv->IssuerHash(1);

@@ -493,7 +493,7 @@ const char *XrdCryptosslX509Crl::IssuerHash(int alg)
       return (issueroldhash.length() > 0) ? issueroldhash.c_str() : (const char *)0;
    }
 #else
-   if (alg == 1) return (const char *)0;
+   if (alg == 1) { }
 #endif
 
    // If we do not have it already, try extraction
