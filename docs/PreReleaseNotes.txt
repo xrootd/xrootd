@@ -4,3 +4,14 @@ XRootD
 
 Prerelease Notes
 ================
+
++ **New Features**
+
++ **Major bug fixes**
+   * Add mutex serialization so as not to use only fcntl() locking
+     as a synchronization primitive across threads. It doesn't work
+     in Linux.
+
++ **Minor bug fixes**
+
++ **Miscellaneous**
