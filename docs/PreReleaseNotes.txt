@@ -8,6 +8,8 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
+   * Add missing return statement to avoid SEGV during write error recovery
+     under certain circumstances. Fixes bug 99002.
    * Add mutex serialization so as not to use only fcntl() locking
      as a synchronization primitive across threads. It doesn't work
      in Linux.
