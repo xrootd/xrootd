@@ -2398,7 +2398,7 @@ int XrdXrootdProtocol::do_WriteNone()
 
 // Send our the error message and return
 //
-   if (!myFile)
+   if (!myFile) return
       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
    if (myEInfo[0]) return fsError(myEInfo[0], 0, myFile->XrdSfsp->error, 0);
    return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
