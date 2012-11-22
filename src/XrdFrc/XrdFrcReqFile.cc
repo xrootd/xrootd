@@ -97,8 +97,8 @@ void XrdFrcReqFile::Add(XrdFrcRequest *rP)
 // Chain in the request (registration requests go fifo)
 //
    if (rP->Options & XrdFrcRequest::Register)
-      {if (HdrData.First) rP->Next = HdrData.First;
-          else {HdrData.First = HdrData.Last = fP; rP->Next = 0;}
+      {if (!(rP->Next = HdrData.First)) HdrData.Last = fP;
+       HdrData.First = fP;
       } else {
        if (HdrData.First && HdrData.Last)
           {if (!reqRead((void *)&tmpReq, HdrData.Last))
@@ -197,12 +197,11 @@ int XrdFrcReqFile::Get(XrdFrcRequest *rP)
    while((fP = HdrData.First))
         {if (!reqRead((void *)rP, fP)) {FileLock(lkNone); return 0;}
          HdrData.First= rP->Next;
-         if (*(rP->LFN)) break;
+         if (*(rP->LFN)) {reqWrite(0,0,1); break;}
          rP->Next     = HdrData.Free;
          HdrData.Free = fP;
          if (!reqWrite(rP, fP)) {fP = 0; break;}
       }
-   reqWrite(0,0,1);
    if (fP) rc = (HdrData.First ? 1 : -1);
       else rc = 0;
    FileLock(lkNone);
@@ -489,13 +488,15 @@ int XrdFrcReqFile::FileLock(LockType lktype)
 
 // Establish locking options
 //
-   bzero(&lock_args, sizeof(lock_args));
+   memset(&lock_args, 0, sizeof(lock_args));
+   lock_args.l_whence = SEEK_SET;
    if (lktype == lkNone)
       {lock_args.l_type = F_UNLCK; What = "unlock";
        if (isAgent && reqFD >= 0) {close(reqFD); reqFD = -1;}
       }
       else {lock_args.l_type = (lktype == lkShare ? F_RDLCK : F_WRLCK);
             What = "lock";
+            flMutex.Lock();
            }
 
 // Perform action.
@@ -518,7 +519,7 @@ int XrdFrcReqFile::FileLock(LockType lktype)
        if (rc < 0) {Say.Emsg("reqRead",errno,"refresh hdr from", reqFN);
                     FileLock(lkNone); return 0;
                    }
-      }
+      } else if (lktype == lkNone) flMutex.UnLock();
 
 // All done
 //
