@@ -426,7 +426,7 @@ namespace XrdCms
                                          int           opMode,
                                          int           myPort
                                         );
-};
+}
 
 //------------------------------------------------------------------------------
 //! Declare compilation version.
