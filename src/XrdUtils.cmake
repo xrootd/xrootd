@@ -145,6 +145,7 @@ add_library(
   XrdCks/XrdCksCalccrc32.cc        XrdCks/XrdCksCalccrc32.hh
   XrdCks/XrdCksCalcmd5.cc          XrdCks/XrdCksCalcmd5.hh
   XrdCks/XrdCksConfig.cc           XrdCks/XrdCksConfig.hh
+  XrdCks/XrdCksLoader.cc           XrdCks/XrdCksLoader.hh
   XrdCks/XrdCksManager.cc          XrdCks/XrdCksManager.hh
                                    XrdCks/XrdCksCalcadler32.hh
                                    XrdCks/XrdCksCalc.hh
