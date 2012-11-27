@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
    * Recognize object deletion in the error handling path.
