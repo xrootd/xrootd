@@ -59,14 +59,14 @@ set_target_properties(
 # xrdcp
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcp
+  xrdcp-old
   XrdClient/Xrdcp.cc
   XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
   XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
   XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
 
 target_link_libraries(
-  xrdcp
+  xrdcp-old
   XrdClient
   XrdCrypto
   XrdUtils
@@ -182,13 +182,13 @@ endif()
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdClient xrdcp xrd xprep xrdstagetool
+  TARGETS XrdClient xrdcp-old xrd xprep xrdstagetool
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 install(
   FILES
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp-old.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrd.1
   ${PROJECT_SOURCE_DIR}/docs/man/xprep.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdstagetool.1

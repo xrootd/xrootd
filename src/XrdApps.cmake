@@ -83,14 +83,14 @@ set_target_properties(
 # xrdCp
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcpy
+  xrdcp
   XrdApps/XrdCpy.cc
   XrdClient/XrdcpXtremeRead.cc         XrdClient/XrdcpXtremeRead.hh
   XrdClient/XrdCpMthrQueue.cc          XrdClient/XrdCpMthrQueue.hh
   XrdClient/XrdCpWorkLst.cc            XrdClient/XrdCpWorkLst.hh )
 
 target_link_libraries(
-  xrdcpy
+  xrdcp
   XrdClient
   XrdUtils
   XrdAppUtils
@@ -102,13 +102,14 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcpy XrdAppUtils
+  TARGETS xrdadler32 cconfig mpxstats wait41 xrdcp XrdAppUtils
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} )
 
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdadler32.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
