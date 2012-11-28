@@ -40,7 +40,7 @@
 #include <byteswap.h>
 #define MAXNAMELEN NAME_MAX
 #endif
-#ifdef __macos__
+#ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #include <sys/types.h>
 #define fdatasync(x) fsync(x)
@@ -67,7 +67,7 @@
         ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
 #endif
 
-#if defined(__linux__) || defined(__macos__) || defined(__FreeBSD__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
 
 #define S_IAMB      0x1FF   /* access mode bits */
 
@@ -106,7 +106,7 @@ typedef off_t offset_t;
 
 // For alternative platforms
 //
-#ifdef __macos__
+#ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #ifndef POLLRDNORM
 #define POLLRDNORM  0
@@ -156,7 +156,7 @@ typedef off_t off64_t;
 #elif defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__) || \
      defined(__IEEE_LITTLE_ENDIAN) || \
      (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
-#if !defined(__GNUC__) || defined(__macos__)
+#if !defined(__GNUC__) || defined(__APPLE__)
 
 #if !defined(__sun) || (defined(__sun) && (!defined(_LP64) || defined(__SunOS_5_10)))
 extern "C" unsigned long long Swap_n2hll(unsigned long long x);
@@ -223,7 +223,7 @@ extern "C"
 #   define SOCKLEN_t size_t
 #elif defined(XR__GLIBC) || \
    defined(__FreeBSD__) || \
-   (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__macos__) || \
+   (defined(XR__SUNGCC3) && defined(__arch64__)) || defined(__APPLE__) || \
    (defined(__sun) && defined(_SOCKLEN_T))
 #   ifndef SOCKLEN_t
 #      define SOCKLEN_t socklen_t

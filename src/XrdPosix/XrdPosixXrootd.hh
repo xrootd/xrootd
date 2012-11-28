@@ -37,7 +37,7 @@
 #include <sys/statvfs.h>
 #include <sys/types.h>
 
-#if defined(__macos__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
