@@ -58,6 +58,7 @@ add_library(
   XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
   XrdClChannelHandlerList.cc  XrdClChannelHandlerList.hh
   XrdClForkHandler.cc         XrdClForkHandler.hh
+  XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

@@ -21,8 +21,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCks/XrdCksManager.hh"
-#include "XrdCks/XrdCksCalc.hh"
+#include "XrdCl/XrdClCheckSumManager.hh"
+
 
 #include <algorithm>
 
@@ -155,8 +155,8 @@ namespace XrdCl
                                         const std::string &checkSumType,
                                         const std::string &path )
   {
-    Log    *log    = DefaultEnv::GetLog();
-    XrdCks *cksMan = DefaultEnv::GetCheckSumManager();
+    Log             *log    = DefaultEnv::GetLog();
+    CheckSumManager *cksMan = DefaultEnv::GetCheckSumManager();
 
     if( !cksMan )
     {
@@ -165,12 +165,12 @@ namespace XrdCl
     }
 
     XrdCksData ckSum; ckSum.Set( checkSumType.c_str() );
-    int status = cksMan->Calc( path.c_str(), ckSum, 0 );
-    if( status != 0 )
+    bool status = cksMan->Calculate( ckSum, checkSumType, path.c_str() );
+    if( !status )
     {
-      log->Error( UtilityMsg, "Error while calculating checksum for %s: %s",
-                  path.c_str(), strerror( -status ) );
-      return XRootDStatus( stError, errCheckSumError, -status );
+      log->Error( UtilityMsg, "Error while calculating checksum for %s",
+                  path.c_str() );
+      return XRootDStatus( stError, errCheckSumError );
     }
 
     char *cksBuffer = new char[265];
