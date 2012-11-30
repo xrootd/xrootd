@@ -128,3 +128,9 @@ install(
     XrdClURL.hh
     XrdClXRootDResponses.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
+
+install(
+  FILES
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
