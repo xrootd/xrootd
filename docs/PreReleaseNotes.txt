@@ -9,6 +9,9 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Only use the callback dispatcher ending state to determine whether the
+     channel should be excluded from the poll set to avoid referencing
+     deleted memory should the callback delete its own channel.
    * Recognize object deletion in the error handling path.
    * Add missing return statement to avoid SEGV during write error recovery
      under certain circumstances. Fixes bug 99002.
