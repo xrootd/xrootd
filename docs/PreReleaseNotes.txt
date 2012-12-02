@@ -17,6 +17,10 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Do not use AtomicDTZ and AtomicISM so as to keep LinkCount and
+     LinkCountMax updates truly atomic. The mentioned atomic macros
+     should be removed at the next release boundary as this will
+     change a public user interface.
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
