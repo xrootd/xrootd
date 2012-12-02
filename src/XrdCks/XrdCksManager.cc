@@ -199,17 +199,17 @@ int XrdCksManager::Config(const char *Token, char *Line)
 //
    Cfg.GetLine();
    if (!(val = Cfg.GetToken()) || !val[0])
-      {eDest->Emsg("Config", "checksum name not specified"); return 0;}
+      {eDest->Emsg("Config", "checksum name not specified"); return 1;}
    if (int(strlen(val)) >= XrdCksData::NameSize)
-      {eDest->Emsg("Config", "checksum name too long"); return 0;}
+      {eDest->Emsg("Config", "checksum name too long"); return 1;}
    strcpy(name, val);
 
 // Get the path and optional parameters
 //
    val = Cfg.GetToken(&parms);
-   if (val && !val[0]) path = strdup(val);
+   if (val && val[0]) path = strdup(val);
       else {eDest->Emsg("Config","library path missing for ckslib digest",name);
-            return 0;
+            return 1;
            }
 
 // Check if this replaces an existing checksum
@@ -222,7 +222,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
    if (i >= csMax)
       {eDest->Emsg("Config", "too many checksums specified");
        if (path) free(path);
-       return 0;
+       return 1;
       } else if (!(*csTab[i].Name)) csLast = i;
 
 // Insert the new checksum
@@ -235,7 +235,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
 
 // All done
 //
-   return 1;
+   return 0;
 }
 
 /******************************************************************************/
