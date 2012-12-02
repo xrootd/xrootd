@@ -17,5 +17,6 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
