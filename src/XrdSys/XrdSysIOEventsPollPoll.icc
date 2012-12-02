@@ -250,7 +250,7 @@ void XrdSys::IOEvents::PollPoll::Dispatch(int ptent, int pollEv)
 
 // Execute the callback
 //
-   if (!CbkXeq(cP, events, eNum, eTxt) || eNum) FDRem(ptent);
+   if (!CbkXeq(cP, events, eNum, eTxt)) FDRem(ptent);
 }
 
 /******************************************************************************/
