@@ -263,12 +263,14 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    lp->LockReads = (0 != (opts & XRDLINK_RDLOCK));
    lp->KeepFD    = (0 != (opts & XRDLINK_NOCLOSE));
 
-// Update statistics and return the link
+// Update statistics and return the link. We need to actually get the stats
+// mutex even when using atomics because we need to use compound operations.
+// The atomics will keep reporters from seeing partial results.
 //
-   AtomicBeg(statsMutex);
+   statsMutex.Lock();
    AtomicInc(LinkCountTot);            // LinkCountTot++
-   AtomicISM(LinkCount, LinkCountMax); // Increment and set maximum
-   AtomicEnd(statsMutex);
+   if (LinkCountMax <= AtomicInc(LinkCount)) LinkCountMax = LinkCount;
+   statsMutex.UnLock();
    return lp;
 }
   
@@ -1140,15 +1142,22 @@ void XrdLink::syncStats(int *ctime)
 // Either the caller has the opMutex or this is called out of close. In either
 // case, we need to get the read and write mutexes; each followed by the stats
 // mutex. This order is important because we should not hold the stats mutex
-// for very long and the r/w mutexes may take a long time to acquire.
+// for very long and the r/w mutexes may take a long time to acquire. If we
+// must maintain the link count we need to actually acquire the stats mutex as
+// we will be doing compound operations. Atomics are still used to keep other
+// threads from seeing partial results.
 //
-   AtomicBeg(rdMutex);    AtomicBeg(statsMutex);
+   AtomicBeg(rdMutex);
 
    if (ctime)
       {*ctime = time(0) - conTime;
        AtomicAdd(LinkConTime, *ctime);
-       AtomicDTZ(LinkCount);
+       statsMutex.Lock();
+       if (LinkCount > 0) AtomicDec(LinkCount);
+       statsMutex.UnLock();
       }
+
+   AtomicBeg(statsMutex);
 
    tmpLL = AtomicFAZ(BytesIn);
    AtomicAdd(LinkBytesIn, tmpLL);  AtomicAdd(BytesInTot, tmpLL);
