@@ -20,6 +20,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Allow for null fields in the cgi string.
    * Remove non-atomic AtomicDTZ and AtomicISM macros.
    * Do not use AtomicDTZ and AtomicISM so as to keep LinkCount and
      LinkCountMax updates truly atomic. The mentioned atomic macros
