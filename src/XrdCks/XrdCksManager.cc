@@ -153,6 +153,7 @@ int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
 // Get the file characteristics
 //
    if (fstat(In.FD, &Stat)) return -errno;
+   if (!(Stat.st_mode & S_IFREG)) return -EPERM;
    calcSize = fileSize = Stat.st_size;
    MTime = Stat.st_mtime;
 
