@@ -60,6 +60,7 @@ add_library(
   XrdOuc/XrdOucEnv.cc           XrdOuc/XrdOucEnv.hh
                                 XrdOuc/XrdOucHash.hh
                                 XrdOuc/XrdOucHash.icc
+  XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucHashVal.cc
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
