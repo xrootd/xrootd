@@ -32,3 +32,5 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Pretty up an error message. Required XrdOucERoute patch.
+
