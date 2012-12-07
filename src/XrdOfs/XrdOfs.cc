@@ -68,6 +68,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -1993,7 +1994,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *target) // The target (e.g., fname)
 {
-   char *etext, buffer[MAXPATHLEN+80], unkbuff[64];
+   char buffer[MAXPATHLEN+80];
 
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
@@ -2005,14 +2006,9 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 //
    if (ecode == ETIMEDOUT) return OSSDelay;
 
-// Get the reason for the error
-//
-   if (!(etext = OfsEroute.ec2text(ecode))) 
-      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
-
 // Format the error message
 //
-    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
+   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, target);
 
 // Print it out if debugging is enabled
 //
