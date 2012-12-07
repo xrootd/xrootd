@@ -24,7 +24,10 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPoller.hh"
 #include "XrdCl/XrdClTaskManager.hh"
+#include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClChannel.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClLog.hh"
 
 namespace XrdCl
 {
@@ -34,7 +37,6 @@ namespace XrdCl
   PostMaster::PostMaster():
     pPoller( 0 ), pInitialized( false )
   {
-    pTransportHandler = new XRootDTransport();
     pTaskManager      = new TaskManager();
   }
 
@@ -44,7 +46,6 @@ namespace XrdCl
   PostMaster::~PostMaster()
   {
     delete pPoller;
-    delete pTransportHandler;
     delete pTaskManager;
   }
 
@@ -142,6 +143,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     return channel->Send( msg, stateful, expires );
   }
 
@@ -157,6 +162,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     return channel->Send( msg, handler, stateful, expires );
   }
 
@@ -171,6 +180,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     return channel->Receive( msg, filter, expires );
   }
 
@@ -184,6 +197,11 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     return channel->Receive( handler, expires );
   }
 
@@ -197,6 +215,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     return channel->QueryTransport( query, result );
   }
 
@@ -209,6 +231,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     channel->RegisterEventHandler( handler );
     return Status();
   }
@@ -222,6 +248,10 @@ namespace XrdCl
     if( !pInitialized )
       return Status( stFatal, errUninitialized );
     Channel *channel = GetChannel( url );
+
+    if( !channel )
+      return Status( stError, errNotSupported );
+
     channel->RemoveEventHandler( handler );
     return Status();
   }
@@ -236,7 +266,18 @@ namespace XrdCl
     ChannelMap::iterator it = pChannelMap.find( url.GetHostId() );
     if( it == pChannelMap.end() )
     {
-      channel = new Channel( url, pPoller, pTransportHandler, pTaskManager );
+      TransportManager *trManager = DefaultEnv::GetTransportManager();
+      TransportHandler *trHandler = trManager->GetHandler( url.GetProtocol() );
+
+      if( !trHandler )
+      {
+        Log *log = DefaultEnv::GetLog();
+        log->Error( PostMasterMsg, "Unable to get transport handler for %s "
+                    "protocol", url.GetProtocol().c_str() );
+        return 0;
+      }
+
+      channel = new Channel( url, pPoller, trHandler, pTaskManager );
       pChannelMap[url.GetHostId()] = channel;
     }
     else

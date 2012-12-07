@@ -32,6 +32,7 @@ namespace XrdCl
   class ForkHandler;
   class Monitor;
   class CheckSumManager;
+  class TransportManager;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -77,6 +78,11 @@ namespace XrdCl
       static CheckSumManager *GetCheckSumManager();
 
       //------------------------------------------------------------------------
+      //! Get transport manager
+      //------------------------------------------------------------------------
+      static TransportManager *GetTransportManager();
+
+      //------------------------------------------------------------------------
       //! Initialize the environemnt
       //------------------------------------------------------------------------
       static void Initialize();
@@ -103,7 +109,7 @@ namespace XrdCl
       static XrdSysPlugin      *sMonitorLibHandle;
       static bool               sMonitorInitialized;
       static CheckSumManager   *sCheckSumManager;
-      static bool               sCheckSumManagerInitialized;
+      static TransportManager  *sTransportManager;
   };
 }
 
