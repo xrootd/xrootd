@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add new object to format and route error messages to multiple
+     destinations.
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
