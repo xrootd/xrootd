@@ -20,6 +20,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Reject checksums on anything that isn't a regular file.
    * Allow for null fields in the cgi string.
    * Remove non-atomic AtomicDTZ and AtomicISM macros.
    * Do not use AtomicDTZ and AtomicISM so as to keep LinkCount and
