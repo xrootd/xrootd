@@ -59,6 +59,7 @@ add_library(
   XrdClChannelHandlerList.cc  XrdClChannelHandlerList.hh
   XrdClForkHandler.cc         XrdClForkHandler.hh
   XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
+  XrdClTransportManager.cc    XrdClTransportManager.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -124,6 +125,7 @@ install(
     XrdClMonitor.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
+    XrdClTransportManager.hh
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh

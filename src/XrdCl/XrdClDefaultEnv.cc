@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
+#include "XrdCl/XrdClTransportManager.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
@@ -131,7 +132,7 @@ namespace XrdCl
   XrdSysPlugin      *DefaultEnv::sMonitorLibHandle   = 0;
   bool               DefaultEnv::sMonitorInitialized = false;
   CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
-  bool               DefaultEnv::sCheckSumManagerInitialized = false;
+  TransportManager  *DefaultEnv::sTransportManager   = 0;
 
   //----------------------------------------------------------------------------
   // Constructor
@@ -293,20 +294,31 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  //! Get checksum manager
+  // Get checksum manager
   //----------------------------------------------------------------------------
   CheckSumManager *DefaultEnv::GetCheckSumManager()
   {
-    if( unlikely( !sCheckSumManagerInitialized ) )
+    if( unlikely( !sCheckSumManager ) )
     {
       XrdSysMutexHelper scopedLock( sInitMutex );
-      if( !sCheckSumManagerInitialized )
-      {
-        sCheckSumManagerInitialized = true;
+      if( !sCheckSumManager )
         sCheckSumManager = new CheckSumManager();
-      }
     }
     return sCheckSumManager;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get transport manager
+  //----------------------------------------------------------------------------
+  TransportManager *DefaultEnv::GetTransportManager()
+  {
+    if( unlikely( !sTransportManager ) )
+    {
+      XrdSysMutexHelper scopedLock( sInitMutex );
+      if( !sTransportManager )
+        sTransportManager = new TransportManager();
+    }
+    return sTransportManager;
   }
 
   //----------------------------------------------------------------------------
@@ -364,6 +376,12 @@ namespace XrdCl
       sPostMaster = 0;
     }
 
+    delete sTransportManager;
+    sTransportManager = 0;
+
+    delete sCheckSumManager;
+    sCheckSumManager = 0;
+
     delete sMonitor;
     sMonitor = 0;
 
@@ -378,7 +396,6 @@ namespace XrdCl
 
     delete sLog;
     sLog = 0;
-
   }
 
   //----------------------------------------------------------------------------
