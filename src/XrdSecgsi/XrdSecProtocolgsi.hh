@@ -28,6 +28,7 @@
 #include <time.h>
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -206,45 +207,7 @@ public:
 };
 
 class XrdSecProtocolgsi;
-class gsiHSVars {
-public:
-   int               Iter;          // iteration number
-   time_t            TimeStamp;     // Time of last call
-   String            CryptoMod;     // crypto module in use
-   int               RemVers;       // Version run by remote counterpart
-   XrdCryptoCipher  *Rcip;          // reference cipher
-   XrdSutBucket     *Cbck;          // Bucket with the certificate in export form
-   String            ID;            // Handshake ID (dummy for clients)
-   XrdSutPFEntry    *Cref;          // Cache reference
-   XrdSutPFEntry    *Pent;          // Pointer to relevant file entry 
-   X509Chain        *Chain;         // Chain to be eventually verified 
-   XrdCryptoX509Crl *Crl;           // Pointer to CRL, if required 
-   X509Chain        *PxyChain;      // Proxy Chain on clients
-   bool              RtagOK;        // Rndm tag checked / not checked
-   bool              Tty;           // Terminal attached / not attached
-   int               LastStep;      // Step required at previous iteration
-   int               Options;       // Handshake options;
-   int               HashAlg;       // Hash algorithm of peer hash name;
-   XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
-
-   gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
-                 RemVers = -1; Rcip = 0;
-                 Cbck = 0;
-                 ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
-                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; HashAlg = 0; Parms = 0;}
-
-   ~gsiHSVars() { SafeDelete(Cref);
-                  if (Options & kOptsDelChn) {
-                     // Do not delete the CA certificate in the cached reference
-                     if (Chain) Chain->Cleanup(1);
-                     SafeDelete(Chain);
-                  }
-                  // The proxy chain is owned by the proxy cache; invalid proxies are
-                  // detected (and eventually removed) by QueryProxy
-                  PxyChain = 0;
-                  SafeDelete(Parms); }
-   void Dump(XrdSecProtocolgsi *p = 0);
-};
+class gsiHSVars;
 
 // From a proxy query
 typedef struct {
@@ -264,6 +227,28 @@ typedef struct {
    int         bits;
 } ProxyIn_t;
 
+
+class GSICrlStack {
+public:
+   void Add(XrdCryptoX509Crl *crl) {
+      char k[40]; snprintf(k, 40, "%p", crl); 
+      mtx.Lock();
+      if (!stack.Find(k)) stack.Add(k, crl, 0, Hash_count);
+      stack.Add(k, crl, 0, Hash_count);
+      mtx.UnLock();
+   }
+   void Del(XrdCryptoX509Crl *crl) {
+      char k[40]; snprintf(k, 40, "%p", crl); 
+      mtx.Lock();
+      if (stack.Find(k)) stack.Del(k, Hash_count);
+      mtx.UnLock();
+   }
+private:
+   XrdSysMutex                  mtx;
+   XrdOucHash<XrdCryptoX509Crl> stack;
+};
+
+
 /******************************************************************************/
 /*              X r d S e c P r o t o c o l g s i   C l a s s                 */
 /******************************************************************************/
@@ -271,6 +256,7 @@ typedef struct {
 class XrdSecProtocolgsi : public XrdSecProtocol
 {
 friend class gsiOptions;
+friend class gsiHSVars;
 public:
         int                Authenticate  (XrdSecCredentials *cred,
                                           XrdSecParameters **parms,
@@ -366,6 +352,9 @@ private:
    static XrdSutCache      cacheGMAP; // Cache for gridmap entries
    static XrdSutCache      cacheGMAPFun; // Cache for entries mapped by GMAPFun
    static XrdSutCache      cacheAuthzFun; // Cache for entities filled by AuthzFun
+   //
+   // CRL stack
+   static GSICrlStack      stackCRL; // Stack of CRL in use
    //
    // GMAP control vars
    static time_t           lastGMAPCheck; // time of last check on GMAP
@@ -480,4 +469,50 @@ private:
 
    // VOMS parsing
    int ExtractVOMS(X509Chain *c, XrdSecEntity &ent);
+};
+
+class gsiHSVars {
+public:
+   int               Iter;          // iteration number
+   time_t            TimeStamp;     // Time of last call
+   String            CryptoMod;     // crypto module in use
+   int               RemVers;       // Version run by remote counterpart
+   XrdCryptoCipher  *Rcip;          // reference cipher
+   XrdSutBucket     *Cbck;          // Bucket with the certificate in export form
+   String            ID;            // Handshake ID (dummy for clients)
+   XrdSutPFEntry    *Cref;          // Cache reference
+   XrdSutPFEntry    *Pent;          // Pointer to relevant file entry 
+   X509Chain        *Chain;         // Chain to be eventually verified 
+   XrdCryptoX509Crl *Crl;           // Pointer to CRL, if required 
+   X509Chain        *PxyChain;      // Proxy Chain on clients
+   bool              RtagOK;        // Rndm tag checked / not checked
+   bool              Tty;           // Terminal attached / not attached
+   int               LastStep;      // Step required at previous iteration
+   int               Options;       // Handshake options;
+   int               HashAlg;       // Hash algorithm of peer hash name;
+   XrdSutBuffer     *Parms;         // Buffer with server parms on first iteration 
+
+   gsiHSVars() { Iter = 0; TimeStamp = -1; CryptoMod = "";
+                 RemVers = -1; Rcip = 0;
+                 Cbck = 0;
+                 ID = ""; Cref = 0; Pent = 0; Chain = 0; Crl = 0; PxyChain = 0;
+                 RtagOK = 0; Tty = 0; LastStep = 0; Options = 0; HashAlg = 0; Parms = 0;}
+
+   ~gsiHSVars() { SafeDelete(Cref);
+                  if (Options & kOptsDelChn) {
+                     // Do not delete the CA certificate in the cached reference
+                     if (Chain) Chain->Cleanup(1);
+                     SafeDelete(Chain);
+                  }
+                  if (Crl) {
+                     // This decreases the counter and actually deletes the object only
+                     // when no instance is using it
+                     XrdSecProtocolgsi::stackCRL.Del(Crl);
+                     Crl = 0;
+                  }
+                  // The proxy chain is owned by the proxy cache; invalid proxies are
+                  // detected (and eventually removed) by QueryProxy
+                  PxyChain = 0;
+                  SafeDelete(Parms); }
+   void Dump(XrdSecProtocolgsi *p = 0);
 };

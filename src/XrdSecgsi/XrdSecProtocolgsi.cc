@@ -184,6 +184,9 @@ XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
 //
+// CRL stack
+GSICrlStack  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
+//
 // GMAP control vars
 time_t XrdSecProtocolgsi::lastGMAPCheck = -1; // Time of last check
 XrdSysMutex XrdSecProtocolgsi::mutexGMAP;  // Mutex to control GMAP reloads
@@ -4273,17 +4276,19 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 
    // If found, we are done
    if (cent) {
+      if (hs) hs->Chain = (X509Chain *)(cent->buf1.buf);
+      XrdCryptoX509Crl *crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
       if ((CRLRefresh <= 0) || ((timestamp - cent->mtime) < CRLRefresh)) {
-         if (hs) {
-            hs->Chain = (X509Chain *)(cent->buf1.buf);
-            hs->Crl = (XrdCryptoX509Crl *)(cent->buf2.buf);
-         }
+         if (hs) hs->Crl = crl;
+         // Add to the stack for proper cleaning of invalidated CRLs
+         stackCRL.Add(crl);
          return 0;
       } else {
          PRINT("entry for '"<<tag<<"' needs refreshing: clean the related entry cache first");
-         // Entry needs refreshing
-         delete (X509Chain *)(cent->buf1.buf); cent->buf1.buf = 0;
-         delete (XrdCryptoX509Crl *)(cent->buf2.buf); cent->buf2.buf = 0;
+         // Entry needs refreshing: we remove it from the stack, so it gets deleted when
+         // the last handshake using it is over 
+         stackCRL.Del(crl);
+         cent->buf2.buf = 0;
          if (!cacheCA.Remove(tag.c_str())) {
             PRINT("problems removing entry from CA cache");
             return -1;
@@ -4299,17 +4304,18 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
    String fnam = GetCApath(cahash);
    DEBUG("trying to load CA certificate from "<<fnam);
 
-   // Create chain
-   X509Chain *chain = new X509Chain();
-   if (!chain ) {
-      PRINT("could not create new GSI chain");
+   // Create chain ?
+   bool createchain = (hs && hs->Chain) ? 0 : 1;
+   X509Chain *chain = (createchain) ? new X509Chain() : hs->Chain;
+   if (!chain) {
+      PRINT("could not attach-to or create new GSI chain");
       return -1;
    }
 
    // Get the parse function
    XrdCryptoX509ParseFile_t ParseFile = cf->X509ParseFile();
    if (ParseFile) {
-      int nci = (*ParseFile)(fnam.c_str(), chain);
+      int nci = (createchain) ? (*ParseFile)(fnam.c_str(), chain) : 1;
       bool ok = 0, verified = 0;
       if (nci == 1) {
          // Verify the CA
@@ -4342,6 +4348,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
                if (crl) {
                   cent->buf2.buf = (char *)(crl);
                   cent->buf2.len = 0;      // Just a flag
+                  stackCRL.Add(crl);
                }
                cent->mtime = timestamp;
                cent->status = kPFE_ok;
@@ -4354,6 +4361,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
                if (strcmp(cahash, chain->Begin()->SubjectHash())) hs->HashAlg = 1;
             }
          } else {
+            SafeDelete(crl);
             return -2;
          }
       } else {
