@@ -24,6 +24,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Correct midnight calculation to properly account for time shifts.
    * Make sure error messages generated in a fork during stream execution
      appear in the log.
    * Return error message text to the client when a checksum fails.
