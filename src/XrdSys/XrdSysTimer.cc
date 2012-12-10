@@ -233,9 +233,17 @@ void XrdSysTimer::Wait(int mills)
   
 void XrdSysTimer::Wait4Midnight()
 {
-   timespec Midnite = {Midnight(1), 0};
 
 // Wait until midnight arrives
 //
+#ifndef __macos__
+   timespec Midnite = {Midnight(1), 0};
    while(clock_nanosleep(CLOCK_REALTIME,TIMER_ABSTIME,&Midnite,0) == EINTR) {}
+#else
+   timespec tleft, Midnite = {Midnight(1) - time(0), 0};
+   while(nanosleep(&Midnite, &tleft) && EINTR == errno)
+        {Midnite.tv_sec  = tleft.tv_sec;
+         Midnite.tv_nsec = tleft.tv_nsec;
+        }
+#endif
 }
