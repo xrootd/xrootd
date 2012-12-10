@@ -465,7 +465,7 @@ int XrdCpConfig::defCks(const char *opval)
 // Initialize the checksum manager if we have not done so already
 //
    if (!CksMan)
-      {CksMan = new XrdCksManager(Log, 0, &myVer);
+      {CksMan = new XrdCksManager(Log, 0, myVer, true);
        if (!(CksMan->Init("")))
           {delete CksMan; CksMan = 0;
            FMSG("Unable to initialize checksum processing.", 13);

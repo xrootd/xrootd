@@ -41,6 +41,7 @@
 */
 
 class  XrdCksCalc;
+class  XrdCksLoader;
 class  XrdSysError;
 struct XrdVersionInfo;
   
@@ -70,7 +71,7 @@ virtual int         Set(  const char *Pfn, XrdCksData &Cks, int myTime=0);
 virtual int         Ver(  const char *Pfn, XrdCksData &Cks);
 
                     XrdCksManager(XrdSysError *erP, int iosz,
-                                  XrdVersionInfo *vInfo);
+                                  XrdVersionInfo &vInfo, bool autoload=false);
 virtual            ~XrdCksManager();
 
 protected:
@@ -96,17 +97,20 @@ struct csInfo
        char         *Parms;
        XrdSysPlugin *Plugin;
        int           Len;
-                     csInfo() : Obj(0), Path(0), Parms(0), Plugin(0), Len(0)
+       bool          doDel;
+                     csInfo() : Obj(0), Path(0), Parms(0), Plugin(0), Len(0),
+                                doDel(true)
                                 {memset(Name, 0, sizeof(Name));}
       };
 
 int     Config(const char *cFN, csInfo &Info);
 csInfo *Find(const char *Name);
 
-static const int csMax = 4;
+static const int csMax = 8;
 csInfo           csTab[csMax];
 int              csLast;
 int              segSize;
-XrdVersionInfo  *myVersion;
+XrdCksLoader    *cksLoader;
+XrdVersionInfo  &myVersion;
 };
 #endif

@@ -51,7 +51,7 @@ int     Manager(const char *Path, const char *Parms);
 int     ParseLib(XrdOucStream &Config);
 
         XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
-                     XrdVersionInfo *vInfo);
+                     XrdVersionInfo &vInfo);
        ~XrdCksConfig() {XrdOucTList *tP;
                         if (CksLib)  free(CksLib);
                         if (CksParm) free(CksParm);
@@ -67,6 +67,6 @@ char           *CksLib;
 char           *CksParm;
 XrdOucTList    *CksList;
 XrdOucTList    *CksLast;
-XrdVersionInfo *myVersion;
+XrdVersionInfo &myVersion;
 };
 #endif

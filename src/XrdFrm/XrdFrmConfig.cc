@@ -963,7 +963,7 @@ int XrdFrmConfig::ConfigProc()
 // Allocate a chksum configurator if needed
 //
    if (ssID == ssAdmin)
-      {CksCfg = new XrdCksConfig(ConfigFN, &Say, retc, myVersion);
+      {CksCfg = new XrdCksConfig(ConfigFN, &Say, retc, *myVersion);
        if (!retc) return 1;
       }
 
