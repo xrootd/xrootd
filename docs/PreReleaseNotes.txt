@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow autloading of checksum plugins (this is for clients).
+   * Make it obvious that version info is mandatory (use references).
    * Add new object to format and route error messages to multiple
      destinations.
    * Allow clients to easily load checksum objects via XrdCksLoader object.
