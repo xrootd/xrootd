@@ -593,7 +593,7 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
 int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 {
    XrdOucErrInfo myInfo("CheckSum");
-   int rc;
+   int rc, ecode;
 
 // The arguments must have <name> <path> (i.e. argc >= 2)
 //
@@ -608,8 +608,10 @@ int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 
 // Return result regardless of what it is
 //
-   Stream->PutLine(myInfo.getErrText());
-   if (rc) SI->errorCnt++;
+   Stream->PutLine(myInfo.getErrText(ecode));
+   if (rc) {SI->errorCnt++;
+            if (ecode) rc = ecode;
+           }
    return rc;
 }
 

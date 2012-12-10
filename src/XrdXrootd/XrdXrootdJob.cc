@@ -72,7 +72,7 @@ void         delClient(XrdXrootdResponse *rp);
 XrdOucTList *lstClient(void);
 int          verClient(int dodel=0);
 void         Redrive(void);
-void         sendResult(char *lp, int caned=0);
+void         sendResult(char *lp, int caned=0, int erc=0);
 
 static const int                     maxClients = 8;
 struct {XrdLink     *Link;
@@ -88,6 +88,7 @@ struct {XrdLink     *Link;
        char              *theArgs[5]; // -> Program arguments (see XrdOucProg)
        char              *theResult;  // -> The result
        int                JobNum;     //    Job Number
+       int                JobRC;      //    Job kXR_ type return code
        char               JobMark;
        char               doRedrive;
 };
@@ -121,6 +122,7 @@ XrdXrootdJob2Do::XrdXrootdJob2Do(XrdXrootdJob      *job,
    for (i = 0; i < 5 && args[i]; i++) theArgs[i] = strdup(args[i]);
    for (     ; i < 5; i++)            theArgs[i] = (char *)0;
    theJob     = job;
+   JobRC      = 0;
    JobNum     = jnum;
    JobMark    = 0;
    numClients = 0;
@@ -164,7 +166,10 @@ void XrdXrootdJob2Do::DoIt()
 //
    if (Status != Job_Cancel)
       {if ((rc = theJob->theProg->Run(&jobStream, theArgs[1], theArgs[2],
-                         theArgs[3], theArgs[4]))) Status = Job_Cancel;
+                         theArgs[3], theArgs[4])))
+          {Status = Job_Cancel;
+           lp = jobStream.GetLine();
+          }
           else {theJob->myMutex.UnLock();
                 lp = jobStream.GetLine();
                 rc = theJob->theProg->RunDone(jobStream);
@@ -191,7 +196,7 @@ void XrdXrootdJob2Do::DoIt()
 // will delete ourselves and, if cancelled, send a notofication to everyone
 //
    if (Status != Job_Cancel && numClients) theResult = lp;
-      else {if (Status == Job_Cancel) sendResult(0, (rc ? 0 : 1));
+      else {if (Status == Job_Cancel) sendResult(lp, (rc ? -1 : 1), rc);
             jp = theJob->JobTable.Remove(JobNum);
            }
 
@@ -361,11 +366,10 @@ void XrdXrootdJob2Do::Redrive()
 /*                            s e n d R e s u l t                             */
 /******************************************************************************/
   
-void XrdXrootdJob2Do::sendResult(char *lp, int caned)
+void XrdXrootdJob2Do::sendResult(char *lp, int caned, int jrc)
 {
-   const char *TraceID = "sendResult";
-   const kXR_int32 Xcan  = static_cast<kXR_int32>(htonl(kXR_Cancelled));
-   const kXR_int32 Xbad  = static_cast<kXR_int32>(htonl(kXR_ServerError));
+   static const char *TraceID   = "sendResult";
+   static const kXR_int32 Xcan  = static_cast<kXR_int32>(htonl(kXR_Cancelled));
    XrdXrootdReqID ReqID;
    struct iovec   jobVec[6];
    XResponseType  jobStat;
@@ -375,7 +379,7 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned)
 
 // Format the message to be sent
 //
-   if (lp)
+   if (!caned)
       {jobStat = kXR_ok; trc = "ok";
        if (theArgs[0])
           {        jobVec[n].iov_base = theArgs[0];                 // 1
@@ -385,8 +389,11 @@ void XrdXrootdJob2Do::sendResult(char *lp, int caned)
           }
       } else {
        jobStat = kXR_error; trc = "error";
-       if (caned) {erc = Xcan; lp = (char *)"Cancelled by admin.";}
-          else    {erc = Xbad; lp = (char *)"Program failed.";}
+       if (caned > 0) {erc = Xcan; lp = (char *)"Cancelled by admin.";}
+          else        {erc = (jrc ? XProtocol::mapError(jrc) : kXR_ServerError);
+                       erc = static_cast<kXR_int32>(htonl(erc));
+                       if (!lp || !*lp) lp = (char *)"Program failed.";
+                      }
                    jobVec[n].iov_base = (char *)&erc;
            dlen  = jobVec[n].iov_len  = sizeof(erc);        n++;    // 3
       }
