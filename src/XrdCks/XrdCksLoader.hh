@@ -56,6 +56,8 @@ public:
 //! @param  eBuff    Optional pointer to a buffer to receive the reason for a
 //!                  load failure as a null terminated string.
 //! @param  eBlen    The length of the buffer.
+//! @param  orig     Returns the original object not a new instance of it.
+//!                  This is usually used by CksManager during an autoload.
 //!
 //! @return Success: A pointer to a new checksum calculation object.
 //!         Failure: Zero if the corresponding checksum object could not be
@@ -63,7 +65,7 @@ public:
 //------------------------------------------------------------------------------
 
 XrdCksCalc *Load(const char *csName,  const char *csParms=0,
-                       char *eBuff=0, int   eBlen=0);
+                       char *eBuff=0, int   eBlen=0, bool orig=false);
 
 //------------------------------------------------------------------------------
 //! Constructor

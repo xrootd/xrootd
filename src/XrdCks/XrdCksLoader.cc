@@ -109,7 +109,7 @@ XrdCksLoader::~XrdCksLoader()
 #define XRDOSSCKSLIBARGS XrdSysError *, const char *, const char *, const char *
 
 XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
-                                     char *eBuff,  int eBlen)
+                                     char *eBuff,  int eBlen, bool orig)
 {
    static XrdSysMutex myMutex;
    XrdSysMutexHelper  ldMutex(myMutex);
@@ -139,7 +139,7 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
                  return 0;
                 }
           }
-       return csIP->Obj->New();
+       return (orig ? csIP->Obj : csIP->Obj->New());
       }
 
 // Check if we can add a new entry
@@ -193,7 +193,7 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
 
 // Return new instance of this object
 //
-   return csObj->New();
+   return (orig ? csObj : csObj->New());
 }
 
 /******************************************************************************/
