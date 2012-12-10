@@ -808,7 +808,7 @@ namespace XrdCl
       return Status();
 
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::AppendCGI( pRequest, newCgi, false );
+    MessageUtils::AppendCGI( pRequest, newCgi, true );
     XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
