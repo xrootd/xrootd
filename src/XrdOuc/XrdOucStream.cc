@@ -73,7 +73,7 @@
 
 // The following is used by child processes prior to exec() to avoid deadlocks
 //
-#define Erx(p, a, b) if (Eroute) cerr <<#p <<' ' <<strerror(a) <<' ' <<b <<endl;
+#define Erx(p, a, b) cerr <<#p <<": " <<strerror(a) <<' ' <<b <<endl;
 
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
@@ -325,7 +325,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     if (Child_in >= 0)
        {if (inrd)
            {if (dup2(Child_in, STDIN_FILENO) < 0)
-               {Erx(Exec, errno, "set up standard in for " <<parm[0]);
+               {Erx(Exec, errno, "setting up standard in for " <<parm[0]);
                 exit(255);
                } else if (Child_in != Child_out) close(Child_in);
            }
@@ -335,7 +335,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     //
     if (Child_out >= 0)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
-           {Erx(Exec, errno, "set up standard out for " <<parm[0]);
+           {Erx(Exec, errno, "setting up standard out for " <<parm[0]);
             exit(255);
            } else close(Child_out);
        }
@@ -354,7 +354,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     //
     setpgid(0,0);
     execv(parm[0], parm);
-    Erx(Exec, errno, "execute " <<parm[0]);
+    Erx(Exec, errno, "executing " <<parm[0]);
     exit(255);
 }
 
