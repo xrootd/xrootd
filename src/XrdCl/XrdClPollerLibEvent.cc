@@ -607,7 +607,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     event       *dummy;
     int          dummyPipe[2];
-    pipe( dummyPipe );
+
+    if( pipe( dummyPipe ) != 0 )
+    {
+      log->Error( PollerMsg, "Unable to create a pipe: %s", strerror( errno ) );
+      return -1;
+    }
 
     dummy = ::event_new( pEventBase, dummyPipe[0], EV_READ|EV_PERSIST,
                          DummyCallback, (char*)"Dummy event" );
