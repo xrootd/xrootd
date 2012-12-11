@@ -7,9 +7,6 @@ include( XRootDCommon )
 set( XRD_CLIENT_VERSION   1.0.0 )
 set( XRD_CLIENT_SOVERSION 1 )
 
-set( XRD_CLIENT_ADMIN_VERSION   1.0.0 )
-set( XRD_CLIENT_ADMIN_SOVERSION 1 )
-
 #-------------------------------------------------------------------------------
 # The XrdClient lib
 #-------------------------------------------------------------------------------
@@ -158,7 +155,7 @@ if( BUILD_PERL )
 
   add_library(
     XrdClientAdmin
-    SHARED
+    MODULE
     XrdClientAdmin_c_wrap.cc
     XrdClient/XrdClientAdmin_c.cc XrdClient/XrdClientAdmin_c.hh )
 
@@ -172,8 +169,7 @@ if( BUILD_PERL )
   set_target_properties(
     XrdClientAdmin
     PROPERTIES
-    VERSION   ${XRD_CLIENT_ADMIN_VERSION}
-    SOVERSION ${XRD_CLIENT_ADMIN_SOVERSION}
+    PREFIX ""
     LINK_INTERFACE_LIBRARIES "" )
 
 endif()
