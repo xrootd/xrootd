@@ -52,7 +52,6 @@ add_library(
   XrdSecpwd
   SHARED
   XrdSecpwd/XrdSecProtocolpwd.cc      XrdSecpwd/XrdSecProtocolpwd.hh
-  XrdSecpwd/XrdSecpwdSrvAdmin.cc
                                       XrdSecpwd/XrdSecpwdPlatform.hh )
 
 target_link_libraries(
