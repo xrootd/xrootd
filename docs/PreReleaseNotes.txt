@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add --infiles option to xrdcp (and follow-ons) to accept a list of input
+     files via an external file. For the current xrdcp only 1 input file is
+     allowed (xrdcopy has no such restriction).
    * Allow autloading of checksum plugins (this is for clients).
    * Make it obvious that version info is mandatory (use references).
    * Add new object to format and route error messages to multiple
@@ -38,5 +41,6 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Remove beta warning from xrdcp after xrdcpy became xrdcp.
    * Pretty up an error message. Required XrdOucERoute patch.
 
