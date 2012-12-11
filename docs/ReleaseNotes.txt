@@ -9,6 +9,21 @@ Release Notes
 Version 3.2.6
 -------------
 + **Major bug fixes**
+   * For OpenSSL versions prior to 1, make the 'default' and 'old' hash
+     algorithm result the same. This fixes Savannah bug #98997.
+   * Do not rebuild the full chain when the CRL is invalidated; also, make
+     sure that the invalid CRL object in only deleted when no longer in use.
+     Fixes bug #99074.
+
++ **Minor bug fixes**
+   * Allow for null fields in the cgi string.
+   * Add missing return statement to avoid SEGV during write error recovery
+     under certain circumstances. Fixes bug #99002.
+
+-------------
+Version 3.2.6
+-------------
++ **Major bug fixes**
    * GSI authentication: fix possible race condition while re-loading CA
      certificates; fix also related memory leaks.
    * GSI authentication: make sure the CA cache is not initialized twice (e.g.
