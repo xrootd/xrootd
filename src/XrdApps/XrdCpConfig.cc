@@ -29,16 +29,20 @@
 /******************************************************************************/
   
 #include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include "XrdVersion.hh"
 #include "XrdApps/XrdCpConfig.hh"
 #include "XrdApps/XrdCpFile.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksManager.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -77,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHPrRsS:t:TvVy:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:PrRsS:t:TvVy:";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -86,6 +90,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "coerce",    0, 0, XrdCpConfig::OpCoerce},
       {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
       {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
+      {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     0, 0, XrdCpConfig::OpProxy},
@@ -132,6 +137,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    CksVal   = 0;
    srcFile  = 0;
    dstFile  = 0;
+   inFile   = 0;
 }
 
 /******************************************************************************/
@@ -143,9 +149,9 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
    extern char *optarg;
    extern int   optind, opterr, optopt;
    static int pgmSet = 0;
-   XrdCpFile    pBase, *pFile, *pLast, *pPrev;
    char Buff[128], *Path, opC;
-   int i, isLcl, rc;
+   XrdCpFile    pBase;
+   int i, rc;
 
 // Preset handling options
 //
@@ -178,6 +184,10 @@ do{while(optind < Argc && Legacy()) {}
           case OpForce:    OpSpec |= DoForce;
                            break;
           case OpHelp:     Usage(0);
+                           break;
+          case OpIfile:    if (inFile) free(inFile);
+                           inFile = strdup(optarg);
+                           OpSpec |= DoIfile;
                            break;
           case OpLicense:  License();
                            break;
@@ -227,10 +237,10 @@ do{while(optind < Argc && Legacy()) {}
 
 // Make sure we have the right number of files
 //
-   if (optind     >= Argc) UMSG("No files specified.");
-   if ((optind+1) >= Argc) UMSG("Destination not specified.");
-   if (Argc - optind > 2 && Opts & opt1Src)
-      UMSG("Only a single source is allowed");
+   if (inFile) {if (optind     >= Argc) UMSG("Destination not specified.");}
+      else {    if (optind     >= Argc) UMSG("No files specified.");
+                if ((optind+1) >= Argc) UMSG("Destination not specified.");
+           }
 
 // Check for conflicts wit third party copy
 //
@@ -256,27 +266,27 @@ do{while(optind < Argc && Legacy()) {}
           FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
       }
 
-// Now pick up all the source files
+// Now pick up all the source files from the command line
 //
    pLast = &pBase;
-   for (i = optind; i < Argc-1; i++)
-       {pLast->Next = pFile = new XrdCpFile(Argv[i], rc);
-        if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
-        if (pFile->Protocol == XrdCpFile::isFile && (rc = pFile->Resolve()))
-           FMSG(strerror(rc) <<" processing " <<pFile->Path, 2);
-             if (pFile->Protocol == XrdCpFile::isFile)
-                {totBytes += pFile->fSize; numFiles++;}
-        else if (pFile->Protocol == XrdCpFile::isDir)
-                {if (!(OpSpec & DoRecurse))
-                    FMSG(pFile->Path <<" is a directory.", 2);
-                }
-        else if (pFile->Protocol != XrdCpFile::isXroot)
-                {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
-        else if (OpSpec & DoRecurse)
-                {FMSG("Recursive copy from a remote host is not supported.",22)}
-        else {isLcl = 0; numFiles++;}
-        pLast = pFile;
-       }
+   for (i = optind; i < Argc-1; i++) ProcFile(Argv[i]);
+
+// If an input file list was specified, process it as well
+//
+   if (inFile)
+      {XrdOucStream inList(Log);
+       char *fname;
+       int inFD = open(inFile, O_RDONLY);
+       if (inFD < 0) FMSG(strerror(errno) <<" opening infiles " <<inFile, 2);
+       inList.Attach(inFD);
+       while((fname = inList.GetLine())) if (*fname) ProcFile(fname);
+      }
+
+// All done
+//
+   if (!numFiles) UMSG("Source not specified.");
+   if (Opts & opt1Src && numFiles > 1)
+      FMSG("Only a single source is allowed", 2);
    srcFile = pBase.Next;
 
 // Do the dumb check
@@ -286,7 +296,7 @@ do{while(optind < Argc && Legacy()) {}
 // Check for checksum spec conflicts
 //
    if (OpSpec & DoCksum)
-      {if (CksData.Length && numFiles > 2)
+      {if (CksData.Length && numFiles > 1)
           FMSG("Checksum with fixed value requires a single input file.", 2);
        if (OpSpec & DoRecurse)
           FMSG("Checksum with fixed value conflicts with '--recursive'.", 2);
@@ -698,6 +708,43 @@ const char *XrdCpConfig::OpName()
 }
 
 /******************************************************************************/
+/*                              p r o c F i l e                               */
+/******************************************************************************/
+  
+void XrdCpConfig::ProcFile(const char *fname)
+{
+   int rc;
+
+// Chain in this file in the input list
+//
+   pLast->Next = pFile = new XrdCpFile(fname, rc);
+   if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
+
+// For local files, make sure it exists and get its size
+//
+   if (pFile->Protocol == XrdCpFile::isFile && (rc = pFile->Resolve()))
+      FMSG(strerror(rc) <<" processing " <<pFile->Path, 2);
+
+// Process file based on type (local or remote)
+//
+         if (pFile->Protocol == XrdCpFile::isFile)
+            {totBytes += pFile->fSize; numFiles++;}
+    else if (pFile->Protocol == XrdCpFile::isDir)
+            {if (!(OpSpec & DoRecurse))
+                FMSG(pFile->Path <<" is a directory.", 2);
+            }
+    else if (pFile->Protocol != XrdCpFile::isXroot)
+            {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
+    else if (OpSpec & DoRecurse)
+            {FMSG("Recursive copy from a remote host is not supported.",22)}
+    else {isLcl = 0; numFiles++;}
+
+// Update last pointer
+//
+   pLast = pFile;
+}
+
+/******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
   
@@ -711,9 +758,10 @@ void XrdCpConfig::Usage(int rc)
 
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--force] [--help]\n"
-   "         [--license] [--nopbar] [--posc] [--proxy <host>:<port] [--recursive]\n"
-   "         [--retry <time>] [--server] [--silent] [--sources <n>]\n"
-   "         [--streams <n>] [--tpc] [--verbose] [--version] [--xrate <rate>]\n"
+   "         [--infiles <fn>] [--license] [--nopbar] [--posc]\n"
+   "         [--proxy <host>:<port] [--recursive] [--retry <time>] [--server]\n"
+   "         [--server] [--silent] [--sources <n>] [--streams <n>] [--tpc]\n"
+   "         [--verbose] [--version] [--xrate <rate>]\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path>\n"
    "<dest>:  [[x]root://<host>[:<port>]/]<path> | -";
 
@@ -730,6 +778,7 @@ void XrdCpConfig::Usage(int rc)
    "-f | --force        replaces any existing output file\n"
    "-h | --help         prints this information\n"
    "-H | --license      prints license terms and conditions\n"
+   "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
