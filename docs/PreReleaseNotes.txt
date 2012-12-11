@@ -27,6 +27,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Fix garbled plugin message.
    * Avoid lost memory and correct computation of env length. This also fixes
      bug 99375.
    * Correct midnight calculation to properly account for time shifts.
