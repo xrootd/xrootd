@@ -250,7 +250,7 @@ install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfd
 mkdir -p $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
 mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.pm \
    $RPM_BUILD_ROOT%{perl_vendorarch}
-mv $RPM_BUILD_ROOT/%{_libdir}/libXrdClientAdmin.so* \
+mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.so \
    $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
 
 %clean
