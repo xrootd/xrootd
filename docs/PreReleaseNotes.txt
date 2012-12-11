@@ -27,6 +27,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Avoid lost memory and correct computation of env length. This also fixes
+     bug 99375.
    * Correct midnight calculation to properly account for time shifts.
    * Make sure error messages generated in a fork during stream execution
      appear in the log.
