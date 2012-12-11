@@ -99,6 +99,9 @@ static const int    DoForce    =  0x00000020; // -f | --force
 static const int    OpHelp     =  'h';
 static const int    DoHelp     =  0x00000040; // -h | --help
 
+static const int    OpIfile    =  'I';
+static const int    DoIfile    =  0x00100000; // -I | --infiles
+
 static const int    OpLicense  =  'H';        // -H | --license
 
 static const int    DoMD5      =  0x00000080; // -md5 {legacy}
@@ -175,6 +178,7 @@ private:
              int    Legacy(const char *theOp, const char *theArg);
              void   License();
        const char  *OpName();
+             void   ProcFile(const char *fname);
              void   Usage(int rc=0);
 
        const char  *PName;
@@ -188,5 +192,11 @@ static const  char   *opLetters;
 static struct option  opVec[];
 
 static const int    dfltSrcs   = 12;
+
+       XrdCpFile   *pFile;
+       XrdCpFile   *pLast;
+       XrdCpFile   *pPrev;
+       char        *inFile;
+       int          isLcl;
 };
 #endif
