@@ -1,4 +1,3 @@
-#!/bin/sh
 #-------------------------------------------------------------------------------
 # Library for handling xrootd daemons on antique RHEL
 # Author: Lukasz Janyst <ljanyst@cern.ch> (18.03.2011)
