@@ -1422,13 +1422,6 @@ int main(int argc, char**argv)
 //
    tpcPB = 0;
 
-// The folloing will be removed when we merge
-//
-   cerr <<"xrdcpy is the beta version of xrdcp; please treat it as such." <<endl;
-   cerr <<"Report problems at: https://savannah.cern.ch/bugs/?group=xrootd" <<endl;
-   cerr <<"Do not use xrdcpy in any production application as it will go away!" <<endl;
-   cerr <<endl;
-
 #ifdef WIN32
    WORD wVersionRequested;
    WSADATA wsaData;
