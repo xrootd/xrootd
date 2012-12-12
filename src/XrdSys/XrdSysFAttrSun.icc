@@ -150,7 +150,7 @@ int XrdSysFAttr::List(AList **aPL, const char *Path, int fd, int getSz)
 // If the size is wanted, we do this here to avoid multiple opens.
 //
    while((dEnt = readdir(dP)))
-        {if ((*(dEnt->d_name) != '.' || strcmp(".", (dEnt->d_name)+1))
+        {if ( (strcmp(".", dEnt->d_name) && strcmp("..", dEnt->d_name))
          &&  (aNew = getEnt(Path, fd, dEnt->d_name, *aPL, 0)))
             {if (getSz)
                 {if (fstatat(dirfd(dP), dEnt->d_name, &Stat, 0))
