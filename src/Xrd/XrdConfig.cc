@@ -44,8 +44,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <string>
-
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
@@ -151,8 +149,7 @@ const char   *mememe;
 /******************************************************************************/
   
 XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
-                         BuffPool(&Log, &Trace),
-                         Throttle(&Log, &Trace)
+                         BuffPool(&Log, &Trace)
 {
 
 // Preset all variables with common defaults
@@ -183,7 +180,6 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.eDest   = &Log;             // Stable -> Error Message/Logging Handler
    ProtInfo.NetTCP  = 0;                // Stable -> Network Object
    ProtInfo.BPool   = &BuffPool;        // Stable -> Buffer Pool Manager
-   ProtInfo.Throttle= &Throttle;        // Stable -> Throttle
    ProtInfo.Sched   = &Sched;           // Stable -> System Scheduler
    ProtInfo.ConfigFN= 0;                // We will fill this in later
    ProtInfo.Stats   = 0;                // We will fill this in later
@@ -462,8 +458,6 @@ int XrdConfig::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError *eDest)
    // Process common items
    //
    TS_Xeq("buffers",       xbuf);
-   TS_Xeq("throttle",      xthrottle);
-   TS_Xeq("loadshed",      xloadshed);
    TS_Xeq("network",       xnet);
    TS_Xeq("sched",         xsched);
    TS_Xeq("trace",         xtrace);
@@ -686,10 +680,6 @@ int XrdConfig::Setup(char *dfltp)
 // Initialize the buffer manager
 //
    BuffPool.Init();
-
-// Initialize the throttle
-//
-   Throttle.Init();
 
 // Start the scheduler
 //
@@ -940,119 +930,6 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
           return 1;
 
     BuffPool.Set((int)blim, bint);
-    return 0;
-}
-
-/******************************************************************************/
-/*                            x t h r o t t l e                               */
-/******************************************************************************/
-
-/* Function: xthrottle
-
-   Purpose:  To parse the directive: throttle [data <drate>] [iops <irate>] [concurrency <climit>] [interval <rint>]
-
-             <drate>    maximum bytes per second through the server.
-             <irate>    maximum IOPS per second through the server.
-             <climit>   maximum number of concurrent IO connections.
-             <rint>     minimum interval in milliseconds between throttle re-computing.
-
-   Output: 0 upon success or !0 upon failure.
-*/
-int XrdConfig::xthrottle(XrdSysError *eDest, XrdOucStream &Config)
-{
-    long long drate = -1, irate = -1, rint = 1000, climit = -1;
-    char *val;
-
-    while ((val = Config.GetWord()))
-    {
-       if (strcmp("data", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "data throttle limit not specified."); return 1;}
-          if (XrdOuca2x::a2sz(*eDest,"data throttle value",val,&drate,1)) return 1;
-       }
-       else if (strcmp("iops", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "IOPS throttle limit not specified."); return 1;}
-          if (XrdOuca2x::a2sz(*eDest,"IOPS throttle value",val,&irate,1)) return 1;
-       }
-       else if (strcmp("rint", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "recompute interval not specified."); return 1;}
-          if (XrdOuca2x::a2sp(*eDest,"recompute interval value",val,&rint,10)) return 1;
-       }
-       else if (strcmp("concurrency", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "Concurrency limit not specified."); return 1;}
-          if (XrdOuca2x::a2sz(*eDest,"Concurrency limit value",val,&climit,1)) return 1;
-       }
-       else
-       {
-          eDest->Emsg("Config", "Warning - unknown throttle option specified", val, ".");
-       }
-    }
-
-    Throttle.SetThrottles(drate, irate, climit, static_cast<float>(rint)/1000.0);
-    return 0;
-}
-
-/******************************************************************************/
-/*                            x l o a d s h e d                               */
-/******************************************************************************/
-
-/* Function: xloadshed
-
-   Purpose:  To parse the directive: loadshed host <hostname> [port <port>] [frequency <freq>]
-
-             <hostname> hostname of server to shed load to.  Required
-             <port>     port of server to shed load to.  Defaults to 1094
-             <freq>     A value from 1 to 100 specifying how often to shed load
-                        (1 = 1% chance; 100 = 100% chance; defaults to 10).
-
-   Output: 0 upon success or !0 upon failure.
-*/
-int XrdConfig::xloadshed(XrdSysError *eDest, XrdOucStream &Config)
-{
-    long long port, freq;
-    char *val;
-    std::string hostname;
-
-    while ((val = Config.GetWord()))
-    {
-       if (strcmp("host", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "loadshed hostname not specified."); return 1;}
-          hostname = val;
-       }
-       else if (strcmp("port", val) == 0)
-       {
-          if (!(val = Config.GetWord()))
-             {eDest->Emsg("Config", "Port number not specified."); return 1;}
-          if (XrdOuca2x::a2sz(*eDest,"Port number",val,&port,1, 65536)) return 1;
-       }
-       else if (strcmp("frequency", val) == 0)
-       {
-           if (!(val = Config.GetWord()))
-              {eDest->Emsg("Config", "Loadshed frequency not specified."); return 1;}
-           if (XrdOuca2x::a2sz(*eDest,"Loadshed frequency",val,&freq,1,100)) return 1;
-       }
-       else
-       {
-           eDest->Emsg("Config", "Warning - unknown loadshed option specified", val, ".");
-       }
-    }
-
-    if (hostname.empty())
-    {
-        eDest->Emsg("Config", "must specify hostname for loadshed parameter.");
-        return 1;
-    }
-
-    Throttle.SetLoadShed(hostname, port, freq);
     return 0;
 }
 
@@ -1593,8 +1470,7 @@ int XrdConfig::xtrace(XrdSysError *eDest, XrdOucStream &Config)
         {"net",      TRACE_NET},
         {"poll",     TRACE_POLL},
         {"protocol", TRACE_PROT},
-        {"sched",    TRACE_SCHED},
-        {"throttle", TRACE_THROTTLE}
+        {"sched",    TRACE_SCHED}
        };
     int i, neg, trval = 0, numopts = sizeof(tropts)/sizeof(struct traceopts);
 

@@ -43,7 +43,6 @@
 class XrdSysError;
 class XrdOucTrace;
 class XrdBuffManager;
-class XrdThrottleManager;
 class XrdInet;
 class XrdScheduler;
 class XrdStats;

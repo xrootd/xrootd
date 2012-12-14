@@ -48,7 +48,7 @@
 /*                     E x t e r n a l   L i n k a g e s                      */
 /******************************************************************************/
   
-void *XrdBuffManager::XrdReshaper(void *pp)
+void *XrdReshaper(void *pp)
 {
      XrdBuffManager *bmp = (XrdBuffManager *)pp;
      bmp->Reshape();

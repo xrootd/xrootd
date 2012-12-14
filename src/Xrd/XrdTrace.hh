@@ -40,7 +40,6 @@
 #define TRACE_POLL      0x0010
 #define TRACE_PROT      0x0020
 #define TRACE_SCHED     0x0040
-#define TRACE_THROTTLE  0x0080
 
 #ifndef NODEBUG
 

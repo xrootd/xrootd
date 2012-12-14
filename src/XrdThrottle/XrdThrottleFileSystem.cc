@@ -24,7 +24,8 @@ FileSystem::newFile(char *user,
    if (chain_file)
    {
       std::auto_ptr<XrdSfsFile> chain_file_ptr(chain_file);
-      return static_cast<XrdSfsFile*>(new File(user, monid, chain_file_ptr));
+      // We should really be giving out shared_ptrs to m_throttle, but alas, no boost.
+      return static_cast<XrdSfsFile*>(new File(user, monid, chain_file_ptr, m_throttle, m_eroute));
    }
    return NULL;
 }

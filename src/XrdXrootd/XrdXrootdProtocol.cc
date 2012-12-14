@@ -63,7 +63,6 @@ char                 *XrdXrootdProtocol::SecLib   = 0;
 char                 *XrdXrootdProtocol::pidPath  = strdup("/tmp");
 XrdScheduler         *XrdXrootdProtocol::Sched;
 XrdBuffManager       *XrdXrootdProtocol::BPool;
-XrdThrottleManager   *XrdXrootdProtocol::Throttle;
 XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;

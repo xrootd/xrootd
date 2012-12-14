@@ -6,9 +6,31 @@
 
 using namespace XrdThrottle;
 
-File::File(const char *user, int monid, std::auto_ptr<XrdSfsFile> sfs)
+#define DO_LOADSHED if (m_throttle.CheckLoadShed(m_loadshed)) \
+{ \
+   unsigned port; \
+   std::string host; \
+   m_throttle.PerformLoadShed(m_loadshed, host, port); \
+   m_eroute.Emsg("File", "Performing load-shed for client", m_user.c_str()); \
+   error.setErrInfo(port, host.c_str()); \
+   return SFS_REDIRECT; \
+}
+
+#define DO_THROTTLE(amount) \
+DO_LOADSHED \
+m_throttle.Apply(amount, 1, m_uid); \
+XrdThrottleTimer xtimer = m_throttle.StartIOTimer();
+
+File::File(const char                     *user,
+                 int                       monid,
+                 std::auto_ptr<XrdSfsFile> sfs,
+                 XrdThrottleManager       &throttle,
+                 XrdSysError              &eroute)
    : m_sfs(sfs), // Guaranteed to be non-null by FileSystem::newFile
-     m_uid(0)
+     m_uid(0),
+     m_user(user),
+     m_throttle(throttle),
+     m_eroute(eroute)
 {}
 
 File::~File()
@@ -22,6 +44,7 @@ File::open(const char                *fileName,
            const char                *opaque)
 {
    m_uid = XrdThrottleManager::GetUid(client->name);
+   m_throttle.PrepLoadShed(opaque, m_loadshed);
    return m_sfs->open(fileName, openMode, createMode, client, opaque);
 }
 
@@ -55,6 +78,7 @@ int
 File::read(XrdSfsFileOffset   fileOffset,
            XrdSfsXferSize     amount)
 {
+   DO_THROTTLE(amount)
    return m_sfs->read(fileOffset, amount);
 }
 
@@ -63,6 +87,7 @@ File::read(XrdSfsFileOffset   fileOffset,
            char              *buffer,
            XrdSfsXferSize     buffer_size)
 {
+   DO_THROTTLE(buffer_size);
    return m_sfs->read(fileOffset, buffer, buffer_size);
 }
 
@@ -81,6 +106,7 @@ File::write(      XrdSfsFileOffset   fileOffset,
             const char              *buffer,
                   XrdSfsXferSize     buffer_size)
 {
+   DO_THROTTLE(buffer_size);
    return m_sfs->write(fileOffset, buffer, buffer_size);
 }
 

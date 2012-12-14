@@ -209,7 +209,6 @@ static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
 static XrdBuffManager       *BPool;     // Buffer manager
-static XrdThrottleManager   *Throttle;  // Throttle manager
 static XrdSysError           eDest;     // Error message handler
 static const char           *myInst;
 static const char           *TraceID;

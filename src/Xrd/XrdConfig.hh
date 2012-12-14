@@ -30,7 +30,6 @@
 /******************************************************************************/
 
 #include "Xrd/XrdBuffer.hh"
-#include "XrdThrottle/XrdThrottleManager.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -72,8 +71,6 @@ void  Usage(int rc);
 int   xallow(XrdSysError *edest, XrdOucStream &Config);
 int   xapath(XrdSysError *edest, XrdOucStream &Config);
 int   xbuf(XrdSysError *edest, XrdOucStream &Config);
-int   xthrottle(XrdSysError *edest, XrdOucStream &Config);
-int   xloadshed(XrdSysError *edest, XrdOucStream &Config);
 int   xnet(XrdSysError *edest, XrdOucStream &Config);
 int   xlog(XrdSysError *edest, XrdOucStream &Config);
 int   xport(XrdSysError *edest, XrdOucStream &Config);
@@ -92,7 +89,6 @@ XrdSysError         Log;
 XrdOucTrace         Trace;
 XrdScheduler        Sched;
 XrdBuffManager      BuffPool;
-XrdThrottleManager  Throttle;
 XrdNetSecurity     *Police;
 const char         *myProg;
 const char         *myName;

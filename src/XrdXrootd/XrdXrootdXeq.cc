@@ -39,7 +39,6 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "Xrd/XrdBuffer.hh"
-#include "XrdThrottle/XrdThrottleManager.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"
@@ -92,17 +91,7 @@ struct XrdXrootdSessID
 #define CRED (const XrdSecEntity *)Client
 
 #define TRACELINK Link
-
-// A helper macro for invoking the loadshed routines
-#define DO_LOADSHED if (Throttle->CheckLoadShed(myFile->loadshedOpaque)) \
-   { \
-      unsigned port; \
-      std::string host; \
-      Throttle->PerformLoadShed(myFile->loadshedOpaque, host, port); \
-      eDest.Emsg("Xeq", "Performing load-shed for client", myFile->ID); \
-      return Response.Send(kXR_redirect, port, host.c_str()); \
-   }
-
+ 
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
 /******************************************************************************/
@@ -1090,10 +1079,6 @@ int XrdXrootdProtocol::do_Open()
    Link->Serialize();
    *ebuff = '\0';
 
-// Get the file ready for load-shed, as necessary
-//
-   Throttle->PrepLoadShed(opaque, xp->loadshedOpaque);
-
 // Lock this file
 //
    if (!(popt & XROOTDXP_NOLK) && (rc = Locker->Lock(xp, doforce)))
@@ -1677,9 +1662,6 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    int rc, xframt, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
    char *buff;
 
-   Throttle->Apply(myIOLen, 1, myFile->throttleUID);
-   DO_LOADSHED
-
 // If this file is memory mapped, short ciruit all the logic and immediately
 // transfer the requested data to minimize latency.
 //
@@ -1687,12 +1669,10 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
       {if (myOffset >= myFile->Stats.fSize) return Response.Send();
        if (myOffset+myIOLen <= myFile->Stats.fSize)
           {myFile->Stats.rdOps(myIOLen);
-           XrdThrottleTimer xtimer = Throttle->StartIOTimer();
            return Response.Send(myFile->mmAddr+myOffset, myIOLen);
           }
        xframt = myFile->Stats.fSize -myOffset;
        myFile->Stats.rdOps(xframt);
-       XrdThrottleTimer xtimer = Throttle->StartIOTimer();
        return Response.Send(myFile->mmAddr+myOffset, xframt);
       }
 
@@ -1701,7 +1681,6 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
       {myFile->Stats.rdOps(myIOLen);
-       XrdThrottleTimer xtimer = Throttle->StartIOTimer();
        return Response.Send(myFile->fdNum, myOffset, myIOLen);
       }
 
@@ -1724,11 +1703,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // amount of the request even if we really do not get to read that much!
 //
    myFile->Stats.rdOps(myIOLen);
-   do {
-       {
-          XrdThrottleTimer xtimer = Throttle->StartIOTimer();
-          if ((xframt = myFile->XrdSfsp->read(myOffset, buff, Quantum)) <= 0) break;
-       }
+   do {if ((xframt = myFile->XrdSfsp->read(myOffset, buff, Quantum)) <= 0) break;
        if (xframt >= myIOLen) return Response.Send(buff, xframt);
        if (Response.Send(kXR_oksofar, buff, xframt) < 0) return -1;
        myOffset += xframt; myIOLen -= xframt;
@@ -1777,10 +1752,7 @@ int XrdXrootdProtocol::do_ReadNone(int &retc, int &pathID)
                              "preread does not refer to an open file");
              return 1;
             }
-         {
-            XrdThrottleTimer xtimer = Throttle->StartIOTimer();
-            myFile->XrdSfsp->read(myOffset, myIOLen);
-         }
+         myFile->XrdSfsp->read(myOffset, myIOLen);
          ralsz -= sizeof(struct readahead_list);
          ralsp++;
          numReads++;
@@ -1845,10 +1817,6 @@ int XrdXrootdProtocol::do_ReadV()
            }
        }
 
-// Apply throttles
-   Throttle->Apply(totLen, rdVecNum, myFile->throttleUID);
-   DO_LOADSHED
-
 // We limit the total size of the read to be 2GB for convenience
 //
    if (totLen > 0x7fffffffLL)
@@ -1904,11 +1872,8 @@ int XrdXrootdProtocol::do_ReadV()
             buffp = argp->buff;
            }
         TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
-        {
-           XrdThrottleTimer xtimer = Throttle->StartIOTimer();
-           if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
-              break;
-        }
+        if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
+           break;
         rdvamt += xframt; numReads++; segcnt++;
         rdVec[i].rlen = htonl(xframt);
         memcpy(buffp, &rdVec[i], hdrSZ);
@@ -2351,11 +2316,6 @@ int XrdXrootdProtocol::do_WriteAll()
 {
    int rc, Quantum = (myIOLen > maxBuffsz ? maxBuffsz : myIOLen);
 
-// Apply throttle
-//
-   Throttle->Apply(myIOLen, 1, myFile->throttleUID);
-   DO_LOADSHED
-
 // Make sure we have a large enough buffer
 //
    if (!argp || Quantum < halfBSize || Quantum > argp->bsize)
@@ -2373,13 +2333,10 @@ int XrdXrootdProtocol::do_WriteAll()
                 }
              return rc;
             }
-         {
-            XrdThrottleTimer xt = Throttle->StartIOTimer();
-            if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, Quantum)) < 0)
-               {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc;
-                return do_WriteNone();
-               }
-         }
+         if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, Quantum)) < 0)
+            {myIOLen  = myIOLen-Quantum; myEInfo[0] = rc;
+             return do_WriteNone();
+            }
          myOffset += Quantum; myIOLen -= Quantum;
          if (myIOLen < Quantum) Quantum = myIOLen;
         }
@@ -2404,13 +2361,10 @@ int XrdXrootdProtocol::do_WriteCont()
 
 // Write data that was finaly finished comming in
 //
-   {
-      XrdThrottleTimer xt = Throttle->StartIOTimer();
-      if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, myBlast)) < 0)
-         {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
-          return do_WriteNone();
-         }
-   }
+   if ((rc = myFile->XrdSfsp->write(myOffset, argp->buff, myBlast)) < 0)
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
+       return do_WriteNone();
+      }
     myOffset += myBlast; myIOLen -= myBlast;
 
 // See if we need to finish this request in the normal way
@@ -2444,7 +2398,7 @@ int XrdXrootdProtocol::do_WriteNone()
 
 // Send our the error message and return
 //
-   if (!myFile)
+   if (!myFile) return
       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
    if (myEInfo[0]) return fsError(myEInfo[0], 0, myFile->XrdSfsp->error, 0);
    return Response.Send(kXR_FSError, myFile->XrdSfsp->error.getErrText());
