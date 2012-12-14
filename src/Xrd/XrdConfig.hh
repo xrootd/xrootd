@@ -30,7 +30,7 @@
 /******************************************************************************/
 
 #include "Xrd/XrdBuffer.hh"
-#include "Xrd/XrdThrottleManager.hh"
+#include "XrdThrottle/XrdThrottleManager.hh"
 #include "Xrd/XrdInet.hh"
 #include "Xrd/XrdProtLoad.hh"
 #include "Xrd/XrdProtocol.hh"

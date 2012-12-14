@@ -39,7 +39,7 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "Xrd/XrdBuffer.hh"
-#include "Xrd/XrdThrottleManager.hh"
+#include "XrdThrottle/XrdThrottleManager.hh"
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdAio.hh"
 #include "XrdXrootd/XrdXrootdCallBack.hh"

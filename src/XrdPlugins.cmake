@@ -8,6 +8,8 @@ set( XRD_PSS_VERSION   1.0.0 )
 set( XRD_PSS_SOVERSION 1 )
 set( XRD_BWM_VERSION   1.0.0 )
 set( XRD_BWM_SOVERSION 1 )
+set( XRD_THROTTLE_VERSION 1.0.0 )
+set( XRD_THROTTLE_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdPss lib
@@ -58,6 +60,30 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_BWM_VERSION}
   SOVERSION ${XRD_BWM_SOVERSION}
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
+# The XrdThrottle lib
+#-------------------------------------------------------------------------------
+add_library(
+  XrdThrottle
+  SHARED
+  XrdThrottle/XrdThrottle.hh           XrdThrottle/XrdThrottleTrace.hh
+  XrdThrottle/XrdThrottleFileSystem.cc
+  XrdThrottle/XrdThrottleFileSystemConfig.cc
+  XrdThrottle/XrdThrottleFile.cc
+  XrdThrottle/XrdThrottleManager.cc    XrdThrottle/XrdThrottleManager.hh
+)
+
+target_link_libraries(
+  XrdThrottle
+  XrdUtils )
+
+set_target_properties(
+  XrdThrottle
+  PROPERTIES
+  VERSION    ${XRD_THROTTLE_VERSION}
+  SOVERSION  ${XRD_THROTTLE_VERSION}
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

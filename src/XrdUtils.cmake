@@ -121,7 +121,7 @@ add_library(
   # Xrd
   #-----------------------------------------------------------------------------
   Xrd/XrdBuffer.cc              Xrd/XrdBuffer.hh
-  Xrd/XrdThrottleManager.cc     Xrd/XrdThrottleManager.hh
+  XrdThrottle/XrdThrottleManager.cc     XrdThrottle/XrdThrottleManager.hh
   Xrd/XrdInet.cc                Xrd/XrdInet.hh
   Xrd/XrdInfo.cc                Xrd/XrdInfo.hh
   Xrd/XrdJob.hh

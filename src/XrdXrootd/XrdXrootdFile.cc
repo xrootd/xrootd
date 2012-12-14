@@ -43,7 +43,7 @@
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #define  TRACELINK this
 #include "XrdXrootd/XrdXrootdTrace.hh"
-#include "Xrd/XrdThrottleManager.hh"
+#include "XrdThrottle/XrdThrottleManager.hh"
  
 /******************************************************************************/
 /*                               G l o b a l s                                */
