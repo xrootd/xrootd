@@ -58,7 +58,7 @@
 
 #define XROOTD_MON_FSLFN    1
 #define XROOTD_MON_FSOPS    2
-#define XROOTD_MON_FSSDV    4
+#define XROOTD_MON_FSSSQ    4
 #define XROOTD_MON_FSXFR    8
 
 class XrdScheduler;

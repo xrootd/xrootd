@@ -54,6 +54,8 @@ XrdXrootdMonFileTOD *XrdXrootdMonFile::repTOD   = 0;
 char                *XrdXrootdMonFile::repNext  = 0;
 char                *XrdXrootdMonFile::repFirst = 0;
 char                *XrdXrootdMonFile::repLast  = 0;
+int                  XrdXrootdMonFile::totRecs  = 0;
+int                  XrdXrootdMonFile::xfrRecs  = 0;
 int                  XrdXrootdMonFile::repSize  = 0;
 int                  XrdXrootdMonFile::repTime  = 0;
 int                  XrdXrootdMonFile::fmHWM    =-1;
@@ -66,37 +68,9 @@ short                XrdXrootdMonFile::trecNLen = 0;
 char                 XrdXrootdMonFile::fsLFN    = 0;
 char                 XrdXrootdMonFile::fsLVL    = 0;
 char                 XrdXrootdMonFile::fsOPS    = 0;
-char                 XrdXrootdMonFile::fsSDV    = 0;
+char                 XrdXrootdMonFile::fsSSQ    = 0;
 char                 XrdXrootdMonFile::fsXFR    = 0;
 char                 XrdXrootdMonFile::crecFlag = 0;
-
-/******************************************************************************/
-/* Private:                       C a l c S D                                 */
-/******************************************************************************/
-  
-int XrdXrootdMonFile::CalcSD(double ssqVal, long long bsum, int cnt)
-{
-   double dcnt, dval;
-
-// If the count is zero, return 0
-//
-   if (!cnt) return 0;
-
-// Calculate sum(val[i]**2)[i=1...n]}/n
-//
-   dcnt    = static_cast<double>(cnt);
-   ssqVal /= dcnt;
-
-// Calculate sum(val[i])[i=1...n]}/n)**2
-//
-   dval  = static_cast<double>(bsum);
-   dval /= dcnt;
-   dval = dval * dval;
-
-// Calculate the square root of the difference
-//
-   return Sqrt(ssqVal - dval);
-}
 
 /******************************************************************************/
 /*                                 C l o s e                                  */
@@ -163,19 +137,18 @@ void XrdXrootdMonFile::Close(XrdXrootdFileStats *fsP, bool isDisc)
           }
       }
 
-// Compute standard deviation if so needed
+// Record sum of squares if so needed
 //
-   if (fsSDV)
-      {if (fsP->ops.read)
-           cRec.Sdv.read  = CalcSD(fsP->ssq.read, fsP->xfr.read, fsP->ops.read);
-           else cRec.Sdv.read  = 0;
-       if (fsP->ops.readv)
-          {cRec.Sdv.readv = CalcSD(fsP->ssq.readv,fsP->xfr.readv,fsP->ops.readv);
-           cRec.Sdv.rsegs = CalcSD(fsP->ssq.rsegs,fsP->ops.rsegs,fsP->ops.rsegs);
-          } else cRec.Sdv.readv =  cRec.Sdv.rsegs = 0;
-       if (fsP->ops.write)
-           cRec.Sdv.write = CalcSD(fsP->ssq.write,fsP->xfr.write,fsP->ops.write);
-           else cRec.Sdv.write = 0;
+   if (fsSSQ)
+      {XrdXrootdMonDouble xval;
+       xval.dreal           = fsP->ssq.read;
+       cRec.Ssq.read.dlong  = htonll(xval.dlong);
+       xval.dreal           = fsP->ssq.readv;
+       cRec.Ssq.readv.dlong = htonll(xval.dlong);
+       xval.dreal           = fsP->ssq.rsegs;
+       cRec.Ssq.rsegs.dlong = htonll(xval.dlong);
+       xval.dreal           = fsP->ssq.write;
+       cRec.Ssq.write.dlong = htonll(xval.dlong);
       }
 
 // Get a pointer to the next slot (the buffer gets locked)
@@ -202,12 +175,12 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt)
 //
    fsXFR  = (opts &  XROOTD_MON_FSXFR) != 0;
    fsLFN  = (opts &  XROOTD_MON_FSLFN) != 0;
-   fsOPS  = (opts & (XROOTD_MON_FSOPS  | XROOTD_MON_FSSDV)) != 0;
-   fsSDV  = (opts &  XROOTD_MON_FSSDV) != 0;
+   fsOPS  = (opts & (XROOTD_MON_FSOPS  | XROOTD_MON_FSSSQ)) != 0;
+   fsSSQ  = (opts &  XROOTD_MON_FSSSQ) != 0;
 
 // Set monitoring level
 //
-        if (fsSDV) fsLVL = XrdXrootdFileStats::monSdv;
+        if (fsSSQ) fsLVL = XrdXrootdFileStats::monSsq;
    else if (fsOPS) fsLVL = XrdXrootdFileStats::monOps;
    else if (intv)  fsLVL = XrdXrootdFileStats::monOn;
    else            fsLVL = XrdXrootdFileStats::monOff;
@@ -304,6 +277,7 @@ void XrdXrootdMonFile::DoXFR(XrdXrootdFileStats *fsP)
 //
    cP = GetSlot(sizeof(xfrRec));
    memcpy(cP, &xfrRec, sizeof(xfrRec));
+   xfrRecs++;
    bfMutex.UnLock();
 }
 
@@ -355,13 +329,13 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 // Calculate the close record size and the initial flags
 //
    crecSize = sizeof(XrdXrootdMonFileHdr) + sizeof(XrdXrootdMonStatXFR);
-   if (fsSDV || fsOPS)
+   if (fsSSQ || fsOPS)
       {crecSize += sizeof(XrdXrootdMonStatOPS);
        crecFlag = XrdXrootdMonFileHdr::hasOPS;
       } else crecFlag = 0;
-   if (fsSDV)
-      {crecSize += sizeof(XrdXrootdMonStatSDV);
-       crecFlag |= XrdXrootdMonFileHdr::hasSDV;
+   if (fsSSQ)
+      {crecSize += sizeof(XrdXrootdMonStatSSQ);
+       crecFlag |= XrdXrootdMonFileHdr::hasSSQ;
       }
    crecNLen = htons(static_cast<short>(crecSize));
 
@@ -389,7 +363,7 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 /* Private:                        F l u s h                                  */
 /******************************************************************************/
 
-int XrdXrootdMonFile::Flush() // The bfMutex must be locked
+void XrdXrootdMonFile::Flush() // The bfMutex must be locked
 {
    static int seq = 0;
    XrdXrootdMonFileTOD *tP = (XrdXrootdMonFileTOD *)repNext;
@@ -399,23 +373,23 @@ int XrdXrootdMonFile::Flush() // The bfMutex must be locked
 //
    repHdr->pseq = static_cast<char>(0x00ff & seq++);
 
-// Insert ending timestamp
+// Insert ending timestamp and record counts
 //
-   tP->Hdr.recType = XrdXrootdMonFileHdr::isTime;
-   tP->Hdr.recFlag = 0;
-   tP->Hdr.recSize = trecNLen;
-   tP->Hdr.unixTM  = htonl(static_cast<int>(time(0)));
+   repTOD->Hdr.nRecs[0] = htons(static_cast<short>(xfrRecs));
+   repTOD->Hdr.nRecs[1] = htons(static_cast<short>(totRecs));
+   repTOD->tEnd = htonl(static_cast<int>(time(0)));
 
 // Calculate buffer size and stick into the header
 //
-   bfSize = (repNext - repBuff) + sizeof(XrdXrootdMonFileTOD);
+   bfSize = (repNext - repBuff);
    repHdr->plen = htons(static_cast<short>(bfSize));
    repNext = 0;
 
 // Write this out
 //
    XrdXrootdMonitor::Send(XROOTD_MON_FSTA, repBuff, bfSize);
-   return  tP->Hdr.unixTM;
+   repTOD->tBeg = repTOD->tEnd;
+   xfrRecs = totRecs = 0;
 }
 
 /******************************************************************************/
@@ -436,17 +410,17 @@ char *XrdXrootdMonFile::GetSlot(int slotSZ)
 //
    if (repNext)
       {if ((repNext + slotSZ) > repLast)
-          {int theTime = Flush();
-           repTOD->Hdr.unixTM = theTime;
+          {Flush();
            repNext = repFirst;
           }
       } else {
-       repTOD->Hdr.unixTM = htonl(static_cast<int>(time(0)));
+       repTOD->tBeg = htonl(static_cast<int>(time(0)));
        repNext = repFirst;
       }
 
 // Return the slot
 //
+   totRecs++;
    myRec = repNext;
    repNext += slotSZ;
    return myRec;
@@ -521,27 +495,4 @@ void XrdXrootdMonFile::Open(XrdXrootdFileStats *fsP, const char *Path,
        strncpy(oP->ufn.lfn, Path, pLen);
       }
    bfMutex.UnLock();
-}
-
-/******************************************************************************/
-/* Private:                         S q r t                                   */
-/******************************************************************************/
-  
-int XrdXrootdMonFile::Sqrt(double x)
-{
-   static const double zero_point_five = 0.5, one_point_five = 1.5;
-   static const long long Fudge = 0x5fe6ec85e7de30daLL;
-   double xhalf, y;
-   long long i;
-   int val;
-
-    y = x;
-    xhalf = x * zero_point_five;
-    i = *( long long* )( &y );
-    i = Fudge - ( i >> 1 );
-    y = *( double* )( &i );
-    y = y * ( one_point_five - xhalf * y * y );
-    y = 1.0 / y;
-    val = static_cast<int>(y);
-    return htonl(val);
 }
