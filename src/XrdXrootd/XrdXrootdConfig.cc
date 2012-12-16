@@ -37,6 +37,12 @@
 #include <sys/types.h>
 #include <sys/un.h>
 
+#ifdef __solaris__
+#include <sys/isa_defs.h>
+#endif
+
+#include <limits>
+
 #include "XrdVersion.hh"
 
 #include "XProtocol/XProtocol.hh"
@@ -776,7 +782,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
 /* Function: xmon
 
    Purpose:  Parse directive: monitor [all] [auth]  [flush [io] <sec>]
-                                      [fstat <sec> [lfn] [ops] [sdv] [xfr <n>]
+                                      [fstat <sec> [lfn] [ops] [ssq] [xfr <n>]
                                       [ident <sec>] [mbuff <sz>] [rbuff <sz>]
                                       [rnums <cnt>] [window <sec>]
                                       dest [Events] <host:port>
@@ -791,7 +797,7 @@ int XrdXrootdProtocol::xlog(XrdOucStream &Config)
                             <sec> specifies the flush interval (also see xfr)
                             lfn    - adds lfn to the open event
                             ops    - adds the ops record when the file is closed
-                            sdv    - computes the sigma for the ops record
+                            ssq    - computes the sum of squares for the ops rec
                             xfr <n>- inserts i/o stats for open files every
                                      <sec>*<n>. Minimum is 1.
          ident  <sec>       time (seconds, M, H) between identification records.
@@ -850,7 +856,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                    while((val = Config.GetWord()))
                         if (!strcmp("lfn", val)) monFSopt |=  XROOTD_MON_FSLFN;
                    else if (!strcmp("ops", val)) monFSopt |=  XROOTD_MON_FSOPS;
-                   else if (!strcmp("sdv", val)) monFSopt |=  XROOTD_MON_FSSDV;
+                   else if (!strcmp("ssq", val)) monFSopt |=  XROOTD_MON_FSSSQ;
                    else if (!strcmp("xfr", val))
                            {if (!(val = Config.GetWord()))
                                {eDest.Emsg("Config", "monitor fstat xfr count not specified");
@@ -941,6 +947,16 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
 //
    if (monMode[0] & XROOTD_MON_IO) monMode[0] |= XROOTD_MON_FILE;
    if (monMode[1] & XROOTD_MON_IO) monMode[1] |= XROOTD_MON_FILE;
+
+// If ssq was specified, make sure we support IEEE754 floating point
+//
+#if !defined(__solaris__) || !defined(_IEEE_754)
+   if (monFSopt & XROOTD_MON_FSSSQ && !(std::numeric_limits<double>::is_iec559))
+      {monFSopt &= !XROOTD_MON_FSSSQ;
+       eDest.Emsg("Config","Warning, 'fstat ssq' ignored; platform does not "
+                           "use IEEE754 floating point.");
+      }
+#endif
 
 // Set the monitor defaults
 //
