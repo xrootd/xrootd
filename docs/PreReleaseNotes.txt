@@ -44,6 +44,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Final change to f-stream monitoring. Replace standard deviation
+     (sdv) calc with reporting sum of squares (ssq) counts.
    * Remove beta warning from xrdcp after xrdcpy became xrdcp.
    * Pretty up an error message. Required XrdOucERoute patch.
 
