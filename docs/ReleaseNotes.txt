@@ -51,6 +51,11 @@ Version 3.3.0
    * Create a general place for platform dependent utility methods.
    * Add third party copy statistics to the summary record.
    * zlib compatible checksum plugin
+   * Allow autloading of checksum plugins (this is for clients).
+   * Make it obvious that version info is mandatory (use references).
+   * Add new object to format and route error messages to multiple
+     destinations.
+   * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
    * Serialize access to cache entries to prevent SEGV's.
@@ -73,6 +78,15 @@ Version 3.3.0
    * Avoid deadlock when closing a Posix File with an active preread.
    * For concurrent queries for the same file allow servers to respond to the
      query and only redirect clients to a stageable server if the file is not found. 
+   * Only use the callback dispatcher ending state to determine whether the
+     channel should be excluded from the poll set to avoid referencing
+     deleted memory should the callback delete its own channel.
+   * Recognize object deletion in the error handling path.
+   * Add missing return statement to avoid SEGV during write error recovery
+     under certain circumstances. Fixes bug 99002.
+   * Add mutex serialization so as not to use only fcntl() locking
+     as a synchronization primitive across threads. It doesn't work
+     in Linux.
 
 + **Minor bug fixes**
    * Add EPOLLRDHUP to avoid leaving sockets in CLOSE_WAIT with a one-shot
@@ -95,6 +109,23 @@ Version 3.3.0
    * Automatically exclude originating server/cluster on an enoent static
      redirect.
    * Correct typos XRDPSOIX envars should really be named XRDPOSIX.
+   * Make sure to include unistd.h, this is a problem when this header
+     is independently used. Patch by Brian Bockelman, UNL.
+   * Fix garbled plugin message.
+   * Avoid lost memory and correct computation of env length. This also fixes
+     bug 99375.
+   * Correct midnight calculation to properly account for time shifts.
+   * Make sure error messages generated in a fork during stream execution
+     appear in the log.
+   * Return error message text to the client when a checksum fails.
+   * Reject checksums on anything that isn't a regular file.
+   * Allow for null fields in the cgi string.
+   * Remove non-atomic AtomicDTZ and AtomicISM macros.
+   * Do not use AtomicDTZ and AtomicISM so as to keep LinkCount and
+     LinkCountMax updates truly atomic. The mentioned atomic macros
+     should be removed at the next release boundary as this will
+     change a public user interface.
+   * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
    * Remove superfluous includes or other move includes to eliminate
@@ -102,6 +133,11 @@ Version 3.3.0
      to create an EPEL conformable include directory.
    * Add port to prepare request struct as documented in 2.9.9.
    * Add pathid to readv request struct as documented in 2.9.9.
+   * Final change to f-stream monitoring. Replace standard deviation
+     (sdv) calc with reporting sum of squares (ssq) counts.
+   * Remove beta warning from xrdcp after xrdcpy became xrdcp.
+   * Pretty up an error message. Required XrdOucERoute patch.
+
 
 -------------
 Version 3.2.6
