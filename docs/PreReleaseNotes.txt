@@ -27,6 +27,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Make sure to include unistd.h, this is a problem when this header
+     is independently used. Patch by Brian Bockelman, UNL.
    * Fix garbled plugin message.
    * Avoid lost memory and correct computation of env length. This also fixes
      bug 99375.
