@@ -11,6 +11,8 @@
 
 using namespace XrdThrottle;
 
+#define OFS_NAME "libXrdOfs.so"
+
 /*
  * Note nothing in this file is thread-safe.
  */
@@ -22,13 +24,14 @@ LoadFS(const std::string &fslib, XrdSysError &eDest, const std::string &config_f
    // Overwrite the environment variable saying that throttling is the fslib.
    XrdOucEnv::Export("XRDOFSLIB", fslib.c_str());
    XrdSfsFileSystem *fs;
-   if (fslib == "libOfs.so")
+   if (fslib == OFS_NAME)
    {
-      XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *);
-      if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *, XrdSysLogger *, const char *, XrdOucEnv *))
-                                        ofsLib.getPlugin("XrdSfsGetDefaultFileSystem")))
-         return NULL;
-      if (!(fs = (*ep)(0, eDest.logger(), config_file.c_str(), 0)))
+      extern XrdSfsFileSystem *XrdSfsGetDefaultFileSystem(XrdSfsFileSystem *native_fs,
+                                             XrdSysLogger     *lp,
+                                             const char       *configfn,
+                                             XrdOucEnv        *EnvInfo);
+
+      if (!(fs = XrdSfsGetDefaultFileSystem(0, eDest.logger(), config_file.c_str(), 0)))
       {
          eDest.Emsg("Config", "Unable to load OFS filesystem.");
       }
@@ -46,6 +49,8 @@ LoadFS(const std::string &fslib, XrdSysError &eDest, const std::string &config_f
       }
    }
    ofsLib.Persist();
+
+   return fs;
 }
 
 namespace XrdThrottle {
@@ -76,10 +81,12 @@ XrdVERSIONINFO(XrdSfsGetFileSystem, FileSystem);
 FileSystem* FileSystem::m_instance = 0;
 
 FileSystem::FileSystem()
-   : m_eroute(0), m_trace(&m_eroute), m_sfs(*this), m_sfs_ptr(0), m_initialized(false), m_throttle(&m_eroute, &m_trace)
+   : m_eroute(0), m_trace(&m_eroute), m_sfs_ptr(0), m_initialized(false), m_throttle(&m_eroute, &m_trace)
 {
    myVersion = &XrdVERSIONINFOVAR(XrdSfsGetFileSystem);
 }
+
+FileSystem::~FileSystem() {}
 
 void
 FileSystem::Initialize(FileSystem      *&fs,
@@ -104,6 +111,7 @@ FileSystem::Initialize(FileSystem      *&fs,
          fs = NULL;
          return;
       }
+      fs->m_throttle.Init();
       fs->m_initialized = true;
    }
 }
@@ -127,7 +135,7 @@ FileSystem::Configure(XrdSysError & log)
    }
    Config.Attach(cfgFD);
 
-   std::string fslib = "libOfs.so";
+   std::string fslib = OFS_NAME;
 
    char *var, *val;
    int NoGo = 0;
@@ -139,8 +147,9 @@ FileSystem::Configure(XrdSysError & log)
          if (!val || !val[0]) {log.Emsg("Config", "fslib not specified."); continue;}
          fslib = val;
       }
-      TS_Xeq("throttle", xthrottle);
-      TS_Xeq("loadshed", xloadshed);
+      TS_Xeq("throttle.throttle", xthrottle);
+      TS_Xeq("throttle.loadshed", xloadshed);
+      TS_Xeq("throttle.trace", xtrace);
       if (NoGo)
       {
          log.Emsg("Config", "Throttle configuration failed.");
@@ -150,7 +159,6 @@ FileSystem::Configure(XrdSysError & log)
    // Load the filesystem object.
    m_sfs_ptr = LoadFS(fslib, m_eroute, m_config_file);
    if (!m_sfs_ptr) return 1;
-   m_sfs = *m_sfs_ptr;
 
    return 0;
 }

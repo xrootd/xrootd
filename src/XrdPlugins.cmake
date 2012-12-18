@@ -68,6 +68,7 @@ set_target_properties(
 add_library(
   XrdThrottle
   SHARED
+  XrdOfs/XrdOfsFS.cc
   XrdThrottle/XrdThrottle.hh           XrdThrottle/XrdThrottleTrace.hh
   XrdThrottle/XrdThrottleFileSystem.cc
   XrdThrottle/XrdThrottleFileSystemConfig.cc

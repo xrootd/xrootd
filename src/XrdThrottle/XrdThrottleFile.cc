@@ -59,7 +59,9 @@ File::fctl(const int               cmd,
            const char             *args,
                  XrdOucErrInfo    &out_error)
 {
-   return m_sfs->fctl(cmd, args, out_error);
+   // Disable sendfile
+   if (cmd == SFS_FCTL_GETFD) return SFS_ERROR;
+   else return m_sfs->fctl(cmd, args, out_error);
 }
 
 const char *

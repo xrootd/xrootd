@@ -16,7 +16,8 @@ const
 int XrdThrottleManager::m_max_users = 1024;
 
 #if defined(__linux__)
-int XrdThrottleTimer::clock_id = clock_getcpuclockid(0, NULL) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
+int clock_id;
+int XrdThrottleTimer::clock_id = clock_getcpuclockid(0, &clock_id) != ENOENT ? CLOCK_THREAD_CPUTIME_ID : CLOCK_MONOTONIC;
 #else
 int XrdThrottleTimer::clock_id = 0;
 #endif
@@ -35,6 +36,8 @@ XrdThrottleManager::XrdThrottleManager(XrdSysError *lP, XrdOucTrace *tP) :
    m_loadshed_frequency(0),
    m_loadshed_limit_hit(0)
 {
+   m_stable_io_wait.tv_sec = 0;
+   m_stable_io_wait.tv_nsec = 0;
 }
 
 void
@@ -259,7 +262,7 @@ XrdThrottleManager::GetUid(const char *username)
 {
    const char *cur = username;
    int hval = 0;
-   while (*cur && *cur != '@' && *cur != '.')
+   while (cur && *cur && *cur != '@' && *cur != '.')
    {
       hval += *cur;
       hval %= m_max_users;

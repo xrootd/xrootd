@@ -24,60 +24,60 @@ friend class FileSystem;
 
 public:
 
-   int
+   virtual int
    open(const char                *fileName,
               XrdSfsFileOpenMode   openMode,
               mode_t               createMode,
         const XrdSecEntity        *client,
         const char                *opaque = 0);
 
-   int
+   virtual int
    close();
 
-   int
+   virtual int
    fctl(const int               cmd,
         const char             *args,
               XrdOucErrInfo    &out_error);
 
-   const char *
+   virtual const char *
    FName();
 
-   int
+   virtual int
    getMmap(void **Addr, off_t &Size);
 
-   int
+   virtual int
    read(XrdSfsFileOffset   fileOffset,   // Preread only
         XrdSfsXferSize     amount);
 
-   XrdSfsXferSize
+   virtual XrdSfsXferSize
    read(XrdSfsFileOffset   fileOffset,
         char              *buffer,
         XrdSfsXferSize     buffer_size);
 
-   int
+   virtual int
    read(XrdSfsAio *aioparm);
 
-   XrdSfsXferSize
+   virtual XrdSfsXferSize
    write(XrdSfsFileOffset   fileOffset,
          const char        *buffer,
          XrdSfsXferSize     buffer_size);
 
-   int
+   virtual int
    write(XrdSfsAio *aioparm);
 
-   int
+   virtual int
    sync();
 
-   int
+   virtual int
    sync(XrdSfsAio *aiop);
 
-   int
+   virtual int
    stat(struct stat *buf);
 
-   int
+   virtual int
    truncate(XrdSfsFileOffset   fileOffset);
 
-   int
+   virtual int
    getCXinfo(char cxtype[4], int &cxrsz);
 
 private:
@@ -101,63 +101,63 @@ friend XrdSfsFileSystem * XrdSfsGetFileSystem_Internal(XrdSfsFileSystem *, XrdSy
 
 public:
 
-   XrdSfsDirectory *
+   virtual XrdSfsDirectory *
    newDir(char *user=0, int monid=0);
 
-   XrdSfsFile *
+   virtual XrdSfsFile *
    newFile(char *user=0, int monid=0);
 
-   int
+   virtual int
    chmod(const char             *Name,
                XrdSfsMode        Mode,
                XrdOucErrInfo    &out_error,
          const XrdSecEntity     *client,
          const char             *opaque = 0);
 
-   int
+   virtual int
    exists(const char                *fileName,
                 XrdSfsFileExistence &exists_flag,
                 XrdOucErrInfo       &out_error,
           const XrdSecEntity        *client,
           const char                *opaque = 0);
 
-   int
+   virtual int
    fsctl(const int               cmd,
          const char             *args,
                XrdOucErrInfo    &out_error,
          const XrdSecEntity     *client);
 
-   int
+   virtual int
    getStats(char *buff, int blen);
 
-   const char *
+   virtual const char *
    getVersion();
 
-   int
+   virtual int
    mkdir(const char             *dirName,
                XrdSfsMode        Mode,
                XrdOucErrInfo    &out_error,
          const XrdSecEntity     *client,
          const char             *opaque = 0);
 
-   int
+   virtual int
    prepare(      XrdSfsPrep       &pargs,
                  XrdOucErrInfo    &out_error,
            const XrdSecEntity     *client = 0);
 
-   int
+   virtual int
    rem(const char             *path,
              XrdOucErrInfo    &out_error,
        const XrdSecEntity     *client,
        const char             *info = 0);
 
-   int
+   virtual int
    remdir(const char             *dirName,
                 XrdOucErrInfo    &out_error,
           const XrdSecEntity     *client,
           const char             *info = 0);
 
-   int
+   virtual int
    rename(const char             *oldFileName,
           const char             *newFileName,
                 XrdOucErrInfo    &out_error,
@@ -165,21 +165,21 @@ public:
           const char             *infoO = 0,
           const char             *infoN = 0);
 
-   int
+   virtual int
    stat(const char             *Name,
               struct stat      *buf,
               XrdOucErrInfo    &out_error,
         const XrdSecEntity     *client,
         const char             *opaque = 0);
 
-   int
+   virtual int
    stat(const char             *Name,
               mode_t           &mode,
               XrdOucErrInfo    &out_error,
         const XrdSecEntity     *client,
         const char             *opaque = 0);
 
-   int
+   virtual int
    truncate(const char             *Name,
                   XrdSfsFileOffset fileOffset,
                   XrdOucErrInfo    &out_error,
@@ -214,7 +214,6 @@ private:
    XrdSysError         m_eroute;
    XrdOucTrace         m_trace;
    std::string         m_config_file;
-   XrdSfsFileSystem   &m_sfs;
    XrdSfsFileSystem   *m_sfs_ptr;
    bool                m_initialized;
    XrdThrottleManager  m_throttle;
