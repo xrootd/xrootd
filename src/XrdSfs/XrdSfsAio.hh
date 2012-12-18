@@ -31,6 +31,8 @@
 
 #include <signal.h>
 #include <sys/types.h>
+// _POSIX_ASYNCHRONOUS_IO, if it is defined, is in unistd.h.
+#include <unistd.h>
 #ifdef _POSIX_ASYNCHRONOUS_IO
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
