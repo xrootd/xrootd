@@ -421,6 +421,7 @@ exit 0
 %{_bindir}/xrootd
 %{_libdir}/libXrdBwm.so*
 %{_libdir}/libXrdPss*.so*
+%{_libdir}/libXrdThrottle*.so*
 %{_libdir}/libXrdOfs*.so*
 %{_libdir}/libXrdServer.so*
 %{_libdir}/libXrdXrootd.so*

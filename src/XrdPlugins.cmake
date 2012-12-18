@@ -91,5 +91,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdPss XrdBwm
+  TARGETS XrdPss XrdBwm XrdThrottle
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
