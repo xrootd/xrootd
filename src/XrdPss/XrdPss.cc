@@ -686,6 +686,32 @@ ssize_t XrdPssFile::Read(void *buff, off_t offset, size_t blen)
 }
 
 /******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+ssize_t XrdPssFile::ReadV(XrdSfsReadV     *readV,     // In
+                          size_t           readCount) // In
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and -errno upon failure.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+{
+    ssize_t retval;
+
+    if (fd < 0) return (ssize_t)-XRDOSS_E8004;
+
+    return (retval = XrdPosixXrootd::Readv2(fd, readV, readCount)) < 0 ? (ssize_t)-errno : retval;;
+}
+
+/******************************************************************************/
 /*                               R e a d R a w                                */
 /******************************************************************************/
 
