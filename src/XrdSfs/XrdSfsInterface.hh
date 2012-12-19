@@ -142,6 +142,13 @@ struct XrdSfsPrep  // Prepare parameters
        XrdOucTList     *oinfo;     // 1-to-1 correspondence of opaque info
 };
 
+struct XrdSfsReadV // Vector reads to perform
+{
+       XrdSfsFileOffset offset;    // Offset into the file.
+       XrdSfsXferSize   size;      // Size of read to perform.
+       char            *data;      // Location to read into.
+};
+
 /******************************************************************************/
 /*                      A b s t r a c t   C l a s s e s                       */
 /******************************************************************************/
@@ -321,6 +328,13 @@ virtual XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
                             XrdSfsXferSize     buffer_size) = 0;
 
 virtual int            read(XrdSfsAio *aioparm) = 0;
+
+// Given an array of read requests (size readCount), read them from
+// the file and place the contents consecutively in the provided buffer.
+// On failure of any read requests, returns -1.  Otherwise, returns
+// the number of bytes placed into the buffer.
+virtual XrdSfsXferSize readv(XrdSfsReadV      *readV,
+                             size_t            readCount) = 0;
 
 virtual XrdSfsXferSize write(XrdSfsFileOffset  fileOffset,
                              const char       *buffer,

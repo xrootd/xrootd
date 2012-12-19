@@ -422,7 +422,66 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 //
    return nbytes;
 }
-  
+
+/******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+XrdSfsXferSize XrdSfsNativeFile::readv(XrdSfsReadV     *readV,     // In
+                                       size_t           readCount) // In
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+{
+   static const char *epname = "readv";
+   XrdSfsXferSize nbytes = 0;
+
+   if (readCount == 0)
+      return 0;
+
+// Hint to the OS what files we will be needing.  Align the request to 4k blocks.
+// TODO: most IO queues can only handle 128 requests; we should interleave the
+// fadvise with reads.
+   int i;
+#if defined(__linux__)
+   off_t baseOffset = readV[0].offset/4096, nextOffset=0, curOffset;
+   size_t hint_len = (readV[0].size-1)/4096+1;
+   off_t nextOffset = curOffset+hint_len;
+   for (i=1; i<readCount; i++)
+     {curOffset = readV[i].offset/4096;
+      if (readV[i].size == 0) continue;
+      if (curOffset != nextOffset)
+        {posix_fadvise(oh, baseOffset*4096, hint_len, POSIX_FADV_WILLNEED);
+         baseOffset = curOffset;
+         hint_len = 0;
+        }
+      hint_len += (readV[i].size-1)/4096+1;
+      nextOffset = curOffset+hint_len;
+     }
+   posix_fadvise(oh, baseOffset, hint_len, POSIX_FADV_WILLNEED)
+#endif
+
+   ssize_t curCount = 0;
+   for (i=0; i<readCount; i++)
+     {do { curCount = pread(oh, (void *)readV[i].data, (size_t)readV[i].size, (off_t)readV[i].offset); nbytes += curCount; }
+           while(curCount < 0 && errno == EINTR);
+
+      if (curCount < 0)
+         return XrdSfsNative::Emsg(epname, error, errno, "readv", fname);
+     }
+
+   return nbytes;
+}
+
 /******************************************************************************/
 /*                              r e a d   A I O                               */
 /******************************************************************************/

@@ -1778,6 +1778,7 @@ int XrdXrootdProtocol::do_ReadV()
    const int hdrSZ     = sizeof(readahead_list);
    XrdXrootdFHandle currFH, lastFH((kXR_char *)"\xff\xff\xff\xff");
    struct readahead_list rdVec[maxRvecsz];
+   struct XrdSfsReadV fileRdVec[maxRvecsz];
    long long totLen;
    int rdVecNum, rdVecLen = Request.header.dlen;
    int i, k, rc, xframt, Quantum, Qleft, rdvamt, segcnt;
@@ -1841,12 +1842,19 @@ int XrdXrootdProtocol::do_ReadV()
 // element. We also break the reads into Quantum sized units. We do the
 //
    Qleft = Quantum; buffp = argp->buff; k = 0; rdvamt = 0; segcnt = 0; rvSeq++;
+   XrdSfsXferSize fileReadVCount = 0;
+   XrdSfsXferSize fileReadVSize = 0;
    for (i = 0; i < rdVecNum; i++)
         // Every request could come from a different file
         //
        {currFH.Set(rdVec[i].fhandle);
         if (currFH.handle != lastFH.handle)
-           {if (i && rvMon)
+           {if (fileReadVCount)
+               {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize) 
+                   break;
+                fileReadVSize = fileReadVCount = 0;
+               }
+            if (i && rvMon)
                {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
                                               htons(i-k), rvSeq, vType);
                 if (ioMon) for (; k < i; k++)
@@ -1860,20 +1868,26 @@ int XrdXrootdProtocol::do_ReadV()
                else lastFH.handle = currFH.handle;
            }
       
-        // Read in the vector, segmenting as needed. Note that we gaurantee
+        // Read in the vector, segmenting as needed. Note that we guarantee
         // that a single readv element will never need to be segmented.
         //
         myIOLen  = rdVec[i].rlen;
         n2hll(rdVec[i].offset, myOffset);
+        fileRdVec[fileReadVCount].size = myIOLen;
+        fileRdVec[fileReadVCount].offset = myOffset;
+        fileRdVec[fileReadVCount].data = buffp+hdrSZ;
+        fileReadVSize += myIOLen;;
+        fileReadVCount ++;
         if (Qleft < (myIOLen + hdrSZ))
-           {if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
+           {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize)
+               break;
+            fileReadVSize = fileReadVCount = 0;
+            if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
                return -1;
             Qleft = Quantum;
             buffp = argp->buff;
            }
         TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
-        if ((xframt = myFile->XrdSfsp->read(myOffset,buffp+hdrSZ,myIOLen)) < 0)
-           break;
         rdvamt += xframt; numReads++; segcnt++;
         rdVec[i].rlen = htonl(xframt);
         memcpy(buffp, &rdVec[i], hdrSZ);
