@@ -1879,7 +1879,7 @@ int XrdXrootdProtocol::do_ReadV()
         fileReadVSize += myIOLen;;
         fileReadVCount ++;
         if (Qleft < (myIOLen + hdrSZ))
-           {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize)
+           {if (myFile->XrdSfsp->readv(fileRdVec, fileReadVCount) != fileReadVSize)
                break;
             fileReadVSize = fileReadVCount = 0;
             if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
@@ -1888,14 +1888,19 @@ int XrdXrootdProtocol::do_ReadV()
             buffp = argp->buff;
            }
         TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
-        rdvamt += xframt; numReads++; segcnt++;
-        rdVec[i].rlen = htonl(xframt);
+        rdvamt += myIOLen; numReads++; segcnt++;
+        rdVec[i].rlen = htonl(myIOLen);
         memcpy(buffp, &rdVec[i], hdrSZ);
-        buffp += (xframt+hdrSZ); Qleft -= (xframt+hdrSZ);
+        buffp += (myIOLen+hdrSZ); Qleft -= (myIOLen+hdrSZ);
        }
    
 // Determine why we ended here
 //
+   if (fileReadVCount)
+     {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize)
+         i -= fileReadVCount; // Decrease the index so we don't hit the success case below.
+     }
+
    if (i >= rdVecNum)
       {if (i && rvMon)
           {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
