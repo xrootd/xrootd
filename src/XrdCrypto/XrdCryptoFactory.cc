@@ -41,7 +41,13 @@
 #include "XrdCrypto/XrdCryptoFactory.hh"
 #include "XrdCrypto/XrdCryptolocalFactory.hh"
 
+#include "XrdOuc/XrdOucHash.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+
+//
+// For error logging
+static XrdSysError eDest(0,"cryptofactory_");
 
 // We have always an instance of the simple RSA implementation
 static XrdCryptolocalFactory localCryptoFactory;
@@ -323,6 +329,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
  
    static FactoryEntry  *factorylist = 0;
    static int            factorynum = 0;
+   static XrdOucHash<XrdSysPlugin> plugins;
    XrdCryptoFactory     *(*efact)();
    void *libhandle;
    XrdCryptoFactory *factory;
@@ -332,14 +339,14 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    //
    // The id must be defined
    if (!factoryid || !strlen(factoryid)) {
-      DEBUG("crypto factory ID ("<<factoryid<<") undefined");
+      PRINT("crypto factory ID ("<<factoryid<<") undefined");
       return 0;
    }
 
    //
    // If the local simple implementation is required return the related pointer
    if (!strcmp(factoryid,"local")) {
-      DEBUG("local crypto factory requested");
+      PRINT("local crypto factory requested");
       return &localCryptoFactory;
    }
 
@@ -383,65 +390,38 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
       factorylist = newfactorylist;
       factorynum++;
    } else
-      DEBUG("cannot create local record of loaded crypto factories");
+      PRINT("cannot create local record of loaded crypto factories");
 
    //
    // Try loading: name of routine to load
    sprintf(factobjname, "XrdCrypto%sFactoryObject", factoryid);
-
-   //
-   // Form library name
-   snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s", LT_MODULE_EXT);
-   libfn[sizeof(libfn)-1] = '\0';
-
-   //
-   // Determine path
-   libloc = libfn;
-   DEBUG("loading " <<factoryid <<" crypto factory object from " <<libloc);
-
-   //
-   // Try opening the crypto module
-   if (!(libhandle = dlopen(libloc, RTLD_NOW))) {
-      DEBUG("problems opening shared library " << libloc
-             << "(error: "<< dlerror() << ")");
-      return 0;
-   }
-
-   //
-   // Get the factory object creator
-   if (!(efact = (XrdCryptoFactory *(*)())dlsym(libhandle, factobjname))) {
-
-      //
-      // Try also specific library name
+   
+   // Create or attach to the plug-in instance
+   XrdSysPlugin *plug = plugins.Find(factoryid);
+   if (!plug) {
+      // Create one and add it to the list
       snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s%s", factoryid, LT_MODULE_EXT);
       libfn[sizeof(libfn)-1] = '\0';
       
-      //
-      // Determine path
-      libloc = libfn;
-      DEBUG("loading " <<factoryid <<" crypto factory object from " <<libloc);
-      
-      //
-      // Try opening the crypto module
-      if (!(libhandle = dlopen(libloc, RTLD_NOW))) {
-         DEBUG("problems opening shared library " << libloc
-                << "(error: "<< dlerror() << ")");
-         return 0;
-      }
-
-
-      //
-      // Get the factory object creator
-      if (!(efact = (XrdCryptoFactory *(*)())dlsym(libhandle, factobjname))) {
-         DEBUG("problems finding crypto factory object creator " << factobjname);
-         return 0;
-      }
+      plug = new XrdSysPlugin(&eDest, libfn);
+      plugins.Add(factoryid, plug);
    }
+   if (!plug) {
+      PRINT("problems opening shared library " << libfn);
+      return 0;
+   }
+   DEBUG("shared library '" << libfn << "' loaded");
 
+   // Get the function
+   if (!(efact = (XrdCryptoFactory *(*)()) plug->getPlugin(factobjname))) {
+      PRINT("problems finding crypto factory object creator " << factobjname);
+      return 0;
+   }
+ 
    //
    // Get the factory object
    if (!(factory = (*efact)())) {
-      DEBUG("problems creating crypto factory object");
+      PRINT("problems creating crypto factory object");
       return 0;
    }
 
