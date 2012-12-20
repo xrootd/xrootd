@@ -54,7 +54,6 @@ class XrdCryptoX509Chain;
 class XrdCryptoX509Crl;
 class XrdCryptoX509Req;
 
-#if 1
 //
 // Prototypes for some Utility Functions
 
@@ -81,7 +80,6 @@ typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,
 // certificates from bucket parsing
 typedef int (*XrdCryptoX509ParseBucket_t)(XrdSutBucket *,
                                           XrdCryptoX509Chain *);
-#endif
 
 class XrdCryptoFactory
 {
