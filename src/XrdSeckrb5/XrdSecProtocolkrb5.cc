@@ -589,15 +589,15 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
 // Find out if need to acquire privileges to open and read the keytab file and
 // set the required uid,gid accordingly
 //
-   krb_kt_uid = 0;
-   krb_kt_gid = 0;
+   krb_kt_uid = geteuid();
+   krb_kt_gid = getegid();
    char *pf = 0;
    if ((pf = (char *) strstr(krb_kt_name, "FILE:")))
       {pf += strlen("FILE:");
        if (strlen(pf) > 0)
           {struct stat st;
            if (!stat(pf, &st))
-              {if (st.st_uid != geteuid() || st.st_gid != getegid())
+              {if (st.st_uid != krb_kt_uid || st.st_gid != krb_kt_gid)
                   {krb_kt_uid = st.st_uid;
                    krb_kt_gid = st.st_gid;
                   }
