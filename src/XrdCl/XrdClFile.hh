@@ -57,8 +57,8 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Open( const std::string &url,
-                         uint16_t           flags,
-                         uint16_t           mode,
+                         OpenFlags::Flags   flags,
+                         Access::Mode       mode,
                          ResponseHandler   *handler,
                          uint16_t           timeout  = 0 );
 
@@ -73,8 +73,8 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Open( const std::string &url,
-                         uint16_t           flags,
-                         uint16_t           mode    = 0,
+                         OpenFlags::Flags   flags,
+                         Access::Mode       mode    = Access::None,
                          uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------

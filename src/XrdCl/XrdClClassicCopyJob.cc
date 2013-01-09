@@ -284,7 +284,7 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for reading",
                                 pUrl->GetURL().c_str() );
 
-        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read, 0 );
+        XRootDStatus st = pFile->Open( pUrl->GetURL(), OpenFlags::Read );
         if( !st.IsOK() )
           return st;
 
@@ -496,7 +496,7 @@ namespace
         log->Debug( UtilityMsg, "Opening %s for writing",
                                 pUrl->GetURL().c_str() );
 
-        uint16_t flags = OpenFlags::Update;
+        OpenFlags::Flags flags = OpenFlags::Update;
         if( pForce )
           flags |= OpenFlags::Delete;
         else
