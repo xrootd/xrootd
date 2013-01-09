@@ -60,6 +60,7 @@ add_library(
   XrdClForkHandler.cc         XrdClForkHandler.hh
   XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
   XrdClTransportManager.cc    XrdClTransportManager.hh
+                              XrdClEnum.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -129,6 +130,7 @@ install(
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
+    XrdClEnum.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(

@@ -99,12 +99,12 @@ XRootDStatus BuildPath( std::string &newPath, Env *env,
 //------------------------------------------------------------------------------
 // Convert mode string to uint16_t
 //------------------------------------------------------------------------------
-XRootDStatus ConvertMode( uint16_t &mode, const std::string &modeStr )
+XRootDStatus ConvertMode( Access::Mode &mode, const std::string &modeStr )
 {
   if( modeStr.length() != 9 )
     return XRootDStatus( stError, errInvalidArgs );
 
-  mode = 0;
+  mode = Access::None;
   for( int i = 0; i < 3; ++i )
   {
     if( modeStr[i] == 'r' )
@@ -199,10 +199,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   Log *log = DefaultEnv::GetLog();
   uint32_t    argc     = args.size();
-  uint8_t     flags    = DirListFlags::Locate;
   bool        stats    = false;
   bool        showUrls = false;
   std::string path;
+  DirListFlags::Flags flags = DirListFlags::Locate;
 
   if( argc > 5 )
   {
@@ -319,8 +319,8 @@ XRootDStatus DoMkDir( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  uint8_t      flags   = MkDirFlags::None;
-  uint16_t     mode    = 0;
+  MkDirFlags::Flags flags = MkDirFlags::None;
+  Access::Mode mode    = Access::None;
   std::string  modeStr = "rwxr-x---";
   std::string  path    = "";
 
@@ -568,7 +568,7 @@ XRootDStatus DoChMod( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
-  uint16_t mode;
+  Access::Mode mode = Access::None;
   XRootDStatus st = ConvertMode( mode, args[2] );
   if( !st.IsOK() )
   {
@@ -610,8 +610,8 @@ XRootDStatus DoLocate( FileSystem                      *fs,
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  OpenFlags::Flags flags = OpenFlags::None;
   std::string path;
-  uint16_t    flags        = OpenFlags::None;
   bool        hasPath      = false;
   bool        doDeepLocate = false;
   for( uint32_t i = 1; i < argc; ++i )
