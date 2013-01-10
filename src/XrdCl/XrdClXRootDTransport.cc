@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -1058,17 +1059,21 @@ namespace XrdCl
     {
       ::strncpy( (char*)loginReq->username,
                  hsData->url->GetUserName().c_str(), 8 );
-
-      log->Debug( XRootDTransportMsg,
-                  "[%s] Sending out kXR_login request, username: %s",
-                  hsData->streamName.c_str(), loginReq->username );
     }
     else
     {
-        log->Debug( XRootDTransportMsg,
-                    "[%s] Sending out kXR_login request",
-                    hsData->streamName.c_str() );
+      char *name = new char[1024];
+      if( !XrdOucUtils::UserName( geteuid(), name, 1024 ) )
+        ::strncpy( (char*)loginReq->username, name, 8 );
+      else
+        ::strncpy( (char*)loginReq->username, "????", 8 );
+      delete [] name;
     }
+
+    log->Debug( XRootDTransportMsg,
+                "[%s] Sending out kXR_login request, username: %s",
+                hsData->streamName.c_str(), loginReq->username );
+
     MarshallRequest( msg );
     return msg;
   }
