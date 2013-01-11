@@ -818,11 +818,13 @@ namespace XrdCl
     RedirectInfo( const std::string &h,
                   uint16_t           p,
                   const std::string &c ):
-      host(h), port(p), cgi(c) {};
-
-    std::string host;  //!< host the request has been redirected to
-    uint16_t    port;  //!< host port
-    std::string cgi;   //!< the cgi that should be appended to the request
+      protocol("xroot"), host(h), port(p), path(""), cgi(c), token("") {};
+    std::string protocol; //!< protocol
+    std::string host;     //!< host the request has been redirected to
+    uint16_t    port;     //!< host port
+    std::string path;     //!< path
+    std::string cgi;      //!< the cgi that should be appended to the request
+    std::string token;    //!< additional token info
   };
 
   //----------------------------------------------------------------------------
