@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add a disconnect record to the f-stream.
    * Add --infiles option to xrdcp (and follow-ons) to accept a list of input
      files via an external file. For the current xrdcp only 1 input file is
      allowed (xrdcopy has no such restriction).
