@@ -106,9 +106,9 @@ inline XrdXrootdFile *Get(int fnum)
 
        void           Recycle(XrdXrootdMonitor *monP=0, bool monF=false);
 
-       XrdXrootdFileTable() {memset((void *)FTab, 0, sizeof(FTab));
-                             FTfree = 0; XTab = 0; XTnum = XTfree = 0;
-                            }
+       XrdXrootdFileTable(unsigned int mid=0) : FTfree(0), monID(mid),
+                                                XTab(0), XTnum(0), XTfree(0)
+                         {memset((void *)FTab, 0, sizeof(FTab));}
 
 private:
 
@@ -118,6 +118,7 @@ static const char *TraceID;
 
 XrdXrootdFile *FTab[XRD_FTABSIZE];
 int            FTfree;
+unsigned int   monID;
 
 XrdXrootdFile **XTab;
 int             XTnum;

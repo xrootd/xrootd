@@ -250,6 +250,10 @@ if (XTab)
        free(XTab); XTab = 0; XTnum = 0; XTfree = 0;
   }
 
+// If we are monitoring files, insert a disconnect entry
+//
+   if (monF) XrdXrootdMonFile::Disc(monID);
+
 // Delete this object
 //
    delete this;

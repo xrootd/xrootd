@@ -1097,7 +1097,7 @@ int XrdXrootdProtocol::do_Open()
 
 // Create a file table for this link if it does not have one
 //
-   if (!FTab) FTab = new XrdXrootdFileTable();
+   if (!FTab) FTab = new XrdXrootdFileTable(Monitor.Did);
 
 // Insert this file into the link's file table
 //

@@ -187,6 +187,28 @@ void XrdXrootdMonFile::Defaults(int intv, int opts, int xfrcnt)
 }
 
 /******************************************************************************/
+/*                                  D i s c                                   */
+/******************************************************************************/
+  
+void XrdXrootdMonFile::Disc(unsigned int usrID)
+{
+   static short drecSize = htons(sizeof(XrdXrootdMonFileDSC));
+   XrdXrootdMonFileDSC *dP;
+
+// Get a pointer to the next slot (the buffer gets locked)
+//
+   dP = (XrdXrootdMonFileDSC *)GetSlot(sizeof(XrdXrootdMonFileDSC));
+
+// Fill out the record. It's pretty simple
+//
+   dP->Hdr.recType = XrdXrootdMonFileHdr::isDisc;
+   dP->Hdr.recFlag = 0;
+   dP->Hdr.recSize = drecSize;
+   dP->Hdr.userID  = usrID;
+   bfMutex.UnLock();
+}
+  
+/******************************************************************************/
 /*                                  D o I t                                   */
 /******************************************************************************/
   
