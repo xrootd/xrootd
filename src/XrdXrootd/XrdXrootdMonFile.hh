@@ -49,6 +49,8 @@ static void Close(XrdXrootdFileStats *fsP, bool isDisc=false);
 
 static void Defaults(int intv, int opts, int iocnt);
 
+static void Disc(unsigned int usrID);
+
        void DoIt();
 
 static bool Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz=65472);

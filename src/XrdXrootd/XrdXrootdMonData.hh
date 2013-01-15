@@ -153,7 +153,8 @@ struct XrdXrootdMonFileHdr    // 8
 enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
-               isXfr          // Record for transfers
+               isXfr,         // Record for transfers
+               isDisc         // Record for disconnection
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
@@ -168,7 +169,8 @@ char      recFlag;  // RecFval: Record type-specific flags
 short     recSize;  // Size of this record in bytes
 union
 {
-kXR_unt32 fileID;   // dictid  of file for all rectypes except "time"
+kXR_unt32 fileID;   // dictid  of file for all rectypes except "disc" & "time"
+kXR_unt32 userID;   // dictid  of user for     rectypes equal  "disc"
 short     nRecs[2]; // isTime: nRecs[0] == isXfr recs nRecs[1] == total recs
 };
 };
@@ -258,6 +260,13 @@ XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
 XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following is reported when a user ends a session.
+//
+struct XrdXrootdMonFileDSC
+{
+XrdXrootdMonFileHdr Hdr;      //  8
 };
 
 // The following is reported each interval*count for each open file when "xfr"
