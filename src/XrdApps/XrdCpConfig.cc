@@ -113,7 +113,8 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
   
 XrdCpConfig::XrdCpConfig(const char *pgm)
 {
-   PName    = pgm;
+   if ((PName = rindex(pgm, '/'))) PName++;
+      else PName = pgm;
    intDefs  = 0;
    intDend  = 0;
    strDefs  = 0;
@@ -311,6 +312,7 @@ do{while(optind < Argc && Legacy()) {}
                 else {Path = pFile->Path;
                       pPrev->Next = pFile->Next;
                       if (Verbose) EMSG("Indexing files in " <<Path);
+                      numFiles--;
                       if ((rc = pFile->Extend(&pLast, numFiles, totBytes)))
                          FMSG(strerror(rc) <<" indexing " <<Path, 2);
                       if (pFile->Next)
@@ -320,7 +322,8 @@ do{while(optind < Argc && Legacy()) {}
                       delete pFile;
                      }
             }
-       srcFile = pBase.Next;
+       if (!(srcFile = pBase.Next))
+          FMSG("No regular files found to copy!", 2);
        if (Verbose) EMSG("Copying " <<Human(totBytes, Buff, sizeof(Buff))
                          <<" from " <<numFiles
                          <<(numFiles != 1 ? " files." : " file."));
@@ -718,7 +721,7 @@ void XrdCpConfig::ProcFile(const char *fname)
 // Chain in this file in the input list
 //
    pLast->Next = pFile = new XrdCpFile(fname, rc);
-   if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
+   if (rc) FMSG("Invalid url, '" <<fname <<"'.", 22);
 
 // For local files, make sure it exists and get its size
 //
@@ -727,20 +730,20 @@ void XrdCpConfig::ProcFile(const char *fname)
 
 // Process file based on type (local or remote)
 //
-         if (pFile->Protocol == XrdCpFile::isFile)
-            {totBytes += pFile->fSize; numFiles++;}
+         if (pFile->Protocol == XrdCpFile::isFile) totBytes += pFile->fSize;
     else if (pFile->Protocol == XrdCpFile::isDir)
             {if (!(OpSpec & DoRecurse))
                 FMSG(pFile->Path <<" is a directory.", 2);
             }
     else if (pFile->Protocol != XrdCpFile::isXroot)
             {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
-    else if (OpSpec & DoRecurse)
+    else if (OpSpec & DoRecurse && !(Opts & optRmtRec))
             {FMSG("Recursive copy from a remote host is not supported.",22)}
-    else {isLcl = 0; numFiles++;}
+    else isLcl = 0;
 
 // Update last pointer
 //
+   numFiles++;
    pLast = pFile;
 }
 
@@ -782,7 +785,7 @@ void XrdCpConfig::Usage(int rc)
    "-N | --nopbar       does not print the progress bar\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
-   "-r | --recursive    recursively copies all local source files\n"
+   "-r | --recursive    recursively copies all source files\n"
    "     --server       runs in a server environment with added operations\n"
    "-s | --silent       produces no output other than error messages\n"
    "-y | --sources <n>  uses up to the number of sources specified in parallel\n"

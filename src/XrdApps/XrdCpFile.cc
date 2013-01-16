@@ -58,6 +58,8 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    Next  = 0;
    fSize = 0;
    badURL= 0;
+   Doff  = 0;
+   Dlen  = 0;
    memset(ProtName, 0, sizeof(ProtName));
 
 // Dtermine protocol of the incomming spec
@@ -100,7 +102,7 @@ int XrdCpFile::Extend(XrdCpFile **pLast, int &nFile, long long &nBytes)
    XrdOucNSWalk::NSEnt *nP, *nnP;
    XrdCpFile *fP, *pP = this;
    int rc;
-   short dlen, doff = strlen(Path);
+   short dlen, doff = strlen(Path)+1;
 
    while((nP = nsObj.Index(rc)) && rc == 0)
         {dlen = nP->File - (nP->Path + doff);

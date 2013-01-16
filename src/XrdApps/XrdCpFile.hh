@@ -43,6 +43,7 @@ XrdCpFile        *Next;         // -> Next file in list
 char             *Path;         // -> Absolute path to the file
 short             Doff;         //    Offset to directory extension in Path
 short             Dlen;         //    Length of directory extension (0 if none)
+                                //    The length includes the trailing slash.
 PType             Protocol;     //    Protocol type
 char              ProtName[8];  //    Protocol name
 long long         fSize;        //    Size of file
