@@ -147,10 +147,11 @@ static const int    DoXrate    =  0x00080000; // -X | --xrate
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
-// The following options may be passed (large to support legacy stuff):
+// The following options may be passed (largely to support legacy stuff):
 //
 static const int    opt1Src     = 0x00000001; // Only one source is allowed
-static const int    optNoXtnd   = 0x00000002; // Do not extend the source
+static const int    optNoXtnd   = 0x00000002; // Do not index source directories
+static const int    optRmtRec   = 0x00000004; // Allow remote recursive copy
 
              void   Config(int argc, char **argv, int Opts=0);
 
