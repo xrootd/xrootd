@@ -115,6 +115,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
 {
    if ((PName = rindex(pgm, '/'))) PName++;
       else PName = pgm;
+   XrdCpFile::SetMsgPfx(PName);
    intDefs  = 0;
    intDend  = 0;
    strDefs  = 0;
@@ -283,12 +284,18 @@ do{while(optind < Argc && Legacy()) {}
        while((fname = inList.GetLine())) if (*fname) ProcFile(fname);
       }
 
-// All done
+// Check if we have any sources or too many sources
 //
    if (!numFiles) UMSG("Source not specified.");
    if (Opts & opt1Src && numFiles > 1)
       FMSG("Only a single source is allowed", 2);
    srcFile = pBase.Next;
+
+// Check if we have an appropriate destination
+//
+   if (dstFile->Protocol == XrdCpFile::isFile && (numFiles > 1 
+   ||  (OpSpec & DoRecurse && srcFile->Protocol != XrdCpFile::isFile)))
+      FMSG("Destination is neither remote nor a directory.", 2);
 
 // Do the dumb check
 //
