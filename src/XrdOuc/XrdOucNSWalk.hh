@@ -95,6 +95,12 @@ virtual ~CallBack() {}
 
 void         setCallBack(CallBack *cbP=0) {edCB = cbP;}
 
+// When erp in the constructor is null, no error messages are printed. Such
+// messages can be routed to "cerr" if setMsgOn is called to establish a
+// messages prefix (e.g. "<cmd>:") for use by command line commands.
+//
+void         setMsgOn(const char *pfx) {mPfx = pfx;}
+
 // The following are processing options passed to the constructor
 //
 static const int retDir =  0x0001; // Return directories (implies retStat)
@@ -126,6 +132,7 @@ static const int skpErrs=  0x8000; // Skip any entry causing an error
 private:
 void          addEnt(XrdOucNSWalk::NSEnt *eP);
 int           Build();
+int           Emsg(const char *pfx, int rc, const char *tx1, const char *tx2=0);
 int           getLink(XrdOucNSWalk::NSEnt *eP);
 int           getStat(XrdOucNSWalk::NSEnt *eP, int doLstat=0);
 int           getStat();
@@ -140,6 +147,7 @@ XrdOucTList  *XList;
 struct NSEnt *DEnts;
 struct stat   dStat;
 CallBack     *edCB;
+const char   *mPfx;
 char          DPath[1032];
 char         *File;
 char         *LKFn;
