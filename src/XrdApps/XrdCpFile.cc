@@ -38,6 +38,12 @@
 #include "XrdOuc/XrdOucNSWalk.hh"
 
 /******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
+const char *XrdCpFile::mPfx = 0;
+
+/******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
@@ -50,16 +56,23 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                            {"https://", 8, isHttps}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
+   char *Slash;
    int i;
+
+// Copy out the path and remove trailing slashes
+//
+   Path = strdup(FSpec);
+   i = strlen(Path);
+   while(i) if (Path[i-1] != '/') break;
+               else Path[--i] = 0;
 
 // Do some common initialization
 //
-   Path  = (FSpec ? strdup(FSpec) : 0);
+   Doff  = 0;
+   Dlen  = 0;
    Next  = 0;
    fSize = 0;
    badURL= 0;
-   Doff  = 0;
-   Dlen  = 0;
    memset(ProtName, 0, sizeof(ProtName));
 
 // Dtermine protocol of the incomming spec
@@ -77,12 +90,18 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    Protocol = isFile;
    if (!strncmp(Path, "file://", 7))
       {char *pP = Path + 7;
-       if (!strncmp(Path, "localhost", 9)) pP += 9;
-       if (*pP == '/') Path = pP;
+               if (!strncmp(pP, "localhost/", 10)) strcpy(Path, pP + 10);
+          else if (*pP == '/') strcpy(Path, pP + 1);
           else {Protocol = isOther;
                 strcpy(ProtName, "remote");
+                return;
                }
       }
+
+// Compute Doff and Dlen
+//
+   if ((Slash = rindex(Path, '/')) && Slash != Path)
+      {Doff = Slash - Path; Dlen = i - Doff;}
 }
 
 /******************************************************************************/
@@ -102,14 +121,16 @@ int XrdCpFile::Extend(XrdCpFile **pLast, int &nFile, long long &nBytes)
    XrdOucNSWalk::NSEnt *nP, *nnP;
    XrdCpFile *fP, *pP = this;
    int rc;
-   short dlen, doff = strlen(Path)+1;
+   short dlen, doff = strlen(Path);
+
+   nsObj.setMsgOn(mPfx);
 
    while((nP = nsObj.Index(rc)) && rc == 0)
-        {dlen = nP->File - (nP->Path + doff);
-         do {fP = new XrdCpFile(nP->Path, nP->Stat, doff, dlen);
+        {do {dlen = nP->Plen - doff;
+             fP = new XrdCpFile(nP->Path, nP->Stat, doff, dlen);
              nFile++; nBytes += nP->Stat.st_size; nP->Path = 0;
              pP->Next = fP; pP = fP;
-             nnP = nP->Next; delete nP; dlen = 0;
+             nnP = nP->Next; delete nP;
             } while((nP = nnP));
         }
 

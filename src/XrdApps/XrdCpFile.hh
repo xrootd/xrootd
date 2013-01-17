@@ -52,6 +52,8 @@ int               Extend(XrdCpFile **pLast, int &nFile, long long &nBytes);
 
 int               Resolve();
 
+static void       SetMsgPfx(const char *pfx) {mPfx = pfx;}
+
                   XrdCpFile() : Next(0), Path(0), Doff(0), Dlen(0),
                                 Protocol(isOther), fSize(0) {*ProtName = 0;}
 
@@ -61,5 +63,8 @@ int               Resolve();
                                   short doff,         short dlen);
 
                  ~XrdCpFile() {if (Path) free(Path);}
+private:
+
+static const char *mPfx;
 };
 #endif
