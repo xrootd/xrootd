@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <ctype.h>
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
@@ -36,7 +37,10 @@
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+
+using namespace std;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -49,6 +53,7 @@ XrdOucNSWalk::XrdOucNSWalk(XrdSysError *erp, const char *dpath,
 // Set the required fields
 //
    eDest = erp;
+   mPfx  = 0;
    DList = new XrdOucTList(dpath);
    if (lkfn) LKFn = strdup(lkfn);
       else   LKFn = 0;
@@ -178,10 +183,7 @@ int XrdOucNSWalk::Build()
 // Open the directory
 //
    if (!(theEnt.D = opendir(DPath)))
-      {rc = errno;
-       if (eDest) eDest->Emsg("Build", rc, "open directory", DPath);
-       return rc;
-      }
+      return Emsg("Build", errno, "open directory", DPath);
 
 // Process the entries
 //
@@ -224,15 +226,33 @@ int XrdOucNSWalk::Build()
 //
    *File = '\0';
    if ((rc = errno) && !errOK)
-      {eDest->Emsg("Build", rc, "reading directory", DPath); return rc;}
+      return Emsg("Build", rc, "read directory", DPath);
 
 // Check if we need to do a callback for an empty directory
 //
    if (edCB && xLKF == nEnt && !DEnts)
       {if ((DPfd < 0 ? !stat(DPath, &dStat) : !fstat(DPfd, &dStat))) isEmpty=1;
-          else eDest->Emsg("Build", errno, "stating directory", DPath);
+          else Emsg("Build", errno, "stat directory", DPath);
       }
    return 0;
+}
+
+/******************************************************************************/
+/*                                  E m s g                                   */
+/******************************************************************************/
+  
+int XrdOucNSWalk::Emsg(const char *pfx, int rc, const char *txt1,
+                       const char *txt2)
+{
+   if (eDest) eDest->Emsg(pfx, rc, txt1, txt2);
+      else if (mPfx)
+              {char letter, *etxt = strerror(rc);
+               letter = tolower(*etxt);
+               cerr <<mPfx <<": Unable to " <<txt1;
+               if (txt2) cerr <<' ' <<txt2;
+               cerr <<"; " <<letter <<(etxt+1) <<endl;
+              }
+   return rc;
 }
 
 /******************************************************************************/
@@ -245,10 +265,7 @@ int XrdOucNSWalk::getLink(XrdOucNSWalk::NSEnt *eP)
    int rc;
 
    if ((rc = readlink(DPath, lnkbuff, sizeof(lnkbuff))) < 0)
-      {rc = errno;
-       if (eDest) eDest->Emsg("getLink", rc, "read link of", DPath);
-       return rc;
-      }
+      return Emsg("getLink", errno, "read link of", DPath);
 
    eP->Lksz = rc;
    eP->Link = (char *)malloc(rc+1);
@@ -278,10 +295,9 @@ do{rc = doLstat ? lstat(DPath, &(eP->Stat)) : stat(DPath, &(eP->Stat));
 //
    if (rc)
       {rc = errno;
-       if (eDest && rc != ENOENT && rc != ELOOP)
-          eDest->Emsg("getStat", rc, "stat", DPath);
+       if (rc != ENOENT && rc != ELOOP) Emsg("getStat", rc, "stat", DPath);
        memset(&eP->Stat, 0, sizeof(struct stat));
-       eP->Type = NSEnt::isBad;
+       eP->Type = (rc == ENOENT ? NSEnt::isMisc : NSEnt::isBad);
        return rc;
       }
 
@@ -356,9 +372,8 @@ int XrdOucNSWalk::LockFile()
    do {LKfd = open(DPath, O_RDWR);} while(LKfd < 0 && errno == EINTR);
    if (LKfd < 0)
       {if (errno == ENOENT) {*File = '\0'; return 0;}
-          {rc = errno;
-           if (eDest) eDest->Emsg("LockFile", rc, "open", DPath);
-           *File = '\0'; return rc;
+          {*File = '\0';
+           return Emsg("LockFile", errno, "open", DPath);
           }
       }
 
@@ -371,10 +386,7 @@ int XrdOucNSWalk::LockFile()
 //
    do {rc = fcntl(LKfd,F_SETLKW,&lock_args);}
        while(rc < 0 && errno == EINTR);
-   if (rc < 0)
-       {rc = -errno;
-        if (eDest) eDest->Emsg("LockFile", errno, "lock", DPath);
-       }
+   if (rc < 0) rc = Emsg("LockFile", errno, "lock", DPath);
 
 // All done
 //
