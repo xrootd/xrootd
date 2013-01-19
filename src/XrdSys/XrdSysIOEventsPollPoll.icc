@@ -320,7 +320,7 @@ void XrdSys::IOEvents::PollPoll::FDMod(int ptnum, int fd, int events)
 
 // Reset poll marker, as needed
 //
-   if (chnlNum > pollNum) pollNum = chnlNum;
+   if (chnlNum >= pollNum) pollNum = chnlNum+1;
 }
   
 /******************************************************************************/
