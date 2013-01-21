@@ -635,10 +635,15 @@ XRootDStatus DoLocate( FileSystem                      *fs,
   }
 
   std::string fullPath;
-  if( !BuildPath( fullPath, env, path ).IsOK() )
+  if( path[0] == '*' )
+    fullPath = path;
+  else
   {
-    log->Error( AppMsg, "Invalid path." );
-    return XRootDStatus( stError, errInvalidArgs );
+    if( !BuildPath( fullPath, env, path ).IsOK() )
+    {
+      log->Error( AppMsg, "Invalid path." );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
   }
 
   //----------------------------------------------------------------------------
