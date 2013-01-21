@@ -924,8 +924,8 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
                         const FSExecutor::CommandParams & )
 {
   printf( "Usage:\n"                                                        );
-  printf( "   xrdquery host[:port]              - interactive mode\n"       );
-  printf( "   xrdquery host[:port] command args - batch mode\n\n"           );
+  printf( "   xrdfs host[:port]              - interactive mode\n"       );
+  printf( "   xrdfs host[:port] command args - batch mode\n\n"           );
 
   printf( "Available commands:\n\n"                                         );
 
