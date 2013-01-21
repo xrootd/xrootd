@@ -1092,7 +1092,7 @@ int ExecuteInteractive( const URL &url )
   {
     char *linebuf = 0;
     linebuf = readline( BuildPrompt( ex->GetEnv(), url ).c_str() );
-    if( !linebuf || !strcmp( linebuf, "exit" ))
+    if( !linebuf || !strcmp( linebuf, "exit" ) || !strcmp( linebuf, "quit" ) )
     {
       std::cout << "Goodbye." << std::endl << std::endl;
       break;
