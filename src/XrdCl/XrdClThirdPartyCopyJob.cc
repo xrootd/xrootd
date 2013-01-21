@@ -23,11 +23,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ThirdPartyCopyJob::ThirdPartyCopyJob( const URL *source,
-                                        const URL *destination )
+  ThirdPartyCopyJob::ThirdPartyCopyJob( JobDescriptor *jobDesc ):
+    CopyJob( jobDesc )
   {
-    pSource = source;
-    pDestination = destination;
   }
 
   //----------------------------------------------------------------------------

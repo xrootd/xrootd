@@ -62,6 +62,11 @@ namespace XrdCl
       std::string GetHostId() const;
 
       //------------------------------------------------------------------------
+      //! Get protocol://host:port/path
+      //------------------------------------------------------------------------
+      std::string GetLocation() const;
+
+      //------------------------------------------------------------------------
       //! Get the protocol
       //------------------------------------------------------------------------
       const std::string &GetProtocol() const
@@ -199,6 +204,7 @@ namespace XrdCl
       int         pPort;
       std::string pPath;
       ParamsMap   pParams;
+
   };
 }
 

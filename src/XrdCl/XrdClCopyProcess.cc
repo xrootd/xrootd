@@ -34,93 +34,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   CopyProcess::~CopyProcess()
   {
-    delete pDestination;
-    std::list<URL*>::iterator it;
-    for( it = pSource.begin(); it != pSource.end(); ++it )
-      delete *it;
-    for( it = pDestinations.begin(); it != pDestinations.end(); ++it )
-      delete *it;
-
     std::list<CopyJob*>::iterator itJ;
     for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
       delete *itJ;
-  }
-
-  //----------------------------------------------------------------------------
-  // Add source
-  //----------------------------------------------------------------------------
-  bool CopyProcess::AddSource( const std::string &source )
-  {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "CopyProcess: adding source: %s", source.c_str() );
-    URL *url = new URL( source );
-
-    if( !url->IsValid() )
-    {
-      log->Debug( UtilityMsg, "CopyProcess: source is invalid: %s",
-                              source.c_str() );
-      delete url;
-      return false;
-    }
-    pSource.push_back( url );
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Add source
-  //----------------------------------------------------------------------------
-  bool CopyProcess::AddSource( const URL &source )
-  {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "CopyProcess: adding source: %s",
-                            source.GetURL().c_str() );
-    if( !source.IsValid() )
-    {
-      log->Debug( UtilityMsg, "CopyProcess: source is invalid: %s",
-                              source.GetURL().c_str() );
-      return false;
-    }
-    pSource.push_back( new URL( source ) );
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Set destination
-  //----------------------------------------------------------------------------
-  bool CopyProcess::SetDestination( const std::string &destination )
-  {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "CopyProcess: adding destination: %s",
-                            destination.c_str() );
-    URL *url = new URL( destination );
-    if( !url->IsValid() )
-    {
-      log->Debug( UtilityMsg, "CopyProcess: destination is invalid: %s",
-                              destination.c_str() );
-      delete url;
-      return false;
-    }
-    pDestination = url;
-    return true;
-  }
-
-  //----------------------------------------------------------------------------
-  // Set destination
-  //----------------------------------------------------------------------------
-  bool CopyProcess::SetDestination( const URL &destination )
-  {
-    Log *log = DefaultEnv::GetLog();
-    log->Debug( UtilityMsg, "CopyProcess: adding destination: %s",
-                            destination.GetURL().c_str() );
-
-    if( !destination.IsValid() )
-    {
-      log->Debug( UtilityMsg, "CopyProcess: destination is invalid: %s",
-                              destination.GetURL().c_str() );
-      return false;
-    }
-    pDestination = new URL( destination );
-    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -129,93 +45,42 @@ namespace XrdCl
   XRootDStatus CopyProcess::Prepare()
   {
     Log *log = DefaultEnv::GetLog();
+    std::list<JobDescriptor*>::iterator it;
 
-    //--------------------------------------------------------------------------
-    // Check if we have all we need
-    //--------------------------------------------------------------------------
-    if( !pDestination || pSource.empty() )
-    {
-      log->Debug( UtilityMsg, "CopyProcess: no source or destination "
-                              "specified." );
-      return Status( stError, errInvalidArgs );
-    }
+    log->Debug( UtilityMsg, "CopyProcess: %d jobs to prepare",
+                pJobDescs.size() );
 
-    //--------------------------------------------------------------------------
-    // We just have one job to do
-    //--------------------------------------------------------------------------
-    if( pSource.size() == 1 )
+    std::map<std::string, uint32_t> targetFlags;
+    int i = 0;
+    for( it = pJobDescs.begin(); it != pJobDescs.end(); ++it, ++i )
     {
+      JobDescriptor *jobDesc = *it;
+
+      //------------------------------------------------------------------------
+      // Check if we have all we need
+      //------------------------------------------------------------------------
+      if( jobDesc->source.GetPath().empty() ||
+          jobDesc->target.GetPath().empty() )
+      {
+        log->Debug( UtilityMsg, "CopyProcess (job #%d): no source or "
+                    "destination specified.", i );
+        return Status( stError, errInvalidArgs );
+      }
+
       CopyJob *job = 0;
-      if( pThirdParty )
-        job = new ThirdPartyCopyJob( pSource.front(), pDestination );
+      if( jobDesc->thirdParty )
+        job = new ThirdPartyCopyJob( jobDesc );
       else
-        job = new ClassicCopyJob( pSource.front(), pDestination );
+        job = new ClassicCopyJob( jobDesc );
       pJobs.push_back( job );
-      job->SetForce( pForce );
-      job->SetPosc( pPosc );
-
-      job->EnableCheckSumPrint( pCheckSumPrint );
-      if( !pCheckSumType.empty() )
-        job->EnableCheckSumVerification( pCheckSumType, pCheckSumPreset );
     }
-    //--------------------------------------------------------------------------
-    // Many jobs
-    //--------------------------------------------------------------------------
-    else
-    {
-      //------------------------------------------------------------------------
-      // Check if the remote path exist and is a directory
-      //------------------------------------------------------------------------
-      FileSystem fs( *pDestination );
-      StatInfo *statInfo = 0;
-      XRootDStatus st = fs.Stat( pDestination->GetPath(), statInfo );
-      if( !st.IsOK() )
-        return st;
-
-      if( !statInfo->TestFlags( StatInfo::IsDir ) )
-      {
-        delete statInfo;
-        log->Debug( UtilityMsg, "CopyProcess: destination for recursive copy "
-                                "is not a directory." );
-
-        return Status( stError, errInvalidArgs, EINVAL );
-      }
-
-      //------------------------------------------------------------------------
-      // Loop through the sources and create the destination paths
-      //------------------------------------------------------------------------
-      std::list<URL*>::iterator it;
-      for( it = pSource.begin(); it != pSource.end(); ++it )
-      {
-        std::string pathSuffix = (*it)->GetPath();
-        pathSuffix = pathSuffix.substr( pRootOffset,
-                                        pathSuffix.length()-pRootOffset );
-        URL *dst = new URL( *pDestination );
-        dst->SetPath( dst->GetPath() + pathSuffix );
-        pDestinations.push_back( dst );
-
-        CopyJob *job = 0;
-        if( pThirdParty )
-          job = new ThirdPartyCopyJob( pSource.front(), pDestination );
-        else
-          job = new ClassicCopyJob( *it, dst );
-        pJobs.push_back( job );
-        job->SetForce( pForce );
-        job->SetPosc( pPosc );
-
-        job->EnableCheckSumPrint( pCheckSumPrint );
-        if( !pCheckSumType.empty() )
-          job->EnableCheckSumVerification( pCheckSumType, pCheckSumPreset );
-      }
-    }
-
     return XRootDStatus();
   }
 
   //----------------------------------------------------------------------------
   // Run the copy jobs
   //----------------------------------------------------------------------------
-  XRootDStatus CopyProcess::Run()
+  XRootDStatus CopyProcess::Run( CopyProgressHandler *progress )
   {
     std::list<CopyJob *>::iterator it;
     uint16_t currentJob = 1;
@@ -229,16 +94,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Report beginning of the copy
       //------------------------------------------------------------------------
-      if( pProgressHandler )
-        pProgressHandler->BeginJob( currentJob, totalJobs,
-                                    (*it)->GetSource(),
-                                    (*it)->GetDestination() );
+      if( progress )
+        progress->BeginJob( currentJob, totalJobs,
+                            &(*it)->GetDescriptor()->source,
+                            &(*it)->GetDescriptor()->target );
 
       if( mon )
       {
         Monitor::CopyBInfo i;
-        i.transfer.origin = (*it)->GetSource();
-        i.transfer.target = (*it)->GetDestination();
+        i.transfer.origin = &(*it)->GetDescriptor()->source;
+        i.transfer.target = &(*it)->GetDescriptor()->target;
         mon->Event( Monitor::EvCopyBeg, &i );
       }
 
@@ -247,7 +112,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Do the copy
       //------------------------------------------------------------------------
-      XRootDStatus st = (*it)->Run( pProgressHandler );
+      XRootDStatus st = (*it)->Run( progress );
 
       //------------------------------------------------------------------------
       // Report end of the copy
@@ -255,17 +120,17 @@ namespace XrdCl
       if( mon )
       {
         Monitor::CopyEInfo i;
-        i.transfer.origin = (*it)->GetSource();
-        i.transfer.target = (*it)->GetDestination();
-        i.sources         = (*it)->GetNumberOfSources();
+        i.transfer.origin = &(*it)->GetDescriptor()->source;
+        i.transfer.target = &(*it)->GetDescriptor()->target;
+        i.sources         = (*it)->GetDescriptor()->sources.size();
         i.bTOD            = bTOD;
         gettimeofday( &i.eTOD, 0 );
         i.status          = &st;
         mon->Event( Monitor::EvCopyEnd, &i );
       }
 
-      if( pProgressHandler )
-        pProgressHandler->EndJob( st );
+      if( progress )
+        progress->EndJob( st );
       if( !st.IsOK() ) return st;
       ++currentJob;
     }
