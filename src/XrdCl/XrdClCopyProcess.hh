@@ -65,6 +65,32 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  //! Job description
+  //----------------------------------------------------------------------------
+  struct JobDescriptor
+  {
+    JobDescriptor(): sourceLimit(1), force(false), posc(false),
+      thirdParty(false), checkSumPrint(false)
+    {}
+
+    URL              source;          //!< [in] original source URL
+    URL              target;          //!< [in] target directory or file
+    uint16_t         sourceLimit;     //!< [in] max number of download sources
+    bool             force;           //!< [in] overwrite target if exists
+    bool             posc;            //!< [in] POSC
+    bool             thirdParty;      //!< [in] do third party copy if possible
+    bool             checkSumPrint;   //!< [in] print checksum after the transfer
+    std::string      checkSumType;    //!< [in] type of the checksum
+    std::string      checkSumPreset;  //!< [in] checksum preset
+
+    std::string      sourceCheckSum;  //!< [out] checksum calculated at source
+    std::string      targetCheckSum;  //!< [out] checksum calculated at target
+    XRootDStatus     status;          //!< [out] status of the copy operation
+    std::vector<URL> sources;         //!< [out] all the possible sources that
+                                      //!< may have been located
+  };
+
+  //----------------------------------------------------------------------------
   //! Copy job
   //----------------------------------------------------------------------------
   class CopyJob
@@ -73,8 +99,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      CopyJob():
-        pSource( 0 ), pDestination( 0 ), pForce( 0 ), pPosc( 0 ) {}
+      CopyJob( JobDescriptor *jobDesc ):
+        pJob( jobDesc ) {}
 
       //------------------------------------------------------------------------
       //! Virtual destructor
@@ -92,87 +118,15 @@ namespace XrdCl
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 ) = 0;
 
       //------------------------------------------------------------------------
-      //! Get source URL
+      //! Get the job descriptor
       //------------------------------------------------------------------------
-      const URL *GetSource() const
+      const JobDescriptor *GetDescriptor() const
       {
-        return pSource;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get destination URL
-      //------------------------------------------------------------------------
-      const URL *GetDestination() const
-      {
-        return pDestination;
-      }
-
-      //------------------------------------------------------------------------
-      //! Check if the destination file will be overwritten
-      //------------------------------------------------------------------------
-      bool GetForce() const
-      {
-        return pForce;
-      }
-
-      //------------------------------------------------------------------------
-      //! Overwrite the destination if it exists
-      //------------------------------------------------------------------------
-      void SetForce( bool force )
-      {
-        pForce = force;
-      }
-
-      //------------------------------------------------------------------------
-      //! Check if POSC is enabled
-      //------------------------------------------------------------------------
-      bool GetPOSC() const
-      {
-        return pPosc;
-      }
-
-      //------------------------------------------------------------------------
-      //! Set the POSC semantics
-      //------------------------------------------------------------------------
-      void SetPosc( bool posc )
-      {
-        pPosc = posc;
-      }
-
-      //------------------------------------------------------------------------
-      //! Get the actual number of source
-      //------------------------------------------------------------------------
-      virtual uint16_t GetNumberOfSources()
-      {
-        return 1;
-      }
-
-      //------------------------------------------------------------------------
-      //! Enable checksum printing to stderr
-      //------------------------------------------------------------------------
-      void EnableCheckSumPrint( bool print )
-      {
-          pCheckSumPrint = print;
-      }
-
-      //------------------------------------------------------------------------
-      //! Enable checksum verification
-      //------------------------------------------------------------------------
-      void EnableCheckSumVerification( const std::string &type,
-                                       const std::string &preset )
-      {
-        pCheckSumType   = type;
-        pCheckSumPreset = preset;
+        return pJob;
       }
 
     protected:
-      const URL   *pSource;
-      const URL   *pDestination;
-      bool         pForce;
-      bool         pPosc;
-      bool         pCheckSumPrint;
-      std::string  pCheckSumType;
-      std::string  pCheckSumPreset;
+      JobDescriptor *pJob;
   };
 
   //----------------------------------------------------------------------------
@@ -184,17 +138,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      CopyProcess():
-        pDestination( 0 ),
-        pRecursive( false ),
-        pThirdParty( false ),
-        pForce( false ),
-        pPosc( false ),
-        pSourceLimit( 1 ),
-        pRootOffset( 0 ),
-        pProgressHandler( 0 ),
-        pCheckSumPrint( false )
-      {}
+      CopyProcess() {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -202,97 +146,12 @@ namespace XrdCl
       virtual ~CopyProcess();
 
       //------------------------------------------------------------------------
-      //! Add source
+      //! Add job - it's user's responsibility to handle these after the
+      //! copy has bee done
       //------------------------------------------------------------------------
-      bool AddSource( const std::string &source );
-
-      //------------------------------------------------------------------------
-      //! Add source
-      //------------------------------------------------------------------------
-      bool AddSource( const URL &source );
-
-      //------------------------------------------------------------------------
-      //! Set destination
-      //------------------------------------------------------------------------
-      bool SetDestination( const std::string &destination );
-
-      //------------------------------------------------------------------------
-      //! Set destination
-      //------------------------------------------------------------------------
-      bool SetDestination( const URL &destination );
-
-      //------------------------------------------------------------------------
-      //! Perform a recursive copy
-      //------------------------------------------------------------------------
-      void SetRecursive( bool recursive )
+      bool AddJob( JobDescriptor *job )
       {
-        pRecursive = recursive;
-      }
-
-      //------------------------------------------------------------------------
-      //! Limit number of possibly chunk sources per job
-      //------------------------------------------------------------------------
-      void SetSourceLimit( uint16_t sourceLimit )
-      {
-        pSourceLimit = sourceLimit;
-      }
-
-      void SetRootOffset( uint16_t rootOffset )
-      {
-        pRootOffset = rootOffset;
-      }
-
-      //------------------------------------------------------------------------
-      //! Perform third party copy whenever possible
-      //------------------------------------------------------------------------
-      void SetThirdPartyCopy( bool thirdParty )
-      {
-        pThirdParty = thirdParty;
-      }
-
-      //------------------------------------------------------------------------
-      //! Force overwriting files if they exist
-      //------------------------------------------------------------------------
-      void SetForce( bool force )
-      {
-        pForce = force;
-      }
-
-      //------------------------------------------------------------------------
-      //! Persistify on successfull close
-      //------------------------------------------------------------------------
-      void SetPOSC( bool posc )
-      {
-        pPosc = posc;
-      }
-
-      //------------------------------------------------------------------------
-      //! Monitor the progress with the given handler
-      //------------------------------------------------------------------------
-      void SetProgressHandler( CopyProgressHandler *handler )
-      {
-        pProgressHandler = handler;
-      }
-
-      //------------------------------------------------------------------------
-      //! Verify the checksum
-      //!
-      //! @param type   type of the checksum that should be verified
-      //! @param preset if set, it will be used instead source checksum
-      //------------------------------------------------------------------------
-      void EnableCheckSumVerification( const std::string &type,
-                                       const std::string &preset = "" )
-      {
-        pCheckSumType   = type;
-        pCheckSumPreset = preset;
-      }
-
-      //------------------------------------------------------------------------
-      //! Print checksum
-      //------------------------------------------------------------------------
-      void EnableCheckSumPrint( bool print )
-      {
-        pCheckSumPrint = print;
+        pJobDescs.push_back( job );
       }
 
       //------------------------------------------------------------------------
@@ -303,23 +162,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Run the copy jobs
       //------------------------------------------------------------------------
-      XRootDStatus Run();
+      XRootDStatus Run( CopyProgressHandler *handler );
 
     private:
-      std::list<URL*>      pSource;
-      std::list<URL*>      pDestinations;
-      std::list<CopyJob*>  pJobs;
-      URL                 *pDestination;
-      bool                 pRecursive;
-      bool                 pThirdParty;
-      bool                 pForce;
-      bool                 pPosc;
-      uint16_t             pSourceLimit;
-      uint16_t             pRootOffset;
-      CopyProgressHandler *pProgressHandler;
-      std::string          pCheckSumType;
-      std::string          pCheckSumPreset;
-      bool                 pCheckSumPrint;
+      std::list<JobDescriptor*>  pJobDescs;
+      std::list<CopyJob*>        pJobs;
   };
 }
 

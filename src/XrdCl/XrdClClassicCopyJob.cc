@@ -547,15 +547,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ClassicCopyJob::ClassicCopyJob( const URL *source, const URL *destination )
+  ClassicCopyJob::ClassicCopyJob( JobDescriptor *jobDesc ):
+    CopyJob( jobDesc )
   {
-    pSource      = source;
-    pDestination = destination;
-
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a classic copy job, from %s to %s",
-                            pSource->GetURL().c_str(),
-                            pDestination->GetURL().c_str() );
+                pJob->source.GetURL().c_str(),
+                pJob->target.GetURL().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -569,19 +567,19 @@ namespace XrdCl
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
     std::auto_ptr<Source> src;
-    if( pSource->GetProtocol() == "file" )
-      src.reset( new LocalSource( pSource ) );
+    if( pJob->source.GetProtocol() == "file" )
+      src.reset( new LocalSource( &pJob->source ) );
     else
-      src.reset( new XRootDSource( pSource ) );
+      src.reset( new XRootDSource( &pJob->source ) );
 
     XRootDStatus st = src->Initialize();
     if( !st.IsOK() ) return st;
 
     std::auto_ptr<Destination> dest;
-    URL newDestUrl( *pDestination );
+    URL newDestUrl( pJob->target );
 
-    if( pDestination->GetProtocol() == "file" )
-      dest.reset( new LocalDestination( pDestination ) );
+    if( pJob->target.GetProtocol() == "file" )
+      dest.reset( new LocalDestination( &pJob->target ) );
     //--------------------------------------------------------------------------
     // For xrootd destination build the oss.asize hint
     //--------------------------------------------------------------------------
@@ -592,8 +590,8 @@ namespace XrdCl
       dest.reset( new XRootDDestination( &newDestUrl ) );
     }
 
-    dest->SetForce( pForce );
-    dest->SetPOSC( pPosc );
+    dest->SetForce( pJob->force );
+    dest->SetPOSC( pJob->posc );
     st = dest->Initialize();
     if( !st.IsOK() ) return st;
 
@@ -625,7 +623,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
     //--------------------------------------------------------------------------
-    if( !pCheckSumType.empty() )
+    if( !pJob->checkSumType.empty() )
     {
       log->Debug( UtilityMsg, "Attempring checksum calculation." );
 
@@ -633,27 +631,29 @@ namespace XrdCl
       // Get the check sum at source
       //------------------------------------------------------------------------
       timeval oStart, oEnd;
-      std::string sourceCheckSum;
       XRootDStatus st;
       gettimeofday( &oStart, 0 );
-      if( !pCheckSumPreset.empty() )
+      if( !pJob->checkSumPreset.empty() )
       {
-        sourceCheckSum  = pCheckSumType + ":";
-        sourceCheckSum += pCheckSumPreset;
+        pJob->sourceCheckSum  = pJob->checkSumType + ":";
+        pJob->sourceCheckSum += pJob->checkSumPreset;
       }
       else
       {
-        st = src->GetCheckSum( sourceCheckSum, pCheckSumType );
+        st = src->GetCheckSum( pJob->sourceCheckSum, pJob->checkSumType );
       }
       gettimeofday( &oEnd, 0 );
 
       //------------------------------------------------------------------------
       // Print the checksum if so requested and exit
       //------------------------------------------------------------------------
-      if( pCheckSumPrint )
+      if( pJob->checkSumPrint )
       {
-        if( sourceCheckSum.empty() ) sourceCheckSum = st.ToStr();
-        std::cerr << std::endl << "CheckSum: " << sourceCheckSum << std::endl;
+        std::cerr << std::endl << "CheckSum: ";
+        if( !pJob->sourceCheckSum.empty() )
+          std::cerr << pJob->sourceCheckSum << std::endl;
+        else
+           std::cerr << st.ToStr() << std::endl;
         return XRootDStatus();
       }
 
@@ -664,9 +664,8 @@ namespace XrdCl
       // Get the check sum at destination
       //------------------------------------------------------------------------
       timeval tStart, tEnd;
-      std::string destCheckSum;
       gettimeofday( &tStart, 0 );
-      st = dest->GetCheckSum( destCheckSum, pCheckSumType );
+      st = dest->GetCheckSum( pJob->targetCheckSum, pJob->checkSumType );
       if( !st.IsOK() )
         return st;
       gettimeofday( &tEnd, 0 );
@@ -675,16 +674,16 @@ namespace XrdCl
       // Compare and inform monitoring
       //------------------------------------------------------------------------
       bool match = false;
-      if( sourceCheckSum == destCheckSum )
+      if( pJob->sourceCheckSum == pJob->targetCheckSum )
         match = true;
 
       Monitor *mon = DefaultEnv::GetMonitor();
       if( mon )
       {
         Monitor::CheckSumInfo i;
-        i.transfer.origin = pSource;
-        i.transfer.target = pDestination;
-        i.cksum           = sourceCheckSum;
+        i.transfer.origin = &pJob->source;
+        i.transfer.target = &pJob->target;
+        i.cksum           = pJob->sourceCheckSum;
         i.oTime           = Utils::GetElapsedMicroSecs( oStart, oEnd );
         i.tTime           = Utils::GetElapsedMicroSecs( tStart, tEnd );
         i.isOK            = match;
