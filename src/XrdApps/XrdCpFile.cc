@@ -60,13 +60,6 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    char *Slash;
    int i;
 
-// Copy out the path and remove trailing slashes
-//
-   Path = strdup(FSpec);
-   i = strlen(Path);
-   while(i) if (Path[i-1] != '/') break;
-               else Path[--i] = 0;
-
 // Do some common initialization
 //
    Doff  = 0;
@@ -75,6 +68,20 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    fSize = 0;
    badURL= 0;
    memset(ProtName, 0, sizeof(ProtName));
+
+// Copy out the path and remove trailing slashes
+//
+   Path = strdup(FSpec);
+   i = strlen(Path);
+   while(i) if (Path[i-1] != '/') break;
+               else Path[--i] = 0;
+
+// Check for stdin stdout spec
+//
+   if (!strcmp(Path, "-"))
+      {Protocol = isStdIO;
+       return;
+      }
 
 // Dtermine protocol of the incomming spec
 //
@@ -98,11 +105,6 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                 return;
                }
       }
-
-// Compute Doff and Dlen
-//
-   if ((Slash = rindex(Path, '/')) && Slash != Path)
-      {Doff = Slash - Path; Dlen = i - Doff;}
 }
 
 /******************************************************************************/

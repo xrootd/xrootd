@@ -152,6 +152,7 @@ static const int    DoXrate    =  0x00080000; // -X | --xrate
 static const int    opt1Src     = 0x00000001; // Only one source is allowed
 static const int    optNoXtnd   = 0x00000002; // Do not index source directories
 static const int    optRmtRec   = 0x00000004; // Allow remote recursive copy
+static const int    optNoStdIn  = 0x00000008; // Disallow '-' as src for stdin
 
              void   Config(int argc, char **argv, int Opts=0);
 
