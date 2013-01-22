@@ -79,6 +79,8 @@ int           Close(int defer=0);
 
 void          DoIt();
 
+void          Enable();
+
 int           FDnum() {return FD;}
 
 static XrdLink *fd2link(int fd)
