@@ -257,12 +257,14 @@ do{while(optind < Argc && Legacy()) {}
 // Do a protocol check
 //
    if (dstFile->Protocol != XrdCpFile::isFile
+   &&  dstFile->Protocol != XrdCpFile::isStdIO
    &&  dstFile->Protocol != XrdCpFile::isXroot)
       {FMSG(dstFile->ProtName <<"file protocol is not supported.", 22)}
 
 // Resolve this file if it is a local file
 //
-   isLcl = (dstFile->Protocol == XrdCpFile::isFile);
+   isLcl = (dstFile->Protocol == XrdCpFile::isFile)
+         | (dstFile->Protocol == XrdCpFile::isStdIO);
    if (isLcl && (rc = dstFile->Resolve()))
       {if (rc != ENOENT || (Argc - optind - 1) > 1 || OpSpec & DoRecurse)
           FMSG(strerror(rc) <<" processing " <<dstFile->Path, 2);
@@ -288,7 +290,7 @@ do{while(optind < Argc && Legacy()) {}
 //
    if (!numFiles) UMSG("Source not specified.");
    if (Opts & opt1Src && numFiles > 1)
-      FMSG("Only a single source is allowed", 2);
+      FMSG("Only a single source is allowed.", 2);
    srcFile = pBase.Next;
 
 // Check if we have an appropriate destination
@@ -742,13 +744,19 @@ void XrdCpConfig::ProcFile(const char *fname)
             {if (!(OpSpec & DoRecurse))
                 FMSG(pFile->Path <<" is a directory.", 2);
             }
+    else if (pFile->Protocol == XrdCpFile::isStdIO)
+            {if (Opts & optNoStdIn)
+                FMSG("Using stdin as a source is disallowed.", 22);
+             if (numFiles)
+                FMSG("Multiple sources disallowed with stdin.", 22);
+            }
     else if (pFile->Protocol != XrdCpFile::isXroot)
             {FMSG(pFile->ProtName <<" file protocol is not supported.", 22)}
     else if (OpSpec & DoRecurse && !(Opts & optRmtRec))
             {FMSG("Recursive copy from a remote host is not supported.",22)}
     else isLcl = 0;
 
-// Update last pointer
+// Update last pointer and we are done if this is stdin
 //
    numFiles++;
    pLast = pFile;
@@ -771,8 +779,15 @@ void XrdCpConfig::Usage(int rc)
    "         [--infiles <fn>] [--license] [--nopbar] [--posc]\n"
    "         [--proxy <host>:<port] [--recursive] [--retry <time>] [--server]\n"
    "         [--server] [--silent] [--sources <n>] [--streams <n>] [--tpc]\n"
-   "         [--verbose] [--version] [--xrate <rate>]\n"
-   "<src>:   [[x]root://<host>[:<port>]/]<path>\n"
+   "         [--verbose] [--version] [--xrate <rate>]";
+
+   static const char *Syntax2= "\n"
+   "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
+
+   static const char *Syntay2= "\n"
+   "<src>:   [[x]root://<host>[:<port>]/]<path>";
+
+   static const char *Syntax3= "\n"
    "<dest>:  [[x]root://<host>[:<port>]/]<path> | -";
 
    static const char *Detail = "\n"
@@ -806,7 +821,8 @@ void XrdCpConfig::Usage(int rc)
    "Legacy options:     [-adler] [-DI<var> <val>] [-DS<var> <val>] [-np]\n"
    "                    [-md5] [-OD<cgi>] [-OS<cgi>] [-version] [-x]";
 
-   cerr <<(Opts & opt1Src ? Syntax1 : Syntax) <<Options  <<endl;
+   cerr <<(Opts & opt1Src    ? Syntax1 : Syntax)  <<Options;
+   cerr <<(Opts & optNoStdIn ? Syntay2 : Syntax2) <<Syntax3 <<endl;
    if (!rc) cerr <<Detail <<endl;
    exit(rc);
 }
