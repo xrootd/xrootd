@@ -19,6 +19,8 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Do not rely in file locking to serialize inter-thread access. This
+     fixes the prolem of usage file drift.
    * Correct calculation of polltab entries when using poll() type poll.
      This fixes MacOS bug 99882.
    * Fix various parse context issues in copy config with --recursive.
