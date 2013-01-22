@@ -552,7 +552,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 
 // Push ourselves on the stack
 //
-   ProtStack.Push(&ProtLink);
+   if (Response.isOurs()) ProtStack.Push(&ProtLink);
 }
 
 /******************************************************************************/

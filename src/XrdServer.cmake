@@ -117,6 +117,7 @@ add_library(
   SHARED
   XrdXrootd/XrdXrootdAdmin.cc           XrdXrootd/XrdXrootdAdmin.hh
   XrdXrootd/XrdXrootdAio.cc             XrdXrootd/XrdXrootdAio.hh
+  XrdXrootd/XrdXrootdBridge.cc          XrdXrootd/XrdXrootdBridge.hh
   XrdXrootd/XrdXrootdCallBack.cc        XrdXrootd/XrdXrootdCallBack.hh
   XrdXrootd/XrdXrootdConfig.cc
   XrdXrootd/XrdXrootdFile.cc            XrdXrootd/XrdXrootdFile.hh
@@ -136,6 +137,7 @@ add_library(
   XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
                                         XrdXrootd/XrdXrootdStat.icc
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
+  XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
   XrdXrootd/XrdXrootdXeq.cc
   XrdXrootd/XrdXrootdXeqAio.cc
                                         XrdXrootd/XrdXrootdTrace.hh

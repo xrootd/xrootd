@@ -96,6 +96,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
 
+       int           Process2();
+
        void          Recycle(XrdLink *lp, int consec, const char *reason);
 
        int           Stats(char *buff, int blen, int do_sync=0);
@@ -173,9 +175,7 @@ static int   Config(const char *fn);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
-       void  MonAuth();
 static void  PidFile();
-       int   Process2();
        void  Reset();
 static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
@@ -200,6 +200,8 @@ static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
 
 protected:
+
+       void  MonAuth();
 
 static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
