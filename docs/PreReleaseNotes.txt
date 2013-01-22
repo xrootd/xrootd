@@ -52,6 +52,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Allow stdin as a source in the xrdcp front-end parser. Do not
+     compute doff for non-local sources.
    * Final change to f-stream monitoring. Replace standard deviation
      (sdv) calc with reporting sum of squares (ssq) counts.
    * Remove beta warning from xrdcp after xrdcpy became xrdcp.
