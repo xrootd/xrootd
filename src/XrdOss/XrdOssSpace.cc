@@ -43,6 +43,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                   G l o b a l s   a n d   S t a t i c s                    */
@@ -485,6 +486,7 @@ long long XrdOssSpace::Usage(const char *GName, struct uEnt &uVal, int rrd)
   
 int XrdOssSpace::UsageLock(int Dolock)
 {
+   static XrdSysMutex uMutex;
    FLOCK_t lock_args;
    const char *What;
    int rc;
@@ -494,6 +496,11 @@ int XrdOssSpace::UsageLock(int Dolock)
    bzero(&lock_args, sizeof(lock_args));
    if (Dolock) {lock_args.l_type = F_WRLCK; What =   "lock";}
       else     {lock_args.l_type = F_UNLCK; What = "unlock";}
+
+// First obtain the usage mutex or unlock it
+//
+   if (Dolock) uMutex.Lock();
+      else     uMutex.UnLock();
 
 // Perform action.
 //
