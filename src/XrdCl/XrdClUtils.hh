@@ -104,6 +104,11 @@ namespace XrdCl
       static XRootDStatus GetLocalCheckSum( std::string       &checkSum,
                                             const std::string &checkSumType,
                                             const std::string &path );
+
+      //------------------------------------------------------------------------
+      //! Convert bytes to a human readable string
+      //------------------------------------------------------------------------
+      static std::string BytesToString( uint64_t bytes );
   };
 
   //----------------------------------------------------------------------------

@@ -59,17 +59,28 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Check if we have all we need
       //------------------------------------------------------------------------
-      if( jobDesc->source.GetPath().empty() ||
+      if( jobDesc->source.GetProtocol() != "stdio" &&
+          jobDesc->source.GetPath().empty() )
+      {
+        log->Debug( UtilityMsg, "CopyProcess (job #%d): no source specified.",
+                    i );
+        return Status( stError, errInvalidArgs );
+      }
+
+      if( jobDesc->target.GetProtocol() != "stdio" &&
           jobDesc->target.GetPath().empty() )
       {
-        log->Debug( UtilityMsg, "CopyProcess (job #%d): no source or "
-                    "destination specified.", i );
+        log->Debug( UtilityMsg, "CopyProcess (job #%d): no target specified.",
+                    i );
         return Status( stError, errInvalidArgs );
       }
 
       CopyJob *job = 0;
       if( jobDesc->thirdParty )
+      {
+        // check if can do third party
         job = new ThirdPartyCopyJob( jobDesc );
+      }
       else
         job = new ClassicCopyJob( jobDesc );
       pJobs.push_back( job );

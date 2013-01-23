@@ -91,6 +91,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum LogLevel
       {
+        NoMsg       = 0,  //!< report nothing
         ErrorMsg    = 1,  //!< report errors
         WarningMsg  = 2,  //!< report warnings
         InfoMsg     = 3,  //!< print info
@@ -101,7 +102,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      Log(): pLevel( InfoMsg ), pTopicMaxLength( 18 )
+      Log(): pLevel( NoMsg ), pTopicMaxLength( 18 )
       {
         pOutput = new LogOutCerr();
         int maxMask = (int)DumpMsg+1;
