@@ -60,7 +60,7 @@
 #undef NOMACROS
 #endif
 
-#define XRDCLI_VERSION "(C) 2004-2010 by the Xrootd group. Xrootd version: "XrdVSTRING
+#define XRDCLI_VERSION "(C) 2004-2010 by the Xrootd group. Xrootd version: " XrdVSTRING
 
 //------------------------------------------------------------------------------
 // Some globals
