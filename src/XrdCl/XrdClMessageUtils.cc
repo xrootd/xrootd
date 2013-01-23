@@ -191,6 +191,7 @@ namespace XrdCl
         pathWithNull[length] = 0;
         std::ostringstream o;
         o << "fake://fake:111/" << pathWithNull;
+        delete [] pathWithNull;
 
         URL currentPath( o.str() );
         URL::ParamsMap &currentCgi = currentPath.GetParams();
