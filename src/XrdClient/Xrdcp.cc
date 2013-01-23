@@ -111,7 +111,7 @@ struct XrdCpInfo {
 
 #define XRDCP_BLOCKSIZE          (8*1024*1024)
 #define XRDCP_XRDRASIZE          (30*XRDCP_BLOCKSIZE)
-#define XRDCP_VERSION            "(C) 2004-2011 by the XRootD collaboration. Version: "XrdVSTRING
+#define XRDCP_VERSION            "(C) 2004-2011 by the XRootD collaboration. Version: " XrdVSTRING
 
 ///////////////////////////////////////////////////////////////////////
 // Coming from parameters on the cmd line
