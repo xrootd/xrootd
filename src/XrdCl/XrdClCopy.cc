@@ -37,7 +37,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    ProgressDisplay() {}
+    ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0) {}
 
     //--------------------------------------------------------------------------
     //! Begin job
@@ -53,6 +53,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         std::cerr << "Source: " << source->GetURL() << std::endl;
         std::cerr << "Target: " << destination->GetURL() << std::endl;
       }
+      pPrevious = 0;
     }
 
     //--------------------------------------------------------------------------
@@ -60,6 +61,10 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     virtual void EndJob( const XrdCl::XRootDStatus &/*status*/ )
     {
+      // make sure the last available status was printed, which may not be
+      // the case when processing stdio since we throttle printing and don't
+      // know the total size
+      JobProgress( pBytesProcessed, pBytesTotal );
       std::cerr << std::endl;
     }
 
@@ -69,20 +74,45 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     virtual void JobProgress( uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
+      pBytesProcessed = bytesProcessed;
+      pBytesTotal     = bytesTotal;
+
+      time_t now = time(0);
+      if( (now - pPrevious < 1) && (bytesProcessed != bytesTotal) )
+        return;
+      pPrevious = now;
+
       std::string bar;
       int prog = (int)((double)bytesProcessed/bytesTotal*50);
       int proc = (int)((double)bytesProcessed/bytesTotal*100);
+
+      if( bytesTotal )
+      {
+        prog = (int)((double)bytesProcessed/bytesTotal*50);
+        proc = (int)((double)bytesProcessed/bytesTotal*100);
+      }
+      else
+      {
+        prog = 50;
+        proc = 100;
+      }
       bar.append( prog, '=' );
       if( prog < 50 )
         bar += ">";
 
       std::cerr << "\r";
+      std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
       std::cerr << "[" << std::setw(50) << std::left;
       std::cerr << bar;
       std::cerr << "] ";
-      std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
+      std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "/";
+      std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "]   ";
       std::cerr << std::flush;
     }
+  private:
+    uint64_t pBytesProcessed;
+    uint64_t pBytesTotal;
+    time_t   pPrevious;
 };
 
 //------------------------------------------------------------------------------
@@ -97,6 +127,7 @@ const char *FileType2String( XrdCpFile::PType type )
     case XrdCpFile::isXroot: return "xroot";
     case XrdCpFile::isHttp:  return "http";
     case XrdCpFile::isHttps: return "https";
+    case XrdCpFile::isStdIO: return "stdio";
     default: return "other";
   };
 }
@@ -112,6 +143,24 @@ uint32_t countSources( XrdCpFile *file )
 }
 
 //------------------------------------------------------------------------------
+// Adjust file information for the cases when XrdCpConfig cannot do this
+//------------------------------------------------------------------------------
+void AdjustFileInfo( XrdCpFile *file )
+{
+  //----------------------------------------------------------------------------
+  // If the file is url and the directory offset is not set we set it
+  // to the last slash
+  //----------------------------------------------------------------------------
+  if( file->Doff == 0 )
+  {
+    char *slash = file->Path;
+    for( ; *slash; ++slash );
+    for( ; *slash != '/' && slash > file->Path; --slash );
+    file->Doff = slash - file->Path;
+  }
+};
+
+//------------------------------------------------------------------------------
 // Clean up the copy job descriptors
 //------------------------------------------------------------------------------
 void cleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
@@ -121,7 +170,7 @@ void cleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
     delete *it;
 }
 
-//------------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 // Let the show begin
 //------------------------------------------------------------------------------
 int main( int argc, char **argv )
@@ -202,13 +251,7 @@ int main( int argc, char **argv )
     FileSystem fs( target );
     StatInfo *statInfo = 0;
     XRootDStatus st = fs.Stat( target.GetPath(), statInfo );
-    if( !st.IsOK() )
-    {
-      std::cerr << "Unable to stat target: " << st.ToStr() << std::endl;
-      return st.GetShellCode();
-    }
-
-    if( statInfo->TestFlags( StatInfo::IsDir ) )
+    if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
       targetIsDir = true;
 
     delete statInfo;
@@ -218,7 +261,7 @@ int main( int argc, char **argv )
   // If we have multiple sources and target is not a directory then we cannot
   // procees
   //----------------------------------------------------------------------------
-  if( countSources(config.srcFile) && !targetIsDir )
+  if( countSources(config.srcFile) > 1 && !targetIsDir )
   {
     std::cerr << "Multuple sources were given but target is not a directory.";
     return 255;
@@ -230,6 +273,8 @@ int main( int argc, char **argv )
   XrdCpFile *sourceFile = config.srcFile;
   while( sourceFile )
   {
+    AdjustFileInfo( sourceFile );
+
     //--------------------------------------------------------------------------
     // Create a job for every source
     //--------------------------------------------------------------------------
@@ -245,18 +290,22 @@ int main( int argc, char **argv )
     //--------------------------------------------------------------------------
     // Set up the job
     //--------------------------------------------------------------------------
-    std::string target = dest + "/";
+    std::string target = dest;
     if( targetIsDir )
+    {
+      target = dest + "/";
       target += (sourceFile->Path+sourceFile->Doff);
+    }
 
-    job->source         = source;
-    job->target         = target;
-    job->force          = force;
-    job->posc           = posc;
-    job->thirdParty     = thirdParty;
-    job->checkSumType   = checkSumType;
-    job->checkSumPreset = checkSumPreset;
-    job->checkSumPrint  = checkSumPrint;
+    job->source               = source;
+    job->target               = target;
+    job->force                = force;
+    job->posc                 = posc;
+    job->thirdParty           = thirdParty;
+    job->thirdPartyFallBack   = true;
+    job->checkSumType         = checkSumType;
+    job->checkSumPreset       = checkSumPreset;
+    job->checkSumPrint        = checkSumPrint;
     process.AddJob( job );
     jobs.push_back( job );
 
@@ -270,7 +319,7 @@ int main( int argc, char **argv )
   if( !st.IsOK() )
   {
     cleanUpJobs( jobs );
-    std::cerr << st.ToStr() << std::endl;
+    std::cerr << "Prepare: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
 
@@ -278,7 +327,7 @@ int main( int argc, char **argv )
   if( !st.IsOK() )
   {
     cleanUpJobs( jobs );
-    std::cerr << st.ToStr() << std::endl;
+    std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
   return 0;

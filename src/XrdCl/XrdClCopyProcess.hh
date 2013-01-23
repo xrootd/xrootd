@@ -73,21 +73,32 @@ namespace XrdCl
       thirdParty(false), checkSumPrint(false)
     {}
 
-    URL              source;          //!< [in] original source URL
-    URL              target;          //!< [in] target directory or file
-    uint16_t         sourceLimit;     //!< [in] max number of download sources
-    bool             force;           //!< [in] overwrite target if exists
-    bool             posc;            //!< [in] POSC
-    bool             thirdParty;      //!< [in] do third party copy if possible
-    bool             checkSumPrint;   //!< [in] print checksum after the transfer
-    std::string      checkSumType;    //!< [in] type of the checksum
-    std::string      checkSumPreset;  //!< [in] checksum preset
+    URL              source;               //!< [in] original source URL
+    URL              target;               //!< [in] target directory or file
+    uint16_t         sourceLimit;          //!< [in] max number of download
+                                           //!< sources
+    bool             force;                //!< [in] overwrite target if exists
+    bool             posc;                 //!< [in] Persistify on successful
+                                           //!< close
+    bool             thirdParty;           //!< [in] do third party copy if
+                                           //!< possible
+    bool             thirdPartyFallBack;   //!< [in] fall back to classic copy
+                                           //!< when it is impossible to do
+                                           //!< 3rd party
+    bool             checkSumPrint;        //!< [in] print checksum after the
+                                           //!< transfer
+    std::string      checkSumType;         //!< [in] type of the checksum
+    std::string      checkSumPreset;       //!< [in] checksum preset
 
-    std::string      sourceCheckSum;  //!< [out] checksum calculated at source
-    std::string      targetCheckSum;  //!< [out] checksum calculated at target
-    XRootDStatus     status;          //!< [out] status of the copy operation
-    std::vector<URL> sources;         //!< [out] all the possible sources that
-                                      //!< may have been located
+    std::string      sourceCheckSum;       //!< [out] checksum calculated at
+                                           //!< source
+    std::string      targetCheckSum;       //!< [out] checksum calculated at
+                                           //!< target
+    XRootDStatus     status;               //!< [out] status of the copy
+                                           //!< operation
+    std::vector<URL> sources;              //!< [out] all the possible sources
+                                           //!< that
+                                           //!< may have been located
   };
 
   //----------------------------------------------------------------------------

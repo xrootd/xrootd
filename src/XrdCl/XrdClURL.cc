@@ -32,7 +32,7 @@ namespace XrdCl
   // Constructor
   //----------------------------------------------------------------------------
   URL::URL():
-    pPort( 2094 )
+    pPort( 1094 )
   {
   }
 
@@ -77,6 +77,12 @@ namespace XrdCl
       pProtocol = "file";
       current   = url;
     }
+    else if( url[0] == '-' )
+    {
+      pProtocol = "stdio";
+      current   = "-";
+      pPort     = 0;
+    }
     else
     {
       pProtocol = "root";
@@ -89,7 +95,7 @@ namespace XrdCl
     std::string path;
     std::string hostInfo;
 
-    if( pProtocol == "file" )
+    if( pProtocol == "file"  || pProtocol == "stdio" )
       path = current;
     else
     {
@@ -136,7 +142,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool URL::ParseHostInfo( const std::string hostInfo )
   {
-    if( pProtocol == "file" )
+    if( pProtocol == "file" || pProtocol == "stdio" )
       return true;
 
     if( pProtocol.empty() || hostInfo.empty() )
@@ -362,7 +368,9 @@ namespace XrdCl
       return false;
     if( pProtocol == "file" && pPath.empty() )
       return false;
-    if( pProtocol != "file" && pHostName.empty() )
+    if( pProtocol == "stdio" && pPath != "-" )
+      return false;
+    if( pProtocol != "file" && pProtocol != "stdio" && pHostName.empty() )
       return false;
     return true;
   }
