@@ -161,7 +161,7 @@ static const int    optNoStdIn  = 0x00000008; // Disallow '-' as src for stdin
 inline       int    Want(int What) {return (OpSpec & What) != 0;}
 
                     XrdCpConfig(const char *pgname);
-                   ~XrdCpConfig() {}
+                   ~XrdCpConfig();
 
 private:
              int    a2i(const char *item, int *val, int minv, int maxv=-1);
@@ -176,7 +176,7 @@ private:
              int    defOpt(const char *theOp, const char *theArg);
              void   defPxy(const char *opval);
        const char  *Human(long long Val, char *Buff, int Blen);
-             int    Legacy();
+             int    Legacy(int oIndex);
              int    Legacy(const char *theOp, const char *theArg);
              void   License();
        const char  *OpName();
@@ -199,6 +199,8 @@ static const int    dfltSrcs   = 12;
        XrdCpFile   *pLast;
        XrdCpFile   *pPrev;
        char        *inFile;
+       char       **parmVal;
+       int          parmCnt;
        int          isLcl;
 };
 #endif
