@@ -140,8 +140,32 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    srcFile  = 0;
    dstFile  = 0;
    inFile   = 0;
+   parmVal  = 0;
+   parmCnt  = 0;
 }
 
+/******************************************************************************/
+/*                            D e s t r u c t o r                             */
+/******************************************************************************/
+  
+XrdCpConfig::~XrdCpConfig()
+{
+   XrdCpFile *pNow;
+   defVar    *dP;
+
+   if (inFile)  free(inFile);
+   if (pHost)   free(pHost);
+   if (parmVal) free(parmVal);
+   if (CksMan)  delete CksMan;
+   if (dstFile) delete dstFile;
+
+   while((pNow = pFile)) {pFile = pFile->Next; delete pNow;}
+
+   while((dP = intDefs)) {intDefs = dP->Next;  delete dP;}
+   while((dP = strDefs)) {strDefs = dP->Next;  delete dP;}
+
+}
+  
 /******************************************************************************/
 /*                                C o n f i g                                 */
 /******************************************************************************/
@@ -154,6 +178,11 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
    char Buff[128], *Path, opC;
    XrdCpFile    pBase;
    int i, rc;
+
+// Allocate a parameter vector
+//
+   if (parmVal) free(parmVal);
+   parmVal = (char **)malloc(aCnt*sizeof(char *));
 
 // Preset handling options
 //
@@ -175,7 +204,7 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 
 // Process legacy options first before atempting normal options
 //
-do{while(optind < Argc && Legacy()) {}
+do{while(optind < Argc && Legacy(optind)) {}
    if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) >= 0)
       switch(opC)
          {case OpCksum:    defCks(optarg);
@@ -229,7 +258,7 @@ do{while(optind < Argc && Legacy()) {}
                            break;
           case ':':        UMSG("'" <<OpName() <<"' argument missing.");
                            break;
-          case '?':        if (!Legacy())
+          case '?':        if (!Legacy(optind-1))
                               UMSG("Invalid option, '" <<OpName() <<"'.");
                            break;
           default:         UMSG("Internal error processing '" <<OpName() <<"'.");
@@ -239,9 +268,9 @@ do{while(optind < Argc && Legacy()) {}
 
 // Make sure we have the right number of files
 //
-   if (inFile) {if (optind     >= Argc) UMSG("Destination not specified.");}
-      else {    if (optind     >= Argc) UMSG("No files specified.");
-                if ((optind+1) >= Argc) UMSG("Destination not specified.");
+   if (inFile) {if (!parmCnt     ) UMSG("Destination not specified.");}
+      else {    if (!parmCnt     ) UMSG("No files specified.");
+                if ( parmCnt == 1) UMSG("Destination not specified.");
            }
 
 // Check for conflicts wit third party copy
@@ -251,7 +280,7 @@ do{while(optind < Argc && Legacy()) {}
 
 // Process the destination first as it is special
 //
-   dstFile = new XrdCpFile(Argv[Argc-1], rc);
+   dstFile = new XrdCpFile(parmVal[--parmCnt], rc);
    if (rc) FMSG("Invalid url, '" <<dstFile->Path <<"'.", 22);
 
 // Do a protocol check
@@ -273,7 +302,7 @@ do{while(optind < Argc && Legacy()) {}
 // Now pick up all the source files from the command line
 //
    pLast = &pBase;
-   for (i = optind; i < Argc-1; i++) ProcFile(Argv[i]);
+   for (i = 0; i < parmCnt; i++) ProcFile(parmVal[i]);
 
 // If an input file list was specified, process it as well
 //
@@ -584,8 +613,8 @@ int XrdCpConfig::defOpt(const char *theOp, const char *theArg)
           else {intDend->Next = dP; intDend = dP;}
      } else {
        dP = new defVar(vName, theArg);
-       if (!intDend) intDefs = intDend = dP;
-          else {intDend->Next = dP; intDend = dP;}
+       if (!strDend) strDefs = strDend = dP;
+          else {strDend->Next = dP; strDend = dP;}
      }
 
 // Convert the argument
@@ -648,18 +677,23 @@ const char *XrdCpConfig::Human(long long inval, char *Buff, int Blen)
 /* Private:                       L e g a c y                                 */
 /******************************************************************************/
 
-int XrdCpConfig::Legacy()
+int XrdCpConfig::Legacy(int oIndex)
 {
    extern int optind;
    char *oArg;
    int   rc;
 
-   if (!Argv[optind]) return 0;
+// if (!Argv[oIndex]) return 0;
 
-   if (optind+1 >= Argc || *Argv[optind+1] == '-') oArg = 0;
-      else oArg = Argv[optind+1];
-   if (!(rc = Legacy(Argv[optind], oArg))) return 0;
-   optind += rc;
+   while(oIndex < Argc && (*Argv[oIndex] != '-' || *(Argv[oIndex]+1) == '\0'))
+        parmVal[parmCnt++] = Argv[oIndex++];
+   if (oIndex >= Argc) return 0;
+
+   if (oIndex+1 >= Argc || *Argv[oIndex+1] == '-') oArg = 0;
+      else oArg = Argv[oIndex+1];
+   if (!(rc = Legacy(Argv[oIndex], oArg))) return 0;
+   optind = oIndex + rc;
+
    return 1;
 }
 
@@ -714,7 +748,7 @@ const char *XrdCpConfig::OpName()
    extern int optind, optopt;
    static char oName[4] = {'-', 0, 0, 0};
 
-   if (optopt == '-') return Argv[optind-1];
+   if (!optopt || optopt == '-') return Argv[optind-1];
    oName[1] = optopt;
    return oName;
 }
