@@ -39,6 +39,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -544,6 +545,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 // will call the monitor clear method. So, we won't leak memeory.
 //
    if (Monitor.Logins()) Monitor.Agent->Disc(Monitor.Did, csec, Flags);
+   if (Monitor.Fstat() ) XrdXrootdMonFile::Disc(Monitor.Did);
    Monitor.Clear();
 
 // Set fields to starting point (debugging mostly)
