@@ -35,6 +35,9 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Do not reflect an error if we actually ended a successful checksum.
+     This only applies to checksums that are externally computed and
+     partially solves problem 99711.
    * Make sure to include unistd.h, this is a problem when this header
      is independently used. Patch by Brian Bockelman, UNL.
    * Fix garbled plugin message.
