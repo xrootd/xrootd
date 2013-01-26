@@ -35,6 +35,9 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Add missing instance of XrdPosixXrootd to allow local calculation
+     of checksum for a remote file and increase read size to 1MB. This
+     completes fix for problem 99711.
    * Do not reflect an error if we actually ended a successful checksum.
      This only applies to checksums that are externally computed and
      partially solves problem 99711.
