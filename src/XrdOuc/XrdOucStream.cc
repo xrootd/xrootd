@@ -181,7 +181,7 @@ void XrdOucStream::Close(int hold)
 
     // Wait for any associated process on this stream
     //
-    if (!hold) Drain();
+    if (!hold && child) Drain();
        else child = 0;
 
     // Close the associated file descriptor if it was open
