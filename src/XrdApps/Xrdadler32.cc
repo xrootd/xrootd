@@ -196,7 +196,7 @@ char getchksum(const char *rooturl, char *chksum)
         return -1;
 }
 
-#define N 64*1024  /* reading block size */
+#define N 1024*1024  /* reading block size */
 
 int main(int argc, char *argv[])
 {
@@ -275,6 +275,7 @@ int main(int argc, char *argv[])
         }
         else
         {                   /* need to read the file and calculate */
+            XrdPosixXrootd myPFS(-8, 8, 1);
             EnvPutInt(NAME_READAHEADSIZE, N);
             EnvPutInt(NAME_READCACHESIZE, 2*N);
             rc = XrdPosixXrootd::Stat(path, &stbuf);
