@@ -174,7 +174,8 @@ void XrdXrootdJob2Do::DoIt()
                 lp = jobStream.GetLine();
                 rc = theJob->theProg->RunDone(jobStream);
                 theJob->myMutex.Lock();
-                if (rc) Status = Job_Cancel;
+                if ((rc && rc != -EPIPE) || rc == -EPIPE && (!lp || !(*lp)))
+                   Status = Job_Cancel;
                    else if (Status != Job_Cancel)
                            {Status = Job_Done;
                             for (i = 0; i < numClients; i++)
