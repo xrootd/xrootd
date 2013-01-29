@@ -109,6 +109,11 @@ namespace XrdCl
       //! Convert bytes to a human readable string
       //------------------------------------------------------------------------
       static std::string BytesToString( uint64_t bytes );
+
+      //------------------------------------------------------------------------
+      //! Check if peer supports tpc
+      //------------------------------------------------------------------------
+      static XRootDStatus CheckTPC( const std::string &server );
   };
 
   //----------------------------------------------------------------------------

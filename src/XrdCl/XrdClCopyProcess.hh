@@ -97,8 +97,8 @@ namespace XrdCl
     XRootDStatus     status;               //!< [out] status of the copy
                                            //!< operation
     std::vector<URL> sources;              //!< [out] all the possible sources
-                                           //!< that
-                                           //!< may have been located
+                                           //!< that may have been located
+    URL              realTarget;           //!< the actual disk server target
   };
 
   //----------------------------------------------------------------------------
@@ -131,7 +131,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the job descriptor
       //------------------------------------------------------------------------
-      const JobDescriptor *GetDescriptor() const
+      JobDescriptor *GetDescriptor() const
       {
         return pJob;
       }
@@ -176,6 +176,7 @@ namespace XrdCl
       XRootDStatus Run( CopyProgressHandler *handler );
 
     private:
+      void CleanUpJobs();
       std::list<JobDescriptor*>  pJobDescs;
       std::list<CopyJob*>        pJobs;
   };

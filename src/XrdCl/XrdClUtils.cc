@@ -199,4 +199,40 @@ namespace XrdCl
     if( i > 0 ) o << suf[i-1];
     return o.str();
   }
+
+  //----------------------------------------------------------------------------
+  // Check if peer supports tpc
+  //----------------------------------------------------------------------------
+  XRootDStatus Utils::CheckTPC( const std::string &server )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Error( UtilityMsg, "Checking if the data server %s supports tpc",
+                server.c_str() );
+
+    FileSystem    sourceDSFS( server );
+    Buffer        queryArg; queryArg.FromString( "tpc" );
+    Buffer       *queryResponse;
+    XRootDStatus  st;
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server %s: %s",
+                  server.c_str(), st.ToStr().c_str() );
+      st.status = stFatal;
+      return st;
+    }
+
+    std::string answer = queryResponse->ToString();
+    delete queryResponse;
+    if( answer.length() == 1 || !isdigit( answer[0] ) || atoi(answer.c_str()) == 0)
+    {
+      log->Debug( UtilityMsg, "Third party copy not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stError, errNotSupported );
+    }
+    log->Debug( UtilityMsg, "Third party copy supported at: %s",
+                server.c_str() );
+
+    return XRootDStatus();
+  }
 }
