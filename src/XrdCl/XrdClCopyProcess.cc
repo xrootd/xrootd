@@ -34,9 +34,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   CopyProcess::~CopyProcess()
   {
-    std::list<CopyJob*>::iterator itJ;
-    for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
-      delete *itJ;
+    CleanUpJobs();
   }
 
   //----------------------------------------------------------------------------
@@ -64,7 +62,9 @@ namespace XrdCl
       {
         log->Debug( UtilityMsg, "CopyProcess (job #%d): no source specified.",
                     i );
-        return Status( stError, errInvalidArgs );
+        CleanUpJobs();
+        jobDesc->status = Status( stError, errInvalidArgs );
+        return jobDesc->status;
       }
 
       if( jobDesc->target.GetProtocol() != "stdio" &&
@@ -72,17 +72,32 @@ namespace XrdCl
       {
         log->Debug( UtilityMsg, "CopyProcess (job #%d): no target specified.",
                     i );
-        return Status( stError, errInvalidArgs );
+        CleanUpJobs();
+        jobDesc->status = Status( stError, errInvalidArgs );
+        return jobDesc->status;
       }
 
+      //------------------------------------------------------------------------
+      // Check what kind of job we should do
+      //------------------------------------------------------------------------
       CopyJob *job = 0;
-      if( jobDesc->thirdParty )
+      ThirdPartyCopyJob::Info tpcInfo;
+      XRootDStatus st = ThirdPartyCopyJob::CanDo( jobDesc, &tpcInfo );
+
+      if( st.IsOK() )
+        job = new ThirdPartyCopyJob( jobDesc, &tpcInfo );
+      else if( !jobDesc->thirdParty ||
+               (jobDesc->thirdParty && jobDesc->thirdPartyFallBack &&
+                !st.IsFatal()) )
       {
-        // check if can do third party
-        job = new ThirdPartyCopyJob( jobDesc );
+        job = new ClassicCopyJob( jobDesc );
       }
       else
-        job = new ClassicCopyJob( jobDesc );
+      {
+        CleanUpJobs();
+        jobDesc->status = XRootDStatus( stError, errNotSupported );
+        return jobDesc->status;
+      }
       pJobs.push_back( job );
     }
     return XRootDStatus();
@@ -124,6 +139,7 @@ namespace XrdCl
       // Do the copy
       //------------------------------------------------------------------------
       XRootDStatus st = (*it)->Run( progress );
+      (*it)->GetDescriptor()->status = st;
 
       //------------------------------------------------------------------------
       // Report end of the copy
@@ -146,5 +162,16 @@ namespace XrdCl
       ++currentJob;
     }
     return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Clean up the jobs
+  //----------------------------------------------------------------------------
+  void CopyProcess::CleanUpJobs()
+  {
+    std::list<CopyJob*>::iterator itJ;
+    for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
+      delete *itJ;
+    pJobs.clear();
   }
 }
