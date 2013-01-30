@@ -242,14 +242,16 @@ namespace XrdCl
     {
       sleep(1);
 
-      st = fs.Stat( pJob->target.GetPathWithParams(), info );
-      if( st.IsOK() )
+      if( progress )
       {
-        if( progress )
+        st = fs.Stat( pJob->target.GetPathWithParams(), info );
+        if( st.IsOK() )
+        {
           progress->JobProgress( info->GetSize(),
                                  pTPCInfo.sourceSize );
-        delete info;
-        info = 0;
+          delete info;
+          info = 0;
+        }
       }
 
       if( sem->CondWait() )
