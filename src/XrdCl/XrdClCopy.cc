@@ -154,6 +154,26 @@ bool AllOptionsSupported( XrdCpConfig *config )
 }
 
 //------------------------------------------------------------------------------
+// Append extra cgi info to existing URL
+//------------------------------------------------------------------------------
+void AppendCGI( std::string &url, const char *newCGI )
+{
+  if( !newCGI || !(*newCGI) )
+    return;
+
+  if( *newCGI == '&' )
+    ++newCGI;
+
+  if( url.find( '?' ) == std::string::npos )
+    url += "?";
+
+  if( url.find( '&' ) == std::string::npos )
+    url += "&";
+
+  url += newCGI;
+}
+
+//------------------------------------------------------------------------------
 // Translate file type to a string for diagnostics purposes
 //------------------------------------------------------------------------------
 const char *FileType2String( XrdCpFile::PType type )
@@ -323,6 +343,8 @@ int main( int argc, char **argv )
     if( sourceFile->Protocol == XrdCpFile::isFile )
       source = "file://" + source;
 
+    AppendCGI( source, config.srcOpq );
+
     log->Dump( AppMsg, "Processing source entry: %s, type %s, target file: %s",
                sourceFile->Path, FileType2String( sourceFile->Protocol ),
                dest.c_str() );
@@ -336,6 +358,8 @@ int main( int argc, char **argv )
       target = dest + "/";
       target += (sourceFile->Path+sourceFile->Doff);
     }
+
+    AppendCGI( target, config.dstOpq );
 
     job->source               = source;
     job->target               = target;
