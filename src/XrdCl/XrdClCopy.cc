@@ -174,6 +174,28 @@ void AppendCGI( std::string &url, const char *newCGI )
 }
 
 //------------------------------------------------------------------------------
+// Process commandline environment settings
+//------------------------------------------------------------------------------
+void ProcessCommandLineEnv( XrdCpConfig *config )
+{
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+  XrdCpConfig::defVar *cursor = config->intDefs;
+  while( cursor )
+  {
+    env->PutInt( cursor->vName, cursor->intVal );
+    cursor = cursor->Next;
+  }
+
+  cursor = config->strDefs;
+  while( cursor )
+  {
+    env->PutString( cursor->vName, cursor->strVal );
+    cursor = cursor->Next;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Translate file type to a string for diagnostics purposes
 //------------------------------------------------------------------------------
 const char *FileType2String( XrdCpFile::PType type )
@@ -242,6 +264,7 @@ int main( int argc, char **argv )
   config.Config( argc, argv, 0 );
   if( !AllOptionsSupported( &config ) )
     return 254;
+  ProcessCommandLineEnv( &config );
 
   //----------------------------------------------------------------------------
   // Set options
