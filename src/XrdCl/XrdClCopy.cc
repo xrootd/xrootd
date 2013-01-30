@@ -116,6 +116,44 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
 };
 
 //------------------------------------------------------------------------------
+// Check if we support all the specified user options
+//------------------------------------------------------------------------------
+bool AllOptionsSupported( XrdCpConfig *config )
+{
+  if( config->pHost )
+  {
+    std::cerr << "SOCKS Proxies are not yet supported" << std::endl;
+    return false;
+  }
+
+  if( config->xRate )
+  {
+    std::cerr << "Limiting transfer rate is not yet supported" << std::endl;
+    return false;
+  }
+
+  if( config->nSrcs != 1 )
+  {
+    std::cerr << "Multiple sources are not yet supported" << std::endl;
+    return false;
+  }
+
+  if( config->nStrm != 1 )
+  {
+    std::cerr << "Multiple streams are not yet supported" << std::endl;
+    return false;
+  }
+
+  if( config->Want( XrdCpConfig::DoServer ) )
+  {
+    std::cerr << "Running in server mode is not yet supported" << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
 // Translate file type to a string for diagnostics purposes
 //------------------------------------------------------------------------------
 const char *FileType2String( XrdCpFile::PType type )
@@ -182,6 +220,8 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   XrdCpConfig config( argv[0] );
   config.Config( argc, argv, 0 );
+  if( !AllOptionsSupported( &config ) )
+    return 254;
 
   //----------------------------------------------------------------------------
   // Set options
