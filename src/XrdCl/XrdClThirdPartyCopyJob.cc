@@ -46,9 +46,9 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      TPCStatusHandler()
+      TPCStatusHandler():
+        pStatus(0), pSem( new XrdSysSemaphore(0) )
       {
-        pMutex.Lock();
       }
 
       //------------------------------------------------------------------------
@@ -57,6 +57,7 @@ namespace
       virtual ~TPCStatusHandler()
       {
         delete pStatus;
+        delete pSem;
       }
 
       //------------------------------------------------------------------------
@@ -67,15 +68,15 @@ namespace
       {
         delete response;
         pStatus = status;
-        pMutex.UnLock();
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
       // Get Mutex
       //------------------------------------------------------------------------
-      XrdSysMutex *GetMutex()
+      XrdSysSemaphore *GetSemaphore()
       {
-        return &pMutex;
+        return pSem;
       }
 
       //------------------------------------------------------------------------
@@ -87,7 +88,7 @@ namespace
       }
 
     private:
-      XrdSysMutex          pMutex;
+      XrdSysSemaphore     *pSem;
       XrdCl::XRootDStatus *pStatus;
   };
 
@@ -220,7 +221,7 @@ namespace XrdCl
     // Do the copy and follow progress
     //--------------------------------------------------------------------------
     TPCStatusHandler  statusHandler;
-    XrdSysMutex      *mutex  = statusHandler.GetMutex();
+    XrdSysSemaphore  *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
     FileSystem        fs( pJob->target.GetHostId() );
 
@@ -251,14 +252,13 @@ namespace XrdCl
         info = 0;
       }
 
-      if( mutex->CondLock() )
+      if( sem->CondWait() )
         break;
     }
 
     //--------------------------------------------------------------------------
     // Sync has returned so we can check if it was successfull
     //--------------------------------------------------------------------------
-    mutex->UnLock();
     st = *statusHandler.GetStatus();
 
     if( !st.IsOK() )
