@@ -330,5 +330,6 @@ int main( int argc, char **argv )
     std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
+  cleanUpJobs( jobs );
   return 0;
 }
