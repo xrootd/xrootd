@@ -173,7 +173,7 @@ const char *FileType2String( XrdCpFile::PType type )
 //------------------------------------------------------------------------------
 // Count the sources
 //------------------------------------------------------------------------------
-uint32_t countSources( XrdCpFile *file )
+uint32_t CountSources( XrdCpFile *file )
 {
   uint32_t count;
   for( count = 0; file; file = file->Next, ++count );
@@ -201,7 +201,7 @@ void AdjustFileInfo( XrdCpFile *file )
 //------------------------------------------------------------------------------
 // Clean up the copy job descriptors
 //------------------------------------------------------------------------------
-void cleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
+void CleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
 {
   std::vector<XrdCl::JobDescriptor *>::iterator it;
   for( it = jobs.begin(); it != jobs.end(); ++it )
@@ -301,7 +301,7 @@ int main( int argc, char **argv )
   // If we have multiple sources and target is not a directory then we cannot
   // procees
   //----------------------------------------------------------------------------
-  if( countSources(config.srcFile) > 1 && !targetIsDir )
+  if( CountSources(config.srcFile) > 1 && !targetIsDir )
   {
     std::cerr << "Multuple sources were given but target is not a directory.";
     return 255;
@@ -358,7 +358,7 @@ int main( int argc, char **argv )
   XRootDStatus st = process.Prepare();
   if( !st.IsOK() )
   {
-    cleanUpJobs( jobs );
+    CleanUpJobs( jobs );
     std::cerr << "Prepare: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
@@ -366,10 +366,10 @@ int main( int argc, char **argv )
   st = process.Run( progress );
   if( !st.IsOK() )
   {
-    cleanUpJobs( jobs );
+    CleanUpJobs( jobs );
     std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
-  cleanUpJobs( jobs );
+  CleanUpJobs( jobs );
   return 0;
 }
