@@ -66,6 +66,7 @@ const char *tpcTtl;
             XrdOucTPC() {}
            ~XrdOucTPC() {}
 private:
+static const char *cgiHost(const char *hSpec, char *buff, int blen);
 
 struct tpcInfo
       {char *Data;
