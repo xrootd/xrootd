@@ -47,7 +47,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       TPCStatusHandler():
-        pStatus(0), pSem( new XrdSysSemaphore(0) )
+        pSem( new XrdSysSemaphore(0) ), pStatus(0)
       {
       }
 

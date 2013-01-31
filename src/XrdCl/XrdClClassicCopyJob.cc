@@ -565,7 +565,7 @@ namespace
       const XrdCl::URL *pUrl;
       XrdCl::File      *pFile;
       int64_t           pSize;
-      uint64_t          pCurrentOffset;
+      int64_t           pCurrentOffset;
   };
 
   //----------------------------------------------------------------------------

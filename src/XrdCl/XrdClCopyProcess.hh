@@ -160,7 +160,7 @@ namespace XrdCl
       //! Add job - it's user's responsibility to handle these after the
       //! copy has bee done
       //------------------------------------------------------------------------
-      bool AddJob( JobDescriptor *job )
+      void AddJob( JobDescriptor *job )
       {
         pJobDescs.push_back( job );
       }
