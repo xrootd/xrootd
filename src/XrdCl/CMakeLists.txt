@@ -1,6 +1,11 @@
 
 include( XRootDCommon )
 
+if( CMAKE_COMPILER_IS_GNUCXX )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+endif()
+
 if( BUILD_LIBEVENT )
   include_directories( ${LIBEVENT_INCLUDE_DIR} )
   set( LIBEVENT_POLLER_FILES
