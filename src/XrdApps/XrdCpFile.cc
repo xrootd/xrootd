@@ -57,7 +57,7 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                            {"https://", 8, isHttps}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
-   char *Slash;
+   const char *Slash;
    int i;
 
 // Do some common initialization
@@ -105,6 +105,10 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                 return;
                }
       }
+
+// Set the default Doff and Dlen assuming non-recursive copy
+//
+   if ((Slash = rindex(Path, '/'))) Dlen = Doff = Slash - Path + 1;
 }
 
 /******************************************************************************/
