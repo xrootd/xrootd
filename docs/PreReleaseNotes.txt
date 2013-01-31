@@ -36,6 +36,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Allow extended host specification as input to TPC.
    * Add missing instance of XrdPosixXrootd to allow local calculation
      of checksum for a remote file and increase read size to 1MB. This
      completes fix for problem 99711.
