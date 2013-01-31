@@ -69,7 +69,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   struct JobDescriptor
   {
-    JobDescriptor(): sourceLimit(1), force(false), posc(false),
+    JobDescriptor(): sourceLimit(1), force(false), posc(false), coerce(false),
       thirdParty(false), checkSumPrint(false)
     {}
 
@@ -78,8 +78,10 @@ namespace XrdCl
     uint16_t         sourceLimit;          //!< [in] max number of download
                                            //!< sources
     bool             force;                //!< [in] overwrite target if exists
-    bool             posc;                 //!< [in] Persistify on successful
+    bool             posc;                 //!< [in] persistify on successful
                                            //!< close
+    bool             coerce;               //!< [in] ignore file usage rules,
+                                           //!< ie. apply Force flag to Open
     bool             thirdParty;           //!< [in] do third party copy if
                                            //!< possible
     bool             thirdPartyFallBack;   //!< [in] fall back to classic copy

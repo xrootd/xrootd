@@ -202,7 +202,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       Destination():
-        pPosc( false ), pForce( false ) {}
+        pPosc( false ), pForce( false ), pCoerce( false ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -246,9 +246,18 @@ namespace
         pForce = force;
       }
 
+      //------------------------------------------------------------------------
+      //! Set coerce
+      //------------------------------------------------------------------------
+      void SetCoerce( bool coerce )
+      {
+        pCoerce = coerce;
+      }
+
     protected:
       bool pPosc;
       bool pForce;
+      bool pCoerce;
   };
 
   //----------------------------------------------------------------------------
@@ -774,6 +783,9 @@ namespace
         if( pPosc )
           flags |= OpenFlags::POSC;
 
+        if( pCoerce )
+          flags |= OpenFlags::Force;
+
         return pFile->Open( pUrl->GetURL(), flags, Access::UR|Access::UW);
       }
 
@@ -868,6 +880,7 @@ namespace XrdCl
 
     dest->SetForce( pJob->force );
     dest->SetPOSC( pJob->posc );
+    dest->SetCoerce( pJob->coerce );
     st = dest->Initialize();
     if( !st.IsOK() ) return st;
 

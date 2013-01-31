@@ -285,10 +285,12 @@ int main( int argc, char **argv )
   bool posc       = false;
   bool thirdParty = false;
   bool force      = false;
+  bool coerce     = false;
 
-  if( config.Want( XrdCpConfig::DoPosc ) )  posc       = true;
-  if( config.Want( XrdCpConfig::DoForce ) ) force      = true;
-  if( config.Want( XrdCpConfig::DoTpc ) )   thirdParty = true;
+  if( config.Want( XrdCpConfig::DoPosc ) )   posc        = true;
+  if( config.Want( XrdCpConfig::DoForce ) )  force       = true;
+  if( config.Want( XrdCpConfig::DoCoerce ) ) coerce      = true;
+  if( config.Want( XrdCpConfig::DoTpc ) )    thirdParty  = true;
 
   std::string checkSumType;
   std::string checkSumPreset;
@@ -388,6 +390,7 @@ int main( int argc, char **argv )
     job->target               = target;
     job->force                = force;
     job->posc                 = posc;
+    job->coerce               = coerce;
     job->thirdParty           = thirdParty;
     job->thirdPartyFallBack   = true;
     job->checkSumType         = checkSumType;

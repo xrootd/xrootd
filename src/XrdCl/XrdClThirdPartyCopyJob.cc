@@ -426,6 +426,9 @@ namespace XrdCl
     else
       flags |= OpenFlags::New;
 
+    if( jd->coerce )
+      flags |= OpenFlags::Force;
+
     File targetFile;
     log->Debug( UtilityMsg, "Trying to open %s for writing",
                 jd->target.GetURL().c_str() );
