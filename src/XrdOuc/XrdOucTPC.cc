@@ -155,8 +155,10 @@ const char *XrdOucTPC::cgiHost(const char *hSpec, char *buff, int blen)
    int n;
 
    if ((hName = index(hSpec, '@'))) hName++;
+   if (*hName != '[') Colon = hName;
+      else if (!(Colon = index(hName, ']'))) return 0;
 
-        if ((Colon = index(hName, ':'))) n = Colon - hName;
+        if ((Colon = index(Colon, ':'))) n = Colon - hName;
    else if (hName == hSpec) return hSpec;
    else n = strlen(hName);
 
