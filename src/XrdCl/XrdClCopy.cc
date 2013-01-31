@@ -218,7 +218,7 @@ const char *FileType2String( XrdCpFile::PType type )
 uint32_t CountSources( XrdCpFile *file )
 {
   uint32_t count;
-  for( count = 0; file; file = file->Next, ++count );
+  for( count = 0; file; file = file->Next, ++count ) {};
   return count;
 }
 
@@ -234,8 +234,8 @@ void AdjustFileInfo( XrdCpFile *file )
   if( file->Doff == 0 )
   {
     char *slash = file->Path;
-    for( ; *slash; ++slash );
-    for( ; *slash != '/' && slash > file->Path; --slash );
+    for( ; *slash; ++slash ) {};
+    for( ; *slash != '/' && slash > file->Path; --slash ) {};
     file->Doff = slash - file->Path;
   }
 };
