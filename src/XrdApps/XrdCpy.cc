@@ -1470,7 +1470,7 @@ int main(int argc, char**argv)
        xrd_wr_flags |=  kXR_delete;
        loc_wr_flags = LOC_WR_FLAGS_FORCE; // Flags for the local fs
       }
-   if (Config.Want(XrdCpConfig::DoRetry  ))
+   if (Config.Want(XrdCpConfig::DoRetry  ) && Config.Retry >= 0)
       {EnvPutInt(NAME_CONNECTTIMEOUT , 60);
        EnvPutInt(NAME_FIRSTCONNECTMAXCNT, Config.Retry);
       }

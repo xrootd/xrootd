@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:PrRsS:t:TvVy:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:PrRsS:t:T:vVy:";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -91,16 +91,17 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
       {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
       {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
+      {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
-      {OPT_TYPE "proxy",     0, 0, XrdCpConfig::OpProxy},
+      {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
       {OPT_TYPE "retry",     1, 0, XrdCpConfig::OpRetry},
       {OPT_TYPE "server",    0, 0, XrdCpConfig::OpServer},
       {OPT_TYPE "silent",    0, 0, XrdCpConfig::OpSilent},
-      {OPT_TYPE "sources",   0, 0, XrdCpConfig::OpSources},
-      {OPT_TYPE "streams",   0, 0, XrdCpConfig::OpStreams},
-      {OPT_TYPE "tpc",       2, 0, XrdCpConfig::OpTpc},
+      {OPT_TYPE "sources",   1, 0, XrdCpConfig::OpSources},
+      {OPT_TYPE "streams",   1, 0, XrdCpConfig::OpStreams},
+      {OPT_TYPE "tpc",       1, 0, XrdCpConfig::OpTpc},
       {OPT_TYPE "verbose",   0, 0, XrdCpConfig::OpVerbose},
       {OPT_TYPE "version",   0, 0, XrdCpConfig::OpVersion},
       {OPT_TYPE "xrate",     1, 0, XrdCpConfig::OpXrate},
@@ -129,7 +130,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    Dlvl     = 0;
    nSrcs    = 1;
    nStrm    = 1;
-   Retry    = 0;
+   Retry    =-1;
    Verbose  = 0;
    numFiles = 0;
    totBytes = 0;
@@ -234,7 +235,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpRecursv:  OpSpec |= DoRecurse;
                            break;
           case OpRetry:    OpSpec |= DoRetry;
-                           if (!a2i(optarg, &Retry, 0, 0)) Usage(22);
+                           if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
                            break;
           case OpServer:   OpSpec |= DoServer;
                            break;
@@ -247,6 +248,12 @@ do{while(optind < Argc && Legacy(optind)) {}
                            if (!a2i(optarg, &nStrm, 1, 15)) Usage(22);
                            break;
           case OpTpc:      OpSpec |= DoTpc;
+                           if (!strcmp("only",  optarg)) OpSpec|= DoTpcOnly;
+                              else if (strcmp("first", optarg))
+                                      {optind--;
+                                       UMSG("Invalid option, '" <<OpName()
+                                            <<' ' <<optarg <<"' ");
+                                      }
                            break;
           case OpVerbose:  OpSpec |= DoVerbose;
                            Verbose = 1;
@@ -254,7 +261,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpVersion:  cerr <<XrdVERSION <<endl; exit(0);
                            break;
           case OpXrate:    OpSpec |= DoXrate;
-                           if (!a2l(optarg, &xRate, 10*1024LL, 0)) Usage(22);
+                           if (!a2z(optarg, &xRate, 10*1024LL, -1)) Usage(22);
                            break;
           case ':':        UMSG("'" <<OpName() <<"' argument missing.");
                            break;
@@ -748,7 +755,8 @@ const char *XrdCpConfig::OpName()
    extern int optind, optopt;
    static char oName[4] = {'-', 0, 0, 0};
 
-   if (!optopt || optopt == '-') return Argv[optind-1];
+   if (!optopt || optopt == '-' || *(Argv[optind-1]+1) == '-')
+      return Argv[optind-1];
    oName[1] = optopt;
    return oName;
 }
@@ -811,8 +819,8 @@ void XrdCpConfig::Usage(int rc)
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--force] [--help]\n"
    "         [--infiles <fn>] [--license] [--nopbar] [--posc]\n"
-   "         [--proxy <host>:<port] [--recursive] [--retry <time>] [--server]\n"
-   "         [--server] [--silent] [--sources <n>] [--streams <n>] [--tpc]\n"
+   "         [--proxy <host>:<port] [--recursive] [--retry <n>] [--server]\n"
+   "         [--silent] [--sources <n>] [--streams <n>] [--tpc {first|only}]\n"
    "         [--verbose] [--version] [--xrate <rate>]";
 
    static const char *Syntax2= "\n"
@@ -842,12 +850,15 @@ void XrdCpConfig::Usage(int rc)
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive    recursively copies all source files\n"
+   "-t | --retry <n>    maximum number of times to retry rejected connections\n"
    "     --server       runs in a server environment with added operations\n"
    "-s | --silent       produces no output other than error messages\n"
    "-y | --sources <n>  uses up to the number of sources specified in parallel\n"
    "-S | --streams <n>  copies using the specified number of TCP connections\n"
    "-T | --tpc          uses third party copy mode between the src and dest.\n"
-   "                    The copy fails unless src and dest allow tpc mode.\n"
+   "                    Both the src and dest must allow tpc mode. Argument\n"
+   "                    'first' tries tpc and if it fails, does a normal copy;\n"
+   "                    while 'only' fails the copy unless tpc succeeds.\n"
    "-v | --verbose      produces more information about the copy\n"
    "-V | --version      prints the version number\n"
    "-X | --xrate <rate> limits the transfer to the specified rate. You can\n"

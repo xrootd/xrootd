@@ -64,7 +64,7 @@ struct defVar
              int    Dlvl;          // Debug level                 (0 to 3)
              int    nSrcs;         // Number of sources wanted    (dflt 1)
              int    nStrm;         // Number of streams wanted    (dflt 1)
-             int    Retry;         // Secs to cont to retry conns (0-> use dflt)
+             int    Retry;         // Max times to retry connects (<0->use dflt)
              int    Verbose;       // True if --verbose specified
              int    CksLen;        // Binary length of checksum, if any
 
@@ -135,7 +135,8 @@ static const int    OpStreams  =  'S';
 static const int    DoStreams  =  0x00010000; // -S | --streams
 
 static const int    OpTpc      =  'T';
-static const int    DoTpc      =  0x00020000; // -T | --tpc
+static const int    DoTpc      =  0x00020000; // -T | --tpc {first | only}
+static const int    DoTpcOnly  =  0x00100000; // -T | --tpc          only
 
 static const int    OpVerbose  =  'v';
 static const int    DoVerbose  =  0x00040000; // -v | --verbose
