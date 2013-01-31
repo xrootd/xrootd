@@ -1493,7 +1493,7 @@ namespace XrdCl
       {
         ClientCloseRequest *sreq = (ClientCloseRequest *)msg->GetBuffer();
         o << "kXR_close (";
-        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << ")";
         break;
       }
@@ -1513,7 +1513,7 @@ namespace XrdCl
         }
         else
         {
-          o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+          o << "handle: " << FileHandleToStr( sreq->fhandle );
           o << ", ";
         }
         o << "flags: ";
@@ -1535,7 +1535,7 @@ namespace XrdCl
       {
         ClientReadRequest *sreq = (ClientReadRequest *)msg->GetBuffer();
         o << "kXR_read (";
-        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
         o << ", ";
         o << "offset: " << sreq->offset << ", ";
@@ -1550,7 +1550,7 @@ namespace XrdCl
       {
         ClientWriteRequest *sreq = (ClientWriteRequest *)msg->GetBuffer();
         o << "kXR_write (";
-        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << std::setbase(10);
         o << ", ";
         o << "offset: " << sreq->offset << ", ";
@@ -1565,7 +1565,7 @@ namespace XrdCl
       {
         ClientSyncRequest *sreq = (ClientSyncRequest *)msg->GetBuffer();
         o << "kXR_sync (";
-        o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+        o << "handle: " << FileHandleToStr( sreq->fhandle );
         o << ")";
         break;
       }
@@ -1578,7 +1578,7 @@ namespace XrdCl
         ClientTruncateRequest *sreq = (ClientTruncateRequest *)msg->GetBuffer();
         o << "kXR_truncate (";
         if( !sreq->dlen )
-          o << "handle: 0x" << std::setbase(16) << *((uint32_t*)sreq->fhandle);
+          o << "handle: " << FileHandleToStr( sreq->fhandle );
         else
         {
           char *fn = GetDataAsString( msg );;
@@ -1597,7 +1597,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_readv:
       {
-        uint32_t fhandle;
+        unsigned char *fhandle = 0;
         o << "kXR_readv (";
 
         readahead_list *dataChunk = (readahead_list*)msg->GetBuffer( 24 );
@@ -1605,11 +1605,11 @@ namespace XrdCl
         uint32_t numChunks = 0;
         for( size_t i = 0; i < req->dlen/sizeof(readahead_list); ++i )
         {
-          fhandle = *((uint32_t*)dataChunk[i].fhandle);
+          fhandle = dataChunk[i].fhandle;
           size += dataChunk[i].rlen;
           ++numChunks;
         }
-        o << "handle: 0x" << std::setbase(16) << fhandle << ", ";
+        o << "handle: " << FileHandleToStr( fhandle ) << ", ";
         o << std::setbase(10);
         o << "chunks: " << numChunks << ", ";
         o << "total size: " << size << ")";
@@ -1840,5 +1840,17 @@ namespace XrdCl
       }
     };
     msg->SetDescription( o.str() );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get a string representation of file handle
+  //----------------------------------------------------------------------------
+  std::string XRootDTransport::FileHandleToStr( const unsigned char handle[4] )
+  {
+    std::ostringstream o;
+    o << "0x";
+    for( uint8_t i = 0; i < 4; ++i )
+      o << std::setbase(16) << (int)handle[i];
+    return o.str();
   }
 }
