@@ -443,7 +443,7 @@ int XrdOssCache::Alloc(XrdOssCache::allocInfo &aInfo)
        curfree = fsp->fsdata->frsz;
        if (size > curfree) continue;
 
-             if (fuzAlloc >= 100) {fsp_sel = fsp; break;}
+             if (fuzAlloc > 0.999) {fsp_sel = fsp; break;}
        else  if (!fuzAlloc || !fsp_sel)
                 {if (curfree > maxfree) {fsp_sel = fsp; maxfree = curfree;}}
        else {diffree = (!(curfree + maxfree) ? 0.0
