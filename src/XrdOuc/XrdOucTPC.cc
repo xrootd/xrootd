@@ -56,7 +56,7 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
                                       char *Buff, int Blen)
 {
    tpcInfo Info;
-   char   *etext, *bP = Buff;
+   char   *etext, hName[256], *bP = Buff;
    int     n;
 
 // Make sure we have the minimum amount of information here
@@ -65,6 +65,8 @@ const char *XrdOucTPC::cgiC2Dst(const char *cKey, const char *xSrc,
 
 // Generate the full name of the source
 //
+   if (!(xSrc = cgiHost(xSrc, hName, sizeof(hName))))
+      return "!Invalid source specification.";
    Info.Data = XrdSysDNS::getHostName(xSrc, &etext);
    if (etext) return "!Unable to validate source.";
 
@@ -93,7 +95,7 @@ const char *XrdOucTPC::cgiC2Src(const char *cKey, const char *xDst, int xTTL,
                                       char *Buff, int Blen)
 {
    tpcInfo Info;
-   char   *etext, *bP = Buff;
+   char   *etext, hName[256], *bP = Buff;
    int     n;
 
 // Make sure we have the minimum amount of information here
@@ -102,6 +104,8 @@ const char *XrdOucTPC::cgiC2Src(const char *cKey, const char *xDst, int xTTL,
 
 // Generate the full name of the source
 //
+   if (!(xDst = cgiHost(xDst, hName, sizeof(hName))))
+      return "!Invalid destination specification.";
    Info.Data = XrdSysDNS::getHostName(xDst, &etext);
    if (etext) return "!Unable to validate destination.";
 
@@ -139,4 +143,24 @@ const char *XrdOucTPC::cgiD2Src(const char *cKey, const char *cOrg,
 // All done
 //
    return (n > Blen ? "!Unable to generate full cgi." : Buff);
+}
+
+/******************************************************************************/
+/*                               c g i H o s t                                */
+/******************************************************************************/
+  
+const char *XrdOucTPC::cgiHost(const char *hSpec, char *buff, int blen)
+{
+   const char *Colon, *hName;
+   int n;
+
+   if ((hName = index(hSpec, '@'))) hName++;
+
+        if ((Colon = index(hName, ':'))) n = Colon - hName;
+   else if (hName == hSpec) return hSpec;
+   else n = strlen(hName);
+
+   if (n >= blen) return 0;
+   strncpy(buff, hName, n); buff[n] = 0;
+   return buff;
 }
