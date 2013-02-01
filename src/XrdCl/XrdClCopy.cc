@@ -282,15 +282,17 @@ int main( int argc, char **argv )
   if( !config.Want(XrdCpConfig::DoNoPbar) )
     progress = &progressHandler;
 
-  bool posc       = false;
-  bool thirdParty = false;
-  bool force      = false;
-  bool coerce     = false;
+  bool posc               = false;
+  bool thirdParty         = false;
+  bool thirdPartyFallBack = true;
+  bool force              = false;
+  bool coerce             = false;
 
-  if( config.Want( XrdCpConfig::DoPosc ) )   posc        = true;
-  if( config.Want( XrdCpConfig::DoForce ) )  force       = true;
-  if( config.Want( XrdCpConfig::DoCoerce ) ) coerce      = true;
-  if( config.Want( XrdCpConfig::DoTpc ) )    thirdParty  = true;
+  if( config.Want( XrdCpConfig::DoPosc ) )     posc                = true;
+  if( config.Want( XrdCpConfig::DoForce ) )    force               = true;
+  if( config.Want( XrdCpConfig::DoCoerce ) )   coerce              = true;
+  if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty          = true;
+  if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdPartyFallBack  = false;
 
   std::string checkSumType;
   std::string checkSumPreset;
@@ -392,7 +394,7 @@ int main( int argc, char **argv )
     job->posc                 = posc;
     job->coerce               = coerce;
     job->thirdParty           = thirdParty;
-    job->thirdPartyFallBack   = true;
+    job->thirdPartyFallBack   = thirdPartyFallBack;
     job->checkSumType         = checkSumType;
     job->checkSumPreset       = checkSumPreset;
     job->checkSumPrint        = checkSumPrint;
