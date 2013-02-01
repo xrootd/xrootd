@@ -654,7 +654,7 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *theManList)
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;
          myManagers = mp;
-         if (XrdSysThread::Run(&tid,XrdCmsStartManager,(void *)mp,0,tp->text))
+         if (XrdSysThread::Run(&tid,XrdCmsStartManager,(void *)mp,0,mp->Name()))
             Say.Emsg("Finder", errno, "start manager");
          tp = tp->next; i++;
         }
