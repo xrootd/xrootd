@@ -123,7 +123,7 @@ namespace XrdCl
     std::string  tpcKey = GenerateKey();
     char        *cgiBuff = new char[2048];
     const char  *cgiP = XrdOucTPC::cgiC2Dst( tpcKey.c_str(),
-                                             pTPCInfo.source.GetHostName().c_str(),
+                                             pTPCInfo.source.GetHostId().c_str(),
                                              pJob->source.GetPath().c_str(),
                                              0, cgiBuff, 2048 );
     if( *cgiP == '!' )
