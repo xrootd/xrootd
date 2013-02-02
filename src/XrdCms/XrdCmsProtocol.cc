@@ -387,7 +387,7 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
            XrdOucTokenizer hList((char *)Data.Paths);
            unsigned int ipaddr;
            char *hP;
-           Link->Name(&netaddr);
+           Link->Host(&netaddr);
            ipaddr = XrdSysDNS::IPAddr(&netaddr);
            myMans.Del(ipaddr);
            while((hP = hList.GetToken()))

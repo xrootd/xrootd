@@ -136,7 +136,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Establish our IP address
 //
-   lp->Name(&InetAddr);
+   lp->Host(&InetAddr);
    ipaddr = XrdSysDNS::IPAddr(&InetAddr);
 
 // Find available slot for this node. Here are the priorities:

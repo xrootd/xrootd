@@ -99,14 +99,15 @@ add_library(
   XrdNet/XrdNet.cc              XrdNet/XrdNet.hh
                                 XrdNet/XrdNetOpts.hh
                                 XrdNet/XrdNetPeer.hh
+  XrdNet/XrdNetAddr.cc          XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetBuffer.cc        XrdNet/XrdNetBuffer.hh
+  XrdNet/XrdNetCache.cc         XrdNet/XrdNetCache.hh
   XrdNet/XrdNetCmsNotify.cc     XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.cc       XrdNet/XrdNetConnect.hh
-  XrdNet/XrdNetLink.cc          XrdNet/XrdNetLink.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
   XrdNet/XrdNetSecurity.cc      XrdNet/XrdNetSecurity.hh
   XrdNet/XrdNetSocket.cc        XrdNet/XrdNetSocket.hh
-  XrdNet/XrdNetWork.cc          XrdNet/XrdNetWork.hh
+  XrdNet/XrdNetUtils.cc         XrdNet/XrdNetUtils.hh
 
   #-----------------------------------------------------------------------------
   # XrdSut

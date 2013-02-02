@@ -32,11 +32,11 @@
 #include <string.h>
 #include <strings.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOfs/XrdOfsStats.hh"
 #include "XrdOfs/XrdOfsTPCInfo.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 
 /******************************************************************************/
@@ -117,7 +117,7 @@ const char *XrdOfsTPCInfo::Set(const char *cKey, const char *cOrg,
                                const char *xLfn, const char *xDst,
                                const char *xCks)
 {
-   char *etext;
+   const char *etext;
 
 // Set the key
 //
@@ -138,7 +138,8 @@ const char *XrdOfsTPCInfo::Set(const char *cKey, const char *cOrg,
 //
    if (Dst) {free(Dst); Dst = 0;}
    if (xDst)
-      {Dst = XrdSysDNS::getHostName(xDst, &etext);
+      {XrdNetAddr dAddr;
+       if (!(etext = dAddr.Set(xDst))) Dst = dAddr.NameDup(&etext);
        if (etext) return etext;
       }
 

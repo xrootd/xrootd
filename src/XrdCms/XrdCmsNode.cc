@@ -176,7 +176,7 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
 
 // Get our address (the long way)
 //
-   lnkp->Name(&netaddr);
+   lnkp->Host(&netaddr);
    hAddr= XrdSysDNS::IPAddr(&netaddr);
 
 // Check if this is a duplicate

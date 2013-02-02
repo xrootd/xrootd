@@ -40,6 +40,7 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClientEnv.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -51,7 +52,6 @@
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -129,7 +129,9 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
                           "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:");
-   char buff[2048], *dP, *tP, *dnsEtxt = 0, *n2n = 0, *lroot = 0, *xpl = 0;
+   XrdNetAddr netHost;
+   const char *dnsEtxt = 0;
+   char buff[2048], *dP, *tP, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
    long long llval;
    int n, bPort = 0, haveArk = 0, NoGo = 0;
@@ -240,7 +242,8 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
              if ((cP = index(hBuff+1, ':'))
              &&  XrdOuca2x::a2i(MLog,"-b port",cP+1,&bPort,1,65535)) *buff = 0;
              if (cP) *cP = '\0';
-             bHost = XrdSysDNS::getHostName(hBuff+1, &dnsEtxt);
+             if (!(dnsEtxt = netHost.Set(hBuff+1)))
+                bHost = netHost.NameDup(&dnsEtxt);
              if (dnsEtxt)
                 {*hBuff = '\''; strcat(hBuff+1, "\'"); *buff = 0;
                  MLog.Emsg("Config", hBuff, dnsEtxt);
@@ -279,7 +282,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                      NoGo = 1; continue;
                     } else *tP = '\0';
          dnsEtxt = 0;
-         tP = XrdSysDNS::getHostName(dP, &dnsEtxt);
+         if (!(dnsEtxt = netHost.Set(dP))) tP = netHost.NameDup(&dnsEtxt);
          if (dnsEtxt)
             {buff[0] = '\''; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
              MLog.Emsg("Config", "'", dP, buff);

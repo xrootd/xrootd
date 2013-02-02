@@ -41,11 +41,9 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdNet/XrdNet.hh"
-#include "XrdNet/XrdNetPeer.hh"
+#include "XrdNet/XrdNetMsg.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -62,13 +60,12 @@ XrdScheduler      *XrdXrootdMonitor::Sched      = 0;
 XrdSysError       *XrdXrootdMonitor::eDest      = 0;
 char              *XrdXrootdMonitor::idRec      = 0;
 int                XrdXrootdMonitor::idLen      = 0;
-int                XrdXrootdMonitor::monFD;
 char              *XrdXrootdMonitor::Dest1      = 0;
 int                XrdXrootdMonitor::monMode1   = 0;
-struct sockaddr    XrdXrootdMonitor::InetAddr1;
+XrdNetMsg         *XrdXrootdMonitor::InetDest1  = 0;
 char              *XrdXrootdMonitor::Dest2      = 0;
 int                XrdXrootdMonitor::monMode2   = 0;
-struct sockaddr    XrdXrootdMonitor::InetAddr2;
+XrdNetMsg         *XrdXrootdMonitor::InetDest2  = 0;
 XrdXrootdMonitor  *XrdXrootdMonitor::altMon     = 0;
 XrdSysMutex        XrdXrootdMonitor::windowMutex;
 kXR_int32          XrdXrootdMonitor::startTime  = 0;
@@ -540,10 +537,9 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 {
    static     XrdXrootdMonitor_Ident MonIdent(sp, monIdent);
    XrdXrootdMonMap *mP;
-   XrdNet     myNetwork(errp, 0);
-   XrdNetPeer monDest;
    char      *etext, iBuff[1024], iPuff[1024], *sName, *cP;
    int        i, Now = time(0);
+   bool       aOK;
 
 // Set static variables
 //
@@ -566,23 +562,22 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 //
    if (!isEnabled) return 1;
 
-// Allocate a socket for the primary destination
+// Setup the primary destination
 //
-   if (!myNetwork.Relay(monDest, Dest1, XRDNET_SENDONLY)) return 0;
-   monFD = monDest.fd;
-
-// Get the address of the primary destination
-//
-   if (!XrdSysDNS::Host2Dest(Dest1, InetAddr1, &etext))
-      {eDest->Emsg("Monitor", "setup monitor collector;", etext);
+   InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+   if (!aOK)
+      {eDest->Emsg("Monitor", "Unable to setup primary monitor collector.");
        return 0;
       }
 
-// Get the address of the alternate destination, if we happen to have one
+// Setup the secondary destination
 //
-   if (Dest2 && !XrdSysDNS::Host2Dest(Dest2, InetAddr2, &etext))
-      {eDest->Emsg("Monitor", "setup monitor collector;", etext);
-       return 0;
+   if (Dest2)
+      {InetDest1 = new XrdNetMsg(eDest, Dest1, &aOK);
+       if (!aOK)
+          {eDest->Emsg("Monitor","Unable to setup secondary monitor collector.");
+           return 0;
+          }
       }
 
 // If there is a destination that is only collecting file events, then
@@ -1042,23 +1037,19 @@ int XrdXrootdMonitor::Send(int monMode, void *buff, int blen)
     int rc1, rc2;
 
     sendMutex.Lock();
-    if (monMode & monMode1) 
-       {rc1  = (int)sendto(monFD, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr1, sizeof(sockaddr));
-        rc1 = (rc1 < 0 ? -errno : 0);
+    if (monMode & monMode1 && InetDest1)
+       {rc1  = InetDest1->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest1 <<" rc=" <<rc1);
        }
        else rc1 = 0;
-    if (monMode & monMode2) 
-       {rc2 = (int)sendto(monFD, buff, blen, 0,
-                        (const struct sockaddr *)&InetAddr2, sizeof(sockaddr));
-        rc2 = (rc2 < 0 ? -errno : 0);
+    if (monMode & monMode2 && InetDest2)
+       {rc2  = InetDest2->Send((char *)buff, blen);
         TRACE(DEBUG,blen <<" bytes sent to " <<Dest2 <<" rc=" <<rc2);
        }
        else rc2 = 0;
     sendMutex.UnLock();
 
-    return (rc1 < rc2 ? rc1 : rc2);
+    return (rc1 ? rc1 : rc2);
 }
 
 /******************************************************************************/

@@ -46,10 +46,11 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdClientAdmin.hh"
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsFsinfo.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
@@ -268,9 +269,10 @@ int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes
 
 int XrdFfsMisc_get_list_of_data_servers(char* list)
 {
-    int i;
-    char *url, *rc, *hostname, *hostip, *port, *p;
-    char *haddr[1], *hname[1];
+    XrdNetAddr uAddr;
+    int i, n = 0;
+    const char *netName;
+    char *url, *rc, *hostip, *hName, *hNend, *hPort, *hPend, hsep;
   
     rc = (char*)malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
     rc[0] = '\0';
@@ -279,30 +281,27 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
     {
         url = strdup(XrdFfsMiscUrlcache[i]); 
         hostip = &url[7];
-        p = strchr(hostip, ':');
-        p[0] = '\0';
-        port = ++p;
-        p = strchr(port, '/');
-        p[0] = '\0';
-
-//        hostname = XrdFfsMisc_getNameByAddr(hostip);
-        if (XrdSysDNS::getAddrName(hostip, 1, haddr, hname))
-            hostname = hname[0];
-        else
-            hostname = hostip;
-        strcat(rc, hostname); 
-        strcat(rc, ":");
-        strcat(rc, port);
-        strcat(rc, "\n");
-//        free(hostname);
-        free(haddr[0]);
-        free(hname[0]);
+        if (XrdNetUtils::Parse(hostip, &hName, &hNend, &hPort, &hPend))
+           {n++;
+            hsep = *hNend; *hNend = 0; *hPend = 0;
+            if (uAddr.Set(hName) || !(netName = uAddr.Name()))
+               {*hNend = hsep;
+                hName = hostip;
+                hPend = hNend;
+               }
+            strcat(rc, hName);
+            if (hPort != hNend)
+               {strcat(rc, ":");
+                strcat(rc, hPort);
+               }
+            strcat(rc, "\n");
+           }
         free(url);
     }
     pthread_mutex_unlock(&XrdFfsMiscUrlcache_mutex);
     strcpy(list, rc);
     free(rc);
-    return i;
+    return n;
 }
 
 void XrdFfsMisc_refresh_url_cache(const char* url)

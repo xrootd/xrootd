@@ -46,6 +46,8 @@
 #include "XrdCks/XrdCksConfig.hh"
 #include "XrdCks/XrdCksData.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
+
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
@@ -59,7 +61,6 @@
 
 #include "XrdOss/XrdOss.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -123,7 +124,7 @@ XrdOss *XrdOfsOss;
 
 XrdOfs::XrdOfs()
 {
-   unsigned int myIPaddr = 0;
+   XrdNetAddr myAddr;
    char buff[256], *bp;
    int i;
 
@@ -153,14 +154,11 @@ XrdOfs::XrdOfs()
    poscHold= 10*60;
    poscAuto= 0;
 
-// Establish our hostname and IPV4 address
+// Establish our hostname and IPV6 address
 //
-   HostName      = XrdSysDNS::getHostName();
-   if (!XrdSysDNS::Host2IP(HostName, &myIPaddr)) myIPaddr = 0x7f000001;
-   strcpy(buff, "[::"); bp = buff+3;
-   bp += XrdSysDNS::IP2String(myIPaddr, 0, bp, 128);
-   *bp++ = ']'; *bp++ = ':';
-   sprintf(bp, "%d", myPort);
+   myAddr.Self(myPort);
+   HostName = myAddr.NameDup();
+   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6);
    locResp = strdup(buff); locRlen = strlen(buff);
    for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
    HostName[i] = '\0';

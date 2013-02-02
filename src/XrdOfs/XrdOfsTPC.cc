@@ -33,6 +33,7 @@
 #include <strings.h>
   
 #include "XrdAcc/XrdAccAccess.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOfs/XrdOfsSecurity.hh"
 #include "XrdOfs/XrdOfsStats.hh"
@@ -50,7 +51,6 @@
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -533,18 +533,18 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 char *XrdOfsTPC::Verify(const char *Who, const char *Name,
                               char *Buf,       int   Blen)
 {
-   char *etext, *Host;
+   XrdNetAddr vAddr;
+   const char *etext, *Host;
 
-// Obtain full host name
+// Obtain full host name and return it if successful
 //
-   Host = XrdSysDNS::getHostName(Name, &etext);
-   if (!etext) return Host;
+   if (!(etext = vAddr.Set(Name)) && (Host = vAddr.Name(0, &etext)))
+      return strdup(Host);
 
 // Generate error
 //
-   snprintf(Buf, Blen, "unable to verify %s (%s)", Who, etext);
+   snprintf(Buf, Blen, "unable to verify %s %s (%s)", Who, Name, etext);
    Buf[Blen-1] = 0;
-   free(Host);
    return 0;
 }
 

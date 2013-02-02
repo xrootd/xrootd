@@ -30,6 +30,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <netinet/in.h>
+
 #include "XrdCms/XrdCmsKey.hh"
 
 /******************************************************************************/
@@ -98,8 +100,8 @@ int             Id;
 unsigned int    IPAddr;   // IPV4
 
 int             Port;
-int             IPV6Len;  // 12345678901234567890123456
-char            IPV6[28]; // [::123.123.123.123]:123456
+int             IPV6Len;                   // 12345678901234567890123456
+char            IPV6[INET6_ADDRSTRLEN+10]; // [::123.123.123.123]:123456
 int             RefTotW;
 int             RefTotR;
 int             Shrin;       // Share intervals used

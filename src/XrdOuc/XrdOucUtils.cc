@@ -42,12 +42,23 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #endif
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucStream.hh"
-#include "XrdOuc/XrdOucUtils.hh"
   
+/******************************************************************************/
+/*                              e n d s W i t h                               */
+/******************************************************************************/
+  
+bool XrdOucUtils::endsWith(const char *text, const char *ending, int endlen)
+{
+   int tlen = strlen(text);
+
+   return (tlen >= endlen && !strcmp(text+(tlen-endlen), ending));
+}
+
 /******************************************************************************/
 /*                                 e T e x t                                  */
 /******************************************************************************/
@@ -105,7 +116,7 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
 // Check if we are one of the listed hosts
 //
    if (!is1of(val, brk))
-      {do {hostok = XrdSysDNS::isMatch(hname, val);
+      {do {hostok = XrdNetUtils::Match(hname, val);
            val = Config.GetWord();
           } while(!hostok && val && !is1of(val, brk));
       if (hostok)

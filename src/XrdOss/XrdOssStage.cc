@@ -123,8 +123,7 @@ int XrdOssSys::Stage(const char *Tid, const char *fn, XrdOucEnv &env,
 int XrdOssSys::Stage_QT(const char *Tid, const char *fn, XrdOucEnv &env, 
                         int Oflag, mode_t Mode)
 {
-   static XrdOucReqID ReqID(static_cast<int>(getpid()),(char *)"localhost",
-                                          (unsigned long)0xef000001);
+   static XrdOucReqID ReqID;
    static XrdSysMutex      PTMutex;
    static XrdOucHash<char> PTable;
    static time_t nextScrub = xfrkeep + time(0);

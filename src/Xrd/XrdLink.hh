@@ -52,8 +52,7 @@
 /******************************************************************************/
   
 class XrdInet;
-class XrdNetBuffer;
-class XrdNetPeer;
+class XrdNetAddr;
 class XrdPoll;
 class XrdOucTrace;
 class XrdScheduler;
@@ -68,7 +67,19 @@ friend class XrdPollPoll;
 friend class XrdPollDev;
 friend class XrdPollE;
 
-static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
+//-----------------------------------------------------------------------------
+//! Allocate a new link object.
+//!
+//! @param  peer    The connection information for the endpoint.
+//!         opts    Processing options:
+//!                 XRDLINK_NOCLOSE - do not close the FD upon recycling.
+//!                 XRDLINK_RDLOCK  - obtain a lock prior to reading data.
+//!
+//! @return !0      The pointer to the new object.
+//!         =0      A new link object could not be allocated.
+//-----------------------------------------------------------------------------
+
+static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
 
 void          Bind() {}                // Obsolete
 void          Bind(pthread_t tid) {}   // Obsolete
@@ -119,22 +130,51 @@ static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
 
 static   void Init(XrdInet *iP) {XrdNetTCP = iP;}
 
+//-----------------------------------------------------------------------------
+//! Obtain the link's instance number.
+//!
+//! @return The link's instance number.
+//-----------------------------------------------------------------------------
+inline
 unsigned int  Inst() {return Instance;}
 
-int           isFlawed() {return Etext != 0;}
+//-----------------------------------------------------------------------------
+//! Indicate whether or not the link has an outstanding error.
+//!
+//! @return True    the link has an outstanding error.
+//!                 the link has no outstanding error.
+//-----------------------------------------------------------------------------
+inline
+bool          isFlawed() {return Etext != 0;}
 
-int           isInstance(unsigned int inst)
+//-----------------------------------------------------------------------------
+//! Indicate whether or not this link is of a particular instance.
+//! only be used for display and not for security purposes.
+//!
+//! @param  inst    the expected instance number.
+//!
+//! @return True    the link matches the instance number.
+//!                 the link differs the instance number.
+//-----------------------------------------------------------------------------
+inline
+bool          isInstance(unsigned int inst)
                         {return FD >= 0 && Instance == inst;}
 
-const char   *Name(sockaddr *ipaddr=0)
-                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
-                      return (const char *)Lname;
-                     }
+//-----------------------------------------------------------------------------
+//! Obtain the domain trimmed name of the end-point. The returned value should
+//! only be used for display and not for security purposes.
+//!
+//! @return Pointer to the name that remains valid during the link's lifetime.
+//-----------------------------------------------------------------------------
+inline
+const char   *Name() {return (const char *)Lname;}
 
 const char   *Host(sockaddr *ipaddr=0)
-                     {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
-                      return (const char *)HostName;
+//                   {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
+{                     return (const char *)HostName;
                      }
+
+//const char   *Host() {return (const char *)HostName;}
 
 int           Peek(char *buff, int blen, int timeout=-1);
 
@@ -232,8 +272,11 @@ static XrdSysMutex  statsMutex;
 
 // Identification section
 //
-struct sockaddr     InetAddr;
-char                Uname[24];  // Uname and Lname must be adjacent!
+union {struct sockaddr_storage Data;
+       struct sockaddr         Addr;  // Unioned with largest size
+      }                        Inet;
+
+char                Uname[24];        // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
 int                 HNlen;
@@ -245,7 +288,6 @@ XrdSysMutex         wrMutex;
 XrdSysSemaphore     IOSemaphore;
 XrdSysCondVar      *KillcvP;        // Protected by opMutex!
 XrdLink            *Next;
-XrdNetBuffer       *udpbuff;
 XrdProtocol        *Protocol;
 XrdProtocol        *ProtoAlt;
 XrdPoll            *Poller;

@@ -32,8 +32,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdSys/XrdSysDNS.hh"
 
 /******************************************************************************/
 /*                      S t a t i c   V a r i a b l e s                       */
@@ -146,7 +146,8 @@ const char *XrdOucTPC::cgiD2Src(const char *cKey, const char *cOrg,
 bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
 {
    const char *Colon, *hName;
-   char *etext, hBuff[256];
+   XrdNetAddr hAddr;
+   char hBuff[256];
    int n;
 
 // Extract out the username, if any
@@ -176,6 +177,7 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
 
 // Resolve the host name
 //
-   Info.hName = XrdSysDNS::getHostName(hName, &etext);
-   return etext == 0;
+   hAddr.Set(hName);
+   if ((hName = hAddr.Name())) Info.hName = strdup(hName);
+   return hName != 0;
 }

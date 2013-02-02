@@ -109,8 +109,6 @@ extern          XrdOucTrace       *XrdXrootdTrace;
 
                 XrdXrootdPrepare  *XrdXrootdPrepQ;
 
-                XrdOucReqID       *XrdXrootdReqID;
-
                 const char        *XrdXrootdInstance;
 
                 int                XrdXrootdPort;
@@ -306,8 +304,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the request ID generation object
 //
-   XrdXrootdReqID = new XrdOucReqID((int)Port, pi->myName,
-                                    XrdSysDNS::IPAddr(pi->myAddr));
+   PrepID = new XrdOucReqID(pi->myAddr, (int)Port);
 
 // Initialize for prepare processing
 //

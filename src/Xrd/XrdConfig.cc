@@ -52,14 +52,16 @@
 #include "Xrd/XrdPoll.hh"
 #include "Xrd/XrdStats.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetSecurity.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucSiteName.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
+
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -211,8 +213,8 @@ int XrdConfig::Configure(int argc, char **argv)
 */
    const char *xrdInst="XRDINSTANCE=";
 
-   static sockaddr myIPAddr;
-   int n, retc, NoGo = 0, clPort = -1, optbg = 0;
+   static XrdNetAddr myIPAddr;
+   int n, retc, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
    long long logkeep = 0;
@@ -362,7 +364,8 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
-   if (!(myName = XrdSysDNS::getHostName()))
+   myIPAddr.Self();
+   if (!(myName = myIPAddr.Name()))
       {Log.Emsg("Config", "Unable to determine host name; "
                              "execution terminated.");
        _exit(16);
@@ -382,11 +385,10 @@ int XrdConfig::Configure(int argc, char **argv)
                 Log.Say("Config warning: this hostname, ", myName,
                             ", is registered without a domain qualification.");
 
-// Get our IP address
+// Get our IP address and FQN
 //
-   XrdSysDNS::getHostAddr(myName, &myIPAddr);
    ProtInfo.myName = myName;
-   ProtInfo.myAddr = &myIPAddr;
+   ProtInfo.myAddr = myIPAddr.SockAddr();
    ProtInfo.myInst = XrdOucUtils::InstName(myInsName);
    ProtInfo.myProg = myProg;
 
@@ -764,7 +766,7 @@ int XrdConfig::Setup(char *dfltp)
 #if defined(__linux__) && defined(TCP_CORK)
 {  int sokFD, setON = 1;
    if ((sokFD = socket(PF_INET, SOCK_STREAM, 0)) >= 0)
-      {setsockopt(sokFD, XrdSysDNS::getProtoID("tcp"), TCP_NODELAY,
+      {setsockopt(sokFD, XrdNetUtils::ProtoID("tcp"), TCP_NODELAY,
                   &setON, sizeof(setON));
        if (setsockopt(sokFD, SOL_TCP, TCP_CORK, &setON, sizeof(setON)) < 0)
           XrdLink::sfOK = 0;
@@ -808,7 +810,7 @@ int XrdConfig::Setup(char *dfltp)
 // Determine the default port number (only for xrootd) if not specified.
 //
    if (PortTCP < 0)  
-      {if ((PortTCP = XrdSysDNS::getPort(dfltp, "tcp"))) PortUDP = PortTCP;
+      {if ((PortTCP = XrdNetUtils::ServPort(dfltp))) PortUDP = PortTCP;
           else PortTCP = -1;
       }
 
@@ -1154,7 +1156,7 @@ int XrdConfig::yport(XrdSysError *eDest, const char *ptype, const char *val)
 
     if (isdigit(*val))
        {if (XrdOuca2x::a2i(*eDest,invp,val,&pnum,1,65535)) return 0;}
-       else if (!(pnum = XrdSysDNS::getPort(val, "tcp")))
+       else if (!(pnum = XrdNetUtils::ServPort(val, (*ptype != 't'))))
                {eDest->Emsg("Config", invs, val);
                 return -1;
                }

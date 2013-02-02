@@ -133,8 +133,8 @@ int XrdXrootdProtocol::do_Auth()
       {if (AuthProt) AuthProt->Delete();
        strncpy(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype));
-       Link->Name(&netaddr);
-       if (!(AuthProt = CIA->getProtocol(Link->Host(),netaddr,&cred,&eMsg)))
+       const char *hname = Link->Host(&netaddr);
+       if (!(AuthProt = CIA->getProtocol(hname,netaddr,&cred,&eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
@@ -1276,9 +1276,9 @@ int XrdXrootdProtocol::do_Ping()
   
 int XrdXrootdProtocol::do_Prepare()
 {
-   int rc, hport, pathnum = 0;
+   int rc, hport, idOff, pathnum = 0;
    const char *opaque;
-   char opts, hname[32], reqid[64], nidbuff[512], *path;
+   char opts, hname[256], reqid[128], nidbuff[512], *path;
    XrdOucErrInfo myError(Link->ID, Monitor.Did);
    XrdOucTokenizer pathlist(argp->buff);
    XrdOucTList *pFirst=0, *pP, *pLast = 0;
@@ -1301,14 +1301,13 @@ int XrdXrootdProtocol::do_Prepare()
 // Get a request ID for this prepare and check for static routine
 //
    if (opts & kXR_stage && !(opts & kXR_cancel)) 
-      {XrdOucReqID::ID(reqid, sizeof(reqid)); 
-       fsprep.opts = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
+      {fsprep.reqid = PrepID->ID(reqid, sizeof(reqid));
+       fsprep.opts  = Prep_STAGE | (opts & kXR_coloc ? Prep_COLOC : 0);
       }
-      else {reqid[0] = '*'; reqid[1] = '\0';  fsprep.opts = 0;}
+      else {reqid[0]='*'; reqid[1]='\0'; fsprep.reqid = reqid; fsprep.opts = 0;}
 
 // Initialize the fsile system prepare arg list
 //
-   fsprep.reqid   = reqid;
    fsprep.paths   = 0;
    fsprep.oinfo   = 0;
    fsprep.opts   |= Prep_PRTY0 | (opts & kXR_fresh ? Prep_FRESH : 0);
@@ -1319,13 +1318,13 @@ int XrdXrootdProtocol::do_Prepare()
    if (opts & kXR_cancel)
       {if (!(path = pathlist.GetLine()))
           return Response.Send(kXR_ArgMissing, "Prepare requestid not specified");
-       if (!XrdOucReqID::isMine(path, hport, hname, sizeof(hname)))
+       fsprep.reqid = PrepID->isMine(path, hport, hname, sizeof(hname));
+       if (!fsprep.reqid)
           {if (!hport) return Response.Send(kXR_ArgInvalid,
                              "Prepare requestid owned by an unknown server");
            TRACEI(REDIR, Response.ID() <<"redirecting to " << hname <<':' <<hport);
            return Response.Send(kXR_redirect, hport, hname);
           }
-       fsprep.reqid = path;
        if (SFS_OK != (rc = osFS->prepare(fsprep, myError, CRED)))
           return fsError(rc, XROOTD_MON_PREP, myError, path);
        rc = Response.Send();

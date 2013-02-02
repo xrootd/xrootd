@@ -106,7 +106,7 @@ do {
 // If we do not yet have a protocol, get one
 //
    if (!AuthProt)
-      {const char *hname = Link->Name(&netaddr);
+      {const char *hname = Link->Host(&netaddr);
        if (!DHS
        ||  !(AuthProt=DHS->getProtocol((char *)hname,netaddr,&cred,&eMsg)))
           {eText = eMsg.getErrText(rc); break;}

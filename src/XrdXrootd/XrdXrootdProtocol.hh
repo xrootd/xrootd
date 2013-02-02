@@ -65,6 +65,7 @@
 
 class XrdNetSocket;
 class XrdOucErrInfo;
+class XrdOucReqID;
 class XrdOucStream;
 class XrdOucTokenizer;
 class XrdOucTrace;
@@ -245,6 +246,7 @@ static char                isRedir;
 static char                JobLCL;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
+static XrdOucReqID        *PrepID;
 
 // Static redirection
 //

@@ -41,42 +41,81 @@
 #include <Winsock2.h>
 #endif
 
+#include "XrdNet/XrdNetAddr.hh"
+
 class XrdSysError;
 
 class XrdNetMsg
 {
 public:
 
-// Send() sends a message to a host. If a destination is not supplied then the
-//        default destination at construction time is used.
-//        It returns one of three values:
-//        <0 -> Message not sent due to error (e.g., iovec data > 4096 bytes)
-//        =0 -> Message send (well as defined by UDP)
-//        >0 -> Message not sent, timeout occured.
-//
+//------------------------------------------------------------------------------
+//! Send a UDP message to an endpoint.
+//!
+//! @param  buff     The data to send.
+//! @param  blen     Length of the data in buff. If not specified, the length is
+//!                  computed as strlen(buff).
+//! @param  dest     The endpint name which can be host:port or a named socket.
+//!                  If dest is zero, uses dest specified in the constructor.
+//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//!                  the default, no time limit applies.
+//! @return <0       Message not sent due to error.
+//! @return =0       Message send (well as defined by UDP)
+//! @return >0       Message not sent, timeout occured.
+//------------------------------------------------------------------------------
+
 int           Send(const char *buff,          // The data to be send
                          int   blen=0,        // Length (strlen(buff) if zero)
                    const char *dest=0,        // Hostname to send UDP datagram
                          int   tmo=-1);       // Timeout in ms (-1 = none)
 
+//------------------------------------------------------------------------------
+//! Send a UDP message to an endpoint using an I/O vector.
+//!
+//! @param  iov      The vector of data to send. Total amount be <= 4096 bytes.
+//! @param  iovcnt   The number of elements in the vector.
+//! @param  dest     The endpint name which can be host:port or a named socket.
+//!                  If dest is zero, uses dest specified in the constructor.
+//! @param  timeout  maximum seconds to wait for a idle socket. When negative,
+//!                  the default, no time limit applies.
+//! @return <0       Message not sent due to error.
+//! @return =0       Message send (well as defined by UDP)
+//! @return >0       Message not sent, timeout occured.
+//------------------------------------------------------------------------------
+
 int           Send(const struct  iovec iov[], // Remaining parms as above
                          int     iovcnt,      // Number of elements in iovec
                    const char   *dest=0,      // Hostname to send UDP datagram
                          int     tmo=-1);     // Timeout in ms (-1 = none)
+//------------------------------------------------------------------------------
+//! Constructor
+//!
+//! @param  erp      The error message object for routing error messages.
+//! @param  aOK      If supplied, set to true upon success; false otherwise.
+//! @param  dest     The endpint name which can be host:port or a named socket.
+//!                  This becomes the default endpoint. Any specified endpoint
+//!                  to send must be in the same family (e.g. UNIX). If not
+//!                  specified, then an endpoint must always be specified with
+//!                  send and is restricted to be in the INET family.
+//------------------------------------------------------------------------------
 
-                XrdNetMsg(XrdSysError *erp, const char *dest=0);
-               ~XrdNetMsg() {if (DestHN) free(DestHN);
-                             if (DestIP) free(DestIP);
-                            }
+                XrdNetMsg(XrdSysError *erp, const char *dest=0, bool *aOK=0);
+
+//------------------------------------------------------------------------------
+//! Destructor
+//------------------------------------------------------------------------------
+
+               ~XrdNetMsg() {if (FD >= 0) close(FD);}
 
 protected:
 int OK2Send(int timeout, const char *dest);
-int retErr(int ecode, const char *dest);
+int retErr(int ecode, const char *theDest);
+int retErr(int ecode, XrdNetAddr *theDest);
 
 XrdSysError       *eDest;
-char              *DestHN;
-struct sockaddr   *DestIP;
-int                DestSZ;
+XrdNetAddr         dfltDest;
+XrdNetAddr         specDest;
+int                destOK;
 int                FD;
 };
 #endif

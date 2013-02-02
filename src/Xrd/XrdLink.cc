@@ -50,7 +50,7 @@
 
 #endif
 
-#include "XrdNet/XrdNetPeer.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -183,7 +183,6 @@ void XrdLink::Reset()
   doPost   = 0;
   LockReads= 0;
   KeepFD   = 0;
-  udpbuff  = 0;
   Instance = 0;
   KillcvP  = 0;
   KillCnt  = 0;
@@ -193,18 +192,18 @@ void XrdLink::Reset()
 /*                                 A l l o c                                  */
 /******************************************************************************/
   
-XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
+XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
 {
    static XrdSysMutex  instMutex;
    static unsigned int myInstance = 1;
    XrdLink *lp;
-   char *unp, buff[16];
-   int bl;
+   char hName[1024], *unp, buff[16];
+   int bl, peerFD = peer.SockFD();
 
 // Make sure that the link slot is available
 //
    LTMutex.Lock();
-   if (LinkBat[Peer.fd])
+   if (LinkBat[peerFD])
       {LTMutex.UnLock();
        XrdLog->Emsg("Link", "attempt to reuse active link");
        return (XrdLink *)0;
@@ -213,7 +212,7 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
 // Check if we already have a link object in this slot. If not, allocate
 // a quantum of link objects and put them in the table.
 //
-   if (!(lp = LinkTab[Peer.fd]))
+   if (!(lp = LinkTab[peerFD]))
       {unsigned int i;
        XrdLink **blp, *nlp = new XrdLink[LinkAlloc]();
        if (!nlp)
@@ -221,13 +220,13 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
            XrdLog->Emsg("Link", ENOMEM, "create link"); 
            return (XrdLink *)0;
           }
-       blp = &LinkTab[Peer.fd/LinkAlloc*LinkAlloc];
+       blp = &LinkTab[peerFD/LinkAlloc*LinkAlloc];
        for (i = 0; i < LinkAlloc; i++, blp++) *blp = &nlp[i];
-       lp = LinkTab[Peer.fd];
+       lp = LinkTab[peerFD];
       }
       else lp->Reset();
-   LinkBat[Peer.fd] = XRDLINK_USED;
-   if (Peer.fd > LTLast) LTLast = Peer.fd;
+   LinkBat[peerFD] = XRDLINK_USED;
+   if (peerFD > LTLast) LTLast = peerFD;
    LTMutex.UnLock();
 
 // Establish the instance number of this link. This is will prevent us from
@@ -238,24 +237,19 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    lp->Instance = myInstance++;
    instMutex.UnLock();
 
-// Establish the address and connection type of this link
+// Establish the address and connection name of this link
 //
-   memcpy((void *)&(lp->InetAddr), (const void *)&Peer.InetAddr,
-          sizeof(struct sockaddr));
-   if (Peer.InetName) strlcpy(lp->Lname, Peer.InetName, sizeof(lp->Lname));
-      else {char *host = XrdSysDNS::getHostName(Peer.InetAddr);
-            strlcpy(lp->Lname, host, sizeof(lp->Lname));
-            free(host);
-           }
-   lp->HostName = strdup(lp->Lname);
-   lp->HNlen = strlen(lp->HostName);
-   XrdNetTCP->Trim(lp->Lname);
-   bl = sprintf(buff, "?:%d", Peer.fd);
+   memcpy((void *)&(lp->Inet.Addr), peer.SockAddr(), peer.SockSize());
+   peer.Format(hName, sizeof(hName), XrdNetAddr::fmtAuto, false);
+   lp->HostName = strdup(hName);
+   lp->HNlen = strlen(hName);
+   XrdNetTCP->Trim(hName);
+   strlcpy(lp->Lname, hName, sizeof(lp->Lname));
+   bl = sprintf(buff, "?:%d", peerFD);
    unp = lp->Lname - bl - 1;
    strncpy(unp, buff, bl);
    lp->ID = unp;
-   lp->FD = Peer.fd;
-   lp->udpbuff = Peer.InetBuff;
+   lp->FD = peerFD;
    lp->Comment = (const char *)unp;
 
 // Set options as needed
@@ -347,7 +341,6 @@ int XrdLink::Close(int defer)
 //
    if (Protocol) {Protocol->Recycle(this, csec, Etext); Protocol = 0;}
    if (ProtoAlt) {ProtoAlt->Recycle(this, csec, Etext); ProtoAlt = 0;}
-   if (udpbuff)  {udpbuff->Recycle();  udpbuff  = 0;}
    if (Etext) {free(Etext); Etext = 0;}
    InUse    = 0;
 

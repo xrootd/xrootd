@@ -34,10 +34,8 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <fcntl.h>
 
 #include "XrdVersion.hh"
@@ -47,9 +45,10 @@
 #include "XrdFfs/XrdFfsWcache.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
 
+#include "XrdNet/XrdNetUtils.hh"
+
 #include "XrdPss/XrdPss.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -779,7 +778,7 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
             {if (XrdOuca2x::a2i(*errp,"origin port",val,&port,1,65535))
                 port = 0;
             }
-            else if (!(port = XrdSysDNS::getPort(val, "tcp")))
+            else if (!(port = XrdNetUtils::ServPort(val)))
                     {errp->Emsg("Config", "unable to find tcp service", val);
                      port = 0;
                     }

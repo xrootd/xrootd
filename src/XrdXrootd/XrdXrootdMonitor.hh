@@ -36,7 +36,6 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
-#include "XrdNet/XrdNetPeer.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdXrootd/XrdXrootdMonData.hh"
 #include "XProtocol/XPtypes.hh"
@@ -62,6 +61,7 @@
 #define XROOTD_MON_FSXFR    8
 
 class XrdScheduler;
+class XrdNetMsg;
 class XrdXrootdMonFile;
   
 /******************************************************************************/
@@ -230,13 +230,12 @@ static XrdSysError       *eDest;
 static XrdSysMutex        windowMutex;
 static char              *idRec;
 static int                idLen;
-static int                monFD;
 static char              *Dest1;
 static int                monMode1;
-static struct sockaddr    InetAddr1;
+static XrdNetMsg         *InetDest1;
 static char              *Dest2;
 static int                monMode2;
-static struct sockaddr    InetAddr2;
+static XrdNetMsg         *InetDest2;
        XrdXrootdMonBuff  *monBuff;
 static int                monBlen;
        int                nextEnt;
