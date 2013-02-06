@@ -87,6 +87,11 @@ Version 3.3.0
    * Add mutex serialization so as not to use only fcntl() locking
      as a synchronization primitive across threads. It doesn't work
      in Linux.
+   * Do not rely in file locking to serialize inter-thread access. This
+     fixes the prolem of usage file drift.
+   * Fix various parse context issues in copy config with --recursive.
+   * Add missing return statement to avoid SEGV during write error recovery
+     under certain circumstances. Fixes bug 99002.
 
 + **Minor bug fixes**
    * Add EPOLLRDHUP to avoid leaving sockets in CLOSE_WAIT with a one-shot
@@ -126,6 +131,7 @@ Version 3.3.0
      should be removed at the next release boundary as this will
      change a public user interface.
    * Properly recognize a loaded checksum as a native checksum.
+
 
 + **Miscellaneous**
    * Remove superfluous includes or other move includes to eliminate
