@@ -82,7 +82,7 @@ XrdCmsPrepare::XrdCmsPrepare() : XrdJob("Prep cache scrubber"),
  scrubtime= 20*60;
  NumFiles = 0;
  lastemsg = time(0);
- Relay    = new XrdNetMsg(&Say);
+ Relay    = 0; // This will be initialized via Init()!
  PrepFrm  = 0;
  prepOK   = 0;
  N2N      = 0;
@@ -293,6 +293,17 @@ void XrdCmsPrepare::Inform(const char *cmd, XrdCmsPrepArgs *pargs)
 // Send the message and return
 //
    Relay->Send(Msg, 8, mdest);
+}
+
+/******************************************************************************/
+/*                                  I n i t                                   */
+/******************************************************************************/
+  
+void XrdCmsPrepare::Init()
+{
+// Obtain a msg object. We need to do it outside of a global constructor!
+//
+   Relay = new XrdNetMsg(&Say);
 }
 
 /******************************************************************************/
