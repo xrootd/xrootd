@@ -36,6 +36,8 @@
 #include <Winsock2.h>
 #endif
 
+#include "XrdNet/XrdNetAddr.hh"
+
 /******************************************************************************/
 /*                      C l a s s   D e f i n i t i o n                       */
 /******************************************************************************/
@@ -109,7 +111,7 @@ inline int  LastError() {return ErrCode;}
 // optional address for holding the vided to obtain the hostname for it.
 // The string is strdup'd and is deleted when the socket object is deleted.
 //
-const char *Peername(struct sockaddr **InetAddr=0);
+const char *Peername(const struct sockaddr **InetAddr=0, int *InetSize=0);
 
 // Set socket options (see definitions in XrdNetOpts.hh). The defaults
 // defaults are such that each option must be set to override the default
@@ -131,14 +133,6 @@ static int getWindow(int fd, int &Windowsz, XrdSysError *eDest=0);
 //
 inline int  SockNum() {return SockFD;}
 
-// Create an appropriate sockaddr structure for the supplied path which is
-// either a hostname:port or a unix path. If successful, 0 is returned
-// otherwise a const error message is returned. The address of the sockaddr
-// is returned in sockAP and it's size is returned in sockAL upon success.
-//
-static const char *socketAddr(XrdSysError *Say, const char *dest,
-                              struct sockaddr **sockAP, int &sockAL);
-
 // Create a path to a named socket returning the actual name of the socket.
 // This method does not actually create the socket, only the path to the
 // socket. If the full path exists then it must be a named socket. Upon
@@ -152,10 +146,9 @@ static char *socketPath(XrdSysError *Say, char *inbuff,
 /******************************************************************************/
   
 private:
+XrdNetAddr      SockInfo;
+XrdSysError    *eroute;
 int             SockFD;
 int             ErrCode;
-struct sockaddr PeerAddr;
-char           *PeerName;
-XrdSysError    *eroute;
 };
 #endif

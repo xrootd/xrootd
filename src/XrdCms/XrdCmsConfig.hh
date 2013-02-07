@@ -31,7 +31,6 @@
 /******************************************************************************/
 
 #include <stdlib.h>
-#include <sys/socket.h>
 
 #include "Xrd/XrdJob.hh"
 #include "XrdCms/XrdCmsPList.hh"
@@ -162,7 +161,6 @@ XrdNetSocket      *AdminSock;
 XrdNetSocket      *AnoteSock;
 XrdNetSocket      *RedirSock;
 XrdNetSecurity    *Police;
-struct sockaddr    myAddr;
 
       XrdCmsConfig() : XrdJob("cmsd startup") {ConfigDefaults();}
      ~XrdCmsConfig() {}

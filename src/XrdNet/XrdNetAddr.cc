@@ -52,16 +52,16 @@ XrdNetAddr::fmtUse XrdNetAddr::useFmt = XrdNetAddr::fmtName;
 /*                                F o r m a t                                 */
 /******************************************************************************/
   
-int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, bool fmtPort)
+int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 {
    const char *pFmt = "]:%d";
-   int totLen, n, pNum;
+   int totLen, n, pNum, addBrak = 0, omitP = (fmtOpts & noPort);
 
 // Handle the degenerative case first
 //
-   if (IP.Addr.sa_family == AF_UNIX)
-      {n = (fmtPort ? snprintf(bAddr, bLen, "localhost:%s", unixPipe->sun_path)
-                    : snprintf(bAddr, bLen, "localhost"));
+   if (IP.addr.sa_family == AF_UNIX)
+      {n = (omitP ? snprintf(bAddr, bLen, "localhost")
+                  : snprintf(bAddr, bLen, "localhost:%s", unixPipe->sun_path));
        return (n < bLen ? n : QFill(bAddr, bLen));
       }
 
@@ -77,8 +77,8 @@ int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, bool fmtPort)
       {if (!hostName && !(hostName = dnsCache.Find(this)) && theFmt == fmtName)
           Resolve();
        if (hostName)
-          {n = (fmtPort ? snprintf(bAddr, bLen, "%s:%d", hostName, pNum)
-                        : snprintf(bAddr, bLen, "%s",    hostName));
+          {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
+                      : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
            return (n < bLen ? n : QFill(bAddr, bLen));
           }
        theFmt = fmtAddr;
@@ -87,25 +87,30 @@ int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, bool fmtPort)
 // Check if we can now produce an address format quickly
 //
    if (hostName && !isalpha(*hostName))
-          {n = (fmtPort ? snprintf(bAddr, bLen, "%s:%d", hostName, pNum)
-                        : snprintf(bAddr, bLen, "%s",    hostName));
+          {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
+                      : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
        return (n < bLen ? n : QFill(bAddr, bLen));
       }
 
 // Format address
 //
-        if (IP.Addr.sa_family == AF_INET)
+        if (IP.addr.sa_family == AF_INET6)
+           {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
+            *bAddr = '['; addBrak = 1;
+            if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
+               {strcpy(bAddr, "[::");
+                if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
+                               bAddr+3, bLen-3)) return QFill(bAddr, bLen);
+               } else if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+1,bLen-1))
+                         return QFill(bAddr, bLen);
+           }
+   else if (IP.addr.sa_family == AF_INET)
            {if (theFmt != fmtAdv6) {n = 0; pFmt =  ":%d";}
-               else {if (bLen < (INET_ADDRSTRLEN+4)) return QFill(bAddr, bLen);
-                     strcpy(bAddr, "[::"); n = 3;
+               else {if (bLen < (INET_ADDRSTRLEN+9)) return QFill(bAddr, bLen);
+                     if (fmtOpts & old6Map4) {strcpy(bAddr, "[::"); n = 3;}
+                        else {strcpy(bAddr, "[::ffff:"); n = 8;}
                     }
             if (!inet_ntop(AF_INET, &(IP.v4.sin_addr),bAddr+n,bLen-n))
-               return QFill(bAddr, bLen);
-           }
-   else if (IP.Addr.sa_family == AF_INET6)
-           {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            *bAddr = '[';
-            if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+1,bLen-1))
                return QFill(bAddr, bLen);
            }
    else return QFill(bAddr, bLen);
@@ -114,9 +119,18 @@ int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, bool fmtPort)
 //
    totLen = strlen(bAddr); bAddr += totLen; bLen -= totLen;
 
+// Process when no port number wanted
+//
+   if (omitP)
+      {if (addBrak)
+          {if (bLen < 2) return QFill(bAddr, bLen);
+           *bAddr++ = ']'; *bAddr = 0; totLen++;
+          }
+       return totLen;
+      }
+
 // Add the port number and return result
 //
-   if (!fmtPort) return totLen;
    if ((n = snprintf(bAddr, bLen, pFmt, pNum)) >= bLen)
       return QFill(bAddr, bLen);
    return totLen+n;
@@ -131,11 +145,11 @@ void XrdNetAddr::Init(struct addrinfo *rP, int Port)
 
 // Simply copy over the information we have
 //
-   memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
+   memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
    addrSize = rP->ai_addrlen;
    if (hostName) free(hostName);
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
-   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
+   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
 }
 
@@ -149,10 +163,10 @@ bool XrdNetAddr::isLoopback()
 
 // Check for loopback address
 //
-   if (IP.Addr.sa_family == AF_INET)
+   if (IP.addr.sa_family == AF_INET)
       return !memcmp(&IP.v4.sin_addr.s_addr, &lbVal[12], 1);
 
-   if (IP.Addr.sa_family == AF_INET6)
+   if (IP.addr.sa_family == AF_INET6)
       return !memcmp(&IP.v6.sin6_addr, &in6addr_loopback, sizeof(in6_addr))
           || !memcmp(&IP.v6.sin6_addr,  lbVal,            sizeof(lbVal));
 
@@ -202,7 +216,7 @@ const char *XrdNetAddr::Name(const char *eName, const char **eText)
 
 // Check for unix family which is equal to localhost.
 //
-  if (IP.Addr.sa_family == AF_UNIX) return "localhost";
+  if (IP.addr.sa_family == AF_UNIX) return "localhost";
 
 // If we already translated this name, just return the translation
 //
@@ -235,7 +249,7 @@ int XrdNetAddr::Port(int pNum)
 {
 // Make sure we have a proper address family here
 //
-   if (IP.Addr.sa_family != AF_INET && IP.Addr.sa_family != AF_INET6)
+   if (IP.addr.sa_family != AF_INET && IP.addr.sa_family != AF_INET6)
       return -1;
 
 // Return port number if so wanted. The port location is the same regardless of
@@ -283,9 +297,9 @@ int XrdNetAddr::Resolve()
 
 // Determine the actual size of the address structure
 //
-        if (IP.Addr.sa_family == AF_INET ) n = sizeof(IP.v4);
-   else if (IP.Addr.sa_family == AF_INET6) n = sizeof(IP.v6);
-   else if (IP.Addr.sa_family == AF_UNIX )
+        if (IP.addr.sa_family == AF_INET ) n = sizeof(IP.v4);
+   else if (IP.addr.sa_family == AF_INET6) n = sizeof(IP.v6);
+   else if (IP.addr.sa_family == AF_UNIX )
            {hostName = strdup("localhost");
             return 0;
            }
@@ -296,7 +310,7 @@ int XrdNetAddr::Resolve()
 // Additionally, some implementations of getnameinfo() return the scopeid when
 // a numeric address is returned. We check and remove it.
 //
-   if ((rc = getnameinfo(&IP.Addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
+   if ((rc = getnameinfo(&IP.addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
       {if (rc < 0) {errno = ENETUNREACH; rc = EAI_SYSTEM;}
        return rc;
       }
@@ -323,26 +337,26 @@ int XrdNetAddr::Resolve()
 /*                                  S a m e                                   */
 /******************************************************************************/
   
-int XrdNetAddr::Same(XrdNetAddr *ipAddr, int plusPort)
+int XrdNetAddr::Same(const XrdNetAddr *ipAddr, bool plusPort)
 {
 
 // Both address families must match
 //
-  if (IP.Addr.sa_family != ipAddr->IP.Addr.sa_family) return 0;
+  if (IP.addr.sa_family != ipAddr->IP.addr.sa_family) return 0;
 
 // Now process to do the match
 //
-        if (IP.Addr.sa_family == AF_INET)
+        if (IP.addr.sa_family == AF_INET)
            {if (memcmp(&IP.v4.sin_addr,  &(ipAddr->IP.v4.sin_addr),
                        sizeof(IP.v4.sin_addr))) return 0;
             return (plusPort ? IP.v4.sin_port  == ipAddr->IP.v4.sin_port  : 1);
            }
-   else if (IP.Addr.sa_family == AF_INET6)
+   else if (IP.addr.sa_family == AF_INET6)
            {if (memcmp(&IP.v6.sin6_addr, &(ipAddr->IP.v6.sin6_addr),
                        sizeof(IP.v6.sin6_addr))) return 0;
             return (plusPort ? IP.v6.sin6_port == ipAddr->IP.v6.sin6_port : 1);
            }
-   else if (IP.Addr.sa_family == AF_UNIX)
+   else if (IP.addr.sa_family == AF_UNIX)
            return !strcmp(unixPipe->sun_path, ipAddr->unixPipe->sun_path);
 
    return 0;
@@ -381,8 +395,9 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 // Clear translation if set (note unixPipe & sockAddr are the same).
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
+   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
    memset(&IP, 0, sizeof(IP));
+   addrSize = sizeof(sockaddr_in6);
 
 // Check for any address setting
 //
@@ -391,6 +406,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
        IP.v6.sin6_addr   = in6addr_any;
        if (pNum < 0) pNum= -pNum;
        IP.v6.sin6_port   = htons(static_cast<short>(pNum));
+       protType          = PF_INET6;
        return 0;
       }
 
@@ -400,8 +416,9 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
       {if (strlen(hSpec) >= sizeof(unixPipe->sun_path)) return "path too long";
        unixPipe = new sockaddr_un;
        strcpy(unixPipe->sun_path, hSpec);
-       unixPipe->sun_family = IP.Addr.sa_family = AF_UNIX;
+       unixPipe->sun_family = IP.addr.sa_family = AF_UNIX;
        addrSize = sizeof(sockaddr_un);
+       protType = PF_UNIX;
        return 0;
       }
 
@@ -409,7 +426,6 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 //
    aLen = strlen(hSpec);
    if (aLen >= sizeof(aBuff)) return "host id too long";
-   addrSize = sizeof(sockaddr_in6);
 
 // Convert the address as appropriate
 //
@@ -424,6 +440,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
             strncpy(aBuff, hSpec+1, aLen); aBuff[aLen] = 0;
             if (inet_pton(AF_INET6,aBuff,&IP.v6.sin6_addr) != 1) return badIPv6;
             IP.v6.sin6_family = AF_INET6;
+            protType = PF_UNIX;
            }
    else if (*hSpec >= '0' && *hSpec <= '9')
            {if ((Colon = index(hSpec, ':')))
@@ -435,6 +452,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                return badIPv4;
             IP.v6.sin6_addr.s6_addr32[3] = map46ID;
             IP.v6.sin6_family = AF_INET6;
+            protType = PF_INET6;
            }
    else if (*hSpec == 0) return badName;
 
@@ -449,7 +467,8 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                {if (rP) freeaddrinfo(rP);
                 return (n ? gai_strerror(n) : "host not found");
                }
-            memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
+            memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
+            protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
             if (hostName) free(hostName);
             hostName = strdup(rP->ai_canonname);
             freeaddrinfo(rP);
@@ -537,7 +556,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
+   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
    sockNum = sockFD;
 
 // Copy the address based on address family
@@ -550,7 +569,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
             unixPipe->sun_path[sizeof(unixPipe->sun_path)-1] = 0;
             addrSize = sizeof(sockaddr_un);
             memset(&IP, 0, sizeof(IP));
-            IP.Addr.sa_family = AF_UNIX;
+            IP.addr.sa_family = AF_UNIX;
             return 0;
            }
    else return "invalid address family";
@@ -569,13 +588,13 @@ const char *XrdNetAddr::Set(int sockFD)
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
+   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
    addrSize = sizeof(sockaddr_in6);
    sockNum = sockFD;
 
 // Get the address on the other side of this socket
 //
-   if (getpeername(sockFD, &IP.Addr, &addrSize) < 0) return strerror(errno);
+   if (getpeername(sockFD, &IP.addr, &addrSize) < 0) return strerror(errno);
 
 // All done
 //

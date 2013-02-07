@@ -92,6 +92,7 @@ int XrdNet::Accept(XrdNetAddr &myAddr, int opts, int timeout)
 
 // Make sure we are bound to a port
 //
+   opts |= netOpts;
    if (iofd < 0) 
       {if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Accept", "Network not bound to a port.");
@@ -120,6 +121,8 @@ int XrdNet::Accept(XrdNetAddr &myAddr, int opts, int timeout)
              }
          }
      } while(!do_Accept_TCP(myAddr, opts));
+
+   return 1;
 }
 
 /******************************************************************************/
@@ -130,6 +133,7 @@ int XrdNet::Accept(XrdNetPeer &myPeer, int opts, int timeout)
 
 // Make sure we are bound to a port
 //
+   opts |= netOpts;
    if (iofd < 0) 
       {if (!(opts & XRDNET_NOEMSG))
           eDest->Emsg("Accept", "Network not bound to a port.");
@@ -257,8 +261,7 @@ int XrdNet::Connect(XrdNetAddr &myAddr, const char *host,
 
 // Determine appropriate options but turn off UDP sockets
 //
-   if (!opts) opts = netOpts;
-   opts &= ~XRDNET_UDPSOCKET;
+   opts &= (opts | netOpts) & ~XRDNET_UDPSOCKET;
    if (tmo > 0) opts = (opts & ~XRDNET_TOUT) | (tmo > 255 ? 255 : tmo);
 
 // Now perform the connect and return the results if successful
@@ -275,12 +278,12 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
                     const char *host, int port, int opts, int tmo)
 {
    XrdNetSocket mySocket(opts & XRDNET_NOEMSG ? 0 : eDest);
-   struct sockaddr *sap;
+   const struct sockaddr *sap;
    int buffsz = Windowsz;
 
 // Determine appropriate options
 //
-   if (!opts) opts = netOpts;
+   opts |= netOpts;
    if ((opts & XRDNET_UDPSOCKET) && !buffsz) buffsz = XRDNET_UDPBUFFSZ;
    if (tmo > 0) opts = (opts & ~XRDNET_TOUT) | (tmo > 255 ? 255 : tmo);
 
@@ -290,14 +293,14 @@ int XrdNet::Connect(XrdNetPeer &myPeer,
    if (myPeer.InetName) free(myPeer.InetName);
    if ((opts & XRDNET_UDPSOCKET) || !host) 
       {myPeer.InetName = strdup("n/a");
-       memset((void *)&myPeer.InetAddr, 0, sizeof(myPeer.InetAddr));
+       memset((void *)&myPeer.Inet, 0, sizeof(myPeer.Inet));
       } else {
        const char *pn = mySocket.Peername(&sap);
-       if (pn) {memcpy((void *)&myPeer.InetAddr, sap, sizeof(myPeer.InetAddr));
+       if (pn) {memcpy((void *)&myPeer.Inet, sap, sizeof(myPeer.Inet));
                 myPeer.InetName = strdup(pn);
                 if (Domain && !(opts & XRDNET_NODNTRIM)) Trim(myPeer.InetName);
                } else {
-                memset((void *)&myPeer.InetAddr, 0, sizeof(myPeer.InetAddr));
+                memset((void *)&myPeer.Inet, 0, sizeof(myPeer.Inet));
                 myPeer.InetName = strdup("unknown");
                }
       }
@@ -385,12 +388,9 @@ int XrdNet::WSize()
 int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 {
   static int noAcpt = 0;
-  union
-       {struct sockaddr_storage data;
-        struct sockaddr         addr;
-       }          IP;
-  SOCKLEN_t       addrlen = sizeof(IP);
-  int        newfd;
+  XrdNetSockAddr IP;
+  SOCKLEN_t addrlen = sizeof(IP);
+  int newfd;
 
 // Preset options
 //
@@ -399,7 +399,7 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 
 // Accept a connection
 //
-   do {newfd = accept(iofd, (sockaddr *)&IP.addr, &addrlen);}
+   do {newfd = accept(iofd, &IP.addr, &addrlen);}
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
@@ -450,7 +450,7 @@ int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
 
 // Now transfor it back to the old-style interface
 //
-   memcpy(&myPeer.InetAddr, tAddr.SockAddr(), sizeof(myPeer.InetAddr));
+   memcpy(&myPeer.Inet, tAddr.SockAddr(), tAddr.SockSize());
    myPeer.fd = tAddr.SockFD();
    tAddr.Format(hBuff, sizeof(hBuff), XrdNetAddr::fmtAuto, false);
    if (myPeer.InetName) free(myPeer.InetName);
@@ -466,10 +466,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 {
   char            hBuff[512], *hname = 0;
   int             dlen;
-  union
-       {struct sockaddr_storage data;
-        struct sockaddr         addr;
-       }          IP;
+  XrdNetSockAddr  IP;
   SOCKLEN_t       addrlen = sizeof(IP);
   XrdNetBuffer   *bp;
   XrdNetAddr      uAddr;
@@ -523,7 +520,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 
 // Fill in the peer structure.
 //
-   memcpy(&(myPeer.InetAddr), &IP, sizeof(myPeer.InetAddr));
+   memcpy(&myPeer.Inet, &IP, sizeof(myPeer.Inet));
    if (myPeer.InetName) free(myPeer.InetName);
    myPeer.InetName = strdup(hBuff);
    if (myPeer.InetBuff) myPeer.InetBuff->Recycle();

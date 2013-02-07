@@ -34,6 +34,7 @@
 #include <fcntl.h>
 #include <time.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "Xrd/XrdJob.hh"
@@ -123,6 +124,15 @@ XrdProtocol  *getProtocol() {return Protocol;} // opmutex must be locked
 
 void          Hold(int lk) {(lk ? opMutex.Lock() : opMutex.UnLock());}
 
+//-----------------------------------------------------------------------------
+//! Get the fully qualified name of the endpoint.
+//!
+//! @return Pointer to fully qualified host name. The contents are valid
+//!         while the endpoint is connected.
+//-----------------------------------------------------------------------------
+
+const char   *Host() {return (const char *)HostName;}
+
 char         *ID;      // This is referenced a lot
 
 static   void Init(XrdSysError *eP, XrdOucTrace *tP, XrdScheduler *sP)
@@ -169,12 +179,14 @@ bool          isInstance(unsigned int inst)
 inline
 const char   *Name() {return (const char *)Lname;}
 
-const char   *Host(sockaddr *ipaddr=0)
-//                   {if (ipaddr) memcpy(ipaddr, &InetAddr, sizeof(sockaddr));
-{                     return (const char *)HostName;
-                     }
-
-//const char   *Host() {return (const char *)HostName;}
+//-----------------------------------------------------------------------------
+//! Obtain the network address object for this link. The returned value is
+//! valid as long as the end-point is connected. Otherwise, it may change.
+//!
+//! @return Pointer to the object and remains valid during the link's lifetime.
+//-----------------------------------------------------------------------------
+inline const
+XrdNetAddr   *NetAddr() {return &Addr;}
 
 int           Peek(char *buff, int blen, int timeout=-1);
 
@@ -272,11 +284,8 @@ static XrdSysMutex  statsMutex;
 
 // Identification section
 //
-union {struct sockaddr_storage Data;
-       struct sockaddr         Addr;  // Unioned with largest size
-      }                        Inet;
-
-char                Uname[24];        // Uname and Lname must be adjacent!
+XrdNetAddr          Addr;
+char                Uname[24];       // Uname and Lname must be adjacent!
 char                Lname[232];
 char               *HostName;
 int                 HNlen;

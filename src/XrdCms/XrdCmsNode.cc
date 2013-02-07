@@ -60,11 +60,9 @@
 
 #include "XrdOss/XrdOss.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucPup.hh"
-#include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
@@ -91,7 +89,6 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     static int           iNum = 1;
 
     Link     =  lnkp;
-    IPAddr   =  0;
     NodeMask =  (id < 0 ? 0 : smask_1 << id);
     NodeID   = id;
     isDisable=  0;
@@ -138,7 +135,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     TZValid  = 0;
     TimeZone = 0;
 
-// setName() will set Ident, IPAddr, IPV6, myName, myNlen, & Port!
+// setName() will set Ident, netID, IPV6, myName, myNlen, & Port!
 //
    setName(lnkp, (nid ? port : 0));
 
@@ -169,26 +166,24 @@ XrdCmsNode::~XrdCmsNode()
   
 void XrdCmsNode::setName(XrdLink *lnkp, int port)
 {
-   struct sockaddr netaddr;
    char *bp, buff[512];
    const char *hname = lnkp->Host();
-   unsigned int hAddr;
+   int oldPort = 0, fmtOpts = XrdNetAddr::old6Map4;
 
-// Get our address (the long way)
-//
-   lnkp->Host(&netaddr);
-   hAddr= XrdSysDNS::IPAddr(&netaddr);
-
-// Check if this is a duplicate
+// Check if this is a duplicate. Note that we check for strict equivalence.
 //
    if (myName)
-      {if (!strcmp(myName, hname) && port == Port && hAddr == IPAddr) return;
-          else free(myName);
+      {if (!strcmp(myName,hname) && port == Port && netID.Same(lnkp->NetAddr()))
+          return;
+       free(myName);
       }
+
+// Get our address information but substitute data port for actual port
+//
+   netID = *(lnkp->NetAddr());
 
 // Construct our identification
 //
-   IPAddr = hAddr;
    myName = strdup(hname);
    myNlen = strlen(hname)+1;
    Port = port;
@@ -198,12 +193,12 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
    if (Ident) free(Ident);
    Ident = strdup(buff);
 
-   strcpy(IPV6, "[::");
-   bp = IPV6+3;
-   bp += XrdSysDNS::IP2String(IPAddr, 0, bp, 24); // We're cheating
-   *bp++ = ']';
-   if (Port) {*bp++ = ':'; bp += sprintf(bp, "%d", Port);}
-   IPV6Len = bp - IPV6;
+   if (!Port) fmtOpts |= XrdNetAddr::noPort;
+      else oldPort = netID.Port(Port);
+   netID.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtOpts);
+   if (oldPort) netID.Port(oldPort);
+   strlcpy(IPV6, buff, sizeof(IPV6));
+   IPV6Len = strlen(IPV6);
 }
 
 /******************************************************************************/
@@ -973,14 +968,14 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 //
    Sel.nmask = SMask_t(0);
    if ((Avoid = Arg.Avoid))
-      {unsigned int IPaddr;
+      {XrdNetAddr avoidAddr;
        char *Comma;
        DEBUGR(theopts <<' ' <<Arg.Path <<" avoiding " <<Avoid);
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
-              else if (XrdSysDNS::Host2IP(Avoid, &IPaddr))
-                              Sel.nmask |= Cluster.getMask(IPaddr);
+              else if (!avoidAddr.Set(Avoid))
+                              Sel.nmask |= Cluster.getMask(&avoidAddr);
            Avoid = Comma+1;
           } while(Comma && *Avoid);
       } else DEBUGR(theopts <<' ' <<Arg.Path);
@@ -1530,22 +1525,15 @@ const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 {
    EPNAME("do_Try")
-   XrdOucTokenizer theList(Arg.Path);
    char *tp;
 
 // Do somde debugging
 //
    DEBUGR(Arg.Path);
 
-// Delete any additions from this manager
-//
-   myMans.Del(IPAddr);
-
 // Add all the alternates to our alternate list
 //
-   tp = theList.GetLine();
-   while((tp = theList.GetToken()))
-         myMans.Add(IPAddr, tp, Config.PortTCP, myLevel);
+   myMans.Add(&netID, Arg.Path, Config.PortTCP, myLevel);
 
 // Close the link and return an error
 //

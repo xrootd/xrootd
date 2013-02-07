@@ -1,10 +1,10 @@
-#ifndef __CMS_MANLIST__H
-#define __CMS_MANLIST__H
+#ifndef __CMS_UTILS__H
+#define __CMS_UTILS__H
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d C m s M a n L i s t . h h                       */
+/*                        X r d C m s U t i l s . h h                         */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -30,56 +30,47 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdSys/XrdSysPthread.hh"
-
-class XrdCmsManRef;
 class XrdOucTList;
-class XrdNetAddr;
+class XrdSysError;
 
-class XrdCmsManList
+class XrdCmsUtils
 {
 public:
 
-// Add() adds an alternate manager to the list of managers (duplicates not added)
-//       Previous entries for netAddr are removed before addition.
-//
-void     Add(const XrdNetAddr *netAddr, char *redList, int manport, int lvl);
+//------------------------------------------------------------------------------
+//! Obtain and merge a new manager list with an existing list.
+//!
+//! @param  eDest    Pointer to the error message object to route messages.
+//!         oldMans  A pointer to the existing list of managers, if any. If
+//!                  oldMans is nil, then the hSpec/hPort/sPort is processed
+//!                  but no list is returned.
+//! @param  hSpec    the host specification suitable for XrdNetAddr.Set(). The
+//!                  hSpec may end with a '+' indicating that all addresses
+//!                  assigned to hSpec be considered for inclusion.
+//! @param  hPort    the port specification which can be a text number or a
+//!                  service name (e.g. xroot).
+//!         hWant    Maximum number of list entries wanted. If hWant is greater
+//!                  that eight it is set eigth.
+//! @param  sPort    If not nil, the *sPort will be set to the numeric hPort if
+//!                  the IP address in one of the entries matches the host
+//!                  address. Otherwise, the value is unchanged.
+//!
+//! @return Success: True and if oldMans is supplied, the additional entries
+//!                  that do not duplicate existing entries are added to the
+//!                  front. Note:
+//!                  *oldMans->val  is the port number.
+//!                  *oldMans->text is the host name.
+//!                  The list of objects belongs to the caller.
+//!         Failure: False. Any existing list is not modified. However, sPort
+//!                  may be updated, if correct, even when false is returned.
+//------------------------------------------------------------------------------
+static
+bool     ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
+                  char  *hSpec, char *hPort, int *sPort=0);
 
-// Del() removes all entries added under refp
-//
-void     Del(const XrdNetAddr *refP) {Del(getRef(refP));}
-
-void     Del(int ref);
-
-// Get a reference number for a manager
-//
-int      getRef(const XrdNetAddr *refP);
-
-// haveAlts() returns true if alternates exist, false otherwise
-//
-int      haveAlts() {return allMans != 0;}
-
-// Next() returns the next manager in the list and its level or 0 if none are left.
-//        The next call to Next() will return the first manager in the list.
-//
-int      Next(int &port, char *buff, int bsz);
-
-         XrdCmsManList() {allMans = nextMan = 0;}
-        ~XrdCmsManList();
+         XrdCmsUtils() {}
+        ~XrdCmsUtils();
 
 private:
-void Add(int ref, char *manp, int manport, int lvl);
-
-XrdSysMutex   refMutex;
-XrdOucTList  *refList;
-
-XrdSysMutex   mlMutex;
-XrdCmsManRef *nextMan;
-XrdCmsManRef *allMans;
 };
-
-namespace XrdCms
-{
-extern    XrdCmsManList myMans;
-}
 #endif

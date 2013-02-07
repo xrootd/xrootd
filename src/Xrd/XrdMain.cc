@@ -108,7 +108,7 @@ void *mainAccept(void *parg)
    XrdProtLoad   ProtSelect(Parms->thePort);
    XrdLink      *newlink;
 
-   while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))
+   while(1) if ((newlink = myNet->Accept()))
                {newlink->setProtocol((XrdProtocol *)&ProtSelect);
                 mySched->Schedule((XrdJob *)newlink);
                }

@@ -112,7 +112,7 @@ XrdBwm::XrdBwm()
 //
    myAddr.Self(myPort);
    HostName = myAddr.NameDup();
-   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6);
+   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, XrdNetAddr::old6Map4);
    locResp = strdup(buff); locRlen = strlen(buff);
    for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
    HostName[i] = '\0';

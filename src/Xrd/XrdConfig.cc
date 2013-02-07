@@ -365,9 +365,10 @@ int XrdConfig::Configure(int argc, char **argv)
 // Get the full host name. In theory, we should always get some kind of name.
 //
    myIPAddr.Self();
-   if (!(myName = myIPAddr.Name()))
-      {Log.Emsg("Config", "Unable to determine host name; "
-                             "execution terminated.");
+   if (!(myName = myIPAddr.Name(0, &temp)))
+      {Log.Emsg("Config", "Unable to determine host name; ",
+                           (temp ? temp : "reason unknown"),
+                           "; execution terminated.");
        _exit(16);
       }
 
@@ -375,10 +376,10 @@ int XrdConfig::Configure(int argc, char **argv)
 // bad /etc/hosts files that can cause connection failures if "allow" is used.
 // Otherwise, determine our domain name.
 //
-   if (isdigit(*myName) && (isdigit(*(myName+1)) || *(myName+1) == '.'))
-      {Log.Emsg("Config", myName, "is not the true host name of this machine.");
-       Log.Emsg("Config", "Verify that the '/etc/hosts' file is correct and "
-                             "this machine is registered in DNS.");
+   if (!myIPAddr.isRegistered())
+      {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
+       Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
+                         "this machine is registered in DNS.");
        Log.Emsg("Config", "Execution continues but connection failures may occur.");
        myDomain = 0;
       } else if (!(myDomain = index(myName, '.')))

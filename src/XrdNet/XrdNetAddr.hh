@@ -39,6 +39,7 @@
 #include <sys/un.h>
 
 #include "XrdNet/XrdNetCache.hh"
+#include "XrdNet/XrdNetSockAddr.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 class XrdNetAddr
@@ -52,11 +53,11 @@ public:
 //!         Failure: Returns 0, address is not valid.
 //------------------------------------------------------------------------------
 
-inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
+inline int  Family() {return static_cast<int>(IP.addr.sa_family);}
 
 //------------------------------------------------------------------------------
 //! Format our address into a supplied buffer with one of the following layouts
-//! (the ':<port>' or ':/path' can be omitted if desired, see fmtPort param):
+//! (the ':<port>' or ':/path' can be omitted if desired, see fmtOpts param):
 //! IP.xx:   host_name:<port>
 //! IP.v4:   a.b.c.d:<port>
 //! IP.v6:   [a:b:c:d:e:f:g:h]:<port> | [::a.b.c.d]:<port>
@@ -65,7 +66,9 @@ inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
 //! @param  bAddr    address of buffer for result
 //! @param  bLen     length  of buffer
 //! @param  fmtType  specifies the type of format desired via fmtUse enum.
-//! @param  fmtPort  when true, adds the port. Otherwise, it is omitted.
+//! @param  fmtOpts  additional formatting options (can be or'd):
+//!                  noPort   - do not append the port number to the address.
+//!                  old6Map4 - use deprecated IPV6 mapped format '[::x.x.x.x]'
 //!
 //! @return Success: The number of characters (less null) in Buff.
 //! @return Failure: 0 (buffer is too small or not a valid address). However,
@@ -79,8 +82,10 @@ enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
              fmtAdv6,   //!< Address only in ipv6 format
              fmtDflt};  //!< Use default format (see 2nd form of Format())
 
-int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtDflt,
-                   bool  fmtPort=true);
+static const int noPort   = 0x0000001; //!< Do not add port number
+static const int old6Map4 = 0x0000002; //!< Use deprecated IPV6 mapped format
+
+int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtDflt, int fmtOpts=0);
 
 //------------------------------------------------------------------------------
 //! Set the default format for all future calls of format. The initial default
@@ -149,6 +154,17 @@ const char *Name(const char *eName=0, const char **eText=0);
 char       *NameDup(const char **eText=0);
 
 //------------------------------------------------------------------------------
+//! Provide a pointer to our socket address suitable for use in calls to methods
+//! that require our internal format of sock addr. A value is only returned for
+//! IPV6/4 addresses and is nill otherwise. The pointer refers to memory
+//! allocated by this object and becomes invalid should the object be deleted.
+//! Use SockSize() to get its logical length.
+//------------------------------------------------------------------------------
+
+inline const
+XrdNetSockAddr  *NetAddr() {return (sockAddr == (void *)&IP ? &IP : 0);}
+
+//------------------------------------------------------------------------------
 //! Optionally set and also returns the port number for our address.
 //!
 //! @param pNum      when negative it only returns the current port. Otherwise,
@@ -161,6 +177,15 @@ char       *NameDup(const char **eText=0);
 int         Port(int pNum=-1);
 
 //------------------------------------------------------------------------------
+//! Provide our protocol family.
+//!
+//! @return Success: Returns PF_INET, PF_INET6, or PF_UNIX.
+//!         Failure: Returns 0, address is not valid.
+//------------------------------------------------------------------------------
+
+inline int  Protocol() {return static_cast<int>(protType);}
+
+//------------------------------------------------------------------------------
 //! Check if the IP address in this object is the same as the one passed.
 //!
 //! @param ipAddr    points to the network address object to compare.
@@ -171,7 +196,7 @@ int         Port(int pNum=-1);
 //!         Failure: False (addresses are not the same).
 //------------------------------------------------------------------------------
 
-int         Same(XrdNetAddr *ipAddr, int plusPort=0);
+int         Same(const XrdNetAddr *ipAddr, bool plusPort=false);
 
 //------------------------------------------------------------------------------
 //! Set the IP address and possibly the port number of the current node. This
@@ -277,7 +302,7 @@ const char *Set(int sockFD);
 //! or when Set() is called. Use SockSize() to get its length.
 //------------------------------------------------------------------------------
 
-inline
+inline const
 sockaddr   *SockAddr() {return sockAddr;}
 
 //------------------------------------------------------------------------------
@@ -299,15 +324,6 @@ SOCKLEN_t   SockSize() {return addrSize;}
 inline int  SockFD() {return sockNum;}
 
 //------------------------------------------------------------------------------
-//! Provide the type of our address. Useful when creating a socket.
-//!
-//! @return Success: Returns AF_INET, AF_INET6, or AF_UNIX.
-//!         Failure: Returns 0, address is not valid.
-//------------------------------------------------------------------------------
-
-inline int  Type() {return static_cast<int>(IP.Addr.sa_family);}
-
-//------------------------------------------------------------------------------
 //! Assignment operator
 //------------------------------------------------------------------------------
 
@@ -317,12 +333,12 @@ XrdNetAddr &operator=(XrdNetAddr const &rhs)
                  addrSize = rhs.addrSize; sockNum = rhs.sockNum;
                  if (hostName) free(hostName);
                  hostName = (rhs.hostName ? strdup(rhs.hostName):0);
-                 if (rhs.sockAddr != &rhs.IP.Addr)
+                 if (rhs.sockAddr != &rhs.IP.addr)
                     {if (!unixPipe) unixPipe = new sockaddr_un;
                      memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
                     } else {
                      if (unixPipe) delete unixPipe;
-                     sockAddr = &IP.Addr;
+                     sockAddr = &IP.addr;
                     }
                 }
              return *this;
@@ -336,10 +352,10 @@ XrdNetAddr &operator=(XrdNetAddr const &rhs)
                   {memcpy(&IP, &oP.IP, sizeof(IP));
                    addrSize = oP.addrSize; sockNum = oP.sockNum;
                    hostName = (oP.hostName ? strdup(oP.hostName) : 0);
-                   if (oP.sockAddr != &oP.IP.Addr)
+                   if (oP.sockAddr != &oP.IP.addr)
                       {if (!unixPipe) unixPipe = new sockaddr_un;
                        memcpy(unixPipe, oP.unixPipe, sizeof(sockaddr_un));
-                      } else sockAddr = &IP.Addr;
+                      } else sockAddr = &IP.addr;
                   }
 
 //------------------------------------------------------------------------------
@@ -347,8 +363,8 @@ XrdNetAddr &operator=(XrdNetAddr const &rhs)
 //------------------------------------------------------------------------------
 
             XrdNetAddr() : hostName(0), addrSize(0), sockNum(-1)
-                           {IP.Addr.sa_family = 0;
-                            sockAddr = &IP.Addr;
+                           {IP.addr.sa_family = 0;
+                            sockAddr = &IP.addr;
                            }
 
 //------------------------------------------------------------------------------
@@ -356,7 +372,7 @@ XrdNetAddr &operator=(XrdNetAddr const &rhs)
 //------------------------------------------------------------------------------
 
            ~XrdNetAddr() {if (hostName) free(hostName);
-                          if (sockAddr != &IP.Addr) delete unixPipe;
+                          if (sockAddr != &IP.addr) delete unixPipe;
                          }
 
 private:
@@ -370,15 +386,16 @@ static XrdNetCache         dnsCache;
 static struct addrinfo     hostHints;
 static fmtUse              useFmt;
 
-union {struct sockaddr_in  v4;         // For optimization this union should be
-       struct sockaddr_in6 v6;         // the first member of this class as we
-       struct sockaddr     Addr;       // compare "unixPipe" with "&IP" and want
-      }                    IP;         // it optimized to "unixPipe == this".
+// For optimization this union should be the first member of this class as we
+// compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".
+//
+XrdNetSockAddr             IP;
 union {struct sockaddr    *sockAddr;
        struct sockaddr_un *unixPipe;
       };
 char                      *hostName;
 SOCKLEN_t                  addrSize;
-int                        sockNum;
+short                      protType;
+short                      sockNum;
 };
 #endif

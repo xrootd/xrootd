@@ -58,7 +58,7 @@ int           FwdWait;      // Millisecond wait between foward  requests
 int           haveMeta;     // Have a meta manager (only if we are a manager)
 
 char         *CMSPath;      // Path to the local cmsd for target nodes
-char         *myHost;
+const char   *myHost;
 const char   *myName;
 
 XrdOucTList  *ManList;      // List of managers for remote redirection

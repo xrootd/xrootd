@@ -68,7 +68,7 @@ XrdOucReqID::XrdOucReqID()
 
 /******************************************************************************/
   
-XrdOucReqID::XrdOucReqID(const struct sockaddr *myAddr, int myPort)
+XrdOucReqID::XrdOucReqID(const XrdNetSockAddr *myAddr, int myPort)
 {
    char ybuff[256], xbuff[256];
    unsigned int pHash;
@@ -100,9 +100,7 @@ XrdOucReqID::XrdOucReqID(const struct sockaddr *myAddr, int myPort)
 char *XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 {
    XrdNetAddr theAddr;
-   union {struct sockaddr_storage data;
-          struct sockaddr         addr;
-         }                        IP;
+   XrdNetSockAddr IP;
    const char *theHost;
    int thePort;
    char *cp;
@@ -118,7 +116,7 @@ char *XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 
 // Get the IP address of his id
 //
-   thePort = XrdNetUtils::Decode(&IP.data, reqid, reqPFXlen);
+   thePort = XrdNetUtils::Decode(&IP, reqid, reqPFXlen);
    if (thePort <= 0) return 0;
 
 // Convert this in the appropriate way

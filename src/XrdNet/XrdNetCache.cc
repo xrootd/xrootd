@@ -189,9 +189,9 @@ char *XrdNetCache::Find(XrdNetAddr *hAddr)
 int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddr *hAddr)
 {
    union aPoint
-        {sockaddr     *sAddr;
-         sockaddr_in  *sAddr4;
-         sockaddr_in6 *sAddr6;
+        {const sockaddr     *sAddr;
+         const sockaddr_in  *sAddr4;
+         const sockaddr_in6 *sAddr6;
         } aP;
    aP.sAddr = hAddr->SockAddr();
    union{long long llVal; int intVal[2];} Temp;

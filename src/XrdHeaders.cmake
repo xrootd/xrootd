@@ -36,6 +36,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.hh
   XrdNet/XrdNetOpts.hh
+  XrdNet/XrdNetSockAddr.hh
   XrdNet/XrdNetSocket.hh
   XrdOss/XrdOss.hh
   XrdOss/XrdOssDefaultSS.hh

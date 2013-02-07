@@ -38,6 +38,7 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdCmsBaseFR;
@@ -121,10 +122,12 @@ inline int    Inst() {return Instance;}
 inline int    isNode(SMask_t smask) {return (smask & NodeMask) != 0;}
 inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
-inline int    isNode(unsigned int ipa)
-                    {return ipa == IPAddr;}
-inline int    isNode(unsigned int ipa, const char *nid)
-                    {return ipa == IPAddr && (nid ? !strcmp(myNID, nid) : 1);}
+inline int    isNode(const XrdNetAddr *addr)
+                    {return netID.Same(addr);}
+inline int    isNode(XrdLink *lp, const char *nid)
+                    {return netID.Same(lp->NetAddr(),true)
+                         && (nid ? !strcmp(myNID, nid) : 1);
+                    }
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
 
 inline char  *Name(int &len, int &port)
@@ -176,7 +179,7 @@ const  char *fsFail(const char *Who, const char *What, const char *Path, int rc)
 
 XrdSysMutex        myMutex;
 XrdLink           *Link;
-unsigned int       IPAddr;
+XrdNetAddr         netID;
 XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  

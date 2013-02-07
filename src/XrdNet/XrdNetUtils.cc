@@ -38,20 +38,17 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucTList.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
 /*                                D e c o d e                                 */
 /******************************************************************************/
   
-int XrdNetUtils::Decode(struct sockaddr_storage *sadr,
-                        const char *buff, int blen)
+int XrdNetUtils::Decode(XrdNetSockAddr *sadr, const char *buff, int blen)
 {
    static const int ipv4Sz = sizeof(struct in_addr)*2+4;
    static const int ipv6Sz = sizeof(struct in6_addr)*2+4;
-   union {struct sockaddr_in      *v4;
-          struct sockaddr_in6     *v6;
-          struct sockaddr_storage *data;
-         }                         IP;
    char *dest, bval[sizeof(struct in6_addr)+2];
    int isv6, n, i = 0, Odd = 0;
 
@@ -73,56 +70,50 @@ int XrdNetUtils::Decode(struct sockaddr_storage *sadr,
          buff++; Odd = ~Odd;
         }
 
-// Clear our address
+// Clear the address
 //
-   IP.data = sadr;
-   memset(sadr, 0, sizeof(struct sockaddr_storage));
+   memset(sadr, 0, sizeof(XrdNetSockAddr));
 
 // Copy out the data, as needed
 //
    if (isv6)
-      {IP.v6->sin6_family = AF_INET6;
-       memcpy(&(IP.v6->sin6_port),  bval, 2);
-       memcpy(&(IP.v6->sin6_addr), &bval[2], sizeof(struct in6_addr));
+      {sadr->v6.sin6_family = AF_INET6;
+       memcpy(&(sadr->v6.sin6_port), bval, 2);
+       memcpy(&(sadr->v6.sin6_addr), &bval[2], sizeof(struct in6_addr));
       } else {
-       IP.v4->sin_family  = AF_INET;
-       memcpy(&(IP.v4->sin_port),  bval, 2);
-       memcpy(&(IP.v4->sin_addr), &bval[2], sizeof(struct in_addr));
+       sadr->v4.sin_family  = AF_INET;
+       memcpy(&(sadr->v4.sin_port), bval, 2);
+       memcpy(&(sadr->v4.sin_addr), &bval[2], sizeof(struct in_addr));
       }
 
 // Return the converted port (it's the same for v4/v6)
 //
-   return static_cast<int>(ntohs(IP.v6->sin6_port));
+   return static_cast<int>(ntohs(sadr->v6.sin6_port));
 }
 
 /******************************************************************************/
 /*                                E n c o d e                                 */
 /******************************************************************************/
   
-int XrdNetUtils::Encode(const struct sockaddr *sadr,
-                        char *buff, int blen, int port)
+int XrdNetUtils::Encode(const XrdNetSockAddr *sadr, char *buff, int blen,
+                                                                int port)
 {
    static const char *hv = "0123456789abcdef";
-   union {const struct sockaddr_in  *v4;
-          const struct sockaddr_in6 *v6;
-          const struct sockaddr     *addr;
-         }                           IP;
    char *src, bval[sizeof(struct in6_addr)+2];
    int asz, i, j = 0;
 
 // Compute the size we need for the buffer (note we only support IP4/6)
 //
-    IP.addr = sadr;
-        if (sadr->sa_family == AF_INET6)
-           {src = (char *)&(IP.v6->sin6_addr); asz = sizeof(struct in6_addr);}
-   else if (sadr->sa_family == AF_INET)
-           {src = (char *)&(IP.v4->sin_addr);  asz = sizeof(struct in_addr); }
+        if (sadr->addr.sa_family == AF_INET6)
+           {src = (char *)&(sadr->v6.sin6_addr); asz = sizeof(struct in6_addr);}
+   else if (sadr->addr.sa_family == AF_INET)
+           {src = (char *)&(sadr->v4.sin_addr);  asz = sizeof(struct in_addr); }
    else return 0;
    if (blen < (asz*2)+5) return -((asz*2)+5);
 
 // Get the port value in the first two bytes followed by the address.
 //
-   if (port < 0) memcpy(bval, &(IP.v6->sin6_port), 2);
+   if (port < 0) memcpy(bval, &(sadr->v6.sin6_port), 2);
       else {short sPort = htons(static_cast<short>(port));
             memcpy(bval, &sPort, 2);
            }
@@ -140,6 +131,49 @@ int XrdNetUtils::Encode(const struct sockaddr *sadr,
 // All done
 //
    return asz*2;
+}
+
+/******************************************************************************/
+/*                                 H o s t s                                  */
+/******************************************************************************/
+  
+XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
+                                int *sPort, const char **eText)
+{
+   XrdNetAddr   myAddr, aList[8];
+   XrdOucTList *tList = 0;
+   const char  *etext;
+   int numIP, i;
+
+// Check if the port must be in the spec and set maximum
+//
+   if (hPort < 0) hPort = XrdNetAddr::PortInSpec;
+   if (hWant > sizeof(aList)) hWant = sizeof(aList);
+      else if (hWant < 1) hWant = 1;
+
+// Initialze the list of addresses
+//
+   if ((etext = aList[0].Set(hSpec, numIP, sizeof(aList), hPort)))
+      {if (eText) *eText = etext;
+       return 0;
+      }
+
+// If we will be looking for our own port setup our address
+//
+   if (sPort <= 0) myAddr.Self();
+
+// Create the tlist object
+//
+   for (i = 0; i < numIP; i++)
+       {if (sPort && myAddr.Same(&aList[i]))
+           {*sPort = aList[i].Port(); sPort = 0;}
+        tList = new XrdOucTList(aList[i].Name(""), aList[i].Port(), tList);
+       }
+
+// All done, return the result
+//
+   if (eText) *eText = (tList ? 0 : "unknown processing error");
+   return tList;
 }
 
 /******************************************************************************/
@@ -227,11 +261,8 @@ bool XrdNetUtils::Parse(char *hSpec, char **hName, char **hNend,
 
 int XrdNetUtils::Port(int fd, char **eText)
 {
-   union {struct sockaddr_storage data;
-          struct sockaddr         addr;
-         }                        Inet;
-   struct sockaddr_in *ip = (struct sockaddr_in *)&Inet.addr;
-   socklen_t slen = (socklen_t)sizeof(Inet);
+   XrdNetSockAddr Inet;
+   SOCKLEN_t slen = (socklen_t)sizeof(Inet);
    int rc;
 
    if ((rc = getsockname(fd, &Inet.addr, &slen)))
@@ -240,7 +271,7 @@ int XrdNetUtils::Port(int fd, char **eText)
        return -rc;
       }
 
-   return static_cast<int>(ntohs(ip->sin_port));
+   return static_cast<int>(ntohs(Inet.v6.sin6_port));
 }
 
 /******************************************************************************/

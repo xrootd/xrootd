@@ -33,17 +33,13 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <signal.h>
 #include <strings.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/shm.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/times.h>
 #include <sys/types.h>
 #include <sys/uio.h>
-#include <sys/un.h>
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <inttypes.h>

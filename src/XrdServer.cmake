@@ -92,6 +92,7 @@ add_library(
   XrdCms/XrdCmsReq.cc             XrdCms/XrdCmsReq.hh
   XrdCms/XrdCmsRTable.cc          XrdCms/XrdCmsRTable.hh
                                   XrdCms/XrdCmsTypes.hh
+  XrdCms/XrdCmsUtils.cc           XrdCms/XrdCmsUtils.hh
                                   XrdCms/XrdCmsXmi.hh
   XrdCms/XrdCmsXmiReq.cc          XrdCms/XrdCmsXmiReq.hh
 )

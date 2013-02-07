@@ -29,28 +29,25 @@
 /******************************************************************************/
 
 #include <unistd.h>
-#include <ctype.h>
 #include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/un.h>
 #include <fcntl.h>
 
 #include "XrdCms/XrdCmsClientConfig.hh"
 #include "XrdCms/XrdCmsClientMsg.hh"
 #include "XrdCms/XrdCmsSecurity.hh"
 #include "XrdCms/XrdCmsTrace.hh"
+#include "XrdCms/XrdCmsUtils.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
-#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 
 using namespace XrdCms;
 
@@ -98,6 +95,7 @@ int XrdCmsClientConfig::Configure(const char *cfn, configWhat What,
 // Preset some values
 //
    myHost = getenv("XRDHOST");
+   if (!myHost) myHost = "localhost";
    myName = XrdOucUtils::InstName(1);
    CMSPath= strdup("/tmp/");
    isMeta = How & configMeta;
@@ -270,7 +268,6 @@ int XrdCmsClientConfig::ConfigXeq(char *var, XrdOucStream &Config)
   
 int XrdCmsClientConfig::xapath(XrdOucStream &Config)
 {
-    struct sockaddr_un USock;
     char *pval;
 
 // Get the path
@@ -283,13 +280,6 @@ int XrdCmsClientConfig::xapath(XrdOucStream &Config)
 //
    if (*pval != '/')
       {Say.Emsg("Config", "cms admin path not absolute"); return 1;}
-
-// Make sure path is not too long (account for "/olbd.admin")
-//                                              12345678901
-   if (strlen(pval) > sizeof(USock.sun_path) - 11)
-      {Say.Emsg("Config", "cms admin path is too long.");
-       return 1;
-      }
 
 // Record the path
 //
@@ -364,16 +354,25 @@ int XrdCmsClientConfig::xconw(XrdOucStream &Config)
 
 int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 {
-    struct sockaddr InetAddr[8];
-    XrdOucTList *tp = 0, *tpp = 0, *tpnew;
-    char *val, *bval = 0, *mval = 0;
-    int rc, i, j, port, xMeta = 0, isProxy = 0, smode = FailOver;
+    class StorageHelper
+    {public:
+          StorageHelper(char **v1, char **v2) : val1(v1), val2(v2) {}
+         ~StorageHelper() {if (*val1) free(*val1);
+                           if (*val2) free(*val2);
+                          }
+    char **val1, **val2;
+    };
+
+    XrdOucTList **theList;
+    char *val, *hSpec = 0, *hPort = 0;
+    StorageHelper SHelp(&hSpec, &hPort);
+    int rc, xMeta = 0, xProxy = 0, smode = FailOver;
 
 //  Process the optional "peer" or "proxy"
 //
     if ((val = Config.GetWord()))
        {if (!strcmp("peer", val)) return Config.noEcho();
-        if ((isProxy = !strcmp("proxy", val))) val = Config.GetWord();
+        if ((xProxy = !strcmp("proxy", val))) val = Config.GetWord();
            else if ((xMeta = !strcmp("meta", val)))
                    if (isMeta || isMan) val = Config.GetWord();
                       else return Config.noEcho();
@@ -387,8 +386,8 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
         else if (!strcmp("all", val)) smode = RoundRob;
         else                          smode = 0;
         if (smode)
-           {if (isProxy) SModeP = smode;
-               else      SMode  = smode;
+           {if (xProxy) SModeP = smode;
+               else     SMode  = smode;
             val = Config.GetWord();
            }
        }
@@ -397,67 +396,32 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 //
     if (!val)
        {Say.Emsg("Config","manager host name not specified"); return 1;}
-       else mval = strdup(val);
+       else hSpec = strdup(val);
 
-    if (!(val = index(mval,':'))) val = Config.GetWord();
-       else {*val = '\0'; val++;}
+// Get the port from the spec and if not there make sure it follows
+//
+         if ((val = index(hSpec, ':'))) {*val++ = '\0'; hPort = strdup(val);}
+    else if (!(val = Config.GetWord()) || !strcmp(val, "if"))
+            {Say.Emsg("Config", "manager port not specified for", hSpec);
+             return 1;
+            }
+    else hPort = strdup(val);
 
-    if (val)
-       {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(Say,"manager port",val,&port,1,65535))
-               port = 0;
-           }
-           else if (!(port = XrdSysDNS::getPort(val, "tcp")))
-                   {Say.Emsg("Config", "unable to find tcp service", val);
-                    port = 0;
-                   }
-       } else Say.Emsg("Config","manager port not specified for",mval);
+// Process any "if" clause now
+//
+   if ((val = Config.GetWord()) && !strcmp("if", val))
+      if ((rc = XrdOucUtils::doIf(&Say,Config,"manager directive",
+                                  myHost, myName, getenv("XRDPROG"))) <= 0)
+          {if (!rc) Config.noEcho(); return (rc < 0);}
 
-    if (!port) {free(mval); return 1;}
+// If we are a manager and found a meta-manager indidicate it and bail.
+//
+    if (xMeta && !isMeta) {haveMeta = 1; return 0;}
+    theList = (xProxy ? &PanList : &ManList);
 
-    if (myHost && (val = Config.GetWord()) && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(&Say,Config,"role directive",myHost, myName,
-                                   getenv("XRDPROG"))) <= 0)
-          {free(mval);
-           if (!rc) Config.noEcho();
-           return (rc < 0);
-          }
-
-    i = strlen(mval);
-    if (mval[i-1] != '+')
-       {i = 0; val = mval; mval = XrdSysDNS::getHostName(mval); free(val);}
-        else {bval = strdup(mval); mval[i-1] = '\0';
-              if (!(i = XrdSysDNS::getHostAddr(mval, InetAddr, 8)))
-                 {Say.Emsg("Config","Manager host", mval, "not found");
-                  free(bval); free(mval); return 1;
-                 }
-             }
-
-    if (xMeta && !isMeta) 
-       {haveMeta = 1; free(bval); free(mval); return 0;}
-
-    do {if (i)
-           {i--; free(mval);
-            mval = XrdSysDNS::getHostName(InetAddr[i]);
-            Say.Emsg("Config", bval, "-> all.manager", mval);
-           }
-        tp = (isProxy ? PanList : ManList); tpp = 0; j = 1;
-        while(tp) 
-             if ((j = strcmp(tp->text, mval)) < 0 || tp->val != port)
-                {tpp = tp; tp = tp->next;}
-                else {if (!j) Say.Emsg("Config","Duplicate manager",mval);
-                      break;
-                     }
-        if (j) {tpnew = new XrdOucTList(mval, port, tp);
-                if (tpp) tpp->next = tpnew;
-                   else if (isProxy) PanList = tpnew;
-                           else      ManList = tpnew;
-               }
-       } while(i);
-
-    if (bval) free(bval);
-    free(mval);
-    return 0;
+// Parse the manager list and return the result
+//
+   return (XrdCmsUtils::ParseMan(&Say, theList, hSpec, hPort, 0) ? 0 : 1);
 }
   
 /******************************************************************************/

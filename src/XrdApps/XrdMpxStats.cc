@@ -34,10 +34,10 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -309,7 +309,7 @@ public:
 
 struct statsBuff
       {statsBuff      *Next;
-       struct sockaddr From;
+       XrdNetSockAddr  From;
        int             Dlen;
        char            Data[8190];
        char            Pad[2];
@@ -372,7 +372,9 @@ XrdMpxOut::statsBuff *XrdMpxOut::getBuff()
   
 void *XrdMpxOut::Run(XrdMpxXml *xP)
 {
-   char *bP, *Host=0, obuff[sizeof(statsBuff)*2];
+   XrdNetAddr theAddr;
+   const char *Host = 0;
+   char *bP, obuff[sizeof(statsBuff)*2];
    statsBuff *sbP;
    int wLen, rc;
 
@@ -385,10 +387,11 @@ void *XrdMpxOut::Run(XrdMpxXml *xP)
          myMutex.UnLock();
          if (!sbP) continue;
          if (xP)
-            {Host = (Opts & addSender ? XrdSysDNS::getHostName(sbP->From) : 0);
+            {if (!(Opts & addSender)) Host = 0;
+                else if (theAddr.Set(&(sbP->From.addr))) Host = 0;
+                        else Host = theAddr.Name();
              wLen = xP->Format(Host, sbP->Data, obuff);
              bP = obuff;
-             if (Host) free(Host);
             } else {
              bP = sbP->Data;
              *(bP + sbP->Dlen) = '\n';
@@ -518,11 +521,11 @@ int main(int argc, char *argv[])
 
 // Now simply wait for the messages
 //
+   fromLen = sizeof(sbP->From);
    while(1)
         {sbP = statsQ.getBuff();
-         fromLen = sizeof(sbP->From);
          retc = recvfrom(udpFD, sbP->Data, sizeof(sbP->Data), 0,
-                               &sbP->From, &fromLen);
+                               &sbP->From.addr, &fromLen);
          if (retc < 0) {Say.Emsg(":", retc, "recv udp message"); exit(8);}
          sbP->Dlen = retc;
          statsQ.Add(sbP);

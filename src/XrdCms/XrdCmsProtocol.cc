@@ -65,7 +65,6 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -165,7 +164,6 @@ int XrdgetProtocolPort(const char *pname, char *parms,
    Config.myProg    = strdup(pi->myProg);
    Sched            = pi->Sched;
    if (pi->DebugON) Trace.What = TRACE_ALL;
-   memcpy(&Config.myAddr, pi->myAddr, sizeof(struct sockaddr));
 
 // The only parameter we accept is the name of an alternate config file
 //
@@ -372,6 +370,13 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                   }
           }
 
+       // Check if we should process the redirection
+       //
+       if (rc == kYR_redirect)
+          {myMans.Add(Link->NetAddr(),(char *)Data.Paths,Config.PortTCP,Lvl+1);
+           free(Data.Paths);
+          }
+
        // Remove manager from the config
        //
        Manager.Remove(myNode, (rc == kYR_redirect ? "redirected"
@@ -379,21 +384,6 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        ManTree.Disc(myNID);
        Link->Close();
        delete myNode; myNode = 0;
-
-       // Check if we should process the redirection
-       //
-       if (rc == kYR_redirect)
-          {struct sockaddr netaddr;
-           XrdOucTokenizer hList((char *)Data.Paths);
-           unsigned int ipaddr;
-           char *hP;
-           Link->Host(&netaddr);
-           ipaddr = XrdSysDNS::IPAddr(&netaddr);
-           myMans.Del(ipaddr);
-           while((hP = hList.GetToken()))
-                 myMans.Add(ipaddr, hP, Config.PortTCP, Lvl+1);
-           free(Data.Paths);
-          }
 
        // Cycle on to the next manager if we have one or snooze and try over
        //

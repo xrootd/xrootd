@@ -30,17 +30,17 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-struct sockaddr;
-struct sockaddr_storage;
+class XrdOucTList;
+union XrdNetSockAddr;
   
 class XrdNetUtils
 {
 public:
 
 //------------------------------------------------------------------------------
-//! Decode an "encoded" address and place it sockaddr type structure.
+//! Decode an "encoded" ipv6/4 address and place it "sockaddr" type structure.
 //!
-//! @param  sadr     address of structure that will hold the results.
+//! @param  sadr     address of the union that will hold the results.
 //! @param  buff     address of buffer that holds the encoding.
 //! @param  blen     length of the string (it need not be null terminated).
 //!
@@ -49,12 +49,12 @@ public:
 //!         < 0      the encoding was not correct.
 //------------------------------------------------------------------------------
 
-static int  Decode(struct sockaddr_storage *sadr, const char *buff, int blen);
+static int  Decode(XrdNetSockAddr *sadr, const char *buff, int blen);
 
 //------------------------------------------------------------------------------
 //! Encode the address and return it in a supplied buffer.
 //!
-//! @param  sadr     address of structure that holds the IPV4/6 address.
+//! @param  sadr     address of the union that holds the IPV4/6 address.
 //! @param  buff     address of buffer to hold the null terminated encoding.
 //! @param  blen     length of the buffer. It6 should be at least 40 bytes.
 //! @param  port     optional port value to use as opposed to the one present
@@ -65,7 +65,33 @@ static int  Decode(struct sockaddr_storage *sadr, const char *buff, int blen);
 //!         < 0      buffer is too small; abs(retval) bytes needed.
 //------------------------------------------------------------------------------
 
-static int  Encode(const struct sockaddr *sadr, char *buff, int blen, int port=-1);
+static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1);
+
+//------------------------------------------------------------------------------
+//! Obtain an easily digestable list of hosts. This is the list of up to eight
+//! unique aliases (i.e. with different addresses) assigned to a base hostname.
+//!
+//! @param  sPort    If not nil, the *sPort will be set to hPort if and only if
+//!                  the IP address in one of the entries matches the host
+//!                  address. Otherwise, the value is unchanged.
+//! @param  hName    the host specification suitable for XrdNetAddr.Set().
+//! @param  hPort    When >= 0 specified the port to use regardless of hSpec.
+//!                  When <  0 the port must be present in hSpec.
+//!         hWant    Maximum number of list entries wanted. If hWant is greater
+//!                  that eight it is set eigth.
+//! @param  eText    When not nil, is wher to place error message text.
+//!
+//! @return Success: Pointer to a list of XrdOucTList objects where
+//!                  p->val  is the port number
+//!                  p->text is the host name.
+//!                  The list of objects belongs to the caller.
+//!         Failure: A nil pointer is returned. If eText is supplied, the error
+//!                  message, in persistent storage, is returned.
+//------------------------------------------------------------------------------
+
+static
+XrdOucTList *Hosts(const char  *hSpec, int hPort=-1, int hWant=8, int *sPort=0,
+                               const char **eText=0);
 
 //------------------------------------------------------------------------------
 //! Determine if a hostname matches a pattern.

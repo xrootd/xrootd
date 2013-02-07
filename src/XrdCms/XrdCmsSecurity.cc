@@ -40,6 +40,7 @@
 #include "XrdCms/XrdCmsTalk.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -77,7 +78,6 @@ XrdSecService *XrdCmsSecurity::DHS    = 0;
 int XrdCmsSecurity::Authenticate(XrdLink *Link, const char *Token, int Toksz)
 {
    CmsRRHdr myHdr = {0, kYR_xauth, 0, 0};
-   struct sockaddr netaddr;
    XrdSecCredentials cred;
    XrdSecProtocol   *AuthProt = 0;
    XrdSecParameters *parm = 0;
@@ -106,9 +106,10 @@ do {
 // If we do not yet have a protocol, get one
 //
    if (!AuthProt)
-      {const char *hname = Link->Host(&netaddr);
+      {const char *hname = Link->Host();
+       XrdNetAddr  haddr = *(Link->NetAddr());
        if (!DHS
-       ||  !(AuthProt=DHS->getProtocol((char *)hname,netaddr,&cred,&eMsg)))
+       ||  !(AuthProt=DHS->getProtocol(hname, *haddr.SockAddr(), &cred, &eMsg)))
           {eText = eMsg.getErrText(rc); break;}
       }
 
@@ -213,8 +214,8 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
                              char *authBuff, int abLen)
 {
    CmsRRHdr outHdr = {0, kYR_xauth, 0, 0};
-   struct sockaddr netaddr;
-   const char *hname = Link->Host(&netaddr);
+   XrdNetAddr  haddr = *(Link->NetAddr());
+   const char *hname = Link->Host();
    XrdSecCredentials *cred;
    XrdSecProtocol    *AuthProt = 0;
    XrdSecParameters   AuthParm, *AuthP = 0;
@@ -232,7 +233,7 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 // Obtain the protocol
 //
    AuthParm.buffer = (char *)authBuff; AuthParm.size = strlen(authBuff);
-   if (!(AuthProt = Sec.getProtocol((char *)hname, netaddr, AuthParm, &eMsg)))
+   if (!(AuthProt = Sec.getProtocol(hname, *haddr.SockAddr(), AuthParm, &eMsg)))
       {Say.Emsg("Auth",hname,"getProtocol() failed;",eMsg.getErrText(rc));
        return 0;
       }

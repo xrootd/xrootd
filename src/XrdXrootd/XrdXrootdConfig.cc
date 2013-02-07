@@ -57,7 +57,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -304,7 +303,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
 // Initialize the request ID generation object
 //
-   PrepID = new XrdOucReqID(pi->myAddr, (int)Port);
+   PrepID = new XrdOucReqID(pi->urAddr, (int)Port);
 
 // Initialize for prepare processing
 //

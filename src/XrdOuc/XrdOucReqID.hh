@@ -36,7 +36,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-struct sockaddr;
+union XrdNetSockAddr;
   
 class XrdOucReqID
 {
@@ -51,7 +51,7 @@ public:
 static int   Index(int KeyMax, const char *KeyVal, int KeyLen=0);
 
              XrdOucReqID();
-             XrdOucReqID(const struct sockaddr *myAddr, int myPort=-1);
+             XrdOucReqID(const XrdNetSockAddr *myAddr, int myPort=-1);
 
             ~XrdOucReqID() {} // Statics go away at exit
 

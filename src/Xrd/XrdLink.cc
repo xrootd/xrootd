@@ -50,9 +50,7 @@
 
 #endif
 
-#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysAtomics.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -239,11 +237,12 @@ XrdLink *XrdLink::Alloc(XrdNetAddr &peer, int opts)
 
 // Establish the address and connection name of this link
 //
-   memcpy((void *)&(lp->Inet.Addr), peer.SockAddr(), peer.SockSize());
-   peer.Format(hName, sizeof(hName), XrdNetAddr::fmtAuto, false);
+   peer.Format(hName, sizeof(hName), XrdNetAddr::fmtAuto,
+                                     XrdNetAddr::old6Map4 | XrdNetAddr::noPort);
    lp->HostName = strdup(hName);
    lp->HNlen = strlen(hName);
    XrdNetTCP->Trim(hName);
+   lp->Addr = peer;
    strlcpy(lp->Lname, hName, sizeof(lp->Lname));
    bl = sprintf(buff, "?:%d", peerFD);
    unp = lp->Lname - bl - 1;

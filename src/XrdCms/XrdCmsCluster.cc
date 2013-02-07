@@ -56,7 +56,6 @@
 
 #include "XrdOuc/XrdOucPup.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -126,18 +125,11 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                                int sport, const char *theNID)
 {
    EPNAME("Add")
-   sockaddr InetAddr;
    const char *act = "";
-   unsigned int ipaddr;
    XrdCmsNode *nP = 0;
    int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1, aSet = 0;
    int tmp, Special = (Status & (CMS_isMan|CMS_isPeer));
    XrdSysMutexHelper STMHelper(STMutex);
-
-// Establish our IP address
-//
-   lp->Host(&InetAddr);
-   ipaddr = XrdSysDNS::IPAddr(&InetAddr);
 
 // Find available slot for this node. Here are the priorities:
 // Slot  = Reconnecting node
@@ -148,7 +140,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 //
    for (Slot = 0; Slot < STMax; Slot++)
        if (NodeTab[Slot])
-          {if (NodeTab[Slot]->isNode(ipaddr, theNID)) break;
+          {if (NodeTab[Slot]->isNode(lp, theNID)) break;
 /*Conn*/   if (NodeTab[Slot]->isConn)
               {if (!NodeTab[Slot]->isPerm && Special)
                                              Bump2 = Slot; // Last conn Server
@@ -191,7 +183,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                     return 0;
                    }
 
-                if (Status & CMS_isMan) {setAltMan(Slot,ipaddr,sport); aSet=1;}
+                if (Status & CMS_isMan) {setAltMan(Slot, lp, sport); aSet=1;}
                 if (NodeTab[Slot] && !(Status & CMS_isPeer))
                    sendAList(NodeTab[Slot]->Link);
 
@@ -209,7 +201,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Assign new server
 //
-   if (!aSet && (Status & CMS_isMan)) setAltMan(Slot, ipaddr, sport);
+   if (!aSet && (Status & CMS_isMan)) setAltMan(Slot, lp, sport);
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;
@@ -370,7 +362,7 @@ do{for (i = Beg; i <= Fin; i++)
 /*                               g e t M a s k                                */
 /******************************************************************************/
 
-SMask_t XrdCmsCluster::getMask(unsigned int IPv4adr)
+SMask_t XrdCmsCluster::getMask(const XrdNetAddr *addr)
 {
    int i;
    XrdCmsNode *nP;
@@ -383,7 +375,7 @@ SMask_t XrdCmsCluster::getMask(unsigned int IPv4adr)
 // Run through the table looking for a node with matching IP address
 //
    for (i = 0; i <= STHi; i++)
-       if ((nP = NodeTab[i]) && nP->isNode(IPv4adr))
+       if ((nP = NodeTab[i]) && nP->isNode(addr))
           {smask = nP->NodeMask; break;}
 
 // All done
@@ -453,7 +445,6 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
                }
             sip->Mask    = nP->NodeMask;
             sip->Id      = nP->NodeID;
-            sip->IPAddr  = nP->IPAddr;
             sip->Port    = nP->Port;
             sip->RefTotW = nP->RefTotW;
             sip->RefTotR = nP->RefTotR;
@@ -1679,8 +1670,9 @@ void XrdCmsCluster::sendAList(XrdLink *lp)
   
 // Single entry at a time, protected by STMutex!
   
-void XrdCmsCluster::setAltMan(int snum, unsigned int ipaddr, int port)
+void XrdCmsCluster::setAltMan(int snum, XrdLink *lp, int port)
 {
+   XrdNetAddr altAddr = *(lp->NetAddr());
    char *ap = &AltMans[snum*AltSize];
    int i;
 
@@ -1689,9 +1681,11 @@ void XrdCmsCluster::setAltMan(int snum, unsigned int ipaddr, int port)
    if (!port || (port > 0x0000ffff)) port = Config.PortTCP;
    memset(ap, int(' '), AltSize);
 
-// Insert the ip address of this node into the list of nodes
+// Insert the ip address of this node into the list of nodes. We made sure that
+// the size of he buffer was big enough so no need to check for overflow.
 //
-   i = XrdSysDNS::IP2String(ipaddr, port, ap, AltSize);
+   altAddr.Port(port);
+   i = altAddr.Format(ap, AltSize, XrdNetAddr::fmtAddr, XrdNetAddr::old6Map4);
    ap[i] = ' ';
 
 // Compute new fence

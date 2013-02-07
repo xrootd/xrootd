@@ -29,11 +29,14 @@
 /******************************************************************************/
 
 #include <ctype.h>
+#include <stdio.h>
 #include <unistd.h>
 
-#include "XrdSys/XrdSysDNS.hh"
-#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdCms/XrdCmsManList.hh"
+#include "XrdNet/XrdNetAddr.hh"
+#include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucTokenizer.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdCms;
 
@@ -80,10 +83,29 @@ XrdCmsManList::~XrdCmsManList()
 /*                                   A d d                                    */
 /******************************************************************************/
   
-void XrdCmsManList::Add(unsigned int ref, char *manp, int manport, int lvl)
+void XrdCmsManList::Add(const XrdNetAddr *netAddr, char *redList,
+                        int manPort, int lvl)
+{
+   XrdOucTokenizer hList((char *)redList);
+   char *hP;
+   int theRef;
+
+// Get the manager's reference number and if exists, delete existing entries
+//
+   if ((theRef = getRef(netAddr)) >= 0) Del(theRef);
+      else theRef = -theRef;
+
+// Add eeach redirect target in the list
+//
+   hP = hList.GetLine();
+   while((hP = hList.GetToken())) Add(theRef, hP, manPort, lvl);
+}
+
+/******************************************************************************/
+  
+void XrdCmsManList::Add(int ref, char *manp, int manport, int lvl)
 {
    XrdCmsManRef *prp = 0, *mrp;
-   struct sockaddr InetAddr;
    char *cp, *ipname;
    int port;
 
@@ -94,10 +116,14 @@ void XrdCmsManList::Add(unsigned int ref, char *manp, int manport, int lvl)
             *cp = '\0';
            }
 
-// Check if we need to translate ip address to name
+// Get the full name of the host target unless it is an actual address
 //
-   if (!isdigit((int)*manp) || !XrdSysDNS::getHostAddr(manp, InetAddr)
-   || !(ipname =  XrdSysDNS::getHostName(InetAddr))) ipname = strdup(manp);
+   if (*manp == '[' || isdigit((int)*manp)) ipname = strdup(manp);
+      else {XrdNetAddr  redAddr;
+            const char *redName;
+            if (redAddr.Set(manp) || !(redName = redAddr.Name())) return;
+            ipname = strdup(redName);
+           }
    if (cp) *cp = ':';
 
 // Start up
@@ -108,7 +134,7 @@ void XrdCmsManList::Add(unsigned int ref, char *manp, int manport, int lvl)
 // Chck if this is a duplicate
 //
    while(mrp)
-        {if (!strcmp(mrp->Manager, ipname)) 
+        {if (!strcmp(mrp->Manager, ipname) && mrp->ManPort == port)
             {mlMutex.UnLock(); free(ipname); return;}
          if (mrp->Next)
             {if (mrp->Next->ManLvl > lvl) prp = mrp;}
@@ -130,9 +156,13 @@ void XrdCmsManList::Add(unsigned int ref, char *manp, int manport, int lvl)
 /*                                   D e l                                    */
 /******************************************************************************/
   
-void XrdCmsManList::Del(unsigned int ref)
+void XrdCmsManList::Del(int ref)
 {
    XrdCmsManRef *nrp, *prp = 0, *mrp;
+
+// If mistakingly called for a newly added reference, do nothing
+//
+   if (ref < 0) return;
 
 // Start up
 //
@@ -157,6 +187,41 @@ void XrdCmsManList::Del(unsigned int ref)
 // All done
 //
    mlMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                                g e t R e f                                 */
+/******************************************************************************/
+  
+int XrdCmsManList::getRef(const XrdNetAddr *netAddr)
+{
+   static int refNum = 1;
+   XrdNetAddr theAddr = *netAddr;
+   XrdOucTList *tP;
+   char buff[128];
+   int theNum;
+
+// Convert address to text
+//
+   theAddr.Format(buff,sizeof(buff),XrdNetAddr::fmtAdv6,XrdNetAddr::old6Map4);
+
+// Find the entry in this list
+//
+   refMutex.Lock();
+   tP = refList;
+   while(tP && strcmp(buff, tP->text)) tP = tP->next;
+
+// If we didn't find one, add it
+//
+   if (tP) theNum = tP->val;
+      else {refList = new XrdOucTList(buff, refNum, refList);
+            theNum = -refNum++;
+           }
+
+// Return the number
+//
+   refMutex.UnLock();
+   return theNum;
 }
 
 /******************************************************************************/

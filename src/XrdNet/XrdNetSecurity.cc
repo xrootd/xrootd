@@ -85,6 +85,7 @@ const char *XrdNetSecurity::TraceID = "NetSecurity";
   
 void XrdNetSecurity::AddHost(char *hname)
 {
+   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
    XrdNetAddr hAddr;
    const char *Hname = 0;
    char ipbuff[64];
@@ -93,7 +94,7 @@ void XrdNetSecurity::AddHost(char *hname)
 // the name pattern list.
 //
    if (!index(hname, '*') && !hAddr.Set(hname)
-   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAddr, false))
+   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAddr, fmtOpts))
       {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
        Hname = hAddr.Name();
       }
@@ -131,13 +132,14 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 
 bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
 {
+   static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
    const char *hName;
    char ipAddr[64];
    XrdNetTextList *tlp;
 
 // Convert IP address to characters
 //
-   if (!addr.Format(ipAddr, sizeof(ipAddr), XrdNetAddr::fmtAddr, false))
+   if (!addr.Format(ipAddr, sizeof(ipAddr), XrdNetAddr::fmtAddr, fmtOpts))
       return false;
 
 // Check if we have seen this host before

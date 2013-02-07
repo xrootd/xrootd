@@ -33,18 +33,14 @@
 #include <stdlib.h>
 
 #include "XrdNet/XrdNetBuffer.hh"
-#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetSockAddr.hh"
 
 class XrdNetPeer
 {
 public:
 
 int             fd;       // File descriptor
-//ion {
-//ruct sockaddr_storage
-//              Data;
-struct sockaddr InetAddr; // Incomming peer network address IPV6 or IPV4
-//    }         Inet;
+XrdNetSockAddr  Inet;
 char           *InetName; // Incomming peer host name (must be copied)
 XrdNetBuffer   *InetBuff; // Incomming datagram buffer for UDP accepts
 

@@ -41,7 +41,6 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/un.h>
 #include <dirent.h>
 
 #include "XrdVersion.hh"
@@ -65,10 +64,12 @@
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsSupervisor.hh"
 #include "XrdCms/XrdCmsTrace.hh"
+#include "XrdCms/XrdCmsUtils.hh"
 #include "XrdCms/XrdCmsXmi.hh"
 #include "XrdCms/XrdCmsXmiReq.hh"
 
 #include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetSocket.hh"
 
@@ -82,7 +83,6 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -1291,7 +1291,7 @@ int XrdCmsConfig::xaltds(XrdSysError *eDest, XrdOucStream &CFile)
        {if (XrdOuca2x::a2i(*eDest,"data server port",val,&adsPort,1,65535))
            return 1;
        }
-       else if (!(adsPort = XrdSysDNS::getPort(val, "tcp")))
+       else if (!(adsPort = XrdNetUtils::ServPort(val, "tcp")))
                {eDest->Emsg("Config", "Unable to find tcp service '",val,"'.");
                 return 1;
                }
@@ -1324,7 +1324,6 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 {
     char *pval, *val;
     mode_t mode = S_IRWXU;
-    struct sockaddr_un USock;
 
 // Get the path
 //
@@ -1336,13 +1335,6 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
 //
    if (*pval != '/')
       {eDest->Emsg("Config", "adminpath not absolute"); return 1;}
-
-// Make sure path is not too long (account for "/olbd.admin")
-//                                              12345678901
-   if (strlen(pval) > sizeof(USock.sun_path) - 11)
-      {eDest->Emsg("Config", "admin path", pval, "is too long");
-       return 1;
-      }
    pval = strdup(pval);
 
 // Get the optional access rights
@@ -1828,14 +1820,16 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     char **val1, **val2;
     };
 
-    static const int sockALen = sizeof(struct sockaddr);
-    struct sockaddr InetAddr[8];
-    XrdOucTList *tp = 0, *tpp = 0, *tpnew;
-    char *val, *bval = 0, *mval = 0;
-    StorageHelper SHelp(&bval, &mval);
-    int j, i, multi = 0, port = 0, xMeta = 0, xPeer = 0, xProxy = 0, Prt = 1;
+    XrdOucTList **theList = &ManList;
+    char *val, *hSpec = 0, *hPort = 0;
+    StorageHelper SHelp(&hSpec, &hPort);
+    int rc, xMeta = 0, xPeer = 0, xProxy = 0, *myPort = 0;
 
-//  Process the optional "peer" or "proxy"
+// Ignore this call if we are a meta-manager and know our port number
+//
+   if (isMeta && PortTCP > 0) return CFile.noEcho();
+
+//  Process the optional "meta", "peer" or "proxy"
 //
     if ((val = CFile.GetWord()))
        {if ((xMeta  = !strcmp("meta", val))
@@ -1853,94 +1847,45 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
     if (val)
        if (!strcmp("any", val) || !strcmp("all", val)) val = CFile.GetWord();
 
-//  Get the actual host name
+//  Get the actual host name and copy it
 //
     if (!val)
        {eDest->Emsg("Config","manager host name not specified"); return 1;}
-    mval = strdup(val);
+    hSpec = strdup(val);
 
-//  Grab the port number
+//  Grab the port number if in the host name. Otherwise make sure it follows.
 //
-    if ((val = index(mval, ':'))) {*val = '\0'; val++;}
-       else val = CFile.GetWord();
+         if ((val = index(hSpec, ':'))) {*val++ = '\0'; hPort = strdup(val);}
+    else if (!(val = CFile.GetWord()) || !strcmp(val, "if"))
+            {eDest->Emsg("Config", "manager port not specified for", hSpec);
+             return 1;
+            }
+    else hPort = strdup(val);
 
-    if (val)
-       {if (isdigit(*val))
-           {if (XrdOuca2x::a2i(*eDest,"manager port",val,&port,1,65535))
-               port = 0;
-           }
-           else if (!(port = XrdSysDNS::getPort(val, "tcp")))
-                   {eDest->Emsg("Config", "Unable to find tcp service '",val,"'.");
-                    port = 0;
-                   }
-       }
-       else if (!(port = PortTCP))
-               eDest->Emsg("Config","manager port not specified for",mval);
-
-    if (!port) return 1;
-
-    if ((val = CFile.GetWord()))
-       {if (strcmp(val, "if"))
-           {eDest->Emsg("Config","expecting manager 'if' but",val,"found");
-            return 1;
-           }
-        if ((i=XrdOucUtils::doIf(eDest,CFile,"manager directive",
-                            myName,myInsName,myProg))<=0)
-           {if (!i) CFile.noEcho(); return i < 0;}
-       }
-
-    i = strlen(mval);
-    if (mval[i-1] != '+') 
-       {i = 1;
-        if (!XrdSysDNS::getHostAddr(mval, InetAddr))
-           {eDest->Emsg("CFile","Manager host", mval, "not found");
-            return 1;
-           }
-        free(mval); mval = XrdSysDNS::getHostName(InetAddr[0]);
-       }
-        else {bval = strdup(mval); mval[i-1] = '\0'; multi = 1;
-              if (!(i = XrdSysDNS::getHostAddr(mval, InetAddr, 8)))
-                 {eDest->Emsg("CFile","Manager host", mval, "not found");
-                  return 1;
-                 }
-             }
-
-// Now try to determine our port number if we are a [meta] manager
+// Check if this statement is gaurded by and "if" and process it
 //
-    if (isManager && !isServer)
-       {if ((xMeta && isMeta) || (!xMeta && !isMeta))
-           for (j = 0; j < i; j++)
-                if (!memcmp(&InetAddr[j], &myAddr, sockALen))
-                   {PortTCP = port; break;}
-        if (isMeta) return (xMeta ? 0: CFile.noEcho());
-        if (!xMeta) Prt = 0;
+   if ((val = CFile.GetWord()))
+      {if (strcmp(val, "if"))
+          {eDest->Emsg("Config","expecting manager 'if' but",val,"found");
+           return 1;
+          }
+       if ((rc = XrdOucUtils::doIf(eDest,CFile,"manager directive",
+                                   myName,myInsName,myProg))<=0)
+          {if (!rc) CFile.noEcho(); return rc < 0;}
+      }
+
+// Calculate the correct queue and port number to update
+//
+   if (isManager && !isServer)
+      {if (((xMeta && isMeta) || (!xMeta && !isMeta)) && PortTCP < 1)
+          myPort = &PortTCP;
+        if (isMeta) theList = 0;
+           else theList = (xMeta ? &ManList : &NanList);
        }
 
-// Now construct the list of [meta] managers
+// Parse the specification and return
 //
-    do {if (multi)
-           {free(mval);
-            char mvBuff[1024];
-            if (Prt) sprintf(mvBuff, "%s -> all.manager ", bval);
-            mval = XrdSysDNS::getHostName(InetAddr[i-1]);
-            if (Prt) eDest->Say("Config ", mvBuff, mval);
-           }
-        tp = (Prt ? ManList : NanList); tpp = 0; j = 1;
-        while(tp) 
-             if ((j = strcmp(tp->text, mval)) < 0 || tp->val != port)
-                {tpp = tp; tp = tp->next;}
-                else {if (Prt && !j)
-                         eDest->Say("Config warning: duplicate manager ",mval);
-                      break;
-                     }
-        if (j) {tpnew = new XrdOucTList(mval, port, tp);
-                if (tpp) tpp->next = tpnew;
-                   else if (Prt) ManList = tpnew;
-                           else  NanList = tpnew;
-               }
-       } while(--i);
-
-    return 0;
+   return (XrdCmsUtils::ParseMan(eDest, theList, hSpec, hPort, myPort) ? 0 : 1);
 }
   
 /******************************************************************************/

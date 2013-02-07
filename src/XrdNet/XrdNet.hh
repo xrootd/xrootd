@@ -213,8 +213,8 @@ void            Secure(XrdNetSecurity *secp);
 //------------------------------------------------------------------------------
 //! Set network defaults.
 //!
-//! @param  options  The options to be added to any Bind() and Connect() calls.
-//!                  For Accept() calls the options to be used if non specified.
+//! @param  options  The options to be added to Accept(), Bind() and Connect()
+//!                  calls. These options cannot be turned off, so be careful.
 //! @param  buffsz   The UDP buffer size (the initial default is 32K) or the TCP
 //!                  window size (initial default is OS dependent).
 //------------------------------------------------------------------------------

@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <netinet/in.h>
   
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -42,6 +43,8 @@ class XrdLink;
 class XrdCmsDrop;
 class XrdCmsNode;
 class XrdCmsSelect;
+class XrdNetAddr;
+
 namespace XrdCms
 {
 struct CmsRRHdr;
@@ -125,7 +128,7 @@ int             Broadsend(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
 
 // Returns the node mask matching the given IP address
 //
-SMask_t         getMask(unsigned int IPv4adr);
+SMask_t         getMask(const XrdNetAddr *addr);
 
 // Returns the node mask matching the given cluster ID
 //
@@ -196,9 +199,11 @@ XrdCmsNode *SelbyRef (SMask_t, int &, int &, const char **, int);
 int         SelDFS(XrdCmsSelect &Sel, SMask_t amask,
                    SMask_t &pmask, SMask_t &smask, int isRW);
 void        sendAList(XrdLink *lp);
-void        setAltMan(int snum, unsigned int ipaddr, int port);
+void        setAltMan(int snum, XrdLink *lp, int port);
 
-static const  int AltSize = 24; // Number of IP:Port characters per entry
+// Number of IP:Port characters per entry
+//
+static const  int AltSize = INET6_ADDRSTRLEN+10;
 
 XrdSysMutex   cidMutex;         // Protects to cid list
 XrdOucTList  *cidFirst;         // Cluster ID to cluster number map

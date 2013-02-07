@@ -107,7 +107,6 @@ int XrdXrootdProtocol::do_Admin()
   
 int XrdXrootdProtocol::do_Auth()
 {
-    struct sockaddr netaddr;
     XrdSecCredentials cred;
     XrdSecParameters *parm = 0;
     XrdOucErrInfo     eMsg;
@@ -133,8 +132,9 @@ int XrdXrootdProtocol::do_Auth()
       {if (AuthProt) AuthProt->Delete();
        strncpy(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype));
-       const char *hname = Link->Host(&netaddr);
-       if (!(AuthProt = CIA->getProtocol(hname,netaddr,&cred,&eMsg)))
+       const char *hname = Link->Host();
+       XrdNetAddr  haddr = *(Link->NetAddr());
+       if (!(AuthProt = CIA->getProtocol(hname,*haddr.SockAddr(),&cred,&eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);

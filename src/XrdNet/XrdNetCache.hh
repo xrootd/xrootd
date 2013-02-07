@@ -100,7 +100,7 @@ struct anItem
        anItem   *Next;
        char     *hName;
        time_t    expTime;   // Expiration time
-       int       aHash;     // Hash value
+unsigned int     aHash;     // Hash value
        int       aLen;      // Actual length 4 or 16
 
 inline int       operator!=(const anItem &oth)
