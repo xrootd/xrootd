@@ -36,6 +36,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Do not create the PrepQ Netsg object in the constructor as this may
+     cause a SEGV should that fail as the PrepQ object is a static global.
    * Avoid garbled message by using stable storage for message insert.
    * Fix a post 3.1.1 regression that dropped "refresh" from kXR_locate.
    * Allow extended host specification as input to TPC.
