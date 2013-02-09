@@ -503,8 +503,8 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
     int  V_limit=-1, V_msegs=-1, V_mtot=-1, V_minsz=-1, V_segsz=-1;
     int  V_minsf=-1;
     long long llp;
-    static struct asyncopts {const char *opname; int minv; int *oploc;
-                             const char *opmsg;} asopts[] =
+    struct asyncopts {const char *opname; int minv; int *oploc;
+                      const char *opmsg;} asopts[] =
        {
         {"force",     -1, &V_force, ""},
         {"off",       -1, &V_off,   ""},

@@ -948,8 +948,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
     char *val;
     int  i, V_keep = 0, V_nodnr = 0, V_iswan = 0, V_blen = -1;
     long long llp;
-    static struct netopts {const char *opname; int hasarg; int opval;
-                           int  *oploc;  const char *etxt;}
+    struct netopts {const char *opname; int hasarg; int opval;
+                           int *oploc;  const char *etxt;}
            ntopts[] =
        {
         {"keepalive",  0, 1, &V_keep,   "option"},
@@ -1274,8 +1274,8 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
     long long lpp;
     int  i, ppp;
     int  V_mint = -1, V_maxt = -1, V_idle = -1, V_avlt = -1;
-    static struct schedopts {const char *opname; int minv; int *oploc;
-                             const char *opmsg;} scopts[] =
+    struct schedopts {const char *opname; int minv; int *oploc;
+                      const char *opmsg;} scopts[] =
        {
         {"stksz",      0,       0, "sched stksz"},
         {"mint",       1, &V_mint, "sched mint"},
@@ -1390,8 +1390,8 @@ int XrdConfig::xtmo(XrdSysError *eDest, XrdOucStream &Config)
     char *val;
     int  i, ppp, rc;
     int  V_read = -1, V_idle = -1, V_hail = -1, V_kill = -1;
-    static struct tmoopts { const char *opname; int istime; int minv;
-                            int  *oploc;  const char *etxt;}
+    struct tmoopts { const char *opname; int istime; int minv;
+                            int *oploc;  const char *etxt;}
            tmopts[] =
        {
         {"read",       1, 1, &V_read, "timeout read"},
