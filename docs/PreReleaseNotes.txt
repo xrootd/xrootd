@@ -36,6 +36,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Do not use static structs when refering to stack allocated variable.
    * Do not create the PrepQ Netsg object in the constructor as this may
      cause a SEGV should that fail as the PrepQ object is a static global.
    * Avoid garbled message by using stable storage for message insert.
