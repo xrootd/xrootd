@@ -30,139 +30,17 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
   
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include "XrdNet/XrdNetAddrInfo.hh"
+  
+//------------------------------------------------------------------------------
+//! The XrdNetAddr class implements the manipulators for XrdNetAddrInfo.
+//------------------------------------------------------------------------------
 
-#include "XrdNet/XrdNetCache.hh"
-#include "XrdNet/XrdNetSockAddr.hh"
-#include "XrdSys/XrdSysPlatform.hh"
+struct addrinfo;
 
-class XrdNetAddr
+class XrdNetAddr : public XrdNetAddrInfo
 {
 public:
-
-//------------------------------------------------------------------------------
-//! Provide our address family.
-//!
-//! @return Success: Returns AF_INET, AF_INET6, or AF_UNIX.
-//!         Failure: Returns 0, address is not valid.
-//------------------------------------------------------------------------------
-
-inline int  Family() {return static_cast<int>(IP.addr.sa_family);}
-
-//------------------------------------------------------------------------------
-//! Format our address into a supplied buffer with one of the following layouts
-//! (the ':<port>' or ':/path' can be omitted if desired, see fmtOpts param):
-//! IP.xx:   host_name:<port>
-//! IP.v4:   a.b.c.d:<port>
-//! IP.v6:   [a:b:c:d:e:f:g:h]:<port> | [::a.b.c.d]:<port>
-//! IP.Unix: localhost:/<path>
-//!
-//! @param  bAddr    address of buffer for result
-//! @param  bLen     length  of buffer
-//! @param  fmtType  specifies the type of format desired via fmtUse enum.
-//! @param  fmtOpts  additional formatting options (can be or'd):
-//!                  noPort   - do not append the port number to the address.
-//!                  old6Map4 - use deprecated IPV6 mapped format '[::x.x.x.x]'
-//!
-//! @return Success: The number of characters (less null) in Buff.
-//! @return Failure: 0 (buffer is too small or not a valid address). However,
-//!                  if bLen > 0 the buffer will contain a null terminated
-//!                  string of up to 8 question marks.
-//------------------------------------------------------------------------------
-
-enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
-             fmtName,   //!< Hostname if it is resolvable o/w use fmtAddr
-             fmtAddr,   //!< Address using suitable ipv4 or ipv6 format
-             fmtAdv6,   //!< Address only in ipv6 format
-             fmtDflt};  //!< Use default format (see 2nd form of Format())
-
-static const int noPort   = 0x0000001; //!< Do not add port number
-static const int old6Map4 = 0x0000002; //!< Use deprecated IPV6 mapped format
-
-int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtDflt, int fmtOpts=0);
-
-//------------------------------------------------------------------------------
-//! Set the default format for all future calls of format. The initial default
-//! is set to fmtName (i.e. if name is resolvable use it prefrentially).
-//!
-//! @param  fmtType  specifies the default of format desired via fmtUse enum.
-//!
-//! @return Always 1.
-//------------------------------------------------------------------------------
-
-int         Format(fmtUse fmtType)
-                  {useFmt = (fmtType == fmtDflt ? fmtName : fmtType);
-                   return useFmt;
-                  }
-
-//------------------------------------------------------------------------------
-//! Indicate whether or not our address is the loopback address. Use this
-//! method to gaurd against UDP packet spoofing.
-//!
-//! @return Success: Returns true if this is the loopback address.
-//!         Failure: Returns false.
-//------------------------------------------------------------------------------
-
-bool        isLoopback();
-
-//------------------------------------------------------------------------------
-//! Indicate whether or not our address is registered in the DNS.
-//!
-//! @return Success: Returns true if this is registered.
-//!         Failure: Returns false.
-//------------------------------------------------------------------------------
-
-bool        isRegistered();
-
-//------------------------------------------------------------------------------
-//! Convert our IP address to the corresponding [host] name.
-//!
-//! @param  eName    value to return when the name cannot be determined.
-//! @param  eText    when not null, the reason for a failure is returned.
-//!
-//! @return Success: Pointer to the name or ip address with eText, if supplied,
-//!                  set to zero. The memory is owned by the object and is
-//!                  deleted when the object is deleted or Set() is called.
-//!         Failure: eName param and if eText is not zero, returns a pointer
-//!                  to a message describing the reason for the failure. The
-//!                  message is in persistent storage and cannot be modified.
-//------------------------------------------------------------------------------
-
-const char *Name(const char *eName=0, const char **eText=0);
-
-//------------------------------------------------------------------------------
-//! Convert our IP address to the corresponding [host] name and return a copy
-//! of the name. This method provides compatability to the XrdSysDNS method
-//! getHostName() which always returned something.
-//!
-//! @param  eText    when not null, the reason for a failure is returned.
-//!
-//! @return Success: Pointer to the name or ip address with eText, if supplied,
-//!                  set to zero. The name is an strdup'd string and must be
-//!                  freed (using free()) by caller.
-//!         Failure: strdup("0.0.0.0") and if eText is not zero, returns a
-//!                  pointer to a message describing the reason for failure. The
-//!                  message is in persistent storage and cannot be modified.
-//------------------------------------------------------------------------------
-
-char       *NameDup(const char **eText=0);
-
-//------------------------------------------------------------------------------
-//! Provide a pointer to our socket address suitable for use in calls to methods
-//! that require our internal format of sock addr. A value is only returned for
-//! IPV6/4 addresses and is nill otherwise. The pointer refers to memory
-//! allocated by this object and becomes invalid should the object be deleted.
-//! Use SockSize() to get its logical length.
-//------------------------------------------------------------------------------
-
-inline const
-XrdNetSockAddr  *NetAddr() {return (sockAddr == (void *)&IP ? &IP : 0);}
 
 //------------------------------------------------------------------------------
 //! Optionally set and also returns the port number for our address.
@@ -175,28 +53,6 @@ XrdNetSockAddr  *NetAddr() {return (sockAddr == (void *)&IP ? &IP : 0);}
 //------------------------------------------------------------------------------
 
 int         Port(int pNum=-1);
-
-//------------------------------------------------------------------------------
-//! Provide our protocol family.
-//!
-//! @return Success: Returns PF_INET, PF_INET6, or PF_UNIX.
-//!         Failure: Returns 0, address is not valid.
-//------------------------------------------------------------------------------
-
-inline int  Protocol() {return static_cast<int>(protType);}
-
-//------------------------------------------------------------------------------
-//! Check if the IP address in this object is the same as the one passed.
-//!
-//! @param ipAddr    points to the network address object to compare.
-//! @param plusPort  when true, port values must also match. In any case, both
-//!                  addresses must be of the same address family.
-//!
-//! @return Success: True  (addresses are     the same).
-//!         Failure: False (addresses are not the same).
-//------------------------------------------------------------------------------
-
-int         Same(const XrdNetAddr *ipAddr, bool plusPort=false);
 
 //------------------------------------------------------------------------------
 //! Set the IP address and possibly the port number of the current node. This
@@ -296,106 +152,47 @@ const char *Set(const struct sockaddr *sockP, int sockFD=-1);
 const char *Set(int sockFD);
 
 //------------------------------------------------------------------------------
-//! Provide a pointer to our socket address suitable for use in calls to
-//! functions that require one (e.g. bind() etc). The pointer refers to memory
-//! allocated by this object and becomes invalid should the object be deleted
-//! or when Set() is called. Use SockSize() to get its length.
+//! Force this object to work in IPV4 mode only. This method permanently sets
+//! IPV4 mode which cannot be undone without a restart. It is meant to bypass
+//! broken IPV6 stacks on those unfortunate hosts that have one. It should be
+//! called before any other calls to this object (e.g. initialization time).
 //------------------------------------------------------------------------------
 
-inline const
-sockaddr   *SockAddr() {return sockAddr;}
-
-//------------------------------------------------------------------------------
-//! Provide the length of our socket adress. Useful for system calls needing it.
-//!
-//! @return Success: Returns the length of the address returned by SockAddr().
-//!         Failure: Returns 0, address is not valid.
-//------------------------------------------------------------------------------
-
-inline
-SOCKLEN_t   SockSize() {return addrSize;}
-
-//------------------------------------------------------------------------------
-//! Get the associated file descriptor.
-//!
-//! @return The associated file descriptor. If negative, no association exists.
-//------------------------------------------------------------------------------
-
-inline int  SockFD() {return sockNum;}
+static void  SetIPV4();
 
 //------------------------------------------------------------------------------
 //! Assignment operator
 //------------------------------------------------------------------------------
 
 XrdNetAddr &operator=(XrdNetAddr const &rhs)
-            {if (&rhs != this)
-                {memcpy(&IP, &rhs.IP, sizeof(IP));
-                 addrSize = rhs.addrSize; sockNum = rhs.sockNum;
-                 if (hostName) free(hostName);
-                 hostName = (rhs.hostName ? strdup(rhs.hostName):0);
-                 if (rhs.sockAddr != &rhs.IP.addr)
-                    {if (!unixPipe) unixPipe = new sockaddr_un;
-                     memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
-                    } else {
-                     if (unixPipe) delete unixPipe;
-                     sockAddr = &IP.addr;
-                    }
-                }
-             return *this;
-            }
+            {if (this != &rhs) XrdNetAddrInfo(rhs); return *this;}
 
 //------------------------------------------------------------------------------
 //! Copy constructor
 //------------------------------------------------------------------------------
 
-            XrdNetAddr(const XrdNetAddr &oP)
-                  {memcpy(&IP, &oP.IP, sizeof(IP));
-                   addrSize = oP.addrSize; sockNum = oP.sockNum;
-                   hostName = (oP.hostName ? strdup(oP.hostName) : 0);
-                   if (oP.sockAddr != &oP.IP.addr)
-                      {if (!unixPipe) unixPipe = new sockaddr_un;
-                       memcpy(unixPipe, oP.unixPipe, sizeof(sockaddr_un));
-                      } else sockAddr = &IP.addr;
-                  }
+            XrdNetAddr(XrdNetAddr const &aP) : XrdNetAddrInfo(aP) {}
 
 //------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
 
-            XrdNetAddr() : hostName(0), addrSize(0), sockNum(-1)
-                           {IP.addr.sa_family = 0;
-                            sockAddr = &IP.addr;
-                           }
+            XrdNetAddr() : XrdNetAddrInfo() {}
+
+            XrdNetAddr(const XrdNetAddr *addr) : XrdNetAddrInfo(addr) {}
 
 //------------------------------------------------------------------------------
 //! Destructor
 //------------------------------------------------------------------------------
 
-           ~XrdNetAddr() {if (hostName) free(hostName);
-                          if (sockAddr != &IP.addr) delete unixPipe;
-                         }
-
+           ~XrdNetAddr() {}
 private:
+static struct addrinfo    *Hints(int htype);
+void                       Init(struct addrinfo *rP, int Port);
+bool                       Map64();
 
-       void                Init(struct addrinfo *rP, int Port);
-       char               *LowCase(char *str);
-       int                 QFill(char *bAddr, int bLen);
-       int                 Resolve();
-
-static XrdNetCache         dnsCache;
-static struct addrinfo     hostHints;
-static fmtUse              useFmt;
-
-// For optimization this union should be the first member of this class as we
-// compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".
-//
-XrdNetSockAddr             IP;
-union {struct sockaddr    *sockAddr;
-       struct sockaddr_un *unixPipe;
-      };
-char                      *hostName;
-SOCKLEN_t                  addrSize;
-short                      protType;
-short                      sockNum;
+static struct addrinfo    *hostHints;
+static struct addrinfo    *huntHints;
+static bool                useIPV4;
 };
 #endif

@@ -36,7 +36,6 @@
 #include <utime.h>
 #include <sys/param.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include "XrdFrc/XrdFrcCID.hh"

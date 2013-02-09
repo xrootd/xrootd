@@ -30,9 +30,9 @@
   
 #include <ctype.h>
 #include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetAddr.hh"
@@ -41,99 +41,36 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-XrdNetCache        XrdNetAddr::dnsCache;
+struct addrinfo   *XrdNetAddr::hostHints = XrdNetAddr::Hints(0);
 
-struct addrinfo    XrdNetAddr::hostHints = {AI_CANONNAME|AI_V4MAPPED,PF_INET6};
-                                                  
+struct addrinfo   *XrdNetAddr::huntHints = XrdNetAddr::Hints(1);
 
-XrdNetAddr::fmtUse XrdNetAddr::useFmt = XrdNetAddr::fmtName;
+bool               XrdNetAddr::useIPV4   = false;
 
 /******************************************************************************/
-/*                                F o r m a t                                 */
+/* Private:                        H i n t s                                  */
 /******************************************************************************/
   
-int XrdNetAddr::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
+struct addrinfo *XrdNetAddr::Hints(int htype)
 {
-   const char *pFmt = "]:%d";
-   int totLen, n, pNum, addBrak = 0, omitP = (fmtOpts & noPort);
+   static struct addrinfo hints4Host, hints4Hunt;
 
-// Handle the degenerative case first
+// Return properly initialized hint structure. We need to do this dynamically
+// in a static constructor since the addrinfo layout differs by OS-type.
 //
-   if (IP.addr.sa_family == AF_UNIX)
-      {n = (omitP ? snprintf(bAddr, bLen, "localhost")
-                  : snprintf(bAddr, bLen, "localhost:%s", unixPipe->sun_path));
-       return (n < bLen ? n : QFill(bAddr, bLen));
+   if (htype)
+      {memset(&hints4Hunt, 0, sizeof(struct addrinfo));;
+       hints4Hunt.ai_flags    = AI_V4MAPPED;
+       hints4Hunt.ai_family   = AF_INET6;
+       hints4Hunt.ai_protocol = PF_INET6;
+       return &hints4Hunt;
       }
 
-// Preset defaults (note that the port number is the same position and
-// same size regardless of address type).
-//
-   if (theFmt == fmtDflt) theFmt = useFmt;
-   pNum = ntohs(IP.v4.sin_port);
-
-// Resolve address if need be and return result if possible
-//
-   if (theFmt == fmtName || theFmt == fmtAuto)
-      {if (!hostName && !(hostName = dnsCache.Find(this)) && theFmt == fmtName)
-          Resolve();
-       if (hostName)
-          {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
-                      : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
-           return (n < bLen ? n : QFill(bAddr, bLen));
-          }
-       theFmt = fmtAddr;
-      }
-
-// Check if we can now produce an address format quickly
-//
-   if (hostName && !isalpha(*hostName))
-          {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
-                      : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
-       return (n < bLen ? n : QFill(bAddr, bLen));
-      }
-
-// Format address
-//
-        if (IP.addr.sa_family == AF_INET6)
-           {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            *bAddr = '['; addBrak = 1;
-            if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
-               {strcpy(bAddr, "[::");
-                if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
-                               bAddr+3, bLen-3)) return QFill(bAddr, bLen);
-               } else if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+1,bLen-1))
-                         return QFill(bAddr, bLen);
-           }
-   else if (IP.addr.sa_family == AF_INET)
-           {if (theFmt != fmtAdv6) {n = 0; pFmt =  ":%d";}
-               else {if (bLen < (INET_ADDRSTRLEN+9)) return QFill(bAddr, bLen);
-                     if (fmtOpts & old6Map4) {strcpy(bAddr, "[::"); n = 3;}
-                        else {strcpy(bAddr, "[::ffff:"); n = 8;}
-                    }
-            if (!inet_ntop(AF_INET, &(IP.v4.sin_addr),bAddr+n,bLen-n))
-               return QFill(bAddr, bLen);
-           }
-   else return QFill(bAddr, bLen);
-
-// Recalculate buffer position and length
-//
-   totLen = strlen(bAddr); bAddr += totLen; bLen -= totLen;
-
-// Process when no port number wanted
-//
-   if (omitP)
-      {if (addBrak)
-          {if (bLen < 2) return QFill(bAddr, bLen);
-           *bAddr++ = ']'; *bAddr = 0; totLen++;
-          }
-       return totLen;
-      }
-
-// Add the port number and return result
-//
-   if ((n = snprintf(bAddr, bLen, pFmt, pNum)) >= bLen)
-      return QFill(bAddr, bLen);
-   return totLen+n;
+       memset(&hints4Host, 0, sizeof(struct addrinfo));;
+       hints4Host.ai_flags    = AI_V4MAPPED | AI_CANONNAME;
+       hints4Host.ai_family   = AF_INET6;
+       hints4Host.ai_protocol = PF_INET6;
+       return &hints4Host;
 }
 
 /******************************************************************************/
@@ -147,98 +84,32 @@ void XrdNetAddr::Init(struct addrinfo *rP, int Port)
 //
    memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
    addrSize = rP->ai_addrlen;
+   protType = rP->ai_protocol;
    if (hostName) free(hostName);
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
    if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
+   sockNum = -1;
 }
 
 /******************************************************************************/
-/*                            i s L o o p b a c k                             */
+/* Private:                        M a p 6 4                                  */
 /******************************************************************************/
-  
-bool XrdNetAddr::isLoopback()
+
+bool XrdNetAddr::Map64()
 {
-   static const char lbVal[13] ={0,0,0,0,0,0,0,0,0,0,0,0,0x7f};
 
-// Check for loopback address
+// The address must be a mapped IPV4 address
 //
-   if (IP.addr.sa_family == AF_INET)
-      return !memcmp(&IP.v4.sin_addr.s_addr, &lbVal[12], 1);
+   if (!IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr)) return false;
 
-   if (IP.addr.sa_family == AF_INET6)
-      return !memcmp(&IP.v6.sin6_addr, &in6addr_loopback, sizeof(in6_addr))
-          || !memcmp(&IP.v6.sin6_addr,  lbVal,            sizeof(lbVal));
-
-   return false;
-}
-
-/******************************************************************************/
-/*                          i s R e g i s t e r e d                           */
-/******************************************************************************/
-  
-bool XrdNetAddr::isRegistered()
-{
-   const char *hName;
-
-// Simply see if we can resolve this name
+// Now convert this down to an IPv4 address
 //
-   if (!(hName = Name())) return false;
-   return isalpha(*hName);
-}
-  
-/******************************************************************************/
-/* Private:                      L o w C a s e                                */
-/******************************************************************************/
-  
-char *XrdNetAddr::LowCase(char *str)
-{
-   char *sp = str;
-
-   while(*sp) {if (isupper((int)*sp)) *sp = (char)tolower((int)*sp); sp++;}
-
-   return str;
-}
-
-/******************************************************************************/
-/*                                  N a m e                                   */
-/******************************************************************************/
-  
-const char *XrdNetAddr::Name(const char *eName, const char **eText)
-{
-   char buff[INET6_ADDRSTRLEN+8];
-   void *aP;
-   int n, rc, family;
-
-// Preset errtxt to zero
-//
-   if (eText) *eText = 0;
-
-// Check for unix family which is equal to localhost.
-//
-  if (IP.addr.sa_family == AF_UNIX) return "localhost";
-
-// If we already translated this name, just return the translation
-//
-   if (hostName || (hostName = dnsCache.Find(this))) return hostName;
-
-// Try to resolve this address
-//
-   if (!(rc = Resolve())) return hostName;
-
-// We failed resolving this address
-//
-   if (eText) *eText = gai_strerror(rc);
-   return eName;
-}
-
-/******************************************************************************/
-/*                               N a m e D u p                                */
-/******************************************************************************/
-  
-char *XrdNetAddr::NameDup(const char **eText)
-{
-   return strdup(Name("0.0.0.0"));
+   IP.v4.sin_addr.s_addr = IP.v6.sin6_addr.s6_addr32[3];
+   IP.v4.sin_family      = AF_INET;
+   protType              = PF_INET6;
+   addrSize              = sizeof(sockaddr_in);
+   return true;
 }
 
 /******************************************************************************/
@@ -266,103 +137,6 @@ int XrdNetAddr::Port(int pNum)
 }
 
 /******************************************************************************/
-/* Private:                        Q F i l l                                  */
-/******************************************************************************/
-  
-int XrdNetAddr::QFill(char *bAddr, int bLen)
-{
-   static const char quests[] = "????????";
-
-// Insert up to 8 question marks
-//
-   if (bLen)
-      {strncpy(bAddr, quests, bLen);
-       bAddr[bLen-1] = 0;
-      }
-   return 0;
-}
-
-/******************************************************************************/
-/* Private:                      R e s o l v e                                */
-/******************************************************************************/
-
-int XrdNetAddr::Resolve()
-{
-   char hBuff[NI_MAXHOST];
-   int n, rc;
-
-// Free up hostname here
-//
-   if (hostName) {free(hostName); hostName = 0;}
-
-// Determine the actual size of the address structure
-//
-        if (IP.addr.sa_family == AF_INET ) n = sizeof(IP.v4);
-   else if (IP.addr.sa_family == AF_INET6) n = sizeof(IP.v6);
-   else if (IP.addr.sa_family == AF_UNIX )
-           {hostName = strdup("localhost");
-            return 0;
-           }
-   else return EAI_FAMILY;
-
-// Do lookup of canonical name. Note that under certain conditions (e.g. dns
-// failure) we can get a negative return code that may cause a SEGV. We check.
-// Additionally, some implementations of getnameinfo() return the scopeid when
-// a numeric address is returned. We check and remove it.
-//
-   if ((rc = getnameinfo(&IP.addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
-      {if (rc < 0) {errno = ENETUNREACH; rc = EAI_SYSTEM;}
-       return rc;
-      }
-
-// Handle the case when the mapping returned an actual name or an address
-// We always want numeric ipv6 addresses surrounded by brackets.
-//
-        if (isalpha(hBuff[1]))    hostName = strdup(LowCase(hBuff+1));
-   else if (!index(hBuff+1, ':')) hostName = strdup(hBuff+1);
-   else {char *perCent = index(hBuff+1, '%');
-         if (perCent) *perCent = 0;
-         n = strlen(hBuff+1);
-         hBuff[0] = '['; hBuff[n+1] = ']'; hBuff[n+2] = 0;
-         hostName = strdup(hBuff);
-        }
-
-// Add the entry to the cache and return success
-//
-   dnsCache.Add(this, hostName);
-   return 0;
-}
-  
-/******************************************************************************/
-/*                                  S a m e                                   */
-/******************************************************************************/
-  
-int XrdNetAddr::Same(const XrdNetAddr *ipAddr, bool plusPort)
-{
-
-// Both address families must match
-//
-  if (IP.addr.sa_family != ipAddr->IP.addr.sa_family) return 0;
-
-// Now process to do the match
-//
-        if (IP.addr.sa_family == AF_INET)
-           {if (memcmp(&IP.v4.sin_addr,  &(ipAddr->IP.v4.sin_addr),
-                       sizeof(IP.v4.sin_addr))) return 0;
-            return (plusPort ? IP.v4.sin_port  == ipAddr->IP.v4.sin_port  : 1);
-           }
-   else if (IP.addr.sa_family == AF_INET6)
-           {if (memcmp(&IP.v6.sin6_addr, &(ipAddr->IP.v6.sin6_addr),
-                       sizeof(IP.v6.sin6_addr))) return 0;
-            return (plusPort ? IP.v6.sin6_port == ipAddr->IP.v6.sin6_port : 1);
-           }
-   else if (IP.addr.sa_family == AF_UNIX)
-           return !strcmp(unixPipe->sun_path, ipAddr->unixPipe->sun_path);
-
-   return 0;
-}
-
-/******************************************************************************/
 /*                                  S e l f                                   */
 /******************************************************************************/
   
@@ -385,12 +159,14 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 {
    static const char *badIPv4 = "invalid IPv4 address";
    static const char *badIPv6 = "invalid IPv6 address";
+   static const char *badIP64 = "IPv6 address not IPv4 representable";
    static const char *badName = "invalid host name";
    static const int   map46ID = htonl(0x0000ffff);
 
    const char *Colon, *iP;
    char aBuff[NI_MAXHOST+INET6_ADDRSTRLEN];
    int  aLen, n;
+   bool mapIt;
 
 // Clear translation if set (note unixPipe & sockAddr are the same).
 //
@@ -402,11 +178,18 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 // Check for any address setting
 //
    if (!hSpec)
-      {IP.v6.sin6_family = AF_INET6;
-       IP.v6.sin6_addr   = in6addr_any;
+      {if (useIPV4)
+          {IP.v4.sin_family      = AF_INET;
+           IP.v4.sin_addr.s_addr = INADDR_ANY;
+           protType              = PF_INET;
+           addrSize              = sizeof(sockaddr_in);
+          } else {
+           IP.v6.sin6_family     = AF_INET6;
+           IP.v6.sin6_addr       = in6addr_any;
+           protType              = PF_INET6;
+          }
        if (pNum < 0) pNum= -pNum;
        IP.v6.sin6_port   = htons(static_cast<short>(pNum));
-       protType          = PF_INET6;
        return 0;
       }
 
@@ -427,7 +210,8 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
    aLen = strlen(hSpec);
    if (aLen >= sizeof(aBuff)) return "host id too long";
 
-// Convert the address as appropriate
+// Convert the address as appropriate. Note that we do accept RFC5156 deprecated
+// IPV4 mapped IPV6 addresses(i.e. [::a.b.c.d]. This is historical.
 //
         if (*hSpec == '[')
            {const char *Brak = index(hSpec+1, ']');
@@ -437,10 +221,15 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                else if (*Colon != ':') return badIPv6;
             aLen = Brak - (hSpec+1);
             if (aLen >= INET6_ADDRSTRLEN) return badIPv6;
+            mapIt =    (*(hSpec+1) == ':' && *(hSpec+2) == ':'
+                     && *(hSpec+3) >= '0' && *(hSpec+3) <= '9'
+                     && (iP = index(hSpec+4, '.')) && iP < Brak);
             strncpy(aBuff, hSpec+1, aLen); aBuff[aLen] = 0;
             if (inet_pton(AF_INET6,aBuff,&IP.v6.sin6_addr) != 1) return badIPv6;
+            if (mapIt) IP.v6.sin6_addr.s6_addr32[2] = map46ID;
             IP.v6.sin6_family = AF_INET6;
-            protType = PF_UNIX;
+            protType = PF_INET6;
+            if (useIPV4 && !Map64()) return badIP64;
            }
    else if (*hSpec >= '0' && *hSpec <= '9')
            {if ((Colon = index(hSpec, ':')))
@@ -450,9 +239,10 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                } else iP = hSpec;
             if (inet_pton(AF_INET ,iP, &IP.v6.sin6_addr.s6_addr32[3]) != 1)
                return badIPv4;
-            IP.v6.sin6_addr.s6_addr32[3] = map46ID;
+            IP.v6.sin6_addr.s6_addr32[2] = map46ID;
             IP.v6.sin6_family = AF_INET6;
             protType = PF_INET6;
+            if (useIPV4 && !Map64()) return badIPv4;
            }
    else if (*hSpec == 0) return badName;
 
@@ -462,7 +252,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                 if (aLen > MAXHOSTNAMELEN) return badName;
                 strncpy(aBuff, hSpec, aLen); aBuff[aLen] = 0; iP = aBuff;
                } else iP = hSpec;
-            n = getaddrinfo(iP, 0, &hostHints, &rP);
+            n = getaddrinfo(iP, 0, hostHints, &rP);
             if (n || !rP)
                {if (rP) freeaddrinfo(rP);
                 return (n ? gai_strerror(n) : "host not found");
@@ -470,7 +260,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
             memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
             if (hostName) free(hostName);
-            hostName = strdup(rP->ai_canonname);
+            hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
             freeaddrinfo(rP);
            }
 
@@ -493,7 +283,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
   
 const char *XrdNetAddr::Set(const char *hSpec,int &numIP,int maxIP,int pNum)
 {
-   struct addrinfo *rP = 0, *pP, *nP, myhints = {AI_CANONNAME};
+   struct addrinfo *rP = 0, *pP, *nP;
    XrdNetAddr *aVec = this;
    const char *Colon, *iP;
    char aBuff[MAXHOSTNAMELEN+8];
@@ -526,9 +316,8 @@ const char *XrdNetAddr::Set(const char *hSpec,int &numIP,int maxIP,int pNum)
 
 // Get all of the addresses
 //
-// n = getaddrinfo(iP, 0, (const addrinfo *)&myhints, &rP);
-   n = getaddrinfo(iP, 0, (const addrinfo *)0,        &rP);
-   if (n || !rP) return gai_strerror(n);
+   n = getaddrinfo(iP, 0, huntHints, &rP);
+   if (n || !rP)
       {if (rP) freeaddrinfo(rP);
        return (n ? gai_strerror(n) : "host not found");
       }
@@ -599,4 +388,25 @@ const char *XrdNetAddr::Set(int sockFD)
 // All done
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                               S e t I P V 4                                */
+/******************************************************************************/
+  
+void XrdNetAddr::SetIPV4()
+{
+
+// To force IPV4 mode we merely change the hints structure and set the IPV4
+// mode flag to reject IPV6 address unless they are mapped.
+//
+   hostHints->ai_flags    = AI_CANONNAME;
+   hostHints->ai_family   = AF_INET;
+   hostHints->ai_protocol = PF_INET;
+
+   huntHints->ai_flags    = AI_ADDRCONFIG;
+   huntHints->ai_family   = AF_INET;
+   huntHints->ai_protocol = PF_INET;
+
+   useIPV4 = true;
 }

@@ -261,7 +261,7 @@ int XrdNet::Connect(XrdNetAddr &myAddr, const char *host,
 
 // Determine appropriate options but turn off UDP sockets
 //
-   opts &= (opts | netOpts) & ~XRDNET_UDPSOCKET;
+   opts = (opts | netOpts) & ~XRDNET_UDPSOCKET;
    if (tmo > 0) opts = (opts & ~XRDNET_TOUT) | (tmo > 255 ? 255 : tmo);
 
 // Now perform the connect and return the results if successful
@@ -392,9 +392,8 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
   SOCKLEN_t addrlen = sizeof(IP);
   int newfd;
 
-// Preset options
+// Remove UDP option if present
 //
-   if (!opts) opts = netOpts;
    opts &= ~XRDNET_UDPSOCKET;
 
 // Accept a connection
@@ -421,7 +420,9 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
    if (Police)
       {if (!Police->Authorize(hAddr))
           {char ipbuff[64];
-           hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtName, false);
+           hAddr.Format(ipbuff, sizeof(ipbuff),
+                        (opts & XRDNET_NORLKUP ? XrdNetAddr::fmtAuto
+                                               : XrdNetAddr::fmtName), false);
            eDest->Emsg("Accept",EACCES,"accept TCP connection from",ipbuff);
            close(newfd);
            return 0;
@@ -470,10 +471,6 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
   SOCKLEN_t       addrlen = sizeof(IP);
   XrdNetBuffer   *bp;
   XrdNetAddr      uAddr;
-
-// Consistently use whatever defaults we need
-//
-   if (!opts) opts = netOpts;
 
 // For UDP connections, get a buffer for the message. To be thread-safe, we
 // must actually receive the message to maintain the host-datagram pairing.

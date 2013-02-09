@@ -140,7 +140,8 @@ int XrdNetUtils::Encode(const XrdNetSockAddr *sadr, char *buff, int blen,
 XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
                                 int *sPort, const char **eText)
 {
-   XrdNetAddr   myAddr, aList[8];
+   static const int hMax = 8;
+   XrdNetAddr   myAddr, aList[hMax];
    XrdOucTList *tList = 0;
    const char  *etext;
    int numIP, i;
@@ -148,19 +149,19 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
 // Check if the port must be in the spec and set maximum
 //
    if (hPort < 0) hPort = XrdNetAddr::PortInSpec;
-   if (hWant > sizeof(aList)) hWant = sizeof(aList);
+   if (hWant > hMax) hWant = hMax;
       else if (hWant < 1) hWant = 1;
 
 // Initialze the list of addresses
 //
-   if ((etext = aList[0].Set(hSpec, numIP, sizeof(aList), hPort)))
+   if ((etext = aList[0].Set(hSpec, numIP, hWant, hPort)))
       {if (eText) *eText = etext;
        return 0;
       }
 
 // If we will be looking for our own port setup our address
 //
-   if (sPort <= 0) myAddr.Self();
+   if (sPort) myAddr.Self();
 
 // Create the tlist object
 //

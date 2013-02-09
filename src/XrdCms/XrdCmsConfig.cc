@@ -1853,14 +1853,9 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
        {eDest->Emsg("Config","manager host name not specified"); return 1;}
     hSpec = strdup(val);
 
-//  Grab the port number if in the host name. Otherwise make sure it follows.
+//  Grab the port number (either in hostname or following token)
 //
-         if ((val = index(hSpec, ':'))) {*val++ = '\0'; hPort = strdup(val);}
-    else if (!(val = CFile.GetWord()) || !strcmp(val, "if"))
-            {eDest->Emsg("Config", "manager port not specified for", hSpec);
-             return 1;
-            }
-    else hPort = strdup(val);
+    if (!(hPort = XrdCmsUtils::ParseManPort(eDest, CFile, hSpec))) return 1;
 
 // Check if this statement is gaurded by and "if" and process it
 //

@@ -87,7 +87,6 @@ void XrdNetSecurity::AddHost(char *hname)
 {
    static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;
    XrdNetAddr hAddr;
-   const char *Hname = 0;
    char ipbuff[64];
 
 // If this has no asterisks, then we can add it as is. Otherwise, add it to
@@ -96,16 +95,15 @@ void XrdNetSecurity::AddHost(char *hname)
    if (!index(hname, '*') && !hAddr.Set(hname)
    &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAddr, fmtOpts))
       {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
-       Hname = hAddr.Name();
       }
       else {XrdOucNList *nlp = new XrdOucNList(hname);
             HostList.Insert(nlp);
+            chkNetLst = true;
            }
 
 // Echo this back if debugging
 //
-   if (Hname) {DEBUG(hname <<" (" <<Hname <<") added to authorized hosts.");}
-      else    {DEBUG(hname <<" added to authorized hosts.");}
+   DEBUG(hname <<" (" <<hname <<") added to authorized hosts.");
 }
 
 /******************************************************************************/
@@ -120,6 +118,7 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 //
    tlp->next = NetGroups;
    NetGroups = tlp;
+   chkNetGrp = true;
 
 // All done
 //
@@ -149,6 +148,7 @@ bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
 
 // Get the hostname for this IP address
 //
+   if (!chkNetLst && !chkNetGrp) {okHMutex.UnLock(); return false;}
    if (!(hName = addr.Name())) hName = ipAddr;
 
 // Check if this host is in the the appropriate netgroup, if any
@@ -160,7 +160,8 @@ bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
 
 // Plow through the specific host list to see if the host
 //
-   if (HostList.Find(hName)) return hostOK(hName, ipAddr, "host");
+   if (chkNetLst && HostList.Find(hName))
+      return hostOK(hName, ipAddr, "host");
 
 // Host is not authorized
 //

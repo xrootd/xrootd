@@ -30,6 +30,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+class XrdOucStream;
 class XrdOucTList;
 class XrdSysError;
 
@@ -41,7 +42,7 @@ public:
 //! Obtain and merge a new manager list with an existing list.
 //!
 //! @param  eDest    Pointer to the error message object to route messages.
-//!         oldMans  A pointer to the existing list of managers, if any. If
+//! @param  oldMans  A pointer to the existing list of managers, if any. If
 //!                  oldMans is nil, then the hSpec/hPort/sPort is processed
 //!                  but no list is returned.
 //! @param  hSpec    the host specification suitable for XrdNetAddr.Set(). The
@@ -67,6 +68,21 @@ public:
 static
 bool     ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                   char  *hSpec, char *hPort, int *sPort=0);
+
+//------------------------------------------------------------------------------
+//! Obtain the port for a manager specification
+//!
+//! @param  eDest    Pointer to the error message object to route messages.
+//! @param  oldMans  The configuration file stream.
+//! @param  hSpec    The initial manager specification which may or may not
+//!                  have the port number in it.
+//!
+//! @return Success: Pointer to a copy of the port specification. The caller
+//!                  is responsible for freeing it using free().
+//!         Failure: A nil pointer. An error message has already been issued.
+//------------------------------------------------------------------------------
+static
+char *ParseManPort(XrdSysError *eDest, XrdOucStream &CFile, char *hSpec);
 
          XrdCmsUtils() {}
         ~XrdCmsUtils();

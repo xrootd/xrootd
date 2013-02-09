@@ -101,6 +101,7 @@ add_library(
                                 XrdNet/XrdNetPeer.hh
                                 XrdNet/XrdNetSockAddr.hh
   XrdNet/XrdNetAddr.cc          XrdNet/XrdNetAddr.hh
+  XrdNet/XrdNetAddrInfo.cc      XrdNet/XrdNetAddrInfo.hh
   XrdNet/XrdNetBuffer.cc        XrdNet/XrdNetBuffer.hh
   XrdNet/XrdNetCache.cc         XrdNet/XrdNetCache.hh
   XrdNet/XrdNetCmsNotify.cc     XrdNet/XrdNetCmsNotify.hh

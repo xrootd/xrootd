@@ -54,7 +54,8 @@ void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
 
 void  Trace(XrdOucTrace *et=0) {eTrace = et;}
 
-     XrdNetSecurity() : NetGroups(0), eTrace(0) {}
+     XrdNetSecurity() : NetGroups(0), eTrace(0), 
+                        chkNetLst(false), chkNetGrp(false) {}
     ~XrdNetSecurity() {}
 
 private:
@@ -68,6 +69,8 @@ XrdNetTextList           *NetGroups;
 XrdOucHash<char>          OKHosts;
 XrdSysMutex               okHMutex;
 XrdOucTrace              *eTrace;
+bool                      chkNetLst;
+bool                      chkNetGrp;
 
 static const char        *TraceID;
 };

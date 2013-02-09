@@ -398,14 +398,9 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
        {Say.Emsg("Config","manager host name not specified"); return 1;}
        else hSpec = strdup(val);
 
-// Get the port from the spec and if not there make sure it follows
+//  Grab the port number (either in hostname or following token)
 //
-         if ((val = index(hSpec, ':'))) {*val++ = '\0'; hPort = strdup(val);}
-    else if (!(val = Config.GetWord()) || !strcmp(val, "if"))
-            {Say.Emsg("Config", "manager port not specified for", hSpec);
-             return 1;
-            }
-    else hPort = strdup(val);
+    if (!(hPort = XrdCmsUtils::ParseManPort(&Say, Config, hSpec))) return 1;
 
 // Process any "if" clause now
 //

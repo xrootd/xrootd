@@ -35,7 +35,6 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/un.h>
 
 #ifdef __solaris__
 #include <sys/isa_defs.h>

@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/uio.h>
 
 #include "XrdNet/XrdNetAddr.hh"

@@ -29,7 +29,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/socket.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>

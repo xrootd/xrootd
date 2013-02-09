@@ -35,6 +35,7 @@
 #include "XrdCms/XrdCmsUtils.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOuca2x.hh"
+#include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 
@@ -62,7 +63,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
            return false;
       } else {
        if (!(nPort = XrdNetUtils::ServPort(hPort, "tcp")))
-          {eDest->Emsg("Config", "Unable to find tcp service '",hPort,"'.");
+          {eDest->Emsg("Config", "Unable to find tcp service",hPort,".");
            return false;
           }
       }
@@ -71,8 +72,8 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //
    if (!(newMans = XrdNetUtils::Hosts(hSpec, nPort, maxIP, sPort, &eText)))
       {char buff[1024];
-       snprintf(buff, sizeof(buff), "'; %s", eText);
-       eDest->Emsg("ManList", "Unable to find host '", hSpec, buff);
+       snprintf(buff, sizeof(buff), "; %s", eText);
+       eDest->Emsg("Config", "Unable to add host", hSpec, buff);
        return false;
       }
 
@@ -82,10 +83,6 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
       {while(newP = newMans) {newMans = newMans->next; delete newP;}
        return true;
       }
-
-// If there is no old list, then just return the new list
-//
-   if (!(*oldMans)) {*oldMans = newMans; return true;}
 
 // Merge new list with old list
 //
@@ -110,4 +107,41 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 //
    *oldMans = appList;
    return true;
+}
+
+/******************************************************************************/
+/*                          P a r s e M a n P o r t                           */
+/******************************************************************************/
+  
+char *XrdCmsUtils::ParseManPort(XrdSysError *eDest, XrdOucStream &CFile,
+                                char *hSpec)
+{
+   char *pSpec;
+
+// Screen out IPV6 specifications
+//
+   if (*hSpec == '[')
+      {if (!(pSpec = index(hSpec, ']')))
+          {eDest->Emsg("Config", "Invalid manager specification -",hSpec);
+           return 0;
+          }
+      } else pSpec = hSpec;
+
+// Grab the port number if in the host name. Otherwise make sure it follows.
+//
+         if ((pSpec = index(pSpec, ':')))
+            {if (!(*(pSpec+1))) pSpec = 0;
+                else *pSpec++ = '\0';
+            }
+    else if (!(pSpec = CFile.GetWord()) || !strcmp(pSpec, "if")) pSpec = 0;
+
+// We should have a port specification now
+//
+   if (!pSpec) {eDest->Emsg("Config", "manager port not specified for", hSpec);
+                return 0;
+               }
+
+// All is well
+//
+   return strdup(pSpec);
 }

@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
 #include "XrdNet/XrdNetSockAddr.hh"
 #include "Xrd/XrdProtocol.hh"

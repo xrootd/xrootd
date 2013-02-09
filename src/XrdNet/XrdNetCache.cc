@@ -33,7 +33,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdNet/XrdNetCache.hh"
 
 /******************************************************************************/
@@ -60,7 +60,7 @@ XrdNetCache::XrdNetCache(int psize, int csize)
 /* public                            A d d                                    */
 /******************************************************************************/
   
-void XrdNetCache::Add(XrdNetAddr *hAddr, const char *hName)
+void XrdNetCache::Add(XrdNetAddrInfo *hAddr, const char *hName)
 {
    anItem Item, *hip;
    int    kent;
@@ -145,7 +145,7 @@ void XrdNetCache::Expand()
 /* public                           F i n d                                   */
 /******************************************************************************/
   
-char *XrdNetCache::Find(XrdNetAddr *hAddr)
+char *XrdNetCache::Find(XrdNetAddrInfo *hAddr)
 {
   anItem Item, *nip, *pip = 0;
   int kent;
@@ -186,7 +186,7 @@ char *XrdNetCache::Find(XrdNetAddr *hAddr)
 /*                                G e n K e y                                 */
 /******************************************************************************/
   
-int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddr *hAddr)
+int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddrInfo *hAddr)
 {
    union aPoint
         {const sockaddr     *sAddr;
@@ -199,10 +199,10 @@ int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddr *hAddr)
 
 // Get the size, validate, and generate the key
 //
-   Item.aLen = hAddr->SockSize();
    if (family == AF_INET)
       {memcpy(Item.aVal, &(aP.sAddr4->sin_addr), 4);
        Item.aHash = Item.aV4[0];
+       Item.aLen  = 4;
        return 1;
       }
 
@@ -210,6 +210,7 @@ int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddr *hAddr)
       {memcpy(Item.aVal, &(aP.sAddr6->sin6_addr), 16);
        Temp.llVal = Item.aV6[0]    ^ Item.aV6[1];
        Item.aHash = Temp.intVal[0] ^ Temp.intVal[1];
+       Item.aLen  = 16;
        return 1;
       }
 

@@ -36,7 +36,7 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 
-class XrdNetAddr;
+class XrdNetAddrInfo;
   
 class XrdNetCache
 {
@@ -50,7 +50,7 @@ public:
 //! @param  hName  points to the name to be associated with the address.
 //------------------------------------------------------------------------------
 
-void   Add(XrdNetAddr *hAddr, const char *hName);
+void   Add(XrdNetAddrInfo *hAddr, const char *hName);
 
 //------------------------------------------------------------------------------
 //! Locate an address-hostname association in the cache.
@@ -61,7 +61,7 @@ void   Add(XrdNetAddr *hAddr, const char *hName);
 //!         Failure: 0;
 //------------------------------------------------------------------------------
 
-char  *Find(XrdNetAddr *hAddr);
+char  *Find(XrdNetAddrInfo *hAddr);
 
 //------------------------------------------------------------------------------
 //! Set the default keep time for entries in the cache during initialization.
@@ -118,7 +118,7 @@ inline int       operator!=(const anItem &oth)
       };
 
 void             Expand();
-int              GenKey(anItem &Item, XrdNetAddr *hAddr);
+int              GenKey(anItem &Item, XrdNetAddrInfo *hAddr);
 anItem          *Locate(anItem &Item);
 
 static int       keepTime;
