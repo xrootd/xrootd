@@ -242,11 +242,11 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
              if ((cP = index(hBuff+1, ':'))
              &&  XrdOuca2x::a2i(MLog,"-b port",cP+1,&bPort,1,65535)) *buff = 0;
              if (cP) *cP = '\0';
-             if (!(dnsEtxt = netHost.Set(hBuff+1)))
-                bHost = netHost.NameDup(&dnsEtxt);
+             if (!(dnsEtxt = netHost.Set(hBuff+1,0)))
+                bHost = strdup(netHost.Name("0.0.0.0", &dnsEtxt));
              if (dnsEtxt)
-                {*hBuff = '\''; strcat(hBuff+1, "\'"); *buff = 0;
-                 MLog.Emsg("Config", hBuff, dnsEtxt);
+                {*buff = 0;
+                 MLog.Emsg("Config", "Unable to resolve", hBuff+1, dnsEtxt);
                 } else strcpy(buff, dP);
             }
        if (!*buff)
@@ -282,11 +282,12 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                      NoGo = 1; continue;
                     } else *tP = '\0';
          dnsEtxt = 0;
-         if (!(dnsEtxt = netHost.Set(dP))) tP = netHost.NameDup(&dnsEtxt);
+         if (!(dnsEtxt = netHost.Set(dP,0)))
+            tP = strdup(netHost.Name(0,&dnsEtxt));
          if (dnsEtxt)
-            {buff[0] = '\''; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
-             MLog.Emsg("Config", "'", dP, buff);
-             NoGo = 1; delete tP; continue;
+            {buff[0] = '-'; buff[1] = ' '; strcpy(buff+2, dnsEtxt);
+             MLog.Emsg("Config", "Unable to resolve host", dP, buff);
+             NoGo = 1; continue;
             }
          sprintf(buff, "%s:%d", tP, n); delete tP;
               if (!bDest)  Dest = new XrdOucTList(buff, (bPath ? -n : n), Dest);

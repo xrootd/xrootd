@@ -55,36 +55,23 @@ public:
 int         Port(int pNum=-1);
 
 //------------------------------------------------------------------------------
-//! Set the IP address and possibly the port number of the current node. This
-//! method is useful in obtaining the fully qualified name of the current host.
-//! The file descriptor association, if any, is reset to a negative value.
-//!
-//!
-//! @param  pNum     The port number associated with this node (may be 0).
-//!
-//! @return Success: 0.
-//!         Failure: Error message text describing the error. The message is in
-//!                  persistent storage and cannot be modified.
-//------------------------------------------------------------------------------
-
-const char *Self(int pNum=0);
-
-//------------------------------------------------------------------------------
 //! Set the IP address and possibly the port number.
 //!
 //! @param  hSpec    0 -> address is set to in6addr_any for binding via bind()
+//!                       (INADDR_ANY in IPV4 mode).
 //!                 !0 -> convert specification to an address. Valid formats:
 //!                       IPv4: nnn.nnn.nnn.nnn[:<port>]
 //!                       IPv6: [ipv6_addr][:<port>]  **addr brackets required**
 //!                       IPvx: name[:port] x is determined by getaddrinfo()
 //!                       Unix: /<path>
-//!
-//! @param  pNum     When positive, uses the value as the port number regardless
-//!                  of what is in hSpec, should it be supplied.
-//!                  When set to PortInSpec(see below) the port number must be
-//!                  specified in hSpec. If it is not, an error is returned.
-//!                  When negative, uses the positive value as the port number
-//!                  only when a port number has not been specified in hSpec.
+//! @param  pNum     >= 0 uses the value as the port number regardless of what
+//!                       is in hSpec, should it be supplied. However, if is
+//!                       present, it must be a valid port number or name.
+//!                  <  0 uses the positive value as the port number if the
+//!                       port number has not been specified in hSpec.
+//!                  **** When set to PortInSpec(the default, see below) the
+//!                       port number/name must be specified in hSpec. If it is
+//!                       not, an error is returned.
 //!
 //! @return Success: 0.
 //!         Failure: Error message text describing the error. The message is in
@@ -93,13 +80,13 @@ const char *Self(int pNum=0);
 
 static const int PortInSpec = 0x80000000;
 
-const char *Set(const char *hSpec, int pNum=0);
+const char *Set(const char *hSpec, int pNum=PortInSpec);
 
 //------------------------------------------------------------------------------
 //! Return multiple addresses. This form can only be used on the first element
 //! of this object that has been allocated as an array. This method is useful
 //! for getting all of the aliases assigned to a dns entry.
-//! The file descriptor association, if any, is reset to a negative value.
+//! The file descriptor association is set to a negative value.
 //!
 //! @param  hSpec    0 -> address is set to in6addr_any for binding via bind()
 //!                 !0 -> convert specification to an address. Valid formats:
@@ -109,12 +96,14 @@ const char *Set(const char *hSpec, int pNum=0);
 //!                       IP.Unix: /<path>
 //! @param  maxIP    number of elements in the array.
 //! @param  numIP    the number of IP addresses actually set (returned value).
-//! @param  pNum     When positive, uses the value as the port number regardless
-//!                  of what is in hSpec, should it be supplied.
-//!                  When set to PortInSpec(see above) the port number must be
-//!                  specified in hSpec. If it is not, an error is returned.
-//!                  When negative, uses the positive value as the port number
-//!                  only when a port number has not been specified in hSpec.
+//! @param  pNum     >= 0 uses the value as the port number regardless of what
+//!                       is in hSpec, should it be supplied. However, if is
+//!                       present, it must be a valid port number or name.
+//!                  <  0 uses the positive value as the port number if the
+//!                       port number has not been specified in hSpec.
+//!                  **** When set to PortInSpec(the default, see below) the
+//!                       port number/name must be specified in hSpec. If it is
+//!                       not, an error is returned.
 //!
 //! @return Success: 0 with numIP set to the number of elements set.
 //!         Failure: the error message text describing the error and
@@ -122,7 +111,7 @@ const char *Set(const char *hSpec, int pNum=0);
 //!                  storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-const char *Set(const char *hSpec, int &numIP, int maxIP, int pNum=0);
+const char *Set(const char *hSpec, int &numIP, int maxIP, int pNum=PortInSpec);
 
 //------------------------------------------------------------------------------
 //! Set our address via a sockaddr structure.
@@ -158,7 +147,7 @@ const char *Set(int sockFD);
 //! called before any other calls to this object (e.g. initialization time).
 //------------------------------------------------------------------------------
 
-static void  SetIPV4();
+static void SetIPV4();
 
 //------------------------------------------------------------------------------
 //! Assignment operator
@@ -175,11 +164,27 @@ XrdNetAddr &operator=(XrdNetAddr const &rhs)
 
 //------------------------------------------------------------------------------
 //! Constructor
+//!
+//! @param  addr     A pointer to an initialized and valid sockaddr or sockaddr
+//!                  compatible structure used to initialize the address.
+//! @param  port     Uses the address of the current host and the speoified
+//!                  port number to initilize the address.
 //------------------------------------------------------------------------------
 
             XrdNetAddr() : XrdNetAddrInfo() {}
 
-            XrdNetAddr(const XrdNetAddr *addr) : XrdNetAddrInfo(addr) {}
+            XrdNetAddr(const XrdNetAddr   *addr) : XrdNetAddrInfo(addr) {}
+
+            XrdNetAddr(const sockaddr     *addr) : XrdNetAddrInfo()
+                                                   {Set(addr);}
+
+            XrdNetAddr(const sockaddr_in  *addr) : XrdNetAddrInfo()
+                                                   {Set((sockaddr *)addr);}
+
+            XrdNetAddr(const sockaddr_in6 *addr) : XrdNetAddrInfo()
+                                                   {Set((sockaddr *)addr);}
+
+            XrdNetAddr(int port);
 
 //------------------------------------------------------------------------------
 //! Destructor

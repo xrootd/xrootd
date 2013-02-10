@@ -974,7 +974,7 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
        Sel.InfoP = 0;
        do {if ((Comma = index(Avoid,','))) *Comma = '\0';
            if (*Avoid == '+') Sel.nmask |= Cluster.getMask(Avoid+1);
-              else if (!avoidAddr.Set(Avoid))
+              else if (!avoidAddr.Set(Avoid,0))
                               Sel.nmask |= Cluster.getMask(&avoidAddr);
            Avoid = Comma+1;
           } while(Comma && *Avoid);

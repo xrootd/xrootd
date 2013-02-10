@@ -465,7 +465,7 @@ int XrdNet::do_Accept_TCP(XrdNetPeer &myPeer, int opts)
   
 int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 {
-  char            hBuff[512], *hname = 0;
+  char            hBuff[512];
   int             dlen;
   XrdNetSockAddr  IP;
   SOCKLEN_t       addrlen = sizeof(IP);
@@ -500,8 +500,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 //
    if (uAddr.isLoopback() || (Police && !Police->Authorize(uAddr)))
       {eDest->Emsg("Accept", -EACCES, "accept connection from",
-                  (hname = uAddr.NameDup()));
-       free(hname);
+                             uAddr.Name("*unknown*"));
        BuffQ->Recycle(bp);
        return 0;
       } else uAddr.Format(hBuff, sizeof(hBuff),

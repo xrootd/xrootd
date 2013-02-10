@@ -68,6 +68,15 @@ friend class XrdPollDev;
 friend class XrdPollE;
 
 //-----------------------------------------------------------------------------
+//! Obtain the address information for this link.
+//!
+//! @return Pointer to the XrdAddrInfo object. The pointer is valid while the
+//!         end-point is connected.
+//-----------------------------------------------------------------------------
+inline
+XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
+
+//-----------------------------------------------------------------------------
 //! Allocate a new link object.
 //!
 //! @param  peer    The connection information for the endpoint.

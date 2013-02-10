@@ -139,7 +139,8 @@ const char *XrdOfsTPCInfo::Set(const char *cKey, const char *cOrg,
    if (Dst) {free(Dst); Dst = 0;}
    if (xDst)
       {XrdNetAddr dAddr;
-       if (!(etext = dAddr.Set(xDst))) Dst = dAddr.NameDup(&etext);
+       if (!(etext = dAddr.Set(xDst,0)))
+          Dst = strdup(dAddr.Name("0.0.0.0",&etext));
        if (etext) return etext;
       }
 

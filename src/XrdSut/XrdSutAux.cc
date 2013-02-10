@@ -31,7 +31,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <time.h>
 #include <pwd.h>
 #include <sys/types.h>

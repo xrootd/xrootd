@@ -30,7 +30,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
 #include <pwd.h>
@@ -41,7 +41,7 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -276,12 +276,12 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
 
 
 //_____________________________________________________________________________
-XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
-                                     const struct sockaddr *ipadd,
+XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, XrdNetAddrInfo &endPoint,
                                      const char *parms) : XrdSecProtocol("gsi")
 {
    // Default constructor
    EPNAME("XrdSecProtocolgsi");
+   const char *eText;
 
    if (QTRACE(Authen)) { PRINT("constructing: "<<this); }
 
@@ -296,12 +296,9 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
    }
 
    // Set host name
-   if (ipadd) {
-      Entity.host = XrdSysDNS::getHostName((sockaddr&)*ipadd);
-      // Set host addr
-      memcpy(&hostaddr, ipadd, sizeof(hostaddr));
-   } else {
-      PRINT("WARNING: IP addr undefined: cannot determine host name: failure may follow");
+   Entity.host = strdup(endPoint.Name("*unknown*",&eText));
+   if (eText)
+   {  PRINT("WARNING: IP addr undefined: cannot determine host name: failure may follow");
    }
 
    // Init session variables
@@ -316,7 +313,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
 
    //
    // Notify, if required
-   DEBUG("constructing: host: "<<hname);
+   DEBUG("constructing: host: "<<endPoint.Name("unknown"));
    DEBUG("p: "<<XrdSecPROTOIDENT<<", plen: "<<XrdSecPROTOIDLEN);
    //
    // basic settings
@@ -2685,18 +2682,17 @@ XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
-                                        const char             *hostname,
-                                        const struct sockaddr  &netaddr,
-                                        const char             *parms,
-                                        XrdOucErrInfo    *erp)
+XrdSecProtocol *XrdSecProtocolgsiObject(const char      mode,
+                                        XrdNetAddrInfo &endPoint,
+                                        const char     *parms,
+                                        XrdOucErrInfo  *erp)
 {
    XrdSecProtocolgsi *prot;
    int options = XrdSecNOIPCHK;
 
    //
    // Get a new protocol object
-   if (!(prot = new XrdSecProtocolgsi(options, hostname, &netaddr, parms))) {
+   if (!(prot = new XrdSecProtocolgsi(options, endPoint, parms))) {
       char *msg = (char *)"Secgsi: Insufficient memory for protocol.";
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);

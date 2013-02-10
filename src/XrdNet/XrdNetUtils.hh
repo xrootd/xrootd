@@ -114,6 +114,23 @@ XrdOucTList *Hosts(const char  *hSpec, int hPort=-1, int hWant=8, int *sPort=0,
 static bool Match(const char *hName, const char *pattern);
 
 //------------------------------------------------------------------------------
+//! Get the fully qualified name of the current host.
+//!
+//! @param  eName    The name to be returned when the host name or its true
+//!                  address could not be returned. The pointer may be nil.
+//! @param  eText    When supplied will hold 0 if no errors occurred or error
+//!                  message text, in persistent storage, describing why the
+//!                  error-triggered alternate name was returned.
+//!                  If it contains neither then strict equality is used.
+//!
+//! @return An strdup() copy of the host name, address , or eName; unless eName
+//!         is nil, in which case a nil pointer is returned. The caller is
+//!         responsible for freeing any returned string using free().
+//------------------------------------------------------------------------------
+
+static char *MyHostName(const char *eName="*unknown*", const char **eText=0);
+
+//------------------------------------------------------------------------------
 //! Parse an IP or host name specification.
 //!
 //! @param  hSpec    the name or IP address of the host. As one of the following

@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
    XrdOucNList_Anchor DirQ;
    XrdOucEnv          myEnv, *oldEnv = 0;
    XrdOucStream      *Config;
-   XrdNetAddr         theAddr;
+   XrdNetAddr         theAddr(0);
 
    const char *Cfn = 0, *Host = 0, *Name = 0, *Xeq = "xrootd";
    const char *noSub[] = {"cms.prepmsg", "ofs.notifymsg", "oss.stagemsg",
@@ -121,10 +121,8 @@ int main(int argc, char *argv[])
 
 // Get full host name
 //
-   if (!Host)
-      {theAddr.Self();
-       Host = theAddr.Name();
-      } else if (!theAddr.Set(Host)) Host = theAddr.Name();
+   if (!Host) Host = theAddr.Name();
+      else if (!theAddr.Set(Host,0)) Host = theAddr.Name();
    if (!Host) {Say.Say(Pgm, "Unable to determine host name."); exit(3);}
 
 // Prepare all selector arguments

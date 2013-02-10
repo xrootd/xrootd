@@ -47,7 +47,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest, bool *aOK)
 
    eDest = erp; FD = -1; destOK = 0;
    if (dest)
-      {const char *eText = dfltDest.Set(dest, XrdNetAddr::PortInSpec);
+      {const char *eText = dfltDest.Set(dest);
        if (!eText) destOK = 1;
           else {eDest->Emsg("Msg", "Default", dest, "is unreachable");
                 aok = false;
@@ -78,7 +78,7 @@ int XrdNetMsg::Send(const char *Buff, int Blen, const char *dest, int tmo)
            {eDest->Emsg("Msg", "Destination not specified."); return -1;}
         theDest = &dfltDest;
        }
-      else if (specDest.Set(dest, XrdNetAddr::PortInSpec))
+      else if (specDest.Set(dest))
               {eDest->Emsg("Msg", dest, "is unreachable");    return -1;}
               else theDest = &specDest;
 

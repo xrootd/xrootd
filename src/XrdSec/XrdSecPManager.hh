@@ -30,8 +30,6 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/socket.h>
-  
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -42,8 +40,7 @@ class XrdSysError;
 
 typedef int XrdSecPMask_t;
 
-#define PROTPARMS const char, const char *, const struct sockaddr &, \
-                  const char *, XrdOucErrInfo *
+#define PROTPARMS const char, XrdNetAddrInfo &, const char *, XrdOucErrInfo *
 
 class XrdSecPManager
 {
@@ -52,14 +49,12 @@ public:
 XrdSecPMask_t   Find(const         char  *pid,      // In
                                    char **parg=0);  // Out
 
-XrdSecProtocol *Get(const char     *hname,
-                    const sockaddr &netaddr,
+XrdSecProtocol *Get(XrdNetAddrInfo &endPoint,
                     const char     *pname,
                     XrdOucErrInfo  *erp);
 
-XrdSecProtocol *Get (const char             *hname,
-                     const struct sockaddr  &netaddr,
-                           XrdSecParameters &secparm);
+XrdSecProtocol *Get(XrdNetAddrInfo   &endPoint,
+                    XrdSecParameters &secparm);
 
 int             Load(XrdOucErrInfo *eMsg,    // In
                      const char     pmode,   // In 'c' | 's'

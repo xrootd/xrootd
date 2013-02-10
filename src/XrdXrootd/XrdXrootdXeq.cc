@@ -132,14 +132,14 @@ int XrdXrootdProtocol::do_Auth()
       {if (AuthProt) AuthProt->Delete();
        strncpy(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype));
-       const char *hname = Link->Host();
-       XrdNetAddr  haddr = *(Link->NetAddr());
-       if (!(AuthProt = CIA->getProtocol(hname,*haddr.SockAddr(),&cred,&eMsg)))
+       if (!(AuthProt = CIA->getProtocol(*(Link->AddrInfo()),&cred,&eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);
           }
-       AuthProt->Entity.tident = Link->ID; numReads++;
+       AuthProt->Entity.tident = Link->ID;
+       AuthProt->Entity.addrInfo = Link->AddrInfo();
+       numReads++;
       }
 
 // Now try to authenticate the client using the current protocol
@@ -798,7 +798,7 @@ int XrdXrootdProtocol::do_Login()
 // authentication. We can then optimize of each case.
 //
    if (CIA)
-      {const char *pp=CIA->getParms(i, Link->Host());
+      {const char *pp=CIA->getParms(i, Link->AddrInfo());
        if (pp && i ) {if (!sendSID) rc = Response.Send((void *)pp, i);
                          else {struct iovec iov[3];
                                iov[1].iov_base = (char *)&sessID;
@@ -821,9 +821,11 @@ int XrdXrootdProtocol::do_Login()
 
 // We always allow at least host-based authentication. This may be over-ridden
 // should strong authentication be enabled. Allocation of the protocol object
-// already supplied the protocol name and the hst name. We supply the tident.
+// already supplied the protocol name and the host name. We supply the tident
+// and the connection details in addrInfo.
 //
    Entity.tident = Link->ID;
+   Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
 // Allocate a monitoring object, if needed for this connection

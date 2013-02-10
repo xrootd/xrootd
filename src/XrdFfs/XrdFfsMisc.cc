@@ -284,7 +284,7 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
         if (XrdNetUtils::Parse(hostip, &hName, &hNend, &hPort, &hPend))
            {n++;
             hsep = *hNend; *hNend = 0; *hPend = 0;
-            if (uAddr.Set(hName) || !(netName = uAddr.Name()))
+            if (uAddr.Set(hName,0) || !(netName = uAddr.Name()))
                {*hNend = hsep;
                 hName = hostip;
                 hPend = hNend;

@@ -35,6 +35,8 @@
 
 #include "XrdSec/XrdSecInterface.hh"
 
+class XrdNetAddrInfo;
+
 class XrdSecProtocolhost : public XrdSecProtocol
 {
 public:
@@ -46,7 +48,7 @@ public:
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        const char        *getParms(int &psize, const char *hname=0)
+        const char        *getParms(int &psize, XrdNetAddrInfo *addrInfo=0)
                                    {psize = 5; return "host";}
 
 

@@ -156,5 +156,5 @@ int XrdCnsLog::isEP(const char *File)
 // An endpoint must be a valid host name
 //
    if (!(dotP = index(File,'.')) || dotP == rindex(File,'.')) return 0;
-   return (tAddr.Set(File) == 0);
+   return (tAddr.Set(File,0) == 0);
 }

@@ -50,7 +50,7 @@
 #include "XrdCns/XrdCnsLogRec.hh"
 #include "XrdCns/XrdCnsXref.hh"
 
-#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdOuc/XrdOucNSWalk.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -87,11 +87,7 @@ XrdCnsLogClient::XrdCnsLogClient(XrdOucTList     *rP,
 
 // Establish out FQN
 //
-   if (!myName)
-      {XrdNetAddr myAddr;
-       myAddr.Self();
-       myName = myAddr.NameDup();
-      }
+   if (!myName) myName = XrdNetUtils::MyHostName();
 
 // Save our index into the commit array
 //

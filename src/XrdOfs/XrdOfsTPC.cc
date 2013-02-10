@@ -538,7 +538,7 @@ char *XrdOfsTPC::Verify(const char *Who, const char *Name,
 
 // Obtain full host name and return it if successful
 //
-   if (!(etext = vAddr.Set(Name)) && (Host = vAddr.Name(0, &etext)))
+   if (!(etext = vAddr.Set(Name,0)) && (Host = vAddr.Name(0, &etext)))
       return strdup(Host);
 
 // Generate error

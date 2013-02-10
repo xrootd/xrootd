@@ -38,12 +38,25 @@
 #include "XrdNet/XrdNetAddrInfo.hh"
 
 /******************************************************************************/
+/*                 P l a t f o r m   D e p e n d e n c i e s                  */
+/******************************************************************************/
+  
+// Linux defines s6_addr32 but MacOS does not and Solaris defines it only when
+// compiling the kernel. This is really standard stuff that should be here.
+//
+#ifndef s6_addr32
+#if   defined(__solaris__)
+#define s6_addr32 _S6_un._S6_u32
+#elif defined(__APPLE__)
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
+#endif
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
 XrdNetCache            XrdNetAddrInfo::dnsCache;
-
-XrdNetAddrInfo::fmtUse XrdNetAddrInfo::useFmt = XrdNetAddrInfo::fmtName;
 
 /******************************************************************************/
 /*                                F o r m a t                                 */
@@ -62,10 +75,9 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
        return (n < bLen ? n : QFill(bAddr, bLen));
       }
 
-// Preset defaults (note that the port number is the same position and
-// same size regardless of address type).
+// Grab the potr. The port number is the same position and same size regardless
+// of address type.
 //
-   if (theFmt == fmtDflt) theFmt = useFmt;
    pNum = ntohs(IP.v4.sin_port);
 
 // Resolve address if need be and return result if possible
@@ -281,8 +293,7 @@ int XrdNetAddrInfo::Resolve()
 // Handle the case when the mapping returned an actual name or an address
 // We always want numeric ipv6 addresses surrounded by brackets.
 //
-        if (isalpha(hBuff[1]))    hostName = strdup(LowCase(hBuff+1));
-   else if (!index(hBuff+1, ':')) hostName = strdup(hBuff+1);
+        if (!index(hBuff+1, ':')) hostName = strdup(LowCase(hBuff+1));
    else {char *perCent = index(hBuff+1, '%');
          if (perCent) *perCent = 0;
          n = strlen(hBuff+1);

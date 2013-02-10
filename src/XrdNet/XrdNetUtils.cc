@@ -32,6 +32,8 @@
 #include <inttypes.h>
 #include <netdb.h>
 #include <string.h>
+#include <unistd.h>
+
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -141,7 +143,7 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
                                 int *sPort, const char **eText)
 {
    static const int hMax = 8;
-   XrdNetAddr   myAddr, aList[hMax];
+   XrdNetAddr   myAddr(0), aList[hMax];
    XrdOucTList *tList = 0;
    const char  *etext;
    int numIP, i;
@@ -158,10 +160,6 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
       {if (eText) *eText = etext;
        return 0;
       }
-
-// If we will be looking for our own port setup our address
-//
-   if (sPort) myAddr.Self();
 
 // Create the tlist object
 //
@@ -183,6 +181,7 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
   
 bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
 {
+   static const int maxIP = 16;
    const char *mval;
    int i, j, k;
 
@@ -205,12 +204,12 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
 //
     i = strlen(HostPat);
     if (i && HostPat[i-1] != '+')
-       {XrdNetAddr InetAddr[16];
+       {XrdNetAddr InetAddr[maxIP];
         char hBuff[264];
         if (i >= sizeof(hBuff)) return false;
         strncpy(hBuff, HostPat, i-1);
         hBuff[i] = 0;
-        if (!InetAddr[0].Set(hBuff, i, sizeof(InetAddr))) return false;
+        if (!InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
         while(i--) if ((mval = InetAddr[i].Name()) && !strcmp(mval, HostName))
                       return true;
        }
@@ -220,6 +219,28 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
    return false;
 }
   
+/******************************************************************************/
+/*                            M y H o s t N a m e                             */
+/******************************************************************************/
+  
+char *XrdNetUtils::MyHostName(const char *eName, const char **eText)
+{
+   XrdNetAddr myAddr;
+   const char *etext, *myName;
+   char buff[1024];
+
+// Get our host name and initialize this object with it
+//
+   gethostname(buff, sizeof(buff));
+   if ((etext = myAddr.Set(buff,0))) myName = eName;
+      else myName = myAddr.Name(eName, &etext);
+
+// Return result, we will always have something
+//
+   if (eText) *eText = etext;
+   return (myName ? strdup(myName) : 0);
+}
+
 /******************************************************************************/
 /*                                 P a r s e                                  */
 /******************************************************************************/

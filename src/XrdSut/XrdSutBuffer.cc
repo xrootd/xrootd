@@ -1,4 +1,3 @@
-
 /******************************************************************************/
 /*                                                                            */
 /*                      X r d S u t B u f f e r . c c                         */
@@ -27,9 +26,12 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <netinet/in.h>
+#include <sys/types.h>
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucString.hh"

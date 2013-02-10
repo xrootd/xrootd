@@ -33,7 +33,6 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -88,27 +87,12 @@ inline int  Family() {return static_cast<int>(IP.addr.sa_family);}
 enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
              fmtName,   //!< Hostname if it is resolvable o/w use fmtAddr
              fmtAddr,   //!< Address using suitable ipv4 or ipv6 format
-             fmtAdv6,   //!< Address only in ipv6 format
-             fmtDflt};  //!< Use default format (see 2nd form of Format())
+             fmtAdv6};  //!< Address only in ipv6 format
 
 static const int noPort   = 0x0000001; //!< Do not add port number
 static const int old6Map4 = 0x0000002; //!< Use deprecated IPV6 mapped format
 
-int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtDflt, int fmtOpts=0);
-
-//------------------------------------------------------------------------------
-//! Set the default format for all future calls of format. The initial default
-//! is set to fmtName (i.e. if name is resolvable use it prefrentially).
-//!
-//! @param  fmtType  specifies the default of format desired via fmtUse enum.
-//!
-//! @return Always 1.
-//------------------------------------------------------------------------------
-
-int         Format(fmtUse fmtType)
-                  {useFmt = (fmtType == fmtDflt ? fmtName : fmtType);
-                   return useFmt;
-                  }
+int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0);
 
 //------------------------------------------------------------------------------
 //! Indicate whether or not our address is the loopback address. Use this
@@ -144,23 +128,6 @@ bool        isRegistered();
 //------------------------------------------------------------------------------
 
 const char *Name(const char *eName=0, const char **eText=0);
-
-//------------------------------------------------------------------------------
-//! Convert our IP address to the corresponding [host] name and return a copy
-//! of the name. This method provides compatability to the XrdSysDNS method
-//! getHostName() which always returned something.
-//!
-//! @param  eText    when not null, the reason for a failure is returned.
-//!
-//! @return Success: Pointer to the name or ip address with eText, if supplied,
-//!                  set to zero. The name is an strdup'd string and must be
-//!                  freed (using free()) by caller.
-//!         Failure: strdup("0.0.0.0") and if eText is not zero, returns a
-//!                  pointer to a message describing the reason for failure. The
-//!                  message is in persistent storage and cannot be modified.
-//------------------------------------------------------------------------------
-
-char       *NameDup(const char **eText=0) {return strdup(Name("0.0.0.0",eText));}
 
 //------------------------------------------------------------------------------
 //! Provide a pointer to our socket address suitable for use in calls to methods
@@ -281,7 +248,6 @@ protected:
        int                 Resolve();
 
 static XrdNetCache         dnsCache;
-static fmtUse              useFmt;
 
 // For optimization this union should be the first member of this class as we
 // compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".

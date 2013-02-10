@@ -106,10 +106,8 @@ do {
 // If we do not yet have a protocol, get one
 //
    if (!AuthProt)
-      {const char *hname = Link->Host();
-       XrdNetAddr  haddr = *(Link->NetAddr());
-       if (!DHS
-       ||  !(AuthProt=DHS->getProtocol(hname, *haddr.SockAddr(), &cred, &eMsg)))
+      {if (!DHS
+       ||  !(AuthProt=DHS->getProtocol(*(Link->AddrInfo()), &cred, &eMsg)))
           {eText = eMsg.getErrText(rc); break;}
       }
 
@@ -194,7 +192,7 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 /*                              g e t T o k e n                               */
 /******************************************************************************/
   
-const char *XrdCmsSecurity::getToken(int &size, const char *hostname)
+const char *XrdCmsSecurity::getToken(int &size, XrdLink *Link)
 {
 
 // If not configured, return a null to indicate no authentication required
@@ -203,7 +201,7 @@ const char *XrdCmsSecurity::getToken(int &size, const char *hostname)
 
 // Return actual token
 //
-   return DHS->getParms(size, hostname);
+   return DHS->getParms(size, Link->AddrInfo());
 }
 
 /******************************************************************************/

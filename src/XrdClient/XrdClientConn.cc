@@ -42,6 +42,7 @@
 #include "XrdClient/XrdClientPhyConnection.hh"
 #include "XrdClient/XrdClientProtocol.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -86,13 +87,9 @@
 #endif
 #include <string.h>     // needed by memcpy() and strcspn()
 #include <ctype.h>
+#include <netdb.h>
 
 #define  SafeDelete(x) { if (x) { delete x; x = 0; } }
-
-
-// Security handle
-typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *, const struct sockaddr &,
-                                           const XrdSecParameters &, XrdOucErrInfo *);
 
 XrdSysMutex                              XrdClientConn::fSessionIDRMutex;
 XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
@@ -1732,8 +1729,8 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // Get a instance of XrdSecProtocol; the order of preference is the one
    // specified by the server; the env XRDSECPROTOCOL can be used to force
    // the choice.
-   while ((protocol = (*getp)((char *)fUrl.Host.c_str(),
-                      (const struct sockaddr &)netaddr, Parms, 0))) {
+   XrdNetAddr servAddr(&netaddr);
+   while ((protocol = (*getp)(servAddr, Parms, 0))) {
       //
       // Protocol name
       XrdOucString protname = protocol->Entity.prot;

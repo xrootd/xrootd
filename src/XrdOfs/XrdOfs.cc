@@ -124,7 +124,7 @@ XrdOss *XrdOfsOss;
 
 XrdOfs::XrdOfs()
 {
-   XrdNetAddr myAddr;
+   XrdNetAddr myAddr(0);
    char buff[256], *bp;
    int i;
 
@@ -156,8 +156,8 @@ XrdOfs::XrdOfs()
 
 // Establish our hostname and IPV6 address
 //
-   myAddr.Self(myPort);
-   HostName = myAddr.NameDup();
+   myAddr.Port(myPort);
+   HostName = strdup(myAddr.Name("*unknown*"));
    myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, XrdNetAddr::old6Map4);
    locResp = strdup(buff); locRlen = strlen(buff);
    for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}

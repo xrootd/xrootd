@@ -92,7 +92,7 @@ void XrdNetSecurity::AddHost(char *hname)
 // If this has no asterisks, then we can add it as is. Otherwise, add it to
 // the name pattern list.
 //
-   if (!index(hname, '*') && !hAddr.Set(hname)
+   if (!index(hname, '*') && !hAddr.Set(hname,0)
    &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAddr, fmtOpts))
       {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
       }

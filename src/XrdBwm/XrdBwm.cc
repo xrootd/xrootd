@@ -88,7 +88,7 @@ XrdBwm XrdBwmFS;
 
 XrdBwm::XrdBwm()
 {
-   XrdNetAddr myAddr;
+   XrdNetAddr myAddr(0);
    char buff[256], *bp;
    int myPort, i;
 
@@ -108,10 +108,10 @@ XrdBwm::XrdBwm()
 //
    myPort = (bp = getenv("XRDPORT")) ? strtol(bp, (char **)NULL, 10) : 0;
 
-// Establish our hostname and IPV4 address
+// Establish our hostname and address
 //
-   myAddr.Self(myPort);
-   HostName = myAddr.NameDup();
+   myAddr.Port(myPort);
+   HostName = strdup(myAddr.Name("*unknown*"));
    myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, XrdNetAddr::old6Map4);
    locResp = strdup(buff); locRlen = strlen(buff);
    for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}

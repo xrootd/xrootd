@@ -121,7 +121,7 @@ void XrdCmsManList::Add(int ref, char *manp, int manport, int lvl)
    if (*manp == '[' || isdigit((int)*manp)) ipname = strdup(manp);
       else {XrdNetAddr  redAddr;
             const char *redName;
-            if (redAddr.Set(manp) || !(redName = redAddr.Name())) return;
+            if (redAddr.Set(manp,0) || !(redName = redAddr.Name())) return;
             ipname = strdup(redName);
            }
    if (cp) *cp = ':';

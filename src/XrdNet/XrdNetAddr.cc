@@ -38,6 +38,21 @@
 #include "XrdNet/XrdNetAddr.hh"
 
 /******************************************************************************/
+/*                 P l a t f o r m   D e p e n d e n c i e s                  */
+/******************************************************************************/
+  
+// Linux defines s6_addr32 but MacOS does not and Solaris defines it only when
+// compiling the kernel. This is really standard stuff that should be here.
+//
+#ifndef s6_addr32
+#if   defined(__solaris__)
+#define s6_addr32 _S6_un._S6_u32
+#elif defined(__APPLE__)
+#define s6_addr32 __u6_addr.__u6_addr32
+#endif
+#endif
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
@@ -46,6 +61,20 @@ struct addrinfo   *XrdNetAddr::hostHints = XrdNetAddr::Hints(0);
 struct addrinfo   *XrdNetAddr::huntHints = XrdNetAddr::Hints(1);
 
 bool               XrdNetAddr::useIPV4   = false;
+
+/******************************************************************************/
+/*                           C o n s t r u c t o r                            */
+/******************************************************************************/
+  
+XrdNetAddr::XrdNetAddr(int port) : XrdNetAddrInfo()
+{
+   char buff[1024];
+
+// Get our host name and initialize this object with it
+//
+   gethostname(buff, sizeof(buff));
+   Set(buff, port);
+}
 
 /******************************************************************************/
 /* Private:                        H i n t s                                  */
@@ -134,21 +163,6 @@ int XrdNetAddr::Port(int pNum)
    if (pNum > 0xffff) return -1;
    IP.v6.sin6_port = htons(static_cast<short>(pNum));
    return pNum;
-}
-
-/******************************************************************************/
-/*                                  S e l f                                   */
-/******************************************************************************/
-  
-const char *XrdNetAddr::Self(int pNum)
-{
-   const char *etext;
-   char buff[1024];
-
-// Get our host name and initialize this object with it
-//
-   gethostname(buff, sizeof(buff));
-   return Set(buff, pNum);
 }
   
 /******************************************************************************/
@@ -281,7 +295,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 
 /******************************************************************************/
   
-const char *XrdNetAddr::Set(const char *hSpec,int &numIP,int maxIP,int pNum)
+const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP, int pNum)
 {
    struct addrinfo *rP = 0, *pP, *nP;
    XrdNetAddr *aVec = this;

@@ -65,7 +65,7 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 
 // If we need to do authentication, do so now
 //
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host()))
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link))
    &&  !XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Fiddle with the login data structures
@@ -83,7 +83,7 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 
 // Do authentication now, if needed
 //
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->Host())))
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link)))
       if (!XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Send off login reply

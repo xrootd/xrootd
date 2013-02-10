@@ -31,16 +31,11 @@
 
 #include <errno.h>
 #ifndef WIN32
-#include <netdb.h>
-#include <netinet/in.h>
 #include <sys/param.h>
 #endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#if defined(__CYGWIN__) || defined(__FreeBSD__)
-#include <sys/socket.h>
-#endif
 
 #include "XrdSec/XrdSecEntity.hh"
 
@@ -130,6 +125,7 @@ typedef XrdSecBuffer XrdSecParameters;
    MT Requirements: Must be MT_Safe.
 */
 
+class XrdNetAddrInfo;
 class XrdOucErrInfo;
 
 class XrdSecProtocol
@@ -352,8 +348,8 @@ virtual      ~XrdSecProtocol() {}
 //!
 //! @param  who      contains 'c' when called on the client side and 's' when
 //!                  called on the server side.
-//! @param  hostname client's hostname which may be an ip address.
-//! @param  netaddr  client's host address.
+//! @param  endPoint the XrdNetAddrInfo object describing the end-point. When
+//!                  who == 'c' this is the client, otherwise it is the server.
 //! @param  parms    when who == 'c' (client) points to the parms sent by the
 //!                  server upon the initial handshake (see Init() above).
 //!                  when who == 's' (server) is null.
@@ -380,11 +376,10 @@ virtual      ~XrdSecProtocol() {}
     XrdVERSIONINFO(XrdSecProtocol<p>Object,<name>);
 
     extern "C" XrdSecProtocol *XrdSecProtocol<p>Object
-                                              (const char              who,
-                                               const char             *hostname,
-                                               const struct sockaddr  &netaddr,
-                                               const char             *parms,
-                                                     XrdOucErrInfo    *einfo
+                                              (const char     who,
+                                               XrdNetAddrInfp &endPoint,
+                                               const char     *parms,
+                                               XrdOucErrInfo  *einfo
                                               ) {. . .}
 */
   
@@ -407,8 +402,7 @@ virtual      ~XrdSecProtocol() {}
 //! for one of the protocols suggested by the server and possibly based on the
 //! server's hostname or host address, as needed.
 //!
-//! @param  host     The server's host name which may be an IP address.
-//! @param  hadr     The server host address encoded in sockaddr.
+//! @param  endPoint the XrdNetAddrInfo object describing the server end-point.
 //! @param  cred     The security token supplied by the server. The pointer
 //!                  may be null if the server did not supply a security token.
 //! @param  einfo    The structure to record any error messages. These are
@@ -436,14 +430,16 @@ virtual      ~XrdSecProtocol() {}
 //!             is the 1- to 15-character unquoted name of your plugin.
 //------------------------------------------------------------------------------
     
+typedef XrdSecProtocol *(*XrdSecGetProt_t)(XrdNetAddrInfo &,
+                                           XrdSecParameters &,
+                                           XrdOucErrInfo *);
 /*!
 #include "XrdVersion.hh"
 XrdVERSIONINFO(XrdSecGetProtocol,<name>);
 
-extern "C" XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
-                                             const struct sockaddr  &netaddr,
-                                                   XrdSecParameters &parms,
-                                                   XrdOucErrInfo    *einfo=0)
+extern "C" XrdSecProtocol *XrdSecGetProtocol(XrdNetAddrInfo   &endPoint,
+                                             XrdSecParameters &parms,
+                                             XrdOucErrInfo    *einfo=0)
                                             {....}
 */
  
@@ -474,24 +470,23 @@ public:
 //! Obtain security parameters to be sent to the client upon initial contact.
 //!
 //! @param  size     Where the length of the return parameters are to be placed.
-//! @param  hname    The client's host name which may be an IP address. It may
-//!                  also be a null pointer if the client's host is immaterial.
+//! @param  addrInfo The client's address information. It may also be a null
+//!                  pointer if the client's host is immaterial.
 //!
 //! @return EITHER   The address of the parameter string (which may be
-//!                  host-specific if hname was supplied). The length of the
+//!                  host-specific if addrInfo was supplied). The length of the
 //!                  string must be returned in size parameter.
 //!         OR       A null pointer if authentication need not occur for the
 //!                  client. The size parameter should be set to zero as well.
 //------------------------------------------------------------------------------
 
-virtual const char     *getParms(int &size, const char *hname=0) = 0;
+virtual const char     *getParms(int &size, XrdNetAddrInfo *addrInfo=0) = 0;
 
 //------------------------------------------------------------------------------
 //! Obtain a protocol object suitable for authentication based on cred and
 //! possibly based on the hostname or host address, as needed.
 //!
-//! @param  host     The client's host name which may be an IP address.
-//! @param  hadr     The client host address encoded in sockaddr.
+//! @param  endPoint the XrdNetAddrInfo object describing the client end-point.
 //! @param  cred     The initial credentials supplied by the client, the pointer
 //!                  may be null if the client did not supply credentials.
 //! @param  einfo    The structure to record any error messages. These are
@@ -507,10 +502,9 @@ virtual const char     *getParms(int &size, const char *hname=0) = 0;
 //!                  if supplied, has the reason.
 //------------------------------------------------------------------------------
 
-virtual XrdSecProtocol *getProtocol(const char              *host,    // In
-                                    const struct sockaddr   &hadr,    // In
+virtual XrdSecProtocol *getProtocol(      XrdNetAddrInfo    &endPoint,// In
                                     const XrdSecCredentials *cred,    // In
-                                    XrdOucErrInfo           *einfo)=0;// Out
+                                          XrdOucErrInfo     *einfo)=0;// Out
 
 //------------------------------------------------------------------------------
 //! Constructor

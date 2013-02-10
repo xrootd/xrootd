@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <stdio.h>
 #include <sys/param.h>
 #include <pwd.h>
@@ -53,7 +53,8 @@ extern "C" {
 
 #include "XrdVersion.hh"
 
-#include "XrdSys/XrdSysDNS.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -115,13 +116,12 @@ static  void               setExpFile(char *expfile)
                                          }
                                      }
 
-        XrdSecProtocolkrb5(const char                *KP,
-                           const char                *hname,
-                           const struct sockaddr     *ipadd)
+        XrdSecProtocolkrb5(const char     *KP,
+                           XrdNetAddrInfo &endPoint)
                           : XrdSecProtocol(XrdSecPROTOIDENT)
                           {Service = (KP ? strdup(KP) : 0);
-                           Entity.host = strdup(hname);
-                           memcpy(&hostaddr, ipadd, sizeof(hostaddr));
+                           Entity.host = strdup(endPoint.Name("*unknown*"));
+                           epAddr = endPoint;
                            CName[0] = '?'; CName[1] = '\0';
                            Entity.name = CName;
                            Step = 0;
@@ -139,6 +139,7 @@ private:
 
 static int Fatal(XrdOucErrInfo *erp,int rc,const char *msg1,char *KP=0,int krc=0);
 static int get_krbCreds(char *KP, krb5_creds **krb_creds);
+       void SetAddr(krb5_address &ipadd);
 
 static XrdSysMutex        krbContext;    // Server
 static XrdSysMutex        krbClientContext;// Client
@@ -161,6 +162,7 @@ static char               ExpFile[XrdSecMAXPATHLEN]; // Server: (template for)
 int exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp);
 int get_krbFwdCreds(char *KP, krb5_data *outdata);
 
+XrdNetAddrInfo            epAddr;
 struct sockaddr           hostaddr;      // Client-side only
 char                      CName[256];    // Kerberos limit
 char                     *Service;       // Target principal for client
@@ -472,11 +474,7 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 //
    CLDBG("Context Locked");
    if (!(XrdSecProtocolkrb5::options & XrdSecNOIPCHK))
-      {struct sockaddr_in *ip = (struct sockaddr_in *)&hostaddr;
-      // The above is a hack but K5 does it this way
-       ipadd.addrtype = ADDRTYPE_INET;
-       ipadd.length = sizeof(ip->sin_addr);
-       ipadd.contents = (krb5_octet *)&ip->sin_addr;
+      {SetAddr(ipadd);
        iferror = (char *)"Unable to validate ip address;";
        if (!(rc=krb5_auth_con_init(krb_context, &AuthContext)))
              rc=krb5_auth_con_setaddrs(krb_context, AuthContext, NULL, &ipadd);
@@ -752,7 +750,8 @@ int XrdSecProtocolkrb5::get_krbFwdCreds(char *KP, krb5_data *outdata)
 
 int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 {
-    int rc = 0;
+   krb5_address      ipadd;
+   int rc = 0;
 
 // Create the cache filename, expanding the keywords, if needed
 //
@@ -814,7 +813,8 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Fill-in remote address
 //
-    if ((rc = krb5_auth_con_setaddrs(krb_context, AuthContext, 0, (krb5_address *)&hostaddr)))
+    SetAddr(ipadd);
+    if ((rc = krb5_auth_con_setaddrs(krb_context, AuthContext, 0, &ipadd)))
        return rc;
 
 // Readout the credentials
@@ -862,6 +862,27 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
    return 0;
 }
  
+/******************************************************************************/
+/*                               S e t A d d r                                */
+/******************************************************************************/
+  
+void XrdSecProtocolkrb5::SetAddr(krb5_address &ipadd)
+{
+// The below is a hack but that's how it is actually done!
+//
+   if (epAddr.Family() == AF_INET6)
+      {struct sockaddr_in6 *ip = (struct sockaddr_in6 *)epAddr.SockAddr();
+       ipadd.addrtype = ADDRTYPE_INET6;
+       ipadd.length = sizeof(ip->sin6_addr);
+       ipadd.contents = (krb5_octet *)&ip->sin6_addr;
+      } else {
+       struct sockaddr_in *ip = (struct sockaddr_in *)epAddr.SockAddr();
+       ipadd.addrtype = ADDRTYPE_INET;
+       ipadd.length = sizeof(ip->sin_addr);
+       ipadd.contents = (krb5_octet *)&ip->sin_addr;
+      }
+}
+
 /******************************************************************************/
 /*                X r d S e c p r o t o c o l k r b 5 I n i t                 */
 /******************************************************************************/
@@ -940,8 +961,9 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
     int lkey = strlen("<host>");
     char *phost = (char *) strstr(&KPrincipal[0], "<host>");
     if (phost)
-       {char *hn = XrdSysDNS::getHostName();
-        if (hn)
+       {const char *eText;
+        char *hn = XrdNetUtils::MyHostName("*unknown*", &eText);
+        if (!eText)
            {int lhn = strlen(hn);
             if (lhn != lkey) {
               // Allocate, if needed
@@ -957,9 +979,9 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
             }
             // Copy the name
             memcpy(phost, hn, lhn);
-            // Cleanup
-            free(hn);
            }
+        // Cleanup
+        free(hn);
        }
 
 // Now initialize the server
@@ -997,11 +1019,10 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
   
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
-                                         const char             *hostname,
-                                         const struct sockaddr  &netaddr,
-                                         const char             *parms,
-                                               XrdOucErrInfo    *erp)
+XrdSecProtocol *XrdSecProtocolkrb5Object(const char      mode,
+                                         XrdNetAddrInfo &endPoint,
+                                         const char     *parms,
+                                         XrdOucErrInfo  *erp)
 {
    XrdSecProtocolkrb5 *prot;
    char *KPrincipal=0;
@@ -1022,7 +1043,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, hostname, &netaddr)))
+   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, endPoint)))
       {char *msg = (char *)"Seckrb5: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;

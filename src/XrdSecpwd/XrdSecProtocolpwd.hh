@@ -290,8 +290,7 @@ public:
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolpwd(int opts, const char *hname,
-                          const struct sockaddr *ipadd,
+        XrdSecProtocolpwd(int opts, XrdNetAddrInfo &endPoint,
                           const char *parms = 0);
         virtual ~XrdSecProtocolpwd() {} // Delete() does it all
 
@@ -358,7 +357,6 @@ private:
 
    // Information local to this instance
    int                     options;
-   struct sockaddr         hostaddr;      // Client-side only
    char                    CName[256];    // Client-name
    bool                    srvMode;       // TRUE if server mode 
 

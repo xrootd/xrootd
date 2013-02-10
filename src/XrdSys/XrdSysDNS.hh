@@ -30,6 +30,14 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
+/* This class is deprecated and essentially OBSOLETE and no longer mainatined.*/
+/*                                                                            */
+/* This class only supports IPV4 addresses and contexts. Please use classes   */
+/* XrdNetAddr, XrdNetAddrInfo, and XrdNetUtils that provide IP address format */
+/* agnostic replacement methods. SysDNS will be removed the next major release*/
+/*!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
+
 #include <sys/types.h>
 #ifndef WIN32
 #include <sys/socket.h>

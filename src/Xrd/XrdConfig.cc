@@ -213,7 +213,7 @@ int XrdConfig::Configure(int argc, char **argv)
 */
    const char *xrdInst="XRDINSTANCE=";
 
-   static XrdNetAddr myIPAddr;
+   static XrdNetAddr myIPAddr(0);
    int n, retc, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
@@ -228,6 +228,7 @@ int XrdConfig::Configure(int argc, char **argv)
    char *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    int   myArgc = 1;
+   bool ipV4 = false;
 
 // Obtain the protocol name we will be using
 //
@@ -252,7 +253,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":bc:dhHk:l:n:p:P:R:s:S:v"))
+      while ((c = getopt(argc,argv,":bc:dhHI:k:l:n:p:P:R:s:S:v"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -268,6 +269,12 @@ int XrdConfig::Configure(int argc, char **argv)
        case 'h': Usage(0);
                  break;
        case 'H': Usage(-1);
+                 break;
+       case 'I':      if (!strcmp("v4", optarg)) ipV4 = true;
+                 else if (!strcmp("v6", optarg)) ipV4 = false;
+                 else {Log.Emsg("Config", "Invalid -I argument -",optarg);
+                       Usage(1);
+                      }
                  break;
        case 'k': n = strlen(optarg)-1;
                  retc = (isalpha(optarg[n])
@@ -313,6 +320,9 @@ int XrdConfig::Configure(int argc, char **argv)
                 break;
        }
      }
+// The first thing we must do is to set the correct networking mode
+//
+   if (ipV4) XrdNetAddr::SetIPV4();
 
 // Set the site name if we have one
 //
@@ -364,7 +374,6 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Get the full host name. In theory, we should always get some kind of name.
 //
-   myIPAddr.Self();
    if (!(myName = myIPAddr.Name(0, &temp)))
       {Log.Emsg("Config", "Unable to determine host name; ",
                            (temp ? temp : "reason unknown"),
@@ -907,9 +916,9 @@ void XrdConfig::Usage(int rc)
 
   if (rc < 0) cerr <<XrdLicense;
      else
-     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-k {n|sz}] "
-            "[-l <fn>] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [-S site] "
-            "[<prot_options>]" <<endl;
+     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
+            "[-k {n|sz}] [-l <fn>] [-n name] [-p <port>] [-P <prot>] [-R]\n"
+            "[-s pidfile] [-S site] [-v] [<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
 
