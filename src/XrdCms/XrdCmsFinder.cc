@@ -342,7 +342,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 //
    if (flags & SFS_O_LOCATE)
       {Data.Request.rrCode = kYR_locate;
-       Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0);
+       Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
+                 | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
       } else
   {     Data.Request.rrCode = kYR_select;
         if (flags & SFS_O_TRUNC) Data.Opts = CmsSelectRequest::kYR_trunc;
@@ -653,7 +654,7 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *theManList)
          if (myManagers) mp->setNext(myManagers);
             else firstone = mp;
          myManagers = mp;
-         if (XrdSysThread::Run(&tid,XrdCmsStartManager,(void *)mp,0,tp->text))
+         if (XrdSysThread::Run(&tid,XrdCmsStartManager,(void *)mp,0,mp->Name()))
             Say.Emsg("Finder", errno, "start manager");
          tp = tp->next; i++;
         }

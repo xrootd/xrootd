@@ -1,0 +1,121 @@
+.TH xrdfs 1 "30 November 2011"
+.SH NAME
+xrdfs - xrootd file and directory meta-data utility
+.SH SYNOPSIS
+.nf
+
+\fBxrdfs\fR \fIhost[:port]\fR \fI[command [args]]\fR
+
+\fBcommand\fR: help, chmod, locate, mkdir, mv, stat, statvfs, query, rm ,rmdir,
+         truncate
+.fi
+.br
+.ad l
+.SH DESCRIPTION
+The \fBxrdfs\fR utility executes meta-data oriented operations
+(e.g., ls, mv, rm, etc.) on one or more xrootd servers.
+Command help is available by invoking \fBxrdfs\fR with no command
+line options or parameters and then typing "help" in response to the
+input prompt.
+
+.SH COMMANDS
+\fBchmod\fR \fIpath\fR \fI<user><group><other>\fR
+.RS 3
+Modify permissions of the \fIpath\fR. Permission string example:
+\fIrwxr-x--x\fR
+
+.RE
+\fBls\fR \fI[-l]\fR \fI[-u]\fR \fI[dirname]\fR
+.RS 3
+Get directory listing.
+.br
+\fI-l\fR stat every entry and pring long listing
+.br
+\fI-u\fR print paths as URLs
+
+.RE
+\fBlocate\fR \fI[-n]\fR \fI[-r]\fR \fI[-d]\fR \fI<path>\fR
+.RS 3
+Get the locations of the path.
+.br
+\fI-r\fR refresh, don't use cached locations
+.br
+\fI-n\fR make the server return the response immediately even though it may be incomplete
+.br
+\fI-d\fR do a recursive, deep locate in order to find data servers
+
+.RE
+\fBmkdir\fR \fI[-p] [-m<user><group><other>] <dirname>\fR
+.RS 3
+Creates a directory/tree of directories.
+.br
+\fI-p\fR create the entire directory tree recursively
+.br
+\fI-m\fR\fB<user><group><other>\fR permissions for newly created directories
+
+.RE
+\fBmv\fR \fI<path1> <path2>\fR
+.RS 3
+Move path1 to path2 locally on the same server.
+
+.RE
+\fBstat\fR \fI<path>\fR
+.RS 3
+Get info about the file or directory.
+
+.RE
+\fBstatvfs\fR \fI<path>\fR
+.RS 3
+Get info about a virtual file system.
+
+.RE
+\fBquery\fR \fI<code> <params>\fR
+.RS 3
+Obtain server information. Query codes:
+.br
+\fIconfig\fR         \fB<what>\fR   Server configuration
+.br
+\fIchecksumcancel\fR \fB<path>\fR   File checksum cancelation
+.br
+\fIchecksum\fR       \fB<path>\fR   File checksum
+.br
+\fIopaque\fR         \fB<arg>\fR    Implementation dependent
+.br
+\fIopaquefile\fR     \fB<arg>\fR    Implementation dependent
+.br
+\fIspace\fR          \fB<space>\fR  Logical space stats
+.br
+\fIstats\fR          \fB<what>\fR   Server stats
+.br
+\fIxattr\fR          \fB<path>\fR   Extended attributes
+
+.RE
+\fBrm\fR \fI<filename>\fR
+.RS 3
+Remove a file.
+
+.RE
+\fBrmdir\fR \fI<dirname>\fR
+.RS 3
+Remove a directory.
+
+.RE
+\fBtruncate\fR \fI<filename> <length>\fR
+.RS 3
+Truncate a file.
+
+.SH NOTES
+For the list of available environment variables please refere to xrdcopy(1)
+
+.SH DIAGNOSTICS
+Errors yield an error message and a non-zero exit status.
+
+.SH LICENSE
+LGPL
+
+.SH SUPPORT LEVEL
+The \fBxrdfs\fR command is supported by the XRootD Collaboration.
+Contact information can be found at
+
+.ce
+http://xrootd.org/contact.html

@@ -30,12 +30,12 @@
 /******************************************************************************/
 
 #include <string.h>      // For strlcpy()
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/socket.h>  // for sockaddr
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucIOVec.hh"
 
 /******************************************************************************/
 /*                            O p e n   M o d e s                             */
@@ -322,9 +322,65 @@ virtual XrdSfsXferSize read(XrdSfsFileOffset   fileOffset,
 
 virtual int            read(XrdSfsAio *aioparm) = 0;
 
+//-----------------------------------------------------------------------------
+//! Given an array of read requests (size rdvCnt), read them from the file
+//! and place the contents consecutively in the provided buffer. A dumb default
+//! implementation is supplied but should be replaced to increase performance.
+//!
+//! @param  readV   -> array of read requests.
+//! @param  rdvcnt     the number of elements in readV.
+//!
+//! @return success The numbe of bytes placed into the buffer.
+//!         failure <0 is returned and the error member holds the reason.
+//-----------------------------------------------------------------------------
+
+virtual XrdSfsXferSize readv(XrdOucIOVec      *readV,
+                             size_t            rdvCnt)
+                            {XrdSfsXferSize rdsz, totbytes = 0;
+                             for (int i = 0; i < rdvCnt; i++)
+                                 {rdsz = read(readV[i].offset,
+                                              readV[i].data, readV[i].size);
+                                  if (rdsz != readV[i].size)
+                                     {if (rdsz < 0) return rdsz;
+                                      error.setErrInfo(ESPIPE,"read past eof");
+                                      return SFS_ERROR;
+                                     }
+                                  totbytes += rdsz;
+                                 }
+                             return totbytes;
+                            }
+
 virtual XrdSfsXferSize write(XrdSfsFileOffset  fileOffset,
                              const char       *buffer,
                              XrdSfsXferSize    buffer_size) = 0;
+
+//-----------------------------------------------------------------------------
+//! Given an array of write requests (size wdvcnt), write them to the file
+//! from the provided associated buffer. A dumb default implementation is
+//! supplied but should be replaced to increase performance.
+//!
+//! @param  writeV  -> array of write requests.
+//! @param  wdvcnt     the number of elements in writeV.
+//!
+//! @return success The total number of bytes written to the file.
+//!         failure <0 is returned and the error member holds the reason.
+//-----------------------------------------------------------------------------
+
+virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
+                              size_t            wdvCnt)
+                             {XrdSfsXferSize wrsz, totbytes = 0;
+                              for (int i = 0; i < wdvCnt; i++)
+                                  {wrsz = write(writeV[i].offset,
+                                                writeV[i].data, writeV[i].size);
+                                   if (wrsz != writeV[i].size)
+                                      {if (wrsz < 0) return wrsz;
+                                      error.setErrInfo(ESPIPE,"write past eof");
+                                      return SFS_ERROR;
+                                     }
+                                  totbytes += wrsz;
+                                 }
+                             return totbytes;
+                            }
 
 virtual int            write(XrdSfsAio *aioparm) = 0;
 

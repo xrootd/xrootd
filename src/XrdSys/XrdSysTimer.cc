@@ -57,13 +57,16 @@ struct timeval *XrdSysTimer::Delta_Time(struct timeval &tbeg)
 time_t XrdSysTimer::Midnight(time_t tnow)
 {
    struct tm midtime;
+   time_t add_time;
 
 // Compute time at midnight
 //
-   if (!tnow) tnow = time(0);
+   if (tnow == 0 || tnow == 1) {add_time = tnow; tnow = time(0);}
+      else add_time = 0;
    localtime_r((const time_t *) &tnow, &midtime);
-   midtime.tm_hour = midtime.tm_min = midtime.tm_sec = 0;
-   return mktime(&midtime);
+   if (add_time) {midtime.tm_hour = 23; midtime.tm_min = midtime.tm_sec = 59;}
+      else        midtime.tm_hour =     midtime.tm_min = midtime.tm_sec = 0;
+   return mktime(&midtime) + add_time;
 }
   
 /******************************************************************************/
@@ -230,12 +233,17 @@ void XrdSysTimer::Wait(int mills)
   
 void XrdSysTimer::Wait4Midnight()
 {
-   static const time_t HalfDay = 43200, FullDay = 86400;
-   time_t Now = time(0), Midnite = Midnight(Now);
 
-// Break the snooze time into half day increments so that we can catch
-// a timezone change and sleep exactly to midnight of the following day.
+// Wait until midnight arrives
 //
-   if ((Now - Midnite) < HalfDay) Snooze((Midnite + HalfDay) - time(0));
-   Snooze((Midnite + FullDay) - time(0));
+#ifndef __macos__
+   timespec Midnite = {Midnight(1), 0};
+   while(clock_nanosleep(CLOCK_REALTIME,TIMER_ABSTIME,&Midnite,0) == EINTR) {}
+#else
+   timespec tleft, Midnite = {Midnight(1) - time(0), 0};
+   while(nanosleep(&Midnite, &tleft) && EINTR == errno)
+        {Midnite.tv_sec  = tleft.tv_sec;
+         Midnite.tv_nsec = tleft.tv_nsec;
+        }
+#endif
 }

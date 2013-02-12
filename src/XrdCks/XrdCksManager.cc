@@ -42,6 +42,7 @@
 #include "XrdCks/XrdCksCalcadler32.hh"
 #include "XrdCks/XrdCksCalccrc32.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
+#include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksManager.hh"
 #include "XrdCks/XrdCksXAttr.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
@@ -49,14 +50,21 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCksManager::XrdCksManager(XrdSysError *erP, int rdsz, XrdVersionInfo *vInfo)
+XrdCksManager::XrdCksManager(XrdSysError *erP, int rdsz, XrdVersionInfo &vInfo,
+                             bool autoload)
               : XrdCks(erP), myVersion(vInfo)
 {
+
+// Get a dynamic loader if so wanted
+//
+   if (autoload) cksLoader = new XrdCksLoader(vInfo);
+      else       cksLoader = 0;
 
 // Prefill the native digests we support
 //
@@ -79,11 +87,12 @@ XrdCksManager::~XrdCksManager()
 {
    int i;
    for (i = 0; i <= csLast; i++)
-       {if (csTab[i].Obj)    csTab[i].Obj->Recycle();
+       {if (csTab[i].Obj && csTab[i].doDel) csTab[i].Obj->Recycle();
         if (csTab[i].Path)   free(  csTab[i].Path);
         if (csTab[i].Parms)  free(  csTab[i].Parms);
         if (csTab[i].Plugin) delete csTab[i].Plugin;
        }
+   if (cksLoader) delete cksLoader;
 }
 
 /******************************************************************************/
@@ -153,6 +162,7 @@ int XrdCksManager::Calc(const char *Pfn, time_t &MTime, XrdCksCalc *csP)
 // Get the file characteristics
 //
    if (fstat(In.FD, &Stat)) return -errno;
+   if (!(Stat.st_mode & S_IFREG)) return -EPERM;
    calcSize = fileSize = Stat.st_size;
    MTime = Stat.st_mtime;
 
@@ -199,17 +209,17 @@ int XrdCksManager::Config(const char *Token, char *Line)
 //
    Cfg.GetLine();
    if (!(val = Cfg.GetToken()) || !val[0])
-      {eDest->Emsg("Config", "checksum name not specified"); return 0;}
+      {eDest->Emsg("Config", "checksum name not specified"); return 1;}
    if (int(strlen(val)) >= XrdCksData::NameSize)
-      {eDest->Emsg("Config", "checksum name too long"); return 0;}
+      {eDest->Emsg("Config", "checksum name too long"); return 1;}
    strcpy(name, val);
 
 // Get the path and optional parameters
 //
    val = Cfg.GetToken(&parms);
-   if (val && !val[0]) path = strdup(val);
+   if (val && val[0]) path = strdup(val);
       else {eDest->Emsg("Config","library path missing for ckslib digest",name);
-            return 0;
+            return 1;
            }
 
 // Check if this replaces an existing checksum
@@ -222,7 +232,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
    if (i >= csMax)
       {eDest->Emsg("Config", "too many checksums specified");
        if (path) free(path);
-       return 0;
+       return 1;
       } else if (!(*csTab[i].Name)) csLast = i;
 
 // Insert the new checksum
@@ -235,7 +245,7 @@ int XrdCksManager::Config(const char *Token, char *Line)
 
 // All done
 //
-   return 1;
+   return 0;
 }
 
 /******************************************************************************/
@@ -299,7 +309,7 @@ int XrdCksManager::Config(const char *cFN, csInfo &Info)
 
 // Get a plugin object
 //
-   if (!(Info.Plugin = new XrdSysPlugin(eDest, Info.Path, "ckslib", myVersion)))
+   if (!(Info.Plugin = new XrdSysPlugin(eDest,Info.Path,"ckslib",&myVersion)))
       {eDest->Emsg("Config", "Unable to configure cksum", Info.Name);
        return 0;
       }
@@ -341,10 +351,64 @@ int XrdCksManager::Config(const char *cFN, csInfo &Info)
   
 XrdCksManager::csInfo *XrdCksManager::Find(const char *Name)
 {
-   int i;
+   static XrdSysMutex myMutex;
+   XrdCksCalc *myCalc;
+   int i, n;
+
+// Find the pre-loaded checksum
+//
    for (i = 0; i <= csLast; i++)
        if (!strcmp(Name, csTab[i].Name)) return &csTab[i];
-   return 0;
+
+// If we have loader see if we can auto-load this object
+//
+   if (!cksLoader) return 0;
+   myMutex.Lock();
+
+// An entry could have been added as we were running unlocked
+//
+   for (i = 0; i <= csLast; i++)
+       if (!strcmp(Name, csTab[i].Name))
+          {myMutex.UnLock();
+           return &csTab[i];
+          }
+
+// Check if we have room in the table
+//
+   if (csLast >= csMax)
+      {myMutex.UnLock();
+       eDest->Emsg("CksMan","Unable to load",Name,"; checksum limit reached.");
+       return 0;
+      }
+
+// Attempte to dynamically load this object
+//
+{  char buff[2048];
+   *buff = 0;
+   if (!(myCalc = cksLoader->Load(Name, 0, buff, sizeof(buff), true)))
+      {myMutex.UnLock();
+       eDest->Emsg("CksMan", "Unable to load", Name);
+       if (*buff) eDest->Emsg("CksMan", buff);
+       return 0;
+      }
+}
+
+// Fill out the table
+//
+   i = csLast + 1;
+   strncpy(csTab[i].Name, Name, XrdCksData::NameSize);
+   csTab[i].Obj    = myCalc;
+   csTab[i].Path   = 0;
+   csTab[i].Parms  = 0;
+   csTab[i].Plugin = 0;
+   csTab[i].doDel  = false;
+   myCalc->Type(csTab[i].Len);
+
+// Return the result
+//
+   csLast = i;
+   myMutex.UnLock();
+   return &csTab[i];
 }
 
 /******************************************************************************/

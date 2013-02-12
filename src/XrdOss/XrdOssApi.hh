@@ -97,6 +97,7 @@ int     isCompressed(char *cxidp=0);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
+ssize_t ReadV(XrdOucIOVec *readV, size_t n);
 ssize_t ReadRaw(    void *, off_t, size_t);
 ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
@@ -246,6 +247,15 @@ int               lenDP;
 short             numDP;
 short             numCG;
 
+
+long long         prPBits;   //    Page lo order bit mask
+long long         prPMask;   //    Page hi order bit mask
+int               prPSize;   //    preread page size
+int               prBytes;   //    preread byte limit
+int               prActive;  //    preread activity count
+short             prDepth;   //    preread depth
+short             prQSize;   //    preread maximum allowed
+
 XrdVersionInfo   *myVersion; //    Compilation version set by constructor
    
          XrdOssSys();
@@ -318,6 +328,7 @@ int    xmaxsz(XrdOucStream &Config, XrdSysError &Eroute);
 int    xmemf(XrdOucStream &Config, XrdSysError &Eroute);
 int    xnml(XrdOucStream &Config, XrdSysError &Eroute);
 int    xpath(XrdOucStream &Config, XrdSysError &Eroute);
+int    xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
 int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);

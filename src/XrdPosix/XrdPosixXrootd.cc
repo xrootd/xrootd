@@ -144,6 +144,29 @@ const char *Path();
 int         Read (char *Buff, long long Offs, int Len)
                 {return XClient->Read (Buff, Offs, Len);}
 
+int         ReadV (const XrdOucIOVec *readV, int n)
+{
+   size_t nbytes = 0;
+   std::vector<long long> offsets; offsets.reserve(n);
+   std::vector<int> lens; lens.reserve(n);
+   for (int i=0; i<n; i++)
+      {nbytes += readV[i].size;
+       offsets[i] = readV[i].offset;
+       lens[i] = readV[i].size;
+      }
+   std::vector<char> result_buffer;
+   result_buffer.reserve(nbytes);
+   ssize_t retval = XClient->ReadV(&(result_buffer[0]), &(offsets[0]), &(lens[0]), n);
+   if (retval < 0)
+       return retval;
+   nbytes = 0;
+   for (int i=0; i<n; i++)
+      {memcpy(readV[i].data, &(result_buffer[nbytes]), readV[i].size);
+       nbytes += readV[i].size;
+      }
+   return nbytes;
+}
+
 int         Sync() {return (XClient->Sync() ? 0 : -1);}
 
 int         Trunc(long long Offset)
@@ -1119,6 +1142,30 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 // All done
 //
    return totbytes;
+}
+
+/******************************************************************************/
+/*                                 V R e a d                                  */
+/******************************************************************************/
+
+ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
+{
+   XrdPosixFile *fp;
+   int           iosz;
+
+// Find the file object
+//
+   if (!(fp = findFP(fildes))) return -1;
+
+// Issue the read
+//
+   ssize_t bytes = fp->XCio->ReadV(readV, n);
+   if (bytes < 0) return Fault(fp,-1);
+
+// All went well
+//
+   fp->UnLock();
+   return (ssize_t)bytes;
 }
 
 /******************************************************************************/

@@ -46,8 +46,8 @@ namespace XrdCl
   // Open the file pointed to by the given URL - async
   //----------------------------------------------------------------------------
   XRootDStatus File::Open( const std::string &url,
-                           uint16_t           flags,
-                           uint16_t           mode,
+                           OpenFlags::Flags   flags,
+                           Access::Mode       mode,
                            ResponseHandler   *handler,
                            uint16_t           timeout )
   {
@@ -58,8 +58,8 @@ namespace XrdCl
   // Open the file pointed to by the given URL - sync
   //----------------------------------------------------------------------------
   XRootDStatus File::Open( const std::string &url,
-                           uint16_t           flags,
-                           uint16_t           mode,
+                           OpenFlags::Flags   flags,
+                           Access::Mode       mode,
                            uint16_t           timeout )
   {
     SyncResponseHandler handler;

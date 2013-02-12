@@ -32,9 +32,7 @@
 
 /* The following instruction acronyms are used:
    AtomicCAS() -> Compare And [if equal] Set
-   AtomicDTZ() -> Decrease To Zero
    AtomicFAZ() -> Fetch And Zero
-   AtomicISM() -> Increase and Set Maximum
 */
   
 #ifdef HAVE_ATOMICS
@@ -43,23 +41,19 @@
 #define AtomicAdd(x, y)     __sync_fetch_and_add(&x, y)
 #define AtomicCAS(x, y, z)  __sync_bool_compare_and_swap(&x, y, z)
 #define AtomicDec(x)        __sync_fetch_and_sub(&x, 1)
-#define AtomicDTZ(x)        if (!(__sync_fetch_and_sub(&x, 1))) AtomicFAZ(x)
 #define AtomicFAZ(x)        __sync_fetch_and_and(&x, 0)
 #define AtomicGet(x)        __sync_fetch_and_or(&x, 0)
 #define AtomicInc(x)        __sync_fetch_and_add(&x, 1)
-#define AtomicISM(x, y)     if (AtomicGet(y) <= AtomicInc(x)) AtomicCAS(y, y, x)
 #define AtomicSub(x, y)     __sync_fetch_and_sub(&x, y)
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
 #define AtomicAdd(x, y)     x; x += y
 #define AtomicCAS(x, y, z)  if (x == y) x = z
-#define AtomicDTZ(x)        if (!(x--)) x = 0
 #define AtomicDec(x)        x--
 #define AtomicFAZ(x)        x; x = 0
 #define AtomicGet(x)        x
 #define AtomicInc(x)        x++
-#define AtomicISM(x, y)     if (y == x++) y = x
 #define AtomicSub(x, y)     x; x -= y
 #endif
 #endif

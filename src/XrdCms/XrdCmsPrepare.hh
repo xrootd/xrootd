@@ -57,6 +57,8 @@ void       Gone(char *path);
 
 void       DoIt();
 
+void       Init();
+
 void       Inform(const char *cmd, XrdCmsPrepArgs *pargs);
 
 int        isOK() {return prepOK;}

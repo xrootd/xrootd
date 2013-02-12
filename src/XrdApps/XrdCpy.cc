@@ -1422,13 +1422,6 @@ int main(int argc, char**argv)
 //
    tpcPB = 0;
 
-// The folloing will be removed when we merge
-//
-   cerr <<"xrdcpy is the beta version of xrdcp; please treat it as such." <<endl;
-   cerr <<"Report problems at: https://savannah.cern.ch/bugs/?group=xrootd" <<endl;
-   cerr <<"Do not use xrdcpy in any production application as it will go away!" <<endl;
-   cerr <<endl;
-
 #ifdef WIN32
    WORD wVersionRequested;
    WSADATA wsaData;
@@ -1439,7 +1432,8 @@ int main(int argc, char**argv)
 
 // Invoke config; it it returns then all went well.
 //
-   Config.Config(argc, argv, XrdCpConfig::opt1Src|XrdCpConfig::optNoXtnd);
+   Config.Config(argc, argv, XrdCpConfig::opt1Src|XrdCpConfig::optNoStdIn
+                            |XrdCpConfig::optNoXtnd);
 
 // Turn off any blab from the client
 //
@@ -1476,7 +1470,7 @@ int main(int argc, char**argv)
        xrd_wr_flags |=  kXR_delete;
        loc_wr_flags = LOC_WR_FLAGS_FORCE; // Flags for the local fs
       }
-   if (Config.Want(XrdCpConfig::DoRetry  ))
+   if (Config.Want(XrdCpConfig::DoRetry  ) && Config.Retry >= 0)
       {EnvPutInt(NAME_CONNECTTIMEOUT , 60);
        EnvPutInt(NAME_FIRSTCONNECTMAXCNT, Config.Retry);
       }

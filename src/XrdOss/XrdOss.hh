@@ -37,6 +37,8 @@
 #include <sys/types.h>
 #include <string.h>
 
+#include "XrdOuc/XrdOucIOVec.hh"
+
 class XrdOucEnv;
 class XrdSysLogger;
 class XrdSfsAio;
@@ -77,6 +79,40 @@ virtual int     Read(XrdSfsAio *aoip)                        {return (ssize_t)-E
 virtual ssize_t ReadRaw(    void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
 virtual ssize_t Write(const void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
 virtual int     Write(XrdSfsAio *aiop)                       {return (ssize_t)-EISDIR;}
+
+// Implemented in the header, as many folks will be happy with the default.
+//
+virtual ssize_t ReadV(XrdOucIOVec *readV, size_t n)
+                     {ssize_t nbytes = 0, curCount = 0;
+                      for (int i=0; i<n; i++)
+                          {curCount = Read((void *)readV[i].data,
+                                            (off_t)readV[i].offset,
+                                           (size_t)readV[i].size);
+                           if (curCount != readV[i].size)
+                              {if (curCount < 0) return curCount;
+                               return -ESPIPE;
+                              }
+                           nbytes += curCount;
+                          }
+                      return nbytes;
+                     }
+
+// Implemented in the header, as many folks will be happy with the default.
+//
+virtual ssize_t WriteV(XrdOucIOVec *writeV, size_t n)
+                      {ssize_t nbytes = 0, curCount = 0;
+                       for (int i=0; i<n; i++)
+                           {curCount = Read((void *)writeV[i].data,
+                                             (off_t)writeV[i].offset,
+                                            (size_t)writeV[i].size);
+                            if (curCount != writeV[i].size)
+                               {if (curCount < 0) return curCount;
+                                return -ESPIPE;
+                               }
+                            nbytes += curCount;
+                           }
+                       return nbytes;
+                      }
 
                 // Methods common to both
 virtual int     Close(long long *retsz=0)=0;

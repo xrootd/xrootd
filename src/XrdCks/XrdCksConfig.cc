@@ -50,7 +50,7 @@
 /******************************************************************************/
   
 XrdCksConfig::XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
-                           XrdVersionInfo *vInfo)
+                           XrdVersionInfo &vInfo)
                           : eDest(Eroute), cfgFN(cFN), CksLib(0), CksParm(0),
                             CksList(0), CksLast(0), myVersion(vInfo)
 {
@@ -58,9 +58,8 @@ XrdCksConfig::XrdCksConfig(const char *cFN, XrdSysError *Eroute, int &aOK,
 
 // Verify caller's version against ours
 //
-   myVersion = &myVer;
-   if (vInfo->vNum <= 0 || vInfo->vNum == myVer.vNum
-   ||  XrdSysPlugin::VerCmp(*vInfo, myVer)) aOK = 1;
+   if (vInfo.vNum <= 0 || vInfo.vNum == myVer.vNum
+   ||  XrdSysPlugin::VerCmp(vInfo, myVer)) aOK = 1;
       else aOK = 0;
 }
 
@@ -108,7 +107,7 @@ XrdCks *XrdCksConfig::getCks(int rdsz)
 // Create a plugin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(myLib = new XrdSysPlugin(eDest,CksLib,"ckslib",myVersion))) return 0;
+   if (!(myLib = new XrdSysPlugin(eDest,CksLib,"ckslib",&myVersion))) return 0;
 
 // Now get the entry point of the object creator
 //

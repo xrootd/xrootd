@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -753,6 +754,10 @@ ssize_t XrdOssFile::Read(off_t offset, size_t blen)
 
      if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
+#if defined(__linux__)
+     posix_fadvise(fd, offset, blen, POSIX_FADV_WILLNEED);
+#endif
+
      return 0;  // We haven't implemented this yet!
 }
 
@@ -789,6 +794,88 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
                 while(retval < 0 && errno == EINTR);
 
      return (retval >= 0 ? retval : (ssize_t)-errno);
+}
+
+/******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+
+ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, size_t n)
+{
+   EPNAME("ReadV");
+   ssize_t rdsz, totBytes = 0;
+   int i;
+
+// For platforms that support fadvise, pre-advise what we will be reading
+//
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+   long long begOff, endOff, begLst = -1, endLst = -1;
+   int nPR = n;
+
+// Indicate we are in preread state and see if we have exceeded the limit
+//
+   if (XrdOssSS->prDepth
+   && AtomicInc((XrdOssSS->prActive)) < XrdOssSS->prQSize && n > 2)
+      {int faBytes = 0;
+       for (nPR=0;nPR < XrdOssSS->prDepth && faBytes < XrdOssSS->prBytes;nPR++)
+           if (readV[nPR].size > 0)
+              {begOff = XrdOssSS->prPMask &  readV[nPR].offset;
+               endOff = XrdOssSS->prPBits | (readV[nPR].offset+readV[nPR].size);
+               rdsz = endOff - begOff + 1;
+               if ((begOff > endLst || endOff < begLst)
+               &&  rdsz < XrdOssSS->prBytes)
+                  {posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+                   TRACE(Debug,"fadvise(" <<fd <<',' <<begOff <<',' <<rdsz <<')');
+                   faBytes += rdsz;
+                  }
+               begLst = begOff; endLst = endOff;
+              }
+      }
+#endif
+
+// Read in the vector and do a pre-advise if we support that
+//
+   for (i = 0; i < n; i++)
+       {do {rdsz = pread(fd, readV[i].data, readV[i].size, readV[i].offset);}
+           while(rdsz < 0 && errno == EINTR);
+        if (rdsz < 0 || rdsz != readV[i].size)
+           {totBytes =  (rdsz < 0 ? -errno : -ESPIPE); break;}
+        totBytes += rdsz;
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+        if (nPR < n && readV[nPR].size > 0)
+           {begOff = XrdOssSS->prPMask &  readV[nPR].offset;
+            endOff = XrdOssSS->prPBits | (readV[nPR].offset+readV[nPR].size);
+            rdsz = endOff - begOff + 1;
+            if ((begOff > endLst || endOff < begLst)
+            &&  rdsz <= XrdOssSS->prBytes)
+               {posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+                TRACE(Debug,"fadvise(" <<fd <<',' <<begOff <<',' <<rdsz <<')');
+               }
+            begLst = begOff; endLst = endOff;
+           }
+        nPR++;
+#endif
+       }
+
+// All done, return bytes read.
+//
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+   if (XrdOssSS->prDepth) AtomicDec((XrdOssSS->prActive));
+#endif
+   return totBytes;
 }
 
 /******************************************************************************/

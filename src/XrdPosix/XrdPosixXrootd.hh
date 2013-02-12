@@ -37,7 +37,7 @@
 #include <sys/statvfs.h>
 #include <sys/types.h>
 
-#if defined(__macos__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <sys/param.h>
 #include <sys/mount.h>
 #else
@@ -46,6 +46,8 @@
 
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
+
+struct XrdOucIOVec;
 
 class XrdOucCache;
 class XrdOucEnv;
@@ -151,6 +153,8 @@ static void    setEnv(const char *var, const char *val);
 static void    setEnv(const char *var, long val);
 
 static void    setCache(XrdOucCache *cP);
+
+static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
 
 static int     Debug;
 

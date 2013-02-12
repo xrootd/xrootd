@@ -68,6 +68,7 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucERoute.hh"
 #include "XrdOuc/XrdOucLock.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -837,6 +838,35 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 // Return number of bytes read
 //
    return nbytes;
+}
+
+/******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+XrdSfsXferSize XrdOfsFile::readv(XrdOucIOVec     *readV,     // In
+                                 size_t           readCount) // In
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+{
+   EPNAME("readv");
+
+   XrdSfsXferSize nbytes = oh->Select().ReadV(readV, readCount);
+   if (nbytes < 0)
+       return XrdOfsFS->Emsg(epname, error, (int)nbytes, "readv", oh->Name());
+
+   return nbytes;
+
 }
   
 /******************************************************************************/
@@ -1993,7 +2023,7 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
                  const char    *op,     // Operation being performed
                  const char    *target) // The target (e.g., fname)
 {
-   char *etext, buffer[MAXPATHLEN+80], unkbuff[64];
+   char buffer[MAXPATHLEN+80];
 
 // If the error is EBUSY then we just need to stall the client. This is
 // a hack in order to provide for proxy support
@@ -2005,14 +2035,9 @@ int XrdOfs::Emsg(const char    *pfx,    // Message prefix value
 //
    if (ecode == ETIMEDOUT) return OSSDelay;
 
-// Get the reason for the error
-//
-   if (!(etext = OfsEroute.ec2text(ecode))) 
-      {sprintf(unkbuff, "reason unknown (%d)", ecode); etext = unkbuff;}
-
 // Format the error message
 //
-    snprintf(buffer,sizeof(buffer),"Unable to %s %s; %s", op, target, etext);
+   XrdOucERoute::Format(buffer, sizeof(buffer), ecode, op, target);
 
 // Print it out if debugging is enabled
 //

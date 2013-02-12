@@ -32,7 +32,7 @@ namespace XrdCl
   // Constructor
   //----------------------------------------------------------------------------
   URL::URL():
-    pPort( 2094 )
+    pPort( 1094 )
   {
   }
 
@@ -77,6 +77,12 @@ namespace XrdCl
       pProtocol = "file";
       current   = url;
     }
+    else if( url[0] == '-' )
+    {
+      pProtocol = "stdio";
+      current   = "-";
+      pPort     = 0;
+    }
     else
     {
       pProtocol = "root";
@@ -89,7 +95,7 @@ namespace XrdCl
     std::string path;
     std::string hostInfo;
 
-    if( pProtocol == "file" )
+    if( pProtocol == "file"  || pProtocol == "stdio" )
       path = current;
     else
     {
@@ -136,7 +142,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool URL::ParseHostInfo( const std::string hostInfo )
   {
-    if( pProtocol == "file" )
+    if( pProtocol == "file" || pProtocol == "stdio" )
       return true;
 
     if( pProtocol.empty() || hostInfo.empty() )
@@ -241,22 +247,7 @@ namespace XrdCl
     if( pos != std::string::npos )
     {
       pPath = path.substr( 0, pos );
-      std::string paramsStr = path.substr( pos+1, path.length() );
-
-      //------------------------------------------------------------------------
-      // Parse parameters
-      //------------------------------------------------------------------------
-      std::vector<std::string>           params;
-      std::vector<std::string>::iterator it;
-      Utils::splitString( params, paramsStr, "&" );
-      for( it = params.begin(); it != params.end(); ++it )
-      {
-        pos = it->find( "=" );
-        if( pos == std::string::npos )
-          pParams[*it] = "";
-        else
-          pParams[it->substr(0, pos)] = it->substr( pos+1, it->length() );
-      }
+      SetParams( path.substr( pos+1, path.length() ) );
     }
     else
       pPath = path;
@@ -300,16 +291,7 @@ namespace XrdCl
     if( !pPath.empty() )
       o << pPath;
 
-    if( !pParams.empty() )
-    {
-      o << "?";
-      ParamsMap::const_iterator it;
-      for( it = pParams.begin(); it != pParams.end(); ++it )
-      {
-        if( it != pParams.begin() ) o << "&";
-        o << it->first << "=" << it->second;
-      }
-    }
+    o << GetParamsAsString();
     return o.str();
   }
 
@@ -323,6 +305,65 @@ namespace XrdCl
       o << pUserName << "@";
     o << pHostName << ":" << pPort;
     return o.str();
+  }
+
+  //------------------------------------------------------------------------
+  //! Get protocol://host:port/path
+  //------------------------------------------------------------------------
+  std::string URL::GetLocation() const
+  {
+    std::ostringstream o;
+    o << pProtocol << "://";
+    if( pProtocol != "file" )
+      o << pHostName << ":" << pPort << "/";
+    o << pPath;
+    return o.str();
+  }
+
+  //------------------------------------------------------------------------
+  // Get the URL params as string
+  //------------------------------------------------------------------------
+  std::string URL::GetParamsAsString() const
+  {
+    if( pParams.empty() )
+      return "";
+
+    std::ostringstream o;
+    o << "?";
+    ParamsMap::const_iterator it;
+    for( it = pParams.begin(); it != pParams.end(); ++it )
+    {
+      if( it != pParams.begin() ) o << "&";
+      o << it->first << "=" << it->second;
+    }
+    return o.str();
+  }
+
+  //------------------------------------------------------------------------
+  // Set params
+  //------------------------------------------------------------------------
+  void URL::SetParams( const std::string &params )
+  {
+    pParams.clear();
+    std::string p = params;
+
+    if( p.empty() )
+      return;
+
+    if( p[0] == '?' )
+      p.erase( 0, 1 );
+
+    std::vector<std::string>           paramsVect;
+    std::vector<std::string>::iterator it;
+    Utils::splitString( paramsVect, p, "&" );
+    for( it = paramsVect.begin(); it != paramsVect.end(); ++it )
+    {
+      size_t pos = it->find( "=" );
+      if( pos == std::string::npos )
+        pParams[*it] = "";
+      else
+        pParams[it->substr(0, pos)] = it->substr( pos+1, it->length() );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -349,7 +390,9 @@ namespace XrdCl
       return false;
     if( pProtocol == "file" && pPath.empty() )
       return false;
-    if( pProtocol != "file" && pHostName.empty() )
+    if( pProtocol == "stdio" && pPath != "-" )
+      return false;
+    if( pProtocol != "file" && pProtocol != "stdio" && pHostName.empty() )
       return false;
     return true;
   }

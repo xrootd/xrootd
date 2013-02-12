@@ -1,6 +1,11 @@
 
 include( XRootDCommon )
 
+if( CMAKE_COMPILER_IS_GNUCXX )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+endif()
+
 if( BUILD_LIBEVENT )
   include_directories( ${LIBEVENT_INCLUDE_DIR} )
   set( LIBEVENT_POLLER_FILES
@@ -58,6 +63,9 @@ add_library(
   XrdClAsyncSocketHandler.cc  XrdClAsyncSocketHandler.hh
   XrdClChannelHandlerList.cc  XrdClChannelHandlerList.hh
   XrdClForkHandler.cc         XrdClForkHandler.hh
+  XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
+  XrdClTransportManager.cc    XrdClTransportManager.hh
+                              XrdClEnum.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -123,7 +131,15 @@ install(
     XrdClMonitor.hh
     XrdClPostMaster.hh
     XrdClPostMasterInterfaces.hh
+    XrdClTransportManager.hh
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
+    XrdClEnum.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
+
+install(
+  FILES
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
+  DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )

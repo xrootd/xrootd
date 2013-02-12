@@ -49,7 +49,7 @@ struct {double      read;     // sum(read_size[i] **2) i = 1 to Ops.read
         double      write;    // sum(write_size[i]**2) i = 1 to Ops.write
        }            ssq;
 
-enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSdv = 3};
+enum monLevel {monOff = 0, monOn = 1, monOps = 2, monSsq = 3};
 
        void Init()
                 {FileID = 0; MonEnt = -1; monLvl = xfrXeq = 0;

@@ -116,30 +116,28 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
          if (copySize < segSize) ioSize = copySize;
         }
 
-// Return if all went well, otherwise check if we can recover
-//
-   if (!copySize)            return fileSize;
-   if ((off_t)copySize != fileSize) return -EIO;
-   OssEroute.Emsg("Copy", "Trying traditional copy for", inFn, "...");
+// check if there was an error and if we can recover
 
-// Do a traditional copy (note that we didn't copy anything yet)
-//
-  {char ioBuff[segSize];
-   off_t rdSize, wrSize = segSize, inOff=0;
-   while(copySize)
-        {if (copySize < segSize) rdSize = wrSize = copySize;
-            else rdSize = segSize;
-         bP = ioBuff;
-         while(rdSize)
-              {do {rLen = pread(In.FD, bP, rdSize, inOff);}
-                  while(rLen < 0 && errno == EINTR);
-               if (rLen <= 0) return -OssEroute.Emsg("Copy",
+   if (copySize)
+   { if ((off_t)copySize != fileSize) return -EIO;
+     // Do a traditional copy (note that we didn't copy anything yet)
+     OssEroute.Emsg("Copy", "Trying traditional copy for", inFn, "...");
+     char ioBuff[segSize];
+     off_t rdSize, wrSize = segSize, inOff=0;
+     while(copySize)
+          {if (copySize < segSize) rdSize = wrSize = copySize;
+              else rdSize = segSize;
+           bP = ioBuff;
+           while(rdSize)
+                {do {rLen = pread(In.FD, bP, rdSize, inOff);}
+                    while(rLen < 0 && errno == EINTR);
+                 if (rLen <= 0) return -OssEroute.Emsg("Copy",
                                       rLen ? errno : ECANCELED, "read", inFn);
-               bP += rLen; rdSize -= rLen; inOff += rLen;
-              }
-         if ((rc = Write(outFn, Out.FD, ioBuff, wrSize, Offset)) < 0) return rc;
-         copySize -= wrSize; Offset += wrSize;
-        }
+                 bP += rLen; rdSize -= rLen; inOff += rLen;
+                }
+           if ((rc = Write(outFn, Out.FD, ioBuff, wrSize, Offset)) < 0) return rc;
+           copySize -= wrSize; Offset += wrSize;
+          }
    }
 
 // Copy over any extended attributes

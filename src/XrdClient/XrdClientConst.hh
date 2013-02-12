@@ -138,7 +138,7 @@
 // which enables window scaling on some platforms (linux, MacOsX)
 // but may be to small on others (solaris); the preprocessor macro
 // is set based on the platform information found in configure
-#if defined(__linux__) || defined(__macos__)
+#if defined(__linux__) || defined(__APPLE__)
 #define DFLT_DFLTTCPWINDOWSIZE     (0)
 #else
 #define DFLT_DFLTTCPWINDOWSIZE     (262144)

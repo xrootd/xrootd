@@ -44,7 +44,7 @@
 // appropriate type for the next 25 years). The Posix interface only supports
 // 64-bit offsets.
 //
-#if  defined(__macos__)
+#if  defined(__APPLE__)
 #if !defined(dirent64)
 #define dirent64 dirent
 #endif

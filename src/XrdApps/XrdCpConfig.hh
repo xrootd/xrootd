@@ -64,7 +64,7 @@ struct defVar
              int    Dlvl;          // Debug level                 (0 to 3)
              int    nSrcs;         // Number of sources wanted    (dflt 1)
              int    nStrm;         // Number of streams wanted    (dflt 1)
-             int    Retry;         // Secs to cont to retry conns (0-> use dflt)
+             int    Retry;         // Max times to retry connects (<0->use dflt)
              int    Verbose;       // True if --verbose specified
              int    CksLen;        // Binary length of checksum, if any
 
@@ -99,6 +99,9 @@ static const int    DoForce    =  0x00000020; // -f | --force
 static const int    OpHelp     =  'h';
 static const int    DoHelp     =  0x00000040; // -h | --help
 
+static const int    OpIfile    =  'I';
+static const int    DoIfile    =  0x00100000; // -I | --infiles
+
 static const int    OpLicense  =  'H';        // -H | --license
 
 static const int    DoMD5      =  0x00000080; // -md5 {legacy}
@@ -132,7 +135,8 @@ static const int    OpStreams  =  'S';
 static const int    DoStreams  =  0x00010000; // -S | --streams
 
 static const int    OpTpc      =  'T';
-static const int    DoTpc      =  0x00020000; // -T | --tpc
+static const int    DoTpc      =  0x00020000; // -T | --tpc {first | only}
+static const int    DoTpcOnly  =  0x00100000; // -T | --tpc          only
 
 static const int    OpVerbose  =  'v';
 static const int    DoVerbose  =  0x00040000; // -v | --verbose
@@ -144,10 +148,12 @@ static const int    DoXrate    =  0x00080000; // -X | --xrate
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
-// The following options may be passed (large to support legacy stuff):
+// The following options may be passed (largely to support legacy stuff):
 //
 static const int    opt1Src     = 0x00000001; // Only one source is allowed
-static const int    optNoXtnd   = 0x00000002; // Do not extend the source
+static const int    optNoXtnd   = 0x00000002; // Do not index source directories
+static const int    optRmtRec   = 0x00000004; // Allow remote recursive copy
+static const int    optNoStdIn  = 0x00000008; // Disallow '-' as src for stdin
 
              void   Config(int argc, char **argv, int Opts=0);
 
@@ -156,7 +162,7 @@ static const int    optNoXtnd   = 0x00000002; // Do not extend the source
 inline       int    Want(int What) {return (OpSpec & What) != 0;}
 
                     XrdCpConfig(const char *pgname);
-                   ~XrdCpConfig() {}
+                   ~XrdCpConfig();
 
 private:
              int    a2i(const char *item, int *val, int minv, int maxv=-1);
@@ -171,10 +177,11 @@ private:
              int    defOpt(const char *theOp, const char *theArg);
              void   defPxy(const char *opval);
        const char  *Human(long long Val, char *Buff, int Blen);
-             int    Legacy();
+             int    Legacy(int oIndex);
              int    Legacy(const char *theOp, const char *theArg);
              void   License();
        const char  *OpName();
+             void   ProcFile(const char *fname);
              void   Usage(int rc=0);
 
        const char  *PName;
@@ -188,5 +195,13 @@ static const  char   *opLetters;
 static struct option  opVec[];
 
 static const int    dfltSrcs   = 12;
+
+       XrdCpFile   *pFile;
+       XrdCpFile   *pLast;
+       XrdCpFile   *pPrev;
+       char        *inFile;
+       char       **parmVal;
+       int          parmCnt;
+       int          isLcl;
 };
 #endif

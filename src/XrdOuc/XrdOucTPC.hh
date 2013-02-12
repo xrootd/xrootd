@@ -68,9 +68,15 @@ const char *tpcTtl;
 private:
 
 struct tpcInfo
-      {char *Data;
-             tpcInfo() : Data(0) {}
-            ~tpcInfo() {if (Data) free(Data);}
+      {const char *uName;
+             char *hName;
+       const char *pName;
+             char  User[256];
+
+             tpcInfo() : uName(""), hName(0), pName("") {}
+            ~tpcInfo() {if (hName) free(hName);}
       };
+
+static bool cgiHost(tpcInfo &Info, const char *hSpec);
 };
 #endif

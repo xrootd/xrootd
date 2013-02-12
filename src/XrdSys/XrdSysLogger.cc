@@ -94,7 +94,7 @@ int XrdSysLogger::Bind(const char *path, int isec)
 // Compute time at midnight
 //
    eNow = time(0);
-   eNTC = XrdSysTimer::Midnight(eNow);
+   eNTC = XrdSysTimer::Midnight(1);
 
 // Bind to the logfile as needed
 //
@@ -238,7 +238,7 @@ int XrdSysLogger::ReBind(int dorename)
 
 // Set new close interval
 //
-   if (eInt > 0) while(eNTC <= eNow) eNTC += eInt;
+   if (eInt > 0) eNTC = XrdSysTimer::Midnight(1);
 
 // Open the file for output. Note that we can still leak a file descriptor
 // if a thread forks a process before we are able to do the fcntl(), sigh.

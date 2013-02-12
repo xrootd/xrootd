@@ -382,10 +382,11 @@ int XrdCmsConfig::Configure2()
 //
    if ((LocalRoot || RemotRoot) && ConfigN2N()) NoGo = 1;
 
-// Configure the OSS and the base filesystem
+// Configure the OSS, the base filesystem, and initialize the prep queue
 //
    if (!NoGo) NoGo = ConfigOSS();
    if (!NoGo) baseFS.Start();
+   if (!NoGo) PrepQ.Init();
 
 // Setup manager or server, as needed
 //

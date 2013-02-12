@@ -49,6 +49,8 @@ static void Close(XrdXrootdFileStats *fsP, bool isDisc=false);
 
 static void Defaults(int intv, int opts, int iocnt);
 
+static void Disc(unsigned int usrID);
+
        void DoIt();
 
 static bool Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz=65472);
@@ -61,12 +63,10 @@ static void Open(XrdXrootdFileStats *fsP,
 
 private:
 
-static int                  CalcSD(double ssqVal, long long bsum, int cnt);
 static void                 DoXFR();
 static void                 DoXFR(XrdXrootdFileStats *fsP);
-static int                  Flush();
+static void                 Flush();
 static char                *GetSlot(int slotSZ);
-static int                  Sqrt(double x);
                           
 static XrdSysError         *eDest;
 static XrdScheduler        *Sched;
@@ -80,6 +80,8 @@ static XrdXrootdMonFileTOD *repTOD;
 static char                *repNext;
 static char                *repFirst;
 static char                *repLast;
+static int                  totRecs;
+static int                  xfrRecs;
 static int                  repSize;
 static int                  repTime;
 static int                  fmHWM;
@@ -92,7 +94,7 @@ static short                trecNLen;
 static char                 fsLFN;
 static char                 fsLVL;
 static char                 fsOPS;
-static char                 fsSDV;
+static char                 fsSSQ;
 static char                 fsXFR;
 static char                 crecFlag;
 };

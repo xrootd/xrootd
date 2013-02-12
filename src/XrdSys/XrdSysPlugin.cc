@@ -309,7 +309,7 @@ void *XrdSysPlugin::getPlugin(const char *pname, int optional, bool global)
 void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
                           const char *txt4, const char *txt5, int noHush)
 {
-   const char *eTxt[] = {"Plugin ",txt1, txt2, txt3, txt3, txt5, 0};
+   const char *eTxt[] = {"Plugin ",txt1, txt2, txt3, txt4, txt5, 0};
    char *bP;
    int n, i, bL;
 
@@ -323,7 +323,7 @@ void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
       {char buff[2048];
        i = 1; bP = buff; bL = sizeof(buff);
        while(bL > 1 && eTxt[i])
-            {n = snprintf(bP, bL, "%s ", eTxt[i]);
+            {n = snprintf(bP, bL, "%s", eTxt[i]);
              bP += n; bL -= n; i++;
             }
        eDest->Say("Plugin ", buff);
@@ -335,7 +335,7 @@ void XrdSysPlugin::Inform(const char *txt1, const char *txt2, const char *txt3,
    if ((bP = eBuff))
       {i = 0; bL = eBLen;
        while(bL > 1 && eTxt[i])
-            {n = snprintf(bP, bL, "%s ", eTxt[i]);
+            {n = snprintf(bP, bL, "%s", eTxt[i]);
              bP += n; bL -= n; i++;
             }
       }

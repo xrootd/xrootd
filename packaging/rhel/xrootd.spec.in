@@ -250,7 +250,7 @@ install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfd
 mkdir -p $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
 mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.pm \
    $RPM_BUILD_ROOT%{perl_vendorarch}
-mv $RPM_BUILD_ROOT/%{_libdir}/libXrdClientAdmin.so* \
+mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.so \
    $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
 
 %clean
@@ -366,7 +366,7 @@ exit 0
 %{_bindir}/xprep
 %{_bindir}/xrd
 %{_bindir}/xrdcp
-%{_bindir}/xrdcpy
+%{_bindir}/xrdcp-old
 %{_bindir}/xrdgsiproxy
 %{_bindir}/xrdstagetool
 %{_bindir}/xrdadler32
@@ -374,6 +374,7 @@ exit 0
 %doc %{_mandir}/man1/xrd.1.gz
 %doc %{_mandir}/man1/xrdadler32.1.gz
 %doc %{_mandir}/man1/xrdcp.1.gz
+%doc %{_mandir}/man1/xrdcp-old.1.gz
 %doc %{_mandir}/man1/xrdstagetool.1.gz
 %doc %{_mandir}/man1/xrdgsiproxy.1.gz
 
@@ -387,6 +388,8 @@ exit 0
 %{_libdir}/libXrdCl.so*
 %{_bindir}/xrdcopy
 %{_bindir}/xrdfs
+%doc %{_mandir}/man1/xrdfs.1.gz
+%doc %{_mandir}/man1/xrdcopy.1.gz
 
 %files cl-devel
 %defattr(-,root,root,-)

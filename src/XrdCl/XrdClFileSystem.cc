@@ -41,10 +41,10 @@ namespace
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      DeepLocateHandler( XrdCl::ResponseHandler *handler,
-                         const std::string          &path,
-                         uint16_t                    flags,
-                         time_t                      expires ):
+      DeepLocateHandler( XrdCl::ResponseHandler   *handler,
+                         const std::string        &path,
+                         XrdCl::OpenFlags::Flags   flags,
+                         time_t                    expires ):
         pFirstTime( true ),
         pOutstanding( 1 ),
         pHandler( handler ),
@@ -183,13 +183,13 @@ namespace
       }
 
     private:
-      bool                    pFirstTime;
-      uint16_t                pOutstanding;
-      XrdCl::ResponseHandler *pHandler;
-      XrdCl::LocationInfo    *pLocations;
-      std::string             pPath;
-      uint16_t                pFlags;
-      time_t                  pExpires;
+      bool                      pFirstTime;
+      uint16_t                  pOutstanding;
+      XrdCl::ResponseHandler   *pHandler;
+      XrdCl::LocationInfo      *pLocations;
+      std::string               pPath;
+      XrdCl::OpenFlags::Flags   pFlags;
+      time_t                    pExpires;
   };
 
   //----------------------------------------------------------------------------
@@ -307,7 +307,7 @@ namespace XrdCl
   // Locate a file - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Locate( const std::string &path,
-                                   uint16_t           flags,
+                                   OpenFlags::Flags   flags,
                                    ResponseHandler   *handler,
                                    uint16_t           timeout )
   {
@@ -331,7 +331,7 @@ namespace XrdCl
   // Locate a file - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Locate( const std::string  &path,
-                                   uint16_t            flags,
+                                   OpenFlags::Flags    flags,
                                    LocationInfo      *&response,
                                    uint16_t            timeout )
   {
@@ -347,7 +347,7 @@ namespace XrdCl
   // Locate a file, recursively locate all disk servers - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::DeepLocate( const std::string &path,
-                                       uint16_t           flags,
+                                       OpenFlags::Flags   flags,
                                        ResponseHandler   *handler,
                                        uint16_t           timeout )
   {
@@ -361,9 +361,9 @@ namespace XrdCl
   // Locate a file, recursively locate all disk servers - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::DeepLocate( const std::string  &path,
-                                  uint16_t            flags,
-                                  LocationInfo      *&response,
-                                  uint16_t            timeout )
+                                       OpenFlags::Flags    flags,
+                                       LocationInfo      *&response,
+                                       uint16_t            timeout )
   {
     SyncResponseHandler handler;
     Status st = DeepLocate( path, flags, &handler, timeout );
@@ -529,8 +529,8 @@ namespace XrdCl
   // Create a directory - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::MkDir( const std::string &path,
-                                  uint8_t            flags,
-                                  uint16_t           mode,
+                                  MkDirFlags::Flags  flags,
+                                  Access::Mode       mode,
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
@@ -554,8 +554,8 @@ namespace XrdCl
   // Create a directory - sync
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::MkDir( const std::string &path,
-                                  uint8_t            flags,
-                                  uint16_t           mode,
+                                  MkDirFlags::Flags  flags,
+                                  Access::Mode       mode,
                                   uint16_t           timeout )
   {
     SyncResponseHandler handler;
@@ -605,7 +605,7 @@ namespace XrdCl
   // Change access mode on a directory or a file - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::ChMod( const std::string &path,
-                                  uint16_t           mode,
+                                  Access::Mode       mode,
                                   ResponseHandler   *handler,
                                   uint16_t           timeout )
   {
@@ -628,7 +628,7 @@ namespace XrdCl
   // Change access mode on a directory or a file - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::ChMod( const std::string &path,
-                                  uint16_t           mode,
+                                  Access::Mode       mode,
                                   uint16_t           timeout )
   {
     SyncResponseHandler handler;
@@ -801,10 +801,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // List entries of a directory - sync
   //----------------------------------------------------------------------------
-  XRootDStatus FileSystem::DirList( const std::string  &path,
-                                    uint8_t            flags,
-                                    DirectoryList    *&response,
-                                    uint16_t           timeout )
+  XRootDStatus FileSystem::DirList( const std::string    &path,
+                                    DirListFlags::Flags   flags,
+                                    DirectoryList       *&response,
+                                    uint16_t              timeout )
   {
     //--------------------------------------------------------------------------
     // We do the deep locate and ask all the returned servers for the list
@@ -954,7 +954,7 @@ namespace XrdCl
   // Prepare one or more files for access - async
   //----------------------------------------------------------------------------
   XRootDStatus FileSystem::Prepare( const std::vector<std::string> &fileList,
-                                    uint8_t                         flags,
+                                    PrepareFlags::Flags             flags,
                                     uint8_t                         priority,
                                     ResponseHandler                *handler,
                                     uint16_t                        timeout )
@@ -991,7 +991,7 @@ namespace XrdCl
   //! Prepare one or more files for access - sync
   //------------------------------------------------------------------------
   XRootDStatus FileSystem::Prepare( const std::vector<std::string>  &fileList,
-                                    uint8_t                          flags,
+                                    PrepareFlags::Flags              flags,
                                     uint8_t                          priority,
                                     Buffer                         *&response,
                                     uint16_t                         timeout )

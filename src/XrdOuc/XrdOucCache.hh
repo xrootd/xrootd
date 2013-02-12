@@ -30,8 +30,9 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucIOVec.hh"
 #include "XrdSys/XrdSysPthread.hh"
-  
+
 /* The classes defined here can be used to implement a general cache for
    data from an arbitrary source (e.g. files, sockets, etc); as follows:
 
@@ -177,6 +178,30 @@ const char *Path() = 0;
 //          Failure: -errno associated with the error.
 virtual
 int         Read (char *Buffer, long long Offset, int Length) = 0;
+
+// ReadV()  Performs a vector of read requests.  When fronted by a cache,
+//          the cache is inspected first.  By batching requests, it provides
+//          us the ability to skip expensive network round trips.
+//          If any reads fail or return short, the entire operation should
+//          fail.
+
+//          Success: actual number of bytes read.
+//          Failure: -errno associated with the read error.
+virtual
+int         ReadV(const XrdOucIOVec *readV, int n)
+                 {int nbytes = 0, curCount = 0;
+                  for (int i=0; i<n; i++)
+                      {curCount = Read(readV[i].data,
+                                       readV[i].offset,
+                                       readV[i].size);
+                       if (curCount != readV[i].size)
+                          {if (curCount < 0) return curCount;
+                           return -ESPIPE;
+                          }
+                       nbytes += curCount;
+                      }
+                  return nbytes;
+                 }
 
 // Sync()   copies any outstanding modified bytes to the target.
 

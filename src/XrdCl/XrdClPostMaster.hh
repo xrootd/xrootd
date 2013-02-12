@@ -190,8 +190,6 @@ namespace XrdCl
       TaskManager      *pTaskManager;
       ChannelMap        pChannelMap;
       XrdSysMutex       pChannelMapMutex;
-      TransportHandler *pTransportHandler; // to be removed when protocol
-                                           // factory is implemented
       bool              pInitialized;
   };
 }

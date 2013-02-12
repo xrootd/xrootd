@@ -278,6 +278,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string ServerFlagsToStr( uint32_t flags );
 
+      //------------------------------------------------------------------------
+      // Get a string representation of file handle
+      //------------------------------------------------------------------------
+      static std::string FileHandleToStr( const unsigned char handle[4] );
+
       void            *pSecLibHandle;
       XrdSecGetProt_t  pAuthHandler;
   };

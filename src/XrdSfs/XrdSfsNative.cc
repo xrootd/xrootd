@@ -422,7 +422,45 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 //
    return nbytes;
 }
-  
+
+/******************************************************************************/
+/*                                  r e a d v                                 */
+/******************************************************************************/
+
+XrdSfsXferSize XrdSfsNativeFile::readv(XrdOucIOVec     *readV,     // In
+                                       size_t           readCount) // In
+/*
+  Function: Perform all the reads specified in the readV vector.
+
+  Input:    readV     - A description of the reads to perform; includes the
+                        absolute offset, the size of the read, and the buffer
+                        to place the data into.
+            readCount - The size of the readV vector.
+
+  Output:   Returns the number of bytes read upon success and SFS_ERROR o/w.
+            If the number of bytes read is less than requested, it is considered
+            an error.
+*/
+{
+   static const char *epname = "readv";
+   XrdSfsXferSize nbytes = 0;
+   ssize_t curCount;
+   int i;
+
+   for (i=0; i<readCount; i++)
+     {do {curCount = pread(oh, (void *)readV[i].data, (size_t)readV[i].size, (off_t)readV[i].offset);}
+           while(curCount < 0 && errno == EINTR);
+
+      if (curCount != readV[i].size)
+         {if (curCount > 0) errno = ESPIPE;
+          return XrdSfsNative::Emsg(epname, error, errno, "readv", fname);
+         }
+      nbytes += curCount;
+     }
+
+   return nbytes;
+}
+
 /******************************************************************************/
 /*                              r e a d   A I O                               */
 /******************************************************************************/

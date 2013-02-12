@@ -153,12 +153,13 @@ struct XrdXrootdMonFileHdr    // 8
 enum  recTval {isClose = 0,   // Record for close
                isOpen,        // Record for open
                isTime,        // Record for time
-               isXfr          // Record for transfers
+               isXfr,         // Record for transfers
+               isDisc         // Record for disconnection
               };
 
 enum  recFval {forced  =0x01, // If recFlag == isClose close due to disconnect
                hasOPS  =0x02, // If recFlag == isClose MonStatXFR + MonStatOPS
-               hasSDV  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSDV
+               hasSSQ  =0x04, // If recFlag == isClose XFR + OPS  + MonStatSSQ
                hasLFN  =0x01, // If recFlag == isOpen  the lfn is present
                hasRW   =0x02  // If recFlag == isOpen  file opened r/w
               };
@@ -168,19 +169,20 @@ char      recFlag;  // RecFval: Record type-specific flags
 short     recSize;  // Size of this record in bytes
 union
 {
-kXR_unt32 fileID;   // dictid  of file for all rectypes except "time"
-int       unixTM;   // time(0) when recorded added for "time"
+kXR_unt32 fileID;   // dictid  of file for all rectypes except "disc" & "time"
+kXR_unt32 userID;   // dictid  of user for     rectypes equal  "disc"
+short     nRecs[2]; // isTime: nRecs[0] == isXfr recs nRecs[1] == total recs
 };
 };
 
-// The following record is always be present as the first and last record
-// entry in the udp packet. The Hdr.unixTM in the first record corresponds
-// to the time the following record was added to the packet. The Hdr.unixTM in
-// the last record corresponds to the time the UDP packet was completed.
+// The following record is always be present as the first record in the udp
+// udp packet and should be used to establish the recording window.
 //
 struct XrdXrootdMonFileTOD
 {
 XrdXrootdMonFileHdr Hdr;      //  8
+int                 tBeg;     // time(0) of following record
+int                 tEnd;     // time(0) when packet was sent
 };
 
 // The following variable length structure exists in XrdXrootdMonFileOPN if
@@ -223,12 +225,18 @@ int                 wrMin;    // Smallest  write() request size
 int                 wrMax;    // Largest   write() request size
 };
 
-struct XrdXrootdMonStatSDV    // 16 Bytes
+union XrdXrootdMonDouble
 {
-int                 read;     // Sigma of all read  requests (size)
-int                 readv;    // Sigma of all readv requests (size  as a unit)
-int                 rsegs;    // Sigma of all readv segments (count as a unit)
-int                 write;    // Sigma of all write requests (size)
+long long           dlong;
+double              dreal;
+};
+
+struct XrdXrootdMonStatSSQ    // 32 Bytes (all values net ordered IEEE754)
+{
+XrdXrootdMonDouble  read;     // Sum (all read  requests)**2 (size)
+XrdXrootdMonDouble  readv;    // Sum (all readv requests)**2 (size  as a unit)
+XrdXrootdMonDouble  rsegs;    // Sum (all readv segments)**2 (count as a unit)
+XrdXrootdMonDouble  write;    // Sum (all write requests)**2 (size)
 };
 
 // The following transfer data is collected for each open file.
@@ -243,18 +251,22 @@ long long           write;    // Bytes written to file so far
 // The following is reported upon file close. This is a variable length record.
 // The record always contains XrdXrootdMonStatXFR after   XrdXrootdMonFileHdr.
 // If (recFlag & hasOPS) TRUE XrdXrootdMonStatOPS follows XrdXrootdMonStatXFR
-// If (recFlag & hasSDV) TRUE XrdXrootdMonStatSDV follows XrdXrootdMonStatOPS
-// The XrdXrootdMonStatSDV information is present only if "sdv" was specified.
-// The standard deviation (sdv) values are calclulated using the formula
-//
-// sqrt({sum(val[i]**2)[i=1...n]}/n - ({sum(val[i])[i=1...n]}/n)**2)
+// If (recFlag & hasSSQ) TRUE XrdXrootdMonStatSQV follows XrdXrootdMonStatOPS
+// The XrdXrootdMonStatSSQ information is present only if "ssq" was specified.
 //
 struct XrdXrootdMonFileCLS    // 32 | 80 | 96 Bytes
 {
 XrdXrootdMonFileHdr Hdr;      // Always present (recSize has full length)
 XrdXrootdMonStatXFR Xfr;      // Always present
 XrdXrootdMonStatOPS Ops;      // Only   present when (recFlag & hasOPS) is True
-XrdXrootdMonStatSDV Sdv;      // Only   present when (recFlag & hasSDV) is True
+XrdXrootdMonStatSSQ Ssq;      // Only   present when (recFlag & hasSSQ) is True
+};
+
+// The following is reported when a user ends a session.
+//
+struct XrdXrootdMonFileDSC
+{
+XrdXrootdMonFileHdr Hdr;      //  8
 };
 
 // The following is reported each interval*count for each open file when "xfr"

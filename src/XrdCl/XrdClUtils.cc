@@ -21,8 +21,8 @@
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include "XrdCks/XrdCksManager.hh"
-#include "XrdCks/XrdCksCalc.hh"
+#include "XrdCl/XrdClCheckSumManager.hh"
+
 
 #include <algorithm>
 
@@ -155,8 +155,8 @@ namespace XrdCl
                                         const std::string &checkSumType,
                                         const std::string &path )
   {
-    Log    *log    = DefaultEnv::GetLog();
-    XrdCks *cksMan = DefaultEnv::GetCheckSumManager();
+    Log             *log    = DefaultEnv::GetLog();
+    CheckSumManager *cksMan = DefaultEnv::GetCheckSumManager();
 
     if( !cksMan )
     {
@@ -165,12 +165,12 @@ namespace XrdCl
     }
 
     XrdCksData ckSum; ckSum.Set( checkSumType.c_str() );
-    int status = cksMan->Calc( path.c_str(), ckSum, 0 );
-    if( status != 0 )
+    bool status = cksMan->Calculate( ckSum, checkSumType, path.c_str() );
+    if( !status )
     {
-      log->Error( UtilityMsg, "Error while calculating checksum for %s: %s",
-                  path.c_str(), strerror( -status ) );
-      return XRootDStatus( stError, errCheckSumError, -status );
+      log->Error( UtilityMsg, "Error while calculating checksum for %s",
+                  path.c_str() );
+      return XRootDStatus( stError, errCheckSumError );
     }
 
     char *cksBuffer = new char[265];
@@ -181,6 +181,57 @@ namespace XrdCl
 
     log->Dump( UtilityMsg, "Checksum for %s is: %s", path.c_str(),
                checkSum.c_str() );
+
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
+  // Convert bytes to a human readable string
+  //----------------------------------------------------------------------------
+  std::string Utils::BytesToString( uint64_t bytes )
+  {
+    uint64_t final = bytes;
+    int      i     = 0;
+    char suf[3] = { 'k', 'M', 'G' };
+    for( i = 0; i < 3 && final > 1024; ++i, final /= 1024 ) {};
+    std::ostringstream o;
+    o << final;
+    if( i > 0 ) o << suf[i-1];
+    return o.str();
+  }
+
+  //----------------------------------------------------------------------------
+  // Check if peer supports tpc
+  //----------------------------------------------------------------------------
+  XRootDStatus Utils::CheckTPC( const std::string &server )
+  {
+    Log *log = DefaultEnv::GetLog();
+    log->Error( UtilityMsg, "Checking if the data server %s supports tpc",
+                server.c_str() );
+
+    FileSystem    sourceDSFS( server );
+    Buffer        queryArg; queryArg.FromString( "tpc" );
+    Buffer       *queryResponse;
+    XRootDStatus  st;
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Cannot query source data server %s: %s",
+                  server.c_str(), st.ToStr().c_str() );
+      st.status = stFatal;
+      return st;
+    }
+
+    std::string answer = queryResponse->ToString();
+    delete queryResponse;
+    if( answer.length() == 1 || !isdigit( answer[0] ) || atoi(answer.c_str()) == 0)
+    {
+      log->Debug( UtilityMsg, "Third party copy not supported at: %s",
+                  server.c_str() );
+      return XRootDStatus( stError, errNotSupported );
+    }
+    log->Debug( UtilityMsg, "Third party copy supported at: %s",
+                server.c_str() );
 
     return XRootDStatus();
   }

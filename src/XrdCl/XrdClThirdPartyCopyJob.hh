@@ -26,10 +26,19 @@ namespace XrdCl
   class ThirdPartyCopyJob: public CopyJob
   {
     public:
+      struct Info
+      {
+        Info(): sourceSize(0) {}
+        URL         source;            //!< actual source data server
+        URL         target;            //!< actual target data server
+        std::string sourceChecksum;    //!< checksum at source
+        uint64_t    sourceSize;        //!< size of the source file
+      };
+
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ThirdPartyCopyJob( const URL *source, const URL *destination );
+      ThirdPartyCopyJob( JobDescriptor *jobDesc, Info *tpcInfo );
 
       //------------------------------------------------------------------------
       //! Run the copy job
@@ -38,6 +47,21 @@ namespace XrdCl
       //! @return         status of the copy operation
       //------------------------------------------------------------------------
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
+
+      //------------------------------------------------------------------------
+      //! Check whether doing a third party copy is feasible for given
+      //! job descriptor
+      //!
+      //! @param  jd job descriptor
+      //! @param  info a placeholder for the extra info needed by the copy
+      //! @return error when a third party copy cannot be performed and
+      //!         fatal error when no copy can be performed
+      //------------------------------------------------------------------------
+      static XRootDStatus CanDo( JobDescriptor *jd, Info *tpcInfo );
+
+    private:
+      static std::string GenerateKey();
+      Info pTPCInfo;
   };
 }
 

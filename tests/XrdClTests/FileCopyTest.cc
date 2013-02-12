@@ -28,6 +28,7 @@
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClCheckSumManager.hh"
 
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksCalc.hh"
@@ -104,8 +105,8 @@ void FileCopyTest::DownloadTestFunc()
   uint64_t    totalRead = 0;
   uint32_t    bytesRead = 0;
 
-  XrdCks     *calc = DefaultEnv::GetCheckSumManager();
-  XrdCksCalc *crc32Sum = calc->Object("zcrc32");
+  CheckSumManager *man      = DefaultEnv::GetCheckSumManager();
+  XrdCksCalc      *crc32Sum = man->GetCalculator("zcrc32");
   CPPUNIT_ASSERT( crc32Sum );
 
   while( 1 )
@@ -175,8 +176,8 @@ void FileCopyTest::UploadTestFunc()
   uint64_t offset        = 0;
   ssize_t  bytesRead;
 
-  XrdCks     *calc = DefaultEnv::GetCheckSumManager();
-  XrdCksCalc *crc32Sum = calc->Object("zcrc32");
+  CheckSumManager *man      = DefaultEnv::GetCheckSumManager();
+  XrdCksCalc      *crc32Sum = man->GetCalculator("zcrc32");
   CPPUNIT_ASSERT( crc32Sum );
 
   while( (bytesRead = read( fd, buffer, 4*MB )) > 0 )

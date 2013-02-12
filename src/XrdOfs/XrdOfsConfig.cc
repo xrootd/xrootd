@@ -137,7 +137,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Allocate a checksum configurator at this point
 //
    CksConfig = new XrdCksConfig(ConfigFN, &Eroute, retc,
-                                &XrdVERSIONINFOVAR(XrdOfs));
+                                XrdVERSIONINFOVAR(XrdOfs));
    if (!retc) NoGo = 1;
 
 // If there is no config file, return with the defaults sets.

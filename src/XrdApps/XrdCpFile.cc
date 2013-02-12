@@ -31,11 +31,18 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 #include <sys/stat.h>
   
 #include "XrdApps/XrdCpFile.hh"
 #include "XrdOuc/XrdOucNSWalk.hh"
+
+/******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+  
+const char *XrdCpFile::mPfx = 0;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -50,15 +57,31 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
                            {"https://", 8, isHttps}
                           };
    static int pTnum = sizeof(pTab)/sizeof(struct proto);
+   const char *Slash;
    int i;
 
 // Do some common initialization
 //
-   Path  = (FSpec ? strdup(FSpec) : 0);
+   Doff  = 0;
+   Dlen  = 0;
    Next  = 0;
    fSize = 0;
    badURL= 0;
    memset(ProtName, 0, sizeof(ProtName));
+
+// Copy out the path and remove trailing slashes
+//
+   Path = strdup(FSpec);
+   i = strlen(Path);
+   while(i) if (Path[i-1] != '/') break;
+               else Path[--i] = 0;
+
+// Check for stdin stdout spec
+//
+   if (!strcmp(Path, "-"))
+      {Protocol = isStdIO;
+       return;
+      }
 
 // Dtermine protocol of the incomming spec
 //
@@ -75,12 +98,17 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    Protocol = isFile;
    if (!strncmp(Path, "file://", 7))
       {char *pP = Path + 7;
-       if (!strncmp(Path, "localhost", 9)) pP += 9;
-       if (*pP == '/') Path = pP;
+               if (!strncmp(pP, "localhost/", 10)) strcpy(Path, pP + 10);
+          else if (*pP == '/') strcpy(Path, pP + 1);
           else {Protocol = isOther;
                 strcpy(ProtName, "remote");
+                return;
                }
       }
+
+// Set the default Doff and Dlen assuming non-recursive copy
+//
+   if ((Slash = rindex(Path, '/'))) Dlen = Doff = Slash - Path + 1;
 }
 
 /******************************************************************************/
@@ -102,12 +130,14 @@ int XrdCpFile::Extend(XrdCpFile **pLast, int &nFile, long long &nBytes)
    int rc;
    short dlen, doff = strlen(Path);
 
+   nsObj.setMsgOn(mPfx);
+
    while((nP = nsObj.Index(rc)) && rc == 0)
-        {dlen = nP->File - (nP->Path + doff);
-         do {fP = new XrdCpFile(nP->Path, nP->Stat, doff, dlen);
+        {do {dlen = nP->Plen - doff;
+             fP = new XrdCpFile(nP->Path, nP->Stat, doff, dlen);
              nFile++; nBytes += nP->Stat.st_size; nP->Path = 0;
              pP->Next = fP; pP = fP;
-             nnP = nP->Next; delete nP; dlen = 0;
+             nnP = nP->Next; delete nP;
             } while((nP = nnP));
         }
 

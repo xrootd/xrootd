@@ -29,7 +29,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      ClassicCopyJob( const URL *source, const URL *destination );
+      ClassicCopyJob( JobDescriptor *jobDesc );
 
       //------------------------------------------------------------------------
       //! Run the copy job

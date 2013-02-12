@@ -598,8 +598,11 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    if (eNum)
       {if (cP->chEvents & Channel::errorEvents)
           {cP->chPoller = &pollErr1; cP->chFault = eNum;
+           cP->chStat   = Channel::isCBMode;
+           chDead       = false;
+           cbkMHelp.UnLock();
            cP->chCB->Fatal(cP,cP->chCBA, eNum, eTxt);
-           return false;
+           return (chDead ? true : false);
           }
             if (REVENTS(cP->chEvents)) events = CallBack::ReadyToRead;
        else if (WEVENTS(cP->chEvents)) events = CallBack::ReadyToWrite;

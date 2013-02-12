@@ -21,6 +21,7 @@
 
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdCl/XrdClEnum.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
@@ -92,6 +93,7 @@ namespace XrdCl
       SeqIO    = kXR_seqio       //!< File will be read or written sequentially
     };
   };
+  XRDCL_ENUM_OPERATORS( OpenFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Access mode
@@ -103,48 +105,47 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     enum Mode
     {
-      UR = kXR_ur,         //!< owner readable
-      UW = kXR_uw,         //!< owner writable
-      UX = kXR_ux,         //!< owner executable/browsable
-      GR = kXR_gr,         //!< group readable
-      GW = kXR_gw,         //!< group writable
-      GX = kXR_gx,         //!< group executable/browsable
-      OR = kXR_or,         //!< world readable
-      OW = kXR_ow,         //!< world writeable
-      OX = kXR_ox          //!< world executable/browsable
+      None = 0,
+      UR   = kXR_ur,         //!< owner readable
+      UW   = kXR_uw,         //!< owner writable
+      UX   = kXR_ux,         //!< owner executable/browsable
+      GR   = kXR_gr,         //!< group readable
+      GW   = kXR_gw,         //!< group writable
+      GX   = kXR_gx,         //!< group executable/browsable
+      OR   = kXR_or,         //!< world readable
+      OW   = kXR_ow,         //!< world writeable
+      OX   = kXR_ox          //!< world executable/browsable
     };
   };
+  XRDCL_ENUM_OPERATORS( Access::Mode )
 
   //----------------------------------------------------------------------------
   //! MkDir flags
   //----------------------------------------------------------------------------
   struct MkDirFlags
   {
-    static const uint8_t None     = 0;  //!< Nothing special
-    static const uint8_t MakePath = 1;  //!< create the entire directory tree if
-                                        //!< it doesn't exist
+    enum Flags
+    {
+      None     = 0,  //!< Nothing special
+      MakePath = 1   //!< create the entire directory tree if it doesn't exist
+    };
   };
+  XRDCL_ENUM_OPERATORS( MkDirFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! DirList flags
   //----------------------------------------------------------------------------
   struct DirListFlags
   {
-    static const uint8_t None   = 0;  //!< Nothing special
-    static const uint8_t Stat   = 1;  //!< Stat each entry
-    static const uint8_t Locate = 2;  //!< Locate all servers hosting the
-                                      //!< directory and send the dirlist
-                                      //!< request to all of them
+    enum Flags
+    {
+      None   = 0,  //!< Nothing special
+      Stat   = 1,  //!< Stat each entry
+      Locate = 2  //!< Locate all servers hosting the directory and send
+                   //!< the dirlist request to all of them
+    };
   };
-
-  //----------------------------------------------------------------------------
-  //! Stat flags
-  //----------------------------------------------------------------------------
-  struct StatFlags
-  {
-    static const uint8_t Object = 0;  //!< Do a file/directory stat
-    static const uint8_t VFS    = 1;  //!< Stat virtual filesystem
-  };
+  XRDCL_ENUM_OPERATORS( DirListFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Prepare flags
@@ -162,6 +163,7 @@ namespace XrdCl
                                   //!< modification
     };
   };
+  XRDCL_ENUM_OPERATORS( PrepareFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
@@ -199,7 +201,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Locate( const std::string &path,
-                           uint16_t           flags,
+                           OpenFlags::Flags   flags,
                            ResponseHandler   *handler,
                            uint16_t           timeout = 0 );
 
@@ -214,7 +216,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Locate( const std::string  &path,
-                           uint16_t            flags,
+                           OpenFlags::Flags    flags,
                            LocationInfo      *&response,
                            uint16_t            timeout  = 0 );
 
@@ -231,7 +233,7 @@ namespace XrdCl
       //! @return        status of the operation
       //------------------------------------------------------------------------
       XRootDStatus DeepLocate( const std::string &path,
-                               uint16_t           flags,
+                               OpenFlags::Flags   flags,
                                ResponseHandler   *handler,
                                uint16_t           timeout = 0 );
 
@@ -246,7 +248,7 @@ namespace XrdCl
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus DeepLocate( const std::string  &path,
-                               uint16_t            flags,
+                               OpenFlags::Flags   flags,
                                LocationInfo      *&response,
                                uint16_t            timeout  = 0 );
 
@@ -367,15 +369,15 @@ namespace XrdCl
       //!
       //! @param path     path to the directory
       //! @param flags    or'd MkDirFlags
-      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param mode     access mode, or'd Access::Mode
       //! @param handler  handler to be notified when the response arrives
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus MkDir( const std::string &path,
-                          uint8_t            flags,
-                          uint16_t           mode,
+                          MkDirFlags::Flags  flags,
+                          Access::Mode       mode,
                           ResponseHandler   *handler,
                           uint16_t           timeout = 0 );
 
@@ -384,14 +386,14 @@ namespace XrdCl
       //!
       //! @param path     path to the directory
       //! @param flags    or'd MkDirFlags
-      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param mode     access mode, or'd Access::Mode
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus MkDir( const std::string &path,
-                          uint8_t            flags,
-                          uint16_t           mode,
+                          MkDirFlags::Flags  flags,
+                          Access::Mode       mode,
                           uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -422,14 +424,14 @@ namespace XrdCl
       //! Change access mode on a directory or a file - async
       //!
       //! @param path     file/directory path
-      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param mode     access mode, or'd Access::Mode
       //! @param handler  handler to be notified when the response arrives
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ChMod( const std::string &path,
-                          uint16_t           mode,
+                          Access::Mode       mode,
                           ResponseHandler   *handler,
                           uint16_t           timeout = 0 );
 
@@ -437,13 +439,13 @@ namespace XrdCl
       //! Change access mode on a directory or a file - sync
       //!
       //! @param path     file/directory path
-      //! @param mode     access mode, or'd AccessMode::Mode
+      //! @param mode     access mode, or'd Access::Mode
       //! @param timeout  timeout value, if 0 the environment default will
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
       XRootDStatus ChMod( const std::string &path,
-                          uint16_t           mode,
+                          Access::Mode       mode,
                           uint16_t           timeout = 0 );
 
       //------------------------------------------------------------------------
@@ -571,10 +573,10 @@ namespace XrdCl
       //!                 be used
       //! @return         status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus DirList( const std::string  &path,
-                            uint8_t            flags,
-                            DirectoryList    *&response,
-                            uint16_t           timeout = 0 );
+      XRootDStatus DirList( const std::string    &path,
+                            DirListFlags::Flags   flags,
+                            DirectoryList       *&response,
+                            uint16_t              timeout = 0 );
 
       //------------------------------------------------------------------------
       //! Send info to the server (up to 1024 characters)- async
@@ -618,7 +620,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Prepare( const std::vector<std::string> &fileList,
-                            uint8_t                         flags,
+                            PrepareFlags::Flags             flags,
                             uint8_t                         priority,
                             ResponseHandler                *handler,
                             uint16_t                        timeout = 0 );
@@ -635,7 +637,7 @@ namespace XrdCl
       //! @return          status of the operation
       //------------------------------------------------------------------------
       XRootDStatus Prepare( const std::vector<std::string>  &fileList,
-                            uint8_t                          flags,
+                            PrepareFlags::Flags              flags,
                             uint8_t                          priority,
                             Buffer                         *&response,
                             uint16_t                         timeout = 0 );

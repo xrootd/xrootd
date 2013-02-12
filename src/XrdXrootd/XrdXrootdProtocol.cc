@@ -39,6 +39,7 @@
 #include "XrdXrootd/XrdXrootdFile.hh"
 #include "XrdXrootd/XrdXrootdFileLock.hh"
 #include "XrdXrootd/XrdXrootdFileLock1.hh"
+#include "XrdXrootd/XrdXrootdMonFile.hh"
 #include "XrdXrootd/XrdXrootdMonitor.hh"
 #include "XrdXrootd/XrdXrootdPio.hh"
 #include "XrdXrootd/XrdXrootdProtocol.hh"
@@ -56,7 +57,7 @@ XrdXrootdXPath        XrdXrootdProtocol::RPList;
 XrdXrootdXPath        XrdXrootdProtocol::RQList;
 XrdXrootdXPath        XrdXrootdProtocol::XPList;
 XrdSfsFileSystem     *XrdXrootdProtocol::osFS;
-char                 *XrdXrootdProtocol::FSLib    = 0;
+char                 *XrdXrootdProtocol::FSLib[2] = {0, 0};
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
@@ -76,7 +77,6 @@ int                   XrdXrootdProtocol::Window;
 int                   XrdXrootdProtocol::WANPort;
 int                   XrdXrootdProtocol::WANWindow;
 char                  XrdXrootdProtocol::isRedir = 0;
-char                  XrdXrootdProtocol::chkfsV  = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
 XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
@@ -544,6 +544,7 @@ void XrdXrootdProtocol::Recycle(XrdLink *lp, int csec, const char *reason)
 // will call the monitor clear method. So, we won't leak memeory.
 //
    if (Monitor.Logins()) Monitor.Agent->Disc(Monitor.Did, csec, Flags);
+   if (Monitor.Fstat() ) XrdXrootdMonFile::Disc(Monitor.Did);
    Monitor.Clear();
 
 // Set fields to starting point (debugging mostly)
@@ -593,7 +594,7 @@ int XrdXrootdProtocol::Stats(char *buff, int blen, int do_sync)
 int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 {
    XrdOucErrInfo myInfo("CheckSum");
-   int rc;
+   int rc, ecode;
 
 // The arguments must have <name> <path> (i.e. argc >= 2)
 //
@@ -608,8 +609,10 @@ int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
 
 // Return result regardless of what it is
 //
-   Stream->PutLine(myInfo.getErrText());
-   if (rc) SI->errorCnt++;
+   Stream->PutLine(myInfo.getErrText(ecode));
+   if (rc) {SI->errorCnt++;
+            if (ecode) rc = ecode;
+           }
    return rc;
 }
 
