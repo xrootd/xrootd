@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement full readv-passthru for enhanced performance (B. Bockleman,
+     UNL). This breaks SFS and OSS plugin ABI compatibility. It also
+     introduces a new method to the POSIX interface.
    * Allow NSWalk error messages to be routed to stderr for use by command
      line tools.
    * Add a disconnect record to the f-stream.
