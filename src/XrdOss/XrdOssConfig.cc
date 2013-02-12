@@ -209,6 +209,14 @@ XrdOssSys::XrdOssSys()
    xfrFdln       = 0;
    RSSProg       = 0;
    StageProg     = 0;
+   prPBits       = (long long)sysconf(_SC_PAGESIZE);
+   prPSize       = static_cast<int>(prPBits);
+   prPBits--;
+   prPMask       = ~prPBits;
+   prBytes       = 0;
+   prActive      = 0;
+   prDepth       = 0;
+   prQSize       = 0;
 }
   
 /******************************************************************************/
@@ -897,6 +905,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    TS_Xeq("memfile",       xmemf);
    TS_Xeq("namelib",       xnml);
    TS_Xeq("path",          xpath);
+   TS_Xeq("preread",       xprerd);
    TS_Xeq("space",         xspace);
    TS_Xeq("stagecmd",      xstg);
    TS_Xeq("trace",         xtrace);
@@ -1283,6 +1292,80 @@ int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
    return (XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags) ? 0 : 1);
 }
 
+/******************************************************************************/
+/*                                x p r e r d                                 */
+/******************************************************************************/
+
+/* Function: xprerd
+
+   Purpose:  To parse the directive: preread {<depth> | on} [limit <bytes>]
+                                             [ qsize [=]<qsz> ]
+
+             <depth>  the number of request to preread ahead of the read.
+                      A value of 0, the inital default, turns off prereads.
+                      Specifying "on" sets the value (currently) to 3.
+             <bytes>  Maximum number of bytes to preread. Prereading stops,
+                      regardless of depth, once <bytes> have been preread.
+                      The default is 1M (i.e.1 megabyte). The max is 16M.
+             <qsz>    the queue size after which preread blocking would occur.
+                      The value must be greater than or equal to <depth>.
+                      The value is adjusted to max(<qsz>/(<depth>/2+1),<depth>)
+                      unless the number is preceeded by an equal sign. The
+                      default <qsz> is 128.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xprerd(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    static const long long m16 = 16777216LL;
+    char *val;
+    long long lim = 1048576;
+    int depth, qeq = 0, qsz = 128;
+
+      if (!(val = Config.GetWord()))
+         {Eroute.Emsg("Config", "preread depth not specified"); return 1;}
+
+      if (!strcmp(val, "on")) depth = 3;
+         else if (XrdOuca2x::a2i(Eroute,"preread depth",val,&depth,0, 1024))
+                 return 1;
+
+      while((val = Config.GetWord()))
+           {     if (!strcmp(val, "limit"))
+                    {if (!(val = Config.GetWord()))
+                        {Eroute.Emsg("Config","preread limit not specified");
+                         return 1;
+                        }
+                     if (XrdOuca2x::a2sz(Eroute,"preread limit",val,&lim,0,m16))
+                        return 1;
+                    }
+            else if (!strcmp(val, "qsize"))
+                    {if (!(val = Config.GetWord()))
+                        {Eroute.Emsg("Config","preread qsize not specified");
+                         return 1;
+                        }
+                     if (XrdOuca2x::a2i(Eroute,"preread qsize",val,&qsz,0,1024))
+                        return 1;
+                     if (qsz < depth)
+                        {Eroute.Emsg("Config","preread qsize must be >= depth");
+                         return 1;
+                        }
+                    }
+            else {Eroute.Emsg("Config","invalid preread option -",val); return 1;}
+         }
+
+      if (lim < prPSize || !qsz) depth = 0;
+      if (!qeq && depth)
+         {qsz = qsz/(depth/2+1);
+          if (qsz < depth) qsz = depth;
+         }
+
+      prDepth = depth;
+      prQSize = qsz;
+      prBytes = lim;
+      return 0;
+}
+  
 /******************************************************************************/
 /*                                x s p a c e                                 */
 /******************************************************************************/

@@ -114,7 +114,7 @@ public:
 
         int            read(XrdSfsAio *aioparm);
 
-        XrdSfsXferSize readv(XrdSfsReadV      *readV,
+        XrdSfsXferSize readv(XrdOucIOVec      *readV,
                              size_t            readCount);
 
         XrdSfsXferSize write(XrdSfsFileOffset   fileOffset,

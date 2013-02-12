@@ -82,6 +82,7 @@ add_library(
                                 XrdOuc/XrdOucChain.hh
                                 XrdOuc/XrdOucDLlist.hh
                                 XrdOuc/XrdOucErrInfo.hh
+                                XrdOuc/XrdOucIOVec.hh
                                 XrdOuc/XrdOucLock.hh
                                 XrdOuc/XrdOucPList.hh
                                 XrdOuc/XrdOucRash.hh

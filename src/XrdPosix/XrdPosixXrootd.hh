@@ -47,7 +47,7 @@
 #include "XrdPosix/XrdPosixOsDep.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdSfs/XrdSfsInterface.hh"
+struct XrdOucIOVec;
 
 class XrdOucCache;
 class XrdOucEnv;
@@ -90,8 +90,6 @@ static ssize_t Pread(int fildes, void *buf, size_t nbyte, off_t offset);
 static ssize_t Read(int fildes, void *buf, size_t nbyte);
 
 static ssize_t Readv(int fildes, const struct iovec *iov, int iovcnt);
-
-static ssize_t Readv2(int fildes, const XrdSfsReadV *readV, int n);
 
 static struct dirent*   Readdir  (DIR *dirp);
 static struct dirent64* Readdir64(DIR *dirp);
@@ -155,6 +153,8 @@ static void    setEnv(const char *var, const char *val);
 static void    setEnv(const char *var, long val);
 
 static void    setCache(XrdOucCache *cP);
+
+static ssize_t VRead(int fildes, const XrdOucIOVec *readV, int n);
 
 static int     Debug;
 

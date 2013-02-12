@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
+#include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -812,73 +813,69 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
             an error.
 */
 
-ssize_t XrdOssFile::ReadV(XrdSfsReadV *readV, size_t n)
+ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, size_t n)
 {
-// Hint to the OS what files we will be needing.  Align the request to 4k blocks.
-// Most IO queues can only handle 128 requests, which is why we interleave the
-// reads and the e
-// fadvise with reads.
+   EPNAME("ReadV");
+   ssize_t rdsz, totBytes = 0;
+   int i;
 
-#if defined(__linux__)
-// We should be able to take this from sysctl
-#define BLOCK_SIZE 4096
-#define FETCH_SIZE 128
-   ssize_t remaining = n;
-   ssize_t readCount = n;
-   size_t idx = 0, totalBytes = 0, nbytes;
-   if (remaining <= FETCH_SIZE)
-      {if (readV[0].size == 0) // Handle the degenerate case.
-          {if (n == 1) return 0;
-           return ReadV(readV+1, n-1);
-          }
-       off_t baseOffset = readV[0].offset/BLOCK_SIZE, nextOffset=0, curOffset;
-       size_t hint_len = (readV[0].size-1)/BLOCK_SIZE+1;
-       nextOffset = curOffset+hint_len;
-       for (size_t i=1; i<readCount; i++)
-          {curOffset = readV[i].offset/BLOCK_SIZE;
-           if (readV[i].size == 0) continue;
-           if (curOffset != nextOffset)
-              {Read(baseOffset*BLOCK_SIZE, hint_len*BLOCK_SIZE);
-               baseOffset = curOffset;
-               hint_len = 0;
+// For platforms that support fadvise, pre-advise what we will be reading
+//
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+   long long begOff, endOff, begLst = -1, endLst = -1;
+   int nPR = n;
+
+// Indicate we are in preread state and see if we have exceeded the limit
+//
+   if (XrdOssSS->prDepth
+   && AtomicInc((XrdOssSS->prActive)) < XrdOssSS->prQSize && n > 2)
+      {int faBytes = 0;
+       for (nPR=0;nPR < XrdOssSS->prDepth && faBytes < XrdOssSS->prBytes;nPR++)
+           if (readV[nPR].size > 0)
+              {begOff = XrdOssSS->prPMask &  readV[nPR].offset;
+               endOff = XrdOssSS->prPBits | (readV[nPR].offset+readV[nPR].size);
+               rdsz = endOff - begOff + 1;
+               if ((begOff > endLst || endOff < begLst)
+               &&  rdsz < XrdOssSS->prBytes)
+                  {posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+                   TRACE(Debug,"fadvise(" <<fd <<',' <<begOff <<',' <<rdsz <<')');
+                   faBytes += rdsz;
+                  }
+               begLst = begOff; endLst = endOff;
               }
-           hint_len += (readV[i].size-1)/BLOCK_SIZE+1;
-           nextOffset = curOffset+hint_len;
-          }
-       Read(baseOffset*BLOCK_SIZE, hint_len*BLOCK_SIZE); 
-
-       ssize_t nbytes = 0, curCount = 0;
-       for (int i=0; i<n; i++)
-          {do { curCount = Read((void *)readV[i].data, (off_t)readV[i].offset, (size_t)readV[i].size); nbytes += curCount; }
-               while(curCount < 0 && errno == EINTR);
-
-           if (curCount < 0)
-               return curCount;
-          }
       }
-   else while (remaining > 0);
-      {size_t read_count = (remaining > FETCH_SIZE) ? FETCH_SIZE : remaining;
-       nbytes = ReadV(readV+idx, read_count);
-       if (nbytes < 0)
-           return nbytes;
-       totalBytes += nbytes;
-       idx += FETCH_SIZE;
-       remaining -= read_count;
-      }
-
-   return nbytes;
-#else
-   ssize_t nbytes = 0, curCount = 0;
-   for (int i=0; i<n; i++)
-     {do { curCount = Read((void *)readV[i].data, (off_t)readV[i].offset, (size_t)readV[i].size); nbytes += curCount; }
-           while(curCount < 0 && errno == EINTR);
-
-      if (curCount < 0)
-         return curCount;
-     }
-
-   return nbytes;
 #endif
+
+// Read in the vector and do a pre-advise if we support that
+//
+   for (i = 0; i < n; i++)
+       {do {rdsz = pread(fd, readV[i].data, readV[i].size, readV[i].offset);}
+           while(rdsz < 0 && errno == EINTR);
+        if (rdsz < 0 || rdsz != readV[i].size)
+           {totBytes =  (rdsz < 0 ? -errno : -ESPIPE); break;}
+        totBytes += rdsz;
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+        if (nPR < n && readV[nPR].size > 0)
+           {begOff = XrdOssSS->prPMask &  readV[nPR].offset;
+            endOff = XrdOssSS->prPBits | (readV[nPR].offset+readV[nPR].size);
+            rdsz = endOff - begOff + 1;
+            if ((begOff > endLst || endOff < begLst)
+            &&  rdsz <= XrdOssSS->prBytes)
+               {posix_fadvise(fd, begOff, rdsz, POSIX_FADV_WILLNEED);
+                TRACE(Debug,"fadvise(" <<fd <<',' <<begOff <<',' <<rdsz <<')');
+               }
+            begLst = begOff; endLst = endOff;
+           }
+        nPR++;
+#endif
+       }
+
+// All done, return bytes read.
+//
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+   if (XrdOssSS->prDepth) AtomicDec((XrdOssSS->prActive));
+#endif
+   return totBytes;
 }
 
 /******************************************************************************/

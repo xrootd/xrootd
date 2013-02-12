@@ -1772,16 +1772,17 @@ int XrdXrootdProtocol::do_ReadV()
 // This will read multiple buffers at the same time in an attempt to avoid
 // the latency in a network. The information with the offsets and lengths
 // of the information to read is passed as a data buffer... then we decode
-// it and put all the individual buffers in a single one (it's up to the)
+// it and put all the individual buffers in a single one it's up to the
 // client to interpret it. Code originally developed by Leandro Franco, CERN.
+// The readv file system code originally added by Brian Bockelman, UNL.
 //
-   const int hdrSZ     = sizeof(readahead_list);
-   XrdXrootdFHandle currFH, lastFH((kXR_char *)"\xff\xff\xff\xff");
-   struct readahead_list rdVec[maxRvecsz];
-   struct XrdSfsReadV fileRdVec[maxRvecsz];
-   long long totLen;
-   int rdVecNum, rdVecLen = Request.header.dlen;
-   int i, k, rc, xframt, Quantum, Qleft, rdvamt, segcnt;
+   const int hdrSZ = sizeof(readahead_list);
+   struct XrdOucIOVec     rdVec[maxRvecsz+1];
+   struct readahead_list *raVec, respHdr;
+   long long totSZ;
+   XrdSfsXferSize rdVAmt, rdVXfr, xfrSZ;
+   int rdVBeg, rdVBreak, rdVNow, rdVNum, rdVecNum;
+   int currFH, i, k, Quantum, Qleft, rdVecLen = Request.header.dlen;
    int rvMon = Monitor.InOut();
    int ioMon = (rvMon > 1);
    char *buffp, vType = (ioMon ? XROOTD_MON_READU : XROOTD_MON_READV);
@@ -1791,45 +1792,55 @@ int XrdXrootdProtocol::do_ReadV()
 //
    rdVecNum = rdVecLen / sizeof(readahead_list);
    if ( (rdVecLen <= 0) || (rdVecNum*hdrSZ != rdVecLen) )
-      {Response.Send(kXR_ArgInvalid, "Read vector is invalid");
-       return 0;
-      }
+      return Response.Send(kXR_ArgInvalid, "Read vector is invalid");
 
 // Make sure that we can copy the read vector to our local stack. We must impose 
 // a limit on it's size. We do this to be able to reuse the data buffer to 
 // prevent cross-cpu memory cache synchronization.
 //
    if (rdVecLen > static_cast<int>(sizeof(rdVec)))
-      {Response.Send(kXR_ArgTooLong, "Read vector is too long");
-       return 0;
-      }
-   memcpy(rdVec, argp->buff, rdVecLen);
+      return Response.Send(kXR_ArgTooLong, "Read vector is too long");
+
+// So, now we account for the number of readv requests and total segments
+//
    numReadV++; numSegsV += rdVecNum;
 
 // Run down the list and compute the total size of the read. No individual
-// read may be greater than the maximum transfer size.
+// read may be greater than the maximum transfer size. We also use this loop
+// to copy the read ahead list to our readv vector for later processing.
 //
-   totLen = rdVecLen; xframt = maxTransz - hdrSZ;
+   raVec = (readahead_list *)argp->buff;
+   totSZ = rdVecLen; Quantum = maxTransz - hdrSZ;
    for (i = 0; i < rdVecNum; i++) 
-       {totLen += (rdVec[i].rlen = ntohl(rdVec[i].rlen));
-        if (rdVec[i].rlen > xframt)
-           {Response.Send(kXR_NoMemory, "Single readv transfer is too large");
-            return 0;
-           }
+       {totSZ += (rdVec[i].size = ntohl(raVec[i].rlen));
+        if (rdVec[i].size > Quantum) return Response.Send(kXR_NoMemory,
+                                           "Single readv transfer is too large");
+        rdVec[i].offset = ntohll(raVec[i].offset);
+        memcpy(&rdVec[i].info, raVec[i].fhandle, sizeof(int));
        }
+
+// Now add an extra dummy element to force flushing of the read vector.
+//
+   rdVec[i].offset = -1;
+   rdVec[i].size   =  0;
+   rdVec[i].info   = -1;
+   rdVBreak = rdVecNum;
+   rdVecNum++;
 
 // We limit the total size of the read to be 2GB for convenience
 //
-   if (totLen > 0x7fffffffLL)
-      {Response.Send(kXR_NoMemory, "Total readv transfer is too large");
-       return 0;
-      }
-   if ((Quantum = static_cast<int>(totLen)) > maxTransz) Quantum = maxTransz;
+   if (totSZ > 0x7fffffffLL)
+      return Response.Send(kXR_NoMemory, "Total readv transfer is too large");
+
+// Calculate the transfer unit which will be the smaller of the maximum
+// transfer unit and the actual amount we need to transfer.
+//
+   if ((Quantum = static_cast<int>(totSZ)) > maxTransz) Quantum = maxTransz;
    
 // Now obtain the right size buffer
 //
    if ((Quantum < halfBSize && Quantum > 1024) || Quantum > argp->bsize)
-      {if ((rc = getBuff(1, Quantum)) <= 0) return rc;}
+      {if ((k = getBuff(1, Quantum)) <= 0) return k;}
       else if (hcNow < hcNext) hcNow++;
 
 // Check that we really have at least one file open. This needs to be done 
@@ -1838,83 +1849,79 @@ int XrdXrootdProtocol::do_ReadV()
    if (!FTab) return Response.Send(kXR_FileNotOpen,
                               "readv does not refer to an open file");
 
-// Run down the pre-read list. Each read element is prefixed by the verctor
-// element. We also break the reads into Quantum sized units. We do the
+// Preset the previous and current file handle to be the handle of the first
+// element and make sure the file is actually open.
 //
-   Qleft = Quantum; buffp = argp->buff; k = 0; rdvamt = 0; segcnt = 0; rvSeq++;
-   XrdSfsXferSize fileReadVCount = 0;
-   XrdSfsXferSize fileReadVSize = 0;
+   currFH = rdVec[0].info;
+   memcpy(respHdr.fhandle, &currFH, sizeof(respHdr.fhandle));
+   if (!(myFile = FTab->Get(currFH))) return Response.Send(kXR_FileNotOpen,
+                                      "readv does not refer to an open file");
+
+// Setup variables for running through the list.
+//
+   Qleft = Quantum; buffp = argp->buff; rvSeq++;
+   rdVBeg = rdVNow = 0; rdVXfr = rdVAmt = 0;
+
+// Now run through the elements
+//
    for (i = 0; i < rdVecNum; i++)
-        // Every request could come from a different file
-        //
-       {currFH.Set(rdVec[i].fhandle);
-        if (currFH.handle != lastFH.handle)
-           {if (fileReadVCount)
-               {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize) 
-                   break;
-                fileReadVSize = fileReadVCount = 0;
+       {if (rdVec[i].info != currFH)
+           {xfrSZ = myFile->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
+            if (xfrSZ != rdVAmt) break;
+            rdVNum = i - rdVBeg; rdVXfr += rdVAmt;
+            myFile->Stats.rvOps(rdVXfr, rdVNum);
+            if (rvMon)
+               {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdVXfr),
+                                              htons(rdVNum), rvSeq, vType);
+                if (ioMon) for (k = rdVBeg; k < i; k++)
+                    Monitor.Agent->Add_rd(myFile->Stats.FileID,
+                            htonl(rdVec[k].size), htonll(rdVec[k].offset));
                }
-            if (i && rvMon)
-               {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
-                                              htons(i-k), rvSeq, vType);
-                if (ioMon) for (; k < i; k++)
-                    Monitor.Agent->Add_rd(myFile->Stats.FileID,rdVec[k].rlen,
-                                                               rdVec[k].offset);
-               }
-            if (i) {myFile->Stats.rvOps(rdvamt, segcnt); segcnt = rdvamt = 0;}
-            if (!(myFile = FTab->Get(currFH.handle)))
+            rdVXfr = rdVAmt = 0;
+            if (i == rdVBreak) break;
+            rdVBeg = rdVNow = i; currFH = rdVec[i].info;
+            memcpy(respHdr.fhandle, &currFH, sizeof(respHdr.fhandle));
+            if (!(myFile = FTab->Get(currFH)))
                return Response.Send(kXR_FileNotOpen,
-                               "readv does not refer to an open file");
-               else lastFH.handle = currFH.handle;
-           }
-      
-        // Read in the vector, segmenting as needed. Note that we guarantee
-        // that a single readv element will never need to be segmented.
-        //
-        myIOLen  = rdVec[i].rlen;
-        n2hll(rdVec[i].offset, myOffset);
-        fileRdVec[fileReadVCount].size = myIOLen;
-        fileRdVec[fileReadVCount].offset = myOffset;
-        fileRdVec[fileReadVCount].data = buffp+hdrSZ;
-        fileReadVSize += myIOLen;;
-        fileReadVCount ++;
-        if (Qleft < (myIOLen + hdrSZ))
-           {if (myFile->XrdSfsp->readv(fileRdVec, fileReadVCount) != fileReadVSize)
-               break;
-            fileReadVSize = fileReadVCount = 0;
+                                    "readv does not refer to an open file");
+            }
+
+        if (Qleft < (rdVec[i].size + hdrSZ))
+           {if (rdVAmt)
+               {xfrSZ = myFile->XrdSfsp->readv(&rdVec[rdVNow], i-rdVNow);
+                if (xfrSZ != rdVAmt) break;
+               }
             if (Response.Send(kXR_oksofar,argp->buff,Quantum-Qleft) < 0)
                return -1;
             Qleft = Quantum;
             buffp = argp->buff;
+            rdVNow = i; rdVXfr += rdVAmt; rdVAmt = 0;
            }
-        TRACEP(FS,"fh=" <<currFH.handle <<" readV " << myIOLen <<'@' <<myOffset);
-        rdvamt += myIOLen; numReads++; segcnt++;
-        rdVec[i].rlen = htonl(myIOLen);
-        memcpy(buffp, &rdVec[i], hdrSZ);
-        buffp += (myIOLen+hdrSZ); Qleft -= (myIOLen+hdrSZ);
-       }
-   
-// Determine why we ended here
-//
-   if (fileReadVCount)
-     {if ((xframt = myFile->XrdSfsp->readv(fileRdVec, fileReadVCount)) != fileReadVSize)
-         i -= fileReadVCount; // Decrease the index so we don't hit the success case below.
-     }
 
-   if (i >= rdVecNum)
-      {if (i && rvMon)
-          {Monitor.Agent->Add_rv(myFile->Stats.FileID, htonl(rdvamt),
-                                         htons(i-k), rvSeq, vType);
-           if (ioMon) for (; k < i; k++)
-              Monitor.Agent->Add_rd(myFile->Stats.FileID, rdVec[k].rlen,
-                                                          rdVec[k].offset);
+        xfrSZ = rdVec[i].size; rdVAmt += xfrSZ;
+        respHdr.rlen   = htonl(xfrSZ);
+        respHdr.offset = htonll(rdVec[i].offset);
+        memcpy(buffp, &respHdr, hdrSZ);
+        rdVec[i].data = buffp + hdrSZ;
+        buffp += (xfrSZ+hdrSZ); Qleft -= (xfrSZ+hdrSZ);
+        TRACEP(FS,"fh=" <<currFH <<" readV " << xfrSZ <<'@' <<rdVec[i].offset);
+       }
+
+// Check if we have an error here. This is indicated when rdVAmt is not zero.
+//
+   if (rdVAmt)
+      {if (xfrSZ >= 0)
+          {xfrSZ = SFS_ERROR;
+           myFile->XrdSfsp->error.setErrInfo(-ENODATA,"readv past EOF");
           }
-       myFile->Stats.rvOps(rdvamt, segcnt);
-       return Response.Send(argp->buff, Quantum-Qleft);
+       return fsError(xfrSZ, 0, myFile->XrdSfsp->error, 0);
       }
-   return fsError(xframt, 0, myFile->XrdSfsp->error, 0);
+
+// All done, return result of the last segment or just zero
+//
+   return (Quantum != Qleft ? Response.Send(argp->buff, Quantum-Qleft) : 0);
 }
-  
+
 /******************************************************************************/
 /*                                 d o _ R m                                  */
 /******************************************************************************/

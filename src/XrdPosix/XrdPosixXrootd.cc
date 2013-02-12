@@ -144,7 +144,7 @@ const char *Path();
 int         Read (char *Buff, long long Offs, int Len)
                 {return XClient->Read (Buff, Offs, Len);}
 
-ssize_t     ReadV (const XrdSfsReadV *readV, size_t n)
+int         ReadV (const XrdOucIOVec *readV, int n)
 {
    size_t nbytes = 0;
    std::vector<long long> offsets; offsets.reserve(n);
@@ -1145,10 +1145,10 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 }
 
 /******************************************************************************/
-/*                                 R e a d v 2                                */
+/*                                 V R e a d                                  */
 /******************************************************************************/
 
-ssize_t XrdPosixXrootd::Readv2(int fildes, const XrdSfsReadV *readV, int n)
+ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
 {
    XrdPosixFile *fp;
    int           iosz;

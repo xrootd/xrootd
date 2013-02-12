@@ -689,7 +689,7 @@ ssize_t XrdPssFile::Read(void *buff, off_t offset, size_t blen)
 /*                                  r e a d v                                 */
 /******************************************************************************/
 
-ssize_t XrdPssFile::ReadV(XrdSfsReadV     *readV,     // In
+ssize_t XrdPssFile::ReadV(XrdOucIOVec     *readV,     // In
                           size_t           readCount) // In
 /*
   Function: Perform all the reads specified in the readV vector.
@@ -708,7 +708,7 @@ ssize_t XrdPssFile::ReadV(XrdSfsReadV     *readV,     // In
 
     if (fd < 0) return (ssize_t)-XRDOSS_E8004;
 
-    return (retval = XrdPosixXrootd::Readv2(fd, readV, readCount)) < 0 ? (ssize_t)-errno : retval;;
+    return (retval = XrdPosixXrootd::VRead(fd, readV, readCount)) < 0 ? (ssize_t)-errno : retval;;
 }
 
 /******************************************************************************/
