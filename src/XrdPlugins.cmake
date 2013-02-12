@@ -78,6 +78,7 @@ add_library(
 
 target_link_libraries(
   XrdThrottle
+  XrdOfs
   XrdUtils )
 
 set_target_properties(
