@@ -57,7 +57,7 @@ XrdXrootdXPath        XrdXrootdProtocol::RPList;
 XrdXrootdXPath        XrdXrootdProtocol::RQList;
 XrdXrootdXPath        XrdXrootdProtocol::XPList;
 XrdSfsFileSystem     *XrdXrootdProtocol::osFS;
-char                 *XrdXrootdProtocol::FSLib    = 0;
+char                 *XrdXrootdProtocol::FSLib[2] = {0, 0};
 XrdXrootdFileLock    *XrdXrootdProtocol::Locker;
 XrdSecService        *XrdXrootdProtocol::CIA      = 0;
 char                 *XrdXrootdProtocol::SecLib   = 0;
@@ -77,7 +77,6 @@ int                   XrdXrootdProtocol::Window;
 int                   XrdXrootdProtocol::WANPort;
 int                   XrdXrootdProtocol::WANWindow;
 char                  XrdXrootdProtocol::isRedir = 0;
-char                  XrdXrootdProtocol::chkfsV  = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
 XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
