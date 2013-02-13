@@ -111,12 +111,12 @@ void XrdNetAddr::Init(struct addrinfo *rP, int Port)
 
 // Simply copy over the information we have
 //
-   memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
+   memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
    addrSize = rP->ai_addrlen;
    protType = rP->ai_protocol;
    if (hostName) free(hostName);
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
-   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
+   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    IP.v6.sin6_port = htons(static_cast<short>(Port));
    sockNum = -1;
 }
@@ -149,7 +149,7 @@ int XrdNetAddr::Port(int pNum)
 {
 // Make sure we have a proper address family here
 //
-   if (IP.addr.sa_family != AF_INET && IP.addr.sa_family != AF_INET6)
+   if (IP.Addr.sa_family != AF_INET && IP.Addr.sa_family != AF_INET6)
       return -1;
 
 // Return port number if so wanted. The port location is the same regardless of
@@ -185,7 +185,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 // Clear translation if set (note unixPipe & sockAddr are the same).
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
+   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    memset(&IP, 0, sizeof(IP));
    addrSize = sizeof(sockaddr_in6);
 
@@ -213,7 +213,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
       {if (strlen(hSpec) >= sizeof(unixPipe->sun_path)) return "path too long";
        unixPipe = new sockaddr_un;
        strcpy(unixPipe->sun_path, hSpec);
-       unixPipe->sun_family = IP.addr.sa_family = AF_UNIX;
+       unixPipe->sun_family = IP.Addr.sa_family = AF_UNIX;
        addrSize = sizeof(sockaddr_un);
        protType = PF_UNIX;
        return 0;
@@ -271,7 +271,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                {if (rP) freeaddrinfo(rP);
                 return (n ? gai_strerror(n) : "host not found");
                }
-            memcpy(&IP.addr, rP->ai_addr, rP->ai_addrlen);
+            memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
             if (hostName) free(hostName);
             hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
@@ -359,7 +359,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
+   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    sockNum = sockFD;
 
 // Copy the address based on address family
@@ -372,7 +372,7 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
             unixPipe->sun_path[sizeof(unixPipe->sun_path)-1] = 0;
             addrSize = sizeof(sockaddr_un);
             memset(&IP, 0, sizeof(IP));
-            IP.addr.sa_family = AF_UNIX;
+            IP.Addr.sa_family = AF_UNIX;
             return 0;
            }
    else return "invalid address family";
@@ -391,13 +391,13 @@ const char *XrdNetAddr::Set(int sockFD)
 // Clear translation if set
 //
    if (hostName)             {free(hostName);  hostName = 0;}
-   if (sockAddr != &IP.addr) {delete unixPipe; sockAddr = &IP.addr;}
+   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
    addrSize = sizeof(sockaddr_in6);
    sockNum = sockFD;
 
 // Get the address on the other side of this socket
 //
-   if (getpeername(sockFD, &IP.addr, &addrSize) < 0) return strerror(errno);
+   if (getpeername(sockFD, &IP.Addr, &addrSize) < 0) return strerror(errno);
 
 // All done
 //

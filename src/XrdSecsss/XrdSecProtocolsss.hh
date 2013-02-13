@@ -30,15 +30,13 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <string.h>
-
 #include "XrdCrypto/XrdCryptoLite.hh"
-#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSecsss/XrdSecsssKT.hh"
 #include "XrdSecsss/XrdSecsssRR.hh"
 
+class XrdNetAddrInfo;
 class XrdOucErrInfo;
 
 class XrdSecProtocolsss : public XrdSecProtocol
@@ -73,14 +71,10 @@ static  char *Load_Server(XrdOucErrInfo *erp, const char *Parms);
 
 static  void  setOpts(int opts) {options = opts;}
 
-        XrdSecProtocolsss(XrdNetAddrInfo &endPoint)
+        XrdSecProtocolsss(const char *hname, XrdNetAddrInfo &endPoint)
                          : XrdSecProtocol("sss"),
-                           urName(strdup(endPoint.Name("*unknown*"))),
                            keyTab(0), Crypto(0), idBuff(0), Sequence(0)
-                         {endPoint.Format(urIP, sizeof(urIP),
-                                          XrdNetAddrInfo::fmtAddr,
-                                          XrdNetAddrInfo::noPort);
-                         }
+                         {urName = strdup(hname); setIP(endPoint);}
 
 struct Crypto {const char *cName; char cType;};
 
@@ -101,6 +95,7 @@ static
 XrdCryptoLite *Load_Crypto(XrdOucErrInfo *erp, const char  eT);
 int            myClock();
 char          *setID(char *id, char **idP);
+void           setIP(XrdNetAddrInfo &endPoint);
 
 static struct Crypto  CryptoTab[];
 

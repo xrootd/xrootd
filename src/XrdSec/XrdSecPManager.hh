@@ -29,10 +29,11 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
-
+  
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
+class XrdNetAddrInfo;
 class XrdOucErrInfo;
 class XrdSecProtList;
 class XrdSecProtocol;
@@ -40,7 +41,8 @@ class XrdSysError;
 
 typedef int XrdSecPMask_t;
 
-#define PROTPARMS const char, XrdNetAddrInfo &, const char *, XrdOucErrInfo *
+#define PROTPARMS const char, const char *, XrdNetAddrInfo &, \
+                  const char *, XrdOucErrInfo *
 
 class XrdSecPManager
 {
@@ -49,12 +51,14 @@ public:
 XrdSecPMask_t   Find(const         char  *pid,      // In
                                    char **parg=0);  // Out
 
-XrdSecProtocol *Get(XrdNetAddrInfo &endPoint,
-                    const char     *pname,
-                    XrdOucErrInfo  *erp);
+XrdSecProtocol *Get(const char        *hname,
+                    XrdNetAddrInfo    &endPoint,
+                    const char        *pname,
+                    XrdOucErrInfo     *erp);
 
-XrdSecProtocol *Get(XrdNetAddrInfo   &endPoint,
-                    XrdSecParameters &secparm);
+XrdSecProtocol *Get (const char       *hname,
+                     XrdNetAddrInfo   &netaddr,
+                     XrdSecParameters &secparm);
 
 int             Load(XrdOucErrInfo *eMsg,    // In
                      const char     pmode,   // In 'c' | 's'

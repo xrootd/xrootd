@@ -37,13 +37,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <stdio.h>
-#include <netdb.h>
-#include <arpa/inet.h>
 #include <sys/param.h>
-#include <sys/socket.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSec/XrdSecInterface.hh"
   
@@ -54,7 +52,7 @@
 extern "C"
 {
 extern XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
-                                         const struct sockaddr  &netaddr,
+                                               XrdNetAddrInfo   &endPoint,
                                                XrdSecParameters &parms,
                                                XrdOucErrInfo    *einfo=0);
 }
@@ -76,10 +74,7 @@ char *tohex(char *inbuff, int inlen, char *outbuff);
 
 char *protocols=0, *hostspec=0;
 
-struct sockaddr_in netaddr;
-netaddr.sin_family = AF_INET;
-netaddr.sin_port   = 0;
-netaddr.sin_addr.s_addr = 0x80000001;
+XrdNetAddr theAddr;
 
 int putbin = 0, putlen = 0;
 char kbuff[8192];
@@ -127,15 +122,10 @@ void help(int);
 
 // if hostname given, get the hostname address
 //
-   if (hostspec)
-      {struct hostent *hp;
-       if (!(hp = gethostbyname(hostspec)))
-          {cerr <<"testServer: host '" <<hostspec <<"' not found." <<endl;
-           exit(1);
-          }
-       memcpy((void *)&netaddr.sin_addr.s_addr, hp->h_addr_list[0],
-              sizeof(netaddr.sin_addr.s_addr));
-      } else hostspec = (char *)"localhost";
+   if (hostspec && (eText = theAddr(hostspec,0)))
+      {cerr <<"testServer: Unable to resolve '" <<hostspec <<"'; " <<eText <<endl;
+       exit(1);
+      } else theAddr.Set("localhost",0);
 
 // Do debug processing
 //
@@ -146,11 +136,12 @@ void help(int);
 
 // Get the protocol
 //
-   pp = XrdSecGetProtocol(hostspec, (const struct sockaddr &)netaddr,SecToken,0);
+   pp = XrdSecGetProtocol(hostspec, theAddr, SecToken, 0);
    if (!pp) {cerr << "Unable to get protocol." <<endl; exit(1);}
 
 // Get credentials using this context
 //
+   pp->addrInfo = &theAddr;
    cred = pp->getCredentials();
    if (!cred)
       {cerr << "Unable to get credentials," <<endl;

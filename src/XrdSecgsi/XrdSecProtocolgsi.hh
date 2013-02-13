@@ -253,6 +253,8 @@ private:
 /*              X r d S e c P r o t o c o l g s i   C l a s s                 */
 /******************************************************************************/
 
+class XrdNetAddrInfo;
+
 class XrdSecProtocolgsi : public XrdSecProtocol
 {
 friend class gsiOptions;
@@ -265,8 +267,8 @@ public:
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolgsi(int opts, XrdNetAddrInfo &endPoint,
-                          const char *parms = 0);
+        XrdSecProtocolgsi(int opts, const char *hname, XrdNetAddrInfo &endPoint,
+                                    const char *parms = 0);
         virtual ~XrdSecProtocolgsi() {} // Delete() does it all
 
         // Initialization methods

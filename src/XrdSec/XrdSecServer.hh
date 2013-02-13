@@ -38,17 +38,19 @@
 
 class XrdSecProtBind;
 class XrdOucTrace;
+class XrdNetAddrInfo;
   
 class XrdSecServer : XrdSecService
 {
 public:
 
-const char             *getParms(int &size, XrdNetAddrInfo *addrInfo=0);
+const char             *getParms(int &size, XrdNetAddrInfo *endPoint=0);
 
 // = 0 -> No protocol can be returned (einfo has the reason)
 // ! 0 -> Address of protocol object is bing returned.
 //
-XrdSecProtocol         *getProtocol(XrdNetAddrInfo          &endPoint,// In
+XrdSecProtocol         *getProtocol(const char              *host,    // In
+                                    XrdNetAddrInfo          &endPoint,// In
                                     const XrdSecCredentials *cred,    // In
                                     XrdOucErrInfo           *einfo=0);// Out
 

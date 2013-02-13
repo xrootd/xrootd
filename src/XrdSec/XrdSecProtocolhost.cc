@@ -31,7 +31,6 @@
 #include <strings.h>
 #include <stdlib.h>
 
-#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSec/XrdSecProtocolhost.hh"
 
 /******************************************************************************/
@@ -75,13 +74,14 @@ XrdSecCredentials *XrdSecProtocolhost::getCredentials(XrdSecParameters *parm,
 // no reason to define it as such. Imitators, beware! Read the comments in
 // XrdSecInterface.hh
 //
-XrdSecProtocol *XrdSecProtocolhostObject(const char      who,
-                                         XrdNetAddrInfo &endPoint,
-                                         const char     *parms,
-                                         XrdOucErrInfo  *einfo)
+XrdSecProtocol *XrdSecProtocolhostObject(const char              who,
+                                         const char             *hostname,
+                                               XrdNetAddrInfo   &endPoint,
+                                         const char             *parms,
+                                               XrdOucErrInfo    *einfo)
 {
 
 // Simply return an instance of the host protocol object
 //
-   return new XrdSecProtocolhost(endPoint.Name("?.?.?.?"));
+   return new XrdSecProtocolhost(hostname);
 }

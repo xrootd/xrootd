@@ -106,9 +106,9 @@ int XrdNetUtils::Encode(const XrdNetSockAddr *sadr, char *buff, int blen,
 
 // Compute the size we need for the buffer (note we only support IP4/6)
 //
-        if (sadr->addr.sa_family == AF_INET6)
+        if (sadr->Addr.sa_family == AF_INET6)
            {src = (char *)&(sadr->v6.sin6_addr); asz = sizeof(struct in6_addr);}
-   else if (sadr->addr.sa_family == AF_INET)
+   else if (sadr->Addr.sa_family == AF_INET)
            {src = (char *)&(sadr->v4.sin_addr);  asz = sizeof(struct in_addr); }
    else return 0;
    if (blen < (asz*2)+5) return -((asz*2)+5);
@@ -287,7 +287,7 @@ int XrdNetUtils::Port(int fd, char **eText)
    SOCKLEN_t slen = (socklen_t)sizeof(Inet);
    int rc;
 
-   if ((rc = getsockname(fd, &Inet.addr, &slen)))
+   if ((rc = getsockname(fd, &Inet.Addr, &slen)))
       {rc = errno;
        if (eText) setET(eText, errno);
        return -rc;

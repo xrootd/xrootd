@@ -40,7 +40,7 @@
 #include "XrdCms/XrdCmsTalk.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
-#include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucTList.hh"
@@ -59,11 +59,7 @@ namespace XrdCms
 static struct SecFunc {
 union {
 void                  *ProtFunc;
-XrdSecProtocol        *(*getProtocol)(const char             *hostname,
-                                      const struct sockaddr  &netaddr,
-                                      const XrdSecParameters &parms,
-                                            XrdOucErrInfo    *einfo);
-
+XrdSecGetProt_t        getProtocol;
       };
        SecFunc() : ProtFunc(0) {}
       } Sec;
@@ -78,6 +74,7 @@ XrdSecService *XrdCmsSecurity::DHS    = 0;
 int XrdCmsSecurity::Authenticate(XrdLink *Link, const char *Token, int Toksz)
 {
    CmsRRHdr myHdr = {0, kYR_xauth, 0, 0};
+   struct sockaddr netaddr;
    XrdSecCredentials cred;
    XrdSecProtocol   *AuthProt = 0;
    XrdSecParameters *parm = 0;
@@ -106,13 +103,14 @@ do {
 // If we do not yet have a protocol, get one
 //
    if (!AuthProt)
-      {if (!DHS
-       ||  !(AuthProt=DHS->getProtocol(*(Link->AddrInfo()), &cred, &eMsg)))
+      {if (!DHS || !(AuthProt=DHS->getProtocol(Link->Host(),
+                                             *(Link->AddrInfo()),&cred,&eMsg)))
           {eText = eMsg.getErrText(rc); break;}
       }
 
 // Perform the authentication
 //
+    AuthProt->Entity.addrInfo = Link->AddrInfo();
     if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg))) break;
     if (rc < 0) {eText = eMsg.getErrText(rc); break;}
     if (parm) 
@@ -161,11 +159,8 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 // Get the client object creator (in case we are acting as a client)
 //
    if (! Sec.getProtocol
-   &&  !(Sec.getProtocol = (XrdSecProtocol *(*)(const char             *,
-                                                const struct sockaddr  &,
-                                                const XrdSecParameters &,
-                                                      XrdOucErrInfo    *))
-                       secLib.getPlugin("XrdSecGetProtocol"))) return 0;
+   &&  !(Sec.getProtocol=(XrdSecGetProt_t)secLib.getPlugin("XrdSecGetProtocol")))
+      return 0;
 
 // If only configuring a client or we already cnfigured a server, all done
 //
@@ -192,7 +187,7 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 /*                              g e t T o k e n                               */
 /******************************************************************************/
   
-const char *XrdCmsSecurity::getToken(int &size, XrdLink *Link)
+const char *XrdCmsSecurity::getToken(int &size, XrdNetAddrInfo *endPoint)
 {
 
 // If not configured, return a null to indicate no authentication required
@@ -201,7 +196,7 @@ const char *XrdCmsSecurity::getToken(int &size, XrdLink *Link)
 
 // Return actual token
 //
-   return DHS->getParms(size, Link->AddrInfo());
+   return DHS->getParms(size, endPoint);
 }
 
 /******************************************************************************/
@@ -212,8 +207,7 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
                              char *authBuff, int abLen)
 {
    CmsRRHdr outHdr = {0, kYR_xauth, 0, 0};
-   XrdNetAddr  haddr = *(Link->NetAddr());
-   const char *hname = Link->Host();
+   const char *hName = Link->Host();
    XrdSecCredentials *cred;
    XrdSecProtocol    *AuthProt = 0;
    XrdSecParameters   AuthParm, *AuthP = 0;
@@ -224,15 +218,15 @@ int XrdCmsSecurity::Identify(XrdLink *Link, XrdCms::CmsRRHdr &inHdr,
 // Verify that we are configured
 //
    if (!Sec.getProtocol && !Configure("libXrdSec.so"))
-      {Say.Emsg("Auth",Link->Host(),"authentication configuration failed.");
+      {Say.Emsg("Auth", hName ,"authentication configuration failed.");
        return 0;
       }
 
 // Obtain the protocol
 //
    AuthParm.buffer = (char *)authBuff; AuthParm.size = strlen(authBuff);
-   if (!(AuthProt = Sec.getProtocol(hname, *haddr.SockAddr(), AuthParm, &eMsg)))
-      {Say.Emsg("Auth",hname,"getProtocol() failed;",eMsg.getErrText(rc));
+   if (!(AuthProt = Sec.getProtocol(hName,*(Link->AddrInfo()),AuthParm,&eMsg)))
+      {Say.Emsg("Auth", hName, "getProtocol() failed;", eMsg.getErrText(rc));
        return 0;
       }
 
@@ -260,7 +254,7 @@ do {
 
 // Check if we failed
 //
-   if (eText) Say.Emsg("Auth",Link->Host(),"authentication failed;",eText);
+   if (eText) Say.Emsg("Auth", hName, "authentication failed;", eText);
 
 // Perform final steps here
 //

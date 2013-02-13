@@ -61,7 +61,7 @@ public:
 //!         Failure: Returns 0, address is not valid.
 //------------------------------------------------------------------------------
 
-inline int  Family() {return static_cast<int>(IP.addr.sa_family);}
+inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
 
 //------------------------------------------------------------------------------
 //! Format our address into a supplied buffer with one of the following layouts
@@ -209,10 +209,10 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                     addrSize = rhs.addrSize; sockNum = rhs.sockNum;
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
-                    if (rhs.sockAddr != &rhs.IP.addr)
+                    if (rhs.sockAddr != &rhs.IP.Addr)
                        {if (!unixPipe) unixPipe = new sockaddr_un;
                         memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
-                       } else sockAddr = &IP.addr;
+                       } else sockAddr = &IP.Addr;
                    }
                 return *this;
                }
@@ -228,8 +228,8 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //------------------------------------------------------------------------------
 
             XrdNetAddrInfo() : hostName(0), addrSize(0), protType(0), sockNum(-1)
-                           {IP.addr.sa_family = 0;
-                            sockAddr = &IP.addr;
+                           {IP.Addr.sa_family = 0;
+                            sockAddr = &IP.Addr;
                            }
 
             XrdNetAddrInfo(const XrdNetAddrInfo *addr) {*this = *addr;}
@@ -239,7 +239,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //------------------------------------------------------------------------------
 
            ~XrdNetAddrInfo() {if (hostName) free(hostName);
-                          if (sockAddr != &IP.addr) delete unixPipe;
+                          if (sockAddr != &IP.Addr) delete unixPipe;
                          }
 
 protected:

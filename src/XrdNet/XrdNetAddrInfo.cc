@@ -69,7 +69,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 
 // Handle the degenerative case first
 //
-   if (IP.addr.sa_family == AF_UNIX)
+   if (IP.Addr.sa_family == AF_UNIX)
       {n = (omitP ? snprintf(bAddr, bLen, "localhost")
                   : snprintf(bAddr, bLen, "localhost:%s", unixPipe->sun_path));
        return (n < bLen ? n : QFill(bAddr, bLen));
@@ -103,7 +103,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 
 // Format address
 //
-        if (IP.addr.sa_family == AF_INET6)
+        if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
             *bAddr = '['; addBrak = 1;
             if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
@@ -113,7 +113,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
                } else if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+1,bLen-1))
                          return QFill(bAddr, bLen);
            }
-   else if (IP.addr.sa_family == AF_INET)
+   else if (IP.Addr.sa_family == AF_INET)
            {if (theFmt != fmtAdv6) {n = 0; pFmt =  ":%d";}
                else {if (bLen < (INET_ADDRSTRLEN+9)) return QFill(bAddr, bLen);
                      if (fmtOpts & old6Map4) {strcpy(bAddr, "[::"); n = 3;}
@@ -155,10 +155,10 @@ bool XrdNetAddrInfo::isLoopback()
 
 // Check for loopback address
 //
-   if (IP.addr.sa_family == AF_INET)
+   if (IP.Addr.sa_family == AF_INET)
       return !memcmp(&IP.v4.sin_addr.s_addr, &lbVal[12], 1);
 
-   if (IP.addr.sa_family == AF_INET6)
+   if (IP.Addr.sa_family == AF_INET6)
       return !memcmp(&IP.v6.sin6_addr, &in6addr_loopback, sizeof(in6_addr))
           || !memcmp(&IP.v6.sin6_addr,  lbVal,            sizeof(lbVal));
 
@@ -208,7 +208,7 @@ const char *XrdNetAddrInfo::Name(const char *eName, const char **eText)
 
 // Check for unix family which is equal to localhost.
 //
-  if (IP.addr.sa_family == AF_UNIX) return "localhost";
+  if (IP.Addr.sa_family == AF_UNIX) return "localhost";
 
 // If we already translated this name, just return the translation
 //
@@ -232,7 +232,7 @@ int XrdNetAddrInfo::Port()
 {
 // Make sure we have a proper address family here
 //
-   if (IP.addr.sa_family != AF_INET && IP.addr.sa_family != AF_INET6)
+   if (IP.Addr.sa_family != AF_INET && IP.Addr.sa_family != AF_INET6)
       return -1;
 
 // Return port number
@@ -272,9 +272,9 @@ int XrdNetAddrInfo::Resolve()
 
 // Determine the actual size of the address structure
 //
-        if (IP.addr.sa_family == AF_INET ) n = sizeof(IP.v4);
-   else if (IP.addr.sa_family == AF_INET6) n = sizeof(IP.v6);
-   else if (IP.addr.sa_family == AF_UNIX )
+        if (IP.Addr.sa_family == AF_INET ) n = sizeof(IP.v4);
+   else if (IP.Addr.sa_family == AF_INET6) n = sizeof(IP.v6);
+   else if (IP.Addr.sa_family == AF_UNIX )
            {hostName = strdup("localhost");
             return 0;
            }
@@ -285,7 +285,7 @@ int XrdNetAddrInfo::Resolve()
 // Additionally, some implementations of getnameinfo() return the scopeid when
 // a numeric address is returned. We check and remove it.
 //
-   if ((rc = getnameinfo(&IP.addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
+   if ((rc = getnameinfo(&IP.Addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
       {if (rc < 0) {errno = ENETUNREACH; rc = EAI_SYSTEM;}
        return rc;
       }
@@ -316,21 +316,21 @@ int XrdNetAddrInfo::Same(const XrdNetAddrInfo *ipAddr, bool plusPort)
 
 // Both address families must match
 //
-  if (IP.addr.sa_family != ipAddr->IP.addr.sa_family) return 0;
+  if (IP.Addr.sa_family != ipAddr->IP.Addr.sa_family) return 0;
 
 // Now process to do the match
 //
-        if (IP.addr.sa_family == AF_INET)
+        if (IP.Addr.sa_family == AF_INET)
            {if (memcmp(&IP.v4.sin_addr,  &(ipAddr->IP.v4.sin_addr),
                        sizeof(IP.v4.sin_addr))) return 0;
             return (plusPort ? IP.v4.sin_port  == ipAddr->IP.v4.sin_port  : 1);
            }
-   else if (IP.addr.sa_family == AF_INET6)
+   else if (IP.Addr.sa_family == AF_INET6)
            {if (memcmp(&IP.v6.sin6_addr, &(ipAddr->IP.v6.sin6_addr),
                        sizeof(IP.v6.sin6_addr))) return 0;
             return (plusPort ? IP.v6.sin6_port == ipAddr->IP.v6.sin6_port : 1);
            }
-   else if (IP.addr.sa_family == AF_UNIX)
+   else if (IP.Addr.sa_family == AF_UNIX)
            return !strcmp(unixPipe->sun_path, ipAddr->unixPipe->sun_path);
 
    return 0;

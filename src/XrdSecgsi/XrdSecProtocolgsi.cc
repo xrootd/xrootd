@@ -30,7 +30,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
 #include <pwd.h>
@@ -276,12 +276,12 @@ void gsiHSVars::Dump(XrdSecProtocolgsi *p)
 
 
 //_____________________________________________________________________________
-XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, XrdNetAddrInfo &endPoint,
+XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
+                                     XrdNetAddrInfo &endPoint,
                                      const char *parms) : XrdSecProtocol("gsi")
 {
    // Default constructor
    EPNAME("XrdSecProtocolgsi");
-   const char *eText;
 
    if (QTRACE(Authen)) { PRINT("constructing: "<<this); }
 
@@ -296,10 +296,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, XrdNetAddrInfo &endPoint,
    }
 
    // Set host name
-   Entity.host = strdup(endPoint.Name("*unknown*",&eText));
-   if (eText)
-   {  PRINT("WARNING: IP addr undefined: cannot determine host name: failure may follow");
-   }
+      Entity.host = strdup(endPoint.Name("*unknown*"));
 
    // Init session variables
    sessionCF = 0;
@@ -313,7 +310,7 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, XrdNetAddrInfo &endPoint,
 
    //
    // Notify, if required
-   DEBUG("constructing: host: "<<endPoint.Name("unknown"));
+   DEBUG("constructing: host: "<<hname);
    DEBUG("p: "<<XrdSecPROTOIDENT<<", plen: "<<XrdSecPROTOIDLEN);
    //
    // basic settings
@@ -2682,18 +2679,19 @@ XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolgsiObject(const char      mode,
-                                        XrdNetAddrInfo &endPoint,
-                                        const char     *parms,
-                                        XrdOucErrInfo  *erp)
+XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
+                                        const char             *hostname,
+                                        XrdNetAddrInfo         &endPoint,
+                                        const char             *parms,
+                                        XrdOucErrInfo    *erp)
 {
    XrdSecProtocolgsi *prot;
    int options = XrdSecNOIPCHK;
 
    //
    // Get a new protocol object
-   if (!(prot = new XrdSecProtocolgsi(options, endPoint, parms))) {
-      char *msg = (char *)"Secgsi: Insufficient memory for protocol.";
+   if (!(prot = new XrdSecProtocolgsi(options, hostname, endPoint, parms))) {
+      const char *msg = "Secgsi: Insufficient memory for protocol.";
       if (erp) 
          erp->setErrInfo(ENOMEM, msg);
       else 

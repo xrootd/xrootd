@@ -43,6 +43,7 @@
 #include "XrdSec/XrdSecProtocolhost.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -107,7 +108,8 @@ XrdSecPMask_t XrdSecPManager::Find(const char *pid, char **parg)
 /*                                   G e t                                    */
 /******************************************************************************/
 
-XrdSecProtocol *XrdSecPManager::Get(XrdNetAddrInfo &endPoint,
+XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
+                                    XrdNetAddrInfo &endPoint,
                                     const char     *pname,
                                     XrdOucErrInfo  *erp)
 {
@@ -119,7 +121,7 @@ XrdSecProtocol *XrdSecPManager::Get(XrdNetAddrInfo &endPoint,
    if ((pl = Lookup(pname)))
       {DEBUG("Using " <<pname <<" protocol, args='"
               <<(pl->protargs ? pl->protargs : "") <<"'");
-       return pl->ep('s', endPoint, 0, erp);
+       return pl->ep('s', hname, endPoint, 0, erp);
       }
 
 // Protocol is not supported
@@ -130,9 +132,8 @@ XrdSecProtocol *XrdSecPManager::Get(XrdNetAddrInfo &endPoint,
    return 0;
 }
 
-/******************************************************************************/
-
-XrdSecProtocol *XrdSecPManager::Get(XrdNetAddrInfo   &endPoint,
+XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
+                                    XrdNetAddrInfo   &endPoint,
                                     XrdSecParameters &secparm)
 {
    char secbuff[4096], *nscan, *pname, *pargs, *bp = secbuff;
@@ -189,7 +190,7 @@ XrdSecProtocol *XrdSecPManager::Get(XrdNetAddrInfo   &endPoint,
             {if ((pl = Lookup(pname)) || (pl = ldPO(&erp, 'c', pname)))
                 {DEBUG("Using " <<pname <<" protocol, args='"
                        <<(pargs ? pargs : "") <<"'");
-                 if ((pp = pl->ep('c', endPoint, pargs, &erp)))
+                 if ((pp = pl->ep('c', hname, endPoint, pargs, &erp)))
                     {if (nscan) {i = nscan - secbuff;
                                  secparm.buffer += i; secparm.size -= i;
                                 } else secparm.size = -1;

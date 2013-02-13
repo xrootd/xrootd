@@ -42,6 +42,6 @@
 
 union XrdNetSockAddr {struct sockaddr_in6 v6;
                       struct sockaddr_in  v4;
-                      struct sockaddr     addr;
+                      struct sockaddr     Addr;
                      };
 #endif

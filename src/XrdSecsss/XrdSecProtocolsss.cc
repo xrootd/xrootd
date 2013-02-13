@@ -39,6 +39,7 @@
 
 #include "XrdVersion.hh"
 
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -369,7 +370,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
 
 // Get our full host name
 //
-   if (!(myName = XrdNetUtils::MyHostName()))
+   if (!(myName = XrdNetUtils::MyHostName(0)))
       {Fatal(erp, "Load_Client", ENOENT, "Unable to obtain local hostname.");
        return (char *)0;
       }
@@ -838,6 +839,16 @@ char *XrdSecProtocolsss::setID(char *id, char **idP)
       }
    return id;
 }
+
+/******************************************************************************/
+/*                                 s e t I P                                  */
+/******************************************************************************/
+  
+void XrdSecProtocolsss::setIP(XrdNetAddrInfo &endPoint)
+{
+   if (!endPoint.Format(urIP, sizeof(urIP), XrdNetAddrInfo::fmtAdv6,
+                                            XrdNetAddrInfo::noPort)) *urIP = 0;
+}
   
 /******************************************************************************/
 /*                 X r d S e c P r o t o c o l s s s I n i t                  */
@@ -869,17 +880,18 @@ XrdVERSIONINFO(XrdSecProtocolsssObject,secsss);
   
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolsssObject(const char      mode,
-                                        XrdNetAddrInfo &endPoint,
-                                        const char     *parms,
-                                        XrdOucErrInfo  *erp)
+XrdSecProtocol *XrdSecProtocolsssObject(const char              mode,
+                                        const char             *hostname,
+                                              XrdNetAddrInfo   &endPoint,
+                                        const char             *parms,
+                                              XrdOucErrInfo    *erp)
 {
    XrdSecProtocolsss *prot;
    int Ok;
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolsss(endPoint)))
+   if (!(prot = new XrdSecProtocolsss(hostname, endPoint)))
       XrdSecProtocolsss::Fatal(erp, "sss_Object", ENOMEM,
                          "Secsss: Insufficient memory for protocol.");
       else {Ok = (mode == 'c' ? prot->Init_Client(erp, parms)

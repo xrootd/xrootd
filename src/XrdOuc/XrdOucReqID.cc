@@ -121,7 +121,7 @@ char *XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 
 // Convert this in the appropriate way
 //
-   if (theAddr.Set(&IP.addr)
+   if (theAddr.Set(&IP.Addr)
    ||  !(theHost = theAddr.Name())
    ||  strlen(theHost) >= hlen) return 0;
 

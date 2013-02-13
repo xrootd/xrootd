@@ -125,7 +125,6 @@ typedef XrdSecBuffer XrdSecParameters;
    MT Requirements: Must be MT_Safe.
 */
 
-class XrdNetAddrInfo;
 class XrdOucErrInfo;
 
 class XrdSecProtocol
@@ -348,6 +347,9 @@ virtual      ~XrdSecProtocol() {}
 //!
 //! @param  who      contains 'c' when called on the client side and 's' when
 //!                  called on the server side.
+//! @param  host     The client's host name or the IP address as text. An IP
+//!                  may be supplied if the host address is not resolvable. Use
+//!                  endPoint to get the hostname only if it's actually needed.
 //! @param  endPoint the XrdNetAddrInfo object describing the end-point. When
 //!                  who == 'c' this is the client, otherwise it is the server.
 //! @param  parms    when who == 'c' (client) points to the parms sent by the
@@ -366,20 +368,20 @@ virtual      ~XrdSecProtocol() {}
 //!             a client.
 //!          2) This function must be thread-safe.
 //!          3) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in. While not currently required, it is
-//!             highly recommended to avoid execution issues should the class
-//!             definition change. Declare it using XrdVERSIONINFO where <name>
-//!             is the 1- to 15-character unquoted name of your plugin.
+//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             the 1- to 15-character unquoted name of your plugin. This is a
+//!             mandatory requirement!
 //------------------------------------------------------------------------------
 
 /*! #include "XrdVersion.hh"
     XrdVERSIONINFO(XrdSecProtocol<p>Object,<name>);
 
     extern "C" XrdSecProtocol *XrdSecProtocol<p>Object
-                                              (const char     who,
-                                               XrdNetAddrInfp &endPoint,
-                                               const char     *parms,
-                                               XrdOucErrInfo  *einfo
+                                              (const char              who,
+                                               const char             *hostname,
+                                                     XrdnetAddrInfo   &endPoint,
+                                               const char             *parms,
+                                                     XrdOucErrInfo    *einfo
                                               ) {. . .}
 */
   
@@ -402,6 +404,9 @@ virtual      ~XrdSecProtocol() {}
 //! for one of the protocols suggested by the server and possibly based on the
 //! server's hostname or host address, as needed.
 //!
+//! @param  host     The client's host name or the IP address as text. An IP
+//!                  may be supplied if the host address is not resolvable. Use
+//!                  endPoint to get the hostname only if it's actually needed.
 //! @param  endPoint the XrdNetAddrInfo object describing the server end-point.
 //! @param  cred     The security token supplied by the server. The pointer
 //!                  may be null if the server did not supply a security token.
@@ -424,22 +429,28 @@ virtual      ~XrdSecProtocol() {}
 //!          4) When replacing the default implementation with a plug-in the
 //!             extern "C" function below must exist in your shared library.
 //!          5) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in. While not currently required, it is
-//!             highly recommended to avoid execution issues should the class
-//!             definition change. Declare it using XrdVERSIONINFO where <name>
-//!             is the 1- to 15-character unquoted name of your plugin.
+//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             the 1- to 15-character unquoted name of your plugin. This is a
+//!             mandatory requirement!
 //------------------------------------------------------------------------------
-    
-typedef XrdSecProtocol *(*XrdSecGetProt_t)(XrdNetAddrInfo &,
+
+//------------------------------------------------------------------------------
+//! Typedef to simplify the encoding of methods returning XrdSecProtocol.
+//------------------------------------------------------------------------------
+
+typedef XrdSecProtocol *(*XrdSecGetProt_t)(const char *,
+                                           XrdNetAddrInfo &,
                                            XrdSecParameters &,
                                            XrdOucErrInfo *);
+
 /*!
 #include "XrdVersion.hh"
 XrdVERSIONINFO(XrdSecGetProtocol,<name>);
 
-extern "C" XrdSecProtocol *XrdSecGetProtocol(XrdNetAddrInfo   &endPoint,
-                                             XrdSecParameters &parms,
-                                             XrdOucErrInfo    *einfo=0)
+extern "C" XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+                                                   XrdNetAddrInfo   &endPoint,
+                                                   XrdSecParameters &parms,
+                                                   XrdOucErrInfo    *einfo=0)
                                             {....}
 */
  
@@ -470,22 +481,26 @@ public:
 //! Obtain security parameters to be sent to the client upon initial contact.
 //!
 //! @param  size     Where the length of the return parameters are to be placed.
-//! @param  addrInfo The client's address information. It may also be a null
+//! @param  endPoint The client's address information. It may also be a null
 //!                  pointer if the client's host is immaterial.
 //!
 //! @return EITHER   The address of the parameter string (which may be
-//!                  host-specific if addrInfo was supplied). The length of the
+//!                  host-specific if hname was supplied). The length of the
 //!                  string must be returned in size parameter.
 //!         OR       A null pointer if authentication need not occur for the
 //!                  client. The size parameter should be set to zero as well.
 //------------------------------------------------------------------------------
 
-virtual const char     *getParms(int &size, XrdNetAddrInfo *addrInfo=0) = 0;
+virtual const char     *getParms(int &size, XrdNetAddrInfo *endPoint=0) = 0;
 
 //------------------------------------------------------------------------------
 //! Obtain a protocol object suitable for authentication based on cred and
 //! possibly based on the hostname or host address, as needed.
 //!
+//! @param  host     The client's host name or the IP address as text. An IP
+//!                  may be supplied if the host address is not resolvable or
+//!                  resolution has been suppressed (i.e. nodnr). Use endPoint
+//!                  to get the hostname if it's actually needed.
 //! @param  endPoint the XrdNetAddrInfo object describing the client end-point.
 //! @param  cred     The initial credentials supplied by the client, the pointer
 //!                  may be null if the client did not supply credentials.
@@ -502,7 +517,8 @@ virtual const char     *getParms(int &size, XrdNetAddrInfo *addrInfo=0) = 0;
 //!                  if supplied, has the reason.
 //------------------------------------------------------------------------------
 
-virtual XrdSecProtocol *getProtocol(      XrdNetAddrInfo    &endPoint,// In
+virtual XrdSecProtocol *getProtocol(const char              *host,    // In
+                                          XrdNetAddrInfo    &endPoint,// In
                                     const XrdSecCredentials *cred,    // In
                                           XrdOucErrInfo     *einfo)=0;// Out
 
@@ -540,10 +556,9 @@ virtual                ~XrdSecService() {}
 //!             own plugin, the extern "C" function below must be defined in
 //!             your plugin shared library.
 //!          3) Additionally, you *should* declare the xrootd version you used
-//!             to compile your plug-in. While not currently required, it is
-//!             highly recommended to avoid execution issues should the class
-//!             definition change. Declare it using XrdVERSIONINFO where <name>
-//!             is the 1- to 15-character unquoted name of your plugin.
+//!             to compile your plug-in using XrdVERSIONINFO where <name> is
+//!             the 1- to 15-character unquoted name of your plugin. This is a
+//!             mandatory requirement!
 //------------------------------------------------------------------------------
 
 /*!

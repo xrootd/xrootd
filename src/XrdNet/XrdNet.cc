@@ -398,7 +398,7 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 
 // Accept a connection
 //
-   do {newfd = accept(iofd, &IP.addr, &addrlen);}
+   do {newfd = accept(iofd, &IP.Addr, &addrlen);}
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
@@ -413,7 +413,7 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 
 // Initialize the address of the new connection
 //
-   hAddr.Set(&IP.addr, newfd);
+   hAddr.Set(&IP.Addr, newfd);
 
 // Authorize by ip address or full (slow) hostname format
 //
@@ -482,7 +482,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 
 // Read the message and get the host address
 //
-   do {dlen = recvfrom(iofd,(Sokdata_t)bp->data,BuffSize-1,0,&IP.addr,&addrlen);
+   do {dlen = recvfrom(iofd,(Sokdata_t)bp->data,BuffSize-1,0,&IP.Addr,&addrlen);
       } while(dlen < 0 && errno == EINTR);
 
    if (dlen < 0)
@@ -493,7 +493,7 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 
 // Use the new-style address handling for address functions
 //
-   uAddr.Set(&IP.addr);
+   uAddr.Set(&IP.Addr);
 
 // Authorize this connection. We don't accept messages that set the
 // loopback address since this can be trivially spoofed in UDP packets.

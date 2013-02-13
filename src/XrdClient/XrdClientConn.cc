@@ -86,10 +86,11 @@
 #include "XrdSys/XrdWin32.hh"
 #endif
 #include <string.h>     // needed by memcpy() and strcspn()
+#include <netdb.h>      // needed by getservbyname()
 #include <ctype.h>
-#include <netdb.h>
 
 #define  SafeDelete(x) { if (x) { delete x; x = 0; } }
+
 
 XrdSysMutex                              XrdClientConn::fSessionIDRMutex;
 XrdOucHash<XrdClientConn::SessionIDInfo> XrdClientConn::fSessionIDRepo;
@@ -1666,15 +1667,13 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    //
    // Prepare host/IP information of the remote xrootd. This is required
    // for the authentication.
-   struct sockaddr_in netaddr;
-   char **hosterrmsg = 0;
-   if (XrdSysDNS::getHostAddr((char *)fUrl.HostAddr.c_str(),
-                              (struct sockaddr &)netaddr, hosterrmsg) <= 0) {
-      Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
-                                       "getHostAddr said '" << *hosterrmsg << "'");
-      return protocol;
-   }
-   netaddr.sin_port   = fUrl.Port;
+   XrdNetAddr theAddr;
+   const char *hosterrmsg = 0;
+   if ((hosterrmsg = theAddr.Set(fOpenSockFD)))
+      {Info(XrdClientDebug::kUSERDEBUG, "DoAuthentication",
+                            "getHostAddr said '" << *hosterrmsg << "'");
+       return protocol;
+      }
 
    // Establish our local connection details (used by sss protocol)
    //
@@ -1729,11 +1728,10 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
    // Get a instance of XrdSecProtocol; the order of preference is the one
    // specified by the server; the env XRDSECPROTOCOL can be used to force
    // the choice.
-   XrdNetAddr servAddr(&netaddr);
-   while ((protocol = (*getp)(servAddr, Parms, 0))) {
+   while ((protocol = (*getp)((char *)fUrl.Host.c_str(), theAddr, Parms, 0)))
       //
       // Protocol name
-      XrdOucString protname = protocol->Entity.prot;
+     {XrdOucString protname = protocol->Entity.prot;
       //
       // Once we have the protocol, get the credentials
       XrdOucErrInfo ei("", &authEnv);

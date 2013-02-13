@@ -132,7 +132,8 @@ int XrdXrootdProtocol::do_Auth()
       {if (AuthProt) AuthProt->Delete();
        strncpy(Entity.prot, (const char *)Request.auth.credtype,
                                    sizeof(Request.auth.credtype));
-       if (!(AuthProt = CIA->getProtocol(*(Link->AddrInfo()),&cred,&eMsg)))
+       if (!(AuthProt = CIA->getProtocol(Link->Host(), *(Link->AddrInfo()),
+                                         &cred, &eMsg)))
           {eText = eMsg.getErrText(rc);
            eDest.Emsg("Xeq", "User authentication failed;", eText);
            return Response.Send(kXR_NotAuthorized, eText);

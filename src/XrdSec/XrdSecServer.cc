@@ -38,12 +38,13 @@
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdNet/XrdNetAddr.hh"
+#include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -268,7 +269,7 @@ XrdSecServer::XrdSecServer(XrdSysLogger *lp) : eDest(lp, "sec_")
 /*                              g e t P a r m s                               */
 /******************************************************************************/
   
-const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *addrInfo)
+const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *endPoint)
 {
    EPNAME("getParms")
    XrdSecProtBind *bp;
@@ -276,17 +277,18 @@ const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *addrInfo)
 
 // Try to find a specific token binding for a host or return default binding
 //
-   if (!addrInfo || !bpFirst) bp = 0;
-      else {const char *hname = addrInfo->Name("*unknown*");
-            if ((bp = bpFirst)) while(bp && !bp->Match(hname)) bp = bp->next;
+   if (!endPoint || !bpFirst) bp = 0;
+      else {const char *hname = endPoint->Name("*unknown*");
+            bp = bpFirst;
+            do {if (bp->Match(hname)) break;} while((bp = bp->next));
            }
 
-// Setup debugging information to avoid doing DNS resolution if not needed
+// Get endpoint info if we are debugging
 //
-   if (QTRACE(Debug))
-      {addrInfo->Format(buff, sizeof(buff),XrdNetAddrInfo::fmtAuto,
+   if (endPoint && QTRACE(Debug))
+      endPoint->Format(buff, sizeof(buff), XrdNetAddrInfo::fmtAuto,
                                            XrdNetAddrInfo::noPort);
-      } else *buff = 0;
+      else *buff = 0;
 
 // If we have a binding, return that else return the default
 //
@@ -306,7 +308,8 @@ const char *XrdSecServer::getParms(int &size, XrdNetAddrInfo *addrInfo)
 /*                           g e t P r o t o c o l                            */
 /******************************************************************************/
 
-XrdSecProtocol *XrdSecServer::getProtocol(XrdNetAddrInfo          &endPoint,
+XrdSecProtocol *XrdSecServer::getProtocol(const char              *host,
+                                          XrdNetAddrInfo          &endPoint,
                                           const XrdSecCredentials *cred,
                                           XrdOucErrInfo           *einfo)
 {
@@ -329,8 +332,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(XrdNetAddrInfo          &endPoint,
 // disallowed protocol.
 //
    if (Enforce)
-      {const char *host = endPoint.Name("unknown");
-       if ((pnum = PManager.Find(cred->buffer)))
+      {if ((pnum = PManager.Find(cred->buffer)))
           {if (bpFirst && (bp = bpFirst->Find(host))
            &&  !(bp->ValidProts & pnum))
               {msgv[0] = host;
@@ -351,7 +353,7 @@ XrdSecProtocol *XrdSecServer::getProtocol(XrdNetAddrInfo          &endPoint,
 // If we passed the protocol binding check, try to get an instance of the
 // protocol the host is using
 //
-   return PManager.Get(endPoint, cred->buffer, einfo);
+   return PManager.Get(host, endPoint, cred->buffer, einfo);
 }
 
 /******************************************************************************/
@@ -584,10 +586,7 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
 // Translate "localhost" to our local hostname
 //
    if (!strcmp("localhost", thost))
-      {XrdNetAddr myAddr(0);
-       const char *myName;
-       if ((myName = myAddr.Name())) {free(thost); thost = strdup(myName);}
-      }
+      {free(thost); thost = XrdSysDNS::getHostName();}
 
 // Create new bind object
 //

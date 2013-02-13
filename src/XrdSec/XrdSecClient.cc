@@ -82,9 +82,10 @@ void               Delete() {}  // Never deleted because it's static!
 //
 extern "C"
 {
-XrdSecProtocol *XrdSecGetProtocol(XrdNetAddrInfo   &endPoint,
-                                  XrdSecParameters &parms,
-                                  XrdOucErrInfo    *einfo)
+XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
+                                        XrdNetAddrInfo   &endPoint,
+                                        XrdSecParameters &parms,
+                                        XrdOucErrInfo    *einfo)
 {
    static int DebugON = ((getenv("XrdSecDEBUG") &&
                           strcmp(getenv("XrdSecDEBUG"), "0")) ? 1 : 0);
@@ -96,7 +97,7 @@ XrdSecProtocol *XrdSecGetProtocol(XrdNetAddrInfo   &endPoint,
 
 // Perform any required debugging
 //
-   DEBUG("protocol request for host " <<endPoint.Name("???") <<" token='"
+   DEBUG("protocol request for host " <<hostname <<" token='"
          <<(parms.size > 0 ? parms.buffer : "") <<"'");
 
 // Check if the server wants no security.
@@ -105,7 +106,7 @@ XrdSecProtocol *XrdSecGetProtocol(XrdNetAddrInfo   &endPoint,
 
 // Find a supported protocol.
 //
-   if (!(protp = PManager.Get(endPoint, parms)))
+   if (!(protp = PManager.Get(hostname, endPoint, parms)))
       {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else cerr <<noperr <<endl;
       }

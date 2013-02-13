@@ -48,8 +48,8 @@
 
 #else
 
-#define  TRACE(x, y)
-#define QTRACE(x)
+#define TRACE(x, y)
+#define QTRACE(x) false
 #define DEBUG(x)
 #define EPNAME(x)
 

@@ -65,7 +65,7 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 
 // If we need to do authentication, do so now
 //
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link))
+   if ((Token = XrdCmsSecurity::getToken(Toksz, Link->AddrInfo()))
    &&  !XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Fiddle with the login data structures
@@ -80,11 +80,6 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 //
    if (!Parser.Parse(&Data, myBuff, myBuff+myDlen)) 
       return Emsg(Link, "invalid login data", 0);
-
-// Do authentication now, if needed
-//
-   if ((Token = XrdCmsSecurity::getToken(Toksz, Link)))
-      if (!XrdCmsSecurity::Authenticate(Link, Token, Toksz)) return 0;
 
 // Send off login reply
 //

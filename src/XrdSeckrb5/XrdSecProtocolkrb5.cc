@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <sys/param.h>
 #include <pwd.h>
@@ -116,11 +116,12 @@ static  void               setExpFile(char *expfile)
                                          }
                                      }
 
-        XrdSecProtocolkrb5(const char     *KP,
-                           XrdNetAddrInfo &endPoint)
+        XrdSecProtocolkrb5(const char                *KP,
+                           const char                *hname,
+                                 XrdNetAddrInfo      &endPoint)
                           : XrdSecProtocol(XrdSecPROTOIDENT)
                           {Service = (KP ? strdup(KP) : 0);
-                           Entity.host = strdup(endPoint.Name("*unknown*"));
+                           Entity.host = strdup(hname);
                            epAddr = endPoint;
                            CName[0] = '?'; CName[1] = '\0';
                            Entity.name = CName;
@@ -163,7 +164,6 @@ int exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp);
 int get_krbFwdCreds(char *KP, krb5_data *outdata);
 
 XrdNetAddrInfo            epAddr;
-struct sockaddr           hostaddr;      // Client-side only
 char                      CName[256];    // Kerberos limit
 char                     *Service;       // Target principal for client
 char                      Step;          // Indicates at which step we are
@@ -961,9 +961,8 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
     int lkey = strlen("<host>");
     char *phost = (char *) strstr(&KPrincipal[0], "<host>");
     if (phost)
-       {const char *eText;
-        char *hn = XrdNetUtils::MyHostName("*unknown*", &eText);
-        if (!eText)
+       {char *hn = XrdNetUtils::MyHostName();
+        if (hn)
            {int lhn = strlen(hn);
             if (lhn != lkey) {
               // Allocate, if needed
@@ -979,9 +978,9 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
             }
             // Copy the name
             memcpy(phost, hn, lhn);
+            // Cleanup
+            free(hn);
            }
-        // Cleanup
-        free(hn);
        }
 
 // Now initialize the server
@@ -1019,10 +1018,11 @@ char  *XrdSecProtocolkrb5Init(const char     mode,
   
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolkrb5Object(const char      mode,
-                                         XrdNetAddrInfo &endPoint,
-                                         const char     *parms,
-                                         XrdOucErrInfo  *erp)
+XrdSecProtocol *XrdSecProtocolkrb5Object(const char              mode,
+                                         const char             *hostname,
+                                               XrdNetAddrInfo   &endPoint,
+                                         const char             *parms,
+                                               XrdOucErrInfo    *erp)
 {
    XrdSecProtocolkrb5 *prot;
    char *KPrincipal=0;
@@ -1043,7 +1043,7 @@ XrdSecProtocol *XrdSecProtocolkrb5Object(const char      mode,
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, endPoint)))
+   if (!(prot = new XrdSecProtocolkrb5(KPrincipal, hostname, endPoint)))
       {char *msg = (char *)"Seckrb5: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;

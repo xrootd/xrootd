@@ -387,7 +387,7 @@ void *XrdMpxOut::Run(XrdMpxXml *xP)
          if (!sbP) continue;
          if (xP)
             {if (!(Opts & addSender)) Host = 0;
-                else if (theAddr.Set(&(sbP->From.addr))) Host = 0;
+                else if (theAddr.Set(&(sbP->From.Addr))) Host = 0;
                         else Host = theAddr.Name();
              wLen = xP->Format(Host, sbP->Data, obuff);
              bP = obuff;
@@ -524,7 +524,7 @@ int main(int argc, char *argv[])
    while(1)
         {sbP = statsQ.getBuff();
          retc = recvfrom(udpFD, sbP->Data, sizeof(sbP->Data), 0,
-                               &sbP->From.addr, &fromLen);
+                               &sbP->From.Addr, &fromLen);
          if (retc < 0) {Say.Emsg(":", retc, "recv udp message"); exit(8);}
          sbP->Dlen = retc;
          statsQ.Add(sbP);

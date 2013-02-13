@@ -280,6 +280,8 @@ public:
 /*              X r d S e c P r o t o c o l p w d   C l a s s                 */
 /******************************************************************************/
 
+class XrdNetAddrInfo;
+
 class XrdSecProtocolpwd : public XrdSecProtocol
 {
 public:
@@ -290,7 +292,8 @@ public:
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolpwd(int opts, XrdNetAddrInfo &endPoint,
+        XrdSecProtocolpwd(int opts, const char *hname,
+                          XrdNetAddrInfo &endPoint,
                           const char *parms = 0);
         virtual ~XrdSecProtocolpwd() {} // Delete() does it all
 

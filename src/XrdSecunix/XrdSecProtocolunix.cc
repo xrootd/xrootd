@@ -32,12 +32,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <string.h>
+#include <strings.h>
 #include <sys/types.h>
 
 #include "XrdVersion.hh"
 
-#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -61,9 +60,9 @@ friend class XrdSecProtocolDummy; // Avoid stupid gcc warnings about destructor
         XrdSecCredentials *getCredentials(XrdSecParameters  *parm=0,
                                           XrdOucErrInfo     *einfo=0);
 
-        XrdSecProtocolunix(XrdNetAddrInfo &endPoint)
+        XrdSecProtocolunix(const char *hname)
                           : XrdSecProtocol("unix")
-                          {Entity.host = strdup(endPoint.Name("*unknown*"));
+                          {Entity.host = strdup(hname);
                            Entity.name = (char *)"?";
                            credBuff    = 0;
                           }
@@ -193,16 +192,17 @@ XrdVERSIONINFO(XrdSecProtocolunixObject,secunix);
   
 extern "C"
 {
-XrdSecProtocol *XrdSecProtocolunixObject(const char      mode,
-                                         XrdNetAddrInfo &endPoint,
-                                         const char     *parms,
-                                         XrdOucErrInfo  *erp)
+XrdSecProtocol *XrdSecProtocolunixObject(const char              mode,
+                                         const char             *hostname,
+                                               XrdNetAddrInfo   &endPoint,
+                                         const char             *parms,
+                                               XrdOucErrInfo    *erp)
 {
    XrdSecProtocolunix *prot;
 
 // Return a new protocol object
 //
-   if (!(prot = new XrdSecProtocolunix(endPoint)))
+   if (!(prot = new XrdSecProtocolunix(hostname)))
       {const char *msg = "Seckunix: Insufficient memory for protocol.";
        if (erp) erp->setErrInfo(ENOMEM, msg);
           else cerr <<msg <<endl;
