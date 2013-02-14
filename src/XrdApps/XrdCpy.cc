@@ -83,9 +83,10 @@
   
 namespace XrdCopy
 {
-XrdCpConfig  Config("xrdcpy");
+XrdCpConfig  Config("xrdcp");
 XrdCksData   srcCksum, dstCksum;
 XrdCksCalc  *csObj;
+XrdClient   *tpcSrc;
 char         tpcKey[32];
 long long    tpcFileSize;
 pthread_t    tpcTID;
@@ -777,12 +778,17 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
                     ~sdHelper() {if (Src) delete Src;}
          } Client;
    XrdClientUrlInfo dUrl;
-   XrdOucString sUrl(src);
+   XrdOucString sUrl(tpcSrc->GetCurrentUrl().GetUrl().c_str());
    pthread_t myTID;
    int xTTL = -1;
    const char *cgiP;
    char *qP;
    char cgiBuff[1024];
+
+//cerr <<"tpc: bfr src=" <<src <<endl;
+//cerr <<"tpc: bfr dst=" <<dst <<endl;
+//cerr <<"tpc: bfr scl=" <<tpcSrc->GetCurrentUrl().GetUrl().c_str() <<endl;
+//cerr <<"tpc: bfr dcl=" <<xrddest->GetCurrentUrl().GetUrl().c_str() <<endl;
 
 // Verify that the destination supports 3rd party stuff
 //
@@ -800,7 +806,8 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
    if (sUrl.find("?") == STR_NPOS) sUrl += '?';
       else sUrl += '&';
    sUrl += cgiBuff;
-// cerr <<"Src  url: " <<sUrl.c_str() <<endl;
+//cerr <<"tpc: aft scl=" <<sUrl.c_str()<<endl;
+//cerr <<"tpc: aft dcl=" <<xrddest->GetCurrentUrl().GetUrl().c_str() <<endl;
 
 // Open the source
 //
@@ -1551,7 +1558,9 @@ int main(int argc, char**argv)
 // Generate destination opaque data now
 //
    if (!isTPC) Opaque = Config.dstOpq;
-      else if (!(Opaque = genDestCgi(cpnfo.XrdCli, srcpath))) exit(4);
+      else {if (!(Opaque = genDestCgi(cpnfo.XrdCli, srcpath))) exit(4);
+            tpcSrc = cpnfo.XrdCli;
+           }
 
 // Verify the correctness of the destination
 //
