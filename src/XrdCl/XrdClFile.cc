@@ -292,4 +292,12 @@ namespace XrdCl
   {
     return pStateHandler->GetDataServer();
   }
+
+  //------------------------------------------------------------------------
+  // Get final url with all the cgi information
+  //------------------------------------------------------------------------
+  URL File::GetLastURL() const
+  {
+    return pStateHandler->GetLastURL();
+  }
 }
