@@ -30,7 +30,6 @@ namespace XrdCl
       {
         Info(): sourceSize(0) {}
         URL         source;            //!< actual source data server
-        URL         target;            //!< actual target data server
         std::string sourceChecksum;    //!< checksum at source
         uint64_t    sourceSize;        //!< size of the source file
       };
