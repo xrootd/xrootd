@@ -133,30 +133,50 @@ namespace XrdCl
       return XRootDStatus( stError, errInvalidArgs );
     }
 
-    std::string cgi = "root://fake//fake?";
-    cgi += cgiBuff;
-    delete cgiBuff;
-    URL cgiURL = cgi;
+    URL cgiURL; cgiURL.SetParams( cgiBuff );
+    delete [] cgiBuff;
 
     pJob->realTarget = pJob->target;
-    pJob->realTarget.SetHostName( pTPCInfo.target.GetHostName() );
-    pJob->realTarget.SetPort( pTPCInfo.target.GetPort() );
-    pJob->realTarget.SetUserName( pTPCInfo.target.GetUserName() );
     MessageUtils::MergeCGI( pJob->realTarget.GetParams(),
                             cgiURL.GetParams(), true );
 
     std::ostringstream o; o << pTPCInfo.sourceSize;
     pJob->realTarget.GetParams()["oss.asize"] = o.str();
+    pJob->realTarget.GetParams()["tpc.stage"] = "copy";
 
     log->Debug( UtilityMsg, "Target url is: %s",
                 pJob->realTarget.GetURL().c_str() );
+
+    //--------------------------------------------------------------------------
+    // Open the target file
+    //--------------------------------------------------------------------------
+    File targetFile;
+    OpenFlags::Flags targetFlags = OpenFlags::Update;
+    if( pJob->force )
+      targetFlags |= OpenFlags::Delete;
+    else
+      targetFlags |= OpenFlags::New;
+
+    if( pJob->coerce )
+      targetFlags |= OpenFlags::Force;
+
+    XRootDStatus st;
+    st = targetFile.Open( pJob->realTarget.GetURL(), targetFlags );
+
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Unable to open target %s: %s",
+                  pJob->realTarget.GetURL().c_str(), st.ToStr().c_str() );
+      return st;
+    }
+    pJob->realTarget = targetFile.GetLastURL();
 
     //--------------------------------------------------------------------------
     // Generate the source CGI
     //--------------------------------------------------------------------------
     cgiBuff = new char[2048];
     cgiP = XrdOucTPC::cgiC2Src( tpcKey.c_str(),
-                                pTPCInfo.target.GetHostName().c_str(),
+                                pJob->realTarget.GetHostName().c_str(),
                                 -1, cgiBuff, 2048 );
     if( *cgiP == '!' )
     {
@@ -165,45 +185,28 @@ namespace XrdCl
       return XRootDStatus( stError, errInvalidArgs );
     }
 
-    cgi = "root://fake//fake?";
-    cgi += cgiBuff;
-    delete cgiBuff;
-    cgiURL.FromString( cgi );
+    cgiURL.SetParams( cgiBuff );
+    delete [] cgiBuff;
     pJob->sources.clear();
-    pJob->sources.push_back( pJob->source );
-    pJob->sources[0].SetHostName( pTPCInfo.source.GetHostName() );
-    pJob->sources[0].SetPort( pTPCInfo.source.GetPort() );
-    pJob->sources[0].SetUserName( pTPCInfo.source.GetUserName() );
-
+    pJob->sources.push_back( pTPCInfo.source );
     MessageUtils::MergeCGI( pJob->sources[0].GetParams(),
                             cgiURL.GetParams(), true );
+    pJob->sources[0].GetParams()["tpc.stage"] = "copy";
 
     log->Debug( UtilityMsg, "Source url is: %s",
                 pJob->sources[0].GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // Open the files
+    // Open the source and set up the randez-vous
     //--------------------------------------------------------------------------
     File sourceFile;
-    File targetFile;
-    XRootDStatus st = sourceFile.Open( pJob->sources[0].GetURL(),
-                                       OpenFlags::Read );
+    st = sourceFile.Open( pJob->sources[0].GetURL(), OpenFlags::Read );
 
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   pJob->sources[0].GetURL().c_str(), st.ToStr().c_str() );
-      return st;
-    }
-
-    st = targetFile.Open( pJob->realTarget.GetURL(),
-                          OpenFlags::Delete|OpenFlags::Update );
-
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Unable to open target %s: %s",
-                  pJob->realTarget.GetURL().c_str(), st.ToStr().c_str() );
-      sourceFile.Close();
+      targetFile.Close();
       return st;
     }
 
@@ -395,10 +398,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     File          sourceFile;
     XRootDStatus  st;
+    URL           sourceURL = jd->source;
 
+    sourceURL.GetParams()["tpc.stage"] = "placement";
     log->Debug( UtilityMsg, "Trying to open %s for reading",
-                jd->source.GetURL().c_str() );
-    st = sourceFile.Open( jd->source.GetURL(), OpenFlags::Read );
+                sourceURL.GetURL().c_str() );
+    st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot open source file %s: %s",
@@ -406,7 +411,7 @@ namespace XrdCl
       st.status = stFatal;
       return st;
     }
-    tpcInfo->source = sourceFile.GetDataServer();
+    tpcInfo->source = sourceFile.GetLastURL();
     StatInfo *statInfo;
     sourceFile.Stat( false, statInfo );
     tpcInfo->sourceSize = statInfo->GetSize();
@@ -420,32 +425,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Verify the destination
     //--------------------------------------------------------------------------
-    OpenFlags::Flags flags = OpenFlags::Update;
-    if( jd->force )
-      flags |= OpenFlags::Delete;
-    else
-      flags |= OpenFlags::New;
-
-    if( jd->coerce )
-      flags |= OpenFlags::Force;
-
-    File targetFile;
-    log->Debug( UtilityMsg, "Trying to open %s for writing",
-                jd->target.GetURL().c_str() );
-    st = targetFile.Open( jd->target.GetURL(), flags );
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Cannot open target file %s: %s",
-                  jd->target.GetURL().c_str(), st.ToStr().c_str() );
-      st.status = stFatal;
-      return st;
-    }
-    tpcInfo->target = targetFile.GetDataServer();
-    targetFile.Close();
-
-    st = Utils::CheckTPC( tpcInfo->target.GetHostId() );
-    if( !st.IsOK() )
-      return st;
+//    st = Utils::CheckTPC( jd->target.GetHostId() );
+//    if( !st.IsOK() )
+//      return st;
     return XRootDStatus();
   }
 
