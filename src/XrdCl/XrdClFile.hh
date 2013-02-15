@@ -313,6 +313,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string GetDataServer() const;
 
+      //------------------------------------------------------------------------
+      //! Get final url with all the cgi information
+      //------------------------------------------------------------------------
+      URL GetLastURL() const;
+
     private:
       FileStateHandler *pStateHandler;
   };

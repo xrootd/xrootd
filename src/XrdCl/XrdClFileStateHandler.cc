@@ -766,6 +766,17 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get the final url with all the cgi information
+  //----------------------------------------------------------------------------
+  URL FileStateHandler::GetLastURL() const
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    if( pDataServer )
+      return *pDataServer;
+    return URL();
+  }
+
+  //----------------------------------------------------------------------------
   // Process the results of the opening operation
   //----------------------------------------------------------------------------
   void FileStateHandler::OnOpen( const XRootDStatus *status,
@@ -786,6 +797,16 @@ namespace XrdCl
       pLoadBalancer = 0;
 
       pDataServer = new URL( hostList->back().url );
+      pDataServer->GetParams() = pFileUrl->GetParams();
+      pDataServer->SetPath( pFileUrl->GetPath() );
+      HostList::const_iterator itC;
+      for( itC = hostList->begin(); itC != hostList->end(); ++itC )
+      {
+        MessageUtils::MergeCGI( pDataServer->GetParams(),
+                                itC->url.GetParams(),
+                                true );
+      }
+
       HostList::const_reverse_iterator it;
       for( it = hostList->rbegin(); it != hostList->rend(); ++it )
         if( it->loadBalancer )
