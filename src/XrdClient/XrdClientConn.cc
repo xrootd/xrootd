@@ -1901,6 +1901,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
               newport = 0;
               // An explicit redir overwrites token and opaque info
               ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
               // Save it in fREQUrl
               // fREQUrl = fUrl;
@@ -1946,6 +1947,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		newport = fREQUrl.Port;
 
 		ParseRedirHost(newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
 		// An unsuccessful connection to the dest host will make the
 		//  client go to the LB
@@ -1982,6 +1984,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 
 	    // An explicit redir overwrites token and opaque info
 	    ParseRedir(xmsg, newport, newhost, fRedirOpaque, fRedirInternalToken);
+              fRedirCGI = fRedirOpaque;
 
 	    // Clear the current session info. Rather simplicistic.
 	    //ClearSessionID();

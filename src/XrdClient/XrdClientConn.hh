@@ -78,6 +78,7 @@ public:
     XErrorCode                 fOpenError;	
 
     XrdOucString               fRedirOpaque;        // Opaque info returned by the server when
+    XrdOucString               fRedirCGI;           // Same but persistent
 
     // redirecting. To be used in the next opens
     XrdClientConn();

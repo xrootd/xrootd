@@ -43,6 +43,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdClient/XrdCpMthrQueue.hh"
+#include "XrdClient/XrdClientConn.hh"
 #include "XrdClient/XrdClientDebug.hh"
 #include "XrdClient/XrdCpWorkLst.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -779,11 +780,21 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
          } Client;
    XrdClientUrlInfo dUrl;
    XrdOucString sUrl(tpcSrc->GetCurrentUrl().GetUrl().c_str());
+   XrdOucString *rCGI, dstUrl;
    pthread_t myTID;
    int xTTL = -1;
    const char *cgiP;
    char *qP;
    char cgiBuff[1024];
+
+// Append any redirection cgi information to our source spec
+//
+   rCGI = &(tpcSrc->GetClientConn()->fRedirCGI);
+   if (rCGI->length() > 0)
+      {if (sUrl.find("?") == STR_NPOS) sUrl += '?';
+          else sUrl += '&';
+       sUrl += *rCGI;
+      }
 
 //cerr <<"tpc: bfr src=" <<src <<endl;
 //cerr <<"tpc: bfr dst=" <<dst <<endl;
@@ -820,7 +831,9 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
 //
    tpcPB = !Config.Want(XrdCpConfig::DoNoPbar);
    if (tpcPB)
-      {dUrl = xrddest->GetCurrentUrl();
+//    {dUrl = xrddest->GetCurrentUrl();
+//cerr <<"tpc: pbr dcl=" <<dst<<endl;
+      {dstUrl = dst; dUrl = dstUrl;
        tpcPB = !XrdSysThread::Run(&tpcTID, doProgBar, (void *)&dUrl,
                                   XRDSYSTHREAD_HOLD);
       }
