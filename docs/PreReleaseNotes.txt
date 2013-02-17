@@ -39,6 +39,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Fix memory leak and prevent nodnr from failing a TPC rendezvous.
    * Make redir CGI available for use in second tpc open and make xrdcp use
      it.
    * Avoid putting two question marks in xrdcp cgi information.
