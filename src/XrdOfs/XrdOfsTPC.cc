@@ -79,7 +79,7 @@ char           *theGN;
 XrdOucNList    *theHN;
 char           *theVO;
 
-int             Match(const XrdSecEntity *Who);
+int             Match(const XrdSecEntity *Who, const char *Host);
 
                 XrdOfsTPCAllow(char *vDN, char *vGN, char *vHN, char *vVO,
                                XrdOfsTPCAllow *Prev)
@@ -94,11 +94,11 @@ int             Match(const XrdSecEntity *Who);
 /*                 X r d O f s T P C A l l o w : : M a t c h                  */
 /******************************************************************************/
   
-int XrdOfsTPCAllow::Match(const XrdSecEntity *Who)
+int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 {
-   if (theDN && (!(Who->name)  || strcmp(theDN, Who->name)))    return 0;
-   if (theHN && (!(Who->host)  || !(theHN->NameOK(Who->host)))) return 0;
-   if (theVO && (!(Who->vorg)  || strcmp(theDN, Who->vorg)))    return 0;
+   if (theHN &&  !Host        || !(theHN->NameOK(Host   ))) return 0;
+   if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
+   if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
    if (!theGN) return 1;
    if (Who->grps)
       {char gBuff[1028], Group[64];
@@ -156,8 +156,9 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 {
    EPNAME("Authorize");
    XrdOfsTPCAuth *myTPC;
-   const char *eMsg;
-   int rc;
+   const char *eMsg, *dstHost;
+   char hBuff[256];
+   int rc, NoGo = 0;
 
 // Determine if we can handle any TPC requests
 //
@@ -195,23 +196,29 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 //
    if (AuthDst && !Screen(Args, AuthDst, isPLE)) return SFS_ERROR;
 
-// If we must restrict destinations, do so now
+// Avoid nodnr manglement of the host name, we always will need one. If we have
+// see if we should restrict the destinations and if so, do it.
 //
-   if (ALList)
-      {XrdOfsTPCAllow *aP = ALList;
-       while(aP && !aP->Match(Args.Usr)) aP = aP->Next;
-       if (!aP)
-          {OfsEroute.Emsg("TPC", Args.eRR->getErrUser(),
-                                "denied tpc access to", Args.Lfn);
-           OfsStats.Add(OfsStats.Data.numTPCdeny);
-           return Fatal(Args, "dest not authorized for tpc" ,EACCES, 1);
-          }
+   if (!(dstHost = Yield(Args.Usr->host, hBuff, sizeof(hBuff)))) NoGo = 1;
+      else if (ALList)
+              {XrdOfsTPCAllow *aP = ALList;
+               while(aP && !aP->Match(Args.Usr, dstHost)) aP = aP->Next;
+               if (!aP) NoGo = 1;
+              }
+
+// Check if this destination is actually authorized
+//
+   if (NoGo)
+      {OfsEroute.Emsg("TPC", Args.eRR->getErrUser(),
+                             "denied tpc access to", Args.Lfn);
+       OfsStats.Add(OfsStats.Data.numTPCdeny);
+       return Fatal(Args, "dest not authorized for tpc" ,EACCES, 1);
       }
 
 // This is the destination trying to open a source file. We must make sure
 // that the origin has authorized this action for this destination.
 //
-   Args.Dst = Args.Usr->host;
+   Args.Dst = dstHost;
    if ((rc = XrdOfsTPCAuth::Get(Args, &myTPC))) return rc;
 
 // Check if entry already expired
@@ -540,4 +547,24 @@ char *XrdOfsTPC::Verify(const char *Who, const char *Name,
    Buf[Blen-1] = 0;
    free(Host);
    return 0;
+}
+
+/******************************************************************************/
+/* Private:                        Y i e l d                                  */
+/******************************************************************************/
+
+const char *XrdOfsTPC::Yield(const char *Name, char *Buff, int  Blen)
+{
+   char *etext, *Host;
+
+// If already resolved, just return the host name
+//
+   if (isalpha(*Name)) return Name;
+
+// Obtain full host name
+//
+   Host = XrdSysDNS::getHostName(Name, &etext);
+   strlcpy(Buff, Host, Blen);
+   free(Host);
+   return (etext ? 0 : Buff);
 }
