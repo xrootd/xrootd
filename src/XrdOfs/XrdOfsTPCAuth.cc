@@ -147,10 +147,7 @@ int XrdOfsTPCAuth::Expired(const char *Dst, int cnt)
 
 // If there is a callback, tell the client they are no longer wanted
 //
-   if (Info.cbP)
-      {Info.Reply(SFS_ERROR, EACCES, "tpc authorization expired");
-       Info.cbP = 0;
-      }
+   if (Info.cbP) Info.Reply(SFS_ERROR, EACCES, "tpc authorization expired");
 
 // Log this event
 //
