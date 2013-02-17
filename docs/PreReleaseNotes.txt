@@ -39,6 +39,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Make redir CGI available for use in second tpc open and make xrdcp use
+     it.
    * Avoid putting two question marks in xrdcp cgi information.
    * Correct tpc protocol sequence for xrdcp.
    * Do not use static structs when refering to stack allocated variable.
