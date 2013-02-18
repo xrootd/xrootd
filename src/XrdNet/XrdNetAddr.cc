@@ -397,7 +397,15 @@ const char *XrdNetAddr::Set(int sockFD)
 
 // Get the address on the other side of this socket
 //
-   if (getpeername(sockFD, &IP.Addr, &addrSize) < 0) return strerror(errno);
+   if (getpeername(sockFD, &IP.Addr, &addrSize) < 0)
+      {addrSize = 0;
+       return strerror(errno);
+      }
+
+// Set the correct address size
+//
+   addrSize = (IP.Addr.sa_family == AF_INET ? sizeof(sockaddr_in)
+                                            : sizeof(sockaddr_in6));
 
 // All done
 //

@@ -432,12 +432,11 @@ namespace XrdCms
 //! Declare compilation version.
 //!
 //! Additionally, you *should* declare the xrootd version you used to compile
-//! your plug-in. While not currently required, it is highly recommended to
-//! avoid execution issues should the class definition change. Declare it as:
+//! your plug-in.
 //------------------------------------------------------------------------------
 
 /*! #include "XrdVersion.hh"
-    XrdVERSIONINFO(XrdCmsClient,<name>);
+    XrdVERSIONINFO(XrdCmsGetClient,<name>);
 
 */
 #endif

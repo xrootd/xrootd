@@ -123,7 +123,6 @@ static int    genOrg(const XrdSecEntity *client, char *Buff, int Blen);
 static int    getTTL(XrdOucEnv *Env);
 static int    Screen(Facts &Args, XrdOucTList *tP, int wasEnc=0);
 static char  *Verify(const char *Who,const char *Name,char *Buf,int Blen);
-static const  char *Yield(const char *Name,char *Buf,int Blen);
 
 static XrdAccAuthorize   *fsAuth;
 static XrdOss            *OfsOss;

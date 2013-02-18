@@ -196,6 +196,25 @@ int XrdNetUtils::IPFormat(const struct sockaddr *sAddr,
 }
   
 /******************************************************************************/
+
+int XrdNetUtils::IPFormat(int fd, char *bP, int bL, int addP)
+{
+   XrdNetSockAddr theIP;
+   SOCKLEN_t addrSize = sizeof(theIP);
+   int rc;
+
+// The the address wanted
+//
+   rc = (fd > 0 ? getpeername( fd, &theIP.Addr, &addrSize)
+                : getsockname(-fd, &theIP.Addr, &addrSize));
+   if (rc) return 0;
+
+// Now format it
+//
+   return IPFormat(&theIP.Addr, bP, bL, addP);
+}
+
+/******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/
   

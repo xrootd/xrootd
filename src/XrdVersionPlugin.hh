@@ -84,34 +84,34 @@
          Unreleased versions can use any version. However, a message is issued.
 */
 #define XrdVERSIONPLUGINRULES \
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdAccAuthorizeObject         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdAccAuthorizeObject         )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdBwmPolicyObject            )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdCksCalcInit                )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdCksInit                    )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdCmsGetClient               )\
+        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCksCalcInit                )\
+        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCksInit                    )\
+        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCmsGetClient               )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdCmsgetXmi                  )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdgetProtocol                )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdgetProtocolPort            )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdOssGetStorageSystem        )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdOucGetCache                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocol                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache                )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdOucgetName2Name            )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecGetProtocol             )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgetService              )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecGetProtocol             )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecgetService              )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzFun             )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzInit            )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzKey             )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiGMAPFun              )\
-        XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolgsiInit         )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolgsiObject       )\
-        XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolkrb5Init        )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolkrb5Object      )\
-        XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolpwdInit         )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolpwdObject       )\
-        XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolsssInit         )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolsssObject       )\
-        XrdVERSIONPLUGIN_Rule(DoNotChk,  0,  0, XrdSecProtocolunixInit        )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdSecProtocolunixObject      )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSfsGetFileSystem           )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolgsiInit         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolgsiObject       )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolkrb5Init        )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolkrb5Object      )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolpwdInit         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolpwdObject       )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolsssInit         )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolsssObject       )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolunixInit        )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolunixObject      )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem           )\
         XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdClGetMonitor               )\
                              {       0,  0,  0, 0}
 #endif

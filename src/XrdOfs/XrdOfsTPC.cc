@@ -155,8 +155,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
                                int          isPLE)
 {
    XrdOfsTPCAuth *myTPC;
-   const char *dstHost;
-   char hBuff[256];
+   const char *eMsg, *dstHost;
    int rc, NoGo = 0;
 
 // Determine if we can handle any TPC requests
@@ -198,7 +197,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
 // Avoid nodnr manglement of the host name, we always will need one. If we have
 // see if we should restrict the destinations and if so, do it.
 //
-   if (!(dstHost = Yield(Args.Usr->host, hBuff, sizeof(hBuff)))) NoGo = 1;
+   if (!(dstHost = Args.Usr->addrInfo->Name())) NoGo = 1;
       else if (ALList)
               {XrdOfsTPCAllow *aP = ALList;
                while(aP && !aP->Match(Args.Usr, dstHost)) aP = aP->Next;
@@ -546,24 +545,4 @@ char *XrdOfsTPC::Verify(const char *Who, const char *Name,
    snprintf(Buf, Blen, "unable to verify %s %s (%s)", Who, Name, etext);
    Buf[Blen-1] = 0;
    return 0;
-}
-
-/******************************************************************************/
-/* Private:                        Y i e l d                                  */
-/******************************************************************************/
-
-const char *XrdOfsTPC::Yield(const char *Name, char *Buff, int  Blen)
-{
-   char *etext, *Host;
-
-// If already resolved, just return the host name
-//
-   if (isalpha(*Name)) return Name;
-
-// Obtain full host name
-//
-   Host = XrdSysDNS::getHostName(Name, &etext);
-   strlcpy(Buff, Host, Blen);
-   free(Host);
-   return (etext ? 0 : Buff);
 }

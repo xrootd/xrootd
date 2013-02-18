@@ -118,6 +118,32 @@ XrdOucTList *Hosts(const char  *hSpec, int hPort=-1, int hWant=8, int *sPort=0,
 static int IPFormat(const struct sockaddr *sAddr, char *bP, int bL, int addP=1);
 
 //------------------------------------------------------------------------------
+//! Convert an IP socket address/port (V4 or V6) into the standard V6 RFC ASCII
+//! representation: "[address]:port". For backward compatability reasons, this
+//! method uses the deprecated format for mapped addresses, as follows:
+//! Deprecated: [::d.d.d.d] Prefered: [::ffff:d.d.d.d]. To get the prefered
+//! representation (not to be used for sss protocol) use XrdNetAddr's Format().
+//!
+//! @param  fd       The file descriptor of the socket whose address is to be
+//!                  converted. The sign of the fd indicates which address:
+//!                  fd > 0 the peer  address is used (i.e. getpeername)
+//!                  fd < 0 the local address is used (i.e. getsockname)
+//! @param  bP       points to a buffer large enough to hold the result.
+//!                  A buffer 64 characters long will always be big enough.
+//! @param  bL       the actual size of the buffer.
+//! @param  addP     When true  (the default) will add the port as ":port" at
+//!                  the end of the address.
+//!                  When false the colon and port number is omitted.
+//!
+//! @return Success: The length of the formatted address is returned.
+//! @return Failure: Zero is returned and the buffer state is undefined.
+//!                  Failure occurs when the buffer is too small or the file
+//!                  descriptor does not refer to an open socket.
+//------------------------------------------------------------------------------
+
+static int IPFormat(int fd, char *bP, int bL, int addP=1);
+
+//------------------------------------------------------------------------------
 //! Determine if a hostname matches a pattern.
 //!
 //! @param  hName    the name of the host.
