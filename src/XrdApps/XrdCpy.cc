@@ -744,7 +744,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
 
 // Generate the cgi for the destination
 //
-   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, xrdsrc->GetCurrentUrl().Host.c_str(),
+   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, xrdsrc->GetCurrentUrl().HostWPort.c_str(),
                               lfnBuff, cksVal, cgiBuff, sizeof(cgiBuff));
    if (*cgiP == '!')
       {EMSG("Unable to setup destination url. " <<cgiP+1); return 0;}
