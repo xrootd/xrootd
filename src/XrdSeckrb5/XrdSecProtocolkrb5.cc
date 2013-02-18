@@ -123,6 +123,7 @@ static  void               setExpFile(char *expfile)
                           {Service = (KP ? strdup(KP) : 0);
                            Entity.host = strdup(hname);
                            epAddr = endPoint;
+                           Entity.addrInfo = &epAddr;
                            CName[0] = '?'; CName[1] = '\0';
                            Entity.name = CName;
                            Step = 0;

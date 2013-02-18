@@ -38,6 +38,7 @@
 #include "XrdAcc/XrdAccCapability.hh"
 #include "XrdAcc/XrdAccConfig.hh"
 #include "XrdAcc/XrdAccGroups.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
   
@@ -109,12 +110,18 @@ XrdAccPrivs XrdAccAccess::Access(const XrdSecEntity    *Entity,
    const long phash = XrdOucHashVal2(path, plen);
    XrdAccAudit_Options audits = (XrdAccAudit_Options)Auditor->Auditing();
    const char *id   = (Entity->name ? (const char *)Entity->name : "*");
-   const char *host = (Entity->host ? (const char *)Entity->host : "?");
+   const char *host;
    int isuser = (*id && (*id != '*' || id[1]));
 
 // Get a shared context for these potentially long running routines
 //
    Access_Context.Lock(xs_Shared);
+
+// Check if we really need to resolve the host name
+//
+   if (Atab.D_List || Atab.H_Hash || Atab.N_Hash)
+      host = Entity->addrInfo->Name("?");
+      else host = (Entity->host ? (const char *)Entity->host : "?");
 
 // Establish default privileges
 //

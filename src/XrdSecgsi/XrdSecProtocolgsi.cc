@@ -41,7 +41,6 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -295,8 +294,10 @@ XrdSecProtocolgsi::XrdSecProtocolgsi(int opts, const char *hname,
       PRINT("could not create handshake vars object");
    }
 
-   // Set host name
+   // Set host name and address
       Entity.host = strdup(endPoint.Name("*unknown*"));
+      epAddr = endPoint;
+      Entity.addrInfo = &epAddr;
 
    // Init session variables
    sessionCF = 0;

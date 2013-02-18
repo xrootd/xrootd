@@ -312,6 +312,7 @@ int dlen, rc;
    xp->Response.Set(lp);
    strcpy(xp->Entity.prot, "host");
    xp->Entity.host = (char *)lp->Host();
+   xp->Entity.addrInfo = lp->AddrInfo();
    return (XrdProtocol *)xp;
 }
  

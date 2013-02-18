@@ -27,6 +27,8 @@
 /******************************************************************************/
 #include <time.h>
 
+#include "XrdNet/XrdNetAddrInfo.hh"
+
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -253,8 +255,6 @@ private:
 /*              X r d S e c P r o t o c o l g s i   C l a s s                 */
 /******************************************************************************/
 
-class XrdNetAddrInfo;
-
 class XrdSecProtocolgsi : public XrdSecProtocol
 {
 friend class gsiOptions;
@@ -296,6 +296,7 @@ public:
         static XrdOucTrace *EnableTracing();
 
 private:
+          XrdNetAddrInfo   epAddr;
 
    // Static members initialized at startup
    static XrdSysMutex      gsiContext;

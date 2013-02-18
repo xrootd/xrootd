@@ -68,7 +68,8 @@ inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
 //! (the ':<port>' or ':/path' can be omitted if desired, see fmtOpts param):
 //! IP.xx:   host_name:<port>
 //! IP.v4:   a.b.c.d:<port>
-//! IP.v6:   [a:b:c:d:e:f:g:h]:<port> | [::a.b.c.d]:<port>
+//! IP.4to6: [::ffff:a.b.c.d]:<port>  | [::a.b.c.d]:<port>
+//! IP.v6:   [a:b:c:d:e:f:g:h]:<port>
 //! IP.Unix: localhost:/<path>
 //!
 //! @param  bAddr    address of buffer for result

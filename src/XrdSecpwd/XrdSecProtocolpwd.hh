@@ -26,6 +26,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdNet/XrdNetAddrInfo.hh"
+
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucString.hh"
@@ -280,8 +282,6 @@ public:
 /*              X r d S e c P r o t o c o l p w d   C l a s s                 */
 /******************************************************************************/
 
-class XrdNetAddrInfo;
-
 class XrdSecProtocolpwd : public XrdSecProtocol
 {
 public:
@@ -359,6 +359,7 @@ private:
    static XrdOucTrace     *PWDTrace;
 
    // Information local to this instance
+   XrdNetAddrInfo          epAddr;
    int                     options;
    char                    CName[256];    // Client-name
    bool                    srvMode;       // TRUE if server mode 

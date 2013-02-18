@@ -22,6 +22,7 @@ add_library(
   XrdSec/XrdSecClient.cc
                                       XrdSec/XrdSecEntity.hh
                                       XrdSec/XrdSecInterface.hh
+  XrdSec/XrdSecLoader.cc              XrdSec/XrdSecLoader.hh
   XrdSec/XrdSecPManager.cc            XrdSec/XrdSecPManager.hh
   XrdSec/XrdSecProtocolhost.cc        XrdSec/XrdSecProtocolhost.hh
   XrdSec/XrdSecServer.cc              XrdSec/XrdSecServer.hh

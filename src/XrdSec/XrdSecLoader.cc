@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                 X r d S e c P r o t o c o l h o s t . c c                  */
+/*                       X r d S e c L o a d e r . c c                        */
 /*                                                                            */
-/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -28,61 +28,90 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <strings.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+  
+#include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdSec/XrdSecLoader.hh"
+#include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-#include "XrdSec/XrdSecProtocolhost.hh"
+#include "XrdVersion.hh"
 
 /******************************************************************************/
-/*                          A u t h e n t i c a t e                           */
+/*                            D e s t r u c t o r                             */
 /******************************************************************************/
   
-int XrdSecProtocolhost::Authenticate(XrdSecCredentials  *cred,
-                                     XrdSecParameters  **parms,
-                                     XrdOucErrInfo      *einfo)
+XrdSecLoader::~XrdSecLoader()
 {
-   strcpy(Entity.prot, "host");
-   Entity.host = theHost;
-   Entity.addrInfo = &epAddr;
-   return 0;
+   if (secLib) delete secLib;
 }
 
 /******************************************************************************/
-/*                        g e t C r e d e n t i a l s                         */
+/*                           G e t P r o t o c o l                            */
 /******************************************************************************/
-  
-XrdSecCredentials *XrdSecProtocolhost::getCredentials(XrdSecParameters *parm,
-                                                      XrdOucErrInfo    *einfo)
-{XrdSecCredentials *cp = new XrdSecCredentials;
 
- cp->size = 5; cp->buffer = (char *)"host";
- return cp;
+XrdSecProtocol *XrdSecLoader::GetProtocol(const char       *hostname,
+                                          XrdNetAddrInfo   &endPoint,
+                                          XrdSecParameters &sectoken,
+                                          XrdOucErrInfo    *einfo)
+{
+   static XrdSysMutex ldrMutex;
+
+// Check if we should initialize.
+//
+   ldrMutex.Lock();
+   if (!secLib && !Init(einfo)) {ldrMutex.UnLock(); return 0;}
+   ldrMutex.UnLock();
+
+// Return the protocol or nothing
+//
+   return secGet(hostname, endPoint, sectoken, einfo);
 }
 
 /******************************************************************************/
-/*                X r d S e c P r o t o c o l h o s t I n i t                 */
+/*                                  I n i t                                   */
 /******************************************************************************/
-  
-// This is a builtin protocol so we don't define an Init method. Anyway, this
-// protocol need not be initialized. It works as is.
 
-/******************************************************************************/
-/*              X r d S e c P r o t o c o l h o s t O b j e c t               */
-/******************************************************************************/
-  
-// Normally this would be defined as an extern "C", however, this function is
-// statically linked into the shared library as a native protocol so there is
-// no reason to define it as such. Imitators, beware! Read the comments in
-// XrdSecInterface.hh
-//
-XrdSecProtocol *XrdSecProtocolhostObject(const char              who,
-                                         const char             *hostname,
-                                               XrdNetAddrInfo   &endPoint,
-                                         const char             *parms,
-                                               XrdOucErrInfo    *einfo)
+bool XrdSecLoader::Init(XrdOucErrInfo *einfo)
 {
+   static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
+   char mBuff[1024], path[80];
 
-// Simply return an instance of the host protocol object
+// Verify that versions are compatible.
 //
-   return new XrdSecProtocolhost(hostname, endPoint);
+   if (urVersion->vNum != myVersion.vNum
+   &&  !XrdSysPlugin::VerCmp(*urVersion, myVersion, true))
+      {snprintf(mBuff,sizeof(mBuff),"Client version %s is incompatible with %s.",
+                                     urVersion->vStr, myVersion.vStr);
+       if (einfo) einfo->setErrInfo(ENOPROTOOPT, mBuff);
+          else cerr <<"SecLoader: " <<mBuff;
+       return false;
+      }
+
+// Obtain an instance of the security library
+//
+   strcpy(path, "libXrdSec" LT_MODULE_EXT);
+   secLib = new XrdSysPlugin(mBuff,sizeof(mBuff),path,"seclib",urVersion,0);
+
+// Get the client object creator
+//
+   if ((secGet = (XrdSecGetProt_t)secLib->getPlugin("XrdSecGetProtocol")))
+      return true;
+
+// We failed
+//
+   if (einfo) einfo->setErrInfo(ENOPROTOOPT, mBuff);
+      else cerr <<"SecLoader: Unable to initialize; " <<mBuff;
+
+// Cleanup
+//
+   delete secLib;
+   secLib = 0;
+   return false;
 }

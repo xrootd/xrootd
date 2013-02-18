@@ -36,6 +36,10 @@
 //! in each protocol object to facilitate mutual authentication. Note that the
 //! destructor does nothing and it is the responsibility of the protocol object
 //! to delete the XrdSecEntity data members, if need be.
+//!
+//! Note: The host member contents are depdent on the dnr/nodnr setting and
+//!       and contain a host name or an IP address. To get the real host name
+//!       use addrInfo->Name(), this is required for any hostname comparisons.
 //------------------------------------------------------------------------------
 
 #include <string.h>
@@ -49,31 +53,24 @@ class  XrdSecEntity
 public:
          char   prot[XrdSecPROTOIDSIZE];  // Protocol used
          char   *name;                    // Entity's name
-         char   *host;                    // Entity's host name
+         char   *host;                    // Entity's host name dnr dependent
          char   *vorg;                    // Entity's virtual organization
          char   *role;                    // Entity's role
          char   *grps;                    // Entity's group names
          char   *endorsements;            // Protocol specific endorsements
          char   *moninfo;                 // Additional information for monitoring 
          char   *creds;                   // Raw client credentials or certificate
-         int     credslen;                // Length of the 'cert' field
-         char    rsvd[3];                 // Reserved field
-
-// The following three members are set by the server-side framework before
-// calling Authenticate(). The pointers remain valid as long as the connection
-// persists. They may be used but should not be altered in any way.
-//
-         char    epVers;                  // Endpoint version number
-XrdNetAddrInfo  *addrInfo;                // Connection details
-const    char   *tident;                  // Trace identifier
+         int     credslen;                // Length of the 'creds' field
+         int     rsvd;                    // Reserved field
+XrdNetAddrInfo  *addrInfo;                // Connection details from getProtocol
+const    char   *tident;                  // Trace identifier always preset
 
          XrdSecEntity(const char *pName = "")
                      : name(0), host(0), vorg(0), role(0), grps(0),
                        endorsements(0), moninfo(0), creds(0), credslen(0),
-                       epVers(0), addrInfo(0), tident("")
+                       rsvd(0), addrInfo(0), tident("")
                      {strncpy(prot, pName, XrdSecPROTOIDSIZE-1);
                       prot[XrdSecPROTOIDSIZE-1] = '\0';
-                      memset(rsvd, 0, sizeof(rsvd));
                      }
         ~XrdSecEntity() {}
 };

@@ -39,7 +39,6 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucCRC.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
@@ -847,7 +846,9 @@ char *XrdSecProtocolsss::setID(char *id, char **idP)
 void XrdSecProtocolsss::setIP(XrdNetAddrInfo &endPoint)
 {
    if (!endPoint.Format(urIP, sizeof(urIP), XrdNetAddrInfo::fmtAdv6,
-                                            XrdNetAddrInfo::noPort)) *urIP = 0;
+                                            XrdNetAddrInfo::old6Map4)) *urIP=0;
+   epAddr = endPoint;
+   Entity.addrInfo = &epAddr;
 }
   
 /******************************************************************************/

@@ -176,6 +176,26 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
 }
 
 /******************************************************************************/
+/*                              I P F o r m a t                               */
+/******************************************************************************/
+
+int XrdNetUtils::IPFormat(const struct sockaddr *sAddr,
+                          char *bP, int bL, int fP)
+{
+   XrdNetAddr theAddr;
+   int fmtopts = XrdNetAddrInfo::old6Map4;
+
+// Set the address
+//
+   if (theAddr.Set(sAddr)) return 0;
+
+// Now format the address
+//
+   if (!fP) fmtopts |=  XrdNetAddrInfo::noPort;
+   return theAddr.Format(bP, bL, XrdNetAddrInfo::fmtAdv6, fmtopts);
+}
+  
+/******************************************************************************/
 /*                                 M a t c h                                  */
 /******************************************************************************/
   

@@ -31,12 +31,12 @@
 /******************************************************************************/
 
 #include "XrdCrypto/XrdCryptoLite.hh"
+#include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdSecsss/XrdSecsssKT.hh"
 #include "XrdSecsss/XrdSecsssRR.hh"
 
-class XrdNetAddrInfo;
 class XrdOucErrInfo;
 
 class XrdSecProtocolsss : public XrdSecProtocol
@@ -107,6 +107,7 @@ static int            options;
 static int            isMutual;
 static int            deltaTime;
 static int            ktFixed;
+       XrdNetAddrInfo epAddr;
 
 static XrdSecsssKT   *ktObject;  // Both:   Default Key Table object
        XrdSecsssKT   *keyTab;    // Both:   Active  Key Table

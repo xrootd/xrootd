@@ -307,9 +307,9 @@ virtual      ~XrdSecProtocol() {}
        Called for one-time protocol ininitialization.
     2) XrdSecProtocol<p>Object()
        Called for protocol object instantiation.
-    3) XrdSecProtocol<p>ObjectVersion
+    3) XrdSecProtocol<p>Object_
        Inspected for the protocol object xrootd version number used in
-       compilation. This optional but highly recommended (see later comments).
+       compilation; defined by the XrdVERSIONINFO macro (see later comments).
 */
 
 //------------------------------------------------------------------------------
@@ -404,12 +404,11 @@ virtual      ~XrdSecProtocol() {}
 //! for one of the protocols suggested by the server and possibly based on the
 //! server's hostname or host address, as needed.
 //!
-//! @param  host     The client's host name or the IP address as text. An IP
+//! @param  hostname The client's host name or the IP address as text. An IP
 //!                  may be supplied if the host address is not resolvable. Use
 //!                  endPoint to get the hostname only if it's actually needed.
 //! @param  endPoint the XrdNetAddrInfo object describing the server end-point.
-//! @param  cred     The security token supplied by the server. The pointer
-//!                  may be null if the server did not supply a security token.
+//! @param  sectoken The security token supplied by the server.
 //! @param  einfo    The structure to record any error messages. These are
 //!                  normally sent to the client. If einfo is a null pointer,
 //!                  the messages should be sent to standard error.
@@ -449,7 +448,7 @@ XrdVERSIONINFO(XrdSecGetProtocol,<name>);
 
 extern "C" XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
                                                    XrdNetAddrInfo   &endPoint,
-                                                   XrdSecParameters &parms,
+                                                   XrdSecParameters &sectoken,
                                                    XrdOucErrInfo    *einfo=0)
                                             {....}
 */

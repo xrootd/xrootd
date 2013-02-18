@@ -94,6 +94,30 @@ XrdOucTList *Hosts(const char  *hSpec, int hPort=-1, int hWant=8, int *sPort=0,
                                const char **eText=0);
 
 //------------------------------------------------------------------------------
+//! Convert an IP address/port (V4 or V6) into the standard V6 RFC ASCII
+//! representation: "[address]:port". For backward compatability reasons, this
+//! method uses the deprecated format for mapped addresses, as follows:
+//! Deprecated: [::d.d.d.d] Prefered: [::ffff:d.d.d.d]. To get the prefered
+//! representation (not to be used for sss protocol) use XrdNetAddr's Format().
+//!
+//! @param  sAddr    Address to convert. This is either sockaddr_in or
+//!                  sockaddr_in6 cast to struct sockaddr.
+//! @param  bP       points to a buffer large enough to hold the result.
+//!                  A buffer 64 characters long will always be big enough.
+//! @param  bL       the actual size of the buffer.
+//! @param  addP     When true  (the default) will format sAddr->sin_port
+//!                  (or sin6_port) as ":port" at the end of the address.
+//!                  When false the colon and port number is omitted.
+//!
+//! @return Success: The length of the formatted address is returned.
+//! @return Failure: Zero is returned and the buffer state is undefined.
+//!                  Failure occurs when the buffer is too small or the address family
+//!                  (sAddr->sa_family) is neither AF_INET nor AF_INET6.
+//------------------------------------------------------------------------------
+
+static int IPFormat(const struct sockaddr *sAddr, char *bP, int bL, int addP=1);
+
+//------------------------------------------------------------------------------
 //! Determine if a hostname matches a pattern.
 //!
 //! @param  hName    the name of the host.

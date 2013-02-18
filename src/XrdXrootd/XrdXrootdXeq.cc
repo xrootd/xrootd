@@ -139,7 +139,6 @@ int XrdXrootdProtocol::do_Auth()
            return Response.Send(kXR_NotAuthorized, eText);
           }
        AuthProt->Entity.tident = Link->ID;
-       AuthProt->Entity.addrInfo = Link->AddrInfo();
        numReads++;
       }
 
