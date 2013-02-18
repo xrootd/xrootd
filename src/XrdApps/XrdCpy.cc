@@ -73,6 +73,7 @@
 #endif
 #include <stdarg.h>
 #include <stdio.h>
+#include <sstream>
 
 #ifdef HAVE_LIBZ
 #include <zlib.h>
@@ -744,7 +745,9 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
 
 // Generate the cgi for the destination
 //
-   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, xrdsrc->GetCurrentUrl().HostWPort.c_str(),
+   std::ostringstream o; o << xrdsrc->GetCurrentUrl().Host.c_str() << ":";
+   o << xrdsrc->GetCurrentUrl().Port;
+   cgiP = XrdOucTPC::cgiC2Dst(tpcKey, o.str().c_str(),
                               lfnBuff, cksVal, cgiBuff, sizeof(cgiBuff));
    if (*cgiP == '!')
       {EMSG("Unable to setup destination url. " <<cgiP+1); return 0;}
