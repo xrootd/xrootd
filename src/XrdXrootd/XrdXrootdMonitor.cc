@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <errno.h>
+#include <cstdio>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
