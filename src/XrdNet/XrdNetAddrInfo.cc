@@ -36,6 +36,7 @@
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdNet/XrdNetCache.hh"
 
 /******************************************************************************/
 /*                 P l a t f o r m   D e p e n d e n c i e s                  */
@@ -56,7 +57,7 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-XrdNetCache            XrdNetAddrInfo::dnsCache;
+XrdNetCache           *XrdNetAddrInfo::dnsCache = 0;
 
 /******************************************************************************/
 /*                                F o r m a t                                 */
@@ -83,8 +84,8 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 // Resolve address if need be and return result if possible
 //
    if (theFmt == fmtName || theFmt == fmtAuto)
-      {if (!hostName && !(hostName = dnsCache.Find(this)) && theFmt == fmtName)
-          Resolve();
+      {if (!hostName && dnsCache && !(hostName = dnsCache->Find(this))
+       &&  theFmt == fmtName) Resolve();
        if (hostName)
           {n = (omitP ? snprintf(bAddr, bLen, "%s",    hostName)
                       : snprintf(bAddr, bLen, "%s:%d", hostName, pNum));
@@ -212,7 +213,8 @@ const char *XrdNetAddrInfo::Name(const char *eName, const char **eText)
 
 // If we already translated this name, just return the translation
 //
-   if (hostName || (hostName = dnsCache.Find(this))) return hostName;
+   if (hostName || (dnsCache && (hostName = dnsCache->Find(this))))
+      return hostName;
 
 // Try to resolve this address
 //
@@ -303,7 +305,7 @@ int XrdNetAddrInfo::Resolve()
 
 // Add the entry to the cache and return success
 //
-   dnsCache.Add(this, hostName);
+   if (dnsCache) dnsCache->Add(this, hostName);
    return 0;
 }
   

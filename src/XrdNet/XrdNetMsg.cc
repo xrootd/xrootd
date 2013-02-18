@@ -28,6 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <errno.h>
 #include <sys/poll.h>
 
 #include "XrdNet/XrdNet.hh"

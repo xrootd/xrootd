@@ -29,6 +29,7 @@
 /******************************************************************************/
 
 #include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
 #include <netdb.h>
 #include <string.h>

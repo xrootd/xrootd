@@ -32,10 +32,12 @@
 #include <errno.h>
 #include <netdb.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetCache.hh"
 
 /******************************************************************************/
 /*                 P l a t f o r m   D e p e n d e n c i e s                  */
@@ -410,6 +412,20 @@ const char *XrdNetAddr::Set(int sockFD)
 // All done
 //
    return 0;
+}
+
+/******************************************************************************/
+/*                              S e t C a c h e                               */
+/******************************************************************************/
+  
+void XrdNetAddr::SetCache(int keeptime)
+{
+   static XrdNetCache theCache;
+
+// Set the cache keep time
+//
+   theCache.SetKT(keeptime);
+   dnsCache = (keeptime > 0 ? &theCache : 0);
 }
 
 /******************************************************************************/

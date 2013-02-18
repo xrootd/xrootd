@@ -141,6 +141,13 @@ const char *Set(const struct sockaddr *sockP, int sockFD=-1);
 const char *Set(int sockFD);
 
 //------------------------------------------------------------------------------
+//! Set the cache time for address to name resolutions. This method should only
+//! be called during initialization time. The default is to not use the cache.
+//------------------------------------------------------------------------------
+
+static void SetCache(int keeptime);
+
+//------------------------------------------------------------------------------
 //! Force this object to work in IPV4 mode only. This method permanently sets
 //! IPV4 mode which cannot be undone without a restart. It is meant to bypass
 //! broken IPV6 stacks on those unfortunate hosts that have one. It should be

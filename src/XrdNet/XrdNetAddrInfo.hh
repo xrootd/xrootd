@@ -37,7 +37,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "XrdNet/XrdNetCache.hh"
 #include "XrdNet/XrdNetSockAddr.hh"
 #include "XrdSys/XrdSysPlatform.hh"
   
@@ -49,6 +48,7 @@
 //------------------------------------------------------------------------------
 
 struct addrinfo;
+class  XrdNetCache;
 
 class XrdNetAddrInfo
 {
@@ -248,7 +248,7 @@ protected:
        int                 QFill(char *bAddr, int bLen);
        int                 Resolve();
 
-static XrdNetCache         dnsCache;
+static XrdNetCache        *dnsCache;
 
 // For optimization this union should be the first member of this class as we
 // compare "unixPipe" with "&IP" and want it optimized to "unixPipe == this".

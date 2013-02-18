@@ -196,6 +196,8 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ProtInfo.DebugON  = 0;      // 1 if started with -d
    ProtInfo.argc     = 0;
    ProtInfo.argv     = 0;
+
+   XrdNetAddr::SetCache(3*60*60); // Cache address resolutions for 3 hours
 }
   
 /******************************************************************************/
@@ -1050,11 +1052,12 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 /* Function: xnet
 
    Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
-                                         [[no]dnr]
+                                         [cache <ct>] [[no]dnr]
 
              wan       parameters apply only to the wan port
              keepalive sets the socket keepalive option.
              <blen>    is the socket's send/rcv buffer size.
+             <ct>      Seconds to cache address to name resolutions.
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
 
    Output: 0 upon success or !0 upon failure.
@@ -1063,7 +1066,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, V_keep = 0, V_nodnr = 0, V_iswan = 0, V_blen = -1;
+    int  i, n, V_keep = 0, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
@@ -1071,6 +1074,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
        {
         {"keepalive",  0, 1, &V_keep,   "option"},
         {"buffsz",     1, 0, &V_blen,   "network buffsz"},
+        {"cache",      2, 0, &V_ct,     "cache time"},
         {"dnr",        0, 0, &V_nodnr,  "option"},
         {"nodnr",      0, 1, &V_nodnr,  "option"},
         {"wan",        0, 1, &V_iswan,  "option"}
@@ -1083,16 +1087,22 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
     while (val)
     {for (i = 0; i < numopts; i++)
          if (!strcmp(val, ntopts[i].opname))
-            {if (!ntopts[i].hasarg) llp=static_cast<long long>(ntopts[i].opval);
+            {if (!ntopts[i].hasarg) *ntopts[i].oploc = ntopts[i].opval;
                 else {if (!(val = Config.GetWord()))
                          {eDest->Emsg("Config", "network",
-                              ntopts[i].opname, ntopts[i].etxt);
+                              ntopts[i].opname, "argument missing");
                           return 1;
                          }
-                      if (XrdOuca2x::a2sz(*eDest,ntopts[i].etxt,val,&llp,0))
-                         return 1;
+                      if (ntopts[i].hasarg == 2)
+                         {if (XrdOuca2x::a2tm(*eDest,ntopts[i].etxt,val,&n,0))
+                             return 1;
+                          *ntopts[i].oploc = n;
+                         } else {
+                          if (XrdOuca2x::a2sz(*eDest,ntopts[i].etxt,val,&llp,0))
+                             return 1;
+                          *ntopts[i].oploc = (int)llp;
+                         }
                      }
-             *ntopts[i].oploc = (int)llp;
               break;
             }
       if (i >= numopts)
@@ -1110,6 +1120,8 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
          Net_Opts  = (V_keep  ? XRDNET_KEEPALIVE : 0)
                    | (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
+
+     if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
      return 0;
 }
 
