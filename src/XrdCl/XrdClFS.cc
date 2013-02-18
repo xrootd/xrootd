@@ -1021,6 +1021,8 @@ FSExecutor *CreateExecutor( const URL &url )
 int ExecuteCommand( FSExecutor *ex, const std::string &commandline )
 {
   XRootDStatus st = ex->Execute( commandline );
+  if( !st.IsOK() )
+    std::cerr << st.ToStr() << std::endl;
   return st.GetShellCode();
 }
 
@@ -1107,9 +1109,11 @@ int ExecuteInteractive( const URL &url )
       free( linebuf );
       continue;
     }
-    ex->Execute( linebuf );
+    XRootDStatus st = ex->Execute( linebuf );
     add_history( linebuf );
     free( linebuf );
+    if( !st.IsOK() )
+      std::cerr << st.ToStr() << std::endl;
   }
 
   //----------------------------------------------------------------------------
