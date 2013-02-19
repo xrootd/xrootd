@@ -648,8 +648,15 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
        XrdOucPup::Pack(&eodP, myIP);
        dLen = eodP - (char *)rrData;
       } else {
-       CLDBG("No IP address to encode (" <<(einfo==0) <<(errEnv==0)
-             <<(myIP==0) <<")!");
+       char ipBuff[256];
+       if (epAddr.SockFD() > 0
+       &&  XrdNetUtils::IPFormat(-(epAddr.SockFD()), ipBuff, sizeof(ipBuff)))
+          {XrdOucPup::Pack(&eodP, ipBuff);
+           dLen = eodP - (char *)rrData;
+          } else {
+            CLDBG("No IP address to encode (" <<(einfo==0) <<(errEnv==0)
+                  <<(myIP==0) <<")!");
+          }
       }
 
 // Add in our host name for source verification
