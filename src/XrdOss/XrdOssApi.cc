@@ -619,6 +619,7 @@ int XrdOssDir::StatRet(struct stat *buff)
 // All is well
 //
    Stat = buff;
+   return 0;
 }
   
 /******************************************************************************/
