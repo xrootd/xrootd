@@ -496,6 +496,11 @@ int XrdXrootdProtocol::do_Dirlist()
        return rc;
       }
 
+// As a temporary hack, we check if the caller wants stat information as well
+//
+   if (opaque && !strcmp(opaque, "xrd.dirstat=1"))
+      return do_DirStat(dp, ebuff, opaque);
+
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
 // full entry in the buffer, send what we have with an OKSOFAR and continue.
@@ -530,6 +535,75 @@ int XrdXrootdProtocol::do_Dirlist()
    dp->close();
    delete dp;
    if (!rc) {TRACEP(FS, "dirlist entries=" <<cnt <<" path=" <<argp->buff);}
+   return rc;
+}
+
+/******************************************************************************/
+/*                            d o _ D i r S t a t                             */
+/******************************************************************************/
+
+int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
+                                                 const char *opaque)
+{
+   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   struct stat Stat;
+   static const int statSz = 80;
+   int bleft, rc = 0, dlen, cnt = 0;
+   char *buff, *dLoc, ebuff[8192];
+   const char *dname;
+
+// Construct the path to the directory as we will be asking for stat calls
+// if the interface does not support autostat.
+//
+   if (dp->autoStat(&Stat) == SFS_OK) dLoc = 0;
+      else {strcpy(pbuff, argp->buff);
+            dlen = strlen(pbuff);
+            if (pbuff[dlen-1] != '/') {pbuff[dlen] = '/'; dlen++;}
+            dLoc = pbuff+dlen;
+           }
+
+// Start retreiving each entry and place in a local buffer with a trailing new
+// line character (the last entry will have a null byte). If we cannot fit a
+// full entry in the buffer, send what we have with an OKSOFAR and continue.
+// This code depends on the fact that a directory entry will never be longer
+// than sizeof( ebuff)-1; otherwise, an infinite loop will result. No errors
+// are allowed to be reflected at this point.
+//
+  dname = 0;
+  do {buff = ebuff; bleft = sizeof(ebuff);
+      while(dname || (dname = dp->nextEntry()))
+           {dlen = strlen(dname);
+            if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
+               {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
+                strcpy(buff, dname); buff += dlen; *buff = '\n'; buff++; cnt++;
+                if (dLoc)
+                   {strcpy(dLoc, dname);
+                    rc = osFS->stat(pbuff, &Stat, myError, CRED, opaque);
+                    if (rc != SFS_OK)
+                       return fsError(rc, XROOTD_MON_STAT, myError, argp->buff);
+                   }
+                dlen = StatGen(Stat, buff);
+                bleft -= (dlen+1); buff += dlen; *buff = '\n'; buff++;
+               }
+            dname = 0;
+           }
+       if (dname) rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
+     } while(!rc && dname);
+
+// Send the ending packet if we actually have one to send
+//
+   if (!rc) 
+      {if (ebuff == buff) rc = Response.Send();
+          else {*(buff-1) = '\0';
+                rc = Response.Send((void *)ebuff, buff-ebuff);
+               }
+      }
+
+// Close the directory
+//
+   dp->close();
+   delete dp;
+   if (!rc) {TRACEP(FS, "dirstat entries=" <<cnt <<" path=" <<argp->buff);}
    return rc;
 }
 

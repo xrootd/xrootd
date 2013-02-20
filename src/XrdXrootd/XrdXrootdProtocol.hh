@@ -68,6 +68,7 @@ class XrdOucErrInfo;
 class XrdOucStream;
 class XrdOucTokenizer;
 class XrdOucTrace;
+class XrdSfsDirectory;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
@@ -125,6 +126,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_CKsum(const char *Path, const char *Opaque);
        int   do_Close();
        int   do_Dirlist();
+       int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, const char *opaque);
        int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
