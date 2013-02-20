@@ -210,7 +210,7 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
                 dlen   = sizeof(erc) + RespIO[2].iov_len;
 
     if (Bridge)
-       {if (Bridge->Send(ecode, &RespIO[1], 2, dlen) >= 0) return 0;
+       {if (Bridge->Send(kXR_error, &RespIO[1], 2, dlen) >= 0) return 0;
         return Link->setEtext("send failure");
        }
 
