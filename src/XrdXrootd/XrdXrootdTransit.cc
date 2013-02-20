@@ -567,7 +567,6 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
                    break;
           case kXR_oksofar:
                    rc = respObj->Data(rInfo, ioV, ioN, ioL, false);
-                   runWait = -1;
                    break;
           case kXR_redirect:
                    rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
