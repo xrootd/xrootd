@@ -6,6 +6,12 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add ability to automatically return stat information when reading
+     a directory. This makes the sfs and oss interfaces ABI incompatible
+     requiring only a recompilation. This patch is logically part of the
+     readv passthrough patch. Plugin writes may wish to add their own
+     implementation of this feature. It is implemented in the standard
+     ofs and oss plugins.
    * Implement full readv-passthru for enhanced performance (B. Bockleman,
      UNL). This breaks SFS and OSS plugin ABI compatibility. It also
      introduces a new method to the POSIX interface.
