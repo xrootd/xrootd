@@ -555,6 +555,9 @@ int XrdOssDir::Readdir(char *buff, int blen)
       {errno = 0;
        if ((rp = readdir(lclfd)))
           {strlcpy(buff, rp->d_name, blen);
+#ifdef HAVE_FSTATAT
+           if (Stat && fstatat(dirFD, rp->d_name, Stat, 0)) return -errno;
+#endif
            return XrdOssOK;
           }
        *buff = '\0'; ateof = 1;
@@ -574,6 +577,50 @@ int XrdOssDir::Readdir(char *buff, int blen)
    return XrdOssSS->MSS_Readdir(mssfd, buff, blen);
 }
 
+/******************************************************************************/
+/*                               S t a t R e t                                */
+/******************************************************************************/
+/*
+  Function: Set stat buffer pointerto automatically stat returned entries.
+
+  Input:    buff       - Pointer to the stat buffer.
+
+  Output:   Upon success, return 0.
+
+            Upon failure, returns a (-errno).
+
+  Warning: The caller must provide proper serialization.
+*/
+int XrdOssDir::StatRet(struct stat *buff)
+{
+
+// Check if this object is actually open
+//
+   if (!isopen) return -XRDOSS_E8002;
+
+// We only support autostat for local directories
+//
+   if (!lclfd) -ENOTSUP;
+
+// We do not support autostat unless we have the fstatat function
+//
+#ifndef HAVE_FSTATAT
+   return -ENOTSUP;
+#endif
+
+// Now obtain the correct file descriptor which is special in Solaris
+//
+#ifdef __solaris__
+   dirFD = lclfd->dd_fd;
+#else
+   dirFD = dirfd(lclfd);
+#endif
+
+// All is well
+//
+   Stat = buff;
+}
+  
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/

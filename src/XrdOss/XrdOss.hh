@@ -62,6 +62,7 @@ public:
                 // Directory oriented methods
 virtual int     Opendir(const char *, XrdOucEnv &)           {return -ENOTDIR;}
 virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
+virtual int     StatRet(struct stat *buff)                   {return -ENOTSUP;}
 
                 // File oriented methods
 virtual int     Fchmod(mode_t mode)                          {return -EISDIR;}

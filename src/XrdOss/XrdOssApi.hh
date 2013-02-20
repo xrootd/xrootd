@@ -53,18 +53,22 @@ public:
 int     Close(long long *retsz=0);
 int     Opendir(const char *, XrdOucEnv &);
 int     Readdir(char *buff, int blen);
+int     StatRet(struct stat *buff);
 
         // Constructor and destructor
-        XrdOssDir(const char *tid) 
-                 {lclfd=0; mssfd=0; pflags=ateof=isopen=0; tident=tid;}
+        XrdOssDir(const char *tid) : lclfd(0), mssfd(0), Stat(0), tident(tid),
+                                     pflags(0), ateof(0), isopen(0), dirFD(0)
+                                   {}
        ~XrdOssDir() {if (isopen > 0) Close(); isopen = 0;}
 private:
          DIR       *lclfd;
          void      *mssfd;
+struct   stat      *Stat;
 const    char      *tident;
 unsigned long long  pflags;
          int        ateof;
          int        isopen;
+         int        dirFD;
 };
   
 /******************************************************************************/

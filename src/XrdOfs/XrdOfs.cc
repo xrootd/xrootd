@@ -354,6 +354,46 @@ int XrdOfsDirectory::close()
 }
 
 /******************************************************************************/
+/*                              a u t o S t a t                               */
+/******************************************************************************/
+
+int XrdOfsDirectory::autoStat(struct stat *buf)
+/*
+  Function: Set stat buffer to automaticaly return stat information
+
+  Input:    Pointer to stat buffer which will be filled in on each
+            nextEntry() and represent stat information for that entry.
+
+  Output:   Upon success, returns zero. Upon error returns SFS_ERROR and sets
+            the error object to contain the reason.
+
+  Notes: 1. If autoStat() is not supported he caller will need to follow up
+            with a manual stat() call for the full path, a slow and tedious
+            process. The autoStat function significantly reduces overhead by
+            automatically providing stat information for the entry read.
+*/
+{
+   EPNAME("autoStat");
+   int retc;
+
+// Check if this directory is actually open
+//
+   if (!dp) {XrdOfsFS->Emsg(epname, error, EBADF, "autostat directory");
+             return SFS_ERROR;
+            }
+
+// Set the stat buffer in the storage system directory.
+//
+    if ((retc = dp->StatRet(buf)))
+       retc = XrdOfsFS->Emsg(epname, error, retc, "autostat", fname);
+       else retc = SFS_OK;
+
+// All done
+//
+   return retc;
+}
+  
+/******************************************************************************/
 /*                                                                            */
 /*                F i l e   O b j e c t   I n t e r f a c e s                 */
 /*                                                                            */

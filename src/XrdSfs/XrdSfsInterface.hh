@@ -419,6 +419,11 @@ virtual int         close() = 0;
 
 virtual const char *FName() = 0;
 
+virtual int         autoStat(struct stat *buf)
+                            {error.setErrInfo(ENOTSUP, "Not supported.");
+                             return SFS_ERROR;
+                            }
+
                     XrdSfsDirectory(const char *user=0, int MonID=0)
                                    : error(user, MonID) {}
 virtual            ~XrdSfsDirectory() {}

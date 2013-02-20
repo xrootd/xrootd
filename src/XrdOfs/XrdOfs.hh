@@ -72,6 +72,8 @@ inline  void        copyError(XrdOucErrInfo &einfo) {einfo = error;}
 
 const   char       *FName() {return (const char *)fname;}
 
+        int         autoStat(struct stat *buf);
+
                     XrdOfsDirectory(const char *user, int MonID)
                           : XrdSfsDirectory(user, MonID)
                           {dp     = 0;
