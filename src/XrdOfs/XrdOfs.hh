@@ -126,7 +126,7 @@ virtual int            fctl(const int               cmd,
                             XrdSfsXferSize     buffer_size);
 
         XrdSfsXferSize readv(XrdOucIOVec      *readV,
-                             size_t            readCount);
+                             int               readCount);
 
         int            read(XrdSfsAio *aioparm);
 

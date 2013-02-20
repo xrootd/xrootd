@@ -885,7 +885,7 @@ XrdSfsXferSize XrdOfsFile::read(XrdSfsFileOffset  offset,    // In
 /******************************************************************************/
 
 XrdSfsXferSize XrdOfsFile::readv(XrdOucIOVec     *readV,     // In
-                                 size_t           readCount) // In
+                                 int              readCount) // In
 /*
   Function: Perform all the reads specified in the readV vector.
 

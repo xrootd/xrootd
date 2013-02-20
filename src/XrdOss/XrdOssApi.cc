@@ -861,7 +861,7 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
             an error.
 */
 
-ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, size_t n)
+ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
 {
    EPNAME("ReadV");
    ssize_t rdsz, totBytes = 0;

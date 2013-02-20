@@ -83,7 +83,7 @@ virtual int     Write(XrdSfsAio *aiop)                       {return (ssize_t)-E
 
 // Implemented in the header, as many folks will be happy with the default.
 //
-virtual ssize_t ReadV(XrdOucIOVec *readV, size_t n)
+virtual ssize_t ReadV(XrdOucIOVec *readV, int n)
                      {ssize_t nbytes = 0, curCount = 0;
                       for (int i=0; i<n; i++)
                           {curCount = Read((void *)readV[i].data,
@@ -100,7 +100,7 @@ virtual ssize_t ReadV(XrdOucIOVec *readV, size_t n)
 
 // Implemented in the header, as many folks will be happy with the default.
 //
-virtual ssize_t WriteV(XrdOucIOVec *writeV, size_t n)
+virtual ssize_t WriteV(XrdOucIOVec *writeV, int n)
                       {ssize_t nbytes = 0, curCount = 0;
                        for (int i=0; i<n; i++)
                            {curCount = Read((void *)writeV[i].data,

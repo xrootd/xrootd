@@ -335,7 +335,7 @@ virtual int            read(XrdSfsAio *aioparm) = 0;
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsXferSize readv(XrdOucIOVec      *readV,
-                             size_t            rdvCnt)
+                             int               rdvCnt)
                             {XrdSfsXferSize rdsz, totbytes = 0;
                              for (int i = 0; i < rdvCnt; i++)
                                  {rdsz = read(readV[i].offset,
@@ -367,7 +367,7 @@ virtual XrdSfsXferSize write(XrdSfsFileOffset  fileOffset,
 //-----------------------------------------------------------------------------
 
 virtual XrdSfsXferSize writev(XrdOucIOVec      *writeV,
-                              size_t            wdvCnt)
+                              int               wdvCnt)
                              {XrdSfsXferSize wrsz, totbytes = 0;
                               for (int i = 0; i < wdvCnt; i++)
                                   {wrsz = write(writeV[i].offset,

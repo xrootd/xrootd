@@ -101,7 +101,7 @@ int     isCompressed(char *cxidp=0);
 ssize_t Read(               off_t, size_t);
 ssize_t Read(       void *, off_t, size_t);
 int     Read(XrdSfsAio *aiop);
-ssize_t ReadV(XrdOucIOVec *readV, size_t n);
+ssize_t ReadV(XrdOucIOVec *readV, int);
 ssize_t ReadRaw(    void *, off_t, size_t);
 ssize_t Write(const void *, off_t, size_t);
 int     Write(XrdSfsAio *aiop);
