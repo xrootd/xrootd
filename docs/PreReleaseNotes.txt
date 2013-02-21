@@ -81,6 +81,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Use int instead of size_t for things that are truly int. This
+     bypasses various compiler warning (affects readv patch).
    * Allow stdin as a source in the xrdcp front-end parser. Do not
      compute doff for non-local sources.
    * Final change to f-stream monitoring. Replace standard deviation
