@@ -6,23 +6,21 @@
 
 namespace XrdClBind
 {
-
     typedef struct {
         PyObject_HEAD
-        /* Type-specific fields go here. */
-        const char *url;
+        /* Type-specific fields */
+        XrdCl::URL *url;
     } URL;
 
     static void
     URL_dealloc(URL* self)
     {
-        //Py_XDECREF(self->url);
+        delete self->url;
         self->ob_type->tp_free((PyObject*) self);
     }
 
     static int
     URL_init(URL *self, PyObject *args, PyObject *kwds) {
-        std::cout << "URL_init" << std::endl;
 
         const char *url;
         static char *kwlist[] = {"url", NULL};
@@ -31,10 +29,16 @@ namespace XrdClBind
             return -1;
 
         if (url) {
-            self->url = url;
+            self->url = new XrdCl::URL(url);
         }
 
         return 0;
+    }
+
+    static PyObject *
+    URL_str(URL *url)
+    {
+        return PyString_FromString(url->url->GetURL().c_str());
     }
 
     static PyObject*
@@ -48,8 +52,6 @@ namespace XrdClBind
     }
 
     static PyMemberDef URLMembers[] = {
-        {"url", T_STRING, offsetof(URL, url), 0,
-         "The actual URL"},
         {NULL}  /* Sentinel */
     };
 
@@ -76,7 +78,7 @@ namespace XrdClBind
         0,                                          /* tp_as_mapping */
         0,                                          /* tp_hash */
         0,                                          /* tp_call */
-        0,                                          /* tp_str */
+        (reprfunc) URL_str,                         /* tp_str */
         0,                                          /* tp_getattro */
         0,                                          /* tp_setattro */
         0,                                          /* tp_as_buffer */

@@ -34,7 +34,7 @@ namespace XrdClBind
 
     typedef struct {
         PyObject_HEAD
-        /* Type-specific fields go here. */
+        /* Type-specific fields */
         URL* url;
     } Client;
 
@@ -48,7 +48,6 @@ namespace XrdClBind
     static int
     Client_init(Client *self, PyObject *args, PyObject *kwds)
     {
-        std::cout << "Client_init" << std::endl;
         const char *urlstr;
         static char *kwlist[] = {"url", NULL};
 
@@ -60,7 +59,8 @@ namespace XrdClBind
             return NULL;
         }
 
-        self->url = (URL *) PyObject_CallObject((PyObject *) &URLType, bind_args);
+        self->url = (URL *) PyObject_CallObject((PyObject *)
+                &URLType, bind_args);
         Py_DECREF(bind_args);
 
         if (!self->url) {
@@ -73,32 +73,49 @@ namespace XrdClBind
     static PyObject*
     Stat(Client* self, PyObject* args)
     {
-        std::cout << "Stat()" << std::endl;
         const char* path;
 
         if (!PyArg_ParseTuple(args, "s", &path))
             return NULL;
 
-        std::cout << self->url->url << std::endl;
-        std::cout << path << std::endl;
-
-        XrdCl::URL *url = new XrdCl::URL(std::string(self->url->url));
-        XrdCl::FileSystem fs(*url);
+        XrdCl::FileSystem fs(*self->url->url);
         XrdCl::XRootDStatus status;
         XrdCl::StatInfo *statinfo = 0;
 
         status = fs.Stat(path, statinfo, 5);
 
-        PyObject* bind_args = Py_BuildValue("(iii)", status.status, status.code,
-                status.errNo);
-        if (!bind_args) {
+
+        //std::cout << "modtime: " << statinfo->GetModTime() << std::endl;
+
+        // Build XRootDStatus mapping object
+        std::cout << "errmsg: " << status.GetErrorMessage() << std::endl;
+
+        PyObject* status_args = Py_BuildValue("(iiis)", status.status,
+                status.code, status.errNo, status.GetErrorMessage().c_str());
+        if (!status_args) {
             return NULL;
         }
 
-        PyObject* status_bind = PyObject_CallObject((PyObject *) &XRootDStatusType, bind_args);
-        PyObject_Print(status_bind, stdout, 0); std::cout << std::endl;
+        PyObject* status_bind = PyObject_CallObject((PyObject *)
+                &XRootDStatusType, status_args);
+        if (!status_bind) {
+            return NULL;
+        }
+        Py_DECREF(status_args);
 
-        Py_DECREF(bind_args);
+        // Build StatInfo mapping object
+//        PyObject* statinfo_args = Py_BuildValue("(iii)", status.status, status.code,
+//                        status.errNo);
+//        if (!statinfo_args) {
+//            return NULL;
+//        }
+//
+//        PyObject* statinfo_bind = PyObject_CallObject((PyObject *)
+//                &XRootDStatusType, statinfo_args);
+//        if (!statinfo_bind) {
+//            return NULL;
+//        }
+//        Py_DECREF(statinfo_args);
 
         return Py_BuildValue("O", status_bind);
     }
@@ -121,7 +138,7 @@ namespace XrdClBind
         "client.Client",                            /* tp_name */
         sizeof(Client),                             /* tp_basicsize */
         0,                                          /* tp_itemsize */
-        (destructor) Client_dealloc,                 /* tp_dealloc */
+        (destructor) Client_dealloc,                /* tp_dealloc */
         0,                                          /* tp_print */
         0,                                          /* tp_getattr */
         0,                                          /* tp_setattr */

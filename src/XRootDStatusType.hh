@@ -18,9 +18,7 @@ namespace XrdClBind
     typedef struct {
         PyObject_HEAD
         /* Type-specific fields */
-        uint16_t status;
-        uint16_t code;
-        uint32_t errNo;
+        XrdCl::XRootDStatus *status;
     } XRootDStatus;
 
     static void
@@ -31,40 +29,69 @@ namespace XrdClBind
 
     static int
     XRootDStatus_init(XRootDStatus *self, PyObject *args, PyObject *kwds) {
-        std::cout << "XRootDStatus_init" << std::endl;
-        static char *kwlist[] = {"status", "code", "errNo", NULL};
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "iii", kwlist,
-                &self->status, &self->code, &self->errNo))
+        static char *kwlist[] = {"status", "code", "errNo", "message", NULL};
+
+        uint16_t status, code;
+        uint32_t errNo;
+        const char *message;
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "iiis", kwlist,
+                &status, &code, &errNo, &message))
             return -1;
+
+        self->status = new XrdCl::XRootDStatus(status, code, errNo, std::string(message));
 
         return 0;
     }
 
-    static PyObject*
-    IsError(XRootDStatus* self)
+    static PyObject *
+    XRootDStatus_str(XRootDStatus *status)
     {
-        PyObject *status = Py_BuildValue("i", self->status);
-        if (status == NULL)
-            return NULL;
-
-        Py_DECREF(status);
-        return status;
+        return PyString_FromString(status->status->ToStr().c_str());
     }
 
+    static PyObject*
+    GetErrorMessage(XRootDStatus* self)
+    {
+        return Py_BuildValue("s", self->status->GetErrorMessage());
+    }
+
+    static PyObject *
+    XRootDStatus_GetStatus(XRootDStatus *self, void *closure)
+    {
+        return Py_BuildValue("i", self->status->status);
+    }
+
+    static PyObject *
+    XRootDStatus_GetCode(XRootDStatus *self, void *closure)
+    {
+        return Py_BuildValue("i", self->status->code);
+    }
+
+    static PyObject *
+    XRootDStatus_GetErrNo(XRootDStatus *self, void *closure)
+    {
+        return Py_BuildValue("i", self->status->errNo);
+    }
+
+    static PyGetSetDef XRootDStatusGetSet[] = {
+        {"status", (getter) XRootDStatus_GetStatus, NULL,
+         "Status of the execution", NULL},
+        {"code", (getter) XRootDStatus_GetCode, NULL,
+         "Error type, or additional hints on what to do", NULL},
+        {"errNo", (getter) XRootDStatus_GetErrNo, NULL,
+         "Errno, if any", NULL},
+        {NULL}  /* Sentinel */
+    };
+
     static PyMemberDef XRootDStatusMembers[] = {
-        {"status", T_INT, offsetof(XRootDStatus, status), 0,
-         "Status of the execution"},
-        {"code", T_INT, offsetof(XRootDStatus, code), 0,
-         "Error type, or additional hints on what to do"},
-        {"errNo", T_INT, offsetof(XRootDStatus, errNo), 0,
-         "Errno, if any"},
         {NULL}  /* Sentinel */
     };
 
     static PyMethodDef XRootDStatusMethods[] = {
-        {"IsError", (PyCFunction) IsError, METH_NOARGS,
-         "Return the error status"},
+        {"GetErrorMessage", (PyCFunction) GetErrorMessage, METH_NOARGS,
+         "Return the error message"},
         {NULL}  /* Sentinel */
     };
 
@@ -85,7 +112,7 @@ namespace XrdClBind
         0,                                          /* tp_as_mapping */
         0,                                          /* tp_hash */
         0,                                          /* tp_call */
-        0,                                          /* tp_str */
+        (reprfunc) XRootDStatus_str,                /* tp_str */
         0,                                          /* tp_getattro */
         0,                                          /* tp_setattro */
         0,                                          /* tp_as_buffer */
@@ -99,7 +126,7 @@ namespace XrdClBind
         0,                                          /* tp_iternext */
         XRootDStatusMethods,                        /* tp_methods */
         XRootDStatusMembers,                        /* tp_members */
-        0,                                          /* tp_getset */
+        XRootDStatusGetSet,                         /* tp_getset */
         0,                                          /* tp_base */
         0,                                          /* tp_dict */
         0,                                          /* tp_descr_get */
