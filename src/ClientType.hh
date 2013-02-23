@@ -84,13 +84,10 @@ namespace XrdClBind
 
         status = fs.Stat(path, statinfo, 5);
 
-
         //std::cout << "modtime: " << statinfo->GetModTime() << std::endl;
 
         // Build XRootDStatus mapping object
-        std::cout << "errmsg: " << status.GetErrorMessage() << std::endl;
-
-        PyObject* status_args = Py_BuildValue("(iiis)", status.status,
+        PyObject* status_args = Py_BuildValue("(HHIs)", status.status,
                 status.code, status.errNo, status.GetErrorMessage().c_str());
         if (!status_args) {
             return NULL;

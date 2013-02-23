@@ -24,6 +24,7 @@ namespace XrdClBind
     static void
     XRootDStatus_dealloc(XRootDStatus* self)
     {
+        delete self->status;
         self->ob_type->tp_free((PyObject*) self);
     }
 
@@ -36,7 +37,7 @@ namespace XrdClBind
         uint32_t errNo;
         const char *message;
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "iiis", kwlist,
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "HHIs", kwlist,
                 &status, &code, &errNo, &message))
             return -1;
 
@@ -49,12 +50,6 @@ namespace XrdClBind
     XRootDStatus_str(XRootDStatus *status)
     {
         return PyString_FromString(status->status->ToStr().c_str());
-    }
-
-    static PyObject*
-    GetErrorMessage(XRootDStatus* self)
-    {
-        return Py_BuildValue("s", self->status->GetErrorMessage());
     }
 
     static PyObject *
@@ -75,6 +70,33 @@ namespace XrdClBind
         return Py_BuildValue("i", self->status->errNo);
     }
 
+    static PyObject*
+    GetErrorMessage(XRootDStatus *self)
+    {
+        return Py_BuildValue("s", self->status->GetErrorMessage().c_str());
+    }
+
+    static PyObject*
+    GetShellCode(XRootDStatus *self)
+    {
+        return Py_BuildValue("i", self->status->GetShellCode());
+    }
+
+    static PyObject*
+    IsError(XRootDStatus *self) {
+        return Py_BuildValue("O", PyBool_FromLong(self->status->IsError()));
+    }
+
+    static PyObject*
+    IsFatal(XRootDStatus *self) {
+        return Py_BuildValue("O", PyBool_FromLong(self->status->IsFatal()));
+    }
+
+    static PyObject*
+    IsOK(XRootDStatus *self) {
+        return Py_BuildValue("O", PyBool_FromLong(self->status->IsOK()));
+    }
+
     static PyGetSetDef XRootDStatusGetSet[] = {
         {"status", (getter) XRootDStatus_GetStatus, NULL,
          "Status of the execution", NULL},
@@ -90,8 +112,16 @@ namespace XrdClBind
     };
 
     static PyMethodDef XRootDStatusMethods[] = {
+        {"IsError", (PyCFunction) IsError, METH_NOARGS,
+                 "Return whether this status has an error"},
+        {"IsFatal", (PyCFunction) IsFatal, METH_NOARGS,
+                 "Return whether this status has a fatal error"},
+        {"IsOK", (PyCFunction) IsOK, METH_NOARGS,
+                 "Return whether this status completed successfully"},
         {"GetErrorMessage", (PyCFunction) GetErrorMessage, METH_NOARGS,
          "Return the error message"},
+        {"GetShellCode", (PyCFunction) GetShellCode, METH_NOARGS,
+                 "Return the status code that may be returned to the shell"},
         {NULL}  /* Sentinel */
     };
 
