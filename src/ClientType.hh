@@ -31,22 +31,28 @@
 
 namespace XrdClBind
 {
-
+    //--------------------------------------------------------------------------
+    //! Client binding type definition
+    //--------------------------------------------------------------------------
     typedef struct {
         PyObject_HEAD
         /* Type-specific fields */
-        URL* url;
+        URL *url;
     } Client;
 
-    static void
-    Client_dealloc(Client* self)
+    //--------------------------------------------------------------------------
+    //! Deallocation function, called when object is deleted
+    //--------------------------------------------------------------------------
+    static void Client_dealloc(Client *self)
     {
         Py_XDECREF(self->url);
         self->ob_type->tp_free((PyObject*) self);
     }
 
-    static int
-    Client_init(Client *self, PyObject *args, PyObject *kwds)
+    //--------------------------------------------------------------------------
+    //! __init__() equivalent
+    //--------------------------------------------------------------------------
+    static int Client_init(Client *self, PyObject *args, PyObject *kwds)
     {
         const char *urlstr;
         static char *kwlist[] = {"url", NULL};
@@ -59,8 +65,7 @@ namespace XrdClBind
             return NULL;
         }
 
-        self->url = (URL *) PyObject_CallObject((PyObject *)
-                &URLType, bind_args);
+        self->url = (URL*) PyObject_CallObject((PyObject*) &URLType, bind_args);
         Py_DECREF(bind_args);
 
         if (!self->url) {
@@ -70,10 +75,12 @@ namespace XrdClBind
         return 0;
     }
 
-    static PyObject*
-    Stat(Client* self, PyObject* args)
+    //--------------------------------------------------------------------------
+    //! Stat a path and return the XRootDStatus and StatInfo mapping types
+    //--------------------------------------------------------------------------
+    static PyObject* Stat(Client *self, PyObject *args)
     {
-        const char* path;
+        const char *path;
 
         if (!PyArg_ParseTuple(args, "s", &path))
             return NULL;
@@ -87,13 +94,13 @@ namespace XrdClBind
         //std::cout << "modtime: " << statinfo->GetModTime() << std::endl;
 
         // Build XRootDStatus mapping object
-        PyObject* status_args = Py_BuildValue("(HHIs)", status.status,
+        PyObject *status_args = Py_BuildValue("(HHIs)", status.status,
                 status.code, status.errNo, status.GetErrorMessage().c_str());
         if (!status_args) {
             return NULL;
         }
 
-        PyObject* status_bind = PyObject_CallObject((PyObject *)
+        PyObject *status_bind = PyObject_CallObject((PyObject *)
                 &XRootDStatusType, status_args);
         if (!status_bind) {
             return NULL;
@@ -117,18 +124,27 @@ namespace XrdClBind
         return Py_BuildValue("O", status_bind);
     }
 
+    //--------------------------------------------------------------------------
+    //! Visible member definitions
+    //--------------------------------------------------------------------------
     static PyMemberDef ClientMembers[] = {
         {"url", T_OBJECT_EX, offsetof(Client, url), 0,
          "Server URL"},
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! Visible method definitions
+    //--------------------------------------------------------------------------
     static PyMethodDef ClientMethods[] = {
         {"stat", (PyCFunction) Stat, METH_VARARGS,
          "Stat a path"},
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! Client binding type object
+    //--------------------------------------------------------------------------
     static PyTypeObject ClientType = {
         PyObject_HEAD_INIT(NULL)
         0,                                          /* ob_size */

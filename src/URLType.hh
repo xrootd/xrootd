@@ -6,18 +6,27 @@
 
 namespace XrdClBind
 {
+    //--------------------------------------------------------------------------
+    //! URL binding type definition
+    //--------------------------------------------------------------------------
     typedef struct {
         PyObject_HEAD
         /* Type-specific fields */
         XrdCl::URL *url;
     } URL;
 
+    //--------------------------------------------------------------------------
+    //! Deallocation function, called when object is deleted
+    //--------------------------------------------------------------------------
     static void URL_dealloc(URL *self)
     {
         delete self->url;
         self->ob_type->tp_free((PyObject*) self);
     }
 
+    //--------------------------------------------------------------------------
+    //! __init__() equivalent
+    //--------------------------------------------------------------------------
     static int URL_init(URL *self, PyObject *args, PyObject *kwds) {
 
         const char *url;
@@ -33,11 +42,17 @@ namespace XrdClBind
         return 0;
     }
 
+    //--------------------------------------------------------------------------
+    //! __str__() equivalent
+    //--------------------------------------------------------------------------
     static PyObject* URL_str(URL *url)
     {
         return PyString_FromString(url->url->GetURL().c_str());
     }
 
+    //--------------------------------------------------------------------------
+    //! Getters / Setters
+    //--------------------------------------------------------------------------
     static PyObject* IsValid(URL *self)
     {
         return Py_BuildValue("O", PyBool_FromLong(self->url->IsValid()));
@@ -45,12 +60,14 @@ namespace XrdClBind
 
     static PyObject* GetHostId(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetHostId().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetHostId().c_str()));
     }
 
     static PyObject* GetProtocol(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetProtocol().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetProtocol().c_str()));
     }
 
     static PyObject* SetProtocol(URL *self, PyObject *args)
@@ -64,7 +81,8 @@ namespace XrdClBind
 
     static PyObject* GetUserName(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetUserName().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetUserName().c_str()));
     }
 
     static PyObject* SetUserName(URL *self, PyObject *args)
@@ -78,7 +96,8 @@ namespace XrdClBind
 
     static PyObject* GetPassword(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetPassword().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetPassword().c_str()));
     }
 
     static PyObject* SetPassword(URL *self, PyObject *args)
@@ -92,7 +111,8 @@ namespace XrdClBind
 
     static PyObject* GetHostName(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetHostName().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetHostName().c_str()));
     }
 
     static PyObject* SetHostName(URL *self, PyObject *args)
@@ -120,7 +140,8 @@ namespace XrdClBind
 
     static PyObject* GetPath(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetPath().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetPath().c_str()));
     }
 
     static PyObject* SetPath(URL *self, PyObject *args)
@@ -134,7 +155,8 @@ namespace XrdClBind
 
     static PyObject* GetPathWithParams(URL *self)
     {
-        return Py_BuildValue("S", PyString_FromString(self->url->GetPathWithParams().c_str()));
+        return Py_BuildValue("S", PyString_FromString(
+                self->url->GetPathWithParams().c_str()));
     }
 
     static PyObject* Clear(URL *self)
@@ -143,10 +165,16 @@ namespace XrdClBind
         Py_RETURN_NONE;
     }
 
+    //--------------------------------------------------------------------------
+    //! Visible member definitions
+    //--------------------------------------------------------------------------
     static PyMemberDef URLMembers[] = {
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! Visible method definitions
+    //--------------------------------------------------------------------------
     static PyMethodDef URLMethods[] = {
         { "IsValid", (PyCFunction) IsValid, METH_NOARGS,
           "Return the validity of the URL" },
@@ -183,6 +211,9 @@ namespace XrdClBind
         { NULL } /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! URL binding type object
+    //--------------------------------------------------------------------------
     static PyTypeObject URLType = {
         PyObject_HEAD_INIT(NULL)
         0,                                          /* ob_size */

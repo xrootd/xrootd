@@ -39,4 +39,5 @@ def test_setters():
     u.SetPath('/path')
     assert u.GetPath() == '/path'
     u.Clear()
+    assert str(u) == ''
     

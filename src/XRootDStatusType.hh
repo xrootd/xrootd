@@ -15,21 +15,29 @@
 
 namespace XrdClBind
 {
+    //--------------------------------------------------------------------------
+    //! XRootDStatus binding type definition
+    //--------------------------------------------------------------------------
     typedef struct {
         PyObject_HEAD
         /* Type-specific fields */
         XrdCl::XRootDStatus *status;
     } XRootDStatus;
 
-    static void
-    XRootDStatus_dealloc(XRootDStatus* self)
+    //--------------------------------------------------------------------------
+    //! Deallocation function, called when object is deleted
+    //--------------------------------------------------------------------------
+    static void XRootDStatus_dealloc(XRootDStatus *self)
     {
         delete self->status;
         self->ob_type->tp_free((PyObject*) self);
     }
 
-    static int
-    XRootDStatus_init(XRootDStatus *self, PyObject *args, PyObject *kwds) {
+    //--------------------------------------------------------------------------
+    //! __init__() equivalent
+    //--------------------------------------------------------------------------
+    static int XRootDStatus_init(XRootDStatus *self, PyObject *args,
+            PyObject *kwds) {
 
         static char *kwlist[] = {"status", "code", "errNo", "message", NULL};
 
@@ -41,62 +49,66 @@ namespace XrdClBind
                 &status, &code, &errNo, &message))
             return -1;
 
-        self->status = new XrdCl::XRootDStatus(status, code, errNo, std::string(message));
+        self->status = new XrdCl::XRootDStatus(status, code, errNo,
+                std::string(message));
 
         return 0;
     }
 
-    static PyObject *
-    XRootDStatus_str(XRootDStatus *status)
+    //--------------------------------------------------------------------------
+    //! __str__() equivalent
+    //--------------------------------------------------------------------------
+    static PyObject* XRootDStatus_str(XRootDStatus *status)
     {
         return PyString_FromString(status->status->ToStr().c_str());
     }
 
-    static PyObject *
-    XRootDStatus_GetStatus(XRootDStatus *self, void *closure)
+    //--------------------------------------------------------------------------
+    //! Binding functions
+    //--------------------------------------------------------------------------
+    static PyObject* XRootDStatus_GetStatus(XRootDStatus *self, void *closure)
     {
         return Py_BuildValue("i", self->status->status);
     }
 
-    static PyObject *
-    XRootDStatus_GetCode(XRootDStatus *self, void *closure)
+    static PyObject* XRootDStatus_GetCode(XRootDStatus *self, void *closure)
     {
         return Py_BuildValue("i", self->status->code);
     }
 
-    static PyObject *
-    XRootDStatus_GetErrNo(XRootDStatus *self, void *closure)
+    static PyObject* XRootDStatus_GetErrNo(XRootDStatus *self, void *closure)
     {
         return Py_BuildValue("i", self->status->errNo);
     }
 
-    static PyObject*
-    GetErrorMessage(XRootDStatus *self)
+    static PyObject* GetErrorMessage(XRootDStatus *self)
     {
         return Py_BuildValue("s", self->status->GetErrorMessage().c_str());
     }
 
-    static PyObject*
-    GetShellCode(XRootDStatus *self)
+    static PyObject* GetShellCode(XRootDStatus *self)
     {
         return Py_BuildValue("i", self->status->GetShellCode());
     }
 
-    static PyObject*
-    IsError(XRootDStatus *self) {
+    static PyObject* IsError(XRootDStatus *self)
+    {
         return Py_BuildValue("O", PyBool_FromLong(self->status->IsError()));
     }
 
-    static PyObject*
-    IsFatal(XRootDStatus *self) {
+    static PyObject* IsFatal(XRootDStatus *self)
+    {
         return Py_BuildValue("O", PyBool_FromLong(self->status->IsFatal()));
     }
 
-    static PyObject*
-    IsOK(XRootDStatus *self) {
+    static PyObject* IsOK(XRootDStatus *self)
+    {
         return Py_BuildValue("O", PyBool_FromLong(self->status->IsOK()));
     }
 
+    //--------------------------------------------------------------------------
+    //! Custom getter/setter function declarations
+    //--------------------------------------------------------------------------
     static PyGetSetDef XRootDStatusGetSet[] = {
         {"status", (getter) XRootDStatus_GetStatus, NULL,
          "Status of the execution", NULL},
@@ -107,24 +119,33 @@ namespace XrdClBind
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! Visible member definitions
+    //--------------------------------------------------------------------------
     static PyMemberDef XRootDStatusMembers[] = {
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! Visible method definitions
+    //--------------------------------------------------------------------------
     static PyMethodDef XRootDStatusMethods[] = {
         {"IsError", (PyCFunction) IsError, METH_NOARGS,
-                 "Return whether this status has an error"},
+         "Return whether this status has an error"},
         {"IsFatal", (PyCFunction) IsFatal, METH_NOARGS,
-                 "Return whether this status has a fatal error"},
+         "Return whether this status has a fatal error"},
         {"IsOK", (PyCFunction) IsOK, METH_NOARGS,
-                 "Return whether this status completed successfully"},
+         "Return whether this status completed successfully"},
         {"GetErrorMessage", (PyCFunction) GetErrorMessage, METH_NOARGS,
          "Return the error message"},
         {"GetShellCode", (PyCFunction) GetShellCode, METH_NOARGS,
-                 "Return the status code that may be returned to the shell"},
+         "Return the status code that may be returned to the shell"},
         {NULL}  /* Sentinel */
     };
 
+    //--------------------------------------------------------------------------
+    //! XRootDStatus binding tyoe object
+    //--------------------------------------------------------------------------
     static PyTypeObject XRootDStatusType = {
         PyObject_HEAD_INIT(NULL)
         0,                                          /* ob_size */
