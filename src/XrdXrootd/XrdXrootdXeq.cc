@@ -2505,6 +2505,54 @@ int XrdXrootdProtocol::do_WriteNone()
 }
   
 /******************************************************************************/
+/*                          d o _ W r i t e S p a n                           */
+/******************************************************************************/
+  
+int XrdXrootdProtocol::do_WriteSpan()
+{
+   int rc;
+   XrdXrootdFHandle fh(Request.write.fhandle);
+   numWrites++;
+
+// Unmarshall the data
+//
+   myIOLen  = Request.header.dlen;
+              n2hll(Request.write.offset, myOffset);
+
+// Find the file object
+//                                                                             .
+   if (!FTab || !(myFile = FTab->Get(fh.handle)))
+      {if (argp && !Request.write.pathid)
+          {myIOLen -= myBlast; return do_WriteNone();}
+       Response.Send(kXR_FileNotOpen,"write does not refer to an open file");
+       return Link->setEtext("write protcol violation");
+      }
+
+// If we are monitoring, insert a write entry
+//
+   if (Monitor.InOut())
+      Monitor.Agent->Add_wr(myFile->Stats.FileID, Request.write.dlen,
+                                                  Request.write.offset);
+
+// Trace this entry
+//
+   TRACEP(FS, "fh=" <<fh.handle <<" write " <<myIOLen <<'@' <<myOffset);
+
+// Write data that was already read
+//
+   if ((rc = myFile->XrdSfsp->write(myOffset, myBuff, myBlast)) < 0)
+      {myIOLen  = myIOLen-myBlast; myEInfo[0] = rc;
+       return do_WriteNone();
+      }
+    myOffset += myBlast; myIOLen -= myBlast;
+
+// See if we need to finish this request in the normal way
+//
+   if (myIOLen > 0) return do_WriteAll();
+   return Response.Send();
+}
+  
+/******************************************************************************/
 /*                       U t i l i t y   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/

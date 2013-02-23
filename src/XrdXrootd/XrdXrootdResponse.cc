@@ -134,7 +134,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
     TRACES(RSP,"sending " <<(sizeof(xbuf)+dlen) <<" data bytes; status=" <<rcode);
 
     if (Bridge)
-       {if (Bridge->Send(rcode, &RespIO[1], 1, dlen) >= 0) return 0;
+       {if (Bridge->Send(rcode, &RespIO[1], 2, dlen) >= 0) return 0;
         return Link->setEtext("send failure");
        }
 

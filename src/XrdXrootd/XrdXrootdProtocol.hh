@@ -93,6 +93,8 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        void          DoIt() {(*this.*Resume)();}
 
+       int           do_WriteSpan();
+
        XrdProtocol  *Match(XrdLink *lp);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process

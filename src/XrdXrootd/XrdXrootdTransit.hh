@@ -103,9 +103,9 @@ const char   *ReqTable();
 //! Inject an xrootd request into the protocol stack.
 //-----------------------------------------------------------------------------
 
-bool          Run(char *xreqP,       //!< xrootd request header
-                  char *xdataP=0,    //!< xrootd request data (optional)
-                  int   xdataL=0     //!< xrootd request data length
+bool          Run(const char *xreqP,       //!< xrootd request header
+                        char *xdataP=0,    //!< xrootd request data (optional)
+                        int   xdataL=0     //!< xrootd request data length
                  );
 
 //-----------------------------------------------------------------------------
@@ -124,7 +124,8 @@ bool          Run(char *xreqP,       //!< xrootd request header
 //! Set maximum wait time.
 //-----------------------------------------------------------------------------
 
-        void  SetWait(int wtime) {runWMax = wtime;}
+        void  SetWait(int wtime, bool notify=false)
+                     {runWMax = wtime; runWCall = notify;}
 
 //-----------------------------------------------------------------------------
 //! Constructor & Destructor
@@ -140,6 +141,7 @@ void  Init(Result     *rsltP, XrdLink    *linkP, XrdSecEntity *seceP,
            const char *nameP, const char *protP
           );
 bool  ReqWrite(char *xdataP, int xdataL);
+bool  RunCopy(char *buffP, int buffL);
 int   Wait(XrdXrootd::Bridge::Context &rInfo,
            const struct iovec *ioV, int ioN, int ioL);
 
@@ -164,11 +166,19 @@ static const char           *reqTab;
 XrdProtocol                 *realProt;
 XrdXrootd::Bridge::Result   *respObj;
 const char                  *runEText;
+char                        *runArgs;
+int                          runALen;
+int                          runABsz;
 int                          runError;
 int                          runStatus;
 int                          runWait;
 int                          runWTot;
 int                          runWMax;
+bool                         runDone;
+bool                         reInvoke;
+bool                         runWCall;
+int                          wBLen;
+char                        *wBuff;
 const char                  *pName;
 time_t                       cTime;
 };
