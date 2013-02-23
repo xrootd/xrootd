@@ -235,11 +235,19 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
 
 // Set standard stuff
 //
+   runArgs   = 0;
+   runALen   = 0;
+   runABsz   = 0;
    runError  = 0;
    runStatus = 0;
    runWait   = 0;
    runWTot   = 0;
    runWMax   = 3600;
+   runWCall  = false;
+   runDone   = false;
+   reInvoke  = false;
+   wBuff     = 0;
+   wBLen     = 0;
    respObj   = respP;
    pName     = protP;
 
@@ -319,26 +327,40 @@ int XrdXrootdTransit::Process(XrdLink *lp)
 //
    if (isActive)
       {rc = XrdXrootdProtocol::Process(lp);
-       if (rc < 0 || !runWait) return rc;
-       Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
-       return -EINPROGRESS;
+       if (rc < 0) return rc;
+       if (runWait)
+          {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+           return -EINPROGRESS;
+          }
+       if (!runDone) return rc;
+       AtomicBeg(runMutex);
+       AtomicFAZ(runStatus);
+       AtomicEnd(runMutex);
+       if (!reInvoke) return 1;
       }
 
-// Reflect data is present to the underlying protocol
+// Reflect data is present to the underlying protocol and if Run() has been
+// called we need to dispatch that request. This may be iterative.
 //
-   rc = realProt->Process(lp);
-
-// If there has been a call to Request() then process as needed
-//
+do{rc = realProt->Process((reInvoke ? 0 : lp));
    if (rc >= 0 && runStatus)
-      {if (runError) rc = Fatal(rc);
-          else {rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
-                if (rc >= 0 && runWait)
-                   {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
-                    return -EINPROGRESS;
+      {reInvoke = (rc == 0);
+       if (runError) rc = Fatal(rc);
+          else {runDone = false;
+                rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
+                if (rc >= 0)
+                   {if (runWait)
+                       {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+                        return -EINPROGRESS;
+                       }
+                    if (!runDone) return rc;
+                    AtomicBeg(runMutex);
+                    AtomicFAZ(runStatus);
+                    AtomicEnd(runMutex);
                    }
                }
-      }
+      } else reInvoke = false;
+   } while(rc >= 0 && reInvoke);
 
 // Make sure that we indicate that we are no longer active
 //
@@ -351,22 +373,29 @@ int XrdXrootdTransit::Process(XrdLink *lp)
 
 // All done
 //
-   runWTot = 0;
-   return rc;
+   return (rc ? rc : 1);
 }
 
 /******************************************************************************/
   
 int XrdXrootdTransit::Process()
 {
+   static int  eCode         = htonl(kXR_NoMemory);
+   static char eText[]       = "Insufficent memory to re-issue request";
+   static struct iovec ioV[] = {{&eCode,sizeof(eCode)},{&eText,sizeof(eText)}};
    int rc;
+
+// Update wait statistics
+//
+   runWTot += runWait;
+   runWait = 0;
 
 // While we are running asynchronously, there is no way that this object can
 // be deleted while a timer is outstanding as the link has been disabled. So,
 // we can reissue the request with little worry.
 //
-   runWait = 0;
-   rc = Process2();
+   if (!runALen || RunCopy(runArgs, runALen)) rc = Process2();
+      else rc = Send(kXR_error, ioV, 2, 0);
 
 // Defer the request if need be
 //
@@ -374,6 +403,7 @@ int XrdXrootdTransit::Process()
       {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
        return 0;
       }
+   runWTot = 0;
 
 // Indicate we are no longer active
 //
@@ -391,7 +421,6 @@ int XrdXrootdTransit::Process()
 
 // All done
 //
-   runWTot = 0;
    return 0;
 }
 
@@ -421,6 +450,10 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 // Now we need to recycle our xrootd part
 //
    XrdXrootdProtocol::Recycle(lp, consec, reason);
+
+// Release the argument buffer
+//
+   if (runArgs) {free(runArgs); runArgs = 0;}
 
 // Now just free up our object.
 //
@@ -467,14 +500,41 @@ const char *XrdXrootdTransit::ReqTable()
 }
 
 /******************************************************************************/
+/* Private:                     R e q W r i t e                               */
+/******************************************************************************/
+  
+bool XrdXrootdTransit::ReqWrite(char *xdataP, int xdataL)
+{
+
+// Make sure we always transit to the resume point
+//
+   myBlen = 0;
+
+// If nothing was read, then this is a straight-up write
+//
+   if (!xdataL || !xdataP || !Request.header.dlen)
+      {Resume = 0; wBuff = xdataP; wBLen = xdataL;
+       return true;
+      }
+
+// Partial data was read, we may have to split this between a direct write
+// and a network read/write -- somewhat complicated.
+//
+   myBuff  = wBuff = xdataP;
+   myBlast = wBLen = xdataL;
+   Resume = &XrdXrootdProtocol::do_WriteSpan;
+   return true;
+}
+
+/******************************************************************************/
 /*                                   R u n                                    */
 /******************************************************************************/
   
-bool XrdXrootdTransit::Run(char *xreqP, char *xdataP, int xdataL)
+bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
 {
    int movLen, rc;
 
-// We do not allow re-entry if the we are curently processing a request.
+// We do not allow re-entry if we are curently processing a request.
 // It will be reset, as need, when a response is effected.
 //
    AtomicBeg(runMutex);
@@ -502,43 +562,61 @@ bool XrdXrootdTransit::Run(char *xreqP, char *xdataP, int xdataL)
 // Copy the stream id and trace this request
 //
    Response.Set(Request.header.streamid);
-   TRACEP(REQ, "req=" <<Request.header.requestid <<" dlen=" <<Request.header.dlen);
+   TRACEP(REQ, "Bridge req=" <<Request.header.requestid
+                             <<" dlen=" <<Request.header.dlen);
 
 // If this is a write request, we will need to do a lot more
 //
    if (Request.header.requestid == kXR_write) return ReqWrite(xdataP, xdataL);
 
-// Obtain any needed buffer and handle any existing data arguments
+// Obtain any needed buffer and handle any existing data arguments. Also, we
+// need to keep a shadow copy of the request arguments should we get a wait
+// and will need to re-issue the request (the server mangles the args).
 //
    if (Request.header.dlen)
       {movLen = (xdataL < Request.header.dlen ? xdataL : Request.header.dlen);
-       if (!argp || Request.header.dlen+1 > argp->bsize)
-          {if (argp) BPool->Release(argp);
-           if (!(argp = BPool->Obtain(Request.header.dlen+1)))
-              return Fail(kXR_ArgTooLong, "Request argument too long");
-           hcNow = hcPrev; halfBSize = argp->bsize >> 1;
+       if (!RunCopy(xdataP, movLen)) return true;
+       if (!runArgs || movLen > runABsz)
+          {if (runArgs) free(runArgs);
+           if (!(runArgs = (char *)malloc(movLen)))
+              return Fail(kXR_NoMemory, "Insufficient memory");
+           runABsz = movLen;
           }
-       memcpy(argp->buff, xdataP, movLen);
+       memcpy(runArgs, xdataP, movLen); runALen = movLen;
        if ((myBlen = Request.header.dlen - movLen))
           {myBuff = argp->buff + movLen;
            Resume = &XrdXrootdProtocol::Process2;
            return true;
           }
-      }
+      } else runALen = 0;
 
 // If we have all the data, indicate request accepted.
 //
-   Resume = 0;
+   runError = 0;
+   Resume   = 0;
    return true;
 }
 
 /******************************************************************************/
-/* Private:                     R e q W r i t e                               */
+/* Privae:                       R u n C o p y                                */
 /******************************************************************************/
   
-bool XrdXrootdTransit::ReqWrite(char *xdataP, int xdataL)
+bool XrdXrootdTransit::RunCopy(char *buffP, int buffL)
 {
-   return Fail(kXR_Unsupported, "Unsupported bridge request");
+
+// Allocate a buffer if we do not have one or it is too small
+//
+   if (!argp || Request.header.dlen+1 > argp->bsize)
+      {if (argp) BPool->Release(argp);
+       if (!(argp = BPool->Obtain(Request.header.dlen+1)))
+          {Fail(kXR_ArgTooLong, "Request argument too long"); return false;}
+       hcNow = hcPrev; halfBSize = argp->bsize >> 1;
+      }
+
+// Copy the arguments to the buffer
+//
+   memcpy(argp->buff, buffP, buffL);
+   return true;
 }
 
 /******************************************************************************/
@@ -553,29 +631,35 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
    int         rc;
    short       sID;
 
-// Invoke the result object
+// Invoke the result object (we initially assume this is the final result)
 //
+   runDone = true;
    switch(rcode)
          {case kXR_error:
                    rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
                    eMsg = (ioN < 2 ? "" : (const char *)ioV[1].iov_base);
+                   if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
                    rc = respObj->Error(rInfo, rc, eMsg);
                    break;
           case kXR_ok:
+                   if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
                    rc = (ioN ? respObj->Data(rInfo, ioV, ioN, ioL, true)
                              : respObj->Done(rInfo));
                    break;
           case kXR_oksofar:
                    rc = respObj->Data(rInfo, ioV, ioN, ioL, false);
+                   runDone = false;
                    break;
           case kXR_redirect:
+                   if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
                    rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
                    rc = respObj->Redir(rInfo,rc,(const char *)ioV[1].iov_base);
                    break;
           case kXR_wait:
                    return Wait(rInfo, ioV, ioN, ioL);
                    break;
-          default: rc = respObj->Error(rInfo, kXR_ServerError,
+          default: if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
+                   rc = respObj->Error(rInfo, kXR_ServerError,
                                        "internal logic error");
                    break;
          };
@@ -593,8 +677,9 @@ int XrdXrootdTransit::Send(long long offset, int dlen, int fdnum)
                                         Request.header.requestid,
                                         offset, dlen, fdnum);
 
-// Effect callback
+// Effect callback (this always a final result)
 //
+   runDone = true;
    return (respObj->File(sfInfo, dlen) ? 0 : -1);
 }
 
@@ -612,22 +697,32 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
    runWait = ntohl(*(static_cast<unsigned int *>(ioV[0].iov_base)));
    eMsg = (ioN < 2 ? "reason unknown" : (const char *)ioV[1].iov_base);
 
-// Check if the protocol wants the callback
+// Check if the protocol wants to handle all waits
 //
    if (runWMax <= 0)
       {int wtime = runWait;
        runWait = 0;
-       return respObj->Wait(rInfo, wtime, eMsg);
+       return (respObj->Wait(rInfo, wtime, eMsg) ? 0 : -1);
       }
 
 // Check if we have exceeded the maximum wait time
 //
    if (runWTot >= runWMax)
-      return respObj->Error(rInfo, kXR_Cancelled, eMsg);
+      {runDone = true;
+       runWait = 0;
+       return (respObj->Error(rInfo, kXR_Cancelled, eMsg) ? 0 : -1);
+      }
+
+// Readjust wait time
+//
+   if (runWait > runWMax) runWait = runWMax;
+
+// Check if the protocol wants a wait notification
+//
+   if (runWCall && !(respObj->Wait(rInfo, runWait, eMsg))) return -1;
 
 // All done, the process driver will effect the wait
 //
-   TRACEP(REQ, "Delaying request " <<runWait <<" sec (" <<eMsg <<")");
-   runWTot += runWait;
+   TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
    return 0;
 }

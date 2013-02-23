@@ -125,9 +125,9 @@ Bridge       *Login(Result       *rsltP, //!< The result callback object
 //!
 //! @param  xdataP  the associated data for this request. Full or partial data
 //!                 may be supplied as indicated by the xdataL argument. See
-//!                 explanation of xdataL. While the method may modify the
-//!                 buffer, the caller must not do so until *after* a call is
-//!                 made via the Result object for this request.
+//!                 explanation of xdataL. For write requests, this buffer may
+//!                 not be altered or deleted until the Result Free() callback
+//!                 is invoked. For other requests, it doesn't matter.
 //!
 //!                 If the pointer is zero but the "dlen" field is not zero,
 //!                 dlen's worth of data is read from the network using the
@@ -149,9 +149,9 @@ Bridge       *Login(Result       *rsltP, //!< The result callback object
 //!                 processing a previous request.
 //-----------------------------------------------------------------------------
 
-virtual bool  Run(char *xreqP,       //!< xrootd request header
-                  char *xdataP=0,    //!< xrootd request data (optional)
-                  int   xdataL=0     //!< xrootd request data length
+virtual bool  Run(const char *xreqP,       //!< xrootd request header
+                        char *xdataP=0,    //!< xrootd request data (optional)
+                        int   xdataL=0     //!< xrootd request data length
                  ) = 0;
 
 //-----------------------------------------------------------------------------
@@ -178,14 +178,19 @@ virtual bool  Disc() = 0;
 //! request may be delayed (i.e. via kXR_wait result) before it generates a
 //! kXR_Cancelled error with the associated Error() result callback. The default
 //! maximum time is 1 hour. If you specify a time less than or equal to zero,
-//! wait requests are reflected back via the Wait() result callback method.
+//! wait requests are reflected back via the Wait() result callback method and
+//! you are responsible for handling them. You can request wait notification
+//! while still having the wait internally handled using the second parameter.
 //! Maximum delays are bridge specific. There is no global value. If you desire
 //! something other than the default you must call SetWait for each Login().
 //!
 //! @param  wtime   the maximum wait time in seconds.
+//! @param  notify  When true, issues a Wait callback whenever a wait occurs.
+//!                 This is the default when wtime is <= 0.
+//!
 //-----------------------------------------------------------------------------
 
-virtual void  SetWait(int wime) = 0;
+virtual void  SetWait(int wime, bool notify=false) = 0;
 
 /******************************************************************************/
 /*            X r d X r o o t d : : B r i d g e : : C o n t e x t             */
@@ -290,7 +295,8 @@ public:
 //!                 This is simply the sum of all the lengths in the iovec.
 //! @param  final   True is this is the final result. Otherwise, this is a
 //!                 partial result (i.e. kXR_oksofar) and more data will result
-//!                 causing additional callbacks.
+//!                 causing additional callbacks. For write requests, any
+//!                 supplied data buffer may now be reused or freed.
 //!
 //! @return true    continue normal processing.
 //!         false   terminate the bridge and close the link.
@@ -356,6 +362,25 @@ virtual bool  Error(Bridge::Context &info,   //!< the result context
 virtual int   File(Bridge::Context &info,  //!< the result context
                    int              dlen   //!< byte  count
                   ) = 0;
+
+//-----------------------------------------------------------------------------
+//! Notify callback that a write buffer is now available for reuse.
+//!
+//! The Free() method is called when Run() was called to write data and a buffer
+//! was supplied. Normally, he buffer is pinned and cannot be reused until the
+//! write completes. This callback provides the notification that the buffer is
+//! no longer in use. The callback is invoked prior to any other callbacks and
+//! is only invoked if a buffer was supplied.
+//!
+//! @param  info    the context associated with this call.
+//! @param  buffP   pointer to the buffer.
+//! @param  buffL   the length originally supplied in the Run() call.
+//-----------------------------------------------------------------------------
+
+virtual void  Free(Bridge::Context &info,  //!< the result context
+                   char            *buffP, //!< pointer to the buffer
+                   int              buffL  //!< original length to Run()
+                  ) {}                     //!< The default is to do nothing
 
 //-----------------------------------------------------------------------------
 //! Redirect the client to another host:port.
