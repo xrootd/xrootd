@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 #include "XRootDStatusType.hh"
+#include "StatInfoType.hh"
 #include "URLType.hh"
 
 namespace XrdClBind
@@ -87,11 +88,9 @@ namespace XrdClBind
 
         XrdCl::FileSystem fs(*self->url->url);
         XrdCl::XRootDStatus status;
-        XrdCl::StatInfo *statinfo = 0;
+        XrdCl::StatInfo *response = 0;
 
-        status = fs.Stat(path, statinfo, 5);
-
-        //std::cout << "modtime: " << statinfo->GetModTime() << std::endl;
+        status = fs.Stat(path, response, 5);
 
         // Build XRootDStatus mapping object
         PyObject *status_args = Py_BuildValue("(HHIs)", status.status,
@@ -107,21 +106,32 @@ namespace XrdClBind
         }
         Py_DECREF(status_args);
 
-        // Build StatInfo mapping object
-//        PyObject* statinfo_args = Py_BuildValue("(iii)", status.status, status.code,
-//                        status.errNo);
-//        if (!statinfo_args) {
-//            return NULL;
-//        }
-//
-//        PyObject* statinfo_bind = PyObject_CallObject((PyObject *)
-//                &XRootDStatusType, statinfo_args);
-//        if (!statinfo_bind) {
-//            return NULL;
-//        }
-//        Py_DECREF(statinfo_args);
+        // Build StatInfo mapping object (if we got one)
+        PyObject* response_bind;
+        if (response) {
 
-        return Py_BuildValue("O", status_bind);
+            // Ugly, StatInfo should have constructor for this
+            std::ostringstream data;
+            data << response->GetId() << " ";
+            data << response->GetSize() << " ";
+            data << response->GetFlags() << " ";
+            data << response->GetModTime();
+
+            PyObject* response_args = Py_BuildValue("(s)", data.str().c_str());
+            if (!response_args) {
+                return NULL;
+            }
+
+            response_bind = PyObject_CallObject((PyObject *) &StatInfoType,
+                    response_args);
+            if (!response_bind) {
+                return NULL;
+            }
+
+            Py_DECREF(response_args);
+        }
+
+        return Py_BuildValue("OO", status_bind, response_bind);
     }
 
     //--------------------------------------------------------------------------

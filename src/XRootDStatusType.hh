@@ -144,7 +144,7 @@ namespace XrdClBind
     };
 
     //--------------------------------------------------------------------------
-    //! XRootDStatus binding tyoe object
+    //! XRootDStatus binding type object
     //--------------------------------------------------------------------------
     static PyTypeObject XRootDStatusType = {
         PyObject_HEAD_INIT(NULL)

@@ -23,12 +23,17 @@
 
 namespace XrdClBind
 {
+    //--------------------------------------------------------------------------
+    //! Visible module method declarations
+    //--------------------------------------------------------------------------
     static PyMethodDef module_methods[] = {
         {NULL}  /* Sentinel */
     };
 
-    PyMODINIT_FUNC
-    initclient(void)
+    //--------------------------------------------------------------------------
+    //! Module initialization function
+    //--------------------------------------------------------------------------
+    PyMODINIT_FUNC initclient(void)
     {
         PyObject* module;
 
@@ -40,6 +45,10 @@ namespace XrdClBind
         if (PyType_Ready(&XRootDStatusType) < 0)
             return;
 
+        StatInfoType.tp_new = PyType_GenericNew;
+        if (PyType_Ready(&StatInfoType) < 0)
+            return;
+
         URLType.tp_new = PyType_GenericNew;
         if (PyType_Ready(&URLType) < 0)
             return;
@@ -49,6 +58,8 @@ namespace XrdClBind
 
         Py_INCREF(&URLType);
         PyModule_AddObject(module, "URL", (PyObject *) &URLType);
+        Py_INCREF(&StatInfoType);
+        PyModule_AddObject(module, "StatInfo", (PyObject *) &StatInfoType);
         Py_INCREF(&XRootDStatusType);
         PyModule_AddObject(module, "XRootDStatus", (PyObject *) &XRootDStatusType);
         Py_INCREF(&ClientType);
