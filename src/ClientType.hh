@@ -29,6 +29,7 @@
 #include "XRootDStatusType.hh"
 #include "StatInfoType.hh"
 #include "URLType.hh"
+#include "AsyncResponseHandler.hh"
 
 namespace XrdClBind
 {
@@ -82,11 +83,25 @@ namespace XrdClBind
     static PyObject* Stat(Client *self, PyObject *args)
     {
         const char *path;
+        PyObject *callback = NULL;
 
-        if (!PyArg_ParseTuple(args, "s", &path))
+        if (!PyArg_ParseTuple(args, "s|O", &path, &callback))
             return NULL;
 
         XrdCl::FileSystem fs(*self->url->url);
+
+        if (callback) {
+            PyObject_Print(callback, stdout, 0); std::cout << std::endl;
+            if (!PyCallable_Check(callback)) {
+                PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+                return NULL;
+            }
+
+            Py_XINCREF(callback);
+            fs.Stat(path, new AsyncResponseHandler(callback), 5);
+            Py_RETURN_NONE;
+        }
+
         XrdCl::XRootDStatus status;
         XrdCl::StatInfo *response = 0;
 
