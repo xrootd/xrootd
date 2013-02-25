@@ -37,6 +37,11 @@ namespace XrdClBind
     {
         PyObject* module;
 
+        Py_Initialize();
+        if (!PyEval_ThreadsInitialized()) {
+            PyEval_InitThreads();
+        }
+
         ClientType.tp_new = PyType_GenericNew;
         if (PyType_Ready(&ClientType) < 0)
             return;

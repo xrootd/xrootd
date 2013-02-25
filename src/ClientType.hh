@@ -88,65 +88,73 @@ namespace XrdClBind
         if (!PyArg_ParseTuple(args, "s|O", &path, &callback))
             return NULL;
 
+        XrdCl::ResponseHandler *handler;
         XrdCl::FileSystem fs(*self->url->url);
+        XrdCl::StatInfo *response = 0;
 
         if (callback) {
-            PyObject_Print(callback, stdout, 0); std::cout << std::endl;
             if (!PyCallable_Check(callback)) {
                 PyErr_SetString(PyExc_TypeError, "parameter must be callable");
                 return NULL;
             }
+            Py_INCREF(callback);
 
-            Py_XINCREF(callback);
-            fs.Stat(path, new AsyncResponseHandler(callback), 5);
+            handler = new AsyncResponseHandler<XrdCl::StatInfo>(
+                    response, &StatInfoType, callback);
+
+            Py_BEGIN_ALLOW_THREADS
+            fs.Stat(path, handler, 5);
+            Py_END_ALLOW_THREADS
+
             Py_RETURN_NONE;
         }
 
-        XrdCl::XRootDStatus status;
-        XrdCl::StatInfo *response = 0;
+        Py_RETURN_NONE;
 
-        status = fs.Stat(path, response, 5);
-
-        // Build XRootDStatus mapping object
-        PyObject *status_args = Py_BuildValue("(HHIs)", status.status,
-                status.code, status.errNo, status.GetErrorMessage().c_str());
-        if (!status_args) {
-            return NULL;
-        }
-
-        PyObject *status_bind = PyObject_CallObject((PyObject *)
-                &XRootDStatusType, status_args);
-        if (!status_bind) {
-            return NULL;
-        }
-        Py_DECREF(status_args);
-
-        // Build StatInfo mapping object (if we got one)
-        PyObject* response_bind;
-        if (response) {
-
-            // Ugly, StatInfo should have constructor for this
-            std::ostringstream data;
-            data << response->GetId() << " ";
-            data << response->GetSize() << " ";
-            data << response->GetFlags() << " ";
-            data << response->GetModTime();
-
-            PyObject* response_args = Py_BuildValue("(s)", data.str().c_str());
-            if (!response_args) {
-                return NULL;
-            }
-
-            response_bind = PyObject_CallObject((PyObject *) &StatInfoType,
-                    response_args);
-            if (!response_bind) {
-                return NULL;
-            }
-
-            Py_DECREF(response_args);
-        }
-
-        return Py_BuildValue("OO", status_bind, response_bind);
+//        XrdCl::XRootDStatus status;
+//
+//        status = fs.Stat(path, response, 5);
+//
+//        // Build XRootDStatus mapping object
+//        PyObject *status_args = Py_BuildValue("(HHIs)", status.status,
+//                status.code, status.errNo, status.GetErrorMessage().c_str());
+//        if (!status_args) {
+//            return NULL;
+//        }
+//
+//        PyObject *status_bind = PyObject_CallObject((PyObject *)
+//                &XRootDStatusType, status_args);
+//        if (!status_bind) {
+//            return NULL;
+//        }
+//        Py_DECREF(status_args);
+//
+//        // Build StatInfo mapping object (if we got one)
+//        PyObject* response_bind;
+//        if (response) {
+//
+//            // Ugly, StatInfo should have constructor for this
+//            std::ostringstream data;
+//            data << response->GetId() << " ";
+//            data << response->GetSize() << " ";
+//            data << response->GetFlags() << " ";
+//            data << response->GetModTime();
+//
+//            PyObject* response_args = Py_BuildValue("(s)", data.str().c_str());
+//            if (!response_args) {
+//                return NULL;
+//            }
+//
+//            response_bind = PyObject_CallObject((PyObject *) &StatInfoType,
+//                    response_args);
+//            if (!response_bind) {
+//                return NULL;
+//            }
+//
+//            Py_DECREF(response_args);
+//        }
+//
+//        return Py_BuildValue("OO", status_bind, response_bind);
     }
 
     //--------------------------------------------------------------------------

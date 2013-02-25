@@ -13,6 +13,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace XrdClBind {
+
     //--------------------------------------------------------------------------
     //! StatInfo binding type definition
     //--------------------------------------------------------------------------
@@ -27,7 +28,6 @@ namespace XrdClBind {
     //--------------------------------------------------------------------------
     static void StatInfo_dealloc(StatInfo *self)
     {
-        delete self->info;
         self->ob_type->tp_free((PyObject*) self);
     }
 
@@ -37,14 +37,19 @@ namespace XrdClBind {
     static int StatInfo_init(StatInfo *self, PyObject *args, PyObject *kwds) {
 
         static char *kwlist[] = {"data", NULL};
-        const char *data;
+        PyObject *data;
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &data))
+        if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &data))
             return -1;
 
+        // Unpack the void * and cast it back to our object
+        self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr(data);
         return 0;
     }
 
+    //--------------------------------------------------------------------------
+    //! Wrapper functions for underlying XrdCl::StatInfo
+    //--------------------------------------------------------------------------
     static PyObject* GetId(StatInfo *self)
     {
         return Py_BuildValue("S", PyString_FromString(
@@ -79,7 +84,7 @@ namespace XrdClBind {
     static PyObject* GetModTimeAsString(StatInfo *self)
     {
         return Py_BuildValue("S", PyString_FromString(
-                self->info->GetModTimeAsString().c_str()));
+              self->info->GetModTimeAsString().c_str()));
     }
 
     //--------------------------------------------------------------------------

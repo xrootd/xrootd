@@ -3,13 +3,13 @@ from XRootD import client
 myclient = client.Client("root://localhost")
 print 'URL:', myclient.url
 
-status = myclient.stat("/foo")
-print status
+def callback(status, response):
+  # todo: add host list as return param
+  print 'Status:', status
+  print 'Modification time:', response.GetModTimeAsString()
 
-print "status:", status.status
-print 'code:', status.code
-print 'errNo:', status.errNo
-print 'message:', status.GetErrorMessage()
-print 'IsError:', status.IsError()
-print 'IsFatal:', status.IsFatal()
-print 'IsOK:', status.IsOK()
+myclient.stat("/tmp", callback)
+
+# Halt script (todo: implement callback class w/semaphore and/or callback 
+# decorator w/generator)
+raw_input()
