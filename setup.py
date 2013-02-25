@@ -24,7 +24,8 @@ setup( name             = 'pyxrootd',
                depends      = ['src/ClientType.hh', 'src/XRootDStatusType.hh',
                                'src/URLType'],
                libraries    = ['XrdCl', 'XrdUtils', 'dl'],
-               extra_compile_args = ['-g'],
+               extra_compile_args = ['-g', '-Wno-deprecated-writable-strings',
+                                     '-Wno-shorten-64-to-32', '-Wno-write-strings'],
                include_dirs = [xrdincdir],
                library_dirs = [xrdlibdir]
                )
