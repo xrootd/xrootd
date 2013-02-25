@@ -38,13 +38,9 @@ namespace XrdClBind
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AsyncResponseHandler(Type *responseObject, PyTypeObject *bindType,
-          PyObject *callback)
-      {
-        this->responseObject = responseObject;
-        this->bindType = bindType;
-        this->callback = callback;
-      }
+      AsyncResponseHandler(PyTypeObject *bindType, PyObject *callback):
+        bindType(bindType),
+        callback(callback) {}
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
@@ -61,19 +57,33 @@ namespace XrdClBind
         // Convert the XRootDStatus object
         //----------------------------------------------------------------------
         PyObject *statusArgs = Py_BuildValue("(HHIs)", status->status,
-            status->code, status->errNo, status->GetErrorMessage().c_str());
-        if (!statusArgs) return;
+                status->code, status->errNo, status->GetErrorMessage().c_str());
+        if (!statusArgs || PyErr_Occurred()) {
+          PyErr_Print(); PyGILState_Release(state);
+          return;
+        }
 
         PyObject *statusBind = PyObject_CallObject(
-            (PyObject *) &XRootDStatusType, statusArgs);
-        if (!statusBind) return;
+                                    (PyObject *) &XRootDStatusType, statusArgs);
         Py_DECREF(statusArgs);
+        if (!statusBind || PyErr_Occurred()) {
+          PyErr_Print(); PyGILState_Release(state);
+          return;
+        }
 
         //----------------------------------------------------------------------
         // Convert the response object, if any
         //----------------------------------------------------------------------
-        PyObject *responseBind = ParseResponse(response);
-        if (!responseBind) return;
+        PyObject *responseBind;
+        if (response != NULL) {
+          responseBind = ParseResponse(response);
+          if (!responseBind || PyErr_Occurred()) {
+            PyErr_Print(); PyGILState_Release(state);
+            return;
+          }
+        } else {
+          responseBind = Py_None;
+        }
 
         //----------------------------------------------------------------------
         // Convert the host list
@@ -81,18 +91,24 @@ namespace XrdClBind
         PyObject *hostListBind = PyList_New(0);
 
         for (unsigned int i = 0; i < hostList->size(); ++i) {
-
             PyObject *hostInfoArgs = Py_BuildValue("(O)",
-                PyCObject_FromVoidPtr((void *) &hostList->at(i), NULL));
-            if (!hostInfoArgs || PyErr_Occurred()) return;
+                        PyCObject_FromVoidPtr((void *) &hostList->at(i), NULL));
+            if (!hostInfoArgs || PyErr_Occurred()) {
+              PyErr_Print(); PyGILState_Release(state);
+              return;
+            }
 
             PyObject *hostInfoBind = PyObject_CallObject(
-                (PyObject *) &HostInfoType, hostInfoArgs);
-            if (!hostInfoBind) return;
+                                     (PyObject *) &HostInfoType, hostInfoArgs);
             Py_DECREF(hostInfoArgs);
+            if (!hostInfoBind || PyErr_Occurred()) {
+              PyErr_Print(); PyGILState_Release(state);
+              return;
+            }
 
             Py_INCREF(hostInfoBind);
             if (PyList_Append(hostListBind, hostInfoBind) != 0) {
+              PyErr_Print(); PyGILState_Release(state);
               return;
             }
         }
@@ -102,28 +118,34 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         PyObject *args = Py_BuildValue("(OOO)", statusBind, responseBind,
             hostListBind);
-        if (!args) return;
+        if (!args || PyErr_Occurred()) {
+          PyErr_Print(); PyGILState_Release(state);
+          return;
+        }
 
         //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------
-        PyObject *result = PyObject_CallObject(this->callback, args);
-        if (!result) return;
+        PyObject *callbackResult = PyObject_CallObject(this->callback, args);
         Py_DECREF(args);
+        if (PyErr_Occurred()) {
+          PyErr_Print(); PyGILState_Release(state);
+          return;
+        }
 
         //----------------------------------------------------------------------
         // Clean up
         //----------------------------------------------------------------------
-        Py_DECREF(statusBind);
-        Py_DECREF(responseBind);
-        Py_DECREF(result);
+        Py_XDECREF(statusBind);
+        Py_XDECREF(responseBind);
+        Py_XDECREF(hostListBind);
+        Py_XDECREF(callbackResult);
         Py_DECREF(this->callback);
-        // Release the GIL
-        PyGILState_Release(state);
 
         delete status;
         delete response;
-        // Commit suicide ...
+        delete hostList;
+        // Commit suicide...
         delete this;
       }
 
@@ -133,7 +155,8 @@ namespace XrdClBind
       PyObject* ParseResponse(XrdCl::AnyObject *response)
       {
         PyObject *responseBind;
-        response->Get(this->responseObject);
+        Type     *type = 0;
+        response->Get(type);
 
         //----------------------------------------------------------------------
         // Build the arguments for creating the response mapping type. We cast
@@ -142,25 +165,20 @@ namespace XrdClBind
         // The CObject API is deprecated as of Python 2.7
         //----------------------------------------------------------------------
         PyObject *responseArgs = Py_BuildValue("(O)",
-            PyCObject_FromVoidPtr((void *) this->responseObject, NULL));
-        if (!responseArgs) {
-          return NULL;
-        }
+                                    PyCObject_FromVoidPtr((void *) type, NULL));
+        if (!responseArgs) return NULL;
 
         //----------------------------------------------------------------------
         // Call the constructor of the bound type.
         //----------------------------------------------------------------------
         responseBind = PyObject_CallObject((PyObject *) this->bindType,
-            responseArgs);
-        if (!responseBind) {
-          return NULL;
-        }
+                                           responseArgs);
 
-        return responseBind;
+        return responseBind ? responseBind : NULL;
       }
 
     private:
-      Type *responseObject;
+
       PyTypeObject *bindType;
       PyObject *callback;
   };
