@@ -78,7 +78,6 @@ public:
     XErrorCode                 fOpenError;	
 
     XrdOucString               fRedirOpaque;        // Opaque info returned by the server when
-    XrdOucString               fRedirCGI;           // Same but persistent
 
     // redirecting. To be used in the next opens
     XrdClientConn();
@@ -447,6 +446,9 @@ private:
 
     XrdClientUrlInfo           *fMetaUrl;           // Meta manager url
     bool                        fLBSIsMeta;         // Is current redirector a meta manager?
+
+public:
+    XrdOucString               fRedirCGI;           // Same as fRedirOpaque but persistent
 
 };
 #endif
