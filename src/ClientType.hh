@@ -93,10 +93,11 @@ namespace XrdClBind
     if (!PyArg_ParseTuple(args, "s|O", &path, &callback))
       return NULL;
 
-    XrdCl::ResponseHandler *handler;
     XrdCl::FileSystem fs(*self->url->url);
-    XrdCl::StatInfo *response = 0;
 
+    //--------------------------------------------------------------------------
+    // Asynchronous mode
+    //--------------------------------------------------------------------------
     if (callback) {
       //------------------------------------------------------------------------
       // Check that the given callback is actually callable.
@@ -108,8 +109,8 @@ namespace XrdClBind
       // We need to keep this callback inside the response handler
       Py_INCREF(callback);
 
-      handler = new AsyncResponseHandler<XrdCl::StatInfo>(response,
-          &StatInfoType, callback);
+      XrdCl::ResponseHandler *handler = new AsyncResponseHandler<XrdCl::StatInfo>
+                                            (&StatInfoType, callback);
 
       //------------------------------------------------------------------------
       // Spin the async request (while releasing the GIL) and return None.
@@ -121,52 +122,48 @@ namespace XrdClBind
       Py_RETURN_NONE;
     }
 
-    Py_RETURN_NONE;
+    //--------------------------------------------------------------------------
+    // Synchronous mode
+    //--------------------------------------------------------------------------
+    XrdCl::XRootDStatus status;
+    XrdCl::StatInfo *response = 0;
+    status = fs.Stat(path, response, 5);
 
-//        XrdCl::XRootDStatus status;
-//
-//        status = fs.Stat(path, response, 5);
-//
-//        // Build XRootDStatus mapping object
-//        PyObject *status_args = Py_BuildValue("(HHIs)", status.status,
-//                status.code, status.errNo, status.GetErrorMessage().c_str());
-//        if (!status_args) {
-//            return NULL;
-//        }
-//
-//        PyObject *status_bind = PyObject_CallObject((PyObject *)
-//                &XRootDStatusType, status_args);
-//        if (!status_bind) {
-//            return NULL;
-//        }
-//        Py_DECREF(status_args);
-//
-//        // Build StatInfo mapping object (if we got one)
-//        PyObject* response_bind;
-//        if (response) {
-//
-//            // Ugly, StatInfo should have constructor for this
-//            std::ostringstream data;
-//            data << response->GetId() << " ";
-//            data << response->GetSize() << " ";
-//            data << response->GetFlags() << " ";
-//            data << response->GetModTime();
-//
-//            PyObject* response_args = Py_BuildValue("(s)", data.str().c_str());
-//            if (!response_args) {
-//                return NULL;
-//            }
-//
-//            response_bind = PyObject_CallObject((PyObject *) &StatInfoType,
-//                    response_args);
-//            if (!response_bind) {
-//                return NULL;
-//            }
-//
-//            Py_DECREF(response_args);
-//        }
-//
-//        return Py_BuildValue("OO", status_bind, response_bind);
+    //--------------------------------------------------------------------------
+    // Convert the XRootDStatus object
+    //--------------------------------------------------------------------------
+    PyObject *statusArgs = Py_BuildValue("(HHIs)", status.status,
+            status.code, status.errNo, status.GetErrorMessage().c_str());
+    if (!statusArgs) return NULL;
+
+    PyObject *statusBind = PyObject_CallObject(
+                                (PyObject *) &XRootDStatusType, statusArgs);
+    if (!statusBind) return NULL;
+    Py_DECREF(statusArgs);
+
+    //--------------------------------------------------------------------------
+    // Convert the response object, if any
+    //--------------------------------------------------------------------------
+    PyObject *responseBind;
+    if (response) {
+
+      //------------------------------------------------------------------------
+      // The CObject API is deprecated as of Python 2.7
+      //------------------------------------------------------------------------
+      PyObject *responseArgs = Py_BuildValue("(O)",
+                               PyCObject_FromVoidPtr((void *) response, NULL));
+      if (!responseArgs) return NULL;
+
+      //------------------------------------------------------------------------
+      // Call the constructor of the bound type.
+      //------------------------------------------------------------------------
+      responseBind = PyObject_CallObject((PyObject *) &StatInfoType,
+                                         responseArgs);
+    } else {
+      responseBind = Py_None;
+    }
+
+    return Py_BuildValue("OO", statusBind, responseBind);
   }
 
   //----------------------------------------------------------------------------
