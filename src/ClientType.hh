@@ -33,83 +33,95 @@
 
 namespace XrdClBind
 {
-    //--------------------------------------------------------------------------
-    //! Client binding type definition
-    //--------------------------------------------------------------------------
-    typedef struct {
-        PyObject_HEAD
-        /* Type-specific fields */
-        URL *url;
-    } Client;
+  //----------------------------------------------------------------------------
+  //! Client binding type definition
+  //----------------------------------------------------------------------------
+  typedef struct
+  {
+      PyObject_HEAD
+      /* Type-specific fields */
+      URL *url;
+  } Client;
+
+  //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void Client_dealloc(Client *self)
+  {
+    Py_XDECREF(self->url);
+    self->ob_type->tp_free((PyObject*) self);
+  }
+
+  //----------------------------------------------------------------------------
+  //! __init__() equivalent
+  //----------------------------------------------------------------------------
+  static int Client_init(Client *self, PyObject *args, PyObject *kwds)
+  {
+    const char *urlstr;
+    static char *kwlist[] = { "url", NULL };
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &urlstr))
+      return -1;
+
+    PyObject *bind_args = Py_BuildValue("(s)", urlstr);
+    if (!bind_args) return NULL;
 
     //--------------------------------------------------------------------------
-    //! Deallocation function, called when object is deleted
+    // Create ourselves a binding object for the URL
     //--------------------------------------------------------------------------
-    static void Client_dealloc(Client *self)
-    {
-        Py_XDECREF(self->url);
-        self->ob_type->tp_free((PyObject*) self);
+    self->url = (URL*) PyObject_CallObject((PyObject*) &URLType, bind_args);
+    Py_DECREF(bind_args);
+    if (!self->url) return NULL;
+
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Stat a path.
+  //!
+  //! This function can be synchronous or asynchronous, depending if a callback
+  //! argument is given. The callback can be any Python callable.
+  //----------------------------------------------------------------------------
+  static PyObject* Stat(Client *self, PyObject *args)
+  {
+    const char *path;
+    PyObject *callback = NULL;
+
+    //--------------------------------------------------------------------------
+    // Parse the stat path and optional callback argument
+    //--------------------------------------------------------------------------
+    if (!PyArg_ParseTuple(args, "s|O", &path, &callback))
+      return NULL;
+
+    XrdCl::ResponseHandler *handler;
+    XrdCl::FileSystem fs(*self->url->url);
+    XrdCl::StatInfo *response = 0;
+
+    if (callback) {
+      //------------------------------------------------------------------------
+      // Check that the given callback is actually callable.
+      //------------------------------------------------------------------------
+      if (!PyCallable_Check(callback)) {
+        PyErr_SetString(PyExc_TypeError, "parameter must be callable");
+        return NULL;
+      }
+      // We need to keep this callback inside the response handler
+      Py_INCREF(callback);
+
+      handler = new AsyncResponseHandler<XrdCl::StatInfo>(response,
+          &StatInfoType, callback);
+
+      //------------------------------------------------------------------------
+      // Spin the async request (while releasing the GIL) and return None.
+      //------------------------------------------------------------------------
+      Py_BEGIN_ALLOW_THREADS
+      fs.Stat(path, handler, 5);
+      Py_END_ALLOW_THREADS
+
+      Py_RETURN_NONE;
     }
 
-    //--------------------------------------------------------------------------
-    //! __init__() equivalent
-    //--------------------------------------------------------------------------
-    static int Client_init(Client *self, PyObject *args, PyObject *kwds)
-    {
-        const char *urlstr;
-        static char *kwlist[] = {"url", NULL};
-
-        if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &urlstr))
-            return -1;
-
-        PyObject *bind_args = Py_BuildValue("(s)", urlstr);
-        if (!bind_args) {
-            return NULL;
-        }
-
-        self->url = (URL*) PyObject_CallObject((PyObject*) &URLType, bind_args);
-        Py_DECREF(bind_args);
-
-        if (!self->url) {
-            return NULL;
-        }
-
-        return 0;
-    }
-
-    //--------------------------------------------------------------------------
-    //! Stat a path and return the XRootDStatus and StatInfo mapping types
-    //--------------------------------------------------------------------------
-    static PyObject* Stat(Client *self, PyObject *args)
-    {
-        const char *path;
-        PyObject *callback = NULL;
-
-        if (!PyArg_ParseTuple(args, "s|O", &path, &callback))
-            return NULL;
-
-        XrdCl::ResponseHandler *handler;
-        XrdCl::FileSystem fs(*self->url->url);
-        XrdCl::StatInfo *response = 0;
-
-        if (callback) {
-            if (!PyCallable_Check(callback)) {
-                PyErr_SetString(PyExc_TypeError, "parameter must be callable");
-                return NULL;
-            }
-            Py_INCREF(callback);
-
-            handler = new AsyncResponseHandler<XrdCl::StatInfo>(
-                    response, &StatInfoType, callback);
-
-            Py_BEGIN_ALLOW_THREADS
-            fs.Stat(path, handler, 5);
-            Py_END_ALLOW_THREADS
-
-            Py_RETURN_NONE;
-        }
-
-        Py_RETURN_NONE;
+    Py_RETURN_NONE;
 
 //        XrdCl::XRootDStatus status;
 //
@@ -155,68 +167,66 @@ namespace XrdClBind
 //        }
 //
 //        return Py_BuildValue("OO", status_bind, response_bind);
-    }
+  }
 
-    //--------------------------------------------------------------------------
-    //! Visible member definitions
-    //--------------------------------------------------------------------------
-    static PyMemberDef ClientMembers[] = {
-        {"url", T_OBJECT_EX, offsetof(Client, url), 0,
-         "Server URL"},
-        {NULL}  /* Sentinel */
+  //----------------------------------------------------------------------------
+  //! Visible member definitions
+  //----------------------------------------------------------------------------
+  static PyMemberDef ClientMembers[] =
+    {
+      { "url", T_OBJECT_EX, offsetof(Client, url), 0, "Server URL" },
+      { NULL } /* Sentinel */
     };
 
-    //--------------------------------------------------------------------------
-    //! Visible method definitions
-    //--------------------------------------------------------------------------
-    static PyMethodDef ClientMethods[] = {
-        {"stat", (PyCFunction) Stat, METH_VARARGS,
-         "Stat a path"},
-        {NULL}  /* Sentinel */
+  //----------------------------------------------------------------------------
+  //! Visible method definitions
+  //----------------------------------------------------------------------------
+  static PyMethodDef ClientMethods[] =
+    {
+      { "stat", (PyCFunction) Stat, METH_VARARGS, "Stat a path" },
+      { NULL } /* Sentinel */
     };
 
-    //--------------------------------------------------------------------------
-    //! Client binding type object
-    //--------------------------------------------------------------------------
-    static PyTypeObject ClientType = {
-        PyObject_HEAD_INIT(NULL)
-        0,                                          /* ob_size */
-        "client.Client",                            /* tp_name */
-        sizeof(Client),                             /* tp_basicsize */
-        0,                                          /* tp_itemsize */
-        (destructor) Client_dealloc,                /* tp_dealloc */
-        0,                                          /* tp_print */
-        0,                                          /* tp_getattr */
-        0,                                          /* tp_setattr */
-        0,                                          /* tp_compare */
-        0,                                          /* tp_repr */
-        0,                                          /* tp_as_number */
-        0,                                          /* tp_as_sequence */
-        0,                                          /* tp_as_mapping */
-        0,                                          /* tp_hash */
-        0,                                          /* tp_call */
-        0,                                          /* tp_str */
-        0,                                          /* tp_getattro */
-        0,                                          /* tp_setattro */
-        0,                                          /* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-        "Client object",                            /* tp_doc */
-        0,                                          /* tp_traverse */
-        0,                                          /* tp_clear */
-        0,                                          /* tp_richcompare */
-        0,                                          /* tp_weaklistoffset */
-        0,                                          /* tp_iter */
-        0,                                          /* tp_iternext */
-        ClientMethods,                              /* tp_methods */
-        ClientMembers,                              /* tp_members */
-        0,                                          /* tp_getset */
-        0,                                          /* tp_base */
-        0,                                          /* tp_dict */
-        0,                                          /* tp_descr_get */
-        0,                                          /* tp_descr_set */
-        0,                                          /* tp_dictoffset */
-        (initproc) Client_init,                     /* tp_init */
-    };
-}
+  //----------------------------------------------------------------------------
+  //! Client binding type object
+  //----------------------------------------------------------------------------
+  static PyTypeObject ClientType =
+    { PyObject_HEAD_INIT(NULL) 0,               /* ob_size */
+    "client.Client",                            /* tp_name */
+    sizeof(Client),                             /* tp_basicsize */
+    0,                                          /* tp_itemsize */
+    (destructor) Client_dealloc,                /* tp_dealloc */
+    0,                                          /* tp_print */
+    0,                                          /* tp_getattr */
+    0,                                          /* tp_setattr */
+    0,                                          /* tp_compare */
+    0,                                          /* tp_repr */
+    0,                                          /* tp_as_number */
+    0,                                          /* tp_as_sequence */
+    0,                                          /* tp_as_mapping */
+    0,                                          /* tp_hash */
+    0,                                          /* tp_call */
+    0,                                          /* tp_str */
+    0,                                          /* tp_getattro */
+    0,                                          /* tp_setattro */
+    0,                                          /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+    "Client object",                            /* tp_doc */
+    0,                                          /* tp_traverse */
+    0,                                          /* tp_clear */
+    0,                                          /* tp_richcompare */
+    0,                                          /* tp_weaklistoffset */
+    0,                                          /* tp_iter */
+    0,                                          /* tp_iternext */
+    ClientMethods,                              /* tp_methods */
+    ClientMembers,                              /* tp_members */
+    0,                                          /* tp_getset */
+    0,                                          /* tp_base */
+    0,                                          /* tp_dict */
+    0,                                          /* tp_descr_get */
+    0,                                          /* tp_descr_set */
+    0,                                          /* tp_dictoffset */
+    (initproc) Client_init,                     /* tp_init */
+  };}
 
 #endif /* XRDCLBIND_HH_ */
