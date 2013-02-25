@@ -63,14 +63,14 @@ namespace XrdClBind
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &urlstr))
       return -1;
 
-    PyObject *bind_args = Py_BuildValue("(s)", urlstr);
-    if (!bind_args) return NULL;
+    PyObject *bindArgs = Py_BuildValue("(s)", urlstr);
+    if (!bindArgs) return NULL;
 
     //--------------------------------------------------------------------------
     // Create ourselves a binding object for the URL
     //--------------------------------------------------------------------------
-    self->url = (URL*) PyObject_CallObject((PyObject*) &URLType, bind_args);
-    Py_DECREF(bind_args);
+    self->url = (URL*) PyObject_CallObject((PyObject*) &URLType, bindArgs);
+    Py_DECREF(bindArgs);
     if (!self->url) return NULL;
 
     return 0;

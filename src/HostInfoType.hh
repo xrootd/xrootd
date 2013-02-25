@@ -16,8 +16,8 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef XROOTDSTATUSTYPE_HH_
-#define XROOTDSTATUSTYPE_HH_
+#ifndef HOSTINFOTYPE_HH_
+#define HOSTINFOTYPE_HH_
 
 #include <Python.h>
 #include "structmember.h"
@@ -27,115 +27,91 @@
 namespace XrdClBind
 {
   //----------------------------------------------------------------------------
-  //! XRootDStatus binding type definition
+  //! HostInfo binding type definition
   //----------------------------------------------------------------------------
   typedef struct
   {
       PyObject_HEAD
       /* Type-specific fields */
-      XrdCl::XRootDStatus *status;
-  } XRootDStatus;
+      XrdCl::HostInfo *hostInfo;
+  } HostInfo;
 
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void XRootDStatus_dealloc(XRootDStatus *self)
+  static void HostInfo_dealloc(HostInfo *self)
   {
-    delete self->status;
+    delete self->hostInfo;
     self->ob_type->tp_free((PyObject*) self);
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int XRootDStatus_init(XRootDStatus *self, PyObject *args,
-      PyObject *kwds)
+  static int HostInfo_init(HostInfo *self, PyObject *args)
   {
-    static char *kwlist[] = { "status", "code", "errNo", "message", NULL };
+    PyObject *hostInfo;
 
-    uint16_t status, code;
-    uint32_t errNo;
-    const char *message;
-
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HHIs", kwlist, &status, &code,
-        &errNo, &message))
+    if (!PyArg_ParseTuple(args, "O", &hostInfo))
       return -1;
 
-    self->status = new XrdCl::XRootDStatus(status, code, errNo,
-        std::string(message));
-
+    self->hostInfo = (XrdCl::HostInfo *) PyCObject_AsVoidPtr(hostInfo);
     return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! __str__() equivalent
-  //----------------------------------------------------------------------------
-  static PyObject* XRootDStatus_str(XRootDStatus *status)
-  {
-    return PyString_FromString(status->status->ToStr().c_str());
   }
 
   //----------------------------------------------------------------------------
   //! Binding functions
   //----------------------------------------------------------------------------
-  static PyObject* XRootDStatus_GetStatus(XRootDStatus *self, void *closure)
+  static PyObject* HostInfo_GetFlags(HostInfo *self, void *closure)
   {
-    return Py_BuildValue("i", self->status->status);
+    return Py_BuildValue("i", self->hostInfo->flags);
   }
 
-  static PyObject* XRootDStatus_GetCode(XRootDStatus *self, void *closure)
+  static PyObject* HostInfo_GetProtocol(HostInfo *self, void *closure)
   {
-    return Py_BuildValue("i", self->status->code);
+    return Py_BuildValue("i", self->hostInfo->protocol);
   }
 
-  static PyObject* XRootDStatus_GetErrNo(XRootDStatus *self, void *closure)
+  static PyObject* HostInfo_IsLoadBalancer(HostInfo *self, void *closure)
   {
-    return Py_BuildValue("i", self->status->errNo);
+    return Py_BuildValue("O", PyBool_FromLong(self->hostInfo->loadBalancer));
   }
 
-  static PyObject* GetErrorMessage(XRootDStatus *self)
+  static PyObject* HostInfo_GetURL(HostInfo *self, void *closure)
   {
-    return Py_BuildValue("s", self->status->GetErrorMessage().c_str());
-  }
+    //--------------------------------------------------------------------------
+    // Build a URL mapping object on-the-fly (maybe inefficient)
+    //--------------------------------------------------------------------------
+    PyObject *bindArgs = Py_BuildValue("(s)", self->hostInfo->url.GetURL().c_str());
+    if (!bindArgs) return NULL;
 
-  static PyObject* GetShellCode(XRootDStatus *self)
-  {
-    return Py_BuildValue("i", self->status->GetShellCode());
-  }
+    PyObject *url = PyObject_CallObject((PyObject*) &URLType, bindArgs);
+    Py_DECREF(bindArgs);
+    if (!url) return NULL;
 
-  static PyObject* IsError(XRootDStatus *self)
-  {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsError()));
-  }
-
-  static PyObject* IsFatal(XRootDStatus *self)
-  {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsFatal()));
-  }
-
-  static PyObject* IsOK(XRootDStatus *self)
-  {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsOK()));
+    return url;
   }
 
   //----------------------------------------------------------------------------
   //! Custom getter/setter function declarations
   //----------------------------------------------------------------------------
-  static PyGetSetDef XRootDStatusGetSet[] =
+  static PyGetSetDef HostInfoGetSet[] =
     {
-      { "status", (getter) XRootDStatus_GetStatus, NULL,
-        "Status of the execution", NULL },
-      { "code", (getter) XRootDStatus_GetCode, NULL,
-        "Error type, or additional hints on what to do", NULL },
-      { "errNo", (getter) XRootDStatus_GetErrNo, NULL,
-        "Errno, if any", NULL },
-      { NULL } /* Sentinel */
+      { "flags", (getter) HostInfo_GetFlags, NULL,
+        "Host type", NULL},
+      { "protocol", (getter) HostInfo_GetProtocol, NULL,
+        "Version of the protocol the host is speaking", NULL},
+      { "loadBalancer", (getter) HostInfo_IsLoadBalancer, NULL,
+        "Was the host used as a load balancer", NULL},
+      { "url", (getter) HostInfo_GetURL, NULL,
+        "URL of the host", NULL},
+      { NULL} /* Sentinel */
     };
 
   //----------------------------------------------------------------------------
   //! Visible member definitions
   //----------------------------------------------------------------------------
-  static PyMemberDef XRootDStatusMembers[] =
+  static PyMemberDef HostInfoMembers[] =
     {
       { NULL } /* Sentinel */
     };
@@ -143,31 +119,21 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Visible method definitions
   //----------------------------------------------------------------------------
-  static PyMethodDef XRootDStatusMethods[] =
+  static PyMethodDef HostInfoMethods[] =
     {
-      { "IsError", (PyCFunction) IsError, METH_NOARGS,
-          "Return whether this status has an error" },
-      { "IsFatal", (PyCFunction) IsFatal, METH_NOARGS,
-          "Return whether this status has a fatal error" },
-      { "IsOK", (PyCFunction) IsOK, METH_NOARGS,
-          "Return whether this status completed successfully" },
-      { "GetErrorMessage", (PyCFunction) GetErrorMessage, METH_NOARGS,
-          "Return the error message" },
-      { "GetShellCode", (PyCFunction) GetShellCode, METH_NOARGS,
-          "Return the status code that may be returned to the shell" },
       { NULL } /* Sentinel */
     };
 
   //----------------------------------------------------------------------------
-  //! XRootDStatus binding type object
+  //! HostInfo binding type object
   //----------------------------------------------------------------------------
-  static PyTypeObject XRootDStatusType = {
+  static PyTypeObject HostInfoType = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /* ob_size */
-    "client.XRootDStatus",                      /* tp_name */
-    sizeof(XRootDStatus),                       /* tp_basicsize */
+    "client.HostInfo",                          /* tp_name */
+    sizeof(HostInfo),                           /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    (destructor) XRootDStatus_dealloc,          /* tp_dealloc */
+    (destructor) HostInfo_dealloc,              /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -178,28 +144,28 @@ namespace XrdClBind
     0,                                          /* tp_as_mapping */
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
-    (reprfunc) XRootDStatus_str,                /* tp_str */
+    0,                                          /* tp_str */
     0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    "XRootDStatus object",                      /* tp_doc */
+    "HostInfo object",                          /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
-    XRootDStatusMethods,                        /* tp_methods */
-    XRootDStatusMembers,                        /* tp_members */
-    XRootDStatusGetSet,                         /* tp_getset */
+    HostInfoMethods,                            /* tp_methods */
+    HostInfoMembers,                            /* tp_members */
+    HostInfoGetSet,                             /* tp_getset */
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
-    (initproc) XRootDStatus_init,               /* tp_init */
+    (initproc) HostInfo_init,                   /* tp_init */
   };
 }
 
-#endif /* XROOTDSTATUSTYPE_HH_ */
+#endif /* HOSTINFOTYPE_HH_ */

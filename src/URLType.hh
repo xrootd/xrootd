@@ -50,8 +50,7 @@ namespace XrdClBind
   {
 
     const char *url;
-    static char *kwlist[] =
-      { "url", NULL };
+    static char *kwlist[] = { "url", NULL };
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &url))
       return -1;
@@ -196,38 +195,41 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Visible method definitions
   //----------------------------------------------------------------------------
-  static PyMethodDef URLMethods[] =
-        {
-          { "IsValid", (PyCFunction) IsValid, METH_NOARGS,
-              "Return the validity of the URL" },
-          { "GetHostId", (PyCFunction) GetHostId, METH_NOARGS,
-              "Get the host part of the URL (user:password@host:port)" },
-          { "GetProtocol", (PyCFunction) GetProtocol, METH_NOARGS,
-              "Get the protocol" },
-          { "SetProtocol", (PyCFunction) SetProtocol, METH_VARARGS,
-              "Set protocol" },
-          { "GetUserName", (PyCFunction) GetUserName, METH_NOARGS,
-              "Get the username" },
-          { "SetUserName", (PyCFunction) SetUserName, METH_VARARGS,
-              "Set the username" },
-          { "GetPassword", (PyCFunction) GetPassword, METH_NOARGS,
-              "Get the password" },
-          { "SetPassword", (PyCFunction) SetPassword, METH_VARARGS,
-              "Set the password" },
-          { "GetHostName", (PyCFunction) GetHostName, METH_NOARGS,
-              "Get the name of the target host" },
-          { "SetHostName", (PyCFunction) SetHostName, METH_VARARGS,
-              "Set the host name" },
-              { "GetPort", (PyCFunction) GetPort, METH_NOARGS,
-                  "Get the target port" },
-              { "SetPort", (PyCFunction) SetPort, METH_VARARGS, "Set port" },
-              { "GetPath", (PyCFunction) GetPath, METH_NOARGS, "Get the path" },
-              { "SetPath", (PyCFunction) SetPath, METH_VARARGS, "Set the path" },
-              { "GetPathWithParams", (PyCFunction) GetPathWithParams,
-                  METH_NOARGS, "Get the path with params" },
-              { "Clear", (PyCFunction) Clear, METH_NOARGS, "Clear the url" },
-              { NULL } /* Sentinel */
-        };
+  static PyMethodDef URLMethods[] = {
+    { "IsValid", (PyCFunction) IsValid, METH_NOARGS,
+        "Return the validity of the URL" },
+    { "GetHostId", (PyCFunction) GetHostId, METH_NOARGS,
+        "Get the host part of the URL (user:password@host:port)" },
+    { "GetProtocol", (PyCFunction) GetProtocol, METH_NOARGS,
+        "Get the protocol" },
+    { "SetProtocol", (PyCFunction) SetProtocol, METH_VARARGS,
+        "Set protocol" },
+    { "GetUserName", (PyCFunction) GetUserName, METH_NOARGS,
+        "Get the username" },
+    { "SetUserName", (PyCFunction) SetUserName, METH_VARARGS,
+        "Set the username" },
+    { "GetPassword", (PyCFunction) GetPassword, METH_NOARGS,
+        "Get the password" },
+    { "SetPassword", (PyCFunction) SetPassword, METH_VARARGS,
+        "Set the password" },
+    { "GetHostName", (PyCFunction) GetHostName, METH_NOARGS,
+        "Get the name of the target host" },
+    { "SetHostName", (PyCFunction) SetHostName, METH_VARARGS,
+        "Set the host name" },
+    { "GetPort", (PyCFunction) GetPort, METH_NOARGS,
+        "Get the target port" },
+    { "SetPort", (PyCFunction) SetPort, METH_VARARGS,
+        "Set port" },
+    { "GetPath", (PyCFunction) GetPath, METH_NOARGS,
+        "Get the path" },
+    { "SetPath", (PyCFunction) SetPath, METH_VARARGS,
+        "Set the path" },
+    { "GetPathWithParams", (PyCFunction) GetPathWithParams, METH_NOARGS,
+        "Get the path with params" },
+    { "Clear", (PyCFunction) Clear, METH_NOARGS,
+        "Clear the url" },
+    { NULL } /* Sentinel */
+  };
 
   //----------------------------------------------------------------------------
   //! URL binding type object

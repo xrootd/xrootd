@@ -23,6 +23,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
+#include "HostInfoType.hh"
 #include "StatInfoType.hh"
 
 namespace XrdClBind
@@ -48,8 +49,8 @@ namespace XrdClBind
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
       //------------------------------------------------------------------------
-      void HandleResponse(XrdCl::XRootDStatus *status,
-          XrdCl::AnyObject *response)
+      void HandleResponseWithHosts(XrdCl::XRootDStatus *status,
+          XrdCl::AnyObject *response, XrdCl::HostList *hostList)
       {
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
@@ -75,9 +76,32 @@ namespace XrdClBind
         if (!responseBind) return;
 
         //----------------------------------------------------------------------
+        // Convert the host list
+        //----------------------------------------------------------------------
+        PyObject *hostListBind = PyList_New(0);
+
+        for (unsigned int i = 0; i < hostList->size(); ++i) {
+
+            PyObject *hostInfoArgs = Py_BuildValue("(O)",
+                PyCObject_FromVoidPtr((void *) &hostList->at(i), NULL));
+            if (!hostInfoArgs || PyErr_Occurred()) return;
+
+            PyObject *hostInfoBind = PyObject_CallObject(
+                (PyObject *) &HostInfoType, hostInfoArgs);
+            if (!hostInfoBind) return;
+            Py_DECREF(hostInfoArgs);
+
+            Py_INCREF(hostInfoBind);
+            if (PyList_Append(hostListBind, hostInfoBind) != 0) {
+              return;
+            }
+        }
+
+        //----------------------------------------------------------------------
         // Build the callback arguments
         //----------------------------------------------------------------------
-        PyObject *args = Py_BuildValue("(OO)", statusBind, responseBind);
+        PyObject *args = Py_BuildValue("(OOO)", statusBind, responseBind,
+            hostListBind);
         if (!args) return;
 
         //----------------------------------------------------------------------
@@ -108,7 +132,7 @@ namespace XrdClBind
       //------------------------------------------------------------------------
       PyObject* ParseResponse(XrdCl::AnyObject *response)
       {
-        PyObject *response_bind;
+        PyObject *responseBind;
         response->Get(this->responseObject);
 
         //----------------------------------------------------------------------
@@ -117,22 +141,22 @@ namespace XrdClBind
         //
         // The CObject API is deprecated as of Python 2.7
         //----------------------------------------------------------------------
-        PyObject *response_args = Py_BuildValue("(O)",
+        PyObject *responseArgs = Py_BuildValue("(O)",
             PyCObject_FromVoidPtr((void *) this->responseObject, NULL));
-        if (!response_args) {
+        if (!responseArgs) {
           return NULL;
         }
 
         //----------------------------------------------------------------------
         // Call the constructor of the bound type.
         //----------------------------------------------------------------------
-        response_bind = PyObject_CallObject((PyObject *) this->bindType,
-            response_args);
-        if (!response_bind) {
+        responseBind = PyObject_CallObject((PyObject *) this->bindType,
+            responseArgs);
+        if (!responseBind) {
           return NULL;
         }
 
-        return response_bind;
+        return responseBind;
       }
 
     private:

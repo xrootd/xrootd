@@ -47,11 +47,13 @@ namespace XrdClBind
     URLType.tp_new = PyType_GenericNew;
     XRootDStatusType.tp_new = PyType_GenericNew;
     StatInfoType.tp_new = PyType_GenericNew;
+    HostInfoType.tp_new = PyType_GenericNew;
 
     if (PyType_Ready(&ClientType) < 0) return;
     if (PyType_Ready(&URLType) < 0) return;
     if (PyType_Ready(&XRootDStatusType) < 0) return;
     if (PyType_Ready(&StatInfoType) < 0) return;
+    if (PyType_Ready(&HostInfoType) < 0) return;
 
     module = Py_InitModule3("client", module_methods,
             "Client extension module type.");
@@ -60,10 +62,12 @@ namespace XrdClBind
     Py_INCREF(&URLType);
     Py_INCREF(&XRootDStatusType);
     Py_INCREF(&StatInfoType);
+    Py_INCREF(&HostInfoType);
 
     PyModule_AddObject(module, "Client", (PyObject *) &ClientType);
     PyModule_AddObject(module, "URL", (PyObject *) &URLType);
     PyModule_AddObject(module, "XRootDStatus", (PyObject *) &XRootDStatusType);
     PyModule_AddObject(module, "StatInfo", (PyObject *) &StatInfoType);
+    PyModule_AddObject(module, "HostInfo", (PyObject *) &HostInfoType);
   }
 }
