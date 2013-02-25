@@ -6,7 +6,7 @@ print 'URL:', myclient.url
 #-------------------------------------------------------------------------------
 # Synchronous example
 #-------------------------------------------------------------------------------
-status, response = myclient.stat("/foo")
+status, response = myclient.stat("/tmp")
 print "Status:", status
 print "Modification time:", response.GetModTimeAsString()
 
@@ -21,7 +21,7 @@ def callback(status, response, hostList):
   for host in hostList:
     print "Host:", host.url
 
-myclient.stat("/tmpp", callback)
+myclient.stat("/tmp", callback)
 
 # Halt script (todo: implement callback class w/semaphore and/or callback 
 # decorator w/generator)
