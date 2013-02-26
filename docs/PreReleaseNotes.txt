@@ -45,6 +45,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Add missing 1 letter xrdcp options: -N for --nopbar and -X for --xrate.
    * Fix memory leak and prevent nodnr from failing a TPC rendezvous.
    * Make redir CGI available for use in second tpc open and make xrdcp use
      it.
@@ -82,7 +83,7 @@ Prerelease Notes
 
 + **Miscellaneous**
    * Use int instead of size_t for things that are truly int. This
-     bypasses various compiler warning (affects readv patch).
+     Bypasses various compiler warning (affects readv patch).
    * Allow stdin as a source in the xrdcp front-end parser. Do not
      compute doff for non-local sources.
    * Final change to f-stream monitoring. Replace standard deviation
