@@ -86,17 +86,9 @@ namespace XrdClBind
         PyObject *hostListBind = PyList_New( 0 );
 
         for ( unsigned int i = 0; i < hostList->size(); ++i ) {
-          PyObject *hostInfoArgs = Py_BuildValue( "(O)",
-              PyCObject_FromVoidPtr( (void *) &hostList->at( i ), NULL) );
-          if ( !hostInfoArgs || PyErr_Occurred() ) {
-            PyErr_Print();
-            PyGILState_Release( state );
-            return;
-          }
 
-          PyObject *hostInfoBind = PyObject_CallObject(
-              (PyObject *) &HostInfoType, hostInfoArgs );
-          Py_DECREF( hostInfoArgs );
+          PyObject *hostInfoBind = ConvertType<XrdCl::HostInfo>(
+                                   &hostList->at( i ), &HostInfoType );
           if ( !hostInfoBind || PyErr_Occurred() ) {
             PyErr_Print();
             PyGILState_Release( state );
@@ -115,7 +107,7 @@ namespace XrdClBind
         // Build the callback arguments
         //----------------------------------------------------------------------
         PyObject *args = Py_BuildValue( "(OOO)", statusDict, responseBind,
-            hostListBind );
+                                        hostListBind );
         if ( !args || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
@@ -158,25 +150,8 @@ namespace XrdClBind
         PyObject *responseBind;
         Type     *type = 0;
         response->Get( type );
-
-        //----------------------------------------------------------------------
-        // Build the arguments for creating the response mapping type. We cast
-        // the response object to a void * before packing it into a PyCObject.
-        //
-        // The CObject API is deprecated as of Python 2.7
-        //----------------------------------------------------------------------
-        PyObject *responseArgs = Py_BuildValue( "(O)",
-                                 PyCObject_FromVoidPtr( (void *) type, NULL) );
-        if ( !responseArgs )
-          return NULL;
-
-        //----------------------------------------------------------------------
-        // Call the constructor of the bound type.
-        //----------------------------------------------------------------------
-        responseBind = PyObject_CallObject( (PyObject *) this->bindType,
-            responseArgs );
-
-        return responseBind ? responseBind : NULL;
+        responseBind = ConvertType<Type>(type, this->bindType);
+        return (responseBind == NULL || PyErr_Occurred()) ? NULL : responseBind;
       }
 
     private:

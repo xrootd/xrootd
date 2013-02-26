@@ -30,13 +30,16 @@
 namespace XrdClBind
 {
   //----------------------------------------------------------------------------
-  //! Convert a C++ type to its corresponding Python binding type
+  //! Convert a C++ type to its corresponding Python binding type. We cast
+  //! the object to a void * before packing it into a PyCObject.
+  //!
+  //! Note: The PyCObject API is deprecated as of Python 2.7
   //----------------------------------------------------------------------------
   template<class Type>
   static PyObject* ConvertType( Type *type, PyTypeObject *bindType )
   {
     PyObject *args = Py_BuildValue( "(O)",
-        PyCObject_FromVoidPtr( (void *) type, NULL) );
+                     PyCObject_FromVoidPtr( (void *) type, NULL) );
     if ( !args )
       return NULL;
 
