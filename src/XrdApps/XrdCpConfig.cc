@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHIN:PrRsS:t:T:vVX:y:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
