@@ -39,34 +39,30 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   static void URL_dealloc( URL *self )
   {
-    delete self->url;
+    //delete self->url;
     self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int URL_init( URL *self, PyObject *args, PyObject *kwds )
+  static int URL_init( URL *self, PyObject *args )
   {
-    const char *url;
-    static char *kwlist[] = { "url", NULL };
+    PyObject *url;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s", kwlist, &url ) )
+    if ( !PyArg_ParseTuple( args, "O", &url ) )
       return -1;
 
-    if ( url ) {
-      self->url = new XrdCl::URL( url );
-    }
-
+    self->url = (XrdCl::URL*) PyCObject_AsVoidPtr( url );
     return 0;
   }
 
   //----------------------------------------------------------------------------
   //! __str__() equivalent
   //----------------------------------------------------------------------------
-  static PyObject* URL_str( URL *url )
+  static PyObject* URL_str( URL *self )
   {
-    return PyString_FromString( url->url->GetURL().c_str() );
+    return PyString_FromString( self->url->GetURL().c_str() );
   }
 
   //----------------------------------------------------------------------------

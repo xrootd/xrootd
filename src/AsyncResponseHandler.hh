@@ -23,6 +23,7 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
+#include "XrdClBindUtils.hh"
 #include "HostInfoType.hh"
 #include "StatInfoType.hh"
 
@@ -39,13 +40,15 @@ namespace XrdClBind
       //! Constructor
       //------------------------------------------------------------------------
       AsyncResponseHandler( PyTypeObject *bindType, PyObject *callback ) :
-          bindType( bindType ), callback( callback ) {}
+          bindType( bindType ),
+          callback( callback ) {}
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
       //------------------------------------------------------------------------
       void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
-          XrdCl::AnyObject *response, XrdCl::HostList *hostList )
+                                    XrdCl::AnyObject *response,
+                                    XrdCl::HostList *hostList )
       {
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
@@ -55,18 +58,8 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         // Convert the XRootDStatus object
         //----------------------------------------------------------------------
-        PyObject *statusArgs = Py_BuildValue( "(HHIs)", status->status,
-            status->code, status->errNo, status->GetErrorMessage().c_str() );
-        if ( !statusArgs || PyErr_Occurred() ) {
-          PyErr_Print();
-          PyGILState_Release( state );
-          return;
-        }
-
-        PyObject *statusBind = PyObject_CallObject(
-            (PyObject *) &XRootDStatusType, statusArgs );
-        Py_DECREF( statusArgs );
-        if ( !statusBind || PyErr_Occurred() ) {
+        PyObject *statusDict = XRootDStatusDict(status);
+        if ( !statusDict || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
           return;
@@ -121,7 +114,7 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         // Build the callback arguments
         //----------------------------------------------------------------------
-        PyObject *args = Py_BuildValue( "(OOO)", statusBind, responseBind,
+        PyObject *args = Py_BuildValue( "(OOO)", statusDict, responseBind,
             hostListBind );
         if ( !args || PyErr_Occurred() ) {
           PyErr_Print();
@@ -143,7 +136,7 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         // Clean up
         //----------------------------------------------------------------------
-        Py_XDECREF( statusBind );
+        Py_XDECREF( statusDict );
         Py_XDECREF( responseBind );
         Py_XDECREF( hostListBind );
         Py_XDECREF( callbackResult );
@@ -151,7 +144,6 @@ namespace XrdClBind
 
         PyGILState_Release( state );
 
-        delete status;
         delete response;
         delete hostList;
         // Commit suicide...
@@ -164,7 +156,7 @@ namespace XrdClBind
       PyObject* ParseResponse( XrdCl::AnyObject *response )
       {
         PyObject *responseBind;
-        Type *type = 0;
+        Type     *type = 0;
         response->Get( type );
 
         //----------------------------------------------------------------------
@@ -174,7 +166,7 @@ namespace XrdClBind
         // The CObject API is deprecated as of Python 2.7
         //----------------------------------------------------------------------
         PyObject *responseArgs = Py_BuildValue( "(O)",
-            PyCObject_FromVoidPtr( (void *) type, NULL) );
+                                 PyCObject_FromVoidPtr( (void *) type, NULL) );
         if ( !responseArgs )
           return NULL;
 

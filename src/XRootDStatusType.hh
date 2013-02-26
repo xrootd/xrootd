@@ -48,22 +48,14 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int XRootDStatus_init( XRootDStatus *self, PyObject *args,
-      PyObject *kwds )
+  static int XRootDStatus_init( XRootDStatus *self, PyObject *args )
   {
-    static char *kwlist[] = { "status", "code", "errNo", "message", NULL };
+    PyObject *status;
 
-    uint16_t status, code;
-    uint32_t errNo;
-    const char *message;
-
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "HHIs", kwlist, &status,
-                                       &code, &errNo, &message ) )
+    if ( !PyArg_ParseTuple( args, "O", &status ) )
       return -1;
 
-    self->status = new XrdCl::XRootDStatus( status, code, errNo,
-                                            std::string( message ) );
-
+    self->status = (XrdCl::XRootDStatus*) PyCObject_AsVoidPtr( status );
     return 0;
   }
 

@@ -91,13 +91,13 @@ namespace XrdClBind
     //--------------------------------------------------------------------------
     // Build a URL mapping object on-the-fly (maybe inefficient)
     //--------------------------------------------------------------------------
-    PyObject *bindArgs = Py_BuildValue( "(s)",
-                                        self->hostInfo->url.GetURL().c_str() );
-    if ( !bindArgs )
+    PyObject *args = Py_BuildValue( "(O)",
+             PyCObject_FromVoidPtr( (void *) &self->hostInfo->url, NULL ) );
+    if ( !args )
       return NULL;
 
-    PyObject *url = PyObject_CallObject( (PyObject*) &URLType, bindArgs );
-    Py_DECREF( bindArgs );
+    PyObject *url = PyObject_CallObject( (PyObject *) &URLType, args );
+    Py_DECREF( args );
     if ( !url )
       return NULL;
 

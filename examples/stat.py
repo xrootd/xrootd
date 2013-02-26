@@ -1,21 +1,23 @@
 from XRootD import client
+import sys
 
-myclient = client.Client("root://localhost")
+myclient = client.Client("root://localhoost")
 print 'URL:', myclient.url
  
 #-------------------------------------------------------------------------------
 # Synchronous example
 #-------------------------------------------------------------------------------
 status, response = myclient.stat("/tmp")
-print "Status:", status
-print "Modification time:", response.GetModTimeAsString()
+print "Status:", str(status)
+print "Response:", str(response)
+#print "Modification time:", response.GetModTimeAsString()
  
 #-------------------------------------------------------------------------------
 # Asynchronous non-waiting example
 #-------------------------------------------------------------------------------
 def callback(status, response, hostList):
-  print 'Status:', status
-  print 'Response:', response
+  print 'Status:', str(status)
+  print 'Response:', str(response)
   print 'Modification time:', response.GetModTimeAsString()
    
   for host in hostList:
@@ -25,7 +27,7 @@ myclient.stat("/tmp", callback)
  
 # Halt script (todo: implement callback class w/semaphore and/or callback 
 # decorator w/generator)
-#x = raw_input()
+x = raw_input()
 
 #-------------------------------------------------------------------------------
 # Asynchronous waiting example
@@ -51,7 +53,7 @@ class AsyncStatHandler(Thread):
     handler.start()
     handler.join()
 
-myclient = client.Client('root://localhost')
-handler = AsyncStatHandler(myclient, '/tmp')
-handler.startAndWait()
+#myclient = client.Client('root://localhost')
+#handler = AsyncStatHandler(myclient, '/tmp')
+#handler.startAndWait()
 

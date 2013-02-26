@@ -30,6 +30,7 @@
 #include "StatInfoType.hh"
 #include "URLType.hh"
 #include "AsyncResponseHandler.hh"
+#include "XrdClBindUtils.hh"
 
 namespace XrdClBind
 {
@@ -63,15 +64,9 @@ namespace XrdClBind
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s", kwlist, &urlstr ) )
       return -1;
 
-    PyObject *bindArgs = Py_BuildValue( "(s)", urlstr );
-    if ( !bindArgs )
-      return NULL;
+    XrdCl::URL *url = new XrdCl::URL( urlstr );
+    self->url = (URL *) ConvertType<XrdCl::URL>( url, &URLType );
 
-    //--------------------------------------------------------------------------
-    // Create ourselves a binding object for the URL
-    //--------------------------------------------------------------------------
-    self->url = (URL*) PyObject_CallObject( (PyObject*) &URLType, bindArgs );
-    Py_DECREF( bindArgs );
     if ( !self->url )
       return NULL;
 
@@ -88,6 +83,7 @@ namespace XrdClBind
   {
     const char *path;
     PyObject *callback = NULL;
+    XrdCl::FileSystem filesystem( *self->url->url );
 
     //--------------------------------------------------------------------------
     // Parse the stat path and optional callback argument
@@ -95,21 +91,11 @@ namespace XrdClBind
     if ( !PyArg_ParseTuple( args, "s|O", &path, &callback ) )
       return NULL;
 
-    XrdCl::FileSystem fs( *self->url->url );
-
     //--------------------------------------------------------------------------
     // Asynchronous mode
     //--------------------------------------------------------------------------
     if ( callback ) {
-      //------------------------------------------------------------------------
-      // Check that the given callback is actually callable.
-      //------------------------------------------------------------------------
-      if ( !PyCallable_Check( callback ) ) {
-        PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
-        return NULL;
-      }
-      // We need to keep this callback inside the response handler
-      Py_INCREF( callback );
+      if (!CheckCallable(callback)) return NULL;
 
       XrdCl::ResponseHandler *handler =
           new AsyncResponseHandler<XrdCl::StatInfo>( &StatInfoType, callback );
@@ -118,8 +104,8 @@ namespace XrdClBind
       // Spin the async request (while releasing the GIL) and return None.
       //------------------------------------------------------------------------
       Py_BEGIN_ALLOW_THREADS
-        fs.Stat( path, handler, 5 );
-        Py_END_ALLOW_THREADS
+      filesystem.Stat( path, handler, 5 );
+      Py_END_ALLOW_THREADS
 
       Py_RETURN_NONE ;
     }
@@ -127,49 +113,26 @@ namespace XrdClBind
     //--------------------------------------------------------------------------
     // Synchronous mode
     //--------------------------------------------------------------------------
-    XrdCl::XRootDStatus status;
     XrdCl::StatInfo *response = 0;
-    status = fs.Stat( path, response, 5 );
+    XrdCl::XRootDStatus status = filesystem.Stat( path, response, 5 );
 
     //--------------------------------------------------------------------------
     // Convert the XRootDStatus object
     //--------------------------------------------------------------------------
-    PyObject *statusArgs = Py_BuildValue( "(HHIs)", status.status, status.code,
-                                          status.errNo,
-                                          status.GetErrorMessage().c_str() );
-    if ( !statusArgs )
-      return NULL;
-
-    PyObject *statusBind = PyObject_CallObject( (PyObject *) &XRootDStatusType,
-                                                statusArgs );
-    if ( !statusBind )
-      return NULL;
-    Py_DECREF( statusArgs );
+    PyObject *statusDict = XRootDStatusDict(&status);
+    if (!statusDict) return NULL;
 
     //--------------------------------------------------------------------------
     // Convert the response object, if any
     //--------------------------------------------------------------------------
     PyObject *responseBind;
     if ( response ) {
-
-      //------------------------------------------------------------------------
-      // The CObject API is deprecated as of Python 2.7
-      //------------------------------------------------------------------------
-      PyObject *responseArgs = Py_BuildValue( "(O)",
-          PyCObject_FromVoidPtr( (void *) response, NULL) );
-      if ( !responseArgs )
-        return NULL;
-
-      //------------------------------------------------------------------------
-      // Call the constructor of the bound type.
-      //------------------------------------------------------------------------
-      responseBind = PyObject_CallObject( (PyObject *) &StatInfoType,
-                                          responseArgs );
+      responseBind = ConvertType<XrdCl::StatInfo>( response, &StatInfoType );
     } else {
       responseBind = Py_None;
     }
 
-    return Py_BuildValue( "OO", statusBind, responseBind );
+    return Py_BuildValue( "OO", statusDict, responseBind );
   }
 
   //----------------------------------------------------------------------------

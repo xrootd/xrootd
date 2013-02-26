@@ -46,16 +46,15 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int StatInfo_init( StatInfo *self, PyObject *args, PyObject *kwds )
+  static int StatInfo_init( StatInfo *self, PyObject *args )
   {
-    static char *kwlist[] = { "data", NULL };
-    PyObject *data;
+    PyObject *info;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O", kwlist, &data ) )
+    if ( !PyArg_ParseTuple( args, "O", &info ) )
       return -1;
 
     // Unpack the void * and cast it back to our object
-    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr( data );
+    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr( info );
     return 0;
   }
 
