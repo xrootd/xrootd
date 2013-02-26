@@ -38,62 +38,79 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void StatInfo_dealloc(StatInfo *self)
+  static void StatInfo_dealloc( StatInfo *self )
   {
-    self->ob_type->tp_free((PyObject*) self);
+    self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int StatInfo_init(StatInfo *self, PyObject *args, PyObject *kwds)
+  static int StatInfo_init( StatInfo *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "data", NULL };
     PyObject *data;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &data))
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O", kwlist, &data ) )
       return -1;
 
     // Unpack the void * and cast it back to our object
-    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr(data);
+    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr( data );
     return 0;
   }
 
   //----------------------------------------------------------------------------
-  //! Wrapper functions for underlying XrdCl::StatInfo
+  //! Get id
   //----------------------------------------------------------------------------
-  static PyObject* GetId(StatInfo *self)
+  static PyObject* GetId( StatInfo *self )
   {
-    return Py_BuildValue("S", PyString_FromString(self->info->GetId().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->info->GetId().c_str() ) );
   }
 
-  static PyObject* GetSize(StatInfo *self)
+  //----------------------------------------------------------------------------
+  //! Get size (in bytes)
+  //----------------------------------------------------------------------------
+  static PyObject* GetSize( StatInfo *self )
   {
-    return Py_BuildValue("K", PyLong_FromLongLong(self->info->GetSize()));
+    return Py_BuildValue( "K", PyLong_FromLongLong( self->info->GetSize() ) );
   }
 
-  static PyObject* GetFlags(StatInfo *self)
+  //----------------------------------------------------------------------------
+  //! Get flags
+  //----------------------------------------------------------------------------
+  static PyObject* GetFlags( StatInfo *self )
   {
-    return Py_BuildValue("k", PyLong_FromLong(self->info->GetFlags()));
+    return Py_BuildValue( "k", PyLong_FromLong( self->info->GetFlags() ) );
   }
 
-  static PyObject* TestFlags(StatInfo *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Test flags
+  //----------------------------------------------------------------------------
+  static PyObject* TestFlags( StatInfo *self, PyObject *args )
   {
     uint32_t flags;
-    if (!PyArg_ParseTuple(args, "", &flags))
+    if ( !PyArg_ParseTuple( args, "", &flags ) )
       return NULL;
-    return Py_BuildValue("O", PyBool_FromLong(self->info->TestFlags(flags)));
+    return Py_BuildValue( "O",
+        PyBool_FromLong( self->info->TestFlags( flags ) ) );
   }
 
-  static PyObject* GetModTime(StatInfo *self)
+  //----------------------------------------------------------------------------
+  //! Get modification time (in seconds since epoch)
+  //----------------------------------------------------------------------------
+  static PyObject* GetModTime( StatInfo *self )
   {
-    return Py_BuildValue("K", PyLong_FromLongLong(self->info->GetModTime()));
+    return Py_BuildValue( "K", PyLong_FromLongLong( self->info->GetModTime() ) );
   }
 
-  static PyObject* GetModTimeAsString(StatInfo *self)
+  //----------------------------------------------------------------------------
+  //! Get modification time
+  //----------------------------------------------------------------------------
+  static PyObject* GetModTimeAsString( StatInfo *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->info->GetModTimeAsString().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->info->GetModTimeAsString().c_str() ) );
   }
 
   //----------------------------------------------------------------------------

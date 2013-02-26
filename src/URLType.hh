@@ -37,26 +37,25 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void URL_dealloc(URL *self)
+  static void URL_dealloc( URL *self )
   {
     delete self->url;
-    self->ob_type->tp_free((PyObject*) self);
+    self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int URL_init(URL *self, PyObject *args, PyObject *kwds)
+  static int URL_init( URL *self, PyObject *args, PyObject *kwds )
   {
-
     const char *url;
     static char *kwlist[] = { "url", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "s", kwlist, &url))
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s", kwlist, &url ) )
       return -1;
 
-    if (url) {
-      self->url = new XrdCl::URL(url);
+    if ( url ) {
+      self->url = new XrdCl::URL( url );
     }
 
     return 0;
@@ -65,120 +64,167 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! __str__() equivalent
   //----------------------------------------------------------------------------
-  static PyObject* URL_str(URL *url)
+  static PyObject* URL_str( URL *url )
   {
-    return PyString_FromString(url->url->GetURL().c_str());
+    return PyString_FromString( url->url->GetURL().c_str() );
   }
 
   //----------------------------------------------------------------------------
-  //! Getters / Setters
+  //! Is the url valid
   //----------------------------------------------------------------------------
-  static PyObject* IsValid(URL *self)
+  static PyObject* IsValid( URL *self )
   {
-    return Py_BuildValue("O", PyBool_FromLong(self->url->IsValid()));
+    return Py_BuildValue( "O", PyBool_FromLong( self->url->IsValid() ) );
   }
 
-  static PyObject* GetHostId(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the host part of the URL (user:password\@host:port)
+  //----------------------------------------------------------------------------
+  static PyObject* GetHostId( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetHostId().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->url->GetHostId().c_str() ) );
   }
 
-  static PyObject* GetProtocol(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the protocol
+  //----------------------------------------------------------------------------
+  static PyObject* GetProtocol( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetProtocol().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->url->GetProtocol().c_str() ) );
   }
 
-  static PyObject* SetProtocol(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Set protocol
+  //----------------------------------------------------------------------------
+  static PyObject* SetProtocol( URL *self, PyObject *args )
   {
     const char *protocol;
-    if (!PyArg_ParseTuple(args, "s", &protocol))
+    if ( !PyArg_ParseTuple( args, "s", &protocol ) )
       return NULL;
-    self->url->SetProtocol(std::string(protocol));
+    self->url->SetProtocol( std::string( protocol ) );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetUserName(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the username
+  //----------------------------------------------------------------------------
+  static PyObject* GetUserName( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetUserName().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->url->GetUserName().c_str() ) );
   }
 
-  static PyObject* SetUserName(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Set the username
+  //----------------------------------------------------------------------------
+  static PyObject* SetUserName( URL *self, PyObject *args )
   {
     const char *username;
-    if (!PyArg_ParseTuple(args, "s", &username))
+    if ( !PyArg_ParseTuple( args, "s", &username ) )
       return NULL;
-    self->url->SetUserName(std::string(username));
+    self->url->SetUserName( std::string( username ) );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetPassword(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the password
+  //----------------------------------------------------------------------------
+  static PyObject* GetPassword( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetPassword().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->url->GetPassword().c_str() ) );
   }
 
-  static PyObject* SetPassword(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Set the password
+  //----------------------------------------------------------------------------
+  static PyObject* SetPassword( URL *self, PyObject *args )
   {
     const char *password;
-    if (!PyArg_ParseTuple(args, "s", &password))
+    if ( !PyArg_ParseTuple( args, "s", &password ) )
       return NULL;
-    self->url->SetPassword(std::string(password));
+    self->url->SetPassword( std::string( password ) );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetHostName(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the name of the target host
+  //----------------------------------------------------------------------------
+  static PyObject* GetHostName( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetHostName().c_str()));
+    return Py_BuildValue( "S",
+        PyString_FromString( self->url->GetHostName().c_str() ) );
   }
 
-  static PyObject* SetHostName(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Set the host name
+  //----------------------------------------------------------------------------
+  static PyObject* SetHostName( URL *self, PyObject *args )
   {
     const char *hostname;
-    if (!PyArg_ParseTuple(args, "s", &hostname))
+    if ( !PyArg_ParseTuple( args, "s", &hostname ) )
       return NULL;
-    self->url->SetHostName(std::string(hostname));
+    self->url->SetHostName( std::string( hostname ) );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetPort(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the target port
+  //----------------------------------------------------------------------------
+  static PyObject* GetPort( URL *self )
   {
-    return Py_BuildValue("i", self->url->GetPort());
+    return Py_BuildValue( "i", self->url->GetPort() );
   }
 
-  static PyObject* SetPort(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Is the url valid
+  //----------------------------------------------------------------------------
+  static PyObject* SetPort( URL *self, PyObject *args )
   {
     int port;
-    if (!PyArg_ParseTuple(args, "i", &port))
+    if ( !PyArg_ParseTuple( args, "i", &port ) )
       return NULL;
-    self->url->SetPort(port);
+    self->url->SetPort( port );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetPath(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the path
+  //----------------------------------------------------------------------------
+  static PyObject* GetPath( URL *self )
   {
-    return Py_BuildValue("S", PyString_FromString(self->url->GetPath().c_str()));
+    return Py_BuildValue( "S",
+                          PyString_FromString( self->url->GetPath().c_str() ) );
   }
 
-  static PyObject* SetPath(URL *self, PyObject *args)
+  //----------------------------------------------------------------------------
+  //! Set the path
+  //----------------------------------------------------------------------------
+  static PyObject* SetPath( URL *self, PyObject *args )
   {
     const char *path;
-    if (!PyArg_ParseTuple(args, "s", &path))
+    if ( !PyArg_ParseTuple( args, "s", &path ) )
       return NULL;
-    self->url->SetPath(std::string(path));
+
+    self->url->SetPath( std::string( path ) );
     Py_RETURN_NONE ;
   }
 
-  static PyObject* GetPathWithParams(URL *self)
+  //----------------------------------------------------------------------------
+  //! Get the path with params
+  //----------------------------------------------------------------------------
+  static PyObject* GetPathWithParams( URL *self )
   {
-    return Py_BuildValue("S",
-        PyString_FromString(self->url->GetPathWithParams().c_str()));
+    return Py_BuildValue( "S",
+           PyString_FromString( self->url->GetPathWithParams().c_str() ) );
   }
 
-  static PyObject* Clear(URL *self)
+  //----------------------------------------------------------------------------
+  //! Clear the url
+  //----------------------------------------------------------------------------
+  static PyObject* Clear( URL *self )
   {
     self->url->Clear();
     Py_RETURN_NONE ;

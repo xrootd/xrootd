@@ -39,55 +39,67 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void HostInfo_dealloc(HostInfo *self)
+  static void HostInfo_dealloc( HostInfo *self )
   {
     delete self->hostInfo;
-    self->ob_type->tp_free((PyObject*) self);
+    self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int HostInfo_init(HostInfo *self, PyObject *args)
+  static int HostInfo_init( HostInfo *self, PyObject *args )
   {
     PyObject *hostInfo;
 
-    if (!PyArg_ParseTuple(args, "O", &hostInfo))
+    if ( !PyArg_ParseTuple( args, "O", &hostInfo ) )
       return -1;
 
-    self->hostInfo = (XrdCl::HostInfo *) PyCObject_AsVoidPtr(hostInfo);
+    self->hostInfo = (XrdCl::HostInfo *) PyCObject_AsVoidPtr( hostInfo );
     return 0;
   }
 
   //----------------------------------------------------------------------------
-  //! Binding functions
+  //! Getter for HostInfo.flags
   //----------------------------------------------------------------------------
-  static PyObject* HostInfo_GetFlags(HostInfo *self, void *closure)
+  static PyObject* HostInfo_GetFlags( HostInfo *self, void *closure )
   {
-    return Py_BuildValue("i", self->hostInfo->flags);
+    return Py_BuildValue( "i", self->hostInfo->flags );
   }
 
-  static PyObject* HostInfo_GetProtocol(HostInfo *self, void *closure)
+  //----------------------------------------------------------------------------
+  //! Getter for HostInfo.protocol
+  //----------------------------------------------------------------------------
+  static PyObject* HostInfo_GetProtocol( HostInfo *self, void *closure )
   {
-    return Py_BuildValue("i", self->hostInfo->protocol);
+    return Py_BuildValue( "i", self->hostInfo->protocol );
   }
 
-  static PyObject* HostInfo_IsLoadBalancer(HostInfo *self, void *closure)
+  //----------------------------------------------------------------------------
+  //! Getter for HostInfo.loadBalancer
+  //----------------------------------------------------------------------------
+  static PyObject* HostInfo_IsLoadBalancer( HostInfo *self, void *closure )
   {
-    return Py_BuildValue("O", PyBool_FromLong(self->hostInfo->loadBalancer));
+    return Py_BuildValue( "O", PyBool_FromLong( self->hostInfo->loadBalancer ) );
   }
 
-  static PyObject* HostInfo_GetURL(HostInfo *self, void *closure)
+  //----------------------------------------------------------------------------
+  //! Getter for HostInfo.url
+  //----------------------------------------------------------------------------
+  static PyObject* HostInfo_GetURL( HostInfo *self, void *closure )
   {
     //--------------------------------------------------------------------------
     // Build a URL mapping object on-the-fly (maybe inefficient)
     //--------------------------------------------------------------------------
-    PyObject *bindArgs = Py_BuildValue("(s)", self->hostInfo->url.GetURL().c_str());
-    if (!bindArgs) return NULL;
+    PyObject *bindArgs = Py_BuildValue( "(s)",
+                                        self->hostInfo->url.GetURL().c_str() );
+    if ( !bindArgs )
+      return NULL;
 
-    PyObject *url = PyObject_CallObject((PyObject*) &URLType, bindArgs);
-    Py_DECREF(bindArgs);
-    if (!url) return NULL;
+    PyObject *url = PyObject_CallObject( (PyObject*) &URLType, bindArgs );
+    Py_DECREF( bindArgs );
+    if ( !url )
+      return NULL;
 
     return url;
   }

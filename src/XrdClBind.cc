@@ -26,48 +26,50 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Visible module method declarations
   //----------------------------------------------------------------------------
-  static PyMethodDef module_methods[] = {
-      {NULL}  /* Sentinel */
-  };
+  static PyMethodDef module_methods[] =
+    {
+      { NULL } /* Sentinel */
+    };
 
   //----------------------------------------------------------------------------
   //! Module initialization function
   //----------------------------------------------------------------------------
-  PyMODINIT_FUNC initclient(void)
+  PyMODINIT_FUNC initclient( void )
   {
     PyObject* module;
 
     // Ensure GIL state is initialized
     Py_Initialize();
-    if (!PyEval_ThreadsInitialized()) {
-        PyEval_InitThreads();
+    if ( !PyEval_ThreadsInitialized() ) {
+      PyEval_InitThreads();
     }
 
-    ClientType.tp_new = PyType_GenericNew;
-    URLType.tp_new = PyType_GenericNew;
+    ClientType.tp_new       = PyType_GenericNew;
+    URLType.tp_new          = PyType_GenericNew;
     XRootDStatusType.tp_new = PyType_GenericNew;
-    StatInfoType.tp_new = PyType_GenericNew;
-    HostInfoType.tp_new = PyType_GenericNew;
+    StatInfoType.tp_new     = PyType_GenericNew;
+    HostInfoType.tp_new     = PyType_GenericNew;
 
-    if (PyType_Ready(&ClientType) < 0) return;
-    if (PyType_Ready(&URLType) < 0) return;
-    if (PyType_Ready(&XRootDStatusType) < 0) return;
-    if (PyType_Ready(&StatInfoType) < 0) return;
-    if (PyType_Ready(&HostInfoType) < 0) return;
+    if ( PyType_Ready( &ClientType ) < 0 ) return;
+    if ( PyType_Ready( &URLType ) < 0 )    return;
+    if ( PyType_Ready( &XRootDStatusType ) < 0 ) return;
+    if ( PyType_Ready( &StatInfoType ) < 0 ) return;
+    if ( PyType_Ready( &HostInfoType ) < 0 ) return;
 
     module = Py_InitModule3("client", module_methods,
-            "Client extension module type.");
+        "Client extension module type.");
 
-    Py_INCREF(&ClientType);
-    Py_INCREF(&URLType);
-    Py_INCREF(&XRootDStatusType);
-    Py_INCREF(&StatInfoType);
-    Py_INCREF(&HostInfoType);
+    Py_INCREF( &ClientType );
+    Py_INCREF( &URLType );
+    Py_INCREF( &XRootDStatusType );
+    Py_INCREF( &StatInfoType );
+    Py_INCREF( &HostInfoType );
 
-    PyModule_AddObject(module, "Client", (PyObject *) &ClientType);
-    PyModule_AddObject(module, "URL", (PyObject *) &URLType);
-    PyModule_AddObject(module, "XRootDStatus", (PyObject *) &XRootDStatusType);
-    PyModule_AddObject(module, "StatInfo", (PyObject *) &StatInfoType);
-    PyModule_AddObject(module, "HostInfo", (PyObject *) &HostInfoType);
+    PyModule_AddObject( module, "Client", (PyObject *) &ClientType );
+    PyModule_AddObject( module, "URL", (PyObject *) &URLType );
+    PyModule_AddObject( module, "StatInfo", (PyObject *) &StatInfoType );
+    PyModule_AddObject( module, "HostInfo", (PyObject *) &HostInfoType );
+    PyModule_AddObject( module, "XRootDStatus",
+        (PyObject *) &XRootDStatusType );
   }
 }

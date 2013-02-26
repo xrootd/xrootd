@@ -39,17 +39,17 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void XRootDStatus_dealloc(XRootDStatus *self)
+  static void XRootDStatus_dealloc( XRootDStatus *self )
   {
     delete self->status;
-    self->ob_type->tp_free((PyObject*) self);
+    self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int XRootDStatus_init(XRootDStatus *self, PyObject *args,
-      PyObject *kwds)
+  static int XRootDStatus_init( XRootDStatus *self, PyObject *args,
+      PyObject *kwds )
   {
     static char *kwlist[] = { "status", "code", "errNo", "message", NULL };
 
@@ -57,12 +57,12 @@ namespace XrdClBind
     uint32_t errNo;
     const char *message;
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "HHIs", kwlist, &status, &code,
-        &errNo, &message))
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "HHIs", kwlist, &status,
+                                       &code, &errNo, &message ) )
       return -1;
 
-    self->status = new XrdCl::XRootDStatus(status, code, errNo,
-        std::string(message));
+    self->status = new XrdCl::XRootDStatus( status, code, errNo,
+                                            std::string( message ) );
 
     return 0;
   }
@@ -70,52 +70,73 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! __str__() equivalent
   //----------------------------------------------------------------------------
-  static PyObject* XRootDStatus_str(XRootDStatus *status)
+  static PyObject* XRootDStatus_str( XRootDStatus *status )
   {
-    return PyString_FromString(status->status->ToStr().c_str());
+    return PyString_FromString( status->status->ToStr().c_str() );
   }
 
   //----------------------------------------------------------------------------
-  //! Binding functions
+  //! Getter for XRootDStatus.status
   //----------------------------------------------------------------------------
-  static PyObject* XRootDStatus_GetStatus(XRootDStatus *self, void *closure)
+  static PyObject* XRootDStatus_GetStatus( XRootDStatus *self, void *closure )
   {
-    return Py_BuildValue("i", self->status->status);
+    return Py_BuildValue( "i", self->status->status );
   }
 
-  static PyObject* XRootDStatus_GetCode(XRootDStatus *self, void *closure)
+  //----------------------------------------------------------------------------
+  //! Getter for XRootDStatus.code
+  //----------------------------------------------------------------------------
+  static PyObject* XRootDStatus_GetCode( XRootDStatus *self, void *closure )
   {
-    return Py_BuildValue("i", self->status->code);
+    return Py_BuildValue( "i", self->status->code );
   }
 
-  static PyObject* XRootDStatus_GetErrNo(XRootDStatus *self, void *closure)
+  //----------------------------------------------------------------------------
+  //! Getter for XRootDStatus.errNo
+  //----------------------------------------------------------------------------
+  static PyObject* XRootDStatus_GetErrNo( XRootDStatus *self, void *closure )
   {
-    return Py_BuildValue("i", self->status->errNo);
+    return Py_BuildValue( "i", self->status->errNo );
   }
 
-  static PyObject* GetErrorMessage(XRootDStatus *self)
+  //----------------------------------------------------------------------------
+  //! Get error message
+  //----------------------------------------------------------------------------
+  static PyObject* GetErrorMessage( XRootDStatus *self )
   {
-    return Py_BuildValue("s", self->status->GetErrorMessage().c_str());
+    return Py_BuildValue( "s", self->status->GetErrorMessage().c_str() );
   }
 
-  static PyObject* GetShellCode(XRootDStatus *self)
+  //----------------------------------------------------------------------------
+  //! Getter for XRootDStatus.errNo
+  //----------------------------------------------------------------------------
+  static PyObject* GetShellCode( XRootDStatus *self )
   {
-    return Py_BuildValue("i", self->status->GetShellCode());
+    return Py_BuildValue( "i", self->status->GetShellCode() );
   }
 
-  static PyObject* IsError(XRootDStatus *self)
+  //----------------------------------------------------------------------------
+  //! Error
+  //----------------------------------------------------------------------------
+  static PyObject* IsError( XRootDStatus *self )
   {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsError()));
+    return Py_BuildValue( "O", PyBool_FromLong( self->status->IsError() ) );
   }
 
-  static PyObject* IsFatal(XRootDStatus *self)
+  //----------------------------------------------------------------------------
+  //! Fatal error
+  //----------------------------------------------------------------------------
+  static PyObject* IsFatal( XRootDStatus *self )
   {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsFatal()));
+    return Py_BuildValue( "O", PyBool_FromLong( self->status->IsFatal() ) );
   }
 
-  static PyObject* IsOK(XRootDStatus *self)
+  //----------------------------------------------------------------------------
+  //! We're fine
+  //----------------------------------------------------------------------------
+  static PyObject* IsOK( XRootDStatus *self )
   {
-    return Py_BuildValue("O", PyBool_FromLong(self->status->IsOK()));
+    return Py_BuildValue( "O", PyBool_FromLong( self->status->IsOK() ) );
   }
 
   //----------------------------------------------------------------------------
