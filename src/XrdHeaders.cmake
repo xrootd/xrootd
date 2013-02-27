@@ -85,11 +85,17 @@ set( XROOTD_PUBLIC_HEADERS
 
 set( XROOTD_PRIVATE_HEADERS
   Xrd/XrdPoll.hh
+  XrdClient/XrdClientConn.hh
+  XrdClient/XrdClientConnMgr.hh
+  XrdClient/XrdClientDebug.hh
   XrdClient/XrdClientInputBuffer.hh
   XrdClient/XrdClientLogConnection.hh
   XrdClient/XrdClientMessage.hh
   XrdClient/XrdClientPhyConnection.hh
+  XrdClient/XrdClientReadCache.hh
   XrdClient/XrdClientSock.hh
+  XrdNet/XrdNetPeer.hh
+  XrdNet/XrdNetBuffer.hh
   XrdOfs/XrdOfs.hh
   XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsHandle.hh
