@@ -1,29 +1,29 @@
 from XRootD import client
-import sys
 
-myclient = client.Client("root://localhoost")
+myclient = client.Client("root://localhost")
 print 'URL:', myclient.url
  
 #-------------------------------------------------------------------------------
 # Synchronous example
 #-------------------------------------------------------------------------------
-status, response = myclient.stat("/tmp")
-print "Status:", str(status)
-print "Response:", str(response)
-#print "Modification time:", response.GetModTimeAsString()
+# status, response = myclient.stat("/tmpp")
+# print "Status:", status['message']
+# print "Response:", str(response)
+# if response: print "Modification time:", response.GetModTimeAsString()
  
 #-------------------------------------------------------------------------------
 # Asynchronous non-waiting example
 #-------------------------------------------------------------------------------
 def callback(status, response, hostList):
-  print 'Status:', str(status)
+  print 'Status:', status['message']
   print 'Response:', str(response)
-  print 'Modification time:', response.GetModTimeAsString()
+  if response: print 'Modification time:', response.GetModTimeAsString()
    
   for host in hostList:
     print "Host:", host.url
- 
-myclient.stat("/tmp", callback)
+
+status = myclient.stat("/tmp", callback)
+print 'Status:', status['message']
  
 # Halt script (todo: implement callback class w/semaphore and/or callback 
 # decorator w/generator)
@@ -44,16 +44,16 @@ class AsyncStatHandler(Thread):
   def run(self):
     self.sem.acquire()
     status, response = self.client.stat(self.path)
-    print 'Status:', status
+    print 'Status:', status['message']
     print 'Response:', response
-    print 'Modification time:', response.GetModTimeAsString()
+    if response: print 'Modification time:', response.GetModTimeAsString()
     self.sem.release()
     
   def startAndWait(self):
     handler.start()
     handler.join()
 
-#myclient = client.Client('root://localhost')
-#handler = AsyncStatHandler(myclient, '/tmp')
-#handler.startAndWait()
+myclient = client.Client('root://localhost')
+handler = AsyncStatHandler(myclient, '/tmpp')
+handler.startAndWait()
 
