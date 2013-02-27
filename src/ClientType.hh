@@ -82,8 +82,9 @@ namespace XrdClBind
   static PyObject* Stat( Client *self, PyObject *args )
   {
     const char *path;
-    PyObject *callback = NULL;
-    XrdCl::FileSystem filesystem( *self->url->url );
+    PyObject   *callback = NULL;
+    XrdCl::XRootDStatus status;
+    XrdCl::FileSystem   filesystem( *self->url->url );
 
     //--------------------------------------------------------------------------
     // Parse the stat path and optional callback argument
@@ -104,17 +105,19 @@ namespace XrdClBind
       // Spin the async request (while releasing the GIL) and return None.
       //------------------------------------------------------------------------
       Py_BEGIN_ALLOW_THREADS
-      filesystem.Stat( path, handler, 5 );
+      status = filesystem.Stat( path, handler, 5 );
       Py_END_ALLOW_THREADS
 
-      Py_RETURN_NONE ;
+      PyObject *statusDict = XRootDStatusDict(&status);
+      if (!statusDict) return NULL;
+      return Py_BuildValue( "O", statusDict );
     }
 
     //--------------------------------------------------------------------------
     // Synchronous mode
     //--------------------------------------------------------------------------
     XrdCl::StatInfo *response = 0;
-    XrdCl::XRootDStatus status = filesystem.Stat( path, response, 5 );
+    status = filesystem.Stat( path, response, 5 );
 
     //--------------------------------------------------------------------------
     // Convert the XRootDStatus object
@@ -136,6 +139,46 @@ namespace XrdClBind
   }
 
   //----------------------------------------------------------------------------
+  // Check if the server is alive
+  //----------------------------------------------------------------------------
+  static PyObject* Ping( Client *self, PyObject *args, PyObject *kwds )
+  {
+    uint16_t timeout = 5;
+    PyObject *callback = NULL;
+    XrdCl::XRootDStatus status;
+    XrdCl::FileSystem   filesystem( *self->url->url );
+    static char *kwlist[] = { "timeout", "callback", NULL };
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|IO", kwlist, &timeout, &callback ) )
+      return NULL;
+
+    if ( callback ) {
+      if ( !CheckCallable( callback ) )
+        return NULL;
+
+      XrdCl::ResponseHandler *handler =
+          new AsyncResponseHandler<>( (PyTypeObject*) Py_None, callback );
+
+      Py_BEGIN_ALLOW_THREADS
+      status = filesystem.Ping( handler, timeout );
+      Py_END_ALLOW_THREADS
+
+      PyObject *statusDict = XRootDStatusDict( &status );
+      if ( !statusDict )
+        return NULL;
+      return Py_BuildValue( "O", statusDict );
+    }
+
+    status = filesystem.Ping( timeout );
+
+    PyObject *statusDict = XRootDStatusDict( &status );
+    if ( !statusDict )
+      return NULL;
+
+    return Py_BuildValue( "O", statusDict );
+  }
+
+  //----------------------------------------------------------------------------
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef ClientMembers[] =
@@ -149,7 +192,10 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   static PyMethodDef ClientMethods[] =
     {
-      { "stat", (PyCFunction) Stat, METH_VARARGS, "Stat a path" },
+      { "stat", (PyCFunction) Stat, METH_KEYWORDS,
+        "Stat a path" },
+      { "ping", (PyCFunction) Ping, METH_KEYWORDS,
+        "Check if the server is alive" },
       { NULL } /* Sentinel */
     };
 

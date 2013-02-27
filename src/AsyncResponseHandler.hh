@@ -32,7 +32,7 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   //! Generic asynchronous response handler
   //----------------------------------------------------------------------------
-  template<class Type>
+  template<class Type = int>
   class AsyncResponseHandler: public XrdCl::ResponseHandler
   {
     public:
@@ -68,16 +68,14 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         // Convert the response object, if any
         //----------------------------------------------------------------------
-        PyObject *responseBind;
+        PyObject *responseBind = NULL;
         if ( response != NULL) {
           responseBind = ParseResponse( response );
-          if ( !responseBind || PyErr_Occurred() ) {
+          if ( responseBind == NULL || PyErr_Occurred() ) {
             PyErr_Print();
             PyGILState_Release( state );
             return;
           }
-        } else {
-          responseBind = Py_None;
         }
 
         //----------------------------------------------------------------------
@@ -106,14 +104,16 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         // Build the callback arguments
         //----------------------------------------------------------------------
-        PyObject *args = Py_BuildValue( "(OOO)", statusDict, responseBind,
-                                        hostListBind );
+        PyObject *args = (responseBind != NULL) ?
+            Py_BuildValue( "(OOO)", statusDict, responseBind, hostListBind ) :
+            Py_BuildValue( "(OO)",  statusDict, hostListBind );
         if ( !args || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
           return;
         }
-
+        PyObject_Print(responseBind, stdout, 0); printf("\n");
+        PyObject_Print(args, stdout, 0); printf("\n");
         //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------

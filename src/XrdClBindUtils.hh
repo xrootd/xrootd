@@ -59,7 +59,7 @@ namespace XrdClBind
         "status",    status->status,
         "code",      status->code,
         "errNo",     status->errNo,
-        "message",   status->GetErrorMessage().c_str(),
+        "message",   status->ToStr().c_str(),
         "shellCode", status->GetShellCode(),
         "isError",   PyBool_FromLong( status->IsError() ),
         "isFatal",   PyBool_FromLong( status->IsFatal() ),
