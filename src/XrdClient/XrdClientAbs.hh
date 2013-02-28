@@ -42,7 +42,6 @@
 #include "XrdClient/XrdClientUrlInfo.hh"
 
 #include "XProtocol/XPtypes.hh"
-//?#include "XrdClient/XrdClientConn.hh"
 
 class XrdClientCallback;
 class XrdClientConn;

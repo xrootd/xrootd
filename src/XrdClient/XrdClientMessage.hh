@@ -37,7 +37,6 @@
 //                                                                      //
 //////////////////////////////////////////////////////////////////////////
 
-//#include "XrdClient/XrdClientProtocol.hh"
 #include "XProtocol/XProtocol.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
