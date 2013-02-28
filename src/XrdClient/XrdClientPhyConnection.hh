@@ -42,7 +42,6 @@
 #include "XrdClient/XrdClientUnsolMsg.hh"
 #include "XrdClient/XrdClientInputBuffer.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
-//#include "XrdClient/XrdClientThread.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysSemWait.hh"
 
