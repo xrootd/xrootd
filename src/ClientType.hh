@@ -16,24 +16,21 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef XRDCLBIND_HH_
-#define XRDCLBIND_HH_
+#ifndef CLIENT_TYPE_HH_
+#define CLIENT_TYPE_HH_
 
 #include <Python.h>
-#include <iostream>
 #include "structmember.h"
 
 #include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "XRootDStatusType.hh"
-#include "StatInfoType.hh"
 #include "URLType.hh"
 #include "AsyncResponseHandler.hh"
-#include "XrdClBindUtils.hh"
 
 namespace XrdClBind
 {
+
+
   //----------------------------------------------------------------------------
   //! Client binding type definition
   //----------------------------------------------------------------------------
@@ -43,6 +40,12 @@ namespace XrdClBind
       /* Type-specific fields */
       URL *url;
   } Client;
+
+  class FileSystem {
+    public:
+      static PyObject* Stat( Client *self, PyObject *args );
+      static PyObject* Ping( Client *self, PyObject *args, PyObject *kwds );
+  };
 
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
@@ -74,111 +77,6 @@ namespace XrdClBind
   }
 
   //----------------------------------------------------------------------------
-  //! Stat a path.
-  //!
-  //! This function can be synchronous or asynchronous, depending if a callback
-  //! argument is given. The callback can be any Python callable.
-  //----------------------------------------------------------------------------
-  static PyObject* Stat( Client *self, PyObject *args )
-  {
-    const char *path;
-    PyObject   *callback = NULL;
-    XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
-
-    //--------------------------------------------------------------------------
-    // Parse the stat path and optional callback argument
-    //--------------------------------------------------------------------------
-    if ( !PyArg_ParseTuple( args, "s|O", &path, &callback ) )
-      return NULL;
-
-    //--------------------------------------------------------------------------
-    // Asynchronous mode
-    //--------------------------------------------------------------------------
-    if ( callback ) {
-      if (!CheckCallable(callback)) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::StatInfo>( &StatInfoType, callback );
-
-      //------------------------------------------------------------------------
-      // Spin the async request (while releasing the GIL) and return None.
-      //------------------------------------------------------------------------
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Stat( path, handler, 5 );
-      Py_END_ALLOW_THREADS
-
-      PyObject *statusDict = XRootDStatusDict(&status);
-      if (!statusDict) return NULL;
-      return Py_BuildValue( "O", statusDict );
-    }
-
-    //--------------------------------------------------------------------------
-    // Synchronous mode
-    //--------------------------------------------------------------------------
-    XrdCl::StatInfo *response = 0;
-    status = filesystem.Stat( path, response, 5 );
-
-    //--------------------------------------------------------------------------
-    // Convert the XRootDStatus object
-    //--------------------------------------------------------------------------
-    PyObject *statusDict = XRootDStatusDict(&status);
-    if (!statusDict) return NULL;
-
-    //--------------------------------------------------------------------------
-    // Convert the response object, if any
-    //--------------------------------------------------------------------------
-    PyObject *responseBind;
-    if ( response ) {
-      responseBind = ConvertType<XrdCl::StatInfo>( response, &StatInfoType );
-    } else {
-      responseBind = Py_None;
-    }
-
-    return Py_BuildValue( "OO", statusDict, responseBind );
-  }
-
-  //----------------------------------------------------------------------------
-  // Check if the server is alive
-  //----------------------------------------------------------------------------
-  static PyObject* Ping( Client *self, PyObject *args, PyObject *kwds )
-  {
-    uint16_t timeout = 5;
-    PyObject *callback = NULL;
-    XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
-    static char *kwlist[] = { "timeout", "callback", NULL };
-
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|IO", kwlist, &timeout, &callback ) )
-      return NULL;
-
-    if ( callback ) {
-      if ( !CheckCallable( callback ) )
-        return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<>( (PyTypeObject*) Py_None, callback );
-
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Ping( handler, timeout );
-      Py_END_ALLOW_THREADS
-
-      PyObject *statusDict = XRootDStatusDict( &status );
-      if ( !statusDict )
-        return NULL;
-      return Py_BuildValue( "O", statusDict );
-    }
-
-    status = filesystem.Ping( timeout );
-
-    PyObject *statusDict = XRootDStatusDict( &status );
-    if ( !statusDict )
-      return NULL;
-
-    return Py_BuildValue( "O", statusDict );
-  }
-
-  //----------------------------------------------------------------------------
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef ClientMembers[] =
@@ -192,9 +90,9 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   static PyMethodDef ClientMethods[] =
     {
-      { "stat", (PyCFunction) Stat, METH_KEYWORDS,
+      { "stat", (PyCFunction) FileSystem::Stat, METH_KEYWORDS,
         "Stat a path" },
-      { "ping", (PyCFunction) Ping, METH_KEYWORDS,
+      { "ping", (PyCFunction) FileSystem::Ping, METH_KEYWORDS,
         "Check if the server is alive" },
       { NULL } /* Sentinel */
     };
@@ -239,6 +137,7 @@ namespace XrdClBind
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     (initproc) Client_init,                     /* tp_init */
-  };}
+  };
+}
 
-#endif /* XRDCLBIND_HH_ */
+#endif /* CLIENT_TYPE_HH_ */

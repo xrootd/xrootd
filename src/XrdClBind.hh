@@ -16,44 +16,24 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "XrdClBind.hh"
+#ifndef XRDCLBIND_HH_
+#define XRDCLBIND_HH_
+
+#include <Python.h>
+
+#include "ClientType.hh"
+#include "StatInfoType.hh"
+#include "HostInfoType.hh"
 
 namespace XrdClBind
 {
   //----------------------------------------------------------------------------
-  //! Module initialization function
+  //! Visible module-level method declarations
   //----------------------------------------------------------------------------
-  PyMODINIT_FUNC initclient( void )
-  {
-    PyObject* module;
-
-    // Ensure GIL state is initialized
-    Py_Initialize();
-    if ( !PyEval_ThreadsInitialized() ) {
-      PyEval_InitThreads();
-    }
-
-    ClientType.tp_new       = PyType_GenericNew;
-    URLType.tp_new          = PyType_GenericNew;
-    StatInfoType.tp_new     = PyType_GenericNew;
-    HostInfoType.tp_new     = PyType_GenericNew;
-
-    if ( PyType_Ready( &ClientType ) < 0 ) return;
-    if ( PyType_Ready( &URLType ) < 0 )    return;
-    if ( PyType_Ready( &StatInfoType ) < 0 ) return;
-    if ( PyType_Ready( &HostInfoType ) < 0 ) return;
-
-    module = Py_InitModule3("client", module_methods,
-        "Client extension module type.");
-
-    Py_INCREF( &ClientType );
-    Py_INCREF( &URLType );
-    Py_INCREF( &StatInfoType );
-    Py_INCREF( &HostInfoType );
-
-    PyModule_AddObject( module, "Client", (PyObject *) &ClientType );
-    PyModule_AddObject( module, "URL", (PyObject *) &URLType );
-    PyModule_AddObject( module, "StatInfo", (PyObject *) &StatInfoType );
-    PyModule_AddObject( module, "HostInfo", (PyObject *) &HostInfoType );
-  }
+  static PyMethodDef module_methods[] =
+    {
+      { NULL } /* Sentinel */
+    };
 }
+
+#endif /* XRDCLBIND_HH_ */

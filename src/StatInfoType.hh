@@ -20,6 +20,7 @@
 #define STATINFOTYPE_HH_
 
 #include <Python.h>
+#include <structmember.h>
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
@@ -34,29 +35,6 @@ namespace XrdClBind
       /* Type-specific fields */
       XrdCl::StatInfo *info;
   } StatInfo;
-
-  //----------------------------------------------------------------------------
-  //! Deallocation function, called when object is deleted
-  //----------------------------------------------------------------------------
-  static void StatInfo_dealloc( StatInfo *self )
-  {
-    self->ob_type->tp_free( (PyObject*) self );
-  }
-
-  //----------------------------------------------------------------------------
-  //! __init__() equivalent
-  //----------------------------------------------------------------------------
-  static int StatInfo_init( StatInfo *self, PyObject *args )
-  {
-    PyObject *info;
-
-    if ( !PyArg_ParseTuple( args, "O", &info ) )
-      return -1;
-
-    // Unpack the void * and cast it back to our object
-    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr( info );
-    return 0;
-  }
 
   //----------------------------------------------------------------------------
   //! Get id
@@ -110,6 +88,29 @@ namespace XrdClBind
   {
     return Py_BuildValue( "S",
         PyString_FromString( self->info->GetModTimeAsString().c_str() ) );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void StatInfo_dealloc( StatInfo *self )
+  {
+    self->ob_type->tp_free( (PyObject*) self );
+  }
+
+  //----------------------------------------------------------------------------
+  //! __init__() equivalent
+  //----------------------------------------------------------------------------
+  static int StatInfo_init( StatInfo *self, PyObject *args )
+  {
+    PyObject *info;
+
+    if ( !PyArg_ParseTuple( args, "O", &info ) )
+      return -1;
+
+    // Unpack the void * and cast it back to our object
+    self->info = (XrdCl::StatInfo *) PyCObject_AsVoidPtr( info );
+    return 0;
   }
 
   //----------------------------------------------------------------------------

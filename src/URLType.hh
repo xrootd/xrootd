@@ -22,8 +22,8 @@
 #include <Python.h>
 #include "structmember.h"
 
-namespace XrdClBind
-{
+#include "XrdCl/XrdClURL.hh"
+
   //----------------------------------------------------------------------------
   //! URL binding type definition
   //----------------------------------------------------------------------------
@@ -33,37 +33,6 @@ namespace XrdClBind
       /* Type-specific fields */
       XrdCl::URL *url;
   } URL;
-
-  //----------------------------------------------------------------------------
-  //! Deallocation function, called when object is deleted
-  //----------------------------------------------------------------------------
-  static void URL_dealloc( URL *self )
-  {
-    //delete self->url;
-    self->ob_type->tp_free( (PyObject*) self );
-  }
-
-  //----------------------------------------------------------------------------
-  //! __init__() equivalent
-  //----------------------------------------------------------------------------
-  static int URL_init( URL *self, PyObject *args )
-  {
-    PyObject *url;
-
-    if ( !PyArg_ParseTuple( args, "O", &url ) )
-      return -1;
-
-    self->url = (XrdCl::URL*) PyCObject_AsVoidPtr( url );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! __str__() equivalent
-  //----------------------------------------------------------------------------
-  static PyObject* URL_str( URL *self )
-  {
-    return PyString_FromString( self->url->GetURL().c_str() );
-  }
 
   //----------------------------------------------------------------------------
   //! Is the url valid
@@ -227,6 +196,37 @@ namespace XrdClBind
   }
 
   //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void URL_dealloc( URL *self )
+  {
+    //delete self->url;
+    self->ob_type->tp_free( (PyObject*) self );
+  }
+
+  //----------------------------------------------------------------------------
+  //! __init__() equivalent
+  //----------------------------------------------------------------------------
+  static int URL_init( URL *self, PyObject *args )
+  {
+    PyObject *url;
+
+    if ( !PyArg_ParseTuple( args, "O", &url ) )
+      return -1;
+
+    self->url = (XrdCl::URL*) PyCObject_AsVoidPtr( url );
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __str__() equivalent
+  //----------------------------------------------------------------------------
+  static PyObject* URL_str( URL *self )
+  {
+    return PyString_FromString( self->url->GetURL().c_str() );
+  }
+
+  //----------------------------------------------------------------------------
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef URLMembers[] =
@@ -315,6 +315,6 @@ namespace XrdClBind
     0,                                          /* tp_dictoffset */
     (initproc) URL_init,                        /* tp_init */
   };
-}
+
 
 #endif /* URLTYPE_HH_ */

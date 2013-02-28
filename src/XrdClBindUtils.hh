@@ -21,14 +21,12 @@
 
 #include <Python.h>
 
-#include "ClientType.hh"
-#include "XRootDStatusType.hh"
-#include "URLType.hh"
-#include "HostInfoType.hh"
-#include "StatInfoType.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 
-namespace XrdClBind
-{
+#include "ClientType.hh"
+#include "StatInfoType.hh"
+#include "HostInfoType.hh"
+
   //----------------------------------------------------------------------------
   //! Convert a C++ type to its corresponding Python binding type. We cast
   //! the object to a void * before packing it into a PyCObject.
@@ -55,6 +53,7 @@ namespace XrdClBind
   //! Convert an XRootDStatus object to a Python dictionary
   //----------------------------------------------------------------------------
   static PyObject* XRootDStatusDict(XrdCl::XRootDStatus *status) {
+
     PyObject *dict = Py_BuildValue( "{sHsHsIsssisOsOsO}",
         "status",    status->status,
         "code",      status->code,
@@ -81,6 +80,6 @@ namespace XrdClBind
     Py_INCREF (callable);
     return true;
   }
-}
+
 
 #endif /* XRDCLBINDUTILS_HH_ */

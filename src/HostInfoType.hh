@@ -24,6 +24,8 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
+#include "URLType.hh"
+
 namespace XrdClBind
 {
   //----------------------------------------------------------------------------
