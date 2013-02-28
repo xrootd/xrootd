@@ -6,10 +6,10 @@ print 'URL:', myclient.url
 #-------------------------------------------------------------------------------
 # Synchronous example
 #-------------------------------------------------------------------------------
-# status, response = myclient.stat("/tmpp")
-# print "Status:", status['message']
-# print "Response:", str(response)
-# if response: print "Modification time:", response.GetModTimeAsString()
+status, response = myclient.stat("/tmpp")
+print "Status:", status['message']
+print "Response:", str(response)
+if response: print "Modification time:", response.GetModTimeAsString()
  
 #-------------------------------------------------------------------------------
 # Asynchronous non-waiting example
