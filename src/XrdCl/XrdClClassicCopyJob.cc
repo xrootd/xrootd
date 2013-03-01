@@ -537,7 +537,7 @@ namespace
         if( pCurrentOffset == pSize )
           return XRootDStatus( stOK, suDone );
 
-        const uint32_t toRead = 2*1024*1024;
+        const uint32_t toRead = 32*1024*1024;
         if( buffer.GetSize() != toRead )
           buffer.ReAllocate( toRead );
 
