@@ -25,7 +25,6 @@
 
 #include "XrdClBindUtils.hh"
 #include "HostInfoType.hh"
-#include "StatInfoType.hh"
 
 namespace XrdClBind
 {
@@ -112,8 +111,8 @@ namespace XrdClBind
           PyGILState_Release( state );
           return;
         }
-        PyObject_Print(responseBind, stdout, 0); printf("\n");
-        PyObject_Print(args, stdout, 0); printf("\n");
+        //PyObject_Print(responseBind, stdout, 0); printf("\n");
+        //PyObject_Print(args, stdout, 0); printf("\n");
         //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------
@@ -147,11 +146,11 @@ namespace XrdClBind
       //------------------------------------------------------------------------
       PyObject* ParseResponse( XrdCl::AnyObject *response )
       {
-        PyObject *responseBind;
+        PyObject *responseBind = 0;
         Type     *type = 0;
         response->Get( type );
         responseBind = ConvertType<Type>(type, this->bindType);
-        return (responseBind == NULL || PyErr_Occurred()) ? NULL : responseBind;
+        return (!responseBind || PyErr_Occurred()) ? NULL : responseBind;
       }
 
     private:

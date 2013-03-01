@@ -16,8 +16,13 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
+#include <Python.h>
+#include <iostream>
+
+#include "XrdCl/XrdClFileSystem.hh"
+
 #include "ClientType.hh"
-#include "XrdClBindUtils.hh"
+#include "StatInfoType.hh"
 
 namespace XrdClBind
 {
@@ -41,11 +46,18 @@ namespace XrdClBind
     if ( !PyArg_ParseTuple( args, "s|O", &path, &callback ) )
       return NULL;
 
+    std::cout << StatInfoType.tp_doc << std::endl;
+
+    if ( PyType_Ready( &StatInfoType ) < 0 ) {
+      return NULL;
+    }
+
+    //_PyObject_Dump( (PyObject *) &StatInfoType );
     //--------------------------------------------------------------------------
     // Asynchronous mode
     //--------------------------------------------------------------------------
     if ( callback ) {
-      if (!CheckCallable(callback)) return NULL;
+      if (!IsCallable(callback)) return NULL;
 
       XrdCl::ResponseHandler *handler =
           new AsyncResponseHandler<XrdCl::StatInfo>( &StatInfoType, callback );
@@ -101,7 +113,7 @@ namespace XrdClBind
       return NULL;
 
     if ( callback ) {
-      if ( !CheckCallable( callback ) )
+      if ( !IsCallable( callback ) )
         return NULL;
 
       XrdCl::ResponseHandler *handler =

@@ -16,10 +16,23 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include "XrdClBind.hh"
+#include <Python.h>
+
+#include "ClientType.hh"
+#include "URLType.hh"
+#include "StatInfoType.hh"
+#include "HostInfoType.hh"
 
 namespace XrdClBind
 {
+  //----------------------------------------------------------------------------
+  //! Visible module-level method declarations
+  //----------------------------------------------------------------------------
+  static PyMethodDef module_methods[] =
+    {
+      { NULL } /* Sentinel */
+    };
+
   //----------------------------------------------------------------------------
   //! Module initialization function
   //----------------------------------------------------------------------------
@@ -33,13 +46,13 @@ namespace XrdClBind
       PyEval_InitThreads();
     }
 
-    ClientType.tp_new       = PyType_GenericNew;
-    URLType.tp_new          = PyType_GenericNew;
-    StatInfoType.tp_new     = PyType_GenericNew;
-    HostInfoType.tp_new     = PyType_GenericNew;
+    ClientType.tp_new   = PyType_GenericNew;
+    URLType.tp_new      = PyType_GenericNew;
+    StatInfoType.tp_new = PyType_GenericNew;
+    HostInfoType.tp_new = PyType_GenericNew;
 
-    if ( PyType_Ready( &ClientType ) < 0 ) return;
-    if ( PyType_Ready( &URLType ) < 0 )    return;
+    if ( PyType_Ready( &ClientType ) < 0 )   return;
+    if ( PyType_Ready( &URLType ) < 0 )      return;
     if ( PyType_Ready( &StatInfoType ) < 0 ) return;
     if ( PyType_Ready( &HostInfoType ) < 0 ) return;
 
@@ -55,5 +68,6 @@ namespace XrdClBind
     PyModule_AddObject( module, "URL", (PyObject *) &URLType );
     PyModule_AddObject( module, "StatInfo", (PyObject *) &StatInfoType );
     PyModule_AddObject( module, "HostInfo", (PyObject *) &HostInfoType );
+    PyObject_Print( (PyObject *) &StatInfoType, stdout, 0 ); printf("\n");
   }
 }

@@ -22,15 +22,10 @@
 #include <Python.h>
 #include "structmember.h"
 
-#include "XrdCl/XrdClFileSystem.hh"
-
-#include "URLType.hh"
 #include "AsyncResponseHandler.hh"
 
 namespace XrdClBind
 {
-
-
   //----------------------------------------------------------------------------
   //! Client binding type definition
   //----------------------------------------------------------------------------
@@ -41,20 +36,15 @@ namespace XrdClBind
       URL *url;
   } Client;
 
-  class FileSystem {
+  //----------------------------------------------------------------------------
+  //! XrdCl::FileSystem binding class
+  //----------------------------------------------------------------------------
+  class FileSystem
+  {
     public:
       static PyObject* Stat( Client *self, PyObject *args );
       static PyObject* Ping( Client *self, PyObject *args, PyObject *kwds );
   };
-
-  //----------------------------------------------------------------------------
-  //! Deallocation function, called when object is deleted
-  //----------------------------------------------------------------------------
-  static void Client_dealloc( Client *self )
-  {
-    Py_XDECREF( self->url );
-    self->ob_type->tp_free( (PyObject*) self );
-  }
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
@@ -77,6 +67,15 @@ namespace XrdClBind
   }
 
   //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void Client_dealloc( Client *self )
+  {
+    Py_XDECREF( self->url );
+    self->ob_type->tp_free( (PyObject*) self );
+  }
+
+  //----------------------------------------------------------------------------
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef ClientMembers[] =
@@ -90,9 +89,9 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   static PyMethodDef ClientMethods[] =
     {
-      { "stat", (PyCFunction) FileSystem::Stat, METH_KEYWORDS,
+      { "stat", (PyCFunction) XrdClBind::FileSystem::Stat, METH_KEYWORDS,
         "Stat a path" },
-      { "ping", (PyCFunction) FileSystem::Ping, METH_KEYWORDS,
+      { "ping", (PyCFunction) XrdClBind::FileSystem::Ping, METH_KEYWORDS,
         "Check if the server is alive" },
       { NULL } /* Sentinel */
     };

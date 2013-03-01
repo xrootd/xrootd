@@ -177,6 +177,8 @@ namespace XrdClBind
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
     (initproc) StatInfo_init,                   /* tp_init */
+    0,                                          /* tp_alloc */
+    PyType_GenericNew,                          /* tp_new */
   };
 }
 

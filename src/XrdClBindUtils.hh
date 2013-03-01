@@ -23,10 +23,8 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "ClientType.hh"
-#include "StatInfoType.hh"
-#include "HostInfoType.hh"
-
+namespace XrdClBind
+{
   //----------------------------------------------------------------------------
   //! Convert a C++ type to its corresponding Python binding type. We cast
   //! the object to a void * before packing it into a PyCObject.
@@ -52,8 +50,8 @@
   //----------------------------------------------------------------------------
   //! Convert an XRootDStatus object to a Python dictionary
   //----------------------------------------------------------------------------
-  static PyObject* XRootDStatusDict(XrdCl::XRootDStatus *status) {
-
+  static PyObject* XRootDStatusDict( XrdCl::XRootDStatus *status )
+  {
     PyObject *dict = Py_BuildValue( "{sHsHsIsssisOsOsO}",
         "status",    status->status,
         "code",      status->code,
@@ -70,7 +68,7 @@
   //----------------------------------------------------------------------------
   //! Check that the given callback is actually callable.
   //----------------------------------------------------------------------------
-  static bool CheckCallable( PyObject *callable )
+  static bool IsCallable( PyObject *callable )
   {
     if ( !PyCallable_Check( callable ) ) {
       PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
@@ -80,6 +78,6 @@
     Py_INCREF (callable);
     return true;
   }
-
+}
 
 #endif /* XRDCLBINDUTILS_HH_ */
