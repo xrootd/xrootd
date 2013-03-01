@@ -22,6 +22,7 @@
 #include "URLType.hh"
 #include "StatInfoType.hh"
 #include "HostInfoType.hh"
+#include "XrdClBindUtils.hh"
 
 namespace XrdClBind
 {
@@ -56,18 +57,21 @@ namespace XrdClBind
     if ( PyType_Ready( &StatInfoType ) < 0 ) return;
     if ( PyType_Ready( &HostInfoType ) < 0 ) return;
 
-    module = Py_InitModule3("client", module_methods,
-        "Client extension module type.");
-
     Py_INCREF( &ClientType );
     Py_INCREF( &URLType );
     Py_INCREF( &StatInfoType );
     Py_INCREF( &HostInfoType );
 
+    module = Py_InitModule3("client", module_methods,
+        "Client extension module type.");
+
+    if (module == NULL) {
+      return;
+    }
+
     PyModule_AddObject( module, "Client", (PyObject *) &ClientType );
     PyModule_AddObject( module, "URL", (PyObject *) &URLType );
     PyModule_AddObject( module, "StatInfo", (PyObject *) &StatInfoType );
     PyModule_AddObject( module, "HostInfo", (PyObject *) &HostInfoType );
-    PyObject_Print( (PyObject *) &StatInfoType, stdout, 0 ); printf("\n");
   }
 }

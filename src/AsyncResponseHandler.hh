@@ -20,10 +20,12 @@
 #define ASYNCRESPONSEHANDLER_HH_
 
 #include <Python.h>
+#include <iostream>
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
 #include "XrdClBindUtils.hh"
+#include "StatInfoType.hh"
 #include "HostInfoType.hh"
 
 namespace XrdClBind
@@ -54,6 +56,10 @@ namespace XrdClBind
         //----------------------------------------------------------------------
         PyGILState_STATE state = PyGILState_Ensure();
 
+        if ( InitTypes() != 0) {
+          return;
+        }
+
         //----------------------------------------------------------------------
         // Convert the XRootDStatus object
         //----------------------------------------------------------------------
@@ -83,7 +89,6 @@ namespace XrdClBind
         PyObject *hostListBind = PyList_New( 0 );
 
         for ( unsigned int i = 0; i < hostList->size(); ++i ) {
-
           PyObject *hostInfoBind = ConvertType<XrdCl::HostInfo>(
                                    &hostList->at( i ), &HostInfoType );
           if ( !hostInfoBind || PyErr_Occurred() ) {
@@ -111,8 +116,7 @@ namespace XrdClBind
           PyGILState_Release( state );
           return;
         }
-        //PyObject_Print(responseBind, stdout, 0); printf("\n");
-        //PyObject_Print(args, stdout, 0); printf("\n");
+
         //----------------------------------------------------------------------
         // Invoke the Python callback
         //----------------------------------------------------------------------

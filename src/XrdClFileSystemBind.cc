@@ -46,13 +46,6 @@ namespace XrdClBind
     if ( !PyArg_ParseTuple( args, "s|O", &path, &callback ) )
       return NULL;
 
-    std::cout << StatInfoType.tp_doc << std::endl;
-
-    if ( PyType_Ready( &StatInfoType ) < 0 ) {
-      return NULL;
-    }
-
-    //_PyObject_Dump( (PyObject *) &StatInfoType );
     //--------------------------------------------------------------------------
     // Asynchronous mode
     //--------------------------------------------------------------------------

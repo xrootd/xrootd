@@ -23,6 +23,11 @@
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
+#include "ClientType.hh"
+#include "URLType.hh"
+#include "StatInfoType.hh"
+#include "HostInfoType.hh"
+
 namespace XrdClBind
 {
   //----------------------------------------------------------------------------
@@ -38,6 +43,11 @@ namespace XrdClBind
                      PyCObject_FromVoidPtr( (void *) type, NULL) );
     if ( !args )
       return NULL;
+
+    bindType->tp_new = PyType_GenericNew;
+    if ( PyType_Ready( bindType ) < 0 ) {
+      return NULL;
+    }
 
     PyObject *bind = PyObject_CallObject( (PyObject *) bindType, args );
     Py_DECREF( args );
@@ -77,6 +87,29 @@ namespace XrdClBind
     // We need to keep this callback
     Py_INCREF (callable);
     return true;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Initialize the Python types for the extension.
+  //----------------------------------------------------------------------------
+  static int InitTypes()
+  {
+    //ClientType.tp_new   = PyType_GenericNew;
+    URLType.tp_new      = PyType_GenericNew;
+    StatInfoType.tp_new = PyType_GenericNew;
+    HostInfoType.tp_new = PyType_GenericNew;
+
+    //if ( PyType_Ready( &ClientType ) < 0 )   return -1;
+    if ( PyType_Ready( &URLType ) < 0 )      return -1;
+    if ( PyType_Ready( &StatInfoType ) < 0 ) return -1;
+    if ( PyType_Ready( &HostInfoType ) < 0 ) return -1;
+
+    //Py_INCREF( &ClientType );
+    Py_INCREF( &URLType );
+    Py_INCREF( &StatInfoType );
+    Py_INCREF( &HostInfoType );
+
+    return 0;
   }
 }
 
