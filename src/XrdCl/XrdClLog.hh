@@ -263,6 +263,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void SetTopicName( uint64_t topic, std::string name );
 
+      //------------------------------------------------------------------------
+      //! Get the log level
+      //------------------------------------------------------------------------
+      LogLevel GetLevel() const
+      {
+        return pLevel;
+      }
+
     private:
       typedef std::map<uint64_t, std::string> TopicMap;
       std::string LogLevelToString( LogLevel level );
