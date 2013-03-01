@@ -1436,6 +1436,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDTransport::SetDescription( Message *msg )
   {
+    Log *log = DefaultEnv::GetLog();
+    if( log->GetLevel() < Log::DumpMsg )
+      return;
+
     ClientRequestHdr *req = (ClientRequestHdr *)msg->GetBuffer();
     std::ostringstream o;
     switch( req->requestid )
