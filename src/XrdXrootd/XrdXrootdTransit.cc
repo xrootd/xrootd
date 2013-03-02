@@ -563,7 +563,7 @@ bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
 //
    Response.Set(Request.header.streamid);
    TRACEP(REQ, "Bridge req=" <<Request.header.requestid
-                             <<" dlen=" <<Request.header.dlen);
+               <<" dlen=" <<Request.header.dlen <<" blen=" <<xdataL);
 
 // If this is a write request, we will need to do a lot more
 //
