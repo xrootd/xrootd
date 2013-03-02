@@ -130,7 +130,6 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
     RespIO[1].iov_len  = sizeof(xbuf);
     RespIO[2].iov_base = (caddr_t)data;
     RespIO[2].iov_len  = dlen = strlen(data);
-    TRACES(RSP,"sending " <<(sizeof(xbuf)+dlen) <<" data bytes; status=" <<rcode);
 
     TRACES(RSP,"sending " <<(sizeof(xbuf)+dlen) <<" data bytes; status=" <<rcode);
 
