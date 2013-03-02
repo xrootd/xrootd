@@ -616,6 +616,7 @@ bool XrdXrootdTransit::RunCopy(char *buffP, int buffL)
 // Copy the arguments to the buffer
 //
    memcpy(argp->buff, buffP, buffL);
+   argp->buff[buffL] = 0;
    return true;
 }
 
