@@ -66,6 +66,8 @@ add_library(
   XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
   XrdClTransportManager.cc    XrdClTransportManager.hh
                               XrdClEnum.hh
+                              XrdClSyncQueue.hh
+  XrdClJobManager.cc          XrdClJobManager.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

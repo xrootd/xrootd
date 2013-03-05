@@ -24,6 +24,8 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClPostMasterInterfaces.hh"
 #include "XrdCl/XrdClChannelHandlerList.hh"
+#include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClInQueue.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include <list>
@@ -35,7 +37,6 @@ namespace XrdCl
   class  Message;
   class  Channel;
   class  TransportHandler;
-  class  InQueue;
   class  TaskManager;
   struct SubStreamData;
 
@@ -101,6 +102,9 @@ namespace XrdCl
       void SetIncomingQueue( InQueue *incomingQueue )
       {
         pIncomingQueue = incomingQueue;
+        if( pIncomingMsgJob )
+          delete pIncomingMsgJob;
+        pIncomingMsgJob = new IncomingMsgJob( incomingQueue );
       }
 
       //------------------------------------------------------------------------
@@ -117,6 +121,14 @@ namespace XrdCl
       void SetTaskManager( TaskManager *taskManager )
       {
         pTaskManager = taskManager;
+      }
+
+      //------------------------------------------------------------------------
+      //! Set job manager
+      //------------------------------------------------------------------------
+      void SetJobManager( JobManager *jobManager )
+      {
+        pJobManager = jobManager;
       }
 
       //------------------------------------------------------------------------
@@ -217,6 +229,24 @@ namespace XrdCl
       void RemoveEventHandler( ChannelEventHandler *handler );
 
     private:
+
+      //----------------------------------------------------------------------------
+      // Job handling the incoming messages
+      //----------------------------------------------------------------------------
+      class IncomingMsgJob: public Job
+      {
+        public:
+          IncomingMsgJob( InQueue *queue ): pQueue( queue ) {};
+          virtual ~IncomingMsgJob() {};
+          virtual void Run( void *arg )
+          {
+            Message *msg = (Message *)arg;
+            pQueue->AddMessage( msg );
+          }
+        private:
+          InQueue *pQueue;
+      };
+
       //------------------------------------------------------------------------
       //! On fatal error - unlocks the stream
       //------------------------------------------------------------------------
@@ -240,6 +270,7 @@ namespace XrdCl
       TransportHandler              *pTransport;
       Poller                        *pPoller;
       TaskManager                   *pTaskManager;
+      JobManager                    *pJobManager;
       XrdSysRecMutex                 pMutex;
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
@@ -253,6 +284,11 @@ namespace XrdCl
       std::vector<sockaddr_in>       pAddresses;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
+
+      //------------------------------------------------------------------------
+      // Jobs
+      //------------------------------------------------------------------------
+      IncomingMsgJob                *pIncomingMsgJob;
 
       //------------------------------------------------------------------------
       // Monitoring info

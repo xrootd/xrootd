@@ -57,6 +57,7 @@ namespace
       masks["XRootDMsg"]          = XrdCl::XRootDMsg;
       masks["FileSystemMsg"]      = XrdCl::FileSystemMsg;
       masks["AsyncSockMsg"]       = XrdCl::AsyncSockMsg;
+      masks["JobMgrMsg"]          = XrdCl::JobMgrMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -147,6 +148,7 @@ namespace XrdCl
     PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
     PutInt( "RunForkHandler",        DefaultRunForkHandler       );
     PutInt( "RedirectLimit",         DefaultRedirectLimit       );
+    PutInt( "WorkerThreads",         DefaultWorkerThreads       );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
@@ -159,6 +161,7 @@ namespace XrdCl
     ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );
     ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
     ImportInt(    "RedirectLimit",        "XRD_REDIRECTLIMIT"        );
+    ImportInt(    "WorkerThreads",        "XRD_WORKERTHREADS"        );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
@@ -483,6 +486,7 @@ namespace XrdCl
     log->SetTopicName( XRootDMsg,          "XRootD" );
     log->SetTopicName( FileSystemMsg,      "FileSystem" );
     log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
+    log->SetTopicName( JobMgrMsg,          "JobMgr" );
   }
 }
 

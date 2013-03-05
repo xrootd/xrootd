@@ -36,6 +36,7 @@
 namespace XrdCl
 {
   class Stream;
+  class JobManager;
 
   //----------------------------------------------------------------------------
   //! A communication channel between the client and the server
@@ -50,11 +51,13 @@ namespace XrdCl
       //! @param poller      poller object to be used for non-blocking IO
       //! @param transport   protocol speciffic transport handler
       //! @param taskManager async task handler to be used by the channel
+      //! @param jobManager  worker thread handler to be used by the channel
       //------------------------------------------------------------------------
       Channel( const URL        &url,
                Poller           *poller,
                TransportHandler *transport,
-               TaskManager      *taskManager );
+               TaskManager      *taskManager,
+               JobManager       *jobManager );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -160,6 +163,7 @@ namespace XrdCl
       AnyObject              pChannelData;
       InQueue                pIncoming;
       Task                  *pTickGenerator;
+      JobManager            *pJobManager;
   };
 }
 
