@@ -34,6 +34,7 @@ namespace XrdCl
   class Poller;
   class TaskManager;
   class Channel;
+  class JobManager;
 
   //----------------------------------------------------------------------------
   //! A hub for dispaching and receiving messages
@@ -191,6 +192,7 @@ namespace XrdCl
       ChannelMap        pChannelMap;
       XrdSysMutex       pChannelMapMutex;
       bool              pInitialized;
+      JobManager       *pJobManager;
   };
 }
 

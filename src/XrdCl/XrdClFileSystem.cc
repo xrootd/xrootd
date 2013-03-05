@@ -69,6 +69,7 @@ namespace
       virtual void HandleResponse( XrdCl::XRootDStatus *status,
                                    XrdCl::AnyObject    *response )
       {
+        XrdSysMutexHelper scopedLock( pMutex );
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
         --pOutstanding;
@@ -190,6 +191,7 @@ namespace
       std::string               pPath;
       XrdCl::OpenFlags::Flags   pFlags;
       time_t                    pExpires;
+      XrdSysMutex               pMutex;
   };
 
   //----------------------------------------------------------------------------

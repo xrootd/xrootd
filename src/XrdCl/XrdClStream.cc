@@ -90,6 +90,7 @@ namespace XrdCl
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
     pSessionId( 0 ),
+    pIncomingMsgJob(0),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -130,6 +131,8 @@ namespace XrdCl
     SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       delete *it;
+
+    delete pIncomingMsgJob;
   }
 
   //----------------------------------------------------------------------------
@@ -364,7 +367,9 @@ namespace XrdCl
     pBytesReceived += msg->GetSize();
     if( pTransport->Highjack( msg, *pChannelData ) )
       return;
-    pIncomingQueue->AddMessage( msg );
+
+    pJobManager->QueueJob( pIncomingMsgJob, msg );
+//    pIncomingQueue->AddMessage( msg );
   }
 
   //----------------------------------------------------------------------------

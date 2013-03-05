@@ -189,12 +189,14 @@ namespace XrdCl
   Channel::Channel( const URL        &url,
                     Poller           *poller,
                     TransportHandler *transport,
-                    TaskManager      *taskManager ):
+                    TaskManager      *taskManager,
+                    JobManager       *jobManager ):
     pUrl( url.GetHostId() ),
     pPoller( poller ),
     pTransport( transport ),
     pTaskManager( taskManager ),
-    pTickGenerator( 0 )
+    pTickGenerator( 0 ),
+    pJobManager( jobManager )
   {
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
@@ -218,6 +220,7 @@ namespace XrdCl
       pStreams[i]->SetPoller( poller );
       pStreams[i]->SetIncomingQueue( &pIncoming );
       pStreams[i]->SetTaskManager( taskManager );
+      pStreams[i]->SetJobManager( jobManager );
       pStreams[i]->SetChannelData( &pChannelData );
       pStreams[i]->Initialize();
     }
