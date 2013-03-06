@@ -147,8 +147,10 @@ namespace XrdCl
     PutInt( "TimeoutResolution",     DefaultTimeoutResolution    );
     PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
     PutInt( "RunForkHandler",        DefaultRunForkHandler       );
-    PutInt( "RedirectLimit",         DefaultRedirectLimit       );
-    PutInt( "WorkerThreads",         DefaultWorkerThreads       );
+    PutInt( "RedirectLimit",         DefaultRedirectLimit        );
+    PutInt( "WorkerThreads",         DefaultWorkerThreads        );
+    PutInt( "CPChunkSize",           DefaultCPChunkSize          );
+    PutInt( "CPParallelChunks",      DefaultCPParallelChunks     );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
@@ -162,6 +164,8 @@ namespace XrdCl
     ImportInt(    "RunForkHandler",       "XRD_RUNFORKHANDLER"       );
     ImportInt(    "RedirectLimit",        "XRD_REDIRECTLIMIT"        );
     ImportInt(    "WorkerThreads",        "XRD_WORKERTHREADS"        );
+    ImportInt(    "CPChunkSize",          "XRD_CPCHUNKSIZE"          );
+    ImportInt(    "CPParallelChunks",     "XRD_CPPARALLELCHUNKS"     );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );

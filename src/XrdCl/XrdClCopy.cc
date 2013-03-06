@@ -138,12 +138,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
     return false;
   }
 
-  if( config->nStrm != 1 )
-  {
-    std::cerr << "Multiple streams are not yet supported" << std::endl;
-    return false;
-  }
-
   if( config->Want( XrdCpConfig::DoServer ) )
   {
     std::cerr << "Running in server mode is not yet supported" << std::endl;
@@ -311,6 +305,19 @@ int main( int argc, char **argv )
     checkSumType = ckSumParams[0];
   }
 
+  XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+  if( config.nStrm != 1 )
+    env->PutInt( "SubStreamsPerChannel", config.nStrm );
+
+  int chunkSize = DefaultCPChunkSize;
+  env->GetInt( "CPChunkSize", chunkSize );
+
+  int parallelChunks = DefaultCPParallelChunks;
+  env->GetInt( "CPParallelChunks", parallelChunks );
+
+  log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
+             config.nStrm, chunkSize, parallelChunks );
+
   //----------------------------------------------------------------------------
   // Build the URLs
   //----------------------------------------------------------------------------
@@ -398,6 +405,8 @@ int main( int argc, char **argv )
     job->checkSumType         = checkSumType;
     job->checkSumPreset       = checkSumPreset;
     job->checkSumPrint        = checkSumPrint;
+    job->chunkSize            = chunkSize;
+    job->parallelChunks       = parallelChunks;
     process.AddJob( job );
     jobs.push_back( job );
 
