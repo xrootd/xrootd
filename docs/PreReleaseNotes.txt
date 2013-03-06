@@ -45,6 +45,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Pass back any close errors from the oss layer to the client.
+   * Correct feature interaction that caused a file to be closed twice.
    * Add missing 1 letter xrdcp options: -N for --nopbar and -X for --xrate.
    * Fix memory leak and prevent nodnr from failing a TPC rendezvous.
    * Make redir CGI available for use in second tpc open and make xrdcp use
