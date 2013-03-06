@@ -447,7 +447,8 @@ int XrdOfsFile::open(const char          *path,      // In
                        : Path(path), hP(0), fP(0), poscNum(0) {}
 
                        ~OpenHelper()
-                       {if (hP) hP->Retire();
+                       {int retc;
+                        if (hP) hP->Retire(retc);
                         if (fP) delete fP;
                         if (poscNum > 0) XrdOfsFS->poscQ->Del(Path, poscNum, 1);
                        }
@@ -696,7 +697,7 @@ int XrdOfsFile::close()  // In
    static XrdOfsHanCB *hCB = static_cast<XrdOfsHanCB *>(new CloseFH);
 
    XrdOfsHandle *hP;
-   int   poscNum, retc;
+   int   poscNum, retc, cRetc = 0;
    short theMode;
 
 // Trace the call
@@ -731,12 +732,14 @@ int XrdOfsFile::close()  // In
 
 // If this file was tagged as a POSC then we need to make sure it will persist
 // Note that we unpersist the file immediately when it's inactive or if no hold
-// time is allowed.  `Also, close events occur only for active handles.
+// time is allowed. Also, close events occur only for active handles. If the
+// entry was via delete then we ignore the close return code as there is no
+// one to handle it on the other side.
 //
    if ((poscNum = hP->PoscGet(theMode, !viaDel)))
       {if (viaDel)
           {if (hP->Inactive() || !XrdOfsFS->poscHold)
-              {XrdOfsFS->Unpersist(hP, !hP->Inactive()); hP->Retire();}
+              {XrdOfsFS->Unpersist(hP, !hP->Inactive()); hP->Retire(cRetc);}
               else hP->Retire(hCB, XrdOfsFS->poscHold);
            return SFS_OK;
           }
@@ -755,21 +758,21 @@ int XrdOfsFile::close()  // In
 //
    if (XrdOfsFS->evsObject && tident
    &&  XrdOfsFS->evsObject->Enabled(hP->isRW ? XrdOfsEvs::Closew
-                                            : XrdOfsEvs::Closer))
+                                             : XrdOfsEvs::Closer))
       {long long FSize, *retsz;
        char pathbuff[MAXPATHLEN+8];
        XrdOfsEvs::Event theEvent;
        if (hP->isRW) {theEvent = XrdOfsEvs::Closew; retsz = &FSize;}
           else {      theEvent = XrdOfsEvs::Closer; retsz = 0; FSize=0;}
-       if (!(hP->Retire(retsz, pathbuff, sizeof(pathbuff))))
+       if (!(hP->Retire(cRetc, retsz, pathbuff, sizeof(pathbuff))))
           {XrdOfsEvsInfo evInfo(tident, pathbuff, "" , 0, 0, FSize);
            XrdOfsFS->evsObject->Notify(theEvent, evInfo);
-          } else hP->Retire();
-      } else     hP->Retire();
+          }
+      } else hP->Retire(cRetc);
 
 // All done
 //
-    return SFS_OK;
+  return (cRetc ? XrdOfsFS->Emsg(epname, error, cRetc, "close file") : SFS_OK);
 }
 
 /******************************************************************************/
