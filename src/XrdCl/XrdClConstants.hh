@@ -50,6 +50,8 @@ namespace XrdCl
   const int DefaultRunForkHandler       = 0;
   const int DefaultRedirectLimit        = 16;
   const int DefaultWorkerThreads        = 3;
+  const int DefaultCPChunkSize          = 16777216;
+  const int DefaultCPParallelChunks     = 4;
 
   const char * const DefaultPollerPreference   = "libevent,built-in";
   const char * const DefaultClientMonitor      = "";

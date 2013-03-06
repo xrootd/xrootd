@@ -70,7 +70,8 @@ namespace XrdCl
   struct JobDescriptor
   {
     JobDescriptor(): sourceLimit(1), force(false), posc(false), coerce(false),
-      thirdParty(false), checkSumPrint(false)
+      thirdParty(false), checkSumPrint(false), chunkSize( 4194304 ),
+      parallelChunks(8)
     {}
 
     URL              source;               //!< [in] original source URL
@@ -91,6 +92,10 @@ namespace XrdCl
                                            //!< transfer
     std::string      checkSumType;         //!< [in] type of the checksum
     std::string      checkSumPreset;       //!< [in] checksum preset
+    uint32_t         chunkSize;            //!< [in] chunk size for remote
+                                           //!< transfers
+    uint8_t          parallelChunks;       //!< [in] number of chunks that
+                                           //!< should be requested in parallel
 
     std::string      sourceCheckSum;       //!< [out] checksum calculated at
                                            //!< source
