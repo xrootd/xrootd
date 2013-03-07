@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Recognize /dev/null and /dev/zero as special files. This sets the
+     protocol type to isDevNull or isDevZero, respectively.
    * Add ability to automatically return stat information when reading
      a directory. This makes the sfs and oss interfaces ABI incompatible
      requiring only a recompilation. This patch is logically part of the
