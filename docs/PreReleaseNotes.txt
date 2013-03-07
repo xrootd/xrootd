@@ -28,6 +28,7 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Prevent SEGV when freeing the DS/DI arguments list.
    * Fix various parse issues in CpConfig. Allow -T {first|only}.
    * Do not rely in file locking to serialize inter-thread access. This
      fixes the prolem of usage file drift.
