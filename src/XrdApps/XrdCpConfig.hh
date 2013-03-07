@@ -48,8 +48,10 @@ struct defVar
        union  {const char *strVal;  // -> String  value if in strDefs
                int         intVal;  //    Integer value if in intDefs
               };
-               defVar(const char *vn, const char *vl) : vName(vn), strVal(vl) {}
-               defVar(const char *vn, int         vl) : vName(vn), intVal(vl) {}
+               defVar(const char *vn, const char *vl)
+                     : Next(0), vName(vn), strVal(vl) {}
+               defVar(const char *vn, int         vl)
+                     : Next(0), vName(vn), intVal(vl) {}
       };
 
        defVar      *intDefs;       // -> -DI settings
