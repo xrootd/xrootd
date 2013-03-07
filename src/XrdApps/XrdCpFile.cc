@@ -164,7 +164,9 @@ int XrdCpFile::Resolve()
 // Find out what this really is
 //
         if (S_ISREG(Stat.st_mode)) fSize = Stat.st_size;
-   else if (S_ISDIR(Stat.st_mode)) Protocol = isDir;
+   else if (S_ISDIR(Stat.st_mode))      Protocol = isDir;
+   else if (!strcmp(Path, "/dev/null")) Protocol = isDevNull;
+   else if (!strcmp(Path, "/dev/zero")) Protocol = isDevZero;
    else return ENOTSUP;
 
 // All is well
