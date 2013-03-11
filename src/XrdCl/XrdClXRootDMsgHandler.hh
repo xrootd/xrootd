@@ -89,8 +89,14 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t OnIncoming( Message *msg  );
+      virtual uint8_t Examine( Message *msg  );
 
+      //------------------------------------------------------------------------
+      //! Process the message if it was "taken" by the examine action
+      //!
+      //! @param msg the message to be processed
+      //------------------------------------------------------------------------
+      virtual void Process( Message *msg );
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival

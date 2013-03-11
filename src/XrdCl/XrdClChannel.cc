@@ -52,7 +52,7 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint8_t OnIncoming( XrdCl::Message *msg )
+      virtual uint8_t Examine( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
         {

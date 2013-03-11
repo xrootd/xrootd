@@ -26,13 +26,15 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool InQueue::AddMessage( Message *msg )
   {
-    XrdSysMutexHelper scopedLock( pMutex );
+    pMutex.Lock();
 
-    HandlerList::iterator it;
-    uint8_t               action = 0;
+    HandlerList::iterator  it;
+    uint8_t                action  = 0;
+    IncomingMsgHandler    *handler = 0;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
     {
-      action = it->first->OnIncoming( msg );
+      handler = it->first;
+      action  = handler->Examine( msg );
 
       if( action & IncomingMsgHandler::RemoveHandler )
       {
@@ -42,10 +44,16 @@ namespace XrdCl
 
       if( action & IncomingMsgHandler::Take )
         break;
+
+      handler = 0;
     }
 
     if( !(action & IncomingMsgHandler::Take) )
       pMessages.push_front( msg );
+
+    pMutex.UnLock();
+    if( handler )
+      handler->Process( msg );
 
     return true;
   }
@@ -61,10 +69,11 @@ namespace XrdCl
     uint8_t                        action = 0;
     for( it = pMessages.begin(); it != pMessages.end(); ++it )
     {
-      action = handler->OnIncoming( *it );
+      action = handler->Examine( *it );
 
       if( action & IncomingMsgHandler::Take )
       {
+        handler->Process( *it );
         it = pMessages.erase( it );
         --it;
       }
