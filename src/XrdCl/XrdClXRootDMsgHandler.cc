@@ -64,12 +64,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Examine an incomming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint8_t XRootDMsgHandler::OnIncoming( Message *msg )
+  uint8_t XRootDMsgHandler::Examine( Message *msg )
   {
-    Log *log = DefaultEnv::GetLog();
-
-    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
-    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
+    ServerResponse *rsp    = (ServerResponse *)msg->GetBuffer();
+    ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t        status = 0;
 
     //--------------------------------------------------------------------------
     // We got an async message
@@ -90,26 +89,64 @@ namespace XrdCl
           embRsp->hdr.streamid[1] != req->header.streamid[1] )
         return Ignore;
 
-      //------------------------------------------------------------------------
-      // OK, it looks like we care
-      //------------------------------------------------------------------------
+      status = ntohs( embRsp->hdr.status );
+    }
+    //--------------------------------------------------------------------------
+    // We got a sync message - check if it belongs to us
+    //--------------------------------------------------------------------------
+    else
+    {
+      if( rsp->hdr.streamid[0] != req->header.streamid[0] ||
+          rsp->hdr.streamid[1] != req->header.streamid[1] )
+        return Ignore;
+
+      status = rsp->hdr.status;
+    }
+
+    switch( status )
+    {
+      case kXR_ok:
+      case kXR_error:
+      case kXR_redirect:
+      case kXR_wait:
+        return Take | RemoveHandler;
+
+      case kXR_waitresp:
+      case kXR_oksofar:
+        return Take;
+      default:
+        return Take | RemoveHandler;
+    }
+    return Take | RemoveHandler;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Process the message if it was "taken" by the examine action
+  //----------------------------------------------------------------------------
+  void XRootDMsgHandler::Process( Message *msg )
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    ServerResponse *rsp = (ServerResponse *)msg->GetBuffer();
+    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
+
+    //--------------------------------------------------------------------------
+    // We got an async message
+    //--------------------------------------------------------------------------
+    if( rsp->hdr.status == kXR_attn )
+    {
       log->Dump( XRootDMsg, "[%s] Got an async response to message %s, "
                  "processing it", pUrl.GetHostId().c_str(),
                  pRequest->GetDescription().c_str() );
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
+      delete msg;
+
       // we need to unmarshall the header by hand
       XRootDTransport::UnMarshallHeader( embededMsg );
-      delete msg;
-      return OnIncoming( embededMsg );
+      Process( embededMsg );
+      return;
     }
-
-    //--------------------------------------------------------------------------
-    // The message is not async, check if it belongs to us
-    //--------------------------------------------------------------------------
-    if( rsp->hdr.streamid[0] != req->header.streamid[0] ||
-        rsp->hdr.streamid[1] != req->header.streamid[1] )
-      return Ignore;
 
     //--------------------------------------------------------------------------
     // We got an answer, check who we were talking to
@@ -142,7 +179,7 @@ namespace XrdCl
         pResponse = msgPtr.release();
         pStatus   = Status();
         HandleResponse();
-        return Take | RemoveHandler;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -157,7 +194,7 @@ namespace XrdCl
 
         pResponse = msgPtr.release();
         HandleError( Status(stError, errErrorResponse), pResponse );
-        return Take | RemoveHandler;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -186,7 +223,7 @@ namespace XrdCl
 
           pStatus = Status( stFatal, errRedirectLimit );
           HandleResponse();
-          return Take | RemoveHandler;
+          return;
         }
         --pRedirectCounter;
 
@@ -234,7 +271,7 @@ namespace XrdCl
           log->Error( XRootDMsg, "[%s] Got invalid redirection URL: %s",
                                 pUrl.GetHostId().c_str(), urlInfo.c_str() );
           HandleResponse();
-          return Take | RemoveHandler;
+          return;
         }
 
         URL cgiURL;
@@ -255,7 +292,7 @@ namespace XrdCl
           pStatus   = Status( stOK, suXRDRedirect );
           pResponse = msgPtr.release();
           HandleResponse();
-          return Take | RemoveHandler;
+          return;
         }
 
         //----------------------------------------------------------------------
@@ -266,7 +303,7 @@ namespace XrdCl
         {
           pStatus = st;
           HandleResponse();
-          return Take | RemoveHandler;
+          return;
         }
 
         //----------------------------------------------------------------------
@@ -275,7 +312,7 @@ namespace XrdCl
         pHosts->push_back( pUrl );
         pHosts->back().url.GetParams() = cgiURL.GetParams();
         HandleError( RetryAtServer(pUrl) );
-        return Take | RemoveHandler;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -301,7 +338,7 @@ namespace XrdCl
         {
           pStatus = st;
           HandleResponse();
-          return Take | RemoveHandler;
+          return;
         }
 
         //----------------------------------------------------------------------
@@ -310,7 +347,7 @@ namespace XrdCl
         TaskManager *taskMgr = pPostMaster->GetTaskManager();
         taskMgr->RegisterTask( new WaitTask( this ),
                                ::time(0)+rsp->body.wait.seconds );
-        return Take | RemoveHandler;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -323,7 +360,7 @@ namespace XrdCl
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
                    pRequest->GetDescription().c_str() );
-        return Take;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -335,7 +372,7 @@ namespace XrdCl
                    "%s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
         pPartialResps.push_back( msgPtr.release() );
-        return Take;
+        return;
       }
 
       //------------------------------------------------------------------------
@@ -348,11 +385,11 @@ namespace XrdCl
                    rsp->hdr.status, pRequest->GetDescription().c_str() );
         pStatus   = Status( stError, errInvalidResponse );
         HandleResponse();
-        return Take | RemoveHandler;
+        return;
       }
     }
 
-    return Ignore;
+    return;
   }
 
   //----------------------------------------------------------------------------
