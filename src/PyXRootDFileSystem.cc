@@ -16,15 +16,13 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#include <Python.h>
-#include <iostream>
+#include "PyXRootD.hh"
+#include "PyXRootDClient.hh"
+#include "AsyncResponseHandler.hh"
 
 #include "XrdCl/XrdClFileSystem.hh"
 
-#include "ClientType.hh"
-#include "StatInfoType.hh"
-
-namespace XrdClBind
+namespace PyXRootD
 {
   //----------------------------------------------------------------------------
   //! Stat a path.

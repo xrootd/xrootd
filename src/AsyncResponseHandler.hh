@@ -19,16 +19,12 @@
 #ifndef ASYNCRESPONSEHANDLER_HH_
 #define ASYNCRESPONSEHANDLER_HH_
 
-#include <Python.h>
-#include <iostream>
+#include "PyXRootD.hh"
+#include "Utils.hh"
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "XrdClBindUtils.hh"
-#include "StatInfoType.hh"
-#include "HostInfoType.hh"
-
-namespace XrdClBind
+namespace PyXRootD
 {
   //----------------------------------------------------------------------------
   //! Generic asynchronous response handler

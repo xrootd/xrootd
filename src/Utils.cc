@@ -16,31 +16,15 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef XRDCLBINDUTILS_HH_
-#define XRDCLBINDUTILS_HH_
+#include "Utils.hh"
 
-#include <Python.h>
-
-#include "XrdCl/XrdClXRootDResponses.hh"
-
-#include "ClientType.hh"
-#include "URLType.hh"
-#include "StatInfoType.hh"
-#include "HostInfoType.hh"
-
-namespace XrdClBind
+namespace PyXRootD
 {
-  //----------------------------------------------------------------------------
-  //! Convert a C++ type to its corresponding Python binding type. We cast
-  //! the object to a void * before packing it into a PyCObject.
-  //!
-  //! Note: The PyCObject API is deprecated as of Python 2.7
-  //----------------------------------------------------------------------------
   template<class Type>
-  static PyObject* ConvertType( Type *type, PyTypeObject *bindType )
+  PyObject* ConvertType( Type *type, PyTypeObject *bindType )
   {
     PyObject *args = Py_BuildValue( "(O)",
-                     PyCObject_FromVoidPtr( (void *) type, NULL) );
+        PyCObject_FromVoidPtr( (void *) type, NULL ) );
     if ( !args )
       return NULL;
 
@@ -57,10 +41,7 @@ namespace XrdClBind
     return bind;
   }
 
-  //----------------------------------------------------------------------------
-  //! Convert an XRootDStatus object to a Python dictionary
-  //----------------------------------------------------------------------------
-  static PyObject* XRootDStatusDict( XrdCl::XRootDStatus *status )
+  PyObject* XRootDStatusDict( XrdCl::XRootDStatus *status )
   {
     PyObject *dict = Py_BuildValue( "{sHsHsIsssisOsOsO}",
         "status",    status->status,
@@ -75,24 +56,18 @@ namespace XrdClBind
     return (dict == NULL || PyErr_Occurred()) ? NULL : dict;
   }
 
-  //----------------------------------------------------------------------------
-  //! Check that the given callback is actually callable.
-  //----------------------------------------------------------------------------
-  static bool IsCallable( PyObject *callable )
+  bool IsCallable( PyObject *callable )
   {
     if ( !PyCallable_Check( callable ) ) {
       PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
       return NULL;
     }
     // We need to keep this callback
-    Py_INCREF (callable);
+    Py_INCREF( callable );
     return true;
   }
 
-  //----------------------------------------------------------------------------
-  //! Initialize the Python types for the extension.
-  //----------------------------------------------------------------------------
-  static int InitTypes()
+  int InitTypes()
   {
     //ClientType.tp_new   = PyType_GenericNew;
     URLType.tp_new      = PyType_GenericNew;
@@ -113,4 +88,3 @@ namespace XrdClBind
   }
 }
 
-#endif /* XRDCLBINDUTILS_HH_ */

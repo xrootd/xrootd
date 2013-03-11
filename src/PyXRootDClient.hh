@@ -19,12 +19,11 @@
 #ifndef CLIENT_TYPE_HH_
 #define CLIENT_TYPE_HH_
 
-#include <Python.h>
-#include "structmember.h"
+#include "PyXRootD.hh"
+#include "PyXRootDURL.hh"
+#include "Utils.hh"
 
-#include "AsyncResponseHandler.hh"
-
-namespace XrdClBind
+namespace PyXRootD
 {
   //----------------------------------------------------------------------------
   //! Client binding type definition
@@ -89,9 +88,9 @@ namespace XrdClBind
   //----------------------------------------------------------------------------
   static PyMethodDef ClientMethods[] =
     {
-      { "stat", (PyCFunction) XrdClBind::FileSystem::Stat, METH_KEYWORDS,
+      { "stat", (PyCFunction) PyXRootD::FileSystem::Stat, METH_KEYWORDS,
         "Stat a path" },
-      { "ping", (PyCFunction) XrdClBind::FileSystem::Ping, METH_KEYWORDS,
+      { "ping", (PyCFunction) PyXRootD::FileSystem::Ping, METH_KEYWORDS,
         "Check if the server is alive" },
       { NULL } /* Sentinel */
     };
