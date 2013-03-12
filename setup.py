@@ -20,15 +20,18 @@ setup( name             = 'pyxrootd',
        ext_modules      = [
            Extension(
                'XRootD.client',
-               sources      = ['src/PyXRootDModule.cc', 
+               sources      = ['src/PyXRootDModule.cc', 'src/PyXRootDType.cc', 
                                'src/PyXRootDFileSystem.cc', 'src/Utils.cc'],
+               depends      = ['src/PyXRootD.hh', 'src/PyXRootDType.hh', 
+                               'src/PyXRootDClient.hh', 'src/PyXRootDURL.hh', 
+                               'src/Utils.hh', 'src/AsyncResponseHandler.hh'],
                libraries    = ['XrdCl', 'XrdUtils', 'dl'],
                extra_compile_args = ['-g', 
                                      '-Wno-deprecated-writable-strings',
                                      '-Wno-deprecated',
                                      '-Wno-shorten-64-to-32', 
                                      '-Wno-write-strings'],
-              extra_link_args     = ['-Wl,--no-undefined'],
+               extra_link_args     = ['-Wl,--no-undefined'],
                include_dirs = [xrdincdir],
                library_dirs = [xrdlibdir]
                )
