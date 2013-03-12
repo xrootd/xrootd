@@ -78,6 +78,47 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::DeepLocate( Client *self, PyObject *args, PyObject *kwds )
   {
+    static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
+    const  char *path;
+    uint16_t     flags;
+    uint16_t     timeout    = 5;
+    PyObject    *callback   = NULL;
+    PyObject    *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+    XrdCl::FileSystem   filesystem( *self->url->url );
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
+        &path, &flags, &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      if (!IsCallable(callback)) return NULL;
+
+      XrdCl::ResponseHandler *handler =
+          new AsyncResponseHandler<XrdCl::LocationInfo>( callback );
+
+      Py_BEGIN_ALLOW_THREADS
+      status = filesystem.DeepLocate( path, flags, handler, timeout );
+      Py_END_ALLOW_THREADS
+    }
+
+    // Synchronous mode
+    else {
+      XrdCl::LocationInfo *response = 0;
+      status = filesystem.DeepLocate( path, flags, response, timeout );
+
+      if ( response ) {
+        pyresponse = ConvertType<XrdCl::LocationInfo>( response );
+      } else {
+        pyresponse = Py_None;
+      }
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
