@@ -21,7 +21,7 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDURL.hh"
-#include "Utils.hh"
+#include "Conversions.hh"
 
 namespace PyXRootD
 {

@@ -28,7 +28,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Locate a file
   //----------------------------------------------------------------------------
-  PyObject* Locate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Locate( Client *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
     const  char *path;
@@ -74,52 +74,58 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Locate a file, recursively locate all disk servers
   //----------------------------------------------------------------------------
-  PyObject* DeepLocate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::DeepLocate( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Move a directory or a file
   //----------------------------------------------------------------------------
-  PyObject* Mv( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Mv( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Obtain server information
   //----------------------------------------------------------------------------
-  PyObject* Query( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Query( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Truncate a file
   //----------------------------------------------------------------------------
-  PyObject* Truncate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Truncate( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Remove a file
   //----------------------------------------------------------------------------
-  PyObject* Rm( Client *self, PyObject *args, PyObject *kwds )
-  {
-  }
-
-  PyObject* MkDir( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Rm( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Create a directory
   //----------------------------------------------------------------------------
-  PyObject* RmDir( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::MkDir( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
-  PyObject* ChMod( Client *self, PyObject *args, PyObject *kwds )
+  //----------------------------------------------------------------------------
+  //! Remove a directory
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::RmDir( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Change access mode on a directory or a file
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::ChMod( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
@@ -208,37 +214,37 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Obtain status information for a Virtual File System
   //----------------------------------------------------------------------------
-  PyObject* StatVFS( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::StatVFS( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Obtain server protocol information
   //----------------------------------------------------------------------------
-  PyObject* Protocol( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Protocol( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! List entries of a directory
   //----------------------------------------------------------------------------
-  PyObject* DirList( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::DirList( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Send info to the server (up to 1024 characters)
   //----------------------------------------------------------------------------
-  PyObject* SendInfo( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::SendInfo( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 
   //----------------------------------------------------------------------------
-  //! Locate a file
+  //! Prepare one or more files for access
   //----------------------------------------------------------------------------
-  PyObject* Prepare( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Prepare( Client *self, PyObject *args, PyObject *kwds )
   {
   }
 }
