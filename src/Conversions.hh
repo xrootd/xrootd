@@ -52,19 +52,19 @@ namespace PyXRootD
     return bind;
   }
 
-  template<typename T> struct dict;
+  template<typename T> struct PyDict;
 
-  template<> struct dict<XrdCl::AnyObject>
+  template<> struct PyDict<XrdCl::AnyObject>
   {
-      static PyObject* convert( XrdCl::AnyObject *object )
+      static PyObject* Convert( XrdCl::AnyObject *object )
       {
         return Py_BuildValue( "{}" );
       }
   };
 
-  template<> struct dict<XrdCl::XRootDStatus>
+  template<> struct PyDict<XrdCl::XRootDStatus>
   {
-      static PyObject* convert( XrdCl::XRootDStatus *status )
+      static PyObject* Convert( XrdCl::XRootDStatus *status )
       {
         return Py_BuildValue( "{sHsHsIsssisOsOsO}",
             "status",    status->status,
@@ -78,9 +78,9 @@ namespace PyXRootD
       }
   };
 
-  template<> struct dict<XrdCl::StatInfo>
+  template<> struct PyDict<XrdCl::StatInfo>
   {
-      static PyObject* convert( XrdCl::StatInfo *info )
+      static PyObject* Convert( XrdCl::StatInfo *info )
       {
         return Py_BuildValue( "{sssksIskss}",
             "id",               info->GetId().c_str(),
@@ -91,9 +91,9 @@ namespace PyXRootD
       }
   };
 
-  template<> struct dict<XrdCl::HostInfo>
+  template<> struct PyDict<XrdCl::HostInfo>
   {
-      static PyObject* convert( XrdCl::HostInfo *info )
+      static PyObject* Convert( XrdCl::HostInfo *info )
       {
         return Py_BuildValue( "{sIsIsOsO}",
             "flags",        info->flags,
@@ -103,9 +103,9 @@ namespace PyXRootD
       }
   };
 
-  template<> struct dict<XrdCl::LocationInfo>
+  template<> struct PyDict<XrdCl::LocationInfo>
   {
-      static PyObject* convert( XrdCl::LocationInfo *info )
+      static PyObject* Convert( XrdCl::LocationInfo *info )
       {
         PyObject *locationList = PyList_New( 0 );
         for ( XrdCl::LocationInfo::Iterator i = info->Begin(); i < info->End();
@@ -125,7 +125,7 @@ namespace PyXRootD
   template<typename Type>
   PyObject* ConvertType( Type *type )
   {
-    return dict<Type>::convert(type);
+    return PyDict<Type>::Convert(type);
   }
 }
 
