@@ -1,59 +1,46 @@
-from XRootD import client
+from XRootD import client, handlers
 
-myclient = client.Client("root://localhost")
+myclient = client.Client(url="root://localhost")
 print 'URL:', myclient.url
- 
+
 #-------------------------------------------------------------------------------
 # Synchronous example
 #-------------------------------------------------------------------------------
-status, response = myclient.stat("/tmpp")
-print "Status:", status['message']
-print "Response:", str(response)
-if response: print "Modification time:", response.GetModTimeAsString()
- 
+status, response = myclient.stat(path="/tmp")
+print "Status:", status
+print "Response:", response
+if response: print "Modification time:", response['modTimeAsString']
+
 #-------------------------------------------------------------------------------
 # Asynchronous non-waiting example
 #-------------------------------------------------------------------------------
 def callback(status, response, hostList):
-  print 'Status:', status['message']
-  print 'Response:', str(response)
-  if response: print 'Modification time:', response.GetModTimeAsString()
-   
-  for host in hostList:
-    print "Host:", host.url
+  print 'Status:', status
+  print 'Response:', response
+  if response: print 'Modification time:', response['modTimeAsString']
 
-status = myclient.stat("/tmp", callback)
-print 'Status:', status['message']
- 
+  for host in hostList:
+    print "Host:", host
+
+status = myclient.stat(path="/tmp", callback=callback)
+print 'Send status:', status['message']
+
 # Halt script (todo: implement callback class w/semaphore and/or callback 
 # decorator w/generator)
-x = raw_input()
+# x = raw_input()
 
 #-------------------------------------------------------------------------------
 # Asynchronous waiting example
 #-------------------------------------------------------------------------------
-from threading import BoundedSemaphore, Thread
+handler = handlers.AsyncResponseHandler()
+status = myclient.stat(path="/tmp", callback=handler)
+print 'Request status:', status
+status, response, hostList = handler.waitFor()
+print 'Status:', status
+print 'Response:', response
+if response: print 'Modification time:', response['modTimeAsString']
 
-class AsyncStatHandler(Thread):
-  def __init__(self, client, path):
-    self.client = client
-    self.path   = path
-    self.sem    = BoundedSemaphore(1)
-    Thread.__init__(self)
-    
-  def run(self):
-    self.sem.acquire()
-    status, response = self.client.stat(self.path)
-    print 'Status:', status['message']
-    print 'Response:', response
-    if response: print 'Modification time:', response.GetModTimeAsString()
-    self.sem.release()
-    
-  def startAndWait(self):
-    handler.start()
-    handler.join()
+for host in hostList:
+  print "Host:", host
 
-myclient = client.Client('root://localhost')
-handler = AsyncStatHandler(myclient, '/tmpp')
-handler.startAndWait()
 
