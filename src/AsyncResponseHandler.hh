@@ -29,16 +29,14 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Generic asynchronous response handler
   //----------------------------------------------------------------------------
-  template<class Type = int>
+  template<typename Type>
   class AsyncResponseHandler: public XrdCl::ResponseHandler
   {
     public:
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AsyncResponseHandler( PyTypeObject *bindType, PyObject *callback ) :
-          bindType( bindType ),
-          callback( callback ) {}
+      AsyncResponseHandler( PyObject *callback ) : callback( callback ) {}
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
@@ -59,7 +57,7 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Convert the XRootDStatus object
         //----------------------------------------------------------------------
-        PyObject *statusDict = XRootDStatusDict(status);
+        PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( status );
         if ( !statusDict || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
@@ -86,7 +84,7 @@ namespace PyXRootD
 
         for ( unsigned int i = 0; i < hostList->size(); ++i ) {
           PyObject *hostInfoBind = ConvertType<XrdCl::HostInfo>(
-                                   &hostList->at( i ), &HostInfoType );
+                                   &hostList->at( i ) );
           if ( !hostInfoBind || PyErr_Occurred() ) {
             PyErr_Print();
             PyGILState_Release( state );
@@ -147,15 +145,14 @@ namespace PyXRootD
       PyObject* ParseResponse( XrdCl::AnyObject *response )
       {
         PyObject *responseBind = 0;
-        Type     *type = 0;
+        Type *type;
         response->Get( type );
-        responseBind = ConvertType<Type>(type, this->bindType);
-        return (!responseBind || PyErr_Occurred()) ? NULL : responseBind;
+        responseBind = ConvertType<Type>( type );
+        return ( !responseBind || PyErr_Occurred() ) ? NULL : responseBind;
       }
 
     private:
 
-      PyTypeObject *bindType;
       PyObject *callback;
   };
 }

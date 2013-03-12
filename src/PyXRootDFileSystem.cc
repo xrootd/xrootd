@@ -19,74 +19,108 @@
 #include "PyXRootD.hh"
 #include "PyXRootDClient.hh"
 #include "AsyncResponseHandler.hh"
+#include "Utils.hh"
 
 #include "XrdCl/XrdClFileSystem.hh"
 
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
-  //! Stat a path.
-  //!
-  //! This function can be synchronous or asynchronous, depending if a callback
-  //! argument is given. The callback can be any Python callable.
+  //! Locate a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Stat( Client *self, PyObject *args )
+  PyObject* Locate( Client *self, PyObject *args, PyObject *kwds )
   {
-    const char *path;
-    PyObject   *callback = NULL;
-    PyObject   *responseBind = NULL;
+    static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
+    const  char *path;
+    uint16_t     flags;
+    uint16_t     timeout    = 5;
+    PyObject    *callback   = NULL;
+    PyObject    *pyresponse = NULL;
     XrdCl::XRootDStatus status;
     XrdCl::FileSystem   filesystem( *self->url->url );
 
-    //--------------------------------------------------------------------------
-    // Parse the stat path and optional callback argument
-    //--------------------------------------------------------------------------
-    if ( !PyArg_ParseTuple( args, "s|O", &path, &callback ) )
-      return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
+        &path, &flags, &timeout, &callback ) ) return NULL;
 
-    //--------------------------------------------------------------------------
     // Asynchronous mode
-    //--------------------------------------------------------------------------
     if ( callback ) {
       if (!IsCallable(callback)) return NULL;
 
       XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::StatInfo>( &StatInfoType, callback );
+          new AsyncResponseHandler<XrdCl::LocationInfo>( callback );
 
-      //------------------------------------------------------------------------
-      // Spin the async request (while releasing the GIL) and return None.
-      //------------------------------------------------------------------------
       Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Stat( path, handler, 5 );
+      status = filesystem.Locate( path, flags, handler, timeout );
       Py_END_ALLOW_THREADS
     }
 
-    //--------------------------------------------------------------------------
     // Synchronous mode
-    //--------------------------------------------------------------------------
     else {
-      XrdCl::StatInfo *response = 0;
-      status = filesystem.Stat( path, response, 5 );
+      XrdCl::LocationInfo *response = 0;
+      status = filesystem.Locate( path, flags, response, timeout );
 
-      //------------------------------------------------------------------------
-      // Convert the response object, if any
-      //------------------------------------------------------------------------
       if ( response ) {
-        responseBind = ConvertType<XrdCl::StatInfo>( response, &StatInfoType );
+        pyresponse = ConvertType<XrdCl::LocationInfo>( response );
       } else {
-        responseBind = Py_None;
+        pyresponse = Py_None;
       }
     }
 
-    //--------------------------------------------------------------------------
-    // Convert the XRootDStatus object
-    //--------------------------------------------------------------------------
-    PyObject *statusDict = XRootDStatusDict(&status);
-    if (!statusDict) return NULL;
-
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
     return (callback) ?
-            Py_BuildValue( "O", statusDict ) :
-            Py_BuildValue( "OO", statusDict, responseBind );
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* DeepLocate( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Mv( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Query( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Truncate( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Rm( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  PyObject* MkDir( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* RmDir( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  PyObject* ChMod( Client *self, PyObject *args, PyObject *kwds )
+  {
   }
 
   //----------------------------------------------------------------------------
@@ -94,38 +128,117 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Ping( Client *self, PyObject *args, PyObject *kwds )
   {
-    uint16_t timeout = 5;
-    PyObject *callback = NULL;
+    static char *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
     XrdCl::FileSystem   filesystem( *self->url->url );
-    static char *kwlist[] = { "timeout", "callback", NULL };
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|IO", kwlist, &timeout, &callback ) )
-      return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+        &timeout, &callback ) ) return NULL;
 
+    // Asynchronous mode
     if ( callback ) {
-      if ( !IsCallable( callback ) )
-        return NULL;
+      if ( !IsCallable( callback ) ) return NULL;
 
       XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<>( (PyTypeObject*) Py_None, callback );
+          new AsyncResponseHandler<XrdCl::AnyObject>( callback );
 
       Py_BEGIN_ALLOW_THREADS
       status = filesystem.Ping( handler, timeout );
       Py_END_ALLOW_THREADS
 
-      PyObject *statusDict = XRootDStatusDict( &status );
-      if ( !statusDict )
-        return NULL;
+      PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( &status );
+      if ( !statusDict ) return NULL;
       return Py_BuildValue( "O", statusDict );
     }
 
+    // Synchronous mode
     status = filesystem.Ping( timeout );
-
-    PyObject *statusDict = XRootDStatusDict( &status );
-    if ( !statusDict )
-      return NULL;
-
+    PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !statusDict ) return NULL;
     return Py_BuildValue( "O", statusDict );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Obtain status information for a path
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::Stat( Client *self, PyObject *args, PyObject *kwds )
+  {
+    static char *kwlist[]   = { "path", "timeout", "callback", NULL };
+    const  char *path;
+    uint16_t     timeout    = 5;
+    PyObject    *callback   = NULL;
+    PyObject    *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+    XrdCl::FileSystem   filesystem( *self->url->url );
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+        &path, &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      if (!IsCallable(callback)) return NULL;
+
+      XrdCl::ResponseHandler *handler =
+          new AsyncResponseHandler<XrdCl::StatInfo>( callback );
+
+      Py_BEGIN_ALLOW_THREADS
+      status = filesystem.Stat( path, handler, timeout );
+      Py_END_ALLOW_THREADS
+    }
+
+    // Synchronous mode
+    else {
+      XrdCl::StatInfo *response = 0;
+      status = filesystem.Stat( path, response, timeout );
+
+      if ( response ) {
+        pyresponse = ConvertType<XrdCl::StatInfo>( response );
+      } else {
+        pyresponse = Py_None;
+      }
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* StatVFS( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Protocol( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* DirList( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* SendInfo( Client *self, PyObject *args, PyObject *kwds )
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Locate a file
+  //----------------------------------------------------------------------------
+  PyObject* Prepare( Client *self, PyObject *args, PyObject *kwds )
+  {
   }
 }
