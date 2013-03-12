@@ -6,10 +6,10 @@ class AsyncResponseHandler:
     self.mutex.acquire()
 
   def __call__(self, status, response, hostList):
-    self.mutex.release()
     self.status = status
     self.response = response
     self.hostList = hostList
+    self.mutex.release()
 
   def waitFor(self):
     self.mutex.acquire()
