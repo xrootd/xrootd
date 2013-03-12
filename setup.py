@@ -20,7 +20,7 @@ setup( name             = 'pyxrootd',
        ext_modules      = [
            Extension(
                'XRootD.client',
-               sources      = ['src/PyXRootDModule.cc', 'src/PyXRootDType.cc', 
+               sources      = ['src/PyXRootDModule.cc', 
                                'src/PyXRootDFileSystem.cc', 'src/Utils.cc'],
                depends      = ['src/PyXRootD.hh', 'src/PyXRootDType.hh', 
                                'src/PyXRootDClient.hh', 'src/PyXRootDURL.hh', 
