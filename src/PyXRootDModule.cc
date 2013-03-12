@@ -44,20 +44,9 @@ namespace PyXRootD
     }
 
     ClientType.tp_new   = PyType_GenericNew;
-//    URLType.tp_new      = PyType_GenericNew;
-//    StatInfoType.tp_new = PyType_GenericNew;
-//    HostInfoType.tp_new = PyType_GenericNew;
-
     if ( PyType_Ready( &ClientType ) < 0 )   return;
-//    if ( PyType_Ready( &URLType ) < 0 )      return;
-//    if ( PyType_Ready( &StatInfoType ) < 0 ) return;
-//    if ( PyType_Ready( &HostInfoType ) < 0 ) return;
-
     Py_INCREF( &ClientType );
-//    Py_INCREF( &URLType );
-//    Py_INCREF( &StatInfoType );
-//    Py_INCREF( &HostInfoType );
-//
+
     ClientModule = Py_InitModule3("client", module_methods,
         "XRootD Client extension module.");
 
@@ -65,10 +54,6 @@ namespace PyXRootD
       return;
     }
 
-
     PyModule_AddObject( ClientModule, "Client", (PyObject *) &ClientType );
-//    PyModule_AddObject( module, "URL", (PyObject *) &URLType );
-//    PyModule_AddObject( module, "StatInfo", (PyObject *) &StatInfoType );
-//    PyModule_AddObject( module, "HostInfo", (PyObject *) &HostInfoType );
   }
 }
