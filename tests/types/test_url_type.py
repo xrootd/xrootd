@@ -1,18 +1,18 @@
-import pytest
 from XRootD import client
+import pytest
 
 def test_creation():
-    u = client.URL("root://localhost")
+    u = client.Client("root://localhost").url
     assert u is not None
 
 def test_deletion():
-    u = client.URL("root://localhost")
+    u = client.Client("root://localhost").url
     del u
     with pytest.raises(UnboundLocalError):
         assert u
-    
+
 def test_getters():
-    u = client.URL("root://user1:passwd1@host1:123//path?param1=val1&param2=val2")
+    u = client.Client("root://user1:passwd1@host1:123//path?param1=val1&param2=val2").url
     assert u.IsValid()
     print u.GetHostId()
     assert u.GetHostId() == 'user1@host1:123'
@@ -23,9 +23,9 @@ def test_getters():
     assert u.GetPort() == 123
     assert u.GetPath() == '/path'
     assert u.GetPathWithParams() == '/path?param1=val1&param2=val2'
-    
+
 def test_setters():
-    u = client.URL('root://localhost')
+    u = client.Client('root://localhost').url
     u.SetProtocol('root')
     assert u.GetProtocol() == 'root'
     u.SetUserName('user1')
@@ -40,4 +40,4 @@ def test_setters():
     assert u.GetPath() == '/path'
     u.Clear()
     assert str(u) == ''
-    
+

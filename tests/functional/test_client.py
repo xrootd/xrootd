@@ -1,21 +1,23 @@
 from XRootD import client
-import pytest, time
+import pytest
 
 def test_valid_url():
     c = client.Client('root://localhost')
-    status, response = c.stat('/tmp')
-    assert status.IsOK()
-    assert response != None
+    assert  c.url.IsValid()
     
 def test_invalid_url():
-    c = client.Client('foo://bar')
-    status, response = c.stat('/baz')
-    assert status.IsError()
-    assert response == None
+    c = client.Client('root://')
+    print c.url
+    assert c.url.IsValid() == False
     
-def test_stat_sync():
-    c = client.Client("root://localhost")
-    status, response = c.stat("/tmp")
-    assert status
-    assert response
+def test_args():
+    c = client.Client(url='root://localhost')
+    assert c
+    
+    with pytest.raises(TypeError):
+        c = client.Client(foo='root://localhost')
+        
+    with pytest.raises(TypeError):
+        c = client.Client(path='root://localhost', foo='bar')
+
 

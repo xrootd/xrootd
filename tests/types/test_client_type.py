@@ -1,8 +1,5 @@
-import pytest
 from XRootD import client
-
-# Test creation/deletion of custom types and their attributes
-# Test default and custom values of custom types
+import pytest
 
 def test_creation():
     c = client.Client("root://localhost")
