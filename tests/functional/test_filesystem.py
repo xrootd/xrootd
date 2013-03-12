@@ -4,28 +4,31 @@ import pytest
 def test_filesystem():
     c = client.Client("root://localhost")
     
-    funcargs = {c.locate    : ('/tmp', 0),
-                c.ping      : (), 
-                c.stat      : ('/tmp')}
+    funcspecs = {c.locate    : (('/tmp', 0), True),
+                 c.ping      : ((), False),
+                 c.stat      : (('/tmp', 0), True)}
 
-    for func, args in funcargs.iteritems():
-        sync(func, args)
-        async(func, args)
+    for func, args in funcspecs.iteritems():
+        sync (func, args[0], args[1])
+        async(func, args[0], args[1])
 
-def sync(func, args):
+def sync(func, args, hasReturnObject):
     c = client.Client("root://localhost")
     status, response = func(*args)
     assert status
-    assert response
+    if hasReturnObject:
+        assert response
     
-def async(func, args):
+def async(func, args, hasReturnObject):
     c = client.Client("root://localhost")
     handler = handlers.AsyncResponseHandler()
     status = func(*args, callback=handler)
     assert status
     status, response, hostList = handler.waitFor()
+    #assert 0
     assert status
-    assert response
+    if hasReturnObject:
+        assert response
     assert hostList
     
 def test_args():
