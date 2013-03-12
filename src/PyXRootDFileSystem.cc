@@ -194,17 +194,18 @@ namespace PyXRootD
       Py_BEGIN_ALLOW_THREADS
       status = filesystem.Ping( handler, timeout );
       Py_END_ALLOW_THREADS
-
-      PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( &status );
-      if ( !statusDict ) return NULL;
-      return Py_BuildValue( "O", statusDict );
     }
 
     // Synchronous mode
-    status = filesystem.Ping( timeout );
-    PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !statusDict ) return NULL;
-    return Py_BuildValue( "O", statusDict );
+    else {
+      status = filesystem.Ping( timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -243,7 +244,7 @@ namespace PyXRootD
       if ( response ) {
         pyresponse = ConvertType<XrdCl::StatInfo>( response );
       } else {
-        pyresponse = Py_None;
+        pyresponse = Py_BuildValue("");
       }
     }
 

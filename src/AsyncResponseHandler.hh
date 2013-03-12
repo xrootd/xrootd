@@ -57,8 +57,8 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Convert the XRootDStatus object
         //----------------------------------------------------------------------
-        PyObject *statusDict = ConvertType<XrdCl::XRootDStatus>( status );
-        if ( !statusDict || PyErr_Occurred() ) {
+        PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( status );
+        if ( !pystatus || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
           return;
@@ -67,10 +67,10 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Convert the response object, if any
         //----------------------------------------------------------------------
-        PyObject *responseBind = NULL;
+        PyObject *pyresponse = NULL;
         if ( response != NULL) {
-          responseBind = ParseResponse( response );
-          if ( responseBind == NULL || PyErr_Occurred() ) {
+          pyresponse = ParseResponse( response );
+          if ( pyresponse == NULL || PyErr_Occurred() ) {
             PyErr_Print();
             PyGILState_Release( state );
             return;
@@ -80,19 +80,19 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Convert the host list
         //----------------------------------------------------------------------
-        PyObject *hostListBind = PyList_New( 0 );
+        PyObject *pyhostlist = PyList_New( 0 );
 
         for ( unsigned int i = 0; i < hostList->size(); ++i ) {
-          PyObject *hostInfoBind = ConvertType<XrdCl::HostInfo>(
+          PyObject *pyhostinfo = ConvertType<XrdCl::HostInfo>(
                                    &hostList->at( i ) );
-          if ( !hostInfoBind || PyErr_Occurred() ) {
+          if ( !pyhostinfo || PyErr_Occurred() ) {
             PyErr_Print();
             PyGILState_Release( state );
             return;
           }
 
-          Py_INCREF( hostInfoBind );
-          if ( PyList_Append( hostListBind, hostInfoBind ) != 0 ) {
+          Py_INCREF( pyhostinfo );
+          if ( PyList_Append( pyhostlist, pyhostinfo ) != 0 ) {
             PyErr_Print();
             PyGILState_Release( state );
             return;
@@ -102,9 +102,8 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Build the callback arguments
         //----------------------------------------------------------------------
-        PyObject *args = (responseBind != NULL) ?
-            Py_BuildValue( "(OOO)", statusDict, responseBind, hostListBind ) :
-            Py_BuildValue( "(OO)",  statusDict, hostListBind );
+        if (pyresponse == NULL) pyresponse = Py_BuildValue("");
+        PyObject *args = Py_BuildValue( "(OOO)", pystatus, pyresponse, pyhostlist );
         if ( !args || PyErr_Occurred() ) {
           PyErr_Print();
           PyGILState_Release( state );
@@ -125,9 +124,9 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Clean up
         //----------------------------------------------------------------------
-        Py_XDECREF( statusDict );
-        Py_XDECREF( responseBind );
-        Py_XDECREF( hostListBind );
+        Py_XDECREF( pystatus );
+        Py_XDECREF( pyresponse );
+        Py_XDECREF( pyhostlist );
         Py_XDECREF( callbackResult );
         Py_DECREF( this->callback );
 
@@ -144,11 +143,11 @@ namespace PyXRootD
       //------------------------------------------------------------------------
       PyObject* ParseResponse( XrdCl::AnyObject *response )
       {
-        PyObject *responseBind = 0;
+        PyObject *pyresponse = 0;
         Type *type;
         response->Get( type );
-        responseBind = ConvertType<Type>( type );
-        return ( !responseBind || PyErr_Occurred() ) ? NULL : responseBind;
+        pyresponse = ConvertType<Type>( type );
+        return ( !pyresponse || PyErr_Occurred() ) ? NULL : pyresponse;
       }
 
     private:
