@@ -116,9 +116,8 @@ namespace XrdCl
     for( uint32_t i = 0; i <= n; ++i )
     {
       log->Dump( JobMgrMsg, "Stopping worker #%d...", i );
-      void *threadRet;
       assert( ::pthread_cancel( pWorkers[i] ) == 0 );
-      assert( ::pthread_join( pWorkers[i], (void **)&threadRet ) == 0 );
+      assert( ::pthread_join( pWorkers[i], 0 ) == 0 );
       log->Dump( JobMgrMsg, "Worker #%d stopped", i );
     }
   }
