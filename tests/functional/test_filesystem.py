@@ -1,4 +1,5 @@
-from XRootD import client, handlers
+from XRootD import client
+from XRootD.handlers import AsyncResponseHandler
 import pytest
 
 def test_filesystem():
@@ -21,7 +22,7 @@ def sync(func, args, hasReturnObject):
     
 def async(func, args, hasReturnObject):
     c = client.Client("root://localhost")
-    handler = handlers.AsyncResponseHandler()
+    handler = AsyncResponseHandler()
     status = func(*args, callback=handler)
     assert status
     status, response, hostList = handler.waitFor()
