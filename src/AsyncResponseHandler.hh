@@ -20,7 +20,7 @@
 #define ASYNCRESPONSEHANDLER_HH_
 
 #include "PyXRootD.hh"
-#include "Utils.hh"
+#include "Conversions.hh"
 
 #include "XrdCl/XrdClXRootDResponses.hh"
 

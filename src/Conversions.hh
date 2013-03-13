@@ -19,6 +19,8 @@
 #ifndef CONVERSIONS_HH_
 #define CONVERSIONS_HH_
 
+#include "PyXRootDURL.hh"
+#include "AsyncResponseHandler.hh"
 #include "Utils.hh"
 
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -126,6 +128,30 @@ namespace PyXRootD
   PyObject* ConvertType( Type *type )
   {
     return PyDict<Type>::Convert(type);
+  }
+
+  template<typename T>
+  PyObject* ConvertResponse( T *response )
+  {
+    PyObject *pyresponse;
+
+    if ( response ) {
+      pyresponse = ConvertType<T>( response );
+    } else {
+      pyresponse = Py_None;
+    }
+
+    return pyresponse;
+  }
+
+  template<typename T>
+  XrdCl::ResponseHandler* GetHandler( PyObject *callback )
+  {
+    if (!IsCallable(callback)) {
+      return NULL;
+    }
+
+    return new AsyncResponseHandler<T>( callback );
   }
 }
 

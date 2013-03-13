@@ -32,38 +32,25 @@ namespace PyXRootD
   {
     static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
     const  char *path;
-    uint16_t     flags;
-    uint16_t     timeout    = 5;
-    PyObject    *callback   = NULL;
-    PyObject    *pyresponse = NULL;
+    uint16_t     flags, timeout = 5;
+    PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
     if ( callback ) {
-      if (!IsCallable(callback)) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::LocationInfo>( callback );
-
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Locate( path, flags, handler, timeout );
-      Py_END_ALLOW_THREADS
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
+      if ( !handler ) return NULL;
+      async(status = self->filesystem->Locate( path, flags, handler, timeout ));
     }
 
     // Synchronous mode
     else {
       XrdCl::LocationInfo *response = 0;
-      status = filesystem.Locate( path, flags, response, timeout );
-
-      if ( response ) {
-        pyresponse = ConvertType<XrdCl::LocationInfo>( response );
-      } else {
-        pyresponse = Py_None;
-      }
+      status = self->filesystem->Locate( path, flags, response, timeout );
+      pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
     }
 
     PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -80,38 +67,25 @@ namespace PyXRootD
   {
     static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
     const  char *path;
-    uint16_t     flags;
-    uint16_t     timeout    = 5;
-    PyObject    *callback   = NULL;
-    PyObject    *pyresponse = NULL;
+    uint16_t     flags, timeout = 5;
+    PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
     if ( callback ) {
-      if (!IsCallable(callback)) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::LocationInfo>( callback );
-
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.DeepLocate( path, flags, handler, timeout );
-      Py_END_ALLOW_THREADS
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
+      if ( !handler ) return NULL;
+      async(status = self->filesystem->DeepLocate( path, flags, handler, timeout ));
     }
 
     // Synchronous mode
     else {
       XrdCl::LocationInfo *response = 0;
-      status = filesystem.DeepLocate( path, flags, response, timeout );
-
-      if ( response ) {
-        pyresponse = ConvertType<XrdCl::LocationInfo>( response );
-      } else {
-        pyresponse = Py_None;
-      }
+      status = self->filesystem->DeepLocate( path, flags, response, timeout );
+      pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
     }
 
     PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -126,6 +100,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Mv( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -133,6 +109,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Query( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -140,6 +118,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Truncate( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -147,6 +127,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Rm( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -154,6 +136,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::MkDir( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -161,6 +145,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::RmDir( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -168,6 +154,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::ChMod( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -179,26 +167,20 @@ namespace PyXRootD
     uint16_t     timeout  = 5;
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
         &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
     if ( callback ) {
-      if ( !IsCallable( callback ) ) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::AnyObject>( callback );
-
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Ping( handler, timeout );
-      Py_END_ALLOW_THREADS
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async(status = self->filesystem->Ping( handler, timeout ));
     }
 
     // Synchronous mode
     else {
-      status = filesystem.Ping( timeout );
+      status = self->filesystem->Ping( timeout );
     }
 
     PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -219,33 +201,22 @@ namespace PyXRootD
     PyObject    *callback   = NULL;
     PyObject    *pyresponse = NULL;
     XrdCl::XRootDStatus status;
-    XrdCl::FileSystem   filesystem( *self->url->url );
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
     if ( callback ) {
-      if (!IsCallable(callback)) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::StatInfo>( callback );
-
-      Py_BEGIN_ALLOW_THREADS
-      status = filesystem.Stat( path, handler, timeout );
-      Py_END_ALLOW_THREADS
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
+      if ( !handler ) return NULL;
+      async(status = self->filesystem->Stat( path, handler, timeout ));
     }
 
     // Synchronous mode
     else {
       XrdCl::StatInfo *response = 0;
-      status = filesystem.Stat( path, response, timeout );
-
-      if ( response ) {
-        pyresponse = ConvertType<XrdCl::StatInfo>( response );
-      } else {
-        pyresponse = Py_BuildValue("");
-      }
+      status = self->filesystem->Stat( path, response, timeout );
+      pyresponse = ConvertResponse<XrdCl::StatInfo>(response);
     }
 
     PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
@@ -260,6 +231,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::StatVFS( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -267,6 +240,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Protocol( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -274,6 +249,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::DirList( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -281,6 +258,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::SendInfo( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
@@ -288,5 +267,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Prepare( Client *self, PyObject *args, PyObject *kwds )
   {
+    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
+    return NULL;
   }
 }

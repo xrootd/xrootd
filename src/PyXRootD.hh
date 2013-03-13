@@ -24,4 +24,9 @@
 #include <iostream>
 #include "structmember.h"
 
+#define async( func )    \
+  Py_BEGIN_ALLOW_THREADS \
+  func;                  \
+  Py_END_ALLOW_THREADS   \
+
 #endif /* PYXROOTD_HH_ */

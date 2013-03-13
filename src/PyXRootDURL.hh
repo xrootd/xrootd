@@ -19,8 +19,7 @@
 #ifndef URLTYPE_HH_
 #define URLTYPE_HH_
 
-#include <Python.h>
-#include "structmember.h"
+#include "PyXRootD.hh"
 
 #include "XrdCl/XrdClURL.hh"
 

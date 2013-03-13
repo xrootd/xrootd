@@ -21,6 +21,8 @@
 
 #include "PyXRootD.hh"
 
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------

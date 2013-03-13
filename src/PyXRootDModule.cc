@@ -18,6 +18,9 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDClient.hh"
+#include "PyXRootDFile.hh"
+
+#include "XrdCl/XrdClFileSystem.hh"
 
 namespace PyXRootD
 {
@@ -43,9 +46,13 @@ namespace PyXRootD
       PyEval_InitThreads();
     }
 
-    ClientType.tp_new   = PyType_GenericNew;
+    ClientType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &ClientType ) < 0 )   return;
     Py_INCREF( &ClientType );
+
+    FileType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &FileType ) < 0 )   return;
+    Py_INCREF( &FileType );
 
     ClientModule = Py_InitModule3("client", module_methods,
         "XRootD Client extension module.");
@@ -55,5 +62,6 @@ namespace PyXRootD
     }
 
     PyModule_AddObject( ClientModule, "Client", (PyObject *) &ClientType );
+    PyModule_AddObject( ClientModule, "File", (PyObject *) &FileType );
   }
 }
