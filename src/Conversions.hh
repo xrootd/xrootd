@@ -20,7 +20,6 @@
 #define CONVERSIONS_HH_
 
 #include "PyXRootDURL.hh"
-#include "AsyncResponseHandler.hh"
 #include "Utils.hh"
 
 #include "XrdCl/XrdClXRootDResponses.hh"
@@ -142,16 +141,6 @@ namespace PyXRootD
     }
 
     return pyresponse;
-  }
-
-  template<typename T>
-  XrdCl::ResponseHandler* GetHandler( PyObject *callback )
-  {
-    if (!IsCallable(callback)) {
-      return NULL;
-    }
-
-    return new AsyncResponseHandler<T>( callback );
   }
 }
 

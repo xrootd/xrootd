@@ -32,9 +32,7 @@ namespace PyXRootD
   {
     static char *kwlist[]   = { "url", "flags", "mode", "timeout", "callback", NULL };
     const  char *url;
-    uint16_t     flags      = 0;
-    uint16_t     mode       = 0;
-    uint16_t     timeout    = 5;
+    uint16_t     flags = 0, mode = 0, timeout = 5;
     PyObject    *callback   = NULL;
     XrdCl::XRootDStatus status;
 
@@ -43,14 +41,9 @@ namespace PyXRootD
 
     // Asynchronous mode
     if ( callback ) {
-      if (!IsCallable(callback)) return NULL;
-
-      XrdCl::ResponseHandler *handler =
-          new AsyncResponseHandler<XrdCl::AnyObject>( callback );
-
-      Py_BEGIN_ALLOW_THREADS
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
       status = self->file->Open( url, flags, mode, handler, timeout );
-      Py_END_ALLOW_THREADS
     }
 
     // Synchronous mode
