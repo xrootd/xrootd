@@ -1,4 +1,4 @@
-pyxrootd
+pyxrootd [![Build Status](https://travis-ci.org/jussy/pyxrootd.png)](https://travis-ci.org/jussy/pyxrootd)
 ========
 
 Python bindings for XRootD
