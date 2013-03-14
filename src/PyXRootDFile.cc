@@ -86,7 +86,7 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Write a data chank at a given offset
+  //! Write a data chunk at a given offset
   //----------------------------------------------------------------------------
   PyObject* File::Write( File *self, PyObject *args, PyObject *kwds )
   {
@@ -126,8 +126,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::IsOpen( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    if ( !PyArg_ParseTuple( args, "" ) ) return NULL; // Allow no arguments
+    return PyBool_FromLong(self->file->IsOpen());
   }
 
   //----------------------------------------------------------------------------
@@ -136,8 +136,14 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::EnableReadRecovery( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "enable", NULL };
+    bool        enable   = NULL;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i", kwlist, &enable ) )
+      return NULL;
+
+    self->file->EnableReadRecovery(enable);
+    Py_RETURN_NONE;
   }
 
   //----------------------------------------------------------------------------
@@ -146,8 +152,14 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::EnableWriteRecovery( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "enable", NULL };
+    bool        enable   = NULL;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i", kwlist, &enable ) )
+      return NULL;
+
+    self->file->EnableWriteRecovery(enable);
+    Py_RETURN_NONE;
   }
 
   //----------------------------------------------------------------------------
@@ -155,7 +167,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::GetDataServer( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    if ( !PyArg_ParseTuple( args, "" ) ) return NULL; // Allow no arguments
+    return Py_BuildValue("s", self->file->GetDataServer().c_str());
   }
 }
