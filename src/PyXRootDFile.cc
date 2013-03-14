@@ -130,8 +130,39 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Read( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char   *kwlist[] = { "offset", "size", "timeout", "callback", NULL };
+    uint64_t       offset;
+    uint32_t       size;
+    uint16_t       timeout  = 5;
+    PyObject      *callback = NULL, *pyresponse = NULL;
+    XrdCl::Buffer *buffer;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "kI|HO", kwlist,
+        &offset, &size, &timeout, &callback ) ) return NULL;
+
+    buffer = new XrdCl::Buffer(size);
+    buffer->Zero();
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->Read( offset, size, buffer->GetBuffer(), handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      uint32_t bytesRead;
+      status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead, timeout );
+      pyresponse = ConvertResponse<XrdCl::Buffer>(buffer);
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------

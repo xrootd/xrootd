@@ -37,7 +37,8 @@ namespace PyXRootD
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      AsyncResponseHandler( PyObject *callback ) : callback( callback ) {}
+      AsyncResponseHandler( PyObject *callback ) :
+        callback( callback ), state( PyGILState_UNLOCKED ) {}
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
@@ -49,10 +50,10 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Ensure we hold the Global Interpreter Lock
         //----------------------------------------------------------------------
-        PyGILState_STATE state = PyGILState_Ensure();
+        state = PyGILState_Ensure();
 
         if ( InitTypes() != 0) {
-          return;
+          return Exit();
         }
 
         //----------------------------------------------------------------------
@@ -60,9 +61,7 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( status );
         if ( !pystatus || PyErr_Occurred() ) {
-          PyErr_Print();
-          PyGILState_Release( state );
-          return;
+          return Exit();
         }
 
         //----------------------------------------------------------------------
@@ -72,9 +71,7 @@ namespace PyXRootD
         if ( response != NULL) {
           pyresponse = ParseResponse( response );
           if ( pyresponse == NULL || PyErr_Occurred() ) {
-            PyErr_Print();
-            PyGILState_Release( state );
-            return;
+            return Exit();
           }
         }
 
@@ -87,16 +84,12 @@ namespace PyXRootD
           PyObject *pyhostinfo = ConvertType<XrdCl::HostInfo>(
                                    &hostList->at( i ) );
           if ( !pyhostinfo || PyErr_Occurred() ) {
-            PyErr_Print();
-            PyGILState_Release( state );
-            return;
+            return Exit();
           }
 
           Py_INCREF( pyhostinfo );
           if ( PyList_Append( pyhostlist, pyhostinfo ) != 0 ) {
-            PyErr_Print();
-            PyGILState_Release( state );
-            return;
+            return Exit();
           }
         }
 
@@ -106,9 +99,7 @@ namespace PyXRootD
         if (pyresponse == NULL) pyresponse = Py_BuildValue("");
         PyObject *args = Py_BuildValue( "(OOO)", pystatus, pyresponse, pyhostlist );
         if ( !args || PyErr_Occurred() ) {
-          PyErr_Print();
-          PyGILState_Release( state );
-          return;
+          return Exit();
         }
 
         //----------------------------------------------------------------------
@@ -117,9 +108,7 @@ namespace PyXRootD
         PyObject *callbackResult = PyObject_CallObject( this->callback, args );
         Py_DECREF( args );
         if ( PyErr_Occurred() ) {
-          PyErr_Print();
-          PyGILState_Release( state );
-          return;
+          return Exit();
         }
 
         //----------------------------------------------------------------------
@@ -151,11 +140,25 @@ namespace PyXRootD
         return ( !pyresponse || PyErr_Occurred() ) ? NULL : pyresponse;
       }
 
+      //------------------------------------------------------------------------
+      //! Something went wrong, print error and release the GIL before returning
+      //------------------------------------------------------------------------
+      void Exit()
+      {
+        PyErr_Print();
+        PyGILState_Release( state );
+        return;
+      }
+
     private:
 
       PyObject *callback;
+      PyGILState_STATE state;
   };
 
+  //----------------------------------------------------------------------------
+  //! Get an async response handler of the correct type
+  //----------------------------------------------------------------------------
   template<typename T>
   XrdCl::ResponseHandler* GetHandler( PyObject *callback )
   {

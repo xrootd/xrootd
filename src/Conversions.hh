@@ -123,6 +123,14 @@ namespace PyXRootD
       }
   };
 
+  template<> struct PyDict<XrdCl::Buffer>
+  {
+      static PyObject* Convert( XrdCl::Buffer *buffer )
+      {
+        return Py_BuildValue( "s#", buffer->GetBuffer(), buffer->GetSize() );
+      }
+  };
+
   template<typename Type>
   PyObject* ConvertType( Type *type )
   {
