@@ -30,10 +30,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Open( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]   = { "url", "flags", "mode", "timeout", "callback", NULL };
+    static char *kwlist[] = { "url", "flags", "mode", "timeout", "callback", NULL };
     const  char *url;
-    uint16_t     flags = 0, mode = 0, timeout = 5;
-    PyObject    *callback   = NULL;
+    uint16_t     flags    = 0, mode = 0, timeout = 5;
+    PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO", kwlist,
@@ -43,7 +43,7 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
-      status = self->file->Open( url, flags, mode, handler, timeout );
+      async( status = self->file->Open( url, flags, mode, handler, timeout ) );
     }
 
     // Synchronous mode
@@ -63,8 +63,31 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Close( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+        &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->Close( handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      status = self->file->Close( timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------

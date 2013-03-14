@@ -30,7 +30,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Locate( Client *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
+    static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
     const  char *path;
     uint16_t     flags, timeout = 5;
     PyObject    *callback = NULL, *pyresponse = NULL;
@@ -43,7 +43,7 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
-      async(status = self->filesystem->Locate( path, flags, handler, timeout ));
+      async( status = self->filesystem->Locate( path, flags, handler, timeout ) );
     }
 
     // Synchronous mode
@@ -65,7 +65,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::DeepLocate( Client *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]   = { "path", "flags", "timeout", "callback", NULL };
+    static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
     const  char *path;
     uint16_t     flags, timeout = 5;
     PyObject    *callback = NULL, *pyresponse = NULL;
@@ -78,7 +78,7 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
-      async(status = self->filesystem->DeepLocate( path, flags, handler, timeout ));
+      async( status = self->filesystem->DeepLocate( path, flags, handler, timeout ) );
     }
 
     // Synchronous mode
@@ -175,7 +175,7 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
-      async(status = self->filesystem->Ping( handler, timeout ));
+      async( status = self->filesystem->Ping( handler, timeout ) );
     }
 
     // Synchronous mode
@@ -195,11 +195,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Stat( Client *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]   = { "path", "timeout", "callback", NULL };
+    static char *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char *path;
-    uint16_t     timeout    = 5;
-    PyObject    *callback   = NULL;
-    PyObject    *pyresponse = NULL;
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
@@ -209,7 +208,7 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       if ( !handler ) return NULL;
-      async(status = self->filesystem->Stat( path, handler, timeout ));
+      async( status = self->filesystem->Stat( path, handler, timeout ) );
     }
 
     // Synchronous mode
