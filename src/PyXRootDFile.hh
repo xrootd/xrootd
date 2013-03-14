@@ -36,6 +36,8 @@ namespace PyXRootD
       static PyObject* Close( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Stat( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Read( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* Readline( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* Readlines( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Write( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Truncate( File *self, PyObject *args, PyObject *kwds );
@@ -49,7 +51,93 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       XrdCl::File *file;
+      bool generatorExhausted;
   };
+
+  //----------------------------------------------------------------------------
+  //! __init__() equivalent
+  //----------------------------------------------------------------------------
+  static int File_init( File *self, PyObject *args )
+  {
+    self->file = new XrdCl::File();
+    self->generatorExhausted = false;
+    return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void File_dealloc( File *self )
+  {
+    //delete self->file;
+    self->ob_type->tp_free( (PyObject*) self );
+  }
+
+  //----------------------------------------------------------------------------
+  //! __iter__
+  //----------------------------------------------------------------------------
+  static PyObject* File_iter( File *self )
+  {
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_IOError, "File is not open" );
+      return NULL;
+    }
+
+    Py_INCREF( self );
+    return (PyObject*) self;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __iternext__
+  //----------------------------------------------------------------------------
+  static PyObject* File_iternext( File *self )
+  {
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_IOError, "File is not open" );
+      return NULL;
+    }
+
+    // Return a single line
+    if(!self->generatorExhausted) {
+
+      self->generatorExhausted = true;
+
+      PyObject *line = PyObject_CallMethod( (PyObject*) self, "readline", NULL );
+      if ( !line )
+        return NULL;
+      return line;
+
+    } else {
+      //------------------------------------------------------------------------
+      //! Raise standard StopIteration exception with empty value
+      //------------------------------------------------------------------------
+      PyErr_SetNone( PyExc_StopIteration );
+      return NULL;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! __enter__
+  //----------------------------------------------------------------------------
+  static PyObject* File_enter( File *self )
+  {
+    Py_INCREF( self );
+    return (PyObject*) self;
+  }
+
+  //----------------------------------------------------------------------------
+  //! __exit__
+  //----------------------------------------------------------------------------
+  static PyObject* File_exit( File *self )
+  {
+    PyObject *ret = PyObject_CallMethod( (PyObject*) self, "close", NULL );
+    if ( !ret )
+      return NULL;
+
+    Py_DECREF( ret );
+    Py_RETURN_NONE ;
+
+  }
 
   //----------------------------------------------------------------------------
   //! Visible method definitions
@@ -68,6 +156,14 @@ namespace PyXRootD
     { "read",
         (PyCFunction) PyXRootD::File::Read,                METH_KEYWORDS,
         "Read a data chunk at a given offset" },
+    { "readline",
+        (PyCFunction) PyXRootD::File::Readline,            METH_KEYWORDS,
+        "Read a data chunk at a given offset, until "
+        "the first newline encountered" },
+    { "readlines",
+        (PyCFunction) PyXRootD::File::Readlines,           METH_KEYWORDS,
+        "Read a data chunk at a given offset, until EOF "
+        "encountered. Return list of lines so read." },
     { "write",
         (PyCFunction) PyXRootD::File::Write,               METH_KEYWORDS,
         "Write a data chunk at a given offset" },
@@ -94,26 +190,15 @@ namespace PyXRootD
     { "get_data_server",
         (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS,
         "Get the data server the file is accessed at" },
+    {"__enter__",
+        (PyCFunction) File_enter,                           METH_NOARGS,
+        "__enter__() -> self."},
+    {"__exit__",
+        (PyCFunction) File_exit,                           METH_VARARGS,
+        "__exit__(*excinfo) -> None.  Closes the file."},
+
     { NULL } /* Sentinel */
   };
-
-  //----------------------------------------------------------------------------
-  //! __init__() equivalent
-  //----------------------------------------------------------------------------
-  static int File_init( File *self, PyObject *args )
-  {
-    self->file = new XrdCl::File();
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Deallocation function, called when object is deleted
-  //----------------------------------------------------------------------------
-  static void File_dealloc( File *self )
-  {
-    //delete self->file;
-    self->ob_type->tp_free( (PyObject*) self );
-  }
 
   //----------------------------------------------------------------------------
   //! Visible member definitions
@@ -147,14 +232,15 @@ namespace PyXRootD
     0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE
+    | Py_TPFLAGS_HAVE_ITER,                     /* tp_flags */
     "File object",                              /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
-    0,                                          /* tp_iter */
-    0,                                          /* tp_iternext */
+    (getiterfunc) File_iter,                    /* tp_iter */
+    (iternextfunc) File_iternext,               /* tp_iternext */
     FileMethods,                                /* tp_methods */
     FileMembers,                                /* tp_members */
     0,                                          /* tp_getset */

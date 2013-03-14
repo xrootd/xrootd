@@ -131,17 +131,25 @@ namespace PyXRootD
   PyObject* File::Read( File *self, PyObject *args, PyObject *kwds )
   {
     static char   *kwlist[] = { "offset", "size", "timeout", "callback", NULL };
-    uint64_t       offset;
-    uint32_t       size;
+    uint64_t       offset   = 0;
+    uint32_t       size     = 0;
     uint16_t       timeout  = 5;
     PyObject      *callback = NULL, *pyresponse = NULL;
     XrdCl::Buffer *buffer;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "kI|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO", kwlist,
         &offset, &size, &timeout, &callback ) ) return NULL;
 
-    buffer = new XrdCl::Buffer(size);
+    if (!size) {
+      XrdCl::StatInfo *info;
+      XrdCl::XRootDStatus status = self->file->Stat(true, info, timeout);
+      std::cerr << ">>>>> " << info->GetSize() << std::endl;
+      size = info->GetSize();
+      delete info;
+    }
+
+    buffer = new XrdCl::Buffer( size );
     buffer->Zero();
 
     // Asynchronous mode
@@ -163,6 +171,25 @@ namespace PyXRootD
     return (callback) ?
             Py_BuildValue( "O", pystatus ) :
             Py_BuildValue( "OO", pystatus, pyresponse );
+  }
+
+  //----------------------------------------------------------------------------
+  //! Read a data chunk at a given offset, until the first newline encountered
+  //----------------------------------------------------------------------------
+  PyObject* File::Readline( File *self, PyObject *args, PyObject *kwds )
+  {
+//  PyObject *file = PyObject_CallMethod( (PyObject*) self, "read", NULL );
+    PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
+    return NULL;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Read a data chunk at a given offset
+  //----------------------------------------------------------------------------
+  PyObject* File::Readlines( File *self, PyObject *args, PyObject *kwds )
+  {
+    PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
+    return NULL;
   }
 
   //----------------------------------------------------------------------------
