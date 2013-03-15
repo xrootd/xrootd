@@ -178,7 +178,6 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Readline( File *self, PyObject *args, PyObject *kwds )
   {
-//  PyObject *file = PyObject_CallMethod( (PyObject*) self, "read", NULL );
     PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
     return NULL;
   }

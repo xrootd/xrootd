@@ -51,7 +51,7 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       XrdCl::File *file;
-      bool generatorExhausted;
+      uint64_t pCurrentOffset;
   };
 
   //----------------------------------------------------------------------------
@@ -60,7 +60,7 @@ namespace PyXRootD
   static int File_init( File *self, PyObject *args )
   {
     self->file = new XrdCl::File();
-    self->generatorExhausted = false;
+    self->pCurrentOffset = 0;
     return 0;
   }
 
@@ -97,23 +97,24 @@ namespace PyXRootD
       return NULL;
     }
 
-    // Return a single line
-    if(!self->generatorExhausted) {
+    //--------------------------------------------------------------------------
+    // Fetch a 4k chunk
+    // Probably should read a larger chunk (256k) and split it
+    //--------------------------------------------------------------------------
+    uint64_t chunkSize = 4096;
+    PyObject *line = self->Read( self,
+        Py_BuildValue( "kI", self->pCurrentOffset, chunkSize ), NULL );
 
-      self->generatorExhausted = true;
-
-      PyObject *line = PyObject_CallMethod( (PyObject*) self, "readline", NULL );
-      if ( !line )
-        return NULL;
-      return line;
-
-    } else {
+    if ( !PyString_Size( PyTuple_GetItem( line, 1 ) ) ) {
       //------------------------------------------------------------------------
-      //! Raise standard StopIteration exception with empty value
+      // Raise standard StopIteration exception with empty value
       //------------------------------------------------------------------------
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;
     }
+
+    self->pCurrentOffset += chunkSize;
+    return line;
   }
 
   //----------------------------------------------------------------------------
