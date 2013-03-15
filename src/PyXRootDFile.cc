@@ -30,7 +30,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Open( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "url", "flags", "mode", "timeout", "callback", NULL };
+    static char *kwlist[] = { "url", "flags", "mode", "timeout", "callback",
+                              NULL };
     const  char *url;
     uint16_t     flags    = 0, mode = 0, timeout = 5;
     PyObject    *callback = NULL;
@@ -96,12 +97,17 @@ namespace PyXRootD
   PyObject* File::Stat( File *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "force", "timeout", "callback", NULL };
-    bool         force;
+    bool         force    = false;
     uint16_t     timeout  = 5;
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i|HO", kwlist,
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO", kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -138,15 +144,19 @@ namespace PyXRootD
     XrdCl::Buffer *buffer;
     XrdCl::XRootDStatus status;
 
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO", kwlist,
         &offset, &size, &timeout, &callback ) ) return NULL;
 
     if (!size) {
-      XrdCl::StatInfo *info;
+      XrdCl::StatInfo *info = 0;
       XrdCl::XRootDStatus status = self->file->Stat(true, info, timeout);
-      std::cerr << ">>>>> " << info->GetSize() << std::endl;
       size = info->GetSize();
-      delete info;
+      if (info) delete info;
     }
 
     buffer = new XrdCl::Buffer( size );
@@ -156,13 +166,15 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
-      async( status = self->file->Read( offset, size, buffer->GetBuffer(), handler, timeout ) );
+      async( status = self->file->Read( offset, size, buffer->GetBuffer(),
+                                        handler, timeout ) );
     }
 
     // Synchronous mode
     else {
       uint32_t bytesRead;
-      status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead, timeout );
+      status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead,
+                                 timeout );
       pyresponse = ConvertResponse<XrdCl::Buffer>(buffer);
     }
 
@@ -196,8 +208,44 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Write( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char   *kwlist[] = { "buffer", "offset", "size", "timeout",
+                                "callback", NULL };
+    const  char   *buffer;
+    uint64_t       offset   = 0;
+    uint32_t       size     = 0;
+    uint16_t       timeout  = 5;
+    PyObject      *callback = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO", kwlist,
+        &buffer, &offset, &size, &timeout, &callback ) ) return NULL;
+
+    if (!size) {
+      size = strlen(buffer);
+    }
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->Write( offset, size, buffer, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      status = self->file->Write( offset, size, buffer, timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -205,8 +253,36 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Sync( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char   *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t       timeout  = 5;
+    PyObject      *callback = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+        &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->Sync( handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      status = self->file->Sync( timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -214,8 +290,37 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Truncate( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char   *kwlist[] = { "size", "timeout", "callback", NULL };
+    uint64_t       size     = 0;
+    uint16_t       timeout  = 5;
+    PyObject      *callback = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO", kwlist,
+        &size, &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->Truncate( size, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      status = self->file->Truncate( size, timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -223,6 +328,11 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::VectorRead( File *self, PyObject *args, PyObject *kwds )
   {
+    if ( !self->file->IsOpen() ) {
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+      return NULL;
+    }
+
     PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
     return NULL;
   }

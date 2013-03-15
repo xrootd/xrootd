@@ -79,7 +79,7 @@ namespace PyXRootD
   static PyObject* File_iter( File *self )
   {
     if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_IOError, "File is not open" );
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
       return NULL;
     }
 
@@ -93,7 +93,7 @@ namespace PyXRootD
   static PyObject* File_iternext( File *self )
   {
     if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_IOError, "File is not open" );
+      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
       return NULL;
     }
 
