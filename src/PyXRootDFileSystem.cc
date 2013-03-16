@@ -100,8 +100,33 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Mv( Client *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "source", "dest", "timeout", "callback", NULL };
+    const  char *source;
+    const  char *dest;
+    uint16_t     timeout = 5;
+    PyObject    *callback = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO", kwlist,
+        &source, &dest, &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->filesystem->Mv( source, dest, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      status = self->filesystem->Mv( source, dest, timeout );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
