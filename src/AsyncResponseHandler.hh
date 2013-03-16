@@ -38,7 +38,17 @@ namespace PyXRootD
       //! Constructor
       //------------------------------------------------------------------------
       AsyncResponseHandler( PyObject *callback ) :
-        callback( callback ), state( PyGILState_UNLOCKED ) {}
+          callback( callback ), state( PyGILState_UNLOCKED )
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Handle the asynchronous response call without host list
+      //------------------------------------------------------------------------
+      void HandleResponse( XrdCl::XRootDStatus *status, XrdCl::AnyObject *response )
+      {
+        HandleResponseWithHosts(status, response, 0);
+      }
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call
@@ -51,7 +61,6 @@ namespace PyXRootD
         // Ensure we hold the Global Interpreter Lock
         //----------------------------------------------------------------------
         state = PyGILState_Ensure();
-
         if ( InitTypes() != 0) {
           return Exit();
         }
@@ -80,16 +89,18 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         PyObject *pyhostlist = PyList_New( 0 );
 
-        for ( unsigned int i = 0; i < hostList->size(); ++i ) {
-          PyObject *pyhostinfo = ConvertType<XrdCl::HostInfo>(
+        if ( hostList ) {
+          for ( unsigned int i = 0; i < hostList->size(); ++i ) {
+            PyObject *pyhostinfo = ConvertType<XrdCl::HostInfo>(
                                    &hostList->at( i ) );
-          if ( !pyhostinfo || PyErr_Occurred() ) {
-            return Exit();
-          }
+            if ( !pyhostinfo || PyErr_Occurred() ) {
+              return Exit();
+            }
 
-          Py_INCREF( pyhostinfo );
-          if ( PyList_Append( pyhostlist, pyhostinfo ) != 0 ) {
-            return Exit();
+            Py_INCREF( pyhostinfo );
+            if ( PyList_Append( pyhostlist, pyhostinfo ) != 0 ) {
+              return Exit();
+            }
           }
         }
 
