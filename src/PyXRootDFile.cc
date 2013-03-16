@@ -159,7 +159,7 @@ namespace PyXRootD
       if (info) delete info;
     }
 
-    buffer = new XrdCl::Buffer( size );
+    buffer = new XrdCl::Buffer( size + 1 );
     buffer->Zero();
 
     // Asynchronous mode
