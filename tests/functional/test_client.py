@@ -20,4 +20,3 @@ def test_args():
     with pytest.raises(TypeError):
         c = client.Client(path='root://localhost', foo='bar')
 
-

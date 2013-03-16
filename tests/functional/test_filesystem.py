@@ -1,22 +1,27 @@
 from XRootD import client
 from XRootD.handlers import AsyncResponseHandler
+from XRootD.enums import OpenFlags
 import pytest
 
 def test_filesystem():
     c = client.Client("root://localhost")
     
-    funcspecs = {c.locate    : (('/tmp', 0), True),
-                 c.ping      : ((), False),
-                 c.stat      : (('/tmp', 0), True)}
+    funcspecs = [(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
+                 (c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
+                 (c.mv,         ('/tmp/spam', '/tmp/ham'), False),
+                 (c.ping,       (), False),
+                 (c.stat,       ('/tmp'), True)
+                 ]
 
-    for func, args in funcspecs.iteritems():
-        sync (func, args[0], args[1])
-        async(func, args[0], args[1])
+    for func, args, hasReturnObject in funcspecs:
+        sync (func, args, hasReturnObject)
+        async(func, args, hasReturnObject)
 
 def sync(func, args, hasReturnObject):
     c = client.Client("root://localhost")
     status, response = func(*args)
-    assert status
+    assert status['isOK']
+    print status
     if hasReturnObject:
         assert response
     
@@ -24,13 +29,14 @@ def async(func, args, hasReturnObject):
     c = client.Client("root://localhost")
     handler = AsyncResponseHandler()
     status = func(*args, callback=handler)
-    assert status
+    assert status['isOK']
+    print status
     status, response, hostList = handler.waitFor()
     #assert 0
-    assert status
+    assert status['isOK']
     if hasReturnObject:
         assert response
-    assert hostList
+    #assert hostList
     
 def test_args():
     c = client.Client("root://localhost")
