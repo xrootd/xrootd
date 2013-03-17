@@ -208,13 +208,13 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Write( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[] = { "buffer", "offset", "size", "timeout",
+    static char *kwlist[] = { "buffer", "offset", "size", "timeout",
                                 "callback", NULL };
-    const  char   *buffer;
-    uint64_t       offset   = 0;
-    uint32_t       size     = 0;
-    uint16_t       timeout  = 5;
-    PyObject      *callback = NULL;
+    const  char *buffer;
+    uint64_t     offset   = 0;
+    uint32_t     size     = 0;
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) {
@@ -253,9 +253,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Sync( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t       timeout  = 5;
-    PyObject      *callback = NULL;
+    static char *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) {
@@ -290,10 +290,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Truncate( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[] = { "size", "timeout", "callback", NULL };
-    uint64_t       size     = 0;
-    uint16_t       timeout  = 5;
-    PyObject      *callback = NULL;
+    static char *kwlist[] = { "size", "timeout", "callback", NULL };
+    uint64_t     size     = 0;
+    uint16_t     timeout  = 5;
+    PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) {

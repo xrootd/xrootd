@@ -55,6 +55,12 @@ namespace PyXRootD
 
   template<typename T> struct PyDict;
 
+  template<typename Type>
+  PyObject* ConvertType( Type *type )
+  {
+    return PyDict<Type>::Convert(type);
+  }
+
   template<> struct PyDict<XrdCl::AnyObject>
   {
       static PyObject* Convert( XrdCl::AnyObject *object )
@@ -62,6 +68,20 @@ namespace PyXRootD
         return Py_BuildValue( "{}" );
       }
   };
+
+  template<typename T>
+  PyObject* ConvertResponse( T *response )
+  {
+    PyObject *pyresponse;
+
+    if ( response ) {
+      pyresponse = ConvertType<T>( response );
+    } else {
+      pyresponse = Py_None;
+    }
+
+    return pyresponse;
+  }
 
   template<> struct PyDict<XrdCl::XRootDStatus>
   {
@@ -79,6 +99,16 @@ namespace PyXRootD
       }
   };
 
+  template<> struct PyDict<XrdCl::ProtocolInfo>
+  {
+      static PyObject* Convert( XrdCl::ProtocolInfo *info )
+      {
+        return Py_BuildValue( "{sIsI}",
+            "version",  info->GetVersion(),
+            "hostInfo", info->GetHostInfo() );
+      }
+  };
+
   template<> struct PyDict<XrdCl::StatInfo>
   {
       static PyObject* Convert( XrdCl::StatInfo *info )
@@ -89,6 +119,40 @@ namespace PyXRootD
             "flags",            info->GetFlags(),
             "modTime",          info->GetModTime(),
             "modTimeAsString",  info->GetModTimeAsString().c_str() );
+      }
+  };
+
+  template<> struct PyDict<XrdCl::StatInfoVFS>
+  {
+      static PyObject* Convert( XrdCl::StatInfoVFS *info )
+      {
+        return Py_BuildValue( "{sksksksksbsb}",
+            "nodesRW",            info->GetNodesRW(),
+            "nodesStaging",       info->GetNodesStaging(),
+            "freeRW",             info->GetFreeRW(),
+            "freeStaging",        info->GetFreeStaging(),
+            "utilizationRW",      info->GetUtilizationRW(),
+            "utilizationStaging", info->GetUtilizationStaging() );
+      }
+  };
+
+  template<> struct PyDict<XrdCl::DirectoryList>
+  {
+      static PyObject* Convert( XrdCl::DirectoryList *list )
+      {
+        PyObject *directoryList = PyList_New( 0 );
+        PyObject *statInfo;
+        for ( XrdCl::DirectoryList::Iterator i = list->Begin(); i < list->End();
+            ++i ) {
+          //std::cout << ">>>>> STAT INFO: " << (*i)->GetStatInfo()->GetSize() << std::endl;
+          statInfo = ConvertResponse<XrdCl::StatInfo>( (*i)->GetStatInfo() );
+          PyList_Append( directoryList,
+              Py_BuildValue( "{sssssO}",
+                  "hostAddress", (*i)->GetHostAddress().c_str(),
+                  "name",        (*i)->GetName().c_str(),
+                  "statInfo",    statInfo ) );
+        }
+        return Py_BuildValue( "O", directoryList );
       }
   };
 
@@ -130,26 +194,6 @@ namespace PyXRootD
         return Py_BuildValue( "s", buffer->GetBuffer() );
       }
   };
-
-  template<typename Type>
-  PyObject* ConvertType( Type *type )
-  {
-    return PyDict<Type>::Convert(type);
-  }
-
-  template<typename T>
-  PyObject* ConvertResponse( T *response )
-  {
-    PyObject *pyresponse;
-
-    if ( response ) {
-      pyresponse = ConvertType<T>( response );
-    } else {
-      pyresponse = Py_None;
-    }
-
-    return pyresponse;
-  }
 }
 
 #endif /* CONVERSIONS_HH_ */
