@@ -349,8 +349,6 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
         &size, &timeout, &callback ) ) return NULL;
 
-    printf(">>>>> %lu\n", size);
-
     // Asynchronous mode
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );

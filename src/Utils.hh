@@ -34,6 +34,16 @@ namespace PyXRootD
   //! Initialize the Python types for the extension.
   //----------------------------------------------------------------------------
   int InitTypes();
+
+  //----------------------------------------------------------------------------
+  //! Check if the given chunk of data contains a newline
+  //----------------------------------------------------------------------------
+  bool HasNewline( std::string chunk );
+
+  //----------------------------------------------------------------------------
+  //! Split the given string by newlines
+  //----------------------------------------------------------------------------
+  std::vector<std::string>* SplitNewlines( std::string chunk );
 }
 
 #endif /* UTILS_HH_ */

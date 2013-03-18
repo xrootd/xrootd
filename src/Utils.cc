@@ -42,5 +42,31 @@ namespace PyXRootD
 
     return 0;
   }
+
+  bool HasNewline( std::string chunk )
+  {
+    if ( std::string::npos != chunk.find( "\n" ) ) {
+      return true;
+    }
+    return false;
+  }
+
+  std::vector<std::string>* SplitNewlines( std::string chunk )
+  {
+    std::istringstream stream( chunk );
+    std::string line;
+    std::vector<std::string> *lines = new std::vector<std::string>();
+
+    while ( std::getline( stream, line ) ) {
+      if ( std::string::npos != chunk.find( "\n" ) &&
+           std::string::npos != chunk.find( EOF ) ) {
+        lines->push_back( line + "\n" );
+      } else {
+        lines->push_back( line );
+      }
+    }
+
+    return lines;
+  }
 }
 

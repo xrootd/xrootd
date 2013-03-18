@@ -21,8 +21,11 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDClient.hh"
+#include "Utils.hh"
 
 #include "XrdCl/XrdClFile.hh"
+
+#include <deque>
 
 namespace PyXRootD
 {
@@ -51,8 +54,10 @@ namespace PyXRootD
 
     public:
       PyObject_HEAD
-      XrdCl::File *file;
-      uint64_t pCurrentOffset;
+      XrdCl::File             *file;
+      uint64_t                 currentOffset;
+      std::string             *partial;
+      std::deque<std::string> *surplus;
   };
 
   //----------------------------------------------------------------------------
@@ -70,7 +75,9 @@ namespace PyXRootD
   static int File_init( File *self, PyObject *args )
   {
     self->file = new XrdCl::File();
-    self->pCurrentOffset = 0;
+    self->currentOffset = 0;
+    self->partial = new std::string();
+    self->surplus = new std::deque<std::string>();
     return 0;
   }
 
@@ -95,38 +102,79 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
+  //! Read a chunk of the given size from the given offset as a string
+  //----------------------------------------------------------------------------
+  static std::string ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
+  {
+    PyObject *args = Py_BuildValue( "kI", offset, chunksize );
+    if ( !args ) return NULL;
+
+    PyObject *pychunk = PyTuple_GetItem( self->Read( self, args, NULL ), 1 );
+    if ( !pychunk ) return NULL;
+
+    std::string chunk = PyString_AsString( pychunk );
+    return chunk;
+  }
+
+  //----------------------------------------------------------------------------
   //! __iternext__
   //----------------------------------------------------------------------------
   static PyObject* File_iternext( File *self )
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    // Set inital blocksize
-    //
-    // while read(blocksize) length > 0
-    //
+    uint64_t    chunksize = 2;
+    std::string chunk;
+    std::string line;
+    PyObject   *pyline;
+    std::vector<std::string> *lines;
 
-
-    //--------------------------------------------------------------------------
-    // Fetch a 4k chunk
-    // Probably should read a larger chunk (256k) and split it
-    //--------------------------------------------------------------------------
-    uint64_t blocksize = 4096;
-    PyObject *line = self->Read( self,
-        Py_BuildValue( "kI", self->pCurrentOffset, blocksize ), NULL );
-
-
-
-    if ( !PyString_Size( PyTuple_GetItem( line, 1 ) ) ) {
-      //------------------------------------------------------------------------
-      // Raise standard StopIteration exception with empty value
-      //------------------------------------------------------------------------
-      PyErr_SetNone( PyExc_StopIteration );
-      return NULL;
+    if ( !self->surplus->empty() ) {
+      line = self->surplus->front() + '\n' ;
+      pyline = PyString_FromString( line.c_str() );
+      self->surplus->pop_front();
+      return pyline;
     }
 
-    self->pCurrentOffset += blocksize;
-    return line;
+    chunk = ReadChunk( self, chunksize, self->currentOffset );
+
+    if ( chunk.empty() ) {
+
+      if ( self->partial->empty() ) {
+        PyErr_SetNone( PyExc_StopIteration );
+        return NULL;
+      }
+
+      else {
+        line = *self->partial + "\n";
+        pyline = PyString_FromString( line.c_str() );
+        self->partial->clear();
+        return pyline;
+      }
+    }
+
+    self->currentOffset += chunksize;
+
+    while ( !HasNewline( chunk ) ) {
+      self->partial->append( chunk );
+      chunk = ReadChunk( self, chunksize , self->currentOffset );
+      self->currentOffset += chunksize;
+    }
+
+    lines = SplitNewlines( chunk );
+
+    line = *self->partial + lines->front() + '\n';
+    pyline = PyString_FromString( line.c_str() );
+
+    if ( lines->size() > 2 ) {
+      self->surplus->insert( self->surplus->end(), lines->begin() + 1, lines->end() );
+    } else if ( lines->size() == 2) {
+      self->partial = &lines->back();
+    } else {
+      self->partial->clear();
+    }
+
+    return pyline;
   }
 
   //----------------------------------------------------------------------------
@@ -258,7 +306,7 @@ namespace PyXRootD
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
-    (getiterfunc) File_iter,                    /* tp_iter */
+    (getiterfunc)  File_iter,                   /* tp_iter */
     (iternextfunc) File_iternext,               /* tp_iternext */
     FileMethods,                                /* tp_methods */
     FileMembers,                                /* tp_members */

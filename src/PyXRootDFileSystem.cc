@@ -555,7 +555,7 @@ namespace PyXRootD
                               "callback", NULL };
     uint8_t      flags    = 0, priority = 0;
     uint16_t     timeout  = 5;
-    PyObject    *pyfiles = NULL, *callback = NULL, *pyresponse = NULL;
+    PyObject    *pyfiles  = NULL, *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|bbHO:prepare", kwlist,
