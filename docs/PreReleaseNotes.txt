@@ -92,6 +92,9 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Use the underlying storage system to determine file transfer
+     status. This resolves inconsistencies when using the new
+     stat() plug-in for tape backed file systems.
    * Use int instead of size_t for things that are truly int. This
      Bypasses various compiler warning (affects readv patch).
    * Allow stdin as a source in the xrdcp front-end parser. Do not
