@@ -62,6 +62,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -529,15 +530,16 @@ int XrdOssSys::ConfigProc(XrdSysError &Eroute)
                  &&  xpath(Config, Eroute)) {Config.Echo(); NoGo = 1;}
         }
 
-// All done scanning the file, set dependent parameters.
-//
-   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
-
 // Now check if any errors occured during file i/o
 //
    if ((retc = Config.LastError()))
       NoGo = Eroute.Emsg("Config", retc, "read config file", ConfigFN);
    Config.Close();
+
+// All done scanning the file, set dependent parameters.
+//
+   if (N2N_Lib || LocalRoot || RemoteRoot) NoGo |= ConfigN2N(Eroute);
+   if (STT_Lib && !NoGo) NoGo |= ConfigStatLib(Eroute);
 
 // Return final return code
 //
@@ -811,6 +813,30 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
    return NoGo;
 }
 
+/******************************************************************************/
+/*                         C o n f i g S t a t L i b                          */
+/******************************************************************************/
+
+int XrdOssSys::ConfigStatLib(XrdSysError &Eroute)
+{
+   XrdSysPlugin myLib(&Eroute, STT_Lib, "statlib", myVersion);
+   XrdOssStatInfoInit_t siGet;
+
+// Get the plugin
+//
+   if (!(siGet = (XrdOssStatInfoInit_t)myLib.getPlugin("XrdOssStatInfoInit")))
+      return 1;
+
+// Get an Instance of the statinfo function
+//
+   if (!(STT_Func = siGet(this, Eroute.logger(), ConfigFN, STT_Parms)))
+      return 1;
+
+// Persist the library and return success
+//
+   myLib.Persist();
+   return 0;
+}
   
 /******************************************************************************/
 /*                           C o n f i g S t a t s                            */
@@ -908,6 +934,7 @@ int XrdOssSys::ConfigXeq(char *var, XrdOucStream &Config, XrdSysError &Eroute)
    TS_Xeq("preread",       xprerd);
    TS_Xeq("space",         xspace);
    TS_Xeq("stagecmd",      xstg);
+   TS_Xeq("statlib",       xstl);
    TS_Xeq("trace",         xtrace);
    TS_Xeq("usage",         xusage);
    TS_Xeq("xfr",           xxfr);
@@ -1536,7 +1563,43 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
    return 0;
 }
 
-  
+/******************************************************************************/
+/*                                  x s t l                                   */
+/******************************************************************************/
+
+/* Function: xstl
+
+   Purpose:  To parse the directive: statlib <path> [<parms>]
+
+             <path>    the path of the stat library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val, parms[1040];
+
+// Get the path
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "statlib not specified"); return 1;}
+
+// Record the path
+//
+   if (STT_Lib) free(STT_Lib);
+   STT_Lib = strdup(val);
+
+// Record any parms
+//
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "statlib parameters too long"); return 1;}
+   if (STT_Parms) free(STT_Parms);
+   STT_Parms = (*parms ? strdup(parms) : 0);
+   return 0;
+}
+
 /******************************************************************************/
 /*                                x t r a c e                                 */
 /******************************************************************************/

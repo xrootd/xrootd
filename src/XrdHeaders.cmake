@@ -38,6 +38,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNetSocket.hh
   XrdOss/XrdOss.hh
   XrdOss/XrdOssDefaultSS.hh
+  XrdOss/XrdOssStatInfo.hh
   XrdOuc/XrdOucCRC.hh
   XrdOuc/XrdOucCache.hh
   XrdOuc/XrdOucCallBack.hh

@@ -37,6 +37,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOss/XrdOssConfig.hh"
 #include "XrdOss/XrdOssError.hh"
+#include "XrdOss/XrdOssStatInfo.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucPList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -251,6 +252,9 @@ int               lenDP;
 short             numDP;
 short             numCG;
 
+char             *STT_Lib;   // -> StatInfo  Library Path
+char             *STT_Parms; // -> StatInfo  Library Paramaters
+XrdOssStatInfo_t  STT_Func;
 
 long long         prPBits;   //    Page lo order bit mask
 long long         prPMask;   //    Page hi order bit mask
@@ -319,6 +323,7 @@ void   ConfigSpath(XrdSysError &Eroute, const char *Pn,
                    unsigned long long &Fv, int noMSS);
 int    ConfigStage(XrdSysError &Eroute);
 int    ConfigStageC(XrdSysError &Eroute);
+int    ConfigStatLib(XrdSysError &Eroute);
 void   ConfigStats(XrdSysError &Eroute);
 void   ConfigStats(dev_t Devnum, char *lP);
 int    ConfigXeq(char *, XrdOucStream &, XrdSysError &);
@@ -336,6 +341,7 @@ int    xprerd(XrdOucStream &Config, XrdSysError &Eroute);
 int    xspace(XrdOucStream &Config, XrdSysError &Eroute, int *isCD=0);
 int    xspaceBuild(char *grp, char *fn, int isxa, XrdSysError &Eroute);
 int    xstg(XrdOucStream &Config, XrdSysError &Eroute);
+int    xstl(XrdOucStream &Config, XrdSysError &Eroute);
 int    xusage(XrdOucStream &Config, XrdSysError &Eroute);
 int    xtrace(XrdOucStream &Config, XrdSysError &Eroute);
 int    xxfr(XrdOucStream &Config, XrdSysError &Eroute);

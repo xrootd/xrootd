@@ -89,7 +89,9 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
 // Stat the file in the local filesystem first. If there. make sure the mode
 // bits correspond to our reality and update access time if so requested.
 //
-   if (!stat(local_path, buff)) 
+   retc = (STT_Func ? (*STT_Func)(local_path, buff, opts, EnvP) :
+                            stat (local_path, buff));
+   if (!retc)
       {if (popts & XRDEXP_NOTRW) buff->st_mode &= ro_Mode;
        if (opts & XRDOSS_updtatm && (buff->st_mode & S_IFMT) == S_IFREG)
           {struct utimbuf times;
@@ -98,7 +100,7 @@ int XrdOssSys::Stat(const char *path, struct stat *buff, int opts,
            utime(local_path, &times);
           }
        return XrdOssOK;
-      }
+      } else if (errno != ENOENT) return (errno ? -errno : -ENOMSG);
 
 // The file may be offline in a mass storage system, check if this is possible
 //

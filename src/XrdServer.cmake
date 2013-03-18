@@ -57,7 +57,8 @@ add_library(
   XrdOss/XrdOssRename.cc
   XrdOss/XrdOssSpace.cc        XrdOss/XrdOssSpace.hh
   XrdOss/XrdOssStage.cc        XrdOss/XrdOssStage.hh
-  XrdOss/XrdOssStat.cc         XrdOss/XrdOssUnlink.cc
+  XrdOss/XrdOssStat.cc         XrdOss/XrdOssStatInfo.hh
+                               XrdOss/XrdOssUnlink.cc
                                XrdOss/XrdOssError.hh
                                XrdOss/XrdOss.hh
 
