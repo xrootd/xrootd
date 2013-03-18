@@ -96,8 +96,7 @@ add_executable(
 target_link_libraries(
   xrdfs
   XrdCl
-  ${READLINE_LIBRARY}
-  ${NCURSES_LIBRARY} )
+  ${READLINE_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # xrdcopy

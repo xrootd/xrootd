@@ -9,7 +9,6 @@ if( ENABLE_READLINE )
     add_definitions( -DHAVE_READLINE )
   else()
     set( READLINE_LIBRARY "" )
-    set( NCURSES_LIBRARY "" )
   endif()
 endif()
 

@@ -84,8 +84,7 @@ target_link_libraries(
   XrdClient
   XrdUtils
   pthread
-  ${READLINE_LIBRARY}
-  ${NCURSES_LIBRARY} )
+  ${READLINE_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # xprep
