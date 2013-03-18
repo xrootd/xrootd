@@ -38,6 +38,7 @@ namespace PyXRootD
       static PyObject* Read( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Readline( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Readlines( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* Readchunks( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Write( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Truncate( File *self, PyObject *args, PyObject *kwds );
@@ -100,13 +101,21 @@ namespace PyXRootD
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
 
+    // Set inital blocksize
+    //
+    // while read(blocksize) length > 0
+    //
+
+
     //--------------------------------------------------------------------------
     // Fetch a 4k chunk
     // Probably should read a larger chunk (256k) and split it
     //--------------------------------------------------------------------------
-    uint64_t chunkSize = 4096;
+    uint64_t blocksize = 4096;
     PyObject *line = self->Read( self,
-        Py_BuildValue( "kI", self->pCurrentOffset, chunkSize ), NULL );
+        Py_BuildValue( "kI", self->pCurrentOffset, blocksize ), NULL );
+
+
 
     if ( !PyString_Size( PyTuple_GetItem( line, 1 ) ) ) {
       //------------------------------------------------------------------------
@@ -116,7 +125,7 @@ namespace PyXRootD
       return NULL;
     }
 
-    self->pCurrentOffset += chunkSize;
+    self->pCurrentOffset += blocksize;
     return line;
   }
 
@@ -166,8 +175,14 @@ namespace PyXRootD
         "the first newline encountered" },
     { "readlines",
         (PyCFunction) PyXRootD::File::Readlines,           METH_KEYWORDS,
-        "Read a data chunk at a given offset, until EOF "
-        "encountered. Return list of lines so read." },
+        "Read data chunks from a given offset, separated "
+        "by newlines, until EOF encountered. Return list "
+        "of lines read." },
+    { "readchunks",
+        (PyCFunction) PyXRootD::File::Readchunks,          METH_KEYWORDS,
+        "Read data chunks from a given offset of the "
+        "given size, until EOF encountered. Return list "
+        "of chunks read." },
     { "write",
         (PyCFunction) PyXRootD::File::Write,               METH_KEYWORDS,
         "Write a data chunk at a given offset" },

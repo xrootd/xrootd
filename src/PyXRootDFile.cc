@@ -19,6 +19,7 @@
 #include "PyXRootD.hh"
 #include "PyXRootDFile.hh"
 #include "AsyncResponseHandler.hh"
+#include "ChunkIterator.hh"
 #include "Utils.hh"
 
 #include "XrdCl/XrdClFile.hh"
@@ -189,12 +190,40 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Read a data chunk at a given offset
+  //! Read data chunks from a given offset, separated by newlines, until EOF
+  //! encountered. Return list of lines read.
   //----------------------------------------------------------------------------
   PyObject* File::Readlines( File *self, PyObject *args, PyObject *kwds )
   {
     PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
     return NULL;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Read data chunks from a given offset of the given size, until EOF
+  //! encountered. Return list of chunks read.
+  //----------------------------------------------------------------------------
+  PyObject* File::Readchunks( File *self, PyObject *args, PyObject *kwds )
+  {
+    static char   *kwlist[]  = { "blocksize", "offset", NULL };
+    uint32_t       blocksize = 4096;
+    uint64_t       offset    = 0;
+    ChunkIterator *iterator;
+
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|Ik:readchunks", kwlist,
+           &blocksize, &offset ) ) return NULL;
+
+    ChunkIteratorType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
+
+    args = Py_BuildValue( "OIk", self, blocksize, offset );
+    iterator = (ChunkIterator*) PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
+    Py_DECREF( args );
+    if ( !iterator ) return NULL;
+
+    return (PyObject *) iterator;
   }
 
   //----------------------------------------------------------------------------
@@ -279,7 +308,7 @@ namespace PyXRootD
   PyObject* File::Truncate( File *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "size", "timeout", "callback", NULL };
-    uint64_t     size     = 0;
+    uint64_t     size;
     uint16_t     timeout  = 5;
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
@@ -288,6 +317,8 @@ namespace PyXRootD
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
         &size, &timeout, &callback ) ) return NULL;
+
+    printf(">>>>> %lu\n", size);
 
     // Asynchronous mode
     if ( callback ) {
