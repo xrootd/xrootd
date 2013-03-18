@@ -491,7 +491,7 @@ namespace PyXRootD
 
     // Asynchronous mode
     if ( callback ) {
-      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::DirectoryList>( callback );
       if ( !handler ) return NULL;
       // TODO: find out why DirListFlags cannot be passed asynchronously
       async( status = self->filesystem->DirList( path, handler, timeout ) );
@@ -516,8 +516,34 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::SendInfo( Client *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "info", "timeout", "callback", NULL };
+    const  char *info;
+    uint16_t     timeout = 5;
+    PyObject    *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+        &info, &timeout, &callback ) ) return NULL;
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->filesystem->SendInfo( info, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      XrdCl::Buffer *response;
+      status = self->filesystem->SendInfo( info, response, timeout );
+      pyresponse = ConvertType<XrdCl::Buffer>( response );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -525,7 +551,52 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Prepare( Client *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    static char *kwlist[] = { "files", "flags", "priority", "timeout",
+                              "callback", NULL };
+    uint8_t      flags    = 0, priority = 0;
+    uint16_t     timeout  = 5;
+    PyObject    *pyfiles = NULL, *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|bbHO", kwlist,
+        &pyfiles, &flags, &priority, &timeout, &callback ) ) return NULL;
+
+    if ( !PyList_Check( pyfiles ) ) {
+      PyErr_SetString( PyExc_TypeError, "first parameter must be a list" );
+      return NULL;
+    }
+
+    // Convert python list to stl vector
+    std::vector<std::string> files;
+    const char              *file;
+    PyObject                *pyfile;
+
+    for ( int i = 0; i < PyList_Size( pyfiles ); ++i ) {
+      pyfile = PyList_GetItem( pyfiles, i );
+      if ( !pyfile ) return NULL;
+      file = PyString_AsString( pyfile );
+      files.push_back( std::string( file ) );
+    }
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      if ( !handler ) return NULL;
+      // TODO: find out why DirListFlags cannot be passed asynchronously
+      async( status = self->filesystem->Prepare( files, flags, priority, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      XrdCl::Buffer *response;
+      status = self->filesystem->Prepare( files, flags, priority, response, timeout );
+      pyresponse = ConvertType<XrdCl::Buffer>( response );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 }
