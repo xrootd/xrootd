@@ -45,14 +45,6 @@
 #include <stdarg.h>
 #include <sstream>
 
-#ifdef HAVE_READLINE
-#include <term.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <curses.h>
-#endif
-
-
 /////////////////////////////////////////////////////////////////////
 // function + macro to allow formatted print via cout,cerr
 /////////////////////////////////////////////////////////////////////
