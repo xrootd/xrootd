@@ -43,6 +43,7 @@ target_link_libraries(
   XrdUtils
   pthread
   ${READLINE_LIBRARY}
+  ${NCURSES_LIBRARY}
   ${EXTRA_LIBS}
   ${SOCKET_LIBRARY} )
 
