@@ -290,6 +290,10 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
         myRoleID = static_cast<int>(rid);
       }
 
+// Export the role IN basic form
+//
+   XrdOucEnv::Export("XRDROLE", XrdCmsRole::Type(myRType));
+
 // For managers, make sure that we have a well designated port.
 // For servers or supervisors, force an ephemeral port to be used.
 //

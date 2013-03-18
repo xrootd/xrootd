@@ -191,6 +191,10 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
        Options |= i;
       }
 
+// Export our role if we actually have one
+//
+   if (myRole) XrdOucEnv::Export("XRDROLE", myRole);
+
 // Set the redirect option for other layers
 //
    if (Options & isManager)

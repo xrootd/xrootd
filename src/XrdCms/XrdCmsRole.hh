@@ -93,6 +93,15 @@ static const char *Type(RoleID rid) // Maximum of 3 characters plus null byte!
                     return "??";
                    }
 
+static const char *Type(const char *rtype)
+                   {if (*rtype == 'M') return "manager";
+                    if (*rtype == 'R') return "supervisor";
+                    if (*rtype == 'S') return "server";
+                    if (*rtype == 'P') return "proxy";
+                    if (*rtype == 'E') return "peer";
+                    return "";
+                   }
+
                    XrdCmsRole() {}
                   ~XrdCmsRole() {}
 };
