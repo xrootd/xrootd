@@ -6,6 +6,11 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Define a new plug-in to allow replacement of the stat() function when
+     used to determine exported file characteristics. This plug-in is meant
+     to be used by tape-backed file systems that identify offline files in
+     odd ways (e.g. GPFS). Patch assumes XRDROLE patch below.
+   * Export the basic role via envar XRDROLE.
    * Recognize /dev/null and /dev/zero as special files. This sets the
      protocol type to isDevNull or isDevZero, respectively.
    * Add ability to automatically return stat information when reading
