@@ -36,7 +36,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:locate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -71,7 +71,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:deeplocate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -107,7 +107,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO:mv", kwlist,
         &source, &dest, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -142,7 +142,7 @@ namespace PyXRootD
     XrdCl::XRootDStatus    status;
     XrdCl::Buffer          argbuffer;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "is|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "is|HO:query", kwlist,
         &queryCode, &arg, &timeout, &callback ) ) return NULL;
 
     argbuffer.FromString(arg);
@@ -180,7 +180,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sk|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sk|HO:truncate", kwlist,
         &path, &size, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -213,7 +213,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rm", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -248,7 +248,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO:mkdir", kwlist,
         &path, &flags, &mode, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -282,7 +282,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rmdir", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -316,7 +316,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:chmod", kwlist,
         &path, &mode, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -348,7 +348,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:ping", kwlist,
         &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -381,7 +381,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:stat", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -416,7 +416,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:statvfs", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -450,7 +450,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:protocol", kwlist,
          &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -486,7 +486,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO:dirlist", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -522,7 +522,7 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:sendinfo", kwlist,
         &info, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -558,7 +558,7 @@ namespace PyXRootD
     PyObject    *pyfiles = NULL, *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|bbHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|bbHO:prepare", kwlist,
         &pyfiles, &flags, &priority, &timeout, &callback ) ) return NULL;
 
     if ( !PyList_Check( pyfiles ) ) {

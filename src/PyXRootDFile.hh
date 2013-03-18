@@ -55,6 +55,15 @@ namespace PyXRootD
   };
 
   //----------------------------------------------------------------------------
+  //! Set exception and return null if I/O op on closed file is attempted
+  //----------------------------------------------------------------------------
+  static PyObject* FileClosedError()
+  {
+    PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
+    return NULL;
+  }
+
+  //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
   static int File_init( File *self, PyObject *args )
@@ -78,10 +87,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyObject* File_iter( File *self )
   {
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
     Py_INCREF( self );
     return (PyObject*) self;
@@ -92,10 +98,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyObject* File_iternext( File *self )
   {
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
     //--------------------------------------------------------------------------
     // Fetch a 4k chunk

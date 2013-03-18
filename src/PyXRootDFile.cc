@@ -37,7 +37,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
         &url, &flags, &mode, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -69,7 +69,7 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", kwlist,
         &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -102,12 +102,9 @@ namespace PyXRootD
     PyObject    *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -144,12 +141,9 @@ namespace PyXRootD
     XrdCl::Buffer *buffer;
     XrdCl::XRootDStatus status;
 
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO:read", kwlist,
         &offset, &size, &timeout, &callback ) ) return NULL;
 
     if (!size) {
@@ -217,12 +211,9 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO:write", kwlist,
         &buffer, &offset, &size, &timeout, &callback ) ) return NULL;
 
     if (!size) {
@@ -258,12 +249,9 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", kwlist,
         &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -296,12 +284,9 @@ namespace PyXRootD
     PyObject    *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
         &size, &timeout, &callback ) ) return NULL;
 
     // Asynchronous mode
@@ -328,10 +313,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::VectorRead( File *self, PyObject *args, PyObject *kwds )
   {
-    if ( !self->file->IsOpen() ) {
-      PyErr_SetString( PyExc_ValueError, "I/O operation on closed file" );
-      return NULL;
-    }
+    if ( !self->file->IsOpen() ) return FileClosedError();
 
     PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
     return NULL;
@@ -342,7 +324,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::IsOpen( File *self, PyObject *args, PyObject *kwds )
   {
-    if ( !PyArg_ParseTuple( args, "" ) ) return NULL; // Allow no arguments
+    if ( !PyArg_ParseTuple( args, ":is_open" ) ) return NULL; // Allow no arguments
     return PyBool_FromLong(self->file->IsOpen());
   }
 
@@ -355,8 +337,8 @@ namespace PyXRootD
     static char *kwlist[] = { "enable", NULL };
     bool        enable   = NULL;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i", kwlist, &enable ) )
-      return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_read_recovery",
+        kwlist, &enable ) ) return NULL;
 
     self->file->EnableReadRecovery(enable);
     Py_RETURN_NONE;
@@ -371,8 +353,8 @@ namespace PyXRootD
     static char *kwlist[] = { "enable", NULL };
     bool        enable   = NULL;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i", kwlist, &enable ) )
-      return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_write_recovery",
+        kwlist, &enable ) ) return NULL;
 
     self->file->EnableWriteRecovery(enable);
     Py_RETURN_NONE;
@@ -383,7 +365,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::GetDataServer( File *self, PyObject *args, PyObject *kwds )
   {
-    if ( !PyArg_ParseTuple( args, "" ) ) return NULL; // Allow no arguments
+    if ( !PyArg_ParseTuple( args, ":get_data_server" ) ) return NULL; // Allow no arguments
     return Py_BuildValue("s", self->file->GetDataServer().c_str());
   }
 }
