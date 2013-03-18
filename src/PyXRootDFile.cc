@@ -195,8 +195,39 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Readlines( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
-    return NULL;
+    static char   *kwlist[] = { "offset", "size", NULL };
+    uint64_t       offset   = 0;
+    uint32_t       size     = 0;
+    XrdCl::Buffer *buffer;
+
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readlines", kwlist,
+        &offset, &size ) ) return NULL;
+
+    if (!size) {
+      XrdCl::StatInfo    *info = 0;
+      XrdCl::XRootDStatus status = self->file->Stat( true, info );
+      size = info->GetSize();
+      if (info) delete info;
+    }
+
+    buffer = new XrdCl::Buffer( size + 1 );
+    buffer->Zero();
+
+    uint32_t bytesRead;
+    self->file->Read( offset, size, buffer->GetBuffer(), bytesRead );
+
+    // Convert into list, split by newlines
+    std::istringstream stream( std::string (buffer->GetBuffer(), buffer->GetSize() ) );
+    std::string        line;
+    PyObject          *lines = PyList_New( 0 );
+
+    while ( std::getline( stream, line )) {
+      PyList_Append( lines, PyString_FromString( line.c_str() ) );
+    }
+
+    return Py_BuildValue( "O", lines );
   }
 
   //----------------------------------------------------------------------------

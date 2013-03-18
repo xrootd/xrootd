@@ -210,7 +210,7 @@ namespace PyXRootD
         (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS,
         "Get the data server the file is accessed at" },
     {"__enter__",
-        (PyCFunction) File_enter,                           METH_NOARGS,
+        (PyCFunction) File_enter,                          METH_NOARGS,
         "__enter__() -> self."},
     {"__exit__",
         (PyCFunction) File_exit,                           METH_VARARGS,
