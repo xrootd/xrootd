@@ -44,6 +44,7 @@
 #include "XrdFrm/XrdFrmXfrJob.hh"
 #include "XrdFrm/XrdFrmXfrQueue.hh"
 #include "XrdNet/XrdNetMsg.hh"
+#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
@@ -117,12 +118,12 @@ int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
 // Check if the file exists or not. For incomming requests, the file must not
 // exist. For outgoing requests the file must exist.
 //
-   if (stat(lclpath, &buf))
+   if (Config.ossFS->Stat(lclpath, &buf, XRDOSS_resonly))
       {if (Outgoing)
           {if (Config.Verbose || Trace.What & TRACE_Debug)
-              Say.Say(0, xfrType,"skipped; ",lclpath," does not exist.");
+              Say.Say(0, xfrType,"skipped; ",lclpath," not resident.");
            if (reqFQ) reqFQ->Del(rP);
-           return Notify(rP, qNum, 2, "file not found");
+           return Notify(rP, qNum, 2, "file not resident");
           }
       } else {
        if (!Outgoing)

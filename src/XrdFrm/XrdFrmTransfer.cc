@@ -184,7 +184,7 @@ const char *XrdFrmTransfer::Fetch()
 
 // Check if the file exists
 //
-   if (!stat(xfrP->PFN, &pfnStat))
+   if (!Config.ossFS->Stat(xfrP->PFN, &pfnStat, XRDOSS_resonly))
       {DEBUG(xfrP->PFN <<" exists; not fetched.");
        return 0;
       }
@@ -233,15 +233,16 @@ const char *XrdFrmTransfer::Fetch()
 //
    xfrET = time(0);
    if (!(rc = cmdArg.theCmd->Run(pdBuff, pdSZ)))
-      {if ((rc = stat(xfrP->PFN, &pfnStat)))
-          {Say.Emsg("Fetch", lfnpath, "fetched but not found!"); fSize = 0;}
+      {if ((rc = Config.ossFS->Stat(xfrP->PFN, &pfnStat, XRDOSS_resonly)))
+          {Say.Emsg("Fetch", lfnpath, "fetched but not resident!"); fSize = 0;}
           else {fSize  = pfnStat.st_size;
                 if (Config.xfrCmd[iXfr].Opts & Config.cmdAlloc)
                    FetchDone(lfnpath, pfnStat, rc);
                }
       }
 
-// Clean up if we failed otherwise tell the cmsd that we have a new file
+// Clean up if we failed otherwise tell the cmsd that we have a new file. Upon
+// failure we issue a a remove as we don't want the temp file to exist.
 //
    xfrP->PFN[xfrP->pfnEnd] = '\0';
    if (rc)
@@ -617,9 +618,10 @@ const char *XrdFrmTransfer::Throw()
           else return "non-url copies not configured";
       }
 
-// Check if the file exists
+// Check if the file exists (we only copy resident files)
 //
-   if (stat(xfrP->PFN, &begStat)) return (xfrP->reqFQ ? "file not found" : 0);
+   if (Config.ossFS->Stat(xfrP->PFN, &begStat, XRDOSS_resonly))
+      return (xfrP->reqFQ ? "file not found" : 0);
 
 // Check for a fail file
 //
@@ -670,7 +672,7 @@ const char *XrdFrmTransfer::Throw()
 // internally generated requests will simply be retried.
 //
    if (!rc)
-      {if ((rc = stat(xfrP->PFN, &endStat)))
+      {if ((rc = Config.ossFS->Stat(xfrP->PFN, &endStat, XRDOSS_resonly)))
           {Say.Emsg("Throw", lfnpath, "transfered but not found!");
            retMsg = "unable to verify copy";
           } else {
@@ -764,7 +766,7 @@ void XrdFrmTransfer::ThrowDone(XrdFrmTranChk *cP, time_t endTime)
       } else {
        struct stat Stat;
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".lock");
-       if (!stat(xfrP->PFN, &Stat))
+       if (!Config.ossFS->Stat(xfrP->PFN, &Stat, XRDOSS_resonly))
           {struct utimbuf tbuff;
            tbuff.actime = tbuff.modtime = endTime;
            if (utime(xfrP->PFN, &tbuff))
