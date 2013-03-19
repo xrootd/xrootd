@@ -343,6 +343,7 @@ namespace XrdCl
     pPort = 1094;
     pPath.clear();
     pParams.clear();
+    pURL.clear();
   }
 
   //----------------------------------------------------------------------------
