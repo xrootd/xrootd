@@ -48,7 +48,7 @@
 //!
 //! <prog>  := cmsd | frm_xfrd | frm_purged | xrootd
 //! <role>  := manager | peer | proxy | server | supervisor
-//! <token> := stat[.<prog>[.<role>]]={all|online}[&<token>]
+//! <token> := stat[.<prog>[.<role>]]={all | online[:eperm]}[&<token>]
 //!
 //! where: <prog> applies the specification only to programs named <prog>. If
 //!               <prog> is not specified, the parametr applies to all programs.
@@ -57,10 +57,9 @@
 //!               parameter applies to all <prog>'s regardless of their role.
 //!               In all cases, the most restrictive specification applies.
 //!        all    allows stat() to return info for online and offline files.
-//!        online allows stat() to return info for online files only. If stat()
-//!               encounters an offline file is returns ENOENT for the cmsd
-//!               and EPERM for other programs. This is the default. Note that
-//!               any keyword other than "all" is taken as "online".
+//!        online allows stat() to return info for online files only. When
+//!               when stat() encounters an offline file it returns ENOENT.
+//!               However, specifying "online:eperm" return EPERM instead.
 //------------------------------------------------------------------------------
 
 extern "C"
@@ -104,6 +103,20 @@ int XrdOssStatInfo(const char *path, struct stat *buff,
 }
 
 /******************************************************************************/
+/*                    X r d O s s S t a t I n f o P a r m                     */
+/******************************************************************************/
+  
+int XrdOssStatInfoParm(XrdSysError &eDest, const char *var, const char *val)
+{
+        if (!strcmp(val, "all"))          return 0;
+   else if (!strcmp(val, "online"))       return ENOENT;
+   else if (!strcmp(val, "online:eperm")) return EPERM;
+
+   eDest.Say("Config", " Invalid statlib parameter, '",var,"=",val,"'.");
+   return -1;
+}
+
+/******************************************************************************/
 /*                    X r d O s s S t a t I n f o I n i t                     */
 /******************************************************************************/
 
@@ -127,36 +140,34 @@ XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
    XrdSysError Say(Logger, "");
    XrdOucEnv   myEnv(parms);
    char  vChk[512], *val;
-   int   n;
-   bool expAll[3] = {false, false, false};
+   int   n, offLine = 0;
 
 // Check for global parms first
 //
    strcpy(vChk, "stat");
-   if ((val = myEnv.Get(vChk)) && !strcmp(val, "all")) expAll[0] = true;
+   if ((val = myEnv.Get(vChk))
+   &&  (offLine = XrdOssStatInfoParm(Say, vChk, val)) < 0) return 0;
 
 // Check for program specific variable
 //
    if (myProg)
       {strcat(vChk, "."); strcat(vChk, myProg);
-       if ((val = myEnv.Get(vChk)) && !strcmp(val, "all")) expAll[1] = true;
-          else expAll[1] = expAll[0];
-      }   else expAll[1] = expAll[0];
+       if ((val = myEnv.Get(vChk))
+       &&  (offLine = XrdOssStatInfoParm(Say, vChk, val)) < 0) return 0;
+      }
 
 // Check for role specific variable
 //
    if (myProg && myRole)
       {strcat(vChk, "."); strcat(vChk, myRole);
-       if ((val = myEnv.Get(vChk)) && !strcmp(val, "all")) expAll[2] = true;
-          else expAll[2] = expAll[1];
-      }   else expAll[2] = expAll[1];
+       if ((val = myEnv.Get(vChk))
+       &&  (offLine = XrdOssStatInfoParm(Say, vChk, val)) < 0) return 0;
+      }
 
 // Now set the global variable indicate whether we will only allow online
 // files or all files (i.e. online and offline).
 //
-        if (expAll[2])                        XrdOssStatInfoResOnly = 0;
-   else if (myProg && !strcmp(myProg,"cmsd")) XrdOssStatInfoResOnly = ENOENT;
-   else                                       XrdOssStatInfoResOnly = EPERM;
+   XrdOssStatInfoResOnly = offLine;
 
 // Record in the log what stat will stat
 //
