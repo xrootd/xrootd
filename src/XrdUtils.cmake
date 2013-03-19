@@ -192,6 +192,18 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# GPFS stat() plugin library
+#-------------------------------------------------------------------------------
+add_library(
+  XrdOssSIgpfsT
+  SHARED
+  XrdOss/XrdOssSIgpfsT.cc )
+
+target_link_libraries(
+  XrdOssSIgpfsT
+  XrdUtils )
+
+#-------------------------------------------------------------------------------
 # The helper lib
 #-------------------------------------------------------------------------------
 add_library(
