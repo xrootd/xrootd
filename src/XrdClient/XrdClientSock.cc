@@ -41,6 +41,7 @@
 #include <assert.h>
 #include "XrdClient/XrdClientSock.hh"
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include "XrdNet/XrdNetSocket.hh"
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -147,18 +148,21 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
       // We cycle on the poll, ignoring the possible interruptions
       // We are waiting for something to come from the socket,
       // but we will not wait forever
-      int timeleft = fRequestTimeout;
+      int timeleft = fRequestTimeout * 1000; // milliseconds
+     {XrdSysTimer toClock;
+      long long unsigned timesofar;
       do {
          // Wait for some event from the socket
-         pollRet = poll(&fds_r,
-                        1,
-                        1000 // 1 second as a step
-                        );
+         pollRet = poll(&fds_r, 1, timeleft);
 
          if ((pollRet < 0) && (errno != EINTR) && (errno != EAGAIN) )
             return TXSOCK_ERR;
-
-      } while (--timeleft && pollRet <= 0 && !fRDInterrupt);
+         if (timeleft > 0)
+            {toClock.Report(timesofar);
+             if ((timeleft -= (timesofar/1000)) < 0) timeleft = 0;
+            }
+         } while(timeleft && pollRet <= 0);
+      }
 
 
       // If we are here, pollRet is > 0 why?
