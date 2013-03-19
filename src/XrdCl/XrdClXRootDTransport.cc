@@ -959,12 +959,26 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
+    //--------------------------------------------------------------------------
+    // Talking to dCache
+    //--------------------------------------------------------------------------
+    if( info->protocolVersion < 0x290 )
+    {
+      log->Debug( XRootDTransportMsg, "[%s] Talking to an old server (0x%x), "
+                  "probably dCache door, ignoring the response to "
+                  "kXR_protocol", hsData->streamName.c_str(),
+                  info->protocolVersion );
+      return Status( stOK, suContinue );
+    }
+
+    //--------------------------------------------------------------------------
+    // Handle the response
+    //--------------------------------------------------------------------------
     Status st = UnMarshallBody( hsData->in, kXR_protocol );
     if( !st.IsOK() )
       return st;
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
-
 
     if( rsp->hdr.status != kXR_ok )
     {
