@@ -39,9 +39,10 @@ namespace PyXRootD
       static PyObject* Close( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Stat( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Read( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* Readline( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* Readlines( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* Readchunks( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* ReadLine( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* ReadLines( File *self, PyObject *args, PyObject *kwds );
+      static std::string ReadChunk( File *self, uint64_t chunksize, uint32_t offset );
+      static PyObject* ReadChunks( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Write( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Truncate( File *self, PyObject *args, PyObject *kwds );
@@ -102,79 +103,19 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Read a chunk of the given size from the given offset as a string
-  //----------------------------------------------------------------------------
-  static std::string ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
-  {
-    PyObject *args = Py_BuildValue( "kI", offset, chunksize );
-    if ( !args ) return NULL;
-
-    PyObject *pychunk = PyTuple_GetItem( self->Read( self, args, NULL ), 1 );
-    if ( !pychunk ) return NULL;
-
-    std::string chunk = PyString_AsString( pychunk );
-    return chunk;
-  }
-
-  //----------------------------------------------------------------------------
   //! __iternext__
   //----------------------------------------------------------------------------
   static PyObject* File_iternext( File *self )
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
+    PyObject *line = self->ReadLine( self, NULL, NULL );
 
-    uint64_t    chunksize = 2;
-    std::string chunk;
-    std::string line;
-    PyObject   *pyline;
-    std::vector<std::string> *lines;
-
-    if ( !self->surplus->empty() ) {
-      line = self->surplus->front() + '\n' ;
-      pyline = PyString_FromString( line.c_str() );
-      self->surplus->pop_front();
-      return pyline;
+    if ( !line || PyString_Size( line ) == 0 ) {
+      PyErr_SetNone( PyExc_StopIteration );
+      return NULL;
     }
 
-    chunk = ReadChunk( self, chunksize, self->currentOffset );
-
-    if ( chunk.empty() ) {
-
-      if ( self->partial->empty() ) {
-        PyErr_SetNone( PyExc_StopIteration );
-        return NULL;
-      }
-
-      else {
-        line = *self->partial + "\n";
-        pyline = PyString_FromString( line.c_str() );
-        self->partial->clear();
-        return pyline;
-      }
-    }
-
-    self->currentOffset += chunksize;
-
-    while ( !HasNewline( chunk ) ) {
-      self->partial->append( chunk );
-      chunk = ReadChunk( self, chunksize , self->currentOffset );
-      self->currentOffset += chunksize;
-    }
-
-    lines = SplitNewlines( chunk );
-
-    line = *self->partial + lines->front() + '\n';
-    pyline = PyString_FromString( line.c_str() );
-
-    if ( lines->size() > 2 ) {
-      self->surplus->insert( self->surplus->end(), lines->begin() + 1, lines->end() );
-    } else if ( lines->size() == 2) {
-      self->partial = &lines->back();
-    } else {
-      self->partial->clear();
-    }
-
-    return pyline;
+    return line;
   }
 
   //----------------------------------------------------------------------------
@@ -218,16 +159,16 @@ namespace PyXRootD
         (PyCFunction) PyXRootD::File::Read,                METH_KEYWORDS,
         "Read a data chunk at a given offset" },
     { "readline",
-        (PyCFunction) PyXRootD::File::Readline,            METH_KEYWORDS,
+        (PyCFunction) PyXRootD::File::ReadLine,            METH_KEYWORDS,
         "Read a data chunk at a given offset, until "
         "the first newline encountered" },
     { "readlines",
-        (PyCFunction) PyXRootD::File::Readlines,           METH_KEYWORDS,
+        (PyCFunction) PyXRootD::File::ReadLines,           METH_KEYWORDS,
         "Read data chunks from a given offset, separated "
         "by newlines, until EOF encountered. Return list "
         "of lines read." },
     { "readchunks",
-        (PyCFunction) PyXRootD::File::Readchunks,          METH_KEYWORDS,
+        (PyCFunction) PyXRootD::File::ReadChunks,          METH_KEYWORDS,
         "Read data chunks from a given offset of the "
         "given size, until EOF encountered. Return list "
         "of chunks read." },

@@ -144,7 +144,6 @@ namespace PyXRootD
         PyObject *statInfo;
         for ( XrdCl::DirectoryList::Iterator i = list->Begin(); i < list->End();
             ++i ) {
-          //std::cout << ">>>>> STAT INFO: " << (*i)->GetStatInfo()->GetSize() << std::endl;
           statInfo = ConvertResponse<XrdCl::StatInfo>( (*i)->GetStatInfo() );
           PyList_Append( directoryList,
               Py_BuildValue( "{sssssO}",

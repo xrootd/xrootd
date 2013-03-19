@@ -183,17 +183,66 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Read a data chunk at a given offset, until the first newline encountered
   //----------------------------------------------------------------------------
-  PyObject* File::Readline( File *self, PyObject *args, PyObject *kwds )
+  PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
-    PyErr_SetString( PyExc_NotImplementedError, "Method not implemented" );
-    return NULL;
+    uint64_t    chunksize = 2;
+    std::string chunk;
+    std::string line;
+    PyObject   *pyline;
+    std::vector<std::string> *lines;
+
+    if ( !self->surplus->empty() ) {
+      line = self->surplus->front() + '\n' ;
+      pyline = PyString_FromString( line.c_str() );
+      self->surplus->pop_front();
+      return pyline;
+    }
+
+    chunk = ReadChunk( self, chunksize, self->currentOffset );
+
+    if ( chunk.empty() ) {
+
+      if ( self->partial->empty() ) {
+        return Py_BuildValue( "s", "" );
+      }
+
+      else {
+        line = *self->partial + "\n";
+        pyline = PyString_FromString( line.c_str() );
+        self->partial->clear();
+        return pyline;
+      }
+    }
+
+    self->currentOffset += chunksize;
+
+    while ( !HasNewline( chunk ) ) {
+      self->partial->append( chunk );
+      chunk = ReadChunk( self, chunksize , self->currentOffset );
+      self->currentOffset += chunksize;
+    }
+
+    lines = SplitNewlines( chunk );
+
+    line = *self->partial + lines->front() + '\n';
+    pyline = PyString_FromString( line.c_str() );
+
+    if ( lines->size() > 2 ) {
+      self->surplus->insert( self->surplus->end(), lines->begin() + 1, lines->end() );
+    } else if ( lines->size() == 2) {
+      self->partial = &lines->back();
+    } else {
+      self->partial->clear();
+    }
+
+    return pyline;
   }
 
   //----------------------------------------------------------------------------
   //! Read data chunks from a given offset, separated by newlines, until EOF
   //! encountered. Return list of lines read.
   //----------------------------------------------------------------------------
-  PyObject* File::Readlines( File *self, PyObject *args, PyObject *kwds )
+  PyObject* File::ReadLines( File *self, PyObject *args, PyObject *kwds )
   {
     static char   *kwlist[] = { "offset", "size", NULL };
     uint64_t       offset   = 0;
@@ -224,6 +273,7 @@ namespace PyXRootD
     PyObject          *lines = PyList_New( 0 );
 
     while ( std::getline( stream, line )) {
+      line += '\n';
       PyList_Append( lines, PyString_FromString( line.c_str() ) );
     }
 
@@ -231,10 +281,25 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
+  //! Read a chunk of the given size from the given offset as a string
+  //----------------------------------------------------------------------------
+  std::string File::ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
+  {
+    PyObject *args = Py_BuildValue( "kI", offset, chunksize );
+    if ( !args ) return NULL;
+
+    PyObject *pychunk = PyTuple_GetItem( self->Read( self, args, NULL ), 1 );
+    if ( !pychunk ) return NULL;
+
+    std::string chunk = PyString_AsString( pychunk );
+    return chunk;
+  }
+
+  //----------------------------------------------------------------------------
   //! Read data chunks from a given offset of the given size, until EOF
   //! encountered. Return list of chunks read.
   //----------------------------------------------------------------------------
-  PyObject* File::Readchunks( File *self, PyObject *args, PyObject *kwds )
+  PyObject* File::ReadChunks( File *self, PyObject *args, PyObject *kwds )
   {
     static char   *kwlist[]  = { "blocksize", "offset", NULL };
     uint32_t       blocksize = 4096;

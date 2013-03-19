@@ -582,7 +582,6 @@ namespace PyXRootD
     if ( callback ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
-      // TODO: find out why DirListFlags cannot be passed asynchronously
       async( status = self->filesystem->Prepare( files, flags, priority, handler, timeout ) );
     }
 
