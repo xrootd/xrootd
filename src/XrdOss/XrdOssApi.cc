@@ -1135,6 +1135,13 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
     int attcx = 0;
 #endif
 
+// If we need to do a stat() prior to the open, do so now
+//
+   if (XrdOssSS->STT_PreOp)
+      {struct stat Stat;
+       if ((*(XrdOssSS->STT_Func))(path, &Stat, XRDOSS_preop, 0)) return -errno;
+      }
+
 // Now open the actual data file in the appropriate mode.
 //
     do { myfd = open(path, Oflag|O_LARGEFILE, Mode);}

@@ -255,6 +255,7 @@ short             numCG;
 char             *STT_Lib;   // -> StatInfo  Library Path
 char             *STT_Parms; // -> StatInfo  Library Paramaters
 XrdOssStatInfo_t  STT_Func;
+int               STT_PreOp;
 
 long long         prPBits;   //    Page lo order bit mask
 long long         prPMask;   //    Page hi order bit mask

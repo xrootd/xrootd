@@ -218,6 +218,10 @@ XrdOssSys::XrdOssSys()
    prActive      = 0;
    prDepth       = 0;
    prQSize       = 0;
+   STT_Lib       = 0;
+   STT_Parms     = 0;
+   STT_Func      = 0;
+   STT_PreOp     = 0;
 }
   
 /******************************************************************************/
@@ -1569,8 +1573,9 @@ int XrdOssSys::xstg(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xstl
 
-   Purpose:  To parse the directive: statlib <path> [<parms>]
+   Purpose:  To parse the directive: statlib [preopen] <path> [<parms>]
 
+             preopen   issue the stat() prior to opening the file.
              <path>    the path of the stat library to be used.
              <parms>   optional parms to be passed
 
@@ -1581,10 +1586,18 @@ int XrdOssSys::xstl(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[1040];
 
-// Get the path
+// Get the path or preopen option
 //
    if (!(val = Config.GetWord()) || !val[0])
       {Eroute.Emsg("Config", "statlib not specified"); return 1;}
+
+// Check for preopen option
+//
+   if (strcmp(val, "preopen")) STT_PreOp = 0;
+      else {STT_PreOp = 1;
+            if (!(val = Config.GetWord()) || !val[0])
+               {Eroute.Emsg("Config", "statlib not specified"); return 1;}
+           }
 
 // Record the path
 //

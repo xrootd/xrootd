@@ -144,9 +144,7 @@ int     fd;      // The associated file descriptor.
 //
 #define XRDOSS_resonly 0x0001
 #define XRDOSS_updtatm 0x0002
-#define XRDOSS_isCMS = 0x1000  //!< Call from cmsd
-#define XRDOSS_isFRM = 0x2000  //!< Call from frm_xfrd or fed_purged
-#define XRDOSS_isXRD = 0x4000  //!< Call from xrootd
+#define XRDOSS_preop   0x0004
 
 // Class passed to StatVS()
 //
