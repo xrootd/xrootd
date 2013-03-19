@@ -714,7 +714,7 @@ namespace XrdCl
           log->Dump( XRootDMsg, "[%s] Found StatInfo in response to %s",
                      pUrl.GetHostId().c_str(),
                      pRequest->GetDescription().c_str() );
-          if( req->open.dlen >= 12 )
+          if( rsp->hdr.dlen >= 12 )
             statInfo = new StatInfo( buffer+12 );
         }
 
