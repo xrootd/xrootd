@@ -20,8 +20,6 @@
 #include "PyXRootDClient.hh"
 #include "PyXRootDFile.hh"
 
-#include "XrdCl/XrdClFileSystem.hh"
-
 namespace PyXRootD
 {
   // Global module object

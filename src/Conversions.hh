@@ -193,6 +193,38 @@ namespace PyXRootD
         return Py_BuildValue( "s", buffer->GetBuffer() );
       }
   };
+
+  template<> struct PyDict<void>
+  {
+      static PyObject* Convert( void *buffer )
+      {
+        return Py_BuildValue( "s", (const char *) buffer );
+      }
+  };
+
+  template<> struct PyDict<XrdCl::VectorReadInfo>
+  {
+      static PyObject* Convert( XrdCl::VectorReadInfo *info )
+      {
+        if ( !info ) return Py_BuildValue( "" );
+
+        PyObject        *pychunks = PyList_New( 0 );
+        XrdCl::ChunkList chunks   = info->GetChunks();
+
+        for ( uint32_t i = 0; i < chunks.size(); ++i ) {
+          XrdCl::ChunkInfo chunk  = chunks.at( i );
+
+          PyList_Append( pychunks,
+              Py_BuildValue( "{sksIsO}",
+                  "offset", chunk.offset,
+                  "length", chunk.length,
+                  "buffer", ConvertType<void>( chunk.buffer ) ) );
+        }
+        return Py_BuildValue( "{sIsO}",
+            "size",   info->GetSize(),
+            "chunks", pychunks );
+      }
+  };
 }
 
 #endif /* CONVERSIONS_HH_ */

@@ -23,6 +23,7 @@
 #include "Utils.hh"
 
 #include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClFileSystem.hh"
 
 namespace PyXRootD
 {
@@ -33,9 +34,11 @@ namespace PyXRootD
   {
     static char *kwlist[] = { "url", "flags", "mode", "timeout", "callback",
                               NULL };
-    const  char *url;
-    uint16_t     flags    = 0, mode = 0, timeout = 5;
-    PyObject    *callback = NULL;
+    const  char            *url;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::Read;
+    XrdCl::Access::Mode     mode     = XrdCl::Access::None;
+    uint16_t                timeout  = 5;
+    PyObject               *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
@@ -438,10 +441,57 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::VectorRead( File *self, PyObject *args, PyObject *kwds )
   {
+    static char *kwlist[] = { "chunks", "timeout", "callback", NULL };
+    uint16_t     timeout  = 5;
+    PyObject    *pychunks = NULL, *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+    XrdCl::ChunkList    chunks;
+
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    PyErr_SetString(PyExc_NotImplementedError, "Method not implemented");
-    return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:vector_read", kwlist,
+        &pychunks, &timeout, &callback ) ) return NULL;
+
+    if ( !PyList_Check( pychunks ) ) {
+      PyErr_SetString( PyExc_TypeError, "chunks parameter must be a list" );
+      return NULL;
+    }
+
+    for ( int i = 0; i < PyList_Size( pychunks ); ++i ) {
+      PyObject *chunk = PyList_GetItem( pychunks, i );
+
+      if ( !PyTuple_Check( chunk ) || !(PyTuple_Size( chunk ) == 2) ) {
+        PyErr_SetString( PyExc_TypeError, "vector_read() expects list of tuples"
+                                          "of length 2" );
+        return NULL;
+      }
+
+      // Compute chunk size and make chunk
+      uint64_t offset = PyInt_AsLong( PyTuple_GetItem( chunk, 0 ) );
+      uint32_t length = PyInt_AsLong( PyTuple_GetItem( chunk, 1 ) );
+      char    *buffer = new char[length];
+      chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
+    }
+
+    // Asynchronous mode
+    if ( callback ) {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::VectorReadInfo>( callback );
+      if ( !handler ) return NULL;
+      async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
+    }
+
+    // Synchronous mode
+    else {
+      XrdCl::VectorReadInfo *info = 0;
+      status = self->file->VectorRead( chunks, 0, info, timeout );
+      pyresponse = ConvertType<XrdCl::VectorReadInfo>( info );
+    }
+
+    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    if ( !pystatus ) return NULL;
+    return (callback) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
