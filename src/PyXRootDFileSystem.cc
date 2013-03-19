@@ -31,10 +31,11 @@ namespace PyXRootD
   PyObject* FileSystem::Locate( Client *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
-    const  char *path;
-    uint16_t     flags, timeout = 5;
-    PyObject    *callback = NULL, *pyresponse = NULL;
-    XrdCl::XRootDStatus status;
+    const  char            *path;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
+    uint16_t                timeout  = 5;
+    PyObject               *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus     status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:locate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
@@ -66,10 +67,11 @@ namespace PyXRootD
   PyObject* FileSystem::DeepLocate( Client *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
-    const  char *path;
-    uint16_t     flags, timeout = 5;
-    PyObject    *callback = NULL, *pyresponse = NULL;
-    XrdCl::XRootDStatus status;
+    const  char            *path;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
+    uint16_t                timeout  = 5;
+    PyObject               *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus     status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:deeplocate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
@@ -242,11 +244,12 @@ namespace PyXRootD
   {
     static char *kwlist[] = { "path", "flags", "mode", "timeout", "callback",
                               NULL };
-    const  char *path;
-    uint8_t      flags;
-    uint16_t     mode, timeout = 5;
-    PyObject    *callback = NULL;
-    XrdCl::XRootDStatus status;
+    const  char             *path;
+    XrdCl::MkDirFlags::Flags flags    = XrdCl::MkDirFlags::None;
+    XrdCl::Access::Mode      mode     = XrdCl::Access::None;
+    uint16_t                 timeout  = 5;
+    PyObject                *callback = NULL;
+    XrdCl::XRootDStatus      status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO:mkdir", kwlist,
         &path, &flags, &mode, &timeout, &callback ) ) return NULL;
@@ -311,9 +314,10 @@ namespace PyXRootD
   {
     static char *kwlist[] = { "path", "mode", "timeout", "callback",
                               NULL };
-    const  char *path;
-    uint16_t     mode, timeout = 5;
-    PyObject    *callback = NULL;
+    const  char        *path;
+    XrdCl::Access::Mode mode = XrdCl::Access::None;
+    uint16_t            timeout = 5;
+    PyObject           *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:chmod", kwlist,
@@ -480,11 +484,11 @@ namespace PyXRootD
   PyObject* FileSystem::DirList( Client *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
-    const  char *path;
-    uint8_t      flags;
-    uint16_t     timeout = 5;
-    PyObject    *callback = NULL, *pyresponse = NULL;
-    XrdCl::XRootDStatus status;
+    const  char               *path;
+    XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
+    uint16_t                   timeout = 5;
+    PyObject                  *callback = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus        status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO:dirlist", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
@@ -553,16 +557,17 @@ namespace PyXRootD
   {
     static char *kwlist[] = { "files", "flags", "priority", "timeout",
                               "callback", NULL };
-    uint8_t      flags    = 0, priority = 0;
-    uint16_t     timeout  = 5;
-    PyObject    *pyfiles  = NULL, *callback = NULL, *pyresponse = NULL;
+    XrdCl::PrepareFlags::Flags flags;
+    uint8_t                    priority = 0;
+    uint16_t                   timeout  = 5;
+    PyObject                  *pyfiles, *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|bbHO:prepare", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "Ob|bHO:prepare", kwlist,
         &pyfiles, &flags, &priority, &timeout, &callback ) ) return NULL;
 
     if ( !PyList_Check( pyfiles ) ) {
-      PyErr_SetString( PyExc_TypeError, "first parameter must be a list" );
+      PyErr_SetString( PyExc_TypeError, "files parameter must be a list" );
       return NULL;
     }
 
