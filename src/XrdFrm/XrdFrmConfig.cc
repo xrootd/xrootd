@@ -1399,11 +1399,13 @@ int XrdFrmConfig::xcnsd()
 
    Purpose:  To parse the directive: copycmd [Options] cmd [args]
 
-   Options:  [in] [out] [stats] [timeout <sec>] [url] [xpd] cmd [args]
+   Options:  [in] [noalloc] [out] [rmerr] [stats] [timeout <sec>] [url] [xpd]
 
              in        use command for incomming copies.
              noalloc   do not pre-allocate space for incomming copies.
              out       use command for outgoing copies.
+             rmerr     remove incomming file when copy ends with an error.
+                       Default unless noalloc is specified.
              stats     print transfer statistics in the log.
              timeout   how long the cmd can run before it is killed.
              url       use command for url-based transfers.
@@ -1412,7 +1414,7 @@ int XrdFrmConfig::xcnsd()
    Output: 0 upon success or !0 upon failure.
 */
 int XrdFrmConfig::xcopy()
-{  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0;
+{  int cmdIO[2] = {0,0}, TLim=0, Stats=0, hasMDP=0, cmdUrl=0, noAlo=0, rmErr=0;
    int monPD = 0;
    char *val, *theCmd = 0;
    struct copyopts {const char *opname; int *oploc;} cpopts[] =
@@ -1420,6 +1422,7 @@ int XrdFrmConfig::xcopy()
           {"in",     &cmdIO[0]},
           {"out",    &cmdIO[1]},
           {"noalloc",&noAlo},
+          {"rmerr",  &rmErr},
           {"stats",  &Stats},
           {"timeout",&TLim},
           {"url",    &cmdUrl},
@@ -1463,6 +1466,7 @@ int XrdFrmConfig::xcopy()
            if (Stats)  xfrCmd[n].Opts  |= cmdStats;
            if (monPD)  xfrCmd[n].Opts  |= cmdXPD;
            if (hasMDP) xfrCmd[n].Opts  |= cmdMDP;
+           if (rmErr)  xfrCmd[n].Opts  |= cmdRME;
            if (noAlo)  xfrCmd[n].Opts  &=~cmdAlloc;
               else     xfrCmd[n].Opts  |= cmdAlloc;
            xfrCmd[n].TLimit = TLim;

@@ -156,7 +156,7 @@ const char *XrdFrmTransfer::Fetch()
    const char *eTxt, *retMsg = 0;
    char lfnpath[MAXPATHLEN+1024+512+8], *Lfn, Rfn[MAXPATHLEN+256], *theSrc;
    char pdBuff[1024];
-   int iXfr, pdSZ, lfnEnd, rc, isURL = 0;
+   int iXfr, pdSZ, lfnEnd, rc, isURL = 0, doRM = 0;
    long long fSize = 0;
 
 // The remote source is either the url-lfn or a translated lfn
@@ -221,7 +221,8 @@ const char *XrdFrmTransfer::Fetch()
           {Say.Emsg("Fetch", rc, "create placeholder for", lfnpath);
            return "create failed";
           }
-      }
+       doRM = 1;
+      } else doRM = Config.xfrCmd[iXfr].Opts & Config.cmdRME;
 
 // Setup program monitoring data
 //
@@ -246,7 +247,7 @@ const char *XrdFrmTransfer::Fetch()
 //
    xfrP->PFN[xfrP->pfnEnd] = '\0';
    if (rc)
-      {Config.ossFS->Unlink(lfnpath);
+      {if (doRM) Config.ossFS->Unlink(lfnpath);
        ffMake(rc == -2);
        if (rc == -2) {xfrP->RetCode = 2; retMsg = "file not found";}
           else retMsg =  "fetch failed";
