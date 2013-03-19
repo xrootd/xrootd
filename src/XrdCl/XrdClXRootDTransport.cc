@@ -1485,6 +1485,10 @@ namespace XrdCl
             o << "kXR_replica ";
           if( sreq->options & kXR_seqio )
             o << "kXR_seqio ";
+          if( sreq->options & kXR_async )
+            o << "kXR_async ";
+          if( sreq->options & kXR_retstat )
+            o << "kXR_retstat ";
         }
         o << ")";
         break;
