@@ -53,6 +53,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Ruggedize the poll() wait to avoid early timeouts under heavy loads.
    * Pass back any close errors from the oss layer to the client.
    * Correct feature interaction that caused a file to be closed twice.
    * Add missing 1 letter xrdcp options: -N for --nopbar and -X for --xrate.
@@ -92,6 +93,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Create a working stat() plugin for gpfs+tape (libXrdOssSIgpfsT.so)
+     that also serves as a template for writing other such plugins.
    * Use the underlying storage system to determine file transfer
      status. This resolves inconsistencies when using the new
      stat() plug-in for tape backed file systems.
