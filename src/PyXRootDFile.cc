@@ -32,26 +32,24 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Open( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "url", "flags", "mode", "timeout", "callback",
-                              NULL };
-    const  char            *url;
-    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::Read;
-    XrdCl::Access::Mode     mode     = XrdCl::Access::None;
-    uint16_t                timeout  = 5;
-    PyObject               *callback = NULL;
+    static char *kwlist[]             = { "url", "flags", "mode",
+                                         "timeout", "callback", NULL };
+    const  char             *url;
+    XrdCl::OpenFlags::Flags flags     = XrdCl::OpenFlags::Read;
+    XrdCl::Access::Mode     mode      = XrdCl::Access::None;
+    uint16_t                timeout   = 5;
+    PyObject                *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
         &url, &flags, &mode, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Open( url, flags, mode, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->file->Open( url, flags, mode, timeout );
     }
@@ -76,14 +74,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Close( handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->file->Close( timeout );
     }
@@ -111,14 +107,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Stat( force, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::StatInfo *response = 0;
       status = self->file->Stat( force, response, timeout );
@@ -160,15 +154,13 @@ namespace PyXRootD
     buffer = new XrdCl::Buffer( size + 1 );
     buffer->Zero();
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Read( offset, size, buffer->GetBuffer(),
                                         handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       uint32_t bytesRead;
       status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead,
@@ -188,30 +180,26 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
-    uint64_t    chunksize = 2;
+    uint64_t    chunksize = 1024 * 1024 * 2; // 2MB
     std::string chunk;
     std::string line;
     PyObject   *pyline;
     std::vector<std::string> *lines;
 
     if ( !self->surplus->empty() ) {
-      line = self->surplus->front() + '\n' ;
-      pyline = PyString_FromString( line.c_str() );
+      pyline = PyString_FromString( self->surplus->front().c_str() );
       self->surplus->pop_front();
       return pyline;
     }
 
     chunk = ReadChunk( self, chunksize, self->currentOffset );
-
     if ( chunk.empty() ) {
 
       if ( self->partial->empty() ) {
         return Py_BuildValue( "s", "" );
       }
-
       else {
-        line = *self->partial + "\n";
-        pyline = PyString_FromString( line.c_str() );
+        pyline = PyString_FromString( self->partial->c_str() );
         self->partial->clear();
         return pyline;
       }
@@ -219,7 +207,7 @@ namespace PyXRootD
 
     self->currentOffset += chunksize;
 
-    while ( !HasNewline( chunk ) ) {
+    while ( !HasNewline( chunk ) && chunk.size() == chunksize ) {
       self->partial->append( chunk );
       chunk = ReadChunk( self, chunksize , self->currentOffset );
       self->currentOffset += chunksize;
@@ -227,29 +215,39 @@ namespace PyXRootD
 
     lines = SplitNewlines( chunk );
 
-    line = *self->partial + lines->front() + '\n';
-    pyline = PyString_FromString( line.c_str() );
+    if ( lines->size() == 0 ) {
+      line = *self->partial;
+    }
+    else {
+      line = *self->partial + lines->front();
+    }
 
-    if ( lines->size() > 2 ) {
-      self->surplus->insert( self->surplus->end(), lines->begin() + 1, lines->end() );
-    } else if ( lines->size() == 2) {
+    if ( lines->size() == 2 ) {
       self->partial = &lines->back();
-    } else {
+    }
+    else if ( lines->size() > 2 ) {
+      self->surplus->insert(
+      self->surplus->end(), lines->begin() + 1, lines->end() );
+    }
+    else {
       self->partial->clear();
     }
 
+    pyline = PyString_FromString( line.c_str() );
     return pyline;
   }
 
   //----------------------------------------------------------------------------
   //! Read data chunks from a given offset, separated by newlines, until EOF
-  //! encountered. Return list of lines read.
+  //! encountered. Return list of lines read. A max read size can be specified,
+  //! but it should be noted that using this method is probably a bad idea.
   //----------------------------------------------------------------------------
   PyObject* File::ReadLines( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[] = { "offset", "size", NULL };
-    uint64_t       offset   = 0;
-    uint32_t       size     = 0;
+    static char   *kwlist[]  = { "offset", "size", NULL };
+    uint64_t       offset    = 0;
+    uint32_t       size      = 0;
+    uint32_t       bytesRead = 0;
     XrdCl::Buffer *buffer;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
@@ -257,27 +255,33 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readlines", kwlist,
         &offset, &size ) ) return NULL;
 
+    //--------------------------------------------------------------------------
+    // Find the file size
+    //--------------------------------------------------------------------------
     if (!size) {
-      XrdCl::StatInfo    *info = 0;
+      XrdCl::StatInfo    *info   = 0;
       XrdCl::XRootDStatus status = self->file->Stat( true, info );
       size = info->GetSize();
       if (info) delete info;
     }
 
+    //--------------------------------------------------------------------------
+    // Read the whole file...
+    //--------------------------------------------------------------------------
     buffer = new XrdCl::Buffer( size + 1 );
     buffer->Zero();
-
-    uint32_t bytesRead;
     self->file->Read( offset, size, buffer->GetBuffer(), bytesRead );
 
     // Convert into list, split by newlines
-    std::istringstream stream( std::string (buffer->GetBuffer(), buffer->GetSize() ) );
+    std::istringstream stream(
+                       std::string( buffer->GetBuffer(), buffer->GetSize() ) );
     std::string        line;
     PyObject          *lines = PyList_New( 0 );
 
     while ( std::getline( stream, line )) {
       line += '\n';
       PyList_Append( lines, PyString_FromString( line.c_str() ) );
+      if ( stream.eof() ) break;
     }
 
     return Py_BuildValue( "O", lines );
@@ -348,14 +352,12 @@ namespace PyXRootD
       size = strlen(buffer);
     }
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Write( offset, size, buffer, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->file->Write( offset, size, buffer, timeout );
     }
@@ -382,14 +384,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Sync( handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->file->Sync( timeout );
     }
@@ -417,15 +417,13 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
         &size, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Truncate( size, handler, timeout ) );
     }
 
-    // Synchronous mode
-    else {
+    else { // async
       status = self->file->Truncate( size, timeout );
     }
 
@@ -473,14 +471,12 @@ namespace PyXRootD
       chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
     }
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::VectorReadInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::VectorReadInfo *info = 0;
       status = self->file->VectorRead( chunks, 0, info, timeout );

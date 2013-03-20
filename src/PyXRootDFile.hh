@@ -98,6 +98,9 @@ namespace PyXRootD
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
 
+    //--------------------------------------------------------------------------
+    // Return ourselves for iteration
+    //--------------------------------------------------------------------------
     Py_INCREF( self );
     return (PyObject*) self;
   }
@@ -108,8 +111,11 @@ namespace PyXRootD
   static PyObject* File_iternext( File *self )
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
-    PyObject *line = self->ReadLine( self, NULL, NULL );
 
+    PyObject *line = self->ReadLine( self, NULL, NULL );
+    //--------------------------------------------------------------------------
+    // Raise StopIteration if the line we just read is empty
+    //--------------------------------------------------------------------------
     if ( !line || PyString_Size( line ) == 0 ) {
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;

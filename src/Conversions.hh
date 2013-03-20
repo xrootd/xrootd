@@ -65,22 +65,18 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::AnyObject *object )
       {
-        return Py_BuildValue( "{}" );
+        Py_RETURN_NONE;
       }
   };
 
   template<typename T>
   PyObject* ConvertResponse( T *response )
   {
-    PyObject *pyresponse;
-
     if ( response ) {
-      pyresponse = ConvertType<T>( response );
+      return ConvertType<T>( response );
     } else {
-      pyresponse = Py_None;
+      Py_RETURN_NONE;
     }
-
-    return pyresponse;
   }
 
   template<> struct PyDict<XrdCl::XRootDStatus>

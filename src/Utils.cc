@@ -35,20 +35,15 @@ namespace PyXRootD
   int InitTypes()
   {
     URLType.tp_new = PyType_GenericNew;
-
     if ( PyType_Ready( &URLType ) < 0 )      return -1;
 
     Py_INCREF( &URLType );
-
     return 0;
   }
 
   bool HasNewline( std::string chunk )
   {
-    if ( std::string::npos != chunk.find( "\n" ) ) {
-      return true;
-    }
-    return false;
+    return ( std::string::npos != chunk.find( "\n" ) );
   }
 
   std::vector<std::string>* SplitNewlines( std::string chunk )
@@ -58,8 +53,7 @@ namespace PyXRootD
     std::vector<std::string> *lines = new std::vector<std::string>();
 
     while ( std::getline( stream, line ) ) {
-      if ( std::string::npos != chunk.find( "\n" ) &&
-           std::string::npos != chunk.find( EOF ) ) {
+      if ( std::string::npos != chunk.find( "\n" ) && !stream.eof() ) {
         lines->push_back( line + "\n" );
       } else {
         lines->push_back( line );

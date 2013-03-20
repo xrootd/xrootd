@@ -40,14 +40,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:locate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Locate( path, flags, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->Locate( path, flags, response, timeout );
@@ -76,14 +74,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:deeplocate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->DeepLocate( path, flags, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->DeepLocate( path, flags, response, timeout );
@@ -112,14 +108,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO:mv", kwlist,
         &source, &dest, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Mv( source, dest, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->Mv( source, dest, timeout );
     }
@@ -149,14 +143,12 @@ namespace PyXRootD
 
     argbuffer.FromString(arg);
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Query( queryCode, argbuffer, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->Query( queryCode, argbuffer, response, timeout );
@@ -185,14 +177,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sk|HO:truncate", kwlist,
         &path, &size, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Truncate( path, size, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->Truncate( path, size, timeout );
     }
@@ -218,14 +208,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rm", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Rm( path, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->Rm( path, timeout );
     }
@@ -254,14 +242,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO:mkdir", kwlist,
         &path, &flags, &mode, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->MkDir( path, flags, mode, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->MkDir( path, flags, mode, timeout );
     }
@@ -288,14 +274,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rmdir", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->RmDir( path, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->RmDir( path, timeout );
     }
@@ -323,14 +307,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:chmod", kwlist,
         &path, &mode, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->ChMod( path, mode, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->ChMod( path, mode, timeout );
     }
@@ -355,14 +337,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:ping", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Ping( handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       status = self->filesystem->Ping( timeout );
     }
@@ -388,14 +368,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:stat", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Stat( path, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::StatInfo *response = 0;
       status = self->filesystem->Stat( path, response, timeout );
@@ -423,14 +401,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:statvfs", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfoVFS>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->StatVFS( path, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::StatInfoVFS *response = 0;
       status = self->filesystem->StatVFS( path, response, timeout );
@@ -457,14 +433,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:protocol", kwlist,
          &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ProtocolInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Protocol( handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::ProtocolInfo *response = 0;
       status = self->filesystem->Protocol( response, timeout );
@@ -493,15 +467,13 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO:dirlist", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::DirectoryList>( callback );
       if ( !handler ) return NULL;
       // TODO: find out why DirListFlags cannot be passed asynchronously
       async( status = self->filesystem->DirList( path, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::DirectoryList *list;
       status = self->filesystem->DirList( path, flags, list, timeout );
@@ -529,14 +501,12 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:sendinfo", kwlist,
         &info, &timeout, &callback ) ) return NULL;
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->SendInfo( info, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->SendInfo( info, response, timeout );
@@ -571,11 +541,11 @@ namespace PyXRootD
       return NULL;
     }
 
-    // Convert python list to stl vector
     std::vector<std::string> files;
     const char              *file;
     PyObject                *pyfile;
 
+    // Convert python list to stl vector
     for ( int i = 0; i < PyList_Size( pyfiles ); ++i ) {
       pyfile = PyList_GetItem( pyfiles, i );
       if ( !pyfile ) return NULL;
@@ -583,14 +553,12 @@ namespace PyXRootD
       files.push_back( std::string( file ) );
     }
 
-    // Asynchronous mode
-    if ( callback ) {
+    if ( callback ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Prepare( files, flags, priority, handler, timeout ) );
     }
 
-    // Synchronous mode
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->Prepare( files, flags, priority, response, timeout );
