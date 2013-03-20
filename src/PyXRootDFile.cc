@@ -183,7 +183,7 @@ namespace PyXRootD
     uint64_t    chunksize = 1024 * 1024 * 2; // 2MB
     std::string chunk;
     std::string line;
-    PyObject   *pyline;
+    PyObject   *pyline    = NULL;
     std::vector<std::string> *lines;
 
     if ( !self->surplus->empty() ) {
@@ -234,6 +234,7 @@ namespace PyXRootD
     }
 
     pyline = PyString_FromString( line.c_str() );
+    if ( !pyline ) return NULL;
     return pyline;
   }
 
@@ -279,12 +280,12 @@ namespace PyXRootD
     PyObject          *lines = PyList_New( 0 );
 
     while ( std::getline( stream, line )) {
-      line += '\n';
+      line += '\n'; // Restore the newline
       PyList_Append( lines, PyString_FromString( line.c_str() ) );
       if ( stream.eof() ) break;
     }
 
-    return Py_BuildValue( "O", lines );
+    return lines;
   }
 
   //----------------------------------------------------------------------------
@@ -298,8 +299,7 @@ namespace PyXRootD
     PyObject *pychunk = PyTuple_GetItem( self->Read( self, args, NULL ), 1 );
     if ( !pychunk ) return NULL;
 
-    std::string chunk = PyString_AsString( pychunk );
-    return chunk;
+    return PyString_AsString( pychunk );
   }
 
   //----------------------------------------------------------------------------

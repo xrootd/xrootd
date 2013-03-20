@@ -190,14 +190,6 @@ namespace PyXRootD
       }
   };
 
-  template<> struct PyDict<void>
-  {
-      static PyObject* Convert( void *buffer )
-      {
-        return Py_BuildValue( "s", (const char *) buffer );
-      }
-  };
-
   template<> struct PyDict<XrdCl::VectorReadInfo>
   {
       static PyObject* Convert( XrdCl::VectorReadInfo *info )
@@ -214,7 +206,8 @@ namespace PyXRootD
               Py_BuildValue( "{sksIsO}",
                   "offset", chunk.offset,
                   "length", chunk.length,
-                  "buffer", ConvertType<void>( chunk.buffer ) ) );
+                  "buffer", Py_BuildValue( "s#", (const char *) chunk.buffer,
+                                           chunk.length ) ) );
         }
         return Py_BuildValue( "{sIsO}",
             "size",   info->GetSize(),
