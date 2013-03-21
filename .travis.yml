@@ -1,5 +1,0 @@
-language: cpp
-compiler:
-  - gcc
-  - clang
-script: python setup.py build_ext
