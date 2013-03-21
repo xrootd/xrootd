@@ -21,6 +21,7 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDURL.hh"
+#include "PyXRootDDocumentation.hh"
 #include "Conversions.hh"
 
 #include "XrdCl/XrdClFileSystem.hh"
@@ -67,54 +68,38 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef ClientMethods[] =
     {
-      { "locate",
-          (PyCFunction) PyXRootD::FileSystem::Locate,     METH_KEYWORDS,
-          "Locate a file" },
-      { "deeplocate",
-          (PyCFunction) PyXRootD::FileSystem::DeepLocate, METH_KEYWORDS,
-          "Locate a file, recursively locate all disk servers" },
-      { "mv",
-          (PyCFunction) PyXRootD::FileSystem::Mv,         METH_KEYWORDS,
-          "Move a directory or a file" },
-      { "query",
-          (PyCFunction) PyXRootD::FileSystem::Query,      METH_KEYWORDS,
-          "Obtain server information" },
-      { "truncate",
-          (PyCFunction) PyXRootD::FileSystem::Truncate,   METH_KEYWORDS,
-          "Truncate a file" },
-      { "rm",
-          (PyCFunction) PyXRootD::FileSystem::Rm,         METH_KEYWORDS,
-          "Remove a file" },
-      { "mkdir",
-          (PyCFunction) PyXRootD::FileSystem::MkDir,      METH_KEYWORDS,
-          "Create a directory" },
-      { "rmdir",
-          (PyCFunction) PyXRootD::FileSystem::RmDir,      METH_KEYWORDS,
-          "Remove a directory" },
-      { "chmod",
-          (PyCFunction) PyXRootD::FileSystem::ChMod,      METH_KEYWORDS,
-          "Change access mode on a directory or a file" },
-      { "ping",
-          (PyCFunction) PyXRootD::FileSystem::Ping,       METH_KEYWORDS,
-          "Check if the server is alive" },
-      { "stat",
-          (PyCFunction) PyXRootD::FileSystem::Stat,       METH_KEYWORDS,
-          "Obtain status information for a path" },
-      { "statvfs",
-          (PyCFunction) PyXRootD::FileSystem::StatVFS,    METH_KEYWORDS,
-          "Obtain status information for a Virtual File System" },
-      { "protocol",
-          (PyCFunction) PyXRootD::FileSystem::Protocol,   METH_KEYWORDS,
-          "Obtain server protocol information" },
-      { "dirlist",
-          (PyCFunction) PyXRootD::FileSystem::DirList,    METH_KEYWORDS,
-          "List entries of a directory" },
-      { "sendinfo",
-          (PyCFunction) PyXRootD::FileSystem::SendInfo,   METH_KEYWORDS,
-          "Send info to the server (up to 1024 characters)" },
-      { "prepare",
-          (PyCFunction) PyXRootD::FileSystem::Prepare,    METH_KEYWORDS,
-          "Prepare one or more files for access" },
+      { "locate",     (PyCFunction) PyXRootD::FileSystem::Locate,
+          METH_KEYWORDS, filesystem_locate_doc},
+      { "deeplocate", (PyCFunction) PyXRootD::FileSystem::DeepLocate,
+          METH_KEYWORDS, filesystem_deeplocate_doc },
+      { "mv",         (PyCFunction) PyXRootD::FileSystem::Mv,
+          METH_KEYWORDS, filesystem_mv_doc },
+      { "query",      (PyCFunction) PyXRootD::FileSystem::Query,
+          METH_KEYWORDS, filesystem_query_doc },
+      { "truncate",   (PyCFunction) PyXRootD::FileSystem::Truncate,
+          METH_KEYWORDS, filesystem_truncate_doc },
+      { "rm",         (PyCFunction) PyXRootD::FileSystem::Rm,
+          METH_KEYWORDS, filesystem_rm_doc },
+      { "mkdir",      (PyCFunction) PyXRootD::FileSystem::MkDir,
+          METH_KEYWORDS, filesystem_mkdir_doc },
+      { "rmdir",      (PyCFunction) PyXRootD::FileSystem::RmDir,
+          METH_KEYWORDS, filesystem_rmdir_doc },
+      { "chmod",      (PyCFunction) PyXRootD::FileSystem::ChMod,
+          METH_KEYWORDS, filesystem_chmod_doc },
+      { "ping",       (PyCFunction) PyXRootD::FileSystem::Ping,
+          METH_KEYWORDS, filesystem_ping_doc },
+      { "stat",       (PyCFunction) PyXRootD::FileSystem::Stat,
+          METH_KEYWORDS, filesystem_stat_doc },
+      { "statvfs",    (PyCFunction) PyXRootD::FileSystem::StatVFS,
+          METH_KEYWORDS, filesystem_statvfs_doc },
+      { "protocol",   (PyCFunction) PyXRootD::FileSystem::Protocol,
+          METH_KEYWORDS, filesystem_protocol_doc },
+      { "dirlist",    (PyCFunction) PyXRootD::FileSystem::DirList,
+          METH_KEYWORDS, filesystem_dirlist_doc },
+      { "sendinfo",   (PyCFunction) PyXRootD::FileSystem::SendInfo,
+          METH_KEYWORDS, filesystem_sendinfo_doc },
+      { "prepare",    (PyCFunction) PyXRootD::FileSystem::Prepare,
+          METH_KEYWORDS, filesystem_prepare_doc },
       { NULL } /* Sentinel */
     };
 
@@ -182,7 +167,7 @@ namespace PyXRootD
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    "Client object",                            /* tp_doc */
+    client_type_doc,                            /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */

@@ -21,6 +21,7 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDClient.hh"
+#include "PyXRootDDocumentation.hh"
 #include "Utils.hh"
 
 #include "XrdCl/XrdClFile.hh"
@@ -144,7 +145,6 @@ namespace PyXRootD
 
     Py_DECREF( ret );
     Py_RETURN_NONE ;
-
   }
 
   //----------------------------------------------------------------------------
@@ -152,64 +152,40 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef FileMethods[] =
   {
-    { "open",
-        (PyCFunction) PyXRootD::File::Open,                METH_KEYWORDS,
-        "Open the file pointed to by the given URL" },
-    { "close",
-        (PyCFunction) PyXRootD::File::Close,               METH_KEYWORDS,
-        "Close the file" },
-    { "stat",
-        (PyCFunction) PyXRootD::File::Stat,                METH_KEYWORDS,
-        "Obtain status information for this file" },
-    { "read",
-        (PyCFunction) PyXRootD::File::Read,                METH_KEYWORDS,
-        "Read a data chunk at a given offset" },
-    { "readline",
-        (PyCFunction) PyXRootD::File::ReadLine,            METH_KEYWORDS,
-        "Read a data chunk at a given offset, until "
-        "the first newline encountered" },
-    { "readlines",
-        (PyCFunction) PyXRootD::File::ReadLines,           METH_KEYWORDS,
-        "Read data chunks from a given offset, separated "
-        "by newlines, until EOF encountered. Return list "
-        "of lines read." },
-    { "readchunks",
-        (PyCFunction) PyXRootD::File::ReadChunks,          METH_KEYWORDS,
-        "Read data chunks from a given offset of the "
-        "given size, until EOF encountered. Return list "
-        "of chunks read." },
-    { "write",
-        (PyCFunction) PyXRootD::File::Write,               METH_KEYWORDS,
-        "Write a data chunk at a given offset" },
-    { "sync",
-        (PyCFunction) PyXRootD::File::Sync,                METH_KEYWORDS,
-        "Commit all pending disk writes" },
-    { "truncate",
-        (PyCFunction) PyXRootD::File::Truncate,            METH_KEYWORDS,
-        "Truncate the file to a particular size" },
-    { "vector_read",
-        (PyCFunction) PyXRootD::File::VectorRead,          METH_KEYWORDS,
-        "Read scattered data chunks in one operation" },
-    { "is_open",
-        (PyCFunction) PyXRootD::File::IsOpen,              METH_KEYWORDS,
-        "Check if the file is open" },
-    { "enable_read_recovery",
-        (PyCFunction) PyXRootD::File::EnableReadRecovery,  METH_KEYWORDS,
-        "Enable/disable state recovery procedures while "
-        "the file is open for reading" },
-    { "enable_write_recovery",
-        (PyCFunction) PyXRootD::File::EnableWriteRecovery, METH_KEYWORDS,
-        "Enable/disable state recovery procedures while "
-        "the file is open for writing or read/write" },
-    { "get_data_server",
-        (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS,
-        "Get the data server the file is accessed at" },
-    {"__enter__",
-        (PyCFunction) File_enter,                          METH_NOARGS,
-        "__enter__() -> self."},
-    {"__exit__",
-        (PyCFunction) File_exit,                           METH_VARARGS,
-        "__exit__(*excinfo) -> None.  Closes the file."},
+    { "open",                  (PyCFunction) PyXRootD::File::Open,
+        METH_KEYWORDS, file_open_doc },
+    { "close",                 (PyCFunction) PyXRootD::File::Close,
+        METH_KEYWORDS, file_close_doc },
+    { "stat",                  (PyCFunction) PyXRootD::File::Stat,
+        METH_KEYWORDS, file_stat_doc },
+    { "read",                  (PyCFunction) PyXRootD::File::Read,
+        METH_KEYWORDS, file_read_doc },
+    { "readline",              (PyCFunction) PyXRootD::File::ReadLine,
+        METH_KEYWORDS, file_readline_doc },
+    { "readlines",             (PyCFunction) PyXRootD::File::ReadLines,
+        METH_KEYWORDS, file_readlines_doc },
+    { "readchunks",            (PyCFunction) PyXRootD::File::ReadChunks,
+        METH_KEYWORDS, file_readchunks_doc },
+    { "write",                 (PyCFunction) PyXRootD::File::Write,
+        METH_KEYWORDS, file_write_doc },
+    { "sync",                  (PyCFunction) PyXRootD::File::Sync,
+        METH_KEYWORDS, file_sync_doc },
+    { "truncate",              (PyCFunction) PyXRootD::File::Truncate,
+        METH_KEYWORDS, file_truncate_doc },
+    { "vector_read",           (PyCFunction) PyXRootD::File::VectorRead,
+        METH_KEYWORDS, file_vector_read_doc },
+    { "is_open",               (PyCFunction) PyXRootD::File::IsOpen,
+        METH_KEYWORDS, file_is_open_doc },
+    { "enable_read_recovery",  (PyCFunction) PyXRootD::File::EnableReadRecovery,
+        METH_KEYWORDS, file_enable_read_recovery_doc },
+    { "enable_write_recovery", (PyCFunction) PyXRootD::File::EnableWriteRecovery,
+        METH_KEYWORDS, file_enable_write_recovery_doc },
+    { "get_data_server",       (PyCFunction) PyXRootD::File::GetDataServer,
+        METH_KEYWORDS, file_get_data_server_doc },
+    {"__enter__",              (PyCFunction) File_enter,
+        METH_NOARGS, NULL},
+    {"__exit__",               (PyCFunction) File_exit,
+        METH_VARARGS, NULL},
 
     { NULL } /* Sentinel */
   };
@@ -248,7 +224,7 @@ namespace PyXRootD
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE
     | Py_TPFLAGS_HAVE_ITER,                     /* tp_flags */
-    "File object",                              /* tp_doc */
+    file_type_doc,                              /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */

@@ -19,6 +19,7 @@
 #include "PyXRootD.hh"
 #include "PyXRootDClient.hh"
 #include "PyXRootDFile.hh"
+#include "PyXRootDDocumentation.hh"
 
 namespace PyXRootD
 {
@@ -52,8 +53,7 @@ namespace PyXRootD
     if ( PyType_Ready( &FileType ) < 0 )   return;
     Py_INCREF( &FileType );
 
-    ClientModule = Py_InitModule3("client", module_methods,
-        "XRootD Client extension module.");
+    ClientModule = Py_InitModule3("client", module_methods, client_module_doc);
 
     if (ClientModule == NULL) {
       return;

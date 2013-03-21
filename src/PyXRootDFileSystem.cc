@@ -130,7 +130,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* FileSystem::Query( Client *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "queryCode", "arg", "timeout", "callback", NULL };
+    static char *kwlist[] = { "querycode", "arg", "timeout", "callback", NULL };
     const  char *arg;
     uint16_t     timeout = 5;
     PyObject    *callback = NULL, *pyresponse = NULL;
