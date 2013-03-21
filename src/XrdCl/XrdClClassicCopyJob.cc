@@ -621,11 +621,11 @@ namespace
         public:
           ChunkHandler(): sem( new XrdSysSemaphore(0) ) {}
           virtual ~ChunkHandler() { delete sem; }
-          virtual void HandleResponse( XrdCl::XRootDStatus *status,
+          virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
           {
-            this->status = *status;
-            delete status;
+            this->status = *statusval;
+            delete statusval;
             if( response )
             {
               XrdCl::ChunkInfo *resp = 0;
