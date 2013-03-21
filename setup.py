@@ -1,5 +1,8 @@
 from distutils.core import setup, Extension
+from distutils import sysconfig
 from os import getenv
+from subprocess import call
+import os
 
 xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
@@ -22,12 +25,12 @@ setup( name             = 'pyxrootd',
                'XRootD.client',
                sources      = ['src/PyXRootDModule.cc', 'src/PyXRootDFile.cc',
                                'src/PyXRootDFileSystem.cc', 'src/Utils.cc'],
-               depends      = ['src/PyXRootD.hh', 'src/PyXRootDType.hh', 
-                               'src/PyXRootDClient.hh', 'src/PyXRootDURL.hh', 
-                               'src/Utils.hh', 'src/AsyncResponseHandler.hh'],
+               depends      = ['src/PyXRootD.hh', 'src/PyXRootDClient.hh', 
+                               'src/PyXRootDURL.hh', 'src/Utils.hh', 
+                               'src/AsyncResponseHandler.hh',
+                               'src/PyXRootDDocumentation.hh'],
                libraries    = ['XrdCl', 'XrdUtils', 'dl'],
-               extra_compile_args = ['-g', 
-                                     '-Wno-deprecated-writable-strings',
+               extra_compile_args = ['-g', '-O0', # for debugging
                                      '-Wno-deprecated',
                                      '-Wno-shorten-64-to-32', 
                                      '-Wno-write-strings'],
@@ -36,3 +39,6 @@ setup( name             = 'pyxrootd',
                )
            ]
        )
+
+# Make the docs
+call(["make", "-C", "docs", "html"])
