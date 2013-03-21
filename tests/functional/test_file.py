@@ -6,7 +6,7 @@ import pytest
 
 def test_write():
     with client.File() as f:
-        buffer = 'eggs and ham'
+        buffer = 'eggs and ham\n'
 
         with pytest.raises(ValueError):
             f.write(buffer)
@@ -39,16 +39,24 @@ def test_read():
         # Test read offsets and sizes
 
 def test_vector_read():
+    v = [(0, 100), (101, 200), (201, 200)]
+    
     with client.File() as f:
         with pytest.raises(ValueError):
-            f.vector_read()  # TODO: Implement this
+            f.vector_read()
 
         status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
         assert status['isOK']
+        status, response = f.vector_read(chunks=v)
+        assert status['isOK'] == False
+        assert not response
 
-        status, response = f.vector_read()
+    with client.File() as f:
+        status, response = f.open('root://localhost//tmp/xrootd.tgz', OpenFlags.READ)
+        print status
         assert status['isOK']
-
+        status, response = f.vector_read(chunks=v)
+        assert status['isOK']
         assert response
 
 def test_stat():
@@ -60,8 +68,7 @@ def test_stat():
         status, response = f.open('root://localhost//tmp/spam')
         assert status['isOK']
 
-        # status, response = f.stat()
-        assert 0  # TODO: Fix stat() with force=False
+        status, response = f.stat()
         assert status['isOK']
         assert response['size']
 
@@ -79,14 +86,14 @@ def test_sync():
 
 def test_truncate():
     with client.File() as f:
-        
+
         with pytest.raises(ValueError):
             f.truncate()
 
-        status, response = f.open('root://localhost//tmp/spam')
+        status, response = f.open('root://localhost//tmp/spam', OpenFlags.UPDATE)
         assert status['isOK']
 
-        status, response = f.truncate(size=1000) # TODO: Fix EINVAL
+        status, response = f.truncate(size=10000) # TODO: Fix EINVAL
         print status
         assert status['isOK']
 
