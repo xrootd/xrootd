@@ -137,9 +137,6 @@ class XrdXrootdMonitor_Ident : public XrdJob
 public:
 
 void          DoIt() {
-#ifndef NODEBUG
-                      const char *TraceID = "MonIdent";
-#endif
                       XrdXrootdMonitor::Ident();
                       Sched->Schedule((XrdJob *)this, time(0)+idInt);
                      }

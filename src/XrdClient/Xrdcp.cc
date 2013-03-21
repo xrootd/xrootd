@@ -1483,7 +1483,7 @@ int main(int argc, char**argv) {
 
       if ( (strstr(argv[i], "-y") == argv[i]) &&
            (argc >= i+2) ) {
-         int maxSources = atoi(argv[i+1]);
+//       int maxSources = atoi(argv[i+1]);
          i++;
          continue;
       }

@@ -353,7 +353,7 @@ XrdCksManager::csInfo *XrdCksManager::Find(const char *Name)
 {
    static XrdSysMutex myMutex;
    XrdCksCalc *myCalc;
-   int i, n;
+   int i;
 
 // Find the pre-loaded checksum
 //

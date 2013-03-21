@@ -101,7 +101,6 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    extern XrdSysError OssEroute;
    XrdSysPlugin    *myLib;
    XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
-   int Debug = (getenv("XRDDEBUG") != 0);
 
 // Verify that versions are compatible.
 //
@@ -600,7 +599,7 @@ int XrdOssDir::StatRet(struct stat *buff)
 
 // We only support autostat for local directories
 //
-   if (!lclfd) -ENOTSUP;
+   if (!lclfd) return -ENOTSUP;
 
 // We do not support autostat unless we have the fstatat function
 //
@@ -863,13 +862,13 @@ ssize_t XrdOssFile::Read(void *buff, off_t offset, size_t blen)
 
 ssize_t XrdOssFile::ReadV(XrdOucIOVec *readV, int n)
 {
-   EPNAME("ReadV");
    ssize_t rdsz, totBytes = 0;
    int i;
 
 // For platforms that support fadvise, pre-advise what we will be reading
 //
 #if defined(__linux__) && defined(HAVE_ATOMICS)
+   EPNAME("ReadV");
    long long begOff, endOff, begLst = -1, endLst = -1;
    int nPR = n;
 

@@ -1151,7 +1151,6 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
 {
    XrdPosixFile *fp;
-   int           iosz;
 
 // Find the file object
 //

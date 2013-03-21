@@ -388,7 +388,6 @@ bool XrdXrootdMonFile::Init(XrdScheduler *sp, XrdSysError  *errp, int bfsz)
 void XrdXrootdMonFile::Flush() // The bfMutex must be locked
 {
    static int seq = 0;
-   XrdXrootdMonFileTOD *tP = (XrdXrootdMonFileTOD *)repNext;
    int bfSize;
 
 // Update the sequence number

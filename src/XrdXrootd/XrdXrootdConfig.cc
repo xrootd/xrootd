@@ -144,7 +144,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdXrootdXPath *xp;
    void *secGetProt = 0;
-   char *adminp, *fsver, *rdf, *bP, *tmp, c, buff[1024];
+   char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 
 // Copy out the special info we want to use at top level
@@ -721,8 +721,7 @@ int XrdXrootdProtocol::xexpdo(char *path, int popt)
 
 int XrdXrootdProtocol::xfsl(XrdOucStream &Config)
 {
-    char *val, *Slash;
-    int n = 0;
+    char *val;
 
 // Clear storage pointers
 //

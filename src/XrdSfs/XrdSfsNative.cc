@@ -428,7 +428,7 @@ XrdSfsXferSize XrdSfsNativeFile::read(XrdSfsFileOffset  offset,    // In
 /******************************************************************************/
 
 XrdSfsXferSize XrdSfsNativeFile::readv(XrdOucIOVec     *readV,     // In
-                                       size_t           readCount) // In
+                                       int              readCount) // In
 /*
   Function: Perform all the reads specified in the readV vector.
 
@@ -447,7 +447,7 @@ XrdSfsXferSize XrdSfsNativeFile::readv(XrdOucIOVec     *readV,     // In
    ssize_t curCount;
    int i;
 
-   for (i=0; i<readCount; i++)
+   for (i=0; i<int(readCount); i++)
      {do {curCount = pread(oh, (void *)readV[i].data, (size_t)readV[i].size, (off_t)readV[i].offset);}
            while(curCount < 0 && errno == EINTR);
 

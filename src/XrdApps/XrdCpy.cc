@@ -713,7 +713,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
          } iKey;
    XrdClientStatInfo stat;
    XrdOucString dCGI;
-   int myKey[3], xTTL = 0;
+   int myKey[3];
    const char *Path, *cksVal, *cgiP;
    char *qP, aszBuff[128], lfnBuff[1032], cgiBuff[2048];
 
@@ -784,10 +784,8 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
    XrdClientUrlInfo dUrl;
    XrdOucString sUrl(tpcSrc->GetCurrentUrl().GetUrl().c_str());
    XrdOucString *rCGI, dstUrl;
-   pthread_t myTID;
    int xTTL = -1;
    const char *cgiP;
-   char *qP;
    char cgiBuff[1024];
 
 // Append any redirection cgi information to our source spec

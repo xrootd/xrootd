@@ -465,8 +465,6 @@ int XrdCnsConfig::Configure()
 int XrdCnsConfig::ConfigN2N()
 {
    static XrdVERSIONINFODEF(myVer, XrdCns, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin    *myLib;
-   XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
    char *N2NLib, *N2NParms = 0;
 
 // Get local root

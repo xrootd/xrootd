@@ -622,7 +622,6 @@ void XrdCmsConfig::ConfigDefaults(void)
    extern long timezone;
    static XrdVERSIONINFODEF(myVer, cmsd, XrdVNUMBER, XrdVERSION);
    time_t myTime = time(0);
-   struct tm *tmP = localtime(&myTime);
    int myTZ, isEast = 0;
 
 // Preset all variables with common defaults
@@ -721,6 +720,7 @@ void XrdCmsConfig::ConfigDefaults(void)
 
 // Compute the time zone we are in
 //
+   localtime(&myTime);
    myTZ = timezone/(60*60);
    if (myTZ <= 0) {isEast = 0x10; myTZ = -myTZ;}
    if (myTZ > 12) myTZ = 12;

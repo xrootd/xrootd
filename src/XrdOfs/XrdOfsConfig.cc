@@ -494,7 +494,6 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
   
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
-   XrdSysPlugin *myLib;
    XrdCmsClient *(*CmsPI)(XrdSysLogger *, int, int, XrdOss *);
    XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
@@ -672,7 +671,6 @@ int XrdOfs::xclib(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xcmsl(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[2048];
-    int pl;
 
 // Get the path and parms
 //
@@ -1314,7 +1312,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
 {
    XrdOfsTPC::iParm Parms;
-   char *vcksum = 0, *val, pgm[1024];
+   char *val, pgm[1024];
    int  reqType;
    *pgm = 0;
 
@@ -1505,7 +1503,6 @@ int XrdOfs::setupAuth(XrdSysError &Eroute)
                           (XrdSysLogger   *lp,    const char   *cfn,
                            const char     *parm,  XrdVersionInfo &vInfo);
 
-   XrdSysPlugin    *myLib;
    XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
 
 // Authorization comes from the library or we use the default

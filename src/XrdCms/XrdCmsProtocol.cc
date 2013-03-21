@@ -351,8 +351,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
       // Compute current login mode
       //
       Mode = Role
-           | (CmsState.Suspended ? CmsLoginData::kYR_suspend : 0)
-           | (CmsState.NoStaging ? CmsLoginData::kYR_nostage : 0);
+           | (CmsState.Suspended ? int(CmsLoginData::kYR_suspend) : 0)
+           | (CmsState.NoStaging ? int(CmsLoginData::kYR_nostage) : 0);
        if (fails >= 6 && manp == manager) 
           {fails = 0; Mode |=    CmsLoginData::kYR_trying;}
 

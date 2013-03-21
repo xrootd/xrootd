@@ -418,7 +418,7 @@ int XrdCmsAdmin::Con2Ads(const char *pname)
    static ClientLoginRequest loginReq = {{0, 0},
                                          htons(kXR_login), htonl(getpid()),
                                          {'c', 'm', 's', 'd', 0, 0, 0, 0},
-                                         {0, 0}, 0, 0, 0};
+                                         {0, 0}, {0}, {0}, 0};
    struct {kXR_int32 siHS[4];} hsRsp;
    XrdNetSocket adsSocket;
    int ecode, snum;

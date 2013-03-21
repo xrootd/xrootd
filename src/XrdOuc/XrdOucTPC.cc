@@ -124,7 +124,6 @@ const char *XrdOucTPC::cgiC2Src(const char *cKey, const char *xDst, int xTTL,
 const char *XrdOucTPC::cgiD2Src(const char *cKey, const char *cOrg,
                                       char *Buff, int Blen)
 {
-   char xbuff[512];
    int    n;
 
 // Make sure we have the minimum amount of information here
@@ -155,7 +154,7 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
    if (!(hName = index(hSpec, '@'))) hName = hSpec;
       else {hName ++;
             n = hName - hSpec;
-            if (n >= sizeof(Info.User)) return false;
+            if (n >= int(sizeof(Info.User))) return false;
             Info.uName = Info.User;
             strncpy(Info.User, hSpec, n); Info.User[n] = 0;
            }
@@ -170,7 +169,7 @@ bool XrdOucTPC::cgiHost(tpcInfo &Info, const char *hSpec)
 //
    if ((Colon = index(Colon, ':')))
       {n = Colon - hName;
-       if (n >= sizeof(hBuff)) return false;
+       if (n >= int(sizeof(hBuff))) return false;
        Info.pName = Colon;
        strncpy(hBuff, hName, n); hBuff[n] = 0; hName = hBuff;
       }

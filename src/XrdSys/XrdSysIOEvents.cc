@@ -537,7 +537,6 @@ void XrdSys::IOEvents::Poller::CbkTMO()
 {
    Channel *cP;
    time_t tNow = time(0);
-   bool disChannel;
 
 // Process each element in the timeout queue, calling the callback function
 // if the timeout has passed. As the timeout mutex is recursive, we can keep
@@ -662,7 +661,6 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
                                                            const char **eTxt)
 {
-   int i;
    int fildes[2];
    struct pollArg pArg;
    pthread_t tid;
@@ -907,11 +905,16 @@ void XrdSys::IOEvents::Poller::SetPollEnt(XrdSys::IOEvents::Channel *cP, int pe)
 
 void XrdSys::IOEvents::Poller::Stop()
 {
-   PipeData  cmdbuff = {PipeData::Stop, 0};
+   PipeData  cmdbuff;
    CallBack *theCB;
    Channel  *cP;
-   void     *vrc, *cbArg;
+   void     *cbArg;
    int       doCB;
+
+// Initialize the pipdata structure
+//
+   memset(&cmdbuff, 0, sizeof(cmdbuff));
+   cmdbuff.req = PipeData::Stop;
 
 // Lock all of this
 //
@@ -1051,7 +1054,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 void XrdSys::IOEvents::Poller::WakeUp()
 {
-   static PipeData cmdbuff = {PipeData::NoOp, 0};
+   static PipeData cmdbuff = {PipeData::NoOp, 0, 0, 0, 0};
 
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.

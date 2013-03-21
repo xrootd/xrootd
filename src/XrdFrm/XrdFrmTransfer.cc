@@ -339,7 +339,7 @@ const char *XrdFrmTransfer::ffCheck()
 //
    if (Config.xfrFdir)
       {char ffPath[MAXPATHLEN+8];
-       if (Config.xfrFdln+xfrP->pfnEnd+5 >= sizeof(ffPath)) return 0;
+       if (Config.xfrFdln+xfrP->pfnEnd+5 >= int(sizeof(ffPath))) return 0;
        strcpy(ffPath, Config.xfrFdir);
        strcpy(ffPath+Config.xfrFdln, xfrP->PFN);
        strcpy(ffPath+Config.xfrFdln+xfrP->pfnEnd, ".fail");
@@ -369,7 +369,7 @@ void XrdFrmTransfer::ffMake(int nofile){
 // Generate fail file path
 //
    if (Config.xfrFdir)
-      {if (Config.xfrFdln+xfrP->pfnEnd+5 >= sizeof(ffPath)) return;
+      {if (Config.xfrFdln+xfrP->pfnEnd+5 >= int(sizeof(ffPath))) return;
        strcpy(ffPath, Config.xfrFdir);
        strcpy(ffPath+Config.xfrFdln, xfrP->PFN);
        strcpy(ffPath+Config.xfrFdln+xfrP->pfnEnd, ".fail");

@@ -287,7 +287,7 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
    XrdCmsNode *nP;
-   int bytes, n = 0;
+   int bytes;
 
 // Send a delay if we timed out
 //

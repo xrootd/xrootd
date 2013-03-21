@@ -96,7 +96,7 @@ int             Match(const XrdSecEntity *Who, const char *Host);
   
 int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 {
-   if (theHN &&  !Host        || !(theHN->NameOK(Host   ))) return 0;
+   if (theHN && (!Host        || !(theHN->NameOK(Host  )))) return 0;
    if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
    if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
    if (!theGN) return 1;
@@ -154,9 +154,8 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
                          XrdOfsTPC::Facts  &Args,
                                int          isPLE)
 {
-   EPNAME("Authorize");
    XrdOfsTPCAuth *myTPC;
-   const char *eMsg, *dstHost;
+   const char *dstHost;
    char hBuff[256];
    int rc, NoGo = 0;
 
@@ -292,7 +291,7 @@ int XrdOfsTPC::genOrg(const XrdSecEntity *client, char *Buff, int Blen)
 
 // Make sure this all fits
 //
-   if (((n + 1) + strlen(Name)) >= Blen)
+   if (((n + 1) + int(strlen(Name))) >= Blen)
       {strncpy(Buff, "origin ID too long", Blen);
        Buff[Blen-1] = 0;
        free(Name);
@@ -504,7 +503,7 @@ int XrdOfsTPC::Validate(XrdOfsTPC **theTPC, XrdOfsTPC::Facts &Args)
 // Construct the source url (it may be very big)
 //
    n = snprintf(myURL, myURLen, "xroot://%s/%s?", tpcSrc, tpcLfn);
-   if (n >= sizeof(myURL)) return Fatal(Args, "url too long", EINVAL);
+   if (n >= int(sizeof(myURL))) return Fatal(Args, "url too long", EINVAL);
 
 // Set lfn location in the URL but only if we need to do a rename
 //

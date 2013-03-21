@@ -279,7 +279,7 @@ char *XrdOucUtils::Ident(long long  &mySID, char *iBuff, int iBlen,
    const char *sP;
    char sName[64], uName[256];
    long long urSID;
-   int  n, myPid;
+   int  myPid;
 
 // Generate our server ID
 //

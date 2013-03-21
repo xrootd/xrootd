@@ -331,9 +331,8 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    static int            factorynum = 0;
    static XrdOucHash<XrdSysPlugin> plugins;
    XrdCryptoFactory     *(*efact)();
-   void *libhandle;
    XrdCryptoFactory *factory;
-   char factobjname[80], libfn[80], *libloc;
+   char factobjname[80], libfn[80];
    EPNAME("Factory::GetCryptoFactory");
 
    //

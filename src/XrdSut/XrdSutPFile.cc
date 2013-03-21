@@ -407,11 +407,10 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
    int lck = kMaxLockTries;
    int rc = 0;
    while (lck && rc == -1) {
-#ifdef __macos__
-      struct flock flck = {0, 0, 0, lockmode, SEEK_SET};
-#else
-      struct flock flck = {lockmode, SEEK_SET, 0, 0};
-#endif
+      struct flock flck;
+      memset(&flck, 0, sizeof(flck));
+      flck.l_type   = lockmode;
+      flck.l_whence = SEEK_SET;
       if ((rc = fcntl(fd, F_SETLK, &flck)) == 0)
          break;
       struct timespec lftp, rqtp = {1, 0};
@@ -424,11 +423,10 @@ kXR_int32 XrdSutPFile::Open(kXR_int32 opt, bool *wasopen,
       if (errno == EACCES || errno == EAGAIN) {
          // File locked by other process
          int pid = -1;
-#ifdef __macos__
-         struct flock flck = {0, 0, 0, lockmode, SEEK_SET};
-#else
-         struct flock flck = {lockmode, SEEK_SET, 0, 0};
-#endif
+         struct flock flck;
+         memset(&flck, 0, sizeof(flck));
+         flck.l_type   = lockmode;
+         flck.l_whence = SEEK_SET;
          if (fcntl(fd,F_GETLK,&flck) != -1)
             pid = flck.l_pid;
          close(fd);
@@ -459,11 +457,10 @@ kXR_int32 XrdSutPFile::Close(kXR_int32 fd)
 
    //
    // Unlock the file
-#ifdef __macos__
-   struct flock flck = {0, 0, 0, F_UNLCK, SEEK_SET};
-#else
-   struct flock flck = {F_UNLCK, SEEK_SET, 0, 0};
-#endif
+   struct flock flck;
+   memset(&flck, 0, sizeof(flck));
+   flck.l_type   = F_UNLCK;
+   flck.l_whence = SEEK_SET;
    if (fcntl(fd, F_SETLK, &flck) == -1) {
       close(fd);
       return Err(kPFErrUnlocking,"Close",(const char *)&fd);

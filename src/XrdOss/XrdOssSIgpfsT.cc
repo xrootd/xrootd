@@ -140,7 +140,7 @@ XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
    XrdSysError Say(Logger, "");
    XrdOucEnv   myEnv(parms);
    char  vChk[512], *val;
-   int   n, offLine = 0;
+   int   offLine = 0;
 
 // Check for global parms first
 //
@@ -178,7 +178,7 @@ XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
 
 // Return the stat function
 //
-    return XrdOssStatInfo;
+    return (XrdOssStatInfo_t)XrdOssStatInfo;
 }
 };
 

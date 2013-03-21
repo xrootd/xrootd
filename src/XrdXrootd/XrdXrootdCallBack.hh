@@ -47,7 +47,7 @@ public:
 
         const char *Func() {return Opname;}
 
-        const char  Oper() {return Opcode;}
+        char        Oper() {return Opcode;}
 
         int         Same(unsigned long long arg1, unsigned long long arg2);
 

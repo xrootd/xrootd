@@ -2171,7 +2171,8 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
          } else {
             if (vo.length() > 0) ent.vorg = strdup(vo.c_str());
          }
-         if (grp.length() > 0 && (!ent.grps || grp.length() > strlen(ent.grps))) {
+         if (grp.length() > 0
+         &&  (!ent.grps || grp.length() > int(strlen(ent.grps)))) {
             SafeFree(ent.grps);
             ent.grps = strdup(grp.c_str());
          }
@@ -2199,7 +2200,6 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
 XrdOucTrace *XrdSecProtocolgsi::EnableTracing()
 {
    // Initiate error logging and tracing
-   EPNAME("EnableTracing");
 
    eDest.logger(&Logger);
    GSITrace = new XrdOucTrace(&eDest);

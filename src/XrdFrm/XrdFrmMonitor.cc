@@ -141,7 +141,7 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
    XrdNetPeer monDest;
    XrdXrootdMonMap *mP;
    long long  mySid;
-   char      *etext, iBuff[1024], *sName;
+   char      *etext, iBuff[1024];
 
 // Generate our server ID
 //

@@ -174,7 +174,7 @@ XrdCpConfig::~XrdCpConfig()
 void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 {
    extern char *optarg;
-   extern int   optind, opterr, optopt;
+   extern int   optind, opterr;
    static int pgmSet = 0;
    char Buff[128], *Path, opC;
    XrdCpFile    pBase;
@@ -518,7 +518,7 @@ int XrdCpConfig::defCks(const char *opval)
    static XrdVERSIONINFODEF(myVer, xrdcp, XrdVNUMBER, XrdVERSION);
    const char *Colon = index(opval, ':');
    char  csName[XrdCksData::NameSize];
-   int csSize, n;
+   int   n;
 
 // Initialize the checksum manager if we have not done so already
 //

@@ -690,7 +690,7 @@ ssize_t XrdPssFile::Read(void *buff, off_t offset, size_t blen)
 /******************************************************************************/
 
 ssize_t XrdPssFile::ReadV(XrdOucIOVec     *readV,     // In
-                          size_t           readCount) // In
+                          int              readCount) // In
 /*
   Function: Perform all the reads specified in the readV vector.
 

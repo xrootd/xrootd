@@ -58,7 +58,9 @@ int XrdSysDNS::getHostAddr(const  char     *InetName,
 {
 #ifdef HAVE_NAMEINFO
    struct addrinfo   *rp, *np, *pnp=0;
-   struct addrinfo    myhints = {AI_CANONNAME};
+   struct addrinfo    myhints;
+   memset(&myhints, 0, sizeof(myhints));
+   myhints.ai_flags = AI_CANONNAME;
 #else
    unsigned int addr;
    struct hostent hent, *hp;
@@ -279,7 +281,10 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
 //
 #if defined(HAVE_NAMEINFO) && !defined(__macos__)
     struct addrinfo   *rp, *np;
-    struct addrinfo    myhints = {AI_CANONNAME};
+    struct addrinfo    myhints;
+    memset(&myhints, 0, sizeof(myhints));
+    myhints.ai_flags = AI_CANONNAME;
+
 #elif defined(HAVE_GETHBYXR)
    struct sockaddr_in *ip = (sockaddr_in *)&InetAddr;
    struct hostent hent, *hp;
@@ -397,8 +402,9 @@ int XrdSysDNS::getPort(const char  *servname,
 
 #ifdef HAVE_NAMEINFO
     struct addrinfo   *rp, *np;
-    struct addrinfo   myhints = {0};
+    struct addrinfo   myhints;
     int portnum = 0;
+    memset(&myhints, 0, sizeof(myhints));
 #else
    struct servent sent, *sp;
    char sbuff[1024];
