@@ -1,40 +1,43 @@
 ========================
-1. Installing `pyxrootd`
+Installing `pyxrootd`
 ========================
 
-1.1. Requirements
-=================
+
+
+Requirements
+============
 
 - Python 2.4 or later
 - New XRootD client 
 
-1.2. Getting the source
-=======================
+Getting the source
+==================
 
 ::
 
-      git clone git://github.com/jussy/pyxrootd.git
+      $ git clone git://github.com/jussy/pyxrootd.git
 
-1.3. Installation
+Installation
+============
+
+::
+
+      $ python setup.py install --user
+      $ sudo python setup.py install
+
+Post-installation
 =================
-
-::
-
-      python setup.py install --user
-      sudo python setup.py install
-
-1.4. Post-installation
-======================
 
 if --user, in bashrc::
 
-      export PATH=${HOME}/.local/bin${PATH:+:$PATH}
+      $ export PATH=${HOME}/.local/bin${PATH:+:$PATH}
 
 Browse example usages in `examples/` subdirectory 
 
-1.4. Running the tests
-======================
+Running the tests
+=================
 
 In source directory::
 
-    py.test
+    $ py.test
+    

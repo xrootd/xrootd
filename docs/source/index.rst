@@ -1,16 +1,40 @@
-.. PyXRootD documentation master file, created by
-   sphinx-quickstart on Tue Mar 19 22:57:10 2013.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+======================================
+`pyxrootd`: Python bindings for XRootD
+======================================
 
-Welcome to PyXRootD's documentation!
-====================================
+`pyxrootd` aims to blah blah.
 
-Contents:
+Bug reporting and issue tracking: `the pyxrootd github issue tracker
+<http://github.com/jussy/pyxrootd/issues>`_
+
+User Guide
+==========
 
 .. toctree::
+   :numbered:
    :maxdepth: 2
 
    install
 
+
+API Reference
+=============
+
+.. toctree::
+   :numbered:
+   :maxdepth: 2
+
+   modules/client/classes/client
+   modules/client/classes/file
+   modules/enums
+   modules/handlers
+
+
+Examples
+========
+
+.. toctree::
+   :maxdepth: 1
+
+   examples/client
 
