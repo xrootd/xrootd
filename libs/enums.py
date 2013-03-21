@@ -19,6 +19,7 @@ QueryCode = enum(
 )
 
 OpenFlags = enum(
+   NONE      = 0,
 #  COMPRESS  = 1,
    DELETE    = 2,
    FORCE     = 4,
@@ -37,15 +38,16 @@ OpenFlags = enum(
 )
 
 AccessMode = enum(
-  UR = 0x100,
-  UW = 0x080, 
-  UX = 0x040,
-  GR = 0x020,
-  GW = 0x010,
-  GX = 0x008,
-  OR = 0x004,
-  OW = 0x002,
-  OX = 0x001
+  NONE = 0,
+  UR   = 0x100,
+  UW   = 0x080, 
+  UX   = 0x040,
+  GR   = 0x020,
+  GW   = 0x010,
+  GX   = 0x008,
+  OR   = 0x004,
+  OW   = 0x002,
+  OX   = 0x001
 )
 
 MkDirFlags = enum(
