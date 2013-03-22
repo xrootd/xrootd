@@ -19,22 +19,22 @@ QueryCode = enum(
 )
 
 OpenFlags = enum(
-   NONE      = 0,
-#  COMPRESS  = 1,
-   DELETE    = 2,
-   FORCE     = 4,
-   NEW       = 8,
-   READ      = 16,
-   UPDATE    = 32,
-#  ASYNC     = 64,
-   REFRESH   = 128,
-   MAKEPATH  = 256,
-   APPEND    = 512,
-#  RETSTAT   = 1024,
-   REPLICA   = 2048,
-   POSC      = 4096,
-   NOWAIT    = 8192,
-   SEQIO     = 16384
+  NONE      = 0,
+# COMPRESS  = 1,
+  DELETE    = 2,
+  FORCE     = 4,
+  NEW       = 8,
+  READ      = 16,
+  UPDATE    = 32,
+# ASYNC     = 64,
+  REFRESH   = 128,
+  MAKEPATH  = 256,
+  APPEND    = 512,
+# RETSTAT   = 1024,
+  REPLICA   = 2048,
+  POSC      = 4096,
+  NOWAIT    = 8192,
+  SEQIO     = 16384
 )
 
 AccessMode = enum(
@@ -58,12 +58,7 @@ MkDirFlags = enum(
 DirListFlags = enum(
   NONE   = 0,
   STAT   = 1,
-  LOCALE = 2
-)
-
-StatFlags = enum(
-  OBJECT = 0,
-  VFS    = 1
+  LOCATE = 2
 )
 
 PrepareFlags = enum(
