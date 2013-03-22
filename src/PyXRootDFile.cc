@@ -35,7 +35,7 @@ namespace PyXRootD
     static char *kwlist[]             = { "url", "flags", "mode",
                                          "timeout", "callback", NULL };
     const  char             *url;
-    XrdCl::OpenFlags::Flags flags     = XrdCl::OpenFlags::Read;
+    XrdCl::OpenFlags::Flags flags     = XrdCl::OpenFlags::None;
     XrdCl::Access::Mode     mode      = XrdCl::Access::None;
     uint16_t                timeout   = 5;
     PyObject                *callback = NULL;
