@@ -149,7 +149,8 @@ namespace PyXRootD
      :param    flags: An `ORed` combination of                             \n\
                       :mod:`XRootD.enums.PrepareFlags`                     \n\
      :param priority: priority of the request 0 (lowest) - 3 (highest)     \n\
-     :type  priority: integer                                              \n");
+     :type  priority: integer                                              \n\
+     :returns:        tuple containing status dictionary and None          \n");
 
   //----------------------------------------------------------------------------
   //! Documentation strings for PyXRootD::File
@@ -157,54 +158,112 @@ namespace PyXRootD
   PyDoc_STRVAR(file_type_doc, "File object");
 
   PyDoc_STRVAR(file_open_doc,
-    "Client object");
+    "Open the file pointed to by the given URL.                          \n\n\
+     :param url: url of the file to be opened                              \n\
+     :type  url: string                                                    \n\
+     :param flags: An `ORed` combination of :mod:`XRootD.enums.OpenFlags`  \n\
+                   where the default is `OpenFlags.NONE`                   \n\
+     :param  mode: access mode for new files, an `ORed` combination of     \n\
+                  :mod:`XRootD.enums.AccessMode` where the default is      \n\
+                  `AccessMode.NONE`                                        \n\
+     :returns:    tuple containing status dictionary and None              \n");
 
   PyDoc_STRVAR(file_close_doc,
-    "Client object");
+    "Close the file.                                                     \n\n\
+     :returns:    tuple containing status dictionary and None              \n");
 
   PyDoc_STRVAR(file_stat_doc,
-    "Client object");
+    "Obtain status information for this file.                            \n\n\
+     :param force: do not use the cached information, force re-stating     \n\
+     :type  force: boolean                                                 \n\
+     :returns:     tuple containing status dictionary and None             \n");
 
   PyDoc_STRVAR(file_read_doc,
-    "Client object");
+    "Read a data chunk from a given offset.                              \n\n\
+     :param offset: offset from the beginning of the file                  \n\
+     :type  offset: integer                                                \n\
+     :param   size: number of bytes to be read                             \n\
+     :type    size: integer                                                \n\
+     :returns:      tuple containing status dictionary and None            \n");
 
   PyDoc_STRVAR(file_readline_doc,
-    "Read a data chunk at a given offset, until "
-        "the first newline encountered");
+    "Read a data chunk from a given offset, until the first newline          \
+     encountered or a maximum of `size` bytes are read.                  \n\n\
+     :param offset: offset from the beginning of the file                  \n\
+     :type  offset: integer                                                \n\
+     :param   size: maximum number of bytes to be read                     \n\
+     :type    size: integer                                                \n\
+     :returns:      data that was read, including the trailing newline     \n\
+     :rtype:        string                                                 \n");
 
   PyDoc_STRVAR(file_readlines_doc,
-    "Read data chunks from a given offset, separated "
-        "by newlines, until EOF encountered. Return list "
-        "of lines read.");
+    "Read lines from a given offset until EOF encountered. Return list of    \
+     lines read.                                                         \n\n\
+     :param offset: offset from the beginning of the file                  \n\
+     :type  offset: integer                                                \n\
+     :param   size: maximum number of bytes to be read                     \n\
+     :type    size: integer                                                \n\
+     :returns:      data that was read, including trailing newlines        \n\
+     :rtype:        list of strings                                        \n");
 
   PyDoc_STRVAR(file_readchunks_doc,
-    "Read data chunks from a given offset of the "
-        "given size, until EOF encountered. Return list "
-        "of chunks read.");
+    "Read data chunks from a given offset of the given size until EOF.       \
+     Return list of chunks read.                                         \n\n\
+     :param    offset: offset from the beginning of the file               \n\
+     :type     offset: integer                                             \n\
+     :param blocksize: maximum number of bytes to be read                  \n\
+     :type  blocksize: integer                                             \n\
+     :returns:         chunks that were read                               \n\
+     :rtype:           list of strings                                     \n");
 
   PyDoc_STRVAR(file_write_doc,
-    "Client object");
+    "Write a data chunk at a given offset.                               \n\n\
+     :param offset: offset from the beginning of the file                  \n\
+     :type  offset: integer                                                \n\
+     :param   size: number of bytes to be written                          \n\
+     :type    size: integer                                                \n\
+     :returns:      tuple containing status dictionary and None            \n");
 
   PyDoc_STRVAR(file_sync_doc,
-    "Client object");
+    "Commit all pending disk writes.                                     \n\n\
+     :returns:      tuple containing status dictionary and None            \n");
 
   PyDoc_STRVAR(file_truncate_doc,
-    "Client object");
+    "Truncate the file to a particular size.                             \n\n\
+     :param size: desired size of the file                                 \n\
+     :type  size: integer                                                  \n\
+     :returns:    tuple containing status dictionary and None              \n");
 
   PyDoc_STRVAR(file_vector_read_doc,
-    "Client object");
+    "Read scattered data chunks in one operation.                        \n\n\
+     :param chunks: list of the chunks to be read. The default maximum     \n\
+                    chunk size is 2097136 bytes and the default maximum    \n\
+                    number of chunks per request is 1024. The server may   \n\
+                    be queried using :mod:`query` for the actual settings. \n\
+     :type  chunks: list of 2-tuples of the form (offset, size)            \n\
+     :returns:      tuple containing status dictionary and vector read     \n\
+                    info dictionary (see below)                            \n");
 
   PyDoc_STRVAR(file_is_open_doc,
-    "Client object");
+    "Check if the file is open.                                          \n\n\
+     :rtype: boolean                                                       \n");
 
   PyDoc_STRVAR(file_enable_read_recovery_doc,
-    "Client object");
+    "Enable/disable state recovery procedures while the file is open for     \
+     reading.                                                            \n\n\
+     :param enable: is read recovery enabled                               \n\
+     :type  enable: boolean                                                \n");
 
   PyDoc_STRVAR(file_enable_write_recovery_doc,
-    "Client object");
+    "Enable/disable state recovery procedures while the file is open for     \
+     writing or read/write.                                              \n\n\
+     :param enable: is write recovery enabled                              \n\
+     :type  enable: boolean                                                \n");
 
   PyDoc_STRVAR(file_get_data_server_doc,
-    "Client object");
+    "Get the data server the file is accessed at.                        \n\n\
+     :returns: the address of the data server                              \n\
+     :rtype:   string                                                      \n");
 }
 
 
