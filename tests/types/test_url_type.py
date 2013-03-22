@@ -1,5 +1,5 @@
 from XRootD import client
-import pytest
+import pytest, sys
 
 def test_creation():
     u = client.Client("root://localhost").url
@@ -8,8 +8,11 @@ def test_creation():
 def test_deletion():
     u = client.Client("root://localhost").url
     del u
-    with pytest.raises(UnboundLocalError):
-        assert u
+    
+    if sys.hexversion > 0x02050000:
+        pytest.raises(UnboundLocalError, 'assert u')
+    else:
+        pytest.raises(NameError, 'assert u')
 
 def test_getters():
     u = client.Client("root://user1:passwd1@host1:123//path?param1=val1&param2=val2").url

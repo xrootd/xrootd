@@ -29,8 +29,8 @@ def test_filesystem():
         sync (func, args, hasReturnObject)
 
     # Create new temp file
-    with client.File() as f:
-        status, response = f.open('root://localhost//tmp/spam', OpenFlags.NEW)
+    f = client.File()
+    status, response = f.open('root://localhost//tmp/spam', OpenFlags.NEW)
 
     for func, args, hasReturnObject in funcspecs:
         async(func, args, hasReturnObject)
@@ -42,10 +42,10 @@ def sync(func, args, hasReturnObject):
     if hasReturnObject:
         print response
         assert response
-    
+
 def async(func, args, hasReturnObject):
     handler = AsyncResponseHandler()
-    status = func(*args, callback=handler)
+    status = func(callback=handler, *args)
     print status
     assert status['isOK']
     status, response, hostList = handler.waitFor()
@@ -55,22 +55,15 @@ def async(func, args, hasReturnObject):
         print response
         assert response
     #assert hostList
-    
+
 def test_args():
     c = client.Client("root://localhost")
     status, response = c.locate(path="/tmp", flags=0, timeout=1)
     assert status
     assert response
-    
-    with pytest.raises(TypeError):
-        c.locate(path="/tmp")
-        
-    with pytest.raises(TypeError):
-        c.locate(path="/tmp", foo=1)
-        
-    with pytest.raises(TypeError):
-        c.locate(foo="/tmp")
-        
-    with pytest.raises(TypeError):
-        c.locate(path="/tmp", flags=1, foo=0)
+
+    pytest.raises(TypeError, 'c.locate(path="/tmp")')
+    pytest.raises(TypeError, 'c.locate(path="/tmp", foo=1)')
+    pytest.raises(TypeError, 'c.locate(foo="/tmp")')
+    pytest.raises(TypeError, 'c.locate(path="/tmp", flags=1, foo=0)')
 

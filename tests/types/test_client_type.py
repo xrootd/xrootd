@@ -1,5 +1,5 @@
 from XRootD import client
-import pytest
+import pytest, sys
 
 def test_creation():
     c = client.Client("root://localhost")
@@ -8,5 +8,8 @@ def test_creation():
 def test_deletion():
     c = client.Client("root://localhost")
     del c
-    with pytest.raises(UnboundLocalError):
-        assert c
+    
+    if sys.hexversion > 0x02050000:
+        pytest.raises(UnboundLocalError, 'assert c')
+    else:
+        pytest.raises(NameError, 'assert c')
