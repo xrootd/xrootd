@@ -1,6 +1,6 @@
-=============
-Client object
-=============
+==================================================
+:mod:`XRootD.client.Client`: Filesystem operations
+==================================================
 
 The client object is used to perform filesystem operations.
 

@@ -1,15 +1,26 @@
-====================
-File object
-====================
+==========================================
+:mod:`XRootD.client.File`: File operations
+==========================================
 
 The file object is cool
+
+.. note::
+  
+  To provide an interface like the python built-in file object, we have the 
+  readline() and readlines() methods. These look for newlines in files, which
+  may not always be appropriate. Also, readlines() reads the whole file, which
+  is probably not a good idea.
+  
+  Also, these methods can't be given a callback, and they don't return a status
+  dictionary like the others, only the data that was read.
 
 Examples of cool usage
 -----------------------
 
 You can iterate over lines in this file, like this::
 
-  >>> f = client.File().open('root://someserver//somefile')
+  >>> f = client.File()
+  >>> f.open('root://someserver//somefile')
   >>> f.write('green\neggs\nand\nham\n')
   
   >>> for line in f:
@@ -21,13 +32,14 @@ You can iterate over lines in this file, like this::
     
 Or also iterate over chunks of a particular size::
 
-    >>> f = client.File().open('root://someserver//somefile')
-    >>> f.write('green\neggs\nand\nham\n')
-    
-    >>> for chunk in f.readchunks(offset=0, blocksize=10:
-    >>>   print '%r' % chunk
-    'green\neggs'
-    '\nand\nham'
+  >>> f = client.File()
+  >>> f.open('root://someserver//somefile')
+  >>> f.write('green\neggs\nand\nham\n')
+  
+  >>> for status, chunk in f.readchunks(offset=0, blocksize=10):
+    >>> print '%r' % chunk
+  'green\neggs'
+  '\nand\nham'
 
 You can also use the `with` statement on this file, like this::
 
@@ -39,37 +51,66 @@ You can also use the `with` statement on this file, like this::
 Method reference
 ----------------
 
-.. automodule:: XRootD.client
+.. module:: XRootD.client
 
 .. autoclass:: XRootD.client.File
   
-  .. automethod:: open(foo='something', [bar])
+  .. automethod:: open(url[, flags[, mode[, timeout[, callback]]]])
   
-  .. automethod:: close(foo='something', [bar])
+  .. automethod:: close([timeout[, callback]])
+
+    As of Python 2.5, you can avoid having to call this method explicitly if you
+    use the :keyword:`with` statement.  For example, the following code will
+    automatically close *f* when the :keyword:`with` block is exited::
+
+      from __future__ import with_statement # This isn't required in Python 2.6
+
+      with client.File() as f:
+        f.open("root://someserver//somefile")
+        for line in f:
+          print line,
   
-  .. automethod:: stat(foo='something', [bar])
+  .. automethod:: stat([force[, timeout[, callback]]])
   
-  .. automethod:: read(foo='something', [bar])
+  .. automethod:: read([offset[, size[, timeout[, callback]]]])
   
-  .. automethod:: readline(foo='something', [bar])
+  .. automethod:: readline([offset[, size]])
   
-  .. automethod:: readlines(foo='something', [bar])
+  .. automethod:: readlines([offset[, size]])
   
-  .. automethod:: readchunks(foo='something', [bar])
+  .. automethod:: readchunks([offset[, blocksize]])
   
-  .. automethod:: write(foo='something', [bar])
+  .. automethod:: write(buffer[, offset[, size[, timeout[, callback]]]])
   
-  .. automethod:: sync(foo='something', [bar])
+  .. automethod:: sync([timeout[, callback]])
   
-  .. automethod:: truncate(foo='something', [bar])
+  .. automethod:: truncate(size[, timeout[, callback]])
   
-  .. automethod:: vector_read(foo='something', [bar])
+  .. automethod:: vector_read(chunks[, timeout[, callback]])
   
-  .. automethod:: is_open(foo='something', [bar])
+    +---------------------------------------------+
+    | The `vector read info` return dictionary    |
+    +==============+==============================+
+    | `chunks`     | List of chunks               |
+    |              |                              |
+    |              | +--------------------------+ |
+    |              | | `chunk` sub-dictionary   | |
+    |              | +==========+===============+ |
+    |              | | `buffer` | le buffer     | |
+    |              | +----------+---------------+ |
+    |              | | `length` | le length     | |
+    |              | +----------+---------------+ |
+    |              | | `offset` | le offset     | |
+    |              | +----------+---------------+ |
+    +--------------+------------------------------+
+    | `size`       | The size                     |
+    +--------------+------------------------------+
   
-  .. automethod:: enable_read_recovery(foo='something', [bar])
+  .. automethod:: is_open()
   
-  .. automethod:: enable_write_recovery(foo='something', [bar])
+  .. automethod:: enable_read_recovery(enable)
   
-  .. automethod:: get_data_server(foo='something', [bar])
+  .. automethod:: enable_write_recovery(enable)
+  
+  .. automethod:: get_data_server()
   

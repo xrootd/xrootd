@@ -2,7 +2,7 @@
 `pyxrootd`: Python bindings for XRootD
 ======================================
 
-`pyxrootd` aims to blah blah.
+`pyxrootd` is a set of simple but pythonic bindings for `XRootD`.
 
 Bug reporting and issue tracking: `the pyxrootd github issue tracker
 <http://github.com/jussy/pyxrootd/issues>`_
