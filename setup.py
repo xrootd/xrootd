@@ -7,8 +7,8 @@ import os
 xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
 
-print 'XRootD library dir:', xrdlibdir
-print 'XRootD include dir:', xrdincdir
+print ('XRootD library dir:', xrdlibdir)
+print ('XRootD include dir:', xrdincdir)
 
 setup( name             = 'pyxrootd',
        version          = '0.1',
@@ -19,10 +19,10 @@ setup( name             = 'pyxrootd',
        description      = "XRootD Python bindings",
        long_description = "XRootD Python bindings",
        packages         = ['XRootD'],
-       package_dir      = {'XRootD' : 'src', 'XRootD' : 'libs'},
+       package_dir      = {'libPyXRootD' : 'src', 'XRootD' : 'libs'},
        ext_modules      = [
            Extension(
-               'XRootD.client',
+               'libPyXRootD.client',
                sources      = ['src/PyXRootDModule.cc', 'src/PyXRootDFile.cc',
                                'src/PyXRootDFileSystem.cc', 'src/Utils.cc'],
                depends      = ['src/PyXRootD.hh', 'src/PyXRootDClient.hh', 
