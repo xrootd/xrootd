@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "PyXRootD.hh"
-#include "PyXRootDClient.hh"
+#include "PyXRootDFileSystem.hh"
 #include "PyXRootDFile.hh"
 #include "PyXRootDDocumentation.hh"
 
@@ -45,13 +45,17 @@ namespace PyXRootD
       PyEval_InitThreads();
     }
 
-    ClientType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &ClientType ) < 0 )   return;
-    Py_INCREF( &ClientType );
+    FileSystemType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &FileSystemType ) < 0 ) return;
+    Py_INCREF( &FileSystemType );
 
     FileType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &FileType ) < 0 )   return;
+    if ( PyType_Ready( &FileType ) < 0 ) return;
     Py_INCREF( &FileType );
+
+    URLType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &URLType ) < 0 ) return;
+    Py_INCREF( &URLType );
 
     ClientModule = Py_InitModule3("client", module_methods, client_module_doc);
 
@@ -59,7 +63,8 @@ namespace PyXRootD
       return;
     }
 
-    PyModule_AddObject( ClientModule, "Client", (PyObject *) &ClientType );
+    PyModule_AddObject( ClientModule, "FileSystem", (PyObject *) &FileSystemType );
     PyModule_AddObject( ClientModule, "File", (PyObject *) &FileType );
+    PyModule_AddObject( ClientModule, "URL", (PyObject *) &URLType );
   }
 }

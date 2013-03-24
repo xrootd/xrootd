@@ -19,6 +19,10 @@
 #ifndef PYXROOTD_HH_
 #define PYXROOTD_HH_
 
+#if PY_MAJOR_VERSION >= 3
+#define IS_PY3K
+#endif
+
 #include <Python.h>
 #include <string>
 #include <iostream>

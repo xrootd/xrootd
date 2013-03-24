@@ -31,7 +31,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Documentation strings for PyXRootD::FileSystem
   //----------------------------------------------------------------------------
-  PyDoc_STRVAR(client_type_doc, "Client object");
+  PyDoc_STRVAR(filesystem_type_doc, "FileSystem object");
 
   PyDoc_STRVAR(filesystem_locate_doc,
     "Locate a file.                                                      \n\n\

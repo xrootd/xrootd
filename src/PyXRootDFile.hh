@@ -20,7 +20,6 @@
 #define PYXROOTDFILE_HH_
 
 #include "PyXRootD.hh"
-#include "PyXRootDClient.hh"
 #include "PyXRootDDocumentation.hh"
 #include "Utils.hh"
 
@@ -204,7 +203,7 @@ namespace PyXRootD
   static PyTypeObject FileType = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /* ob_size */
-    "client.File",                              /* tp_name */
+    "pyxrootd.File",                              /* tp_name */
     sizeof(File),                               /* tp_basicsize */
     0,                                          /* tp_itemsize */
     (destructor) File_dealloc,                  /* tp_dealloc */

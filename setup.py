@@ -18,11 +18,11 @@ setup( name             = 'pyxrootd',
        license          = 'LGPL',
        description      = "XRootD Python bindings",
        long_description = "XRootD Python bindings",
-       packages         = ['XRootD'],
-       package_dir      = {'libPyXRootD' : 'src', 'XRootD' : 'libs'},
+       packages         = ['pyxrootd', 'XRootD'],
+       package_dir      = {'pyxrootd' : 'src', 'XRootD' : 'libs'},
        ext_modules      = [
            Extension(
-               'libPyXRootD.client',
+               'pyxrootd.client',
                sources      = ['src/PyXRootDModule.cc', 'src/PyXRootDFile.cc',
                                'src/PyXRootDFileSystem.cc', 'src/Utils.cc'],
                depends      = ['src/PyXRootD.hh', 'src/PyXRootDClient.hh', 
@@ -31,6 +31,7 @@ setup( name             = 'pyxrootd',
                                'src/PyXRootDDocumentation.hh'],
                libraries    = ['XrdCl', 'XrdUtils', 'dl'],
                extra_compile_args = ['-g', '-O0', # for debugging
+                                     '-Wno-unused-variable', # REMOVE ME
                                      '-Wno-deprecated',
                                      '-Wno-shorten-64-to-32', 
                                      '-Wno-write-strings'],
@@ -41,4 +42,4 @@ setup( name             = 'pyxrootd',
        )
 
 # Make the docs
-call(["make", "-C", "docs", "html"])
+# call(["make", "-C", "docs", "html"])

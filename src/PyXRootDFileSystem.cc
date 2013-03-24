@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "PyXRootD.hh"
-#include "PyXRootDClient.hh"
+#include "PyXRootDFileSystem.hh"
 #include "AsyncResponseHandler.hh"
 #include "Utils.hh"
 
@@ -28,7 +28,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Locate a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Locate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Locate( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
     const  char            *path;
@@ -40,29 +40,26 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:locate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Locate( path, flags, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->Locate( path, flags, response, timeout );
       pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
   //! Locate a file, recursively locate all disk servers
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::DeepLocate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::DeepLocate( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
     const  char            *path;
@@ -96,7 +93,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Move a directory or a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Mv( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Mv( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "source", "dest", "timeout", "callback", NULL };
     const  char *source;
@@ -128,7 +125,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Obtain server information
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Query( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Query( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "querycode", "arg", "timeout", "callback", NULL };
     const  char *arg;
@@ -165,7 +162,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Truncate a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Truncate( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Truncate( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "size", "timeout", "callback", NULL };
     const  char *path;
@@ -197,7 +194,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Remove a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Rm( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Rm( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char *path;
@@ -228,7 +225,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Create a directory
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::MkDir( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::MkDir( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "mode", "timeout", "callback",
                               NULL };
@@ -262,7 +259,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Remove a directory
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::RmDir( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::RmDir( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "timeout", "callback",
                               NULL };
@@ -294,7 +291,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Change access mode on a directory or a file
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::ChMod( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::ChMod( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "mode", "timeout", "callback",
                               NULL };
@@ -327,7 +324,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Check if the server is alive
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Ping( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Ping( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "timeout", "callback", NULL };
     uint16_t     timeout  = 5;
@@ -357,7 +354,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Obtain status information for a path
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Stat( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Stat( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char *path;
@@ -390,7 +387,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Obtain status information for a Virtual File System
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::StatVFS( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::StatVFS( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char *path;
@@ -423,7 +420,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Obtain server protocol information
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Protocol( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Protocol( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "timeout", "callback", NULL };
     uint16_t     timeout  = 5;
@@ -455,7 +452,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! List entries of a directory
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::DirList( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::DirList( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "path", "flags", "timeout", "callback", NULL };
     const  char               *path;
@@ -490,7 +487,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Send info to the server (up to 1024 characters)
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::SendInfo( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::SendInfo( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "info", "timeout", "callback", NULL };
     const  char *info;
@@ -523,7 +520,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Prepare one or more files for access
   //----------------------------------------------------------------------------
-  PyObject* FileSystem::Prepare( Client *self, PyObject *args, PyObject *kwds )
+  PyObject* FileSystem::Prepare( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[] = { "files", "flags", "priority", "timeout",
                               "callback", NULL };
