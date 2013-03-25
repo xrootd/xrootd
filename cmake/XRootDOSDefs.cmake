@@ -12,6 +12,14 @@ add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=6
 set( LIBRARY_PATH_PREFIX "lib" )
 
 #-------------------------------------------------------------------------------
+# GCC
+#-------------------------------------------------------------------------------
+if( CMAKE_COMPILER_IS_GNUCXX )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Werror" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter" )
+endif()
+
+#-------------------------------------------------------------------------------
 # Linux
 #-------------------------------------------------------------------------------
 if( ${CMAKE_SYSTEM_NAME} STREQUAL "Linux" )
