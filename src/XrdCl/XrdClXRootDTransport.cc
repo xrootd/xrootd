@@ -135,13 +135,10 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Read a message
+  // Read message header
   //----------------------------------------------------------------------------
-  Status XRootDTransport::GetMessage( Message *message, Socket *socket )
+  Status XRootDTransport::GetHeader( Message *message, int socket )
   {
-    int      sock         = socket->GetFD();
-    uint32_t leftToBeRead = 0;
-
     //--------------------------------------------------------------------------
     // A new message - allocate the space needed for the header
     //--------------------------------------------------------------------------
@@ -153,10 +150,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( message->GetCursor() < 8 )
     {
-      leftToBeRead = 8-message->GetCursor();
+      uint32_t leftToBeRead = 8-message->GetCursor();
       while( leftToBeRead )
       {
-        int status = ::read( sock, message->GetBufferAtCursor(), leftToBeRead );
+        int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
         if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
           return Status( stOK, suRetry );
 
@@ -167,18 +164,29 @@ namespace XrdCl
         message->AdvanceCursor( status );
       }
       UnMarshallHeader( message );
-      message->ReAllocate( *(uint32_t*)(message->GetBuffer(4)) + 8 );
+      return Status( stOK, suDone );
     }
+    return Status( stError, errInternal );
+  }
 
+  //----------------------------------------------------------------------------
+  // Read message body
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::GetBody( Message *message, int socket )
+  {
     //--------------------------------------------------------------------------
     // Retrieve the body
     //--------------------------------------------------------------------------
+    uint32_t leftToBeRead = 0;
     uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
-    leftToBeRead      = bodySize-(message->GetCursor()-8);
 
+    if( message->GetCursor() == 8 )
+      message->ReAllocate( bodySize + 8 );
+
+    leftToBeRead = bodySize-(message->GetCursor()-8);
     while( leftToBeRead )
     {
-      int status = ::read( sock, message->GetBufferAtCursor(), leftToBeRead );
+      int status = ::read( socket, message->GetBufferAtCursor(), leftToBeRead );
       if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
         return Status( stOK, suRetry );
 
@@ -188,15 +196,7 @@ namespace XrdCl
       leftToBeRead -= status;
       message->AdvanceCursor( status );
     }
-
-    Log *log = DefaultEnv::GetLog();
-    ServerResponse *rsp = (ServerResponse *)message->GetBuffer();
-    log->Dump( XRootDTransportMsg,
-               "%s Read message 0x%x, size: %d, stream [%d, %d]",
-               socket->GetName().c_str(), message, message->GetSize(),
-               rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
-
-    return Status();
+    return Status( stOK, suDone );
   }
 
   //----------------------------------------------------------------------------
@@ -959,26 +959,12 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    //--------------------------------------------------------------------------
-    // Talking to dCache
-    //--------------------------------------------------------------------------
-    if( info->protocolVersion < 0x290 )
-    {
-      log->Debug( XRootDTransportMsg, "[%s] Talking to an old server (0x%x), "
-                  "probably dCache door, ignoring the response to "
-                  "kXR_protocol", hsData->streamName.c_str(),
-                  info->protocolVersion );
-      return Status( stOK, suContinue );
-    }
-
-    //--------------------------------------------------------------------------
-    // Handle the response
-    //--------------------------------------------------------------------------
     Status st = UnMarshallBody( hsData->in, kXR_protocol );
     if( !st.IsOK() )
       return st;
 
     ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
+
 
     if( rsp->hdr.status != kXR_ok )
     {
