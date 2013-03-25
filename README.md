@@ -30,7 +30,7 @@ To install system-wide (requires root privileges)::
 Post-installation
 -----------------
 
-If you installed `rootpy` into your home directory with the `--user` option
+If you installed `pyxrootd` into your home directory with the `--user` option
 above, add ``${HOME}/.local/bin`` to your ``${PATH}`` if it is not there
 already (put this in your .bashrc)::
 
