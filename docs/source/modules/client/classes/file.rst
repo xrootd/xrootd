@@ -48,69 +48,28 @@ You can also use the `with` statement on this file, like this::
     
     f.read()
     
-Method reference
-----------------
+Class Reference
+---------------
 
 .. module:: XRootD.client
 
 .. autoclass:: XRootD.client.File
-  
-  .. automethod:: open(url[, flags[, mode[, timeout[, callback]]]])
-  
-  .. automethod:: close([timeout[, callback]])
 
-    As of Python 2.5, you can avoid having to call this method explicitly if you
-    use the :keyword:`with` statement.  For example, the following code will
-    automatically close *f* when the :keyword:`with` block is exited::
-
-      from __future__ import with_statement # This isn't required in Python 2.6
-
-      with client.File() as f:
-        f.open("root://someserver//somefile")
-        for line in f:
-          print line,
-  
-  .. automethod:: stat([force[, timeout[, callback]]])
-  
-  .. automethod:: read([offset[, size[, timeout[, callback]]]])
-  
-  .. automethod:: readline([offset[, size]])
-  
-  .. automethod:: readlines([offset[, size]])
-  
-  .. automethod:: readchunks([offset[, blocksize]])
-  
-  .. automethod:: write(buffer[, offset[, size[, timeout[, callback]]]])
-  
-  .. automethod:: sync([timeout[, callback]])
-  
-  .. automethod:: truncate(size[, timeout[, callback]])
-  
-  .. automethod:: vector_read(chunks[, timeout[, callback]])
-  
-    +---------------------------------------------+
-    | The `vector read info` return dictionary    |
-    +==============+==============================+
-    | `chunks`     | List of chunks               |
-    |              |                              |
-    |              | +--------------------------+ |
-    |              | | `chunk` sub-dictionary   | |
-    |              | +==========+===============+ |
-    |              | | `buffer` | le buffer     | |
-    |              | +----------+---------------+ |
-    |              | | `length` | le length     | |
-    |              | +----------+---------------+ |
-    |              | | `offset` | le offset     | |
-    |              | +----------+---------------+ |
-    +--------------+------------------------------+
-    | `size`       | The size                     |
-    +--------------+------------------------------+
-  
-  .. automethod:: is_open()
-  
-  .. automethod:: enable_read_recovery(enable)
-  
-  .. automethod:: enable_write_recovery(enable)
-  
-  .. automethod:: get_data_server()
-  
+Methods
+*******
+ 
+.. automethod:: XRootD.client.File.open
+.. automethod:: XRootD.client.File.close
+.. automethod:: XRootD.client.File.stat
+.. automethod:: XRootD.client.File.read
+.. automethod:: XRootD.client.File.readline
+.. automethod:: XRootD.client.File.readlines
+.. automethod:: XRootD.client.File.readchunks
+.. automethod:: XRootD.client.File.write
+.. automethod:: XRootD.client.File.sync
+.. automethod:: XRootD.client.File.truncate
+.. automethod:: XRootD.client.File.vector_read
+.. automethod:: XRootD.client.File.is_open
+.. automethod:: XRootD.client.File.enable_read_recovery
+.. automethod:: XRootD.client.File.enable_write_recovery
+.. automethod:: XRootD.client.File.get_data_server

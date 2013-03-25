@@ -4,6 +4,9 @@
 
 `pyxrootd` is a set of simple but pythonic bindings for `XRootD`.
 
+.. warning::
+  This documentation is still under construction.
+
 Bug reporting and issue tracking: `the pyxrootd github issue tracker
 <http://github.com/jussy/pyxrootd/issues>`_
 
@@ -26,8 +29,10 @@ API Reference
 
    modules/client/classes/client
    modules/client/classes/file
+   modules/client/classes/handler
+   modules/client/classes/url
    modules/enums
-   modules/handlers
+
 
 
 Examples
