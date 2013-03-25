@@ -105,6 +105,7 @@ void *TestThreadFunc( void *arg )
   time_t expires = time(0)+1200;
   Message m;
   m.Allocate( sizeof( ClientPingRequest ) );
+  m.Zero();
   ClientPingRequest *request = (ClientPingRequest *)m.GetBuffer();
   request->streamid[0] = a->index;
   request->requestid   = kXR_ping;
@@ -122,13 +123,14 @@ void *TestThreadFunc( void *arg )
   //----------------------------------------------------------------------------
   for( int i = 0; i < 100; ++i )
   {
-    Message *m;
+    Message *m = 0;
     f.streamId[1] = i;
     CPPUNIT_ASSERT_XRDST( a->pm->Receive( host, m, &f, expires ) );
     ServerResponse *resp = (ServerResponse *)m->GetBuffer();
     CPPUNIT_ASSERT( resp != 0 );
     CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
     CPPUNIT_ASSERT( m->GetSize() == 8 );
+    delete m;
   }
   return 0;
 }
