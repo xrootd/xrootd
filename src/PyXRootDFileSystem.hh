@@ -21,7 +21,6 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDURL.hh"
-#include "PyXRootDDocumentation.hh"
 #include "Conversions.hh"
 
 #include "XrdCl/XrdClFileSystem.hh"
@@ -57,43 +56,45 @@ namespace PyXRootD
       XrdCl::FileSystem *filesystem;
   };
 
+  PyDoc_STRVAR(filesystem_type_doc, "FileSystem object (internal)");
+
   //----------------------------------------------------------------------------
   //! Visible method definitions
   //----------------------------------------------------------------------------
   static PyMethodDef FileSystemMethods[] =
     {
-      { "locate",     (PyCFunction) PyXRootD::FileSystem::Locate,
-          METH_KEYWORDS, filesystem_locate_doc},
-      { "deeplocate", (PyCFunction) PyXRootD::FileSystem::DeepLocate,
-          METH_KEYWORDS, filesystem_deeplocate_doc },
-      { "mv",         (PyCFunction) PyXRootD::FileSystem::Mv,
-          METH_KEYWORDS, filesystem_mv_doc },
-      { "query",      (PyCFunction) PyXRootD::FileSystem::Query,
-          METH_KEYWORDS, filesystem_query_doc },
-      { "truncate",   (PyCFunction) PyXRootD::FileSystem::Truncate,
-          METH_KEYWORDS, filesystem_truncate_doc },
-      { "rm",         (PyCFunction) PyXRootD::FileSystem::Rm,
-          METH_KEYWORDS, filesystem_rm_doc },
-      { "mkdir",      (PyCFunction) PyXRootD::FileSystem::MkDir,
-          METH_KEYWORDS, filesystem_mkdir_doc },
-      { "rmdir",      (PyCFunction) PyXRootD::FileSystem::RmDir,
-          METH_KEYWORDS, filesystem_rmdir_doc },
-      { "chmod",      (PyCFunction) PyXRootD::FileSystem::ChMod,
-          METH_KEYWORDS, filesystem_chmod_doc },
-      { "ping",       (PyCFunction) PyXRootD::FileSystem::Ping,
-          METH_KEYWORDS, filesystem_ping_doc },
-      { "stat",       (PyCFunction) PyXRootD::FileSystem::Stat,
-          METH_KEYWORDS, filesystem_stat_doc },
-      { "statvfs",    (PyCFunction) PyXRootD::FileSystem::StatVFS,
-          METH_KEYWORDS, filesystem_statvfs_doc },
-      { "protocol",   (PyCFunction) PyXRootD::FileSystem::Protocol,
-          METH_KEYWORDS, filesystem_protocol_doc },
-      { "dirlist",    (PyCFunction) PyXRootD::FileSystem::DirList,
-          METH_KEYWORDS, filesystem_dirlist_doc },
-      { "sendinfo",   (PyCFunction) PyXRootD::FileSystem::SendInfo,
-          METH_KEYWORDS, filesystem_sendinfo_doc },
-      { "prepare",    (PyCFunction) PyXRootD::FileSystem::Prepare,
-          METH_KEYWORDS, filesystem_prepare_doc },
+      { "locate",
+          (PyCFunction) PyXRootD::FileSystem::Locate,     METH_KEYWORDS, NULL },
+      { "deeplocate",
+          (PyCFunction) PyXRootD::FileSystem::DeepLocate, METH_KEYWORDS, NULL },
+      { "mv",
+          (PyCFunction) PyXRootD::FileSystem::Mv,         METH_KEYWORDS, NULL },
+      { "query",
+          (PyCFunction) PyXRootD::FileSystem::Query,      METH_KEYWORDS, NULL },
+      { "truncate",
+          (PyCFunction) PyXRootD::FileSystem::Truncate,   METH_KEYWORDS, NULL },
+      { "rm",
+          (PyCFunction) PyXRootD::FileSystem::Rm,         METH_KEYWORDS, NULL },
+      { "mkdir",
+          (PyCFunction) PyXRootD::FileSystem::MkDir,      METH_KEYWORDS, NULL },
+      { "rmdir",
+          (PyCFunction) PyXRootD::FileSystem::RmDir,      METH_KEYWORDS, NULL },
+      { "chmod",
+          (PyCFunction) PyXRootD::FileSystem::ChMod,      METH_KEYWORDS, NULL },
+      { "ping",
+          (PyCFunction) PyXRootD::FileSystem::Ping,       METH_KEYWORDS, NULL },
+      { "stat",
+          (PyCFunction) PyXRootD::FileSystem::Stat,       METH_KEYWORDS, NULL },
+      { "statvfs",
+          (PyCFunction) PyXRootD::FileSystem::StatVFS,    METH_KEYWORDS, NULL },
+      { "protocol",
+          (PyCFunction) PyXRootD::FileSystem::Protocol,   METH_KEYWORDS, NULL },
+      { "dirlist",
+          (PyCFunction) PyXRootD::FileSystem::DirList,    METH_KEYWORDS, NULL },
+      { "sendinfo",
+          (PyCFunction) PyXRootD::FileSystem::SendInfo,   METH_KEYWORDS, NULL },
+      { "prepare",
+          (PyCFunction) PyXRootD::FileSystem::Prepare,    METH_KEYWORDS, NULL },
       { NULL } /* Sentinel */
     };
 
@@ -142,10 +143,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyTypeObject FileSystemType =
     { PyObject_HEAD_INIT(NULL) 0,               /* ob_size */
-    "pyxrootd.FileSystem",                            /* tp_name */
-    sizeof(FileSystem),                             /* tp_basicsize */
+    "pyxrootd.FileSystem",                      /* tp_name */
+    sizeof(FileSystem),                         /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    (destructor) FileSystem_dealloc,                /* tp_dealloc */
+    (destructor) FileSystem_dealloc,            /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -161,22 +162,22 @@ namespace PyXRootD
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    filesystem_type_doc,                            /* tp_doc */
+    filesystem_type_doc,                        /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
-    FileSystemMethods,                              /* tp_methods */
-    FileSystemMembers,                              /* tp_members */
+    FileSystemMethods,                          /* tp_methods */
+    FileSystemMembers,                          /* tp_members */
     0,                                          /* tp_getset */
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
-    (initproc) FileSystem_init,                     /* tp_init */
+    (initproc) FileSystem_init,                 /* tp_init */
   };
 }
 

@@ -24,7 +24,8 @@ namespace PyXRootD
   bool IsCallable( PyObject *callable )
   {
     if ( !PyCallable_Check( callable ) ) {
-      PyErr_SetString( PyExc_TypeError, "parameter must be callable" );
+      PyErr_SetString( PyExc_TypeError, "callback must be callable function, \
+                                         class or lambda" );
       return NULL;
     }
     // We need to keep this callback

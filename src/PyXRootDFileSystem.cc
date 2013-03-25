@@ -71,23 +71,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:deeplocate", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::LocationInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->DeepLocate( path, flags, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->DeepLocate( path, flags, response, timeout );
       pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -105,21 +102,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HO:mv", kwlist,
         &source, &dest, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Mv( source, dest, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->Mv( source, dest, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -140,23 +134,20 @@ namespace PyXRootD
 
     argbuffer.FromString(arg);
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Query( queryCode, argbuffer, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->Query( queryCode, argbuffer, response, timeout );
       pyresponse = ConvertResponse<XrdCl::Buffer>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -174,21 +165,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sk|HO:truncate", kwlist,
         &path, &size, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Truncate( path, size, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->Truncate( path, size, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -205,21 +193,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rm", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Rm( path, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->Rm( path, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -239,21 +224,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO:mkdir", kwlist,
         &path, &flags, &mode, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->MkDir( path, flags, mode, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->MkDir( path, flags, mode, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -271,21 +253,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:rmdir", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->RmDir( path, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->RmDir( path, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -304,21 +283,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "sH|HO:chmod", kwlist,
         &path, &mode, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->ChMod( path, mode, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->ChMod( path, mode, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -334,21 +310,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:ping", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Ping( handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->filesystem->Ping( timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -365,23 +338,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:stat", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Stat( path, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::StatInfo *response = 0;
       status = self->filesystem->Stat( path, response, timeout );
       pyresponse = ConvertResponse<XrdCl::StatInfo>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -398,23 +368,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:statvfs", kwlist,
         &path, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfoVFS>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->StatVFS( path, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::StatInfoVFS *response = 0;
       status = self->filesystem->StatVFS( path, response, timeout );
       pyresponse = ConvertResponse<XrdCl::StatInfoVFS>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -430,23 +397,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:protocol", kwlist,
          &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ProtocolInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Protocol( handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::ProtocolInfo *response = 0;
       status = self->filesystem->Protocol( response, timeout );
       pyresponse = ConvertResponse<XrdCl::ProtocolInfo>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -464,24 +428,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bHO:dirlist", kwlist,
         &path, &flags, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::DirectoryList>( callback );
       if ( !handler ) return NULL;
-      // TODO: find out why DirListFlags cannot be passed asynchronously
       async( status = self->filesystem->DirList( path, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::DirectoryList *list;
       status = self->filesystem->DirList( path, flags, list, timeout );
       pyresponse = ConvertType<XrdCl::DirectoryList>( list );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -498,23 +458,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HO:sendinfo", kwlist,
         &info, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->SendInfo( info, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->SendInfo( info, response, timeout );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -550,22 +507,19 @@ namespace PyXRootD
       files.push_back( std::string( file ) );
     }
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->filesystem->Prepare( files, flags, priority, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->Prepare( files, flags, priority, response, timeout );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 }

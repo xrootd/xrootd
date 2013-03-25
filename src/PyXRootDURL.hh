@@ -16,203 +16,44 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef URLTYPE_HH_
-#define URLTYPE_HH_
+#ifndef PYXROOTD_URL_HH_
+#define PYXROOTD_URL_HH_
 
 #include "PyXRootD.hh"
 
 #include "XrdCl/XrdClURL.hh"
 
+namespace PyXRootD
+{
   //----------------------------------------------------------------------------
-  //! URL binding type definition
+  //! XrdCl::URL binding class
   //----------------------------------------------------------------------------
-  typedef struct
+  class URL
   {
+    public:
+      static PyObject* IsValid( URL *self );
+      static PyObject* GetHostId( URL *self, void *closure );
+      static PyObject* GetProtocol( URL *self, void *closure );
+      static int SetProtocol( URL *self, PyObject *protocol, void *closure );
+      static PyObject* GetUserName( URL *self, void *closure );
+      static int SetUserName( URL *self, PyObject *username, void *closure );
+      static PyObject* GetPassword( URL *self, void *closure );
+      static int SetPassword( URL *self, PyObject *password, void *closure );
+      static PyObject* GetHostName( URL *self, void *closure );
+      static int SetHostName( URL *self, PyObject *hostname, void *closure );
+      static PyObject* GetPort( URL *self, void *closure );
+      static int SetPort( URL *self, PyObject *port, void *closure );
+      static PyObject* GetPath( URL *self, void *closure );
+      static int SetPath( URL *self, PyObject *path, void *closure );
+      static PyObject* GetPathWithParams( URL *self, void *closure );
+      static PyObject* Clear( URL *self );
+
+    public:
       PyObject_HEAD
-      /* Type-specific fields */
       XrdCl::URL *url;
-  } URL;
+  };
 
-  //----------------------------------------------------------------------------
-  //! Is the url valid
-  //----------------------------------------------------------------------------
-  static PyObject* IsValid( URL *self )
-  {
-    return Py_BuildValue( "O", PyBool_FromLong( self->url->IsValid() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the host part of the URL (user:password\@host:port)
-  //----------------------------------------------------------------------------
-  static PyObject* GetHostId( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetHostId().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the protocol
-  //----------------------------------------------------------------------------
-  static PyObject* GetProtocol( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetProtocol().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set protocol
-  //----------------------------------------------------------------------------
-  static int SetProtocol( URL *self, PyObject *protocol, void *closure )
-  {
-    if ( !PyString_Check( protocol ) ) {
-      PyErr_SetString( PyExc_TypeError, "protocol must be string" );
-      return -1;
-    }
-
-    self->url->SetProtocol( std::string ( PyString_AsString( protocol ) ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the username
-  //----------------------------------------------------------------------------
-  static PyObject* GetUserName( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetUserName().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the username
-  //----------------------------------------------------------------------------
-  static int SetUserName( URL *self, PyObject *username, void *closure )
-  {
-    if ( !PyString_Check( username ) ) {
-      PyErr_SetString( PyExc_TypeError, "username must be string" );
-      return -1;
-    }
-
-    self->url->SetUserName( std::string( PyString_AsString( username ) ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the password
-  //----------------------------------------------------------------------------
-  static PyObject* GetPassword( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPassword().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the password
-  //----------------------------------------------------------------------------
-  static int SetPassword( URL *self, PyObject *password, void *closure )
-  {
-    if ( !PyString_Check( password ) ) {
-      PyErr_SetString( PyExc_TypeError, "password must be string" );
-      return -1;
-    }
-
-    self->url->SetPassword( std::string( PyString_AsString( password ) ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the name of the target host
-  //----------------------------------------------------------------------------
-  static PyObject* GetHostName( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetHostName().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the host name
-  //----------------------------------------------------------------------------
-  static int SetHostName( URL *self, PyObject *hostname, void *closure )
-  {
-    if ( !PyString_Check( hostname ) ) {
-      PyErr_SetString( PyExc_TypeError, "hostname must be string" );
-      return -1;
-    }
-
-    self->url->SetHostName( std::string( PyString_AsString( hostname ) ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the target port
-  //----------------------------------------------------------------------------
-  static PyObject* GetPort( URL *self, void *closure )
-  {
-    return Py_BuildValue( "i", self->url->GetPort() );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Is the url valid
-  //----------------------------------------------------------------------------
-  static int SetPort( URL *self, PyObject *port, void *closure )
-  {
-    if ( !PyInt_Check( port ) ) {
-      PyErr_SetString( PyExc_TypeError, "port must be int" );
-      return -1;
-    }
-
-    self->url->SetPort( PyInt_AsLong( port ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the path
-  //----------------------------------------------------------------------------
-  static PyObject* GetPath( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPath().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set the path
-  //----------------------------------------------------------------------------
-  static int SetPath( URL *self, PyObject *path, void *closure )
-  {
-    if ( !PyString_Check( path ) ) {
-      PyErr_SetString( PyExc_TypeError, "path must be string" );
-      return -1;
-    }
-
-    self->url->SetPath( std::string( PyString_AsString( path ) ) );
-    return 0;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the path with params
-  //----------------------------------------------------------------------------
-  static PyObject* GetPathWithParams( URL *self, void *closure )
-  {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPathWithParams().c_str() ) );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Clear the url
-  //----------------------------------------------------------------------------
-  static PyObject* Clear( URL *self )
-  {
-    self->url->Clear();
-    Py_RETURN_NONE ;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Deallocation function, called when object is deleted
-  //----------------------------------------------------------------------------
-  static void URL_dealloc( URL *self )
-  {
-    //delete self->url;
-    self->ob_type->tp_free( (PyObject*) self );
-  }
+  PyDoc_STRVAR(url_type_doc, "URL object (internal)");
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
@@ -226,6 +67,15 @@
 
     self->url = (XrdCl::URL*) PyCObject_AsVoidPtr( url );
     return 0;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Deallocation function, called when object is deleted
+  //----------------------------------------------------------------------------
+  static void URL_dealloc( URL *self )
+  {
+    //delete self->url;
+    self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
@@ -246,22 +96,18 @@
 
   static PyGetSetDef URLGetSet[] =
     {
-      { "hostid", (getter) GetHostId, NULL,
-        "the host part of the URL (user:password@host:port)", NULL },
-      { "protocol", (getter) GetProtocol, (setter) SetProtocol,
-        "the protocol", NULL },
-      { "username", (getter) GetUserName, (setter) SetUserName,
-        "the username", NULL },
-      { "password", (getter) GetPassword, (setter) SetPassword,
-        "the password", NULL },
-      { "hostname", (getter) GetHostName, (setter) SetHostName,
-        "the name of the target host", NULL },
-      { "port", (getter) GetPort, (setter) SetPort,
-        "the target port", NULL },
-      { "path", (getter) GetPath, (setter) SetPath,
-        "the path", NULL },
-      { "path_with_params", (getter) GetPathWithParams, NULL,
-        "the path with parameters", NULL },
+      { "hostid", (getter) URL::GetHostId, NULL, NULL, NULL },
+      { "protocol", (getter) URL::GetProtocol, (setter) URL::SetProtocol,
+         NULL, NULL },
+      { "username", (getter) URL::GetUserName, (setter) URL::SetUserName,
+         NULL, NULL },
+      { "password", (getter) URL::GetPassword, (setter) URL::SetPassword,
+         NULL, NULL },
+      { "hostname", (getter) URL::GetHostName, (setter) URL::SetHostName,
+         NULL, NULL },
+      { "port", (getter) URL::GetPort, (setter) URL::SetPort, NULL, NULL },
+      { "path", (getter) URL::GetPath, (setter) URL::SetPath, NULL, NULL },
+      { "path_with_params", (getter) URL::GetPathWithParams, NULL, NULL, NULL },
       { NULL } /* Sentinel */
     };
 
@@ -269,9 +115,9 @@
   //! Visible method definitions
   //----------------------------------------------------------------------------
   static PyMethodDef URLMethods[] = {
-    { "is_valid", (PyCFunction) IsValid, METH_NOARGS,
+    { "is_valid", (PyCFunction) URL::IsValid, METH_NOARGS,
         "Return the validity of the URL" },
-    { "clear", (PyCFunction) Clear, METH_NOARGS,
+    { "clear",    (PyCFunction) URL::Clear,   METH_NOARGS,
         "Clear the url" },
     { NULL } /* Sentinel */
   };
@@ -301,7 +147,7 @@
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    "URL object",                               /* tp_doc */
+    url_type_doc,                               /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
@@ -318,6 +164,6 @@
     0,                                          /* tp_dictoffset */
     (initproc) URL_init,                        /* tp_init */
   };
+}
 
-
-#endif /* URLTYPE_HH_ */
+#endif /* PYXROOTD_URL_HH_ */

@@ -44,21 +44,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
         &url, &flags, &mode, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Open( url, flags, mode, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->file->Open( url, flags, mode, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -74,21 +71,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Close( handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->file->Close( timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -107,23 +101,20 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Stat( force, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::StatInfo *response = 0;
       status = self->file->Stat( force, response, timeout );
       pyresponse = ConvertResponse<XrdCl::StatInfo>(response);
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -151,14 +142,15 @@ namespace PyXRootD
       if (info) delete info;
     }
 
-    buffer = new XrdCl::Buffer( size + 1 );
+    buffer = new XrdCl::Buffer( size );
     buffer->Zero();
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Read( offset, size, buffer->GetBuffer(),
                                         handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
@@ -166,13 +158,9 @@ namespace PyXRootD
       status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead,
                                  timeout );
       pyresponse = ConvertResponse<XrdCl::Buffer>(buffer);
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------
@@ -352,21 +340,18 @@ namespace PyXRootD
       size = strlen(buffer);
     }
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Write( offset, size, buffer, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->file->Write( offset, size, buffer, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -384,21 +369,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", kwlist,
         &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Sync( handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       status = self->file->Sync( timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -417,21 +399,18 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
         &size, &timeout, &callback ) ) return NULL;
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Truncate( size, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else { // async
       status = self->file->Truncate( size, timeout );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  Py_BuildValue("") );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, Py_BuildValue("") );
   }
 
   //----------------------------------------------------------------------------
@@ -471,23 +450,20 @@ namespace PyXRootD
       chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
     }
 
-    if ( callback ) { // async
+    if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::VectorReadInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
+      return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       XrdCl::VectorReadInfo *info = 0;
       status = self->file->VectorRead( chunks, 0, info, timeout );
       pyresponse = ConvertType<XrdCl::VectorReadInfo>( info );
+      return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
+                                  pyresponse );
     }
-
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
-    if ( !pystatus ) return NULL;
-    return (callback) ?
-            Py_BuildValue( "O", pystatus ) :
-            Py_BuildValue( "OO", pystatus, pyresponse );
   }
 
   //----------------------------------------------------------------------------

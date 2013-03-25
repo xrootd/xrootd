@@ -20,7 +20,6 @@
 #define PYXROOTDFILE_HH_
 
 #include "PyXRootD.hh"
-#include "PyXRootDDocumentation.hh"
 #include "Utils.hh"
 
 #include "XrdCl/XrdClFile.hh"
@@ -60,6 +59,8 @@ namespace PyXRootD
       std::string             *partial;
       std::deque<std::string> *surplus;
   };
+
+  PyDoc_STRVAR(file_type_doc, "File object (internal)");
 
   //----------------------------------------------------------------------------
   //! Set exception and return null if I/O op on closed file is attempted
@@ -151,40 +152,40 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef FileMethods[] =
   {
-    { "open",                  (PyCFunction) PyXRootD::File::Open,
-        METH_KEYWORDS, file_open_doc },
-    { "close",                 (PyCFunction) PyXRootD::File::Close,
-        METH_KEYWORDS, file_close_doc },
-    { "stat",                  (PyCFunction) PyXRootD::File::Stat,
-        METH_KEYWORDS, file_stat_doc },
-    { "read",                  (PyCFunction) PyXRootD::File::Read,
-        METH_KEYWORDS, file_read_doc },
-    { "readline",              (PyCFunction) PyXRootD::File::ReadLine,
-        METH_KEYWORDS, file_readline_doc },
-    { "readlines",             (PyCFunction) PyXRootD::File::ReadLines,
-        METH_KEYWORDS, file_readlines_doc },
-    { "readchunks",            (PyCFunction) PyXRootD::File::ReadChunks,
-        METH_KEYWORDS, file_readchunks_doc },
-    { "write",                 (PyCFunction) PyXRootD::File::Write,
-        METH_KEYWORDS, file_write_doc },
-    { "sync",                  (PyCFunction) PyXRootD::File::Sync,
-        METH_KEYWORDS, file_sync_doc },
-    { "truncate",              (PyCFunction) PyXRootD::File::Truncate,
-        METH_KEYWORDS, file_truncate_doc },
-    { "vector_read",           (PyCFunction) PyXRootD::File::VectorRead,
-        METH_KEYWORDS, file_vector_read_doc },
-    { "is_open",               (PyCFunction) PyXRootD::File::IsOpen,
-        METH_KEYWORDS, file_is_open_doc },
-    { "enable_read_recovery",  (PyCFunction) PyXRootD::File::EnableReadRecovery,
-        METH_KEYWORDS, file_enable_read_recovery_doc },
-    { "enable_write_recovery", (PyCFunction) PyXRootD::File::EnableWriteRecovery,
-        METH_KEYWORDS, file_enable_write_recovery_doc },
-    { "get_data_server",       (PyCFunction) PyXRootD::File::GetDataServer,
-        METH_KEYWORDS, file_get_data_server_doc },
-    {"__enter__",              (PyCFunction) File_enter,
-        METH_NOARGS, NULL},
-    {"__exit__",               (PyCFunction) File_exit,
-        METH_VARARGS, NULL},
+    { "open",
+       (PyCFunction) PyXRootD::File::Open,                METH_KEYWORDS, NULL },
+    { "close",
+       (PyCFunction) PyXRootD::File::Close,               METH_KEYWORDS, NULL },
+    { "stat",
+       (PyCFunction) PyXRootD::File::Stat,                METH_KEYWORDS, NULL },
+    { "read",
+       (PyCFunction) PyXRootD::File::Read,                METH_KEYWORDS, NULL },
+    { "readline",
+       (PyCFunction) PyXRootD::File::ReadLine,            METH_KEYWORDS, NULL },
+    { "readlines",
+       (PyCFunction) PyXRootD::File::ReadLines,           METH_KEYWORDS, NULL },
+    { "readchunks",
+       (PyCFunction) PyXRootD::File::ReadChunks,          METH_KEYWORDS, NULL },
+    { "write",
+       (PyCFunction) PyXRootD::File::Write,               METH_KEYWORDS, NULL },
+    { "sync",
+       (PyCFunction) PyXRootD::File::Sync,                METH_KEYWORDS, NULL },
+    { "truncate",
+       (PyCFunction) PyXRootD::File::Truncate,            METH_KEYWORDS, NULL },
+    { "vector_read",
+       (PyCFunction) PyXRootD::File::VectorRead,          METH_KEYWORDS, NULL },
+    { "is_open",
+       (PyCFunction) PyXRootD::File::IsOpen,              METH_KEYWORDS, NULL },
+    { "enable_read_recovery",
+       (PyCFunction) PyXRootD::File::EnableReadRecovery,  METH_KEYWORDS, NULL },
+    { "enable_write_recovery",
+       (PyCFunction) PyXRootD::File::EnableWriteRecovery, METH_KEYWORDS, NULL },
+    { "get_data_server",
+       (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS, NULL },
+    {"__enter__",
+       (PyCFunction) File_enter,                          METH_NOARGS, NULL},
+    {"__exit__",
+       (PyCFunction) File_exit,                           METH_VARARGS, NULL},
 
     { NULL } /* Sentinel */
   };
@@ -203,7 +204,7 @@ namespace PyXRootD
   static PyTypeObject FileType = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /* ob_size */
-    "pyxrootd.File",                              /* tp_name */
+    "pyxrootd.File",                            /* tp_name */
     sizeof(File),                               /* tp_basicsize */
     0,                                          /* tp_itemsize */
     (destructor) File_dealloc,                  /* tp_dealloc */

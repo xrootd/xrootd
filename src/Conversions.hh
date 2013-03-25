@@ -186,7 +186,7 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::Buffer *buffer )
       {
-        return Py_BuildValue( "s", buffer->GetBuffer() );
+        return Py_BuildValue( "s#", buffer->GetBuffer(), buffer->GetSize() );
       }
   };
 
