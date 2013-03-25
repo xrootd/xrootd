@@ -55,12 +55,14 @@ namespace
       virtual uint8_t Examine( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
-        {
-          pMsg = msg;
-          pSem->Post();
           return Take | RemoveHandler;
-        }
         return Ignore;
+      }
+
+      virtual void Process( XrdCl::Message *msg )
+      {
+        pMsg = msg;
+        pSem->Post();
       }
 
       //------------------------------------------------------------------------
