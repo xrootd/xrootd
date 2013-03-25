@@ -9,37 +9,43 @@ def test_deletion():
     u = client.Client("root://localhost").url
     del u
     
-    if sys.hexversion > 0x02050000:
+    if sys.hexversion > 0x03000000:
         pytest.raises(UnboundLocalError, 'assert u')
     else:
         pytest.raises(NameError, 'assert u')
 
 def test_getters():
     u = client.Client("root://user1:passwd1@host1:123//path?param1=val1&param2=val2").url
-    assert u.IsValid()
-    print u.GetHostId()
-    assert u.GetHostId() == 'user1@host1:123'
-    assert u.GetProtocol() == 'root'
-    assert u.GetUserName() == 'user1'
-    assert u.GetPassword() == 'passwd1'
-    assert u.GetHostName() == 'host1'
-    assert u.GetPort() == 123
-    assert u.GetPath() == '/path'
-    assert u.GetPathWithParams() == '/path?param1=val1&param2=val2'
+    assert u.is_valid()
+    assert u.hostid == 'user1@host1:123'
+    assert u.protocol == 'root'
+    assert u.username == 'user1'
+    assert u.password == 'passwd1'
+    assert u.hostname == 'host1'
+    assert u.port == 123
+    assert u.path == '/path'
+    assert u.path_with_params == '/path?param1=val1&param2=val2'
 
 def test_setters():
     u = client.Client('root://localhost').url
-    u.SetProtocol('root')
-    assert u.GetProtocol() == 'root'
-    u.SetUserName('user1')
-    assert u.GetUserName() == 'user1'
-    u.SetPassword('passwd1')
-    assert u.GetPassword() == 'passwd1'
-    u.SetHostName('host1')
-    assert u.GetHostName() == 'host1'
-    u.SetPort(123)
-    assert u.GetPort() == 123
-    u.SetPath('/path')
-    assert u.GetPath() == '/path'
-    u.Clear()
+    print u
+    u.protocol = 'root'
+    print u
+    assert u.protocol == 'root'
+    u.username = 'user1'
+    print u
+    assert u.username == 'user1'
+    u.password = 'passwd1'
+    print u
+    assert u.password == 'passwd1'
+    u.hostname = 'host1'
+    print u
+    assert u.hostname == 'host1'
+    u.port = 123
+    print u
+    assert u.port == 123
+    u.path = '/path'
+    print u
+    assert u.path == '/path'
+    u.clear()
     assert str(u) == ''

@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.handlers import AsyncResponseHandler
+from XRootD.client import AsyncResponseHandler
 from XRootD.enums    import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
                             DirListFlags, PrepareFlags
 import pytest
@@ -38,20 +38,21 @@ def test_filesystem():
 def sync(func, args, hasReturnObject):
     status, response = func(*args)
     print status
-    assert status['isOK']
+    assert status.ok
     if hasReturnObject:
         print response
         assert response
 
 def async(func, args, hasReturnObject):
-    handler = AsyncResponseHandler()
-    status = func(callback=handler, *args)
+    status = func(callback=callback, *args)
     print status
-    assert status['isOK']
-    status, response, hostList = handler.waitFor()
+    assert status.ok
+    #handler.waitFor()
     #assert 0
-    assert status['isOK']
-    if hasReturnObject:
+    
+def callback(status, response, hostlist):
+    assert status.ok
+    if response:
         print response
         assert response
     #assert hostList

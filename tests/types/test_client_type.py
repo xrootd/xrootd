@@ -9,7 +9,7 @@ def test_deletion():
     c = client.Client("root://localhost")
     del c
     
-    if sys.hexversion > 0x02050000:
+    if sys.hexversion > 0x03000000:
         pytest.raises(UnboundLocalError, 'assert c')
     else:
         pytest.raises(NameError, 'assert c')

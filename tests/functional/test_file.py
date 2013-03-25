@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.handlers import AsyncResponseHandler
+from XRootD.client import AsyncResponseHandler
 from XRootD.enums import OpenFlags
 
 import pytest
@@ -12,17 +12,16 @@ def test_write():
     pytest.raises(ValueError, "f.write(buffer)")
 
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.DELETE)
-    assert status['isOK']
+    assert status.ok
 
     status, response = f.write(buffer)
-    assert status['isOK']
+    assert status.ok
 
     status, response = f.read()
-    assert status['isOK']
+    assert status.ok
     assert len(response) == len(buffer)
 
-        # Test write offsets and sizes
-        
+    # Test write offsets and sizes
     f.close()
 
 def test_read():
@@ -30,14 +29,15 @@ def test_read():
     pytest.raises(ValueError, 'f.read()')
 
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
-    assert status['isOK']
+    assert status.ok
 
     status, response = f.read()
-    assert status['isOK']
+    assert status.ok
 
     assert response
     
     f.readline(offset=0, size=1024)
+    f.close()
     assert 0 # TODO add readline() params
 
     # Test read offsets and sizes
@@ -47,22 +47,21 @@ def test_vector_read():
     v = [(0, 100), (101, 200), (201, 200)]
     
     f = client.File()
-    pytest.raises(ValueError, 'f.vector_read()')
-        
+    pytest.raises(ValueError, 'f.vector_read(v)')
 
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
-    assert status['isOK']
+    assert status.ok
     status, response = f.vector_read(chunks=v)
-    assert status['isOK'] == False
+    assert status.ok == False
     assert not response
     f.close()
 
     f = client.File()
     status, response = f.open('root://localhost//tmp/xrootd.tgz', OpenFlags.READ)
     print status
-    assert status['isOK']
+    assert status.ok
     status, response = f.vector_read(chunks=v)
-    assert status['isOK']
+    assert status.ok
     assert response
     f.close()
 
@@ -73,11 +72,11 @@ def test_stat():
         
 
     status, response = f.open('root://localhost//tmp/spam')
-    assert status['isOK']
+    assert status.ok
 
     status, response = f.stat()
-    assert status['isOK']
-    assert response['size']
+    assert status.ok
+    assert response.size
     f.close()
 
 def test_sync():
@@ -86,23 +85,23 @@ def test_sync():
     pytest.raises(ValueError, 'f.sync()')
 
     status, response = f.open('root://localhost//tmp/spam')
-    assert status['isOK']
+    assert status.ok
     
     status, response = f.sync()
-    assert status['isOK']
+    assert status.ok
     f.close()
 
 def test_truncate():
     f = client.File()
 
-    pytest.raises(ValueError, 'f.truncate()')
-        
+    pytest.raises(ValueError, 'f.truncate(10000)')
+    
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.UPDATE)
-    assert status['isOK']
+    assert status.ok
 
-    status, response = f.truncate(size=10000) # TODO: Fix EINVAL
+    status, response = f.truncate(size=10000)
     print status
-    assert status['isOK']
+    assert status.ok
     f.close()
 
 def test_misc():
@@ -110,7 +109,7 @@ def test_misc():
     assert not f.is_open()
     
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
-    assert status['isOK']
+    assert status.ok
     assert f.is_open()
 
     pytest.raises(TypeError, "f.enable_read_recovery(enable='foo')")

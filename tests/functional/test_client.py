@@ -3,12 +3,12 @@ import pytest
 
 def test_valid_url():
     c = client.Client('root://localhost')
-    assert  c.url.IsValid()
+    assert  c.url.is_valid()
 
 def test_invalid_url():
     c = client.Client('root://')
     print c.url
-    assert c.url.IsValid() == False
+    assert c.url.is_valid() == False
 
 def test_args():
     c = client.Client(url='root://localhost')
