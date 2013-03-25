@@ -65,7 +65,7 @@ XrdNetMsg::XrdNetMsg(XrdSysError *erp, const char *dest)
   
 int XrdNetMsg::Send(const char *Buff, int Blen, const char *dest, int tmo)
 {
-   int retc, eCode, dL, doFree = 0;
+   int retc, dL, doFree = 0;
    struct sockaddr *dP;
 
    if (!Blen && !(Blen = strlen(Buff))) return  0;
@@ -84,7 +84,6 @@ int XrdNetMsg::Send(const char *Buff, int Blen, const char *dest, int tmo)
    do {retc = sendto(FD, (Sokdata_t)Buff, Blen, 0, dP, dL);}
        while (retc < 0 && errno == EINTR);
 
-   if (retc < 0) eCode = errno;
    if (doFree) free(dP);
    if (retc < 0) return retErr(errno, dest);
    return 0;

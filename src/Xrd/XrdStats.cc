@@ -111,7 +111,6 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
 {
    static XrdNetMsg *netDest[2] = {0,0};
    static int autoSync, repOpts = Opts;
-   XrdJob *jP;
    const char *Data;
           int theOpts, Dlen;
 
@@ -125,9 +124,9 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
        if (!(repOpts & XRD_STATS_ALL)) repOpts |= XRD_STATS_ALL;
        autoSync = repOpts & XRD_STATS_SYNCA;
 
-   // Get and schedule a new job to report (ignore the jP pointer afterwards)
+   // Get and schedule a new job to report
    //
-      if (netDest[0]) jP = (XrdJob *)new XrdStatsJob(XrdSched, this, iVal);
+      if (netDest[0]) new XrdStatsJob(XrdSched, this, iVal);
        return;
       }
 
