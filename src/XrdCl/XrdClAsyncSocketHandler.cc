@@ -43,7 +43,8 @@ namespace XrdCl
     pHandShakeData( 0 ),
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
-    pConnectionTimeout( 0 )
+    pConnectionTimeout( 0 ),
+    pHeaderDone( false )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -495,16 +496,33 @@ namespace XrdCl
   Status AsyncSocketHandler::ReadMessage()
   {
     if( !pIncoming )
-      pIncoming = new Message();
+    {
+      pHeaderDone = false;
+      pIncoming   = new Message();
+    }
 
-    Status st = pTransport->GetMessage( pIncoming, pSocket );
+    Status  st;
+    Log    *log = DefaultEnv::GetLog();
+    if( !pHeaderDone )
+    {
+      st = pTransport->GetHeader( pIncoming, pSocket->GetFD() );
+      if( st.IsOK() && st.code == suDone )
+      {
+        log->Dump( AsyncSockMsg,
+                  "[%s] Received message header, size: %d",
+                  pStreamName.c_str(), pIncoming->GetCursor() );
+        pHeaderDone = true;
+      }
+      else
+        return st;
+    }
+
+    st = pTransport->GetBody( pIncoming, pSocket->GetFD() );
     if( st.IsOK() && st.code == suDone )
     {
-      Log *log = DefaultEnv::GetLog();
       log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
                  pStreamName.c_str(), pIncoming->GetSize() );
     }
-
     return st;
   }
 

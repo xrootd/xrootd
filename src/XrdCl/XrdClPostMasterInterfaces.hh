@@ -30,7 +30,6 @@ namespace XrdCl
 {
   class Channel;
   class Message;
-  class Socket;
   class URL;
 
   //----------------------------------------------------------------------------
@@ -229,19 +228,30 @@ namespace XrdCl
       virtual ~TransportHandler() {}
 
       //------------------------------------------------------------------------
-      //! Read a message from the socket, the socket is non blocking, so if
-      //! there is not enough data the function should retutn errRetry in which
-      //! case it will be called again when more data arrives with the data
-      //! previousely read stored in the message buffer
+      //! Read a message header from the socket, the socket is non-blocking,
+      //! so if there is not enough data the function should retutn errRetry
+      //! in which case it will be called again when more data arrives, with
+      //! the data previousely read stored in the message buffer
       //!
-      //! @param message the message
+      //! @param message the message buffer
       //! @param socket  the socket
-      //! @return        stOK if the message has been processed properly,
-      //!                stError & errRetry when the method needs to be called
-      //!                again to finish reading the message
-      //!                stError on faiure
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
       //------------------------------------------------------------------------
-      virtual Status GetMessage( Message *message, Socket *socket ) = 0;
+      virtual Status GetHeader( Message *message, int socket ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Read the message body from the socket, the socket is non-blocking,
+      //! the method may be called multiple times - see GetHeader for details
+      //!
+      //! @param message the message buffer containing the header
+      //! @param socket  the socket
+      //! @return        stOK & suDone if the whole message has been processed
+      //!                stOK & suRetry if more data is needed
+      //!                stError on failure
+      //------------------------------------------------------------------------
+      virtual Status GetBody( Message *message, int socket ) = 0;
 
       //------------------------------------------------------------------------
       //! Initialize channel

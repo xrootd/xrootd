@@ -196,6 +196,7 @@ namespace XrdCl
       uint16_t                       pTimeoutResolution;
       time_t                         pConnectionStarted;
       time_t                         pConnectionTimeout;
+      bool                           pHeaderDone;
   };
 }
 
