@@ -30,6 +30,8 @@ API Reference
    modules/client/classes/client
    modules/client/classes/file
    modules/client/classes/handler
+   modules/client/classes/copyprocess
+   modules/client/classes/copyjob
    modules/client/classes/url
    modules/enums
 
