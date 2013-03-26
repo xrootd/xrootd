@@ -153,13 +153,13 @@ int main(int argc, char *argv[])
         {if (chkQ && !DirQ.Find(var)) {Config->noEcho(); continue;}
               if (inList(var, noSub))
                  {if (inList(var, slChk))
-                     while((var = Config->GetWord()) && *var != '/');
+                     while((var = Config->GetWord()) && *var != '/') {}
                   oldEnv = Config->SetEnv(0);
                   if (var) Config->GetRest(buff, sizeof(buff));
                   Config->SetEnv(oldEnv);
                  }
          else if (inList(var, ifChk))
-                 {while((var = Config->GetWord()) && strcmp(var, "if"));
+                 {while((var = Config->GetWord()) && strcmp(var, "if")) {}
                   if (var && !XrdOucUtils::doIf(&Say, *Config, "directive",
                                                 Host, Name, Xeq))
                      {Config->noEcho(); continue;}

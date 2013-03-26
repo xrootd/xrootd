@@ -162,7 +162,7 @@ XrdOfs::XrdOfs()
    *bp++ = ']'; *bp++ = ':';
    sprintf(bp, "%d", myPort);
    locResp = strdup(buff); locRlen = strlen(buff);
-   for (i = 0; HostName[i] && HostName[i] != '.'; i++);
+   for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
    HostName[i] = '\0';
    HostPref = strdup(HostName);
    HostName[i] = '.';

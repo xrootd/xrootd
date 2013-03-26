@@ -495,7 +495,7 @@ char *XrdOucStream::GetFirstWord(int lowcase)
       //
       if (xline) 
          {XrdOucEnv *oldEnv = SetEnv(0);
-          while(GetWord(lowcase));
+          while(GetWord(lowcase)) {}
           SetEnv(oldEnv);
          }
       return GetWord(lowcase);

@@ -865,7 +865,7 @@ int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
 //
    if (baseFD)
       {myMutex.Lock();
-       for (fd = freeFD; fd < baseFD && myFiles[fd]; fd++);
+       for (fd = freeFD; fd < baseFD && myFiles[fd]; fd++) {}
        if (fd >= baseFD || oflags & isStream) fd = lastFD;
           else freeFD = fd+1;
        doclose = 0;

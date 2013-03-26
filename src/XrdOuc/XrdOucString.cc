@@ -950,7 +950,7 @@ void XrdOucString::hardreset()
 
    if (str) {
       volatile char *buf = 0;
-      for (buf = (volatile char *)str; len; buf[--len] = 0);
+      for (buf = (volatile char *)str; len; buf[--len] = 0) {}
       len = 0;
    }
    len = 0;

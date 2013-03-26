@@ -144,7 +144,7 @@ volatile void *XrdSutMemSet(volatile void *dst, int c, int len)
    // (see discussion there)
    volatile char *buf;
 
-   for (buf = (volatile char *)dst; len; buf[--len] = c);
+   for (buf = (volatile char *)dst; len; buf[--len] = c) {}
    return dst;
 }
 

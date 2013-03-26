@@ -127,7 +127,7 @@ int XrdCmsBaseFS::Exists(XrdCmsRRData &Arg, XrdCmsPInfo &Who, int noLim)
 // and then check if we even have this directory.
 //
    if (dmLife)
-      {for (fnPos=Arg.PathLen-2; fnPos >= 0 && Arg.Path[fnPos] != '/'; fnPos--);
+      {for (fnPos=Arg.PathLen-2;fnPos >= 0 && Arg.Path[fnPos] != '/';fnPos--) {}
        if (fnPos > 0 && !hasDir(Arg.Path, fnPos)) return -1;
       } else fnPos = 0;
 
@@ -157,7 +157,7 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 // if so requested.
 //
    if (fnPos < 0 && dmLife)
-      {for (fnPos = -(fnPos+1); fnPos >= 0 && Path[fnPos] != '/'; fnPos--);
+      {for (fnPos = -(fnPos+1); fnPos >= 0 && Path[fnPos] != '/'; fnPos--) {}
        if (fnPos > 0 && !hasDir(Path, fnPos)) return -1;
       }
 
