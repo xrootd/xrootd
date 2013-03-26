@@ -101,21 +101,14 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int FileSystem_init( FileSystem *self, PyObject *args, PyObject *kwds )
+  static int FileSystem_init( FileSystem *self, PyObject *args )
   {
-    const char *urlstr;
-    static char *kwlist[] = { "url", NULL };
-
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s", kwlist, &urlstr ) )
-      return -1;
-
-    XrdCl::URL *url = new XrdCl::URL( urlstr );
-    self->url = (URL *) ConvertType<XrdCl::URL>( url, &URLType );
+    self->url = (URL *) PyObject_CallObject( (PyObject*) &URLType, args );
 
     if ( !self->url )
-      return NULL;
+      return -1;
 
-    self->filesystem = new XrdCl::FileSystem( *url );
+    self->filesystem = new XrdCl::FileSystem( *self->url->url );
 
     return 0;
   }

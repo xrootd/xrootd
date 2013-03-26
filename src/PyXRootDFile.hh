@@ -194,9 +194,9 @@ namespace PyXRootD
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef FileMembers[] =
-    {
-      { NULL } /* Sentinel */
-    };
+  {
+    { NULL } /* Sentinel */
+  };
 
   //----------------------------------------------------------------------------
   //! File binding type object

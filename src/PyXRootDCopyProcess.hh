@@ -16,122 +16,80 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef PYXROOTD_URL_HH_
-#define PYXROOTD_URL_HH_
+#ifndef PYXROOTD_COPY_PROCESS_HH_
+#define PYXROOTD_COPY_PROCESS_HH_
 
 #include "PyXRootD.hh"
 
-#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 namespace PyXRootD
 {
-  //----------------------------------------------------------------------------
-  //! XrdCl::URL binding class
-  //----------------------------------------------------------------------------
-  class URL
+  class CopyProcess
   {
     public:
-      static PyObject* IsValid( URL *self );
-      static PyObject* GetHostId( URL *self, void *closure );
-      static PyObject* GetProtocol( URL *self, void *closure );
-      static int SetProtocol( URL *self, PyObject *protocol, void *closure );
-      static PyObject* GetUserName( URL *self, void *closure );
-      static int SetUserName( URL *self, PyObject *username, void *closure );
-      static PyObject* GetPassword( URL *self, void *closure );
-      static int SetPassword( URL *self, PyObject *password, void *closure );
-      static PyObject* GetHostName( URL *self, void *closure );
-      static int SetHostName( URL *self, PyObject *hostname, void *closure );
-      static PyObject* GetPort( URL *self, void *closure );
-      static int SetPort( URL *self, PyObject *port, void *closure );
-      static PyObject* GetPath( URL *self, void *closure );
-      static int SetPath( URL *self, PyObject *path, void *closure );
-      static PyObject* GetPathWithParams( URL *self, void *closure );
-      static PyObject* Clear( URL *self );
+      static PyObject* AddJob(CopyProcess *self, PyObject *args, PyObject *kwds);
+      static PyObject* Prepare(CopyProcess *self, PyObject *args, PyObject *kwds);
+      static PyObject* Run(CopyProcess *self, PyObject *args, PyObject *kwds);
 
     public:
       PyObject_HEAD
-      XrdCl::URL *url;
+      XrdCl::CopyProcess *process;
   };
 
-  PyDoc_STRVAR(url_type_doc, "URL object (internal)");
+  PyDoc_STRVAR(copyprocess_type_doc, "CopyProcess object (internal)");
 
   //----------------------------------------------------------------------------
   //! __init__() equivalent
   //----------------------------------------------------------------------------
-  static int URL_init( URL *self, PyObject *args )
+  static int CopyProcess_init( CopyProcess *self, PyObject *args )
   {
-    const char *url;
-
-    if ( !PyArg_ParseTuple( args, "s", &url ) )
-      return -1;
-
-    self->url = new XrdCl::URL( url );
+    self->process = new XrdCl::CopyProcess();
     return 0;
   }
 
   //----------------------------------------------------------------------------
   //! Deallocation function, called when object is deleted
   //----------------------------------------------------------------------------
-  static void URL_dealloc( URL *self )
+  static void CopyProcess_dealloc( CopyProcess *self )
   {
-    delete self->url;
+    delete self->process;
     self->ob_type->tp_free( (PyObject*) self );
   }
 
   //----------------------------------------------------------------------------
-  //! __str__() equivalent
-  //----------------------------------------------------------------------------
-  static PyObject* URL_str( URL *self )
-  {
-    return PyUnicode_FromString( self->url->GetURL().c_str() );
-  }
-
-  //----------------------------------------------------------------------------
-  //! Visible member definitions
-  //----------------------------------------------------------------------------
-  static PyMemberDef URLMembers[] =
-    {
-      { NULL } /* Sentinel */
-    };
-
-  static PyGetSetDef URLGetSet[] =
-    {
-      { "hostid", (getter) URL::GetHostId, NULL, NULL, NULL },
-      { "protocol", (getter) URL::GetProtocol, (setter) URL::SetProtocol,
-         NULL, NULL },
-      { "username", (getter) URL::GetUserName, (setter) URL::SetUserName,
-         NULL, NULL },
-      { "password", (getter) URL::GetPassword, (setter) URL::SetPassword,
-         NULL, NULL },
-      { "hostname", (getter) URL::GetHostName, (setter) URL::SetHostName,
-         NULL, NULL },
-      { "port", (getter) URL::GetPort, (setter) URL::SetPort, NULL, NULL },
-      { "path", (getter) URL::GetPath, (setter) URL::SetPath, NULL, NULL },
-      { "path_with_params", (getter) URL::GetPathWithParams, NULL, NULL, NULL },
-      { NULL } /* Sentinel */
-    };
-
-  //----------------------------------------------------------------------------
   //! Visible method definitions
   //----------------------------------------------------------------------------
-  static PyMethodDef URLMethods[] = {
-    { "is_valid", (PyCFunction) URL::IsValid, METH_NOARGS,
-        "Return the validity of the URL" },
-    { "clear",    (PyCFunction) URL::Clear,   METH_NOARGS,
-        "Clear the url" },
+  static PyMethodDef CopyProcessMethods[] =
+  {
+    { "add_job",
+       (PyCFunction) PyXRootD::CopyProcess::AddJob,  METH_KEYWORDS, NULL },
+    { "prepare",
+       (PyCFunction) PyXRootD::CopyProcess::Prepare, METH_KEYWORDS, NULL },
+    { "run",
+       (PyCFunction) PyXRootD::CopyProcess::Run,     METH_KEYWORDS, NULL },
+
     { NULL } /* Sentinel */
   };
 
   //----------------------------------------------------------------------------
-  //! URL binding type object
+  //! Visible member definitions
   //----------------------------------------------------------------------------
-  static PyTypeObject URLType = {
+  static PyMemberDef CopyProcessMembers[] =
+  {
+    { NULL } /* Sentinel */
+  };
+
+  //----------------------------------------------------------------------------
+  //! CopyProcess binding type object
+  //----------------------------------------------------------------------------
+  static PyTypeObject CopyProcessType = {
     PyObject_HEAD_INIT(NULL)
     0,                                          /* ob_size */
-    "pyxrootd.URL",                             /* tp_name */
-    sizeof(URL),                                /* tp_basicsize */
+    "pyxrootd.CopyProcess",                     /* tp_name */
+    sizeof(CopyProcess),                        /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    (destructor) URL_dealloc,                   /* tp_dealloc */
+    (destructor) CopyProcess_dealloc,           /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */
@@ -142,28 +100,28 @@ namespace PyXRootD
     0,                                          /* tp_as_mapping */
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
-    (reprfunc) URL_str,                         /* tp_str */
+    0,                                          /* tp_str */
     0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    url_type_doc,                               /* tp_doc */
+    copyprocess_type_doc,                       /* tp_doc */
     0,                                          /* tp_traverse */
     0,                                          /* tp_clear */
     0,                                          /* tp_richcompare */
     0,                                          /* tp_weaklistoffset */
     0,                                          /* tp_iter */
     0,                                          /* tp_iternext */
-    URLMethods,                                 /* tp_methods */
-    URLMembers,                                 /* tp_members */
-    URLGetSet,                                  /* tp_getset */
+    CopyProcessMethods,                         /* tp_methods */
+    CopyProcessMembers,                         /* tp_members */
+    0,                                          /* tp_getset */
     0,                                          /* tp_base */
     0,                                          /* tp_dict */
     0,                                          /* tp_descr_get */
     0,                                          /* tp_descr_set */
     0,                                          /* tp_dictoffset */
-    (initproc) URL_init,                        /* tp_init */
+    (initproc) CopyProcess_init,                /* tp_init */
   };
 }
 
-#endif /* PYXROOTD_URL_HH_ */
+#endif /* PYXROOTD_COPY_PROCESS_HH_ */
