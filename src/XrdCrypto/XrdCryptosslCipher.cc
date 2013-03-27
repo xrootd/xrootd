@@ -536,7 +536,7 @@ void XrdCryptosslCipher::Cleanup()
 }
 
 //____________________________________________________________________________
-bool XrdCryptosslCipher::Finalize(char *pub, int lpub, const char *t)
+bool XrdCryptosslCipher::Finalize(char *pub, int /*lpub*/, const char *t)
 {
    // Finalize cipher during key agreement. Should be called
    // for a cipher build with special constructor defining member fDH.
@@ -561,7 +561,7 @@ bool XrdCryptosslCipher::Finalize(char *pub, int lpub, const char *t)
       char *pb = strstr(pub,"---BPUB---");
       char *pe = strstr(pub,"---EPUB--");
       if (pb && pe) {
-         lpub = (int)(pb-pub);
+         //lpub = (int)(pb-pub);
          pb += 10;
          *pe = 0;
          BN_hex2bn(&bnpub, pb);

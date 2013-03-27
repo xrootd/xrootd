@@ -1670,7 +1670,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
    XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
    long len;
    int tag, xclass, ret = 0;
-   int nl,hl,j,r;
+   int /*nl,*/ hl,j,r;
    ASN1_OBJECT *o = 0;
    ASN1_OCTET_STRING *os = 0;
 
@@ -1720,7 +1720,7 @@ int XrdSslgsiX509FillVOMS(XRDGSI_CONST unsigned char **pp,
             }
          }
       } else {
-         nl = 0;
+         // nl = 0;
          if (tag == V_ASN1_OBJECT) {
             opp = op;
             if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {
