@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add new class to quickly generate stream ID's.
    * Define a new plug-in to allow replacement of the stat() function when
      used to determine exported file characteristics. This plug-in is meant
      to be used by tape-backed file systems that identify offline files in
