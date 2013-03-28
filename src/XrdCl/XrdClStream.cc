@@ -36,7 +36,7 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  // Message helper
+  // Outgoing message helper
   //----------------------------------------------------------------------------
   struct OutMessageHelper
   {
@@ -56,6 +56,26 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  // Incoming message helper
+  //----------------------------------------------------------------------------
+  struct InMessageHelper
+  {
+    InMessageHelper( Message              *message = 0,
+                     IncomingMsgHandler   *hndlr   = 0,
+                     time_t                expir   = 0,
+                     uint8_t               actio   = 0 ):
+      msg( message ), handler( hndlr ), expires( expir ), action( actio ) {}
+    void Reset()
+    {
+      msg = 0; handler = 0; expires = 0; action = 0;
+    }
+    Message              *msg;
+    IncomingMsgHandler   *handler;
+    time_t                expires;
+    uint8_t               action;
+  };
+
+  //----------------------------------------------------------------------------
   // Sub stream helper
   //----------------------------------------------------------------------------
   struct SubStreamData
@@ -71,7 +91,8 @@ namespace XrdCl
     }
     AsyncSocketHandler   *socket;
     OutQueue             *outQueue;
-    OutMessageHelper      msgHelper;
+    OutMessageHelper      outMsgHelper;
+    InMessageHelper       inMsgHelper;
     Socket::SocketStatus  status;
   };
 
@@ -90,7 +111,7 @@ namespace XrdCl
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
     pSessionId( 0 ),
-    pIncomingMsgJob(0),
+    pQueueIncMsgJob(0),
     pBytesSent( 0 ),
     pBytesReceived( 0 )
   {
@@ -132,7 +153,7 @@ namespace XrdCl
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       delete *it;
 
-    delete pIncomingMsgJob;
+    delete pQueueIncMsgJob;
   }
 
   //----------------------------------------------------------------------------
@@ -361,15 +382,41 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnIncoming( uint16_t /*subStream*/, Message *msg )
+  void Stream::OnIncoming( uint16_t subStream,
+                           Message  *msg,
+                           uint32_t  bytesReceived )
   {
     msg->SetSessionId( pSessionId );
-    pBytesReceived += msg->GetSize();
-    if( pTransport->Highjack( msg, *pChannelData ) )
-      return;
+    pBytesReceived += bytesReceived;
 
-    pJobManager->QueueJob( pIncomingMsgJob, msg );
-//    pIncomingQueue->AddMessage( msg );
+    //--------------------------------------------------------------------------
+    // No handler, we cache and see what comes later
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
+    if( !mh.handler )
+    {
+      log->Dump( PostMasterMsg, "[%s] Queuing received message.",
+                 pStreamName.c_str(), msg->GetDescription().c_str() );
+
+      if( pTransport->Highjack( msg, *pChannelData ) )
+        return;
+      pJobManager->QueueJob( pQueueIncMsgJob, msg );
+      return;
+    }
+
+    //--------------------------------------------------------------------------
+    // We have a handler, so we call the callback
+    //--------------------------------------------------------------------------
+    log->Dump( PostMasterMsg, "[%s] Handling received message.",
+               pStreamName.c_str(), msg->GetDescription().c_str() );
+    Job *job = new HandleIncMsgJob( mh.handler );
+
+    if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
+      pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
+
+    mh.Reset();
+    pJobManager->QueueJob( job, msg );
   }
 
   //----------------------------------------------------------------------------
@@ -388,7 +435,7 @@ namespace XrdCl
       return 0;
     }
 
-    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     h.msg = pSubStreams[subStream]->outQueue->PopMessage( h.handler,
                                                           h.expires,
                                                           h.stateful );
@@ -403,11 +450,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::OnMessageSent( uint16_t subStream, Message *msg )
   {
-    OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+    OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += h.msg->GetSize();
     if( h.handler )
       h.handler->OnStatusReady( msg, Status() );
-    pSubStreams[subStream]->msgHelper.Reset();
+    pSubStreams[subStream]->outMsgHelper.Reset();
   }
 
   //----------------------------------------------------------------------------
@@ -607,12 +654,22 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Reinsert the stuff that we have failed to sent
     //--------------------------------------------------------------------------
-    if( pSubStreams[subStream]->msgHelper.msg )
+    if( pSubStreams[subStream]->outMsgHelper.msg )
     {
-      OutMessageHelper &h = pSubStreams[subStream]->msgHelper;
+      OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
       pSubStreams[subStream]->outQueue->PushFront( h.msg, h.handler, h.expires,
                                                    h.stateful );
-      pSubStreams[subStream]->msgHelper.Reset();
+      pSubStreams[subStream]->outMsgHelper.Reset();
+    }
+
+    //--------------------------------------------------------------------------
+    // Reinsert the receiving handler
+    //--------------------------------------------------------------------------
+    if( pSubStreams[subStream]->inMsgHelper.handler )
+    {
+      InMessageHelper &h = pSubStreams[subStream]->inMsgHelper;
+      pIncomingQueue->ReAddMessageHandler( h.handler, h.expires );
+      h.Reset();
     }
 
     //--------------------------------------------------------------------------
@@ -747,20 +804,39 @@ namespace XrdCl
   {
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Register channel event handler
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Stream::RegisterEventHandler( ChannelEventHandler *handler )
   {
     pChannelEvHandlers.AddHandler( handler );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Remove a channel event handler
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   void Stream::RemoveEventHandler( ChannelEventHandler *handler )
   {
     pChannelEvHandlers.RemoveHandler( handler );
   }
 
+  //----------------------------------------------------------------------------
+  //! Get a raw message handler for given message header if such handler
+  //! has been registered
+  //----------------------------------------------------------------------------
+  IncomingMsgHandler *Stream::GetRawHandler( Message *msg, uint16_t stream )
+  {
+    InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
+    if( !mh.handler )
+      mh.handler = pIncomingQueue->GetHandlerForMessage( msg,
+                                                         mh.expires,
+                                                         mh.action );
+
+    if( !mh.handler )
+      return 0;
+
+    if( mh.action & IncomingMsgHandler::Raw )
+      return mh.handler;
+    return 0;
+  }
 }

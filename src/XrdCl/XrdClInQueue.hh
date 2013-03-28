@@ -36,7 +36,7 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Add a message to the queue
+      //! Add a fully reconstructed message to the queue
       //------------------------------------------------------------------------
       bool AddMessage( Message *msg );
 
@@ -47,6 +47,25 @@ namespace XrdCl
       //! @param expires time when the message handler expires
       //------------------------------------------------------------------------
       void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
+
+      //------------------------------------------------------------------------
+      //! Get a message handler inerested in receiving message whose header
+      //! is storead in msg
+      //!
+      //! @param msg     message header
+      //! @param expires handle's expiration timestamp
+      //! @param action  the action declared by the handler
+      //!
+      //! @return handler or 0 if none is interested
+      //------------------------------------------------------------------------
+      IncomingMsgHandler *GetHandlerForMessage( Message *msg,
+                                                time_t  &expires,
+                                                uint8_t &action );
+
+      //------------------------------------------------------------------------
+      //! Re-insert the handler without scanning the cached messages
+      //------------------------------------------------------------------------
+      void ReAddMessageHandler( IncomingMsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
       //! Remove a listener

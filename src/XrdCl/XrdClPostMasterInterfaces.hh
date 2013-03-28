@@ -60,8 +60,11 @@ namespace XrdCl
       {
         Take          = 0x01,     //!< Take ownership over the message
         Ignore        = 0x02,     //!< Ignore the message
-        RemoveHandler = 0x04      //!< Remove the handler from the notification
+        RemoveHandler = 0x04,     //!< Remove the handler from the notification
                                   //!< list
+        Raw           = 0x08      //!< the handler is interested in reding
+                                  //!< the message body directly from the
+                                  //!< socket
       };
 
       //------------------------------------------------------------------------
@@ -96,6 +99,24 @@ namespace XrdCl
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
       virtual void Process( Message *msg ) {};
+
+      //------------------------------------------------------------------------
+      //! Read message body directly from a socket - called if Examine returns
+      //! Raw flag - only socket related errors may be returned here
+      //!
+      //! @param msg       the corresponding message header
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data is needed
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status ReadMessageBody( Message  *msg,
+                                      int       socket,
+                                      uint32_t &bytesRead )
+      {
+        return Status( stOK, suDone );
+      };
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
