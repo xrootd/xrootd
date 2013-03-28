@@ -103,6 +103,7 @@ namespace XrdCl
       status = rsp->hdr.status;
     }
 
+    Log *log = DefaultEnv::GetLog();
     switch( status )
     {
       case kXR_ok:
@@ -112,8 +113,15 @@ namespace XrdCl
         return Take | RemoveHandler;
 
       case kXR_waitresp:
-      case kXR_oksofar:
         return Take;
+      case kXR_oksofar:
+      {
+        log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
+                   "%s", pUrl.GetHostId().c_str(),
+                   pRequest->GetDescription().c_str() );
+        pPartialResps.push_back( msg );
+        return Take;
+      }
       default:
         return Take | RemoveHandler;
     }
@@ -368,10 +376,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_oksofar:
       {
-        log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
-                   "%s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str() );
-        pPartialResps.push_back( msgPtr.release() );
+        // we do nothing here, we queued partials in examine to have them
+        // in the right order
+        msgPtr.release();
         return;
       }
 
