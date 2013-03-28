@@ -44,7 +44,8 @@ namespace XrdCl
     pHandShakeDone( false ),
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
-    pHeaderDone( false )
+    pHeaderDone( false ),
+    pRawIncHandler( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -404,18 +405,70 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::OnRead()
   {
-    Status st = ReadMessage();
-    if( !st.IsOK() )
+    //--------------------------------------------------------------------------
+    // There is no incoming message currently being processed so we create
+    // a new one
+    //--------------------------------------------------------------------------
+    if( !pIncoming )
     {
-      OnFault( st );
-      return;
+      pHeaderDone    = false;
+      pIncoming      = new Message();
+      pRawIncHandler = 0;
     }
 
-    if( st.code != suDone )
-      return;
+    Status  st;
+    Log    *log = DefaultEnv::GetLog();
 
-    pStream->OnIncoming( pSubStreamNum, pIncoming );
-    pIncoming = 0;
+    //--------------------------------------------------------------------------
+    // We need to read the header first
+    //--------------------------------------------------------------------------
+    if( !pHeaderDone )
+    {
+      st = pTransport->GetHeader( pIncoming, pSocket->GetFD() );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      log->Dump( AsyncSockMsg,
+                "[%s] Received message header, size: %d",
+                pStreamName.c_str(), pIncoming->GetCursor() );
+      pHeaderDone = true;
+      pRawIncHandler = pStream->GetRawHandler( pIncoming, pSubStreamNum );
+    }
+
+    //--------------------------------------------------------------------------
+    // We need to call a raw message handler to get the data from the socket
+    //--------------------------------------------------------------------------
+    if( pRawIncHandler )
+    {
+      // here goes the raw reading code
+    }
+    //--------------------------------------------------------------------------
+    // No raw handler, so we read the message to the buffer
+    //--------------------------------------------------------------------------
+    else
+    {
+      st = pTransport->GetBody( pIncoming, pSocket->GetFD() );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
+                 pStreamName.c_str(), pIncoming->GetSize() );
+
+      pStream->OnIncoming( pSubStreamNum, pIncoming, pIncoming->GetSize() );
+      pIncoming = 0;
+    }
   }
 
   //----------------------------------------------------------------------------

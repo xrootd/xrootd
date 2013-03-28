@@ -87,6 +87,52 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get a message handler inerested in receiving message whose header
+  // is storead in msg
+  //----------------------------------------------------------------------------
+  IncomingMsgHandler *InQueue::GetHandlerForMessage( Message *msg,
+                                                     time_t  &expires,
+                                                     uint8_t &action )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    HandlerList::iterator  it;
+    IncomingMsgHandler    *handler = 0;
+    time_t  exp = 0;
+    uint8_t act = 0;
+    for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
+    {
+      handler = it->first;
+      act     = handler->Examine( msg );
+      exp     = it->second;
+
+      if( act & IncomingMsgHandler::Take )
+      {
+        pHandlers.erase( it );
+        break;
+      }
+
+      handler = 0;
+    }
+
+    if( handler )
+    {
+      expires = exp;
+      action  = act;
+    }
+    return handler;
+  }
+
+  //----------------------------------------------------------------------------
+  // Re-insert the handler without scanning the cached messages
+  //----------------------------------------------------------------------------
+  void InQueue::ReAddMessageHandler( IncomingMsgHandler *handler,
+                                     time_t              expires )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+    pHandlers.push_front( HandlerAndExpire( handler, expires ) );
+  }
+
+  //----------------------------------------------------------------------------
   // Remove a listener
   //----------------------------------------------------------------------------
   void InQueue::RemoveMessageHandler( IncomingMsgHandler *handler )

@@ -102,9 +102,8 @@ namespace XrdCl
       void SetIncomingQueue( InQueue *incomingQueue )
       {
         pIncomingQueue = incomingQueue;
-        if( pIncomingMsgJob )
-          delete pIncomingMsgJob;
-        pIncomingMsgJob = new IncomingMsgJob( incomingQueue );
+        delete pQueueIncMsgJob;
+        pQueueIncMsgJob = new QueueIncMsgJob( incomingQueue );
       }
 
       //------------------------------------------------------------------------
@@ -181,7 +180,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed
       //------------------------------------------------------------------------
-      void OnIncoming( uint16_t subStream, Message *msg );
+      void OnIncoming( uint16_t  subStream,
+                       Message  *msg,
+                       uint32_t  bytesReceived );
 
       //------------------------------------------------------------------------
       // Call when one of the sockets is ready to accept a new message
@@ -228,16 +229,22 @@ namespace XrdCl
       //------------------------------------------------------------------------
       void RemoveEventHandler( ChannelEventHandler *handler );
 
+      //------------------------------------------------------------------------
+      //! Get a raw message handler for given message header if such handler
+      //! has been registered
+      //------------------------------------------------------------------------
+      IncomingMsgHandler *GetRawHandler( Message *msg, uint16_t stream );
+
     private:
 
       //----------------------------------------------------------------------------
-      // Job handling the incoming messages
+      // Job queuing the incoming messages
       //----------------------------------------------------------------------------
-      class IncomingMsgJob: public Job
+      class QueueIncMsgJob: public Job
       {
         public:
-          IncomingMsgJob( InQueue *queue ): pQueue( queue ) {};
-          virtual ~IncomingMsgJob() {};
+          QueueIncMsgJob( InQueue *queue ): pQueue( queue ) {};
+          virtual ~QueueIncMsgJob() {};
           virtual void Run( void *arg )
           {
             Message *msg = (Message *)arg;
@@ -245,6 +252,24 @@ namespace XrdCl
           }
         private:
           InQueue *pQueue;
+      };
+
+      //----------------------------------------------------------------------------
+      // Job handling the incoming messages
+      //----------------------------------------------------------------------------
+      class HandleIncMsgJob: public Job
+      {
+        public:
+          HandleIncMsgJob( IncomingMsgHandler *handler ): pHandler( handler ) {};
+          virtual ~HandleIncMsgJob() {};
+          virtual void Run( void *arg )
+          {
+            Message *msg = (Message *)arg;
+            pHandler->Process( msg );
+            delete this;
+          }
+        private:
+          IncomingMsgHandler *pHandler;
       };
 
       //------------------------------------------------------------------------
@@ -288,7 +313,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Jobs
       //------------------------------------------------------------------------
-      IncomingMsgJob                *pIncomingMsgJob;
+      QueueIncMsgJob                *pQueueIncMsgJob;
 
       //------------------------------------------------------------------------
       // Monitoring info
