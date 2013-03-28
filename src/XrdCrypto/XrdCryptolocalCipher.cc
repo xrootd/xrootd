@@ -241,6 +241,7 @@ XrdCryptolocalCipher::XrdCryptolocalCipher(int bits, char *pub,
 
 //____________________________________________________________________________
 XrdCryptolocalCipher::XrdCryptolocalCipher(const XrdCryptolocalCipher &c)
+                     : XrdCryptoCipher()
 {
    // Copy Constructor
 

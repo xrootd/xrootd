@@ -140,7 +140,7 @@ XrdCryptosslRSA::XrdCryptosslRSA(EVP_PKEY *key, bool check)
 
 
 //____________________________________________________________________________
-XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r)
+XrdCryptosslRSA::XrdCryptosslRSA(const XrdCryptosslRSA &r) : XrdCryptoRSA()
 {
    // Copy Constructor
    EPNAME("RSA::XrdCryptosslRSA_copy");

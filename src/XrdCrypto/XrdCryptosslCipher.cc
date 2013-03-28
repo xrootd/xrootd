@@ -469,6 +469,7 @@ XrdCryptosslCipher::XrdCryptosslCipher(int bits, char *pub,
 
 //____________________________________________________________________________
 XrdCryptosslCipher::XrdCryptosslCipher(const XrdCryptosslCipher &c)
+                   : XrdCryptoCipher()
 {
    // Copy Constructor
 
