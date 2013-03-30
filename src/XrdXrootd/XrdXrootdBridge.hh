@@ -423,6 +423,31 @@ virtual bool  Wait(Bridge::Context &info,   //!< the result context
                    ) {return false;}
 
 //-----------------------------------------------------------------------------
+//! Effect a client wait response (waitresp) NOT CURRENTLY IMPLEMENTED!
+//!
+//! The WaitResp() method is called when an operation ended with a wait for
+//! response (waitresp) condition. The wait for response condition indicates
+//! that the actual response will be delivered at a later time. You can use
+//! context object to determine the operation being delayed. This callback
+//! provides you the opportunity to say how the waitresp is to be handled.
+//!
+//! @param  info    the context associated with the result.
+//! @param  wtime   the number of seconds in which a response is expected.
+//! @param  wtext   a null terminated string describing the delay in human terms
+//!
+//! @return !0      pointer to the callback object whose appropriate method
+//!                 should be called when the actual response is generated.
+//! @return 0       the waitresp will be handled by the bridge application. The
+//!                 application is responsible for re-issuing the request when
+//!                 the final response is a wait.
+//-----------------------------------------------------------------------------
+virtual
+Bridge::Result *WaitResp(Bridge::Context &info,   //!< the result context
+                         int              wtime,  //!< the wait time
+                         const char      *wtext   //!< associated message
+                        ) {return 0;}
+
+//-----------------------------------------------------------------------------
 //! Constructor & Destructor
 //-----------------------------------------------------------------------------
 

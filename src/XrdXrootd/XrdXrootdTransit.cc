@@ -42,6 +42,8 @@
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdTransit.hh"
+#include "XrdXrootd/XrdXrootdTransPend.hh"
+#include "XrdXrootd/XrdXrootdTransSend.hh"
 
 /******************************************************************************/
 /*                        C l o b a l   S y m b o l s                         */
@@ -52,86 +54,6 @@ extern  XrdOucTrace *XrdXrootdTrace;
 #undef  TRACELINK
 #define TRACELINK Link
 
-/******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-/******************************************************************************/
-/*               X r d X r o o t d T r a n s i t C o n t e x t                */
-/******************************************************************************/
-  
-class XrdXrootdTransitContext : public XrdXrootd::Bridge::Context
-{
-public:
-
-        int   Send(const
-                   struct iovec *headP, //!< pointer to leading  data array
-                   int           headN, //!< array count
-                   const
-                   struct iovec *tailP, //!< pointer to trailing data array
-                   int           tailN  //!< array count
-                  );
-
-              XrdXrootdTransitContext(XrdLink *lP, kXR_char *sid, kXR_unt16 req,
-                                      long long offset, int dlen, int fdnum)
-                                     : Context(lP, sid, req),
-                                       sfOff(offset), sfLen(dlen), sfFD(fdnum)
-                                        {}
-             ~XrdXrootdTransitContext() {}
-
-private:
-
-long long sfOff;
-int       sfLen;
-int       sfFD;
-};
-
-/******************************************************************************/
-/*         X r d X r o o t d T r a n s i t C o n t e x t : : S e n d          */
-/******************************************************************************/
-
-int XrdXrootdTransitContext::Send(const struct iovec *headP, int headN,
-                                  const struct iovec *tailP, int tailN)
-{
-   XrdLink::sfVec *sfVec;
-   int i, k = 0, numV = headN + tailN + 1;
-
-// Allocate a new sfVec to accomodate all the items
-//
-   sfVec = new XrdLink::sfVec[numV];
-
-// Copy the headers
-//
-   if (headP) for (i = 0; i < headN; i++, k++)
-      {sfVec[k].buffer = (char *)headP[i].iov_base;
-       sfVec[k].sendsz = headP[i].iov_len;
-       sfVec[k].fdnum  = -1;
-      }
-
-// Insert the sendfile request
-//
-       sfVec[k].offset = sfOff;
-       sfVec[k].sendsz = sfLen;
-       sfVec[k].fdnum  = sfFD;
-
-// Copy the trailer
-//
-   k++;
-   if (tailP) for (i = 0; i < tailN; i++, k++)
-      {sfVec[k].buffer = (char *)tailP[i].iov_base;
-       sfVec[k].sendsz = tailP[i].iov_len;
-       sfVec[k].fdnum  = -1;
-      }
-
-// Issue sendfile request
-//
-   k = linkP->Send(sfVec, numV);
-
-// Deallocate the vector and return the result
-//
-   delete [] sfVec;
-   return (k < 0 ? -1 : 0);
-}
-  
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -162,6 +84,75 @@ XrdXrootdTransit *XrdXrootdTransit::Alloc(XrdXrootd::Bridge::Result *rsltP,
    return xp;
 }
 
+/******************************************************************************/
+/*                                  A t t n                                   */
+/******************************************************************************/
+  
+int XrdXrootdTransit::Attn(XrdLink *lP, short *theSID, int rcode,
+                           const struct iovec *ioV, int ioN, int ioL)
+{
+   XrdXrootdTransPend *tP;
+   const char *eMsg;
+   int         rc;
+
+// Find the request
+//
+   if (!(tP = XrdXrootdTransPend::Remove(lP, *theSID)))
+      {TRACE(REQ, "Unable to find request for " <<lP->ID <<" sid=" <<*theSID);
+       return 0;
+      }
+
+// Resume the request as we have been waiting for the response.
+//
+   return tP->bridge->AttnCont(tP, rcode, ioV, ioN, ioL);
+}
+
+/******************************************************************************/
+/*                              A t t n C o n t                               */
+/******************************************************************************/
+
+int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
+                               const struct iovec *ioV, int ioN, int ioL)
+{
+   int rc;
+
+// Refresh the request structure
+//
+   memcpy(&Request, &(tP->Pend.Request), sizeof(Request));
+   delete tP;
+   runWait = 0;
+
+// Reissue the request if it's a wait 0 response.
+//
+   if (rcode==kXR_wait
+   &&  (!ioN || *(static_cast<unsigned int *>(ioV[0].iov_base)) == 0))
+      {Sched->Schedule((XrdJob *)&waitJob);
+       return 0;
+      }
+
+// Send off the defered response
+//
+   rc = Send(rcode, ioV, ioN, ioL);
+
+// If no wait needed, enable the link. Otherwise, handle the wait (rare)
+//
+   if (rc >= 0)
+      {if (runDone && !runWait)
+          {AtomicBeg(runMutex);
+           AtomicFAZ(runStatus);
+           AtomicEnd(runMutex);
+           tP->link->Enable();
+          } else {
+           if (runWait >= 0)
+              Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+          }
+      }
+
+// All done
+//
+   return rc;
+}
+  
 /******************************************************************************/
 /*                                  D i s c                                   */
 /******************************************************************************/
@@ -269,9 +260,9 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
    uname[n] = 0;
    linkP->setID(uname, pID);
 
-// Indicate that this brige only supports synchronous responses
+// Indicate that this brige supports asynchronous responses
 //
-   CapVer = 0;
+   CapVer = kXR_asyncap | kXR_ver002;
 
 // Now tie the security information
 //
@@ -287,9 +278,14 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
           }
       }
 
+// Complete the request ID object
+//
+   ReqID.setID(Request.header.streamid, linkP->FDnum(), linkP->Inst());
+
 // Substitute our protocol for the existing one
 //
    realProt = linkP->setProtocol(this);
+   linkP->armBridge();
 
 // Document this login
 //
@@ -329,7 +325,8 @@ int XrdXrootdTransit::Process(XrdLink *lp)
       {rc = XrdXrootdProtocol::Process(lp);
        if (rc < 0) return rc;
        if (runWait)
-          {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+          {if (runWait >= 0)
+              Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
            return -EINPROGRESS;
           }
        if (!runDone) return rc;
@@ -350,7 +347,8 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
                 rc = (Resume ? XrdXrootdProtocol::Process(lp) : Process2());
                 if (rc >= 0)
                    {if (runWait)
-                       {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+                       {if (runWait >= 0)
+                           Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
                         return -EINPROGRESS;
                        }
                     if (!runDone) return rc;
@@ -369,7 +367,6 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
        AtomicFAZ(runStatus);
        AtomicEnd(runMutex);
       }
-
 
 // All done
 //
@@ -400,7 +397,7 @@ int XrdXrootdTransit::Process()
 // Defer the request if need be
 //
    if (rc >= 0 && runWait)
-      {Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
+      {if (runWait > 0) Sched->Schedule((XrdJob *)&waitJob, time(0)+runWait);
        return 0;
       }
    runWTot = 0;
@@ -441,7 +438,7 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 // Note that Recycle() can only be called if the link is enabled. So, this bit
 // of code is improbable but we check it anyway.
 //
-   if (runWait) Sched->Cancel(&waitJob);
+   if (runWait > 0) Sched->Cancel(&waitJob);
 
 // First we need to recycle the real protocol
 //
@@ -454,6 +451,10 @@ void XrdXrootdTransit::Recycle(XrdLink *lp, int consec, const char *reason)
 // Release the argument buffer
 //
    if (runArgs) {free(runArgs); runArgs = 0;}
+
+// Delete all pending requests
+//
+   XrdXrootdTransPend::Clear(this);
 
 // Now just free up our object.
 //
@@ -483,8 +484,8 @@ const char *XrdXrootdTransit::ReqTable()
    rTab[KXR_INDEX(kXR_prepare)]   = 1;
    rTab[KXR_INDEX(kXR_protocol)]  = 1;
    rTab[KXR_INDEX(kXR_query)]     = 1;
-   rTab[KXR_INDEX(kXR_read)]      = 1;
-   rTab[KXR_INDEX(kXR_readv)]     = 1;
+   rTab[KXR_INDEX(kXR_read)]      = 2;
+   rTab[KXR_INDEX(kXR_readv)]     = 2;
    rTab[KXR_INDEX(kXR_rm)]        = 1;
    rTab[KXR_INDEX(kXR_rmdir)]     = 1;
    rTab[KXR_INDEX(kXR_set)]       = 1;
@@ -492,7 +493,7 @@ const char *XrdXrootdTransit::ReqTable()
    rTab[KXR_INDEX(kXR_statx)]     = 1;
    rTab[KXR_INDEX(kXR_sync)]      = 1;
    rTab[KXR_INDEX(kXR_truncate)]  = 1;
-   rTab[KXR_INDEX(kXR_write)]     = 1;
+   rTab[KXR_INDEX(kXR_write)]     = 2;
 
 // Now return the address
 //
@@ -525,7 +526,7 @@ bool XrdXrootdTransit::ReqWrite(char *xdataP, int xdataL)
    Resume = &XrdXrootdProtocol::do_WriteSpan;
    return true;
 }
-
+  
 /******************************************************************************/
 /*                                   R u n                                    */
 /******************************************************************************/
@@ -631,6 +632,7 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
    const char *eMsg;
    int         rc;
    short       sID;
+   bool        aOK;
 
 // Invoke the result object (we initially assume this is the final result)
 //
@@ -640,45 +642,48 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
                    rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
                    eMsg = (ioN < 2 ? "" : (const char *)ioV[1].iov_base);
                    if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
-                   rc = respObj->Error(rInfo, rc, eMsg);
+                   aOK = respObj->Error(rInfo, rc, eMsg);
                    break;
           case kXR_ok:
-                   if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
-                   rc = (ioN ? respObj->Data(rInfo, ioV, ioN, ioL, true)
-                             : respObj->Done(rInfo));
+                   if (wBuff)  respObj->Free(rInfo, wBuff, wBLen);
+                   aOK = (ioN ? respObj->Data(rInfo, ioV, ioN, ioL, true)
+                              : respObj->Done(rInfo));
                    break;
           case kXR_oksofar:
-                   rc = respObj->Data(rInfo, ioV, ioN, ioL, false);
+                   aOK = respObj->Data(rInfo, ioV, ioN, ioL, false);
                    runDone = false;
                    break;
           case kXR_redirect:
                    if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
                    rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
-                   rc = respObj->Redir(rInfo,rc,(const char *)ioV[1].iov_base);
+                   aOK = respObj->Redir(rInfo,rc,(const char *)ioV[1].iov_base);
                    break;
           case kXR_wait:
                    return Wait(rInfo, ioV, ioN, ioL);
                    break;
+          case kXR_waitresp:
+                   return WaitResp(rInfo, ioV, ioN, ioL);
+                   break;
           default: if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
-                   rc = respObj->Error(rInfo, kXR_ServerError,
+                   aOK = respObj->Error(rInfo, kXR_ServerError,
                                        "internal logic error");
                    break;
          };
 
 // All done
 //
-   return (rc ? 0 : -1);
+   return (aOK ? 0 : -1);
 }
 
 /******************************************************************************/
 
 int XrdXrootdTransit::Send(long long offset, int dlen, int fdnum)
 {
-   XrdXrootdTransitContext sfInfo(Link, Request.header.streamid,
-                                        Request.header.requestid,
-                                        offset, dlen, fdnum);
+   XrdXrootdTransSend sfInfo(Link, Request.header.streamid,
+                                   Request.header.requestid,
+                                   offset, dlen, fdnum);
 
-// Effect callback (this always a final result)
+// Effect callback (this is always a final result)
 //
    runDone = true;
    return (respObj->File(sfInfo, dlen) ? 0 : -1);
@@ -725,5 +730,39 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
 // All done, the process driver will effect the wait
 //
    TRACEP(REQ, "Bridge delaying request " <<runWait <<" sec (" <<eMsg <<")");
+   return 0;
+}
+
+/******************************************************************************/
+/* Private:                     W a i t R e s p                               */
+/******************************************************************************/
+  
+int XrdXrootdTransit::WaitResp(XrdXrootd::Bridge::Context &rInfo,
+                               const struct iovec *ioV, int ioN, int ioL)
+{
+   XrdXrootdTransPend *trP;
+   const char *eMsg;
+   int wTime;
+
+// Trace this request if need be
+//
+   wTime = ntohl(*(static_cast<unsigned int *>(ioV[0].iov_base)));
+   eMsg = (ioN < 2 ? "reason unknown" : (const char *)ioV[1].iov_base);
+   TRACEP(REQ, "Bridge waiting for resp; sid=" <<rInfo.sID.num
+               <<" wt=" <<wTime <<" (" <<eMsg <<")");
+
+// We would issue callback to see how we should handle this. However, we can't
+// predictably handle a waitresp. So that means we will just wait for a resp.
+//
+// XrdXrootd::Bridge::Result *newCBP = respObj->WaitResp(rInfo, runWait, eMsg);
+
+// Save the current state
+//
+   trP = new XrdXrootdTransPend(Link, this, &Request);
+   trP->Queue();
+
+// Effect a wait
+//
+   runWait = -1;
    return 0;
 }

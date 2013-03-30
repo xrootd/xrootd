@@ -44,6 +44,7 @@
 //! The Bridge object implementation.
 //-----------------------------------------------------------------------------
 
+class  XrdXrootdTransPend;
 struct iovec;
 
 class XrdXrootdTransit : public XrdXrootd::Bridge, public XrdXrootdProtocol
@@ -61,6 +62,13 @@ XrdXrootdTransit *Alloc(XrdXrootd::Bridge::Result *respP,
                         const char                *nameP,
                         const char                *protP
                        );
+
+//-----------------------------------------------------------------------------
+//! Handle attention response (i.e. async response)
+//-----------------------------------------------------------------------------
+
+static int    Attn(XrdLink *lP, short *theSID, int rcode,
+                   const struct iovec  *ioVec,  int ioNum, int ioLen);
 
 //-----------------------------------------------------------------------------
 //! Handle dismantlement
@@ -112,19 +120,19 @@ bool          Run(const char *xreqP,       //!< xrootd request header
 //! Handle request data response.
 //-----------------------------------------------------------------------------
 
-        int   Send(int rcode, const struct iovec *ioVec, int ioNum, int ioLen);
+int           Send(int rcode, const struct iovec *ioVec, int ioNum, int ioLen);
 
 //-----------------------------------------------------------------------------
 //! Handle request sendfile response.
 //-----------------------------------------------------------------------------
 
-        int   Send(long long offset, int dlen, int fdnum);
+int           Send(long long offset, int dlen, int fdnum);
 
 //-----------------------------------------------------------------------------
 //! Set maximum wait time.
 //-----------------------------------------------------------------------------
 
-        void  SetWait(int wtime, bool notify=false)
+void          SetWait(int wtime, bool notify=false)
                      {runWMax = wtime; runWCall = notify;}
 
 //-----------------------------------------------------------------------------
@@ -135,6 +143,8 @@ bool          Run(const char *xreqP,       //!< xrootd request header
 virtual      ~XrdXrootdTransit() {}
 
 private:
+int   AttnCont(XrdXrootdTransPend *tP,  int rcode,
+               const struct iovec *ioV, int ioN, int ioL);
 bool  Fail(int ecode, const char *etext);
 int   Fatal(int rc);
 void  Init(Result     *rsltP, XrdLink    *linkP, XrdSecEntity *seceP,
@@ -144,6 +154,8 @@ bool  ReqWrite(char *xdataP, int xdataL);
 bool  RunCopy(char *buffP, int buffL);
 int   Wait(XrdXrootd::Bridge::Context &rInfo,
            const struct iovec *ioV, int ioN, int ioL);
+int   WaitResp(XrdXrootd::Bridge::Context &rInfo,
+               const struct iovec *ioV, int ioN, int ioL);
 
 class WaitReq : public XrdJob
      {public:

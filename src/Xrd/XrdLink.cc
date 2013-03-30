@@ -178,7 +178,7 @@ void XrdLink::Reset()
   isEnabled= 0;
   isIdle   = 0;
   inQ      = 0;
-  tBound   = 0;
+  isBridged= 0;
   BytesOut = BytesIn = BytesOutTot = BytesInTot = 0;
   doPost   = 0;
   LockReads= 0;
@@ -273,41 +273,6 @@ XrdLink *XrdLink::Alloc(XrdNetPeer &Peer, int opts)
    statsMutex.UnLock();
    return lp;
 }
-  
-/******************************************************************************/
-/*                                  B i n d                                   */
-/******************************************************************************/
-  
-void XrdLink::Bind(pthread_t tid)
-{
-
-// For bind operations, it's quite simple
-//
-   TID = tid; 
-   tBound = 1; 
-}
-
-/******************************************************************************/
-
-void XrdLink::Bind()
-{
-#ifdef __linux__
-// pthread_t curTID = (tBound ? TID : XrdSysThread::ID());
-#endif
-
-// For unbind operations, we need to do some additional work. This is specific
-// to Linux. See the discussion under defered close in the Close() method.
-//
-   if (tBound)
-      {tBound = 0;
-#ifdef __linux__
-//     if (!XrdSysThread::Same(curTID, XrdSysThread::ID()))
-//        {XrdSysThread::Signal(curTID, SIGSTOP);
-//         XrdSysThread::Signal(curTID, SIGCONT);
-//        }  Remove old Linux 2.3 async shutdown workaround patch
-#endif
-      }
-}
 
 /******************************************************************************/
 /*                                C l i e n t                                 */
@@ -341,11 +306,9 @@ int XrdLink::Close(int defer)
 // Linux is peculiar in that any in-progress operations will remain in that
 // state even after the FD is closed unless there is some activity either on
 // the connection or an event occurs that causes an operation restart. We
-// accomplish this in Linux by stopping and then starting the thread that may
-// be bound to this link (see Bind()). Ugly, but that's what happens in Linux.
-// We also add a bit of portability by issuing a shutdown() on the socket prior
+// portably solve this problem by issuing a shutdown() on the socket prior
 // closing it. On most platforms, this informs readers that the connection is
-// gone (though not on Linux, sigh).
+// gone (though not on old (i.e. <= 2.3) versions of Linux, sigh).
 //
    opMutex.Lock();
    if (defer)
@@ -357,7 +320,7 @@ int XrdLink::Close(int defer)
                if (dup2(devNull, fd) < 0)
                   {FD = fd; Instance = csec;
                    XrdLog->Emsg("Link",errno,"close FD for",ID);
-                  } else Bind();
+                  }
               }
           }
        opMutex.UnLock();

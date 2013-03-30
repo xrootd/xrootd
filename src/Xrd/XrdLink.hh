@@ -70,8 +70,8 @@ friend class XrdPollE;
 
 static XrdLink *Alloc(XrdNetPeer &Peer, int opts=0);
 
-void          Bind();
-void          Bind(pthread_t tid);
+void          Bind() {}                // Obsolete
+void          Bind(pthread_t tid) {}   // Obsolete
 
 int           Client(char *buff, int blen);
 
@@ -182,6 +182,9 @@ time_t        timeCon() {return conTime;}
 
 int           UseCnt() {return InUse;}
 
+void          armBridge() {isBridged = 1;}
+int           hasBridge() {return isBridged;}
+
               XrdLink();
              ~XrdLink() {}  // Is never deleted!
 
@@ -258,7 +261,7 @@ char                KeepFD;
 char                isEnabled;
 char                isIdle;
 char                inQ;
-char                tBound;
+char                isBridged;
 char                KillCnt;        // Protected by opMutex!
 static const char   KillMax =   60;
 static const char   KillMsk = 0x7f;

@@ -138,6 +138,8 @@ add_library(
                                         XrdXrootd/XrdXrootdStat.icc
   XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
   XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
+  XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
+  XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh
   XrdXrootd/XrdXrootdXeq.cc
   XrdXrootd/XrdXrootdXeqAio.cc
                                         XrdXrootd/XrdXrootdTrace.hh

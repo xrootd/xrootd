@@ -279,8 +279,9 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
    static const int sfxLen = sizeof(asynResp) - sizeof(asynResp.atnHdr);
 
    XrdLink           *Link;
+   XrdProtocol       *Prot;
    unsigned char      theSID[2];
-   int                theFD, rc;
+   int                theFD, rc, ioxlen = iolen;
    unsigned int       theInst;
 
 // Fill out the header with constant information
@@ -316,9 +317,13 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
    if ((Link = XrdLink::fd2link(theFD, theInst)))
       {Link->setRef(1);
        if (Link->isInstance(theInst))
-          {asynResp.theHdr.streamid[0] = theSID[0];
-           asynResp.theHdr.streamid[1] = theSID[1];
-           rc = Link->Send(IOResp, iornum, iolen);
+          {if (Link->hasBridge())
+              rc = XrdXrootdTransit::Attn(Link, (short *)theSID, int(Status),
+                                          &IOResp[1], iornum-1, ioxlen);
+             else {asynResp.theHdr.streamid[0] = theSID[0];
+                   asynResp.theHdr.streamid[1] = theSID[1];
+                   rc = Link->Send(IOResp, iornum, iolen);
+                  }
           } else rc = -1;
        Link->setRef(-1);
        return (rc < 0 ? -1 : 0);

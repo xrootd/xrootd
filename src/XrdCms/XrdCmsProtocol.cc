@@ -804,7 +804,7 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
 
 // Dispatch runs with the current thread bound to the link.
 //
-   Link->Bind(XrdSysThread::ID());
+// Link->Bind(XrdSysThread::ID());
 
 // Read in the request header
 //
