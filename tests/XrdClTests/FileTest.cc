@@ -327,7 +327,7 @@ void FileTest::VectorReadTest()
   CPPUNIT_ASSERT( info->GetSize() == 40*MB );
   delete info;
   uint32_t crc = Utils::ComputeCRC32( buffer, 40*MB );
-  CPPUNIT_ASSERT( crc == 3695956670 );
+  CPPUNIT_ASSERT( crc == 3695956670UL );
   CPPUNIT_ASSERT( f.Close().IsOK() );
 
   delete [] buffer;
