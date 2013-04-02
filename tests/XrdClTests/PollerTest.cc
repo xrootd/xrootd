@@ -132,7 +132,7 @@ class SocketHandler: public XrdCl::SocketHandler
       {
         char    buffer[50000];
         int     desc = socket->GetFD();
-        ssize_t ret;
+        ssize_t ret = 0;
 
         while( 1 )
         {
