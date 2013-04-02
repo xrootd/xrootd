@@ -22,9 +22,22 @@
 #include "PyXRootD.hh"
 
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
 
 namespace PyXRootD
 {
+  class PyCopyProgressHandler : public XrdCl::CopyProgressHandler
+  {
+    public:
+      void BeginJob( uint16_t jobNum, uint16_t jobTotal,
+          const XrdCl::URL *source, const XrdCl::URL *destination ) {}
+
+      void EndJob( const XrdCl::XRootDStatus &status ) {}
+
+      void JobProgress( uint64_t bytesProcessed, uint64_t bytesTotal ) {}
+
+  };
+
   class CopyProcess
   {
     public:

@@ -23,21 +23,32 @@ namespace PyXRootD
 {
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    CopyJob *job;
+    const char *source, *target;
 
-    if ( !PyArg_ParseTuple( args, "O", &job ) ) return NULL;
+    if ( !PyArg_ParseTuple( args, "ss", &source, &target ) ) return NULL;
 
-    self->process->AddJob( job->job );
+    XrdCl::JobDescriptor *job = new XrdCl::JobDescriptor();
+    job->source = XrdCl::URL( source );
+    job->target = XrdCl::URL( target );
+
+    self->process->AddJob( job );
+    Py_RETURN_NONE;
   }
 
   PyObject* CopyProcess::Prepare( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::XRootDStatus status = self->process->Prepare();
+    if (status.IsOK()) {
+      printf(">>>>> 'prepped");
+    }
   }
 
   PyObject* CopyProcess::Run( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    XrdCl::CopyProgressHandler handler = new XrdCl::CopyProgressHandler();
+    XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();
     XrdCl::XRootDStatus status = self->process->Run( handler );
+    if (status.IsOK()) {
+      printf(">>>>> 'sall good");
+    }
   }
 }
