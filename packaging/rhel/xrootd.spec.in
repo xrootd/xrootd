@@ -27,11 +27,6 @@ BuildRequires: cmake >= 2.8
 BuildRequires: readline-devel openssl-devel fuse-devel
 BuildRequires: libxml2-devel krb5-devel zlib-devel ncurses-devel
 
-# Perl packaging changed on SLC6 - we require perl-devel to build
-%if 0%{?rhel} >= 6 || %{?fedora}%{!?fedora:0} >= 15
-BuildRequires: perl-devel
-%endif
-
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
 %endif
@@ -157,19 +152,6 @@ Requires: %{name}-libs = %{epoch}:%{version}-%{release}
 Transitional package holding some private headers
 
 #-------------------------------------------------------------------------------
-# admin perl
-#-------------------------------------------------------------------------------
-%package client-admin-perl
-Summary:        XRootD client administration Perl module
-Group:          Development/Libraries
-Requires:       %{name}-client = %{epoch}:%{version}-%{release}
-Requires:       perl(:MODULE_COMPAT_%(eval "`%{__perl} -V:version`"; echo $version))
-
-%description client-admin-perl
-This package contains a swig generated xrootd client administration
-Perl module.
-
-#-------------------------------------------------------------------------------
 # tests
 #-------------------------------------------------------------------------------
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -245,13 +227,6 @@ install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xroo
 
 install -m 644 packaging/common/xrootd-clustered.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-clustered.cfg
 install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-standalone.cfg
-
-# Perl module
-mkdir -p $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
-mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.pm \
-   $RPM_BUILD_ROOT%{perl_vendorarch}
-mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.so \
-   $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -461,11 +436,6 @@ exit 0
 %{_includedir}/%{name}/XrdSfs
 %{_includedir}/%{name}/XrdXrootd
 
-%files client-admin-perl
-%defattr(-,root,root,-)
-%{perl_vendorarch}/XrdClientAdmin.pm
-%{perl_vendorarch}/auto/XrdClientAdmin
-
 %if %{?_with_tests:1}%{!?_with_tests:0}
 %files tests
 %defattr(-,root,root,-)
@@ -479,6 +449,9 @@ exit 0
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Tue Apr 2 2014 Lukasz Janyst <ljanyst@cern.ch>
+- remove perl
+
 * Thu Nov 1 2012 Justin Salmon <jsalmon@cern.ch>
 - add tests package
 
