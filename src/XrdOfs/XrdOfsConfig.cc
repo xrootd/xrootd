@@ -495,6 +495,7 @@ int XrdOfs::ConfigPosc(XrdSysError &Eroute)
 int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 {
    XrdCmsClient *(*CmsPI)(XrdSysLogger *, int, int, XrdOss *);
+   CmsPI = 0;
    XrdSysLogger *myLogger = Eroute.logger();
    int isRedir = Options & isManager;
    int RMTopts = (Options & isServer ? XrdCms::IsTarget : 0)

@@ -868,7 +868,7 @@ int XrdXrootdProtocol::xmon(XrdOucStream &Config)
                                   "monitor rbuff value not specified",
                                   "monitor mbuff", "monitor rbuff"
                                  };
-    char  *val, *cp, *monDest[2] = {0, 0};
+    char  *val = 0, *cp, *monDest[2] = {0, 0};
     long long tempval;
     int i, monFlash = 0, monFlush=0, monMBval=0, monRBval=0, monWWval=0;
     int    monIdent = 3600, xmode=0, monMode[2] = {0, 0}, mrType, *flushDest;
