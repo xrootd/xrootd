@@ -3,12 +3,12 @@ from XRootD.client import AsyncResponseHandler
 from XRootD.enums    import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
                             DirListFlags, PrepareFlags
 import pytest
-
+  
 def test_filesystem():
     c = client.Client("root://localhost")
-
-    funcspecs = [(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
-                 (c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
+  
+    funcspecs = [#(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
+                 #(c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
                  (c.query,      (QueryCode.SPACE, '/tmp'), True),
                  (c.truncate,   ('/tmp/spam', 1000), False),
                  (c.mv,         ('/tmp/spam', '/tmp/ham'), False),
@@ -24,17 +24,17 @@ def test_filesystem():
                  (c.sendinfo,   ('important info',), False),
                  (c.prepare,    (['/tmp/foo'], PrepareFlags.STAGE), True),
                  ]
-
+  
     for func, args, hasReturnObject in funcspecs:
         sync (func, args, hasReturnObject)
-
+  
     # Create new temp file
     f = client.File()
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.NEW)
-
+  
     for func, args, hasReturnObject in funcspecs:
         async(func, args, hasReturnObject)
-
+  
 def sync(func, args, hasReturnObject):
     status, response = func(*args)
     print status
@@ -42,27 +42,27 @@ def sync(func, args, hasReturnObject):
     if hasReturnObject:
         print response
         assert response
-
+  
 def async(func, args, hasReturnObject):
-    status = func(callback=callback, *args)
+    handler = AsyncResponseHandler()
+    status = func(callback=handler, *args)
     print status
     assert status.ok
-    #handler.waitFor()
+    status, response, hostlist = handler.waitFor()
     #assert 0
-    
-def callback(status, response, hostlist):
+  
     assert status.ok
     if response:
         print response
         assert response
     #assert hostList
-
+  
 def test_args():
     c = client.Client("root://localhost")
     status, response = c.locate(path="/tmp", flags=0, timeout=1)
     assert status
     assert response
-
+  
     pytest.raises(TypeError, 'c.locate(path="/tmp")')
     pytest.raises(TypeError, 'c.locate(path="/tmp", foo=1)')
     pytest.raises(TypeError, 'c.locate(foo="/tmp")')
