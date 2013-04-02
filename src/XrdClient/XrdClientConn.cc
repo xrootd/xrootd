@@ -337,7 +337,6 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
     // to allocate for the request to be submitted. For instance, for the kXR_read
     // cmd the size is known, while for the kXR_getfile cmd is not.
 
-    int len;
     bool addOpaque = false;
 
     size_t TotalBlkSize = 0;
@@ -359,7 +358,6 @@ XrdClientMessage *XrdClientConn::ClientServerCmd(ClientRequest *req, const void 
     // Cycle for redirections...
     do {
 	// Send to the server the request
-	len = sizeof(ClientRequest);
 
 	// We have to unconditionally set the streamid inside the
 	// header, because, in case of 'rebouncing here', the Logical Connection 
@@ -1011,14 +1009,12 @@ XrdClientMessage *XrdClientConn::ReadPartialAnswer(XReqErrorType &errorType,
 {
     // Read server answer
 
-    int len;
     XrdClientMessage *Xmsg = 0;
     void *tmp2MoreData;
 
     // No need to actually read if we are in error...
     if (errorType == kOK) {
     
-	len = sizeof(ServerResponseHeader);
 
 	Info(XrdClientDebug::kHIDEBUG, "ReadPartialAnswer",
 	     "Reading a XrdClientMessage from the server [" << 

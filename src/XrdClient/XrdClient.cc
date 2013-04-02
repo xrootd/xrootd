@@ -220,7 +220,6 @@ void XrdClient::TerminateOpenAttempt() {
 
 //_____________________________________________________________________________
 bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
-    short locallogid;
   
     // But we initialize the internal params...
     fOpenPars.opened = FALSE;  
@@ -254,7 +253,6 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     // Now start the connection phase, picking randomly from UrlArray
     //
     urlArray.Rewind();
-    locallogid = -1;
     int urlstried = 0;
     for (int connectTry = 0;
 	 (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
@@ -287,7 +285,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 		    Info(XrdClientDebug::kHIDEBUG, "Open", "Trying to connect to " <<
 			 thisUrl->Host << ":" << thisUrl->Port << ". Connect try " <<
 			 connectTry+1);
-		    locallogid = fConnModule->Connect(*thisUrl, this);
+		    fConnModule->Connect(*thisUrl, this);
 		    // To find out if we have tried the whole URLs set
 		    urlstried++;
 		    break;

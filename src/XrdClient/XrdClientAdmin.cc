@@ -120,7 +120,6 @@ bool XrdClientAdmin::Connect()
       return TRUE;
    }
 
-   short locallogid;
   
    // Now we try to set up the first connection
    // We cycle through the list of urls given in fInitialUrl
@@ -142,7 +141,6 @@ bool XrdClientAdmin::Connect()
    // Now start the connection phase, picking randomly from UrlArray
    //
    urlArray.Rewind();
-   locallogid = -1;
    int urlstried = 0;
    for (int connectTry = 0;
 	(connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
@@ -172,7 +170,7 @@ bool XrdClientAdmin::Connect()
                Info(XrdClientDebug::kHIDEBUG, "Connect", "Trying to connect to " <<
                                               thisUrl->Host << ":" << thisUrl->Port <<
                                               ". Connect try " << connectTry+1);
-               locallogid = fConnModule->Connect(*thisUrl, this);
+               fConnModule->Connect(*thisUrl, this);
                // To find out if we have tried the whole URLs set
                urlstried++;
                break;
