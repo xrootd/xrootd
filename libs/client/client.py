@@ -3,6 +3,8 @@ from pyxrootd import client
 from XRootD.responses import XRootDStatus, StatInfo, StatInfoVFS, LocationInfo, \
                              DirListInfo, ProtocolInfo
 
+q = lambda a, b, c: (b, c)[not a]
+
 class Client(object):
   # Doing both the fast backend and the pythonic frontend
   # Moving the border of the bindings, more python-heavy
@@ -18,7 +20,7 @@ class Client(object):
   :param url: The URL of the server to connect with
   :type  url: string
   """
-
+  
   def __init__(self, url):
     self.__filesystem = client.FileSystem(url)
 
@@ -36,11 +38,11 @@ class Client(object):
     :returns:     :class:`XRootD.responses.XRootDStatus` and 
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, LocationInfo)
+      callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
       return XRootDStatus(self.__filesystem.locate(path, flags, timeout, callback))
     
     status, response = self.__filesystem.locate(path, flags, timeout)
-    return XRootDStatus(status), LocationInfo(response) if response else None
+    return XRootDStatus(status), q(response, LocationInfo(response), None)
 
   def deeplocate(self, path, flags, timeout=0, callback=None):
     """Locate a file, recursively locate all disk servers.
@@ -51,11 +53,11 @@ class Client(object):
     :returns:     tuple containing status and location info (see above)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, LocationInfo)
+      callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
       return XRootDStatus(self.__filesystem.deeplocate(path, flags, timeout, callback))
     
     status, response = self.__filesystem.deeplocate(path, flags, timeout)
-    return XRootDStatus(status), LocationInfo(response) if response else None
+    return XRootDStatus(status), q(response, LocationInfo(response), None)
 
   def mv(self, source, dest, timeout=0, callback=None):
     """Move a directory or a file.
@@ -67,7 +69,7 @@ class Client(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.mv(source, dest, timeout, callback))
     
     status, response = self.__filesystem.mv(source, dest, timeout)
@@ -89,7 +91,7 @@ class Client(object):
       <http://xrootd.slac.stanford.edu/doc/prod/XRdv299.htm#_Toc337053385>`_.
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.query(querycode, arg, timeout, callback))
     
     status, response = self.__filesystem.query(querycode, arg, timeout)
@@ -105,7 +107,7 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.truncate(path, size, timeout, callback))
     
     status, response = self.__filesystem.truncate(path, size, timeout)
@@ -119,7 +121,7 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.rm(path, timeout, callback))
     
     status, response = self.__filesystem.rm(path, timeout)
@@ -138,7 +140,7 @@ class Client(object):
     :returns:     tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.mkdir(path, flags, mode, timeout, callback))
     
     status, response = self.__filesystem.mkdir(path, flags, mode, timeout)
@@ -152,7 +154,7 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.rmdir(path, timeout, callback))
     
     status, response = self.__filesystem.rmdir(path, timeout)
@@ -168,7 +170,7 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.chmod(path, mode, timeout, callback))
     
     status, response = self.__filesystem.chmod(path, mode, timeout)
@@ -180,7 +182,7 @@ class Client(object):
     :returns: tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.ping(timeout, callback))
     
     status, response = self.__filesystem.ping(timeout)
@@ -195,11 +197,11 @@ class Client(object):
                  dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, StatInfo)
+      callback = XRootD.client.CallbackWrapper(callback, StatInfo)
       return XRootDStatus(self.__filesystem.stat(path, timeout, callback))
     
     status, response = self.__filesystem.stat(path, timeout)
-    return XRootDStatus(status), StatInfo(response) if response else None
+    return XRootDStatus(status), q(response, StatInfo(response), None)
   
   def statvfs(self, path, timeout=0, callback=None):
     """Obtain status information for a Virtual File System.
@@ -210,11 +212,11 @@ class Client(object):
                  dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, StatInfoVFS)
+      callback = XRootD.client.CallbackWrapper(callback, StatInfoVFS)
       return XRootDStatus(self.__filesystem.statvfs(path, timeout, callback))
     
     status, response = self.__filesystem.statvfs(path, timeout)
-    return XRootDStatus(status), StatInfoVFS(response) if response else None
+    return XRootDStatus(status), q(response, StatInfoVFS(response), None)
     
   def protocol(self, timeout=0, callback=None):
     """Obtain server protocol information.
@@ -223,11 +225,11 @@ class Client(object):
               dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, ProtocolInfo)
+      callback = XRootD.client.CallbackWrapper(callback, ProtocolInfo)
       return XRootDStatus(self.__filesystem.protocol(timeout, callback))
     
     status, response = self.__filesystem.protocol(timeout)
-    return XRootDStatus(status), ProtocolInfo(response) if response else None
+    return XRootDStatus(status), q(response, ProtocolInfo(response), None)
     
   def dirlist(self, path, flags=0, timeout=0, callback=None):
     """List entries of a directory.
@@ -240,11 +242,11 @@ class Client(object):
                   list info dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, DirListInfo)
+      callback = XRootD.client.CallbackWrapper(callback, DirListInfo)
       return XRootDStatus(self.__filesystem.dirlist(path, flags, timeout, callback))
     
     status, response = self.__filesystem.dirlist(path, flags, timeout)
-    return XRootDStatus(status), DirListInfo(response) if response else None
+    return XRootDStatus(status), q(response, DirListInfo(response), None)
     
   def sendinfo(self, info, timeout=0, callback=None):
     """Send info to the server (up to 1024 characters).
@@ -254,7 +256,7 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
      """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.sendinfo(info, timeout, callback))
     
     status, response = self.__filesystem.sendinfo(info, timeout)
@@ -272,7 +274,7 @@ class Client(object):
     :returns:        tuple containing status dictionary and None
      """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback, None)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.prepare(files, flags, priority, timeout, callback))
     
     status, response = self.__filesystem.prepare(files, flags, priority, timeout)

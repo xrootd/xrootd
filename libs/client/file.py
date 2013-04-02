@@ -1,12 +1,25 @@
 from pyxrootd import client
 from XRootD.responses import XRootDStatus, StatInfo, VectorReadInfo
 
+q = lambda a, b, c: (b, c)[not a]
+
 class File(object):
-  """The file class
+  """The file class"""
   
-  """
   def __init__(self):
     self.__file = client.File()
+    
+  def __enter__(self):
+    return self
+  
+  def __exit__(self, type, value, traceback):
+    self.__file.__exit__()
+    
+  def __iter__(self):
+    return self
+    
+  def __iternext__(self):
+    return self.__file.__iternext__()
     
   def open(self, url, flags=0, mode=0, timeout=0, callback=None):
     """Open the file pointed to by the given URL.
@@ -21,8 +34,8 @@ class File(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.open(url, flags, mode, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.open(url, flags, mode, timeout, callback))
     
     status, response = self.__file.open(url, flags, mode, timeout)
     return XRootDStatus(status), None
@@ -44,8 +57,8 @@ class File(object):
           print line,
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.close(timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.close(timeout, callback))
     
     status, response = self.__file.close(timeout)
     return XRootDStatus(status), None
@@ -58,11 +71,15 @@ class File(object):
     :returns:     tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.stat(force, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.stat(force, timeout, callback))
     
+    print "+++++ calling stat()"
     status, response = self.__file.stat(force, timeout)
-    return XRootDStatus(status), StatInfo(response) if response else None
+    print "+++++ stat() returned"
+    print status
+    print response
+    return XRootDStatus(status), q(response, StatInfo(response), None)
       
   def read(self, offset=0, size=0, timeout=0, callback=None):
     """Read a data chunk from a given offset.
@@ -74,7 +91,7 @@ class File(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
+      callback = XRootD.client.CallbackWrapper(callback)
       return XRootDStatus(self.__filesystem.read(offset, size, timeout, callback))
     
     status, response = self.__file.read(offset, size, timeout)
@@ -133,20 +150,20 @@ class File(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.write(buffer, offset, size, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.write(buffer, offset, size, timeout, callback))
     
     status, response = self.__file.write(buffer, offset, size, timeout)
     return XRootDStatus(status), None
-      
+
   def sync(self, timeout=0, callback=None):
     """Commit all pending disk writes.
     
     :returns: tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.sync(timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.sync(timeout, callback))
     
     status, response = self.__file.sync(timeout)
     return XRootDStatus(status), None
@@ -159,8 +176,8 @@ class File(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.truncate(size, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.truncate(size, timeout, callback))
     
     status, response = self.__file.truncate(size, timeout)
     return XRootDStatus(status), None
@@ -177,11 +194,11 @@ class File(object):
                    info dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.AsyncResponseHandler(callback)
-      return XRootDStatus(self.__filesystem.vector_read(chunks, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback)
+      return XRootDStatus(self.__file.vector_read(chunks, timeout, callback))
     
     status, response = self.__file.vector_read(chunks, timeout)
-    return XRootDStatus(status), VectorReadInfo(response) if response else None
+    return XRootDStatus(status), q(response, VectorReadInfo(response), None)
       
   def is_open(self):
     """Check if the file is open.
