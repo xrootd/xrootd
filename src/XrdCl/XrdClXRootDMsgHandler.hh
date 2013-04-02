@@ -62,7 +62,12 @@ namespace XrdCl
         pHasLoadBalancer( false ),
         pHasSessionId( false ),
         pChunkList( 0 ),
-        pRedirectCounter( 0 )
+        pRedirectCounter( 0 ),
+        pRawReadSize( 0 ),
+        pRawLeftToBeRead( 0 ),
+        pRawCurrentChunk( 0 ),
+        pRawCurrentOffset( 0 ),
+        pRawOverflowError( 0 )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
@@ -97,6 +102,42 @@ namespace XrdCl
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
       virtual void Process( Message *msg );
+
+      //------------------------------------------------------------------------
+      //! Read message body directly from a socket - called if Examine returns
+      //! Raw flag - only socket related errors may be returned here
+      //!
+      //! @param msg       the corresponding message header
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data is needed
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status ReadMessageBody( Message  *msg,
+                                      int       socket,
+                                      uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Handle a kXR_read in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawRead( Message  *msg,
+                          int       socket,
+                          uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Handle a kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawReadV( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      // Handle anything other than kXR_read and kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawOther( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -256,6 +297,12 @@ namespace XrdCl
       std::string                pRedirectCgi;
       ChunkList                 *pChunkList;
       uint16_t                   pRedirectCounter;
+
+      uint32_t                   pRawReadSize;
+      uint32_t                   pRawLeftToBeRead;
+      uint32_t                   pRawCurrentChunk;
+      uint32_t                   pRawCurrentOffset;
+      bool                       pRawOverflowError;
   };
 }
 

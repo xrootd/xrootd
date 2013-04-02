@@ -45,7 +45,8 @@ namespace XrdCl
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
     pHeaderDone( false ),
-    pRawIncHandler( 0 )
+    pRawIncHandler( 0 ),
+    pIncMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -414,6 +415,7 @@ namespace XrdCl
       pHeaderDone    = false;
       pIncoming      = new Message();
       pRawIncHandler = 0;
+      pIncMsgSize    = 0;
     }
 
     Status  st;
@@ -437,8 +439,16 @@ namespace XrdCl
       log->Dump( AsyncSockMsg,
                 "[%s] Received message header, size: %d",
                 pStreamName.c_str(), pIncoming->GetCursor() );
+      pIncMsgSize = pIncoming->GetCursor();
       pHeaderDone = true;
       pRawIncHandler = pStream->GetRawHandler( pIncoming, pSubStreamNum );
+
+      if( pRawIncHandler )
+      {
+        log->Dump( AsyncSockMsg,
+                   "[%s] Will use the raw handler to read message body.",
+                   pStreamName.c_str() );
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -446,7 +456,18 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( pRawIncHandler )
     {
-      // here goes the raw reading code
+      uint32_t bytesRead = 0;
+      st = pRawIncHandler->ReadMessageBody( pIncoming, pSocket->GetFD(),
+                                            bytesRead );
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+      pIncMsgSize += bytesRead;
+
+      if( st.code == suRetry )
+        return;
     }
     //--------------------------------------------------------------------------
     // No raw handler, so we read the message to the buffer
@@ -463,12 +484,17 @@ namespace XrdCl
       if( st.code == suRetry )
         return;
 
-      log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
-                 pStreamName.c_str(), pIncoming->GetSize() );
-
-      pStream->OnIncoming( pSubStreamNum, pIncoming, pIncoming->GetSize() );
-      pIncoming = 0;
+      pIncMsgSize = pIncoming->GetSize();
     }
+
+    //--------------------------------------------------------------------------
+    // Report the incoming message
+    //--------------------------------------------------------------------------
+    log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
+               pStreamName.c_str(), pIncMsgSize );
+
+    pStream->OnIncoming( pSubStreamNum, pIncoming, pIncMsgSize );
+    pIncoming = 0;
   }
 
   //----------------------------------------------------------------------------

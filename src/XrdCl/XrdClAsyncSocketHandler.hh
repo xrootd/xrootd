@@ -198,6 +198,7 @@ namespace XrdCl
       time_t                         pConnectionTimeout;
       bool                           pHeaderDone;
       IncomingMsgHandler            *pRawIncHandler;
+      uint32_t                       pIncMsgSize;
   };
 }
 
