@@ -21,7 +21,8 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClSocket.hh"
-#include <XrdSys/XrdSysIOEvents.hh>
+#include "XrdCl/XrdClOptimizers.hh"
+#include "XrdSys/XrdSysIOEvents.hh"
 
 namespace
 {
@@ -64,9 +65,12 @@ namespace
         if( evFlags & WriteTimeOut ) ev = SocketHandler::WriteTimeOut;
 
         Log *log = DefaultEnv::GetLog();
-        log->Dump( PollerMsg, "%s Got an event: %s",
-                              pSocket->GetName().c_str(),
-                              SocketHandler::EventTypeToString( ev ).c_str() );
+        if( unlikely(log->GetLevel() >= Log::DumpMsg) )
+        {
+          log->Dump( PollerMsg, "%s Got an event: %s",
+                                pSocket->GetName().c_str(),
+                                SocketHandler::EventTypeToString( ev ).c_str() );
+        }
 
         pHandler->Event( ev, pSocket );
         return true;
