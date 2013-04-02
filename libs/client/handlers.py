@@ -21,7 +21,7 @@ class CallbackWrapper(object):
 
 class AsyncResponseHandler(object):
   """Utility class to handle asynchronous method calls."""
-  def __init__(self, callback, responsetype):
+  def __init__(self):
     self.mutex = Lock()
     self.mutex.acquire()
 
