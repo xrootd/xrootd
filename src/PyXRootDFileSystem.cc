@@ -466,7 +466,7 @@ namespace PyXRootD
     }
 
     else {
-      XrdCl::Buffer *response;
+      XrdCl::Buffer *response = 0;
       status = self->filesystem->SendInfo( info, response, timeout );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),

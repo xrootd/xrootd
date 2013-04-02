@@ -103,7 +103,6 @@ namespace PyXRootD
 
     if ( callback && callback != Py_None ) { // async
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
-      if ( !handler ) return NULL;
       async( status = self->file->Stat( force, handler, timeout ) );
       return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
@@ -111,7 +110,7 @@ namespace PyXRootD
     else {
       XrdCl::StatInfo *response = 0;
       status = self->file->Stat( force, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::StatInfo>(response);
+      pyresponse = ConvertResponse<XrdCl::StatInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }

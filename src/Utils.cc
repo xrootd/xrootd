@@ -36,7 +36,7 @@ namespace PyXRootD
   int InitTypes()
   {
     URLType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &URLType ) < 0 )      return -1;
+    if ( PyType_Ready( &URLType ) < 0 ) return -1;
 
     Py_INCREF( &URLType );
     return 0;
