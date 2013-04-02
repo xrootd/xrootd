@@ -28,6 +28,10 @@
 #include <iostream>
 #include "structmember.h"
 
+#if PY_MINOR_VERSION < 5
+#define PyUnicode_FromString PyString_FromString
+#endif
+
 #define async( func )    \
   Py_BEGIN_ALLOW_THREADS \
   func;                  \
