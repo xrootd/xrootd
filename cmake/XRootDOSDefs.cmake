@@ -34,6 +34,13 @@ endif()
 #-------------------------------------------------------------------------------
 if( APPLE )
   set( MacOSX TRUE )
+
+  # this is here because of deprecated stuff in openssl
+  if( CMAKE_COMPILER_IS_GNUCXX )
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations" )
+  endif()
+
+
   add_definitions( -D__macos__=1 )
   add_definitions( -DLT_MODULE_EXT=".dylib" )
   set( CMAKE_INSTALL_LIBDIR "lib" )
