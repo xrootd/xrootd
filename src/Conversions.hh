@@ -155,11 +155,17 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::HostInfo *info )
       {
+        URLType.tp_new = PyType_GenericNew;
+        if ( PyType_Ready( &URLType ) < 0 ) return NULL;
+        Py_INCREF( &URLType );
+
+        PyObject *url = PyObject_CallObject( (PyObject*) &URLType,
+                        Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
         return Py_BuildValue( "{sIsIsOsO}",
             "flags",        info->flags,
             "protocol",     info->protocol,
             "loadBalancer", PyBool_FromLong(info->loadBalancer),
-            "url",          ConvertType<XrdCl::URL>(&info->url, &URLType));
+            "url",          url );
       }
   };
 
