@@ -10,7 +10,7 @@ Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 BuildArch:      noarch
 Requires:       python >= 2.4
-BuildRequires:  xrootd-cl-devel
+BuildRequires:  xrootd-cl-devel python-devel
 
 %description
 pyxrootd is a set of python language bindings for xrootd.
