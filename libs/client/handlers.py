@@ -31,7 +31,7 @@ class AsyncResponseHandler(object):
     self.hostlist = hostlist
     self.mutex.release()
 
-  def waitFor(self):
+  def wait(self):
     """Block and wait for the async response"""
     self.mutex.acquire()
     self.mutex.release()
