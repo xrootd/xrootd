@@ -16,7 +16,7 @@ cp -R $SRC/setup.py $DEST
 cp -R $SRC/src $DEST
 cp -R $SRC/libs $DEST
 cp -R $SRC/tests $DEST
-cp -R $SRC/docs $DEST
+# cp -R $SRC/docs $DEST
 cp -R $SRC/examples $DEST
 
 tar -czf $SOURCES $NAME

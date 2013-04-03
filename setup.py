@@ -48,4 +48,4 @@ setup( name             = 'pyxrootd',
        )
 
 # Make the docs
-call(["make", "-C", "docs", "html"])
+# call(["make", "-C", "docs", "html"])
