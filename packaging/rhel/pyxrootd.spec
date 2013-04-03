@@ -9,7 +9,8 @@ Group:          Development/Tools
 Packager:       Justin Salmon <jsalmon@cern.ch>
 URL:            http://github.com/xrootd/python-xrootd
 Source0:        %{name}-%{version}.tar.gz
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+Prefix:         %{_prefix}
 BuildArch:      noarch
 Requires:       python >= 2.4
 BuildRequires:  xrootd-cl-devel python-devel
