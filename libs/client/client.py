@@ -1,9 +1,7 @@
 import XRootD
 from pyxrootd import client
-from XRootD.responses import XRootDStatus, StatInfo, StatInfoVFS, LocationInfo, \
-                             DirListInfo, ProtocolInfo
-
-q = lambda a, b, c: (b, c)[not a]
+from XRootD.responses import XRootDStatus, StatInfo, StatInfoVFS, \
+                             LocationInfo, DirectoryList, ProtocolInfo
 
 class Client(object):
   # Doing both the fast backend and the pythonic frontend
@@ -22,12 +20,12 @@ class Client(object):
   """
   
   def __init__(self, url):
-    self.__filesystem = client.FileSystem(url)
+    self.__fs = client.FileSystem(url)
 
   @property
   def url(self):
     """The server URL object, instance of :mod:`XRootD.client.URL`"""
-    return self.__filesystem.url
+    return self.__fs.url
 
   def locate(self, path, flags, timeout=0, callback=None):
     """Locate a file.
@@ -39,10 +37,11 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
-      return XRootDStatus(self.__filesystem.locate(path, flags, timeout, callback))
+      return XRootDStatus(self.__fs.locate(path, flags, timeout, callback))
     
-    status, response = self.__filesystem.locate(path, flags, timeout)
-    return XRootDStatus(status), q(response, LocationInfo(response), None)
+    status, response = self.__fs.locate(path, flags, timeout)
+    if response: response = LocationInfo(response)
+    return XRootDStatus(status), response
 
   def deeplocate(self, path, flags, timeout=0, callback=None):
     """Locate a file, recursively locate all disk servers.
@@ -54,10 +53,11 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
-      return XRootDStatus(self.__filesystem.deeplocate(path, flags, timeout, callback))
+      return XRootDStatus(self.__fs.deeplocate(path, flags, timeout, callback))
     
-    status, response = self.__filesystem.deeplocate(path, flags, timeout)
-    return XRootDStatus(status), q(response, LocationInfo(response), None)
+    status, response = self.__fs.deeplocate(path, flags, timeout)
+    if response: response = LocationInfo(response)
+    return XRootDStatus(status), response
 
   def mv(self, source, dest, timeout=0, callback=None):
     """Move a directory or a file.
@@ -70,9 +70,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.mv(source, dest, timeout, callback))
+      return XRootDStatus(self.__fs.mv(source, dest, timeout, callback))
     
-    status, response = self.__filesystem.mv(source, dest, timeout)
+    status, response = self.__fs.mv(source, dest, timeout)
     return XRootDStatus(status), None
     
   def query(self, querycode, arg, timeout=0, callback=None):
@@ -92,9 +92,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.query(querycode, arg, timeout, callback))
+      return XRootDStatus(self.__fs.query(querycode, arg, timeout, callback))
     
-    status, response = self.__filesystem.query(querycode, arg, timeout)
+    status, response = self.__fs.query(querycode, arg, timeout)
     return XRootDStatus(status), response
     
   def truncate(self, path, size, timeout=0, callback=None):
@@ -108,9 +108,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.truncate(path, size, timeout, callback))
+      return XRootDStatus(self.__fs.truncate(path, size, timeout, callback))
     
-    status, response = self.__filesystem.truncate(path, size, timeout)
+    status, response = self.__fs.truncate(path, size, timeout)
     return XRootDStatus(status), None
     
   def rm(self, path, timeout=0, callback=None):
@@ -122,9 +122,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.rm(path, timeout, callback))
+      return XRootDStatus(self.__fs.rm(path, timeout, callback))
     
-    status, response = self.__filesystem.rm(path, timeout)
+    status, response = self.__fs.rm(path, timeout)
     return XRootDStatus(status), None
 
   def mkdir(self, path, flags=0, mode=0, timeout=0, callback=None):
@@ -141,9 +141,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.mkdir(path, flags, mode, timeout, callback))
+      return XRootDStatus(self.__fs.mkdir(path, flags, mode, timeout, callback))
     
-    status, response = self.__filesystem.mkdir(path, flags, mode, timeout)
+    status, response = self.__fs.mkdir(path, flags, mode, timeout)
     return XRootDStatus(status), None
     
   def rmdir(self, path, timeout=0, callback=None):
@@ -155,9 +155,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.rmdir(path, timeout, callback))
+      return XRootDStatus(self.__fs.rmdir(path, timeout, callback))
     
-    status, response = self.__filesystem.rmdir(path, timeout)
+    status, response = self.__fs.rmdir(path, timeout)
     return XRootDStatus(status), None
       
   def chmod(self, path, mode=0, timeout=0, callback=None):
@@ -171,9 +171,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.chmod(path, mode, timeout, callback))
+      return XRootDStatus(self.__fs.chmod(path, mode, timeout, callback))
     
-    status, response = self.__filesystem.chmod(path, mode, timeout)
+    status, response = self.__fs.chmod(path, mode, timeout)
     return XRootDStatus(status), None
     
   def ping(self, timeout=0, callback=None):
@@ -183,9 +183,9 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.ping(timeout, callback))
+      return XRootDStatus(self.__fs.ping(timeout, callback))
     
-    status, response = self.__filesystem.ping(timeout)
+    status, response = self.__fs.ping(timeout)
     return XRootDStatus(status), None
     
   def stat(self, path, timeout=0, callback=None):
@@ -198,10 +198,11 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, StatInfo)
-      return XRootDStatus(self.__filesystem.stat(path, timeout, callback))
+      return XRootDStatus(self.__fs.stat(path, timeout, callback))
     
-    status, response = self.__filesystem.stat(path, timeout)
-    return XRootDStatus(status), q(response, StatInfo(response), None)
+    status, response = self.__fs.stat(path, timeout)
+    if response: response = StatInfo(response)
+    return XRootDStatus(status), response
   
   def statvfs(self, path, timeout=0, callback=None):
     """Obtain status information for a Virtual File System.
@@ -213,10 +214,11 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, StatInfoVFS)
-      return XRootDStatus(self.__filesystem.statvfs(path, timeout, callback))
+      return XRootDStatus(self.__fs.statvfs(path, timeout, callback))
     
-    status, response = self.__filesystem.statvfs(path, timeout)
-    return XRootDStatus(status), q(response, StatInfoVFS(response), None)
+    status, response = self.__fs.statvfs(path, timeout)
+    if response: response = StatInfoVFS(response)
+    return XRootDStatus(status), response
     
   def protocol(self, timeout=0, callback=None):
     """Obtain server protocol information.
@@ -226,10 +228,11 @@ class Client(object):
     """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, ProtocolInfo)
-      return XRootDStatus(self.__filesystem.protocol(timeout, callback))
+      return XRootDStatus(self.__fs.protocol(timeout, callback))
     
-    status, response = self.__filesystem.protocol(timeout)
-    return XRootDStatus(status), q(response, ProtocolInfo(response), None)
+    status, response = self.__fs.protocol(timeout)
+    if response: response = ProtocolInfo(response)
+    return XRootDStatus(status), response
     
   def dirlist(self, path, flags=0, timeout=0, callback=None):
     """List entries of a directory.
@@ -242,11 +245,12 @@ class Client(object):
                   list info dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, DirListInfo)
-      return XRootDStatus(self.__filesystem.dirlist(path, flags, timeout, callback))
+      callback = XRootD.client.CallbackWrapper(callback, DirectoryList)
+      return XRootDStatus(self.__fs.dirlist(path, flags, timeout, callback))
     
-    status, response = self.__filesystem.dirlist(path, flags, timeout)
-    return XRootDStatus(status), q(response, DirListInfo(response), None)
+    status, response = self.__fs.dirlist(path, flags, timeout)
+    if response: response = DirectoryList(response)
+    return XRootDStatus(status), response
     
   def sendinfo(self, info, timeout=0, callback=None):
     """Send info to the server (up to 1024 characters).
@@ -257,9 +261,9 @@ class Client(object):
      """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.sendinfo(info, timeout, callback))
+      return XRootDStatus(self.__fs.sendinfo(info, timeout, callback))
     
-    status, response = self.__filesystem.sendinfo(info, timeout)
+    status, response = self.__fs.sendinfo(info, timeout)
     return XRootDStatus(status), response
     
   def prepare(self, files, flags, priority=0, timeout=0, callback=None):
@@ -275,8 +279,9 @@ class Client(object):
      """
     if callback:
       callback = XRootD.client.CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.prepare(files, flags, priority, timeout, callback))
+      return XRootDStatus(self.__fs.prepare(files, flags, priority, timeout, 
+                                            callback))
     
-    status, response = self.__filesystem.prepare(files, flags, priority, timeout)
+    status, response = self.__fs.prepare(files, flags, priority, timeout)
     return XRootDStatus(status), response
 
