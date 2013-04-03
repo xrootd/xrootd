@@ -1,3 +1,5 @@
+%global _binaries_in_noarch_packages_terminate_build 0
+
 Name:           xrootd-python
 Version:        0.1
 Release:        1%{?dist}
