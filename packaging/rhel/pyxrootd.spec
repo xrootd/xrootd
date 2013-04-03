@@ -16,7 +16,20 @@ BuildRequires:  xrootd-cl-devel python-devel
 pyxrootd is a set of python language bindings for xrootd.
 
 %prep
-%setup
+%setup -n %{name}-%{version}
+
+%build
+env CFLAGS="$RPM_OPT_FLAGS" python setup.py build
 
 %install
-python setup.py install
+python setup.py install --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files -f INSTALLED_FILES
+%defattr(-,root,root)
+
+%changelog
+* Wed Apr 03 2013 Justin Salmon <jsalmon@cern.ch>
+- Initial version
