@@ -1,14 +1,23 @@
 from distutils.core import setup, Extension
 from distutils import sysconfig
-from os import getenv
+from os import getenv, walk, path
 from subprocess import call
-import os
 
 xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
 
 print ('XRootD library dir:', xrdlibdir)
 print ('XRootD include dir:', xrdincdir)
+
+sources = list()
+depends = list()
+
+for dirname, dirnames, filenames in walk('src'):
+  for filename in filenames:
+    if filename.endswith('.cc'):
+      sources.append(path.join(dirname, filename))
+    elif filename.endswith('.hh'):
+      depends.append(path.join(dirname, filename))
 
 setup( name             = 'pyxrootd',
        version          = '0.1',
@@ -25,13 +34,8 @@ setup( name             = 'pyxrootd',
        ext_modules      = [
            Extension(
                'pyxrootd.client',
-               sources   = ['src/PyXRootDModule.cc', 'src/PyXRootDFile.cc',
-                            'src/PyXRootDFileSystem.cc', 'src/PyXRootDURL.cc',
-                            'src/PyXRootDCopyProcess.cc', 'src/Utils.cc'],
-               depends   = ['src/PyXRootD.hh', 'src/PyXRootDFileSystem.hh',
-                            'src/PyXRootDURL.hh', 'src/Utils.hh', 
-                            'src/PyXRootDCopyProcess.hh',
-                            'src/AsyncResponseHandler.hh',],
+               sources   = sources,
+               depends   = depends,
                libraries = ['XrdCl', 'XrdUtils', 'dl'],
                extra_compile_args = ['-g', '-O0', # for debugging
                                      '-Wno-deprecated',
