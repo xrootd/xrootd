@@ -10,17 +10,23 @@ def test_write():
     buffer = 'eggs and ham\n'
  
     pytest.raises(ValueError, "f.write(buffer)")
- 
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.DELETE)
     assert status.ok
  
     status, response = f.write(buffer)
     assert status.ok
- 
     status, response = f.read()
     assert status.ok
     assert len(response) == len(buffer)
- 
+
+    handler = AsyncResponseHandler()
+    status = f.write(buffer, callback=handler)
+    status, response, hostlist = handler.wait()
+    assert status.ok
+    status, response = f.read()
+    assert status.ok
+    assert len(response) == len(buffer)
+    
     # Test write offsets and sizes
     f.close()
  
@@ -34,13 +40,12 @@ def test_read():
     status, response = f.stat(timeout=5)
     size = response.size
  
-#     status, response = f.read()
-#     assert status.ok
-#     assert len(response) == size
+    status, response = f.read()
+    assert status.ok
+    assert len(response) == size
      
-    f.readline(offset=0, size=1024)
+    f.readline()
     f.close()
-    assert 0 # TODO add readline() params
  
     # Test read offsets and sizes
     f.close()
@@ -70,15 +75,15 @@ def test_vector_read():
 def test_stat():
     f = client.File()
  
-#     pytest.raises(ValueError, 'f.stat()')
-#         
-# 
-#     status, response = f.open('root://localhost//tmp/spam')
-#     assert status.ok
-# 
-#     status, response = f.stat()
-#     assert status.ok
-#     assert response.size
+    pytest.raises(ValueError, 'f.stat()')
+         
+ 
+    status, response = f.open('root://localhost//tmp/spam')
+    assert status.ok
+ 
+    status, response = f.stat()
+    assert status.ok
+    assert response.size
     f.close()
  
 def test_sync():

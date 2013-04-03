@@ -1,14 +1,14 @@
 from XRootD import client
 from XRootD.client import AsyncResponseHandler
-from XRootD.enums    import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
-                            DirListFlags, PrepareFlags
+from XRootD.enums  import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
+                          DirListFlags, PrepareFlags
 import pytest
   
 def test_filesystem():
     c = client.Client("root://localhost")
   
-    funcspecs = [#(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
-                 #(c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
+    funcspecs = [(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
+                 (c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
                  (c.query,      (QueryCode.SPACE, '/tmp'), True),
                  (c.truncate,   ('/tmp/spam', 1000), False),
                  (c.mv,         ('/tmp/spam', '/tmp/ham'), False),
@@ -48,14 +48,14 @@ def async(func, args, hasReturnObject):
     status = func(callback=handler, *args)
     print status
     assert status.ok
-    status, response, hostlist = handler.waitFor()
-    #assert 0
+    status, response, hostlist = handler.wait()
   
     assert status.ok
     if response:
-        print response
         assert response
-    #assert hostList
+        
+    for host in hostlist:
+      assert host.url
   
 def test_args():
     c = client.Client("root://localhost")
