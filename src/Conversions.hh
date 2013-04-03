@@ -147,25 +147,42 @@ namespace PyXRootD
                   "name",        (*i)->GetName().c_str(),
                   "statInfo",    statInfo ) );
         }
-        return Py_BuildValue( "O", directoryList );
+        return Py_BuildValue( "{sisssO}",
+            "size",     list->GetSize(),
+            "parent",   list->GetParentName().c_str(),
+            "dirList",  directoryList );
       }
   };
 
-  template<> struct PyDict<XrdCl::HostInfo>
+  template<> struct PyDict<XrdCl::HostList>
   {
-      static PyObject* Convert( XrdCl::HostInfo *info )
+      static PyObject* Convert( XrdCl::HostList *list )
       {
         URLType.tp_new = PyType_GenericNew;
         if ( PyType_Ready( &URLType ) < 0 ) return NULL;
         Py_INCREF( &URLType );
 
-        PyObject *url = PyObject_CallObject( (PyObject*) &URLType,
-                        Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
-        return Py_BuildValue( "{sIsIsOsO}",
-            "flags",        info->flags,
-            "protocol",     info->protocol,
-            "loadBalancer", PyBool_FromLong(info->loadBalancer),
-            "url",          url );
+        PyObject *pyhostlist = PyList_New( 0 );
+
+        if ( list ) {
+          for ( unsigned int i = 0; i < list->size(); ++i ) {
+            XrdCl::HostInfo *info = &list->at( i );
+            std::cout << ">>>>> " << info;
+            PyObject *url = PyObject_CallObject( (PyObject*) &URLType,
+                Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
+            _PyObject_Dump(url);
+            PyObject *pyhostinfo = Py_BuildValue( "{sIsIsOsO}",
+                "flags",        info->flags,
+                "protocol",     info->protocol,
+                "loadBalancer", PyBool_FromLong(info->loadBalancer),
+                "url",          url );
+
+            Py_INCREF( pyhostinfo );
+            PyList_Append( pyhostlist, pyhostinfo );
+          }
+        }
+
+        return pyhostlist;
       }
   };
 

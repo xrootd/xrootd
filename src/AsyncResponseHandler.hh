@@ -88,19 +88,10 @@ namespace PyXRootD
         // Convert the host list
         //----------------------------------------------------------------------
         PyObject *pyhostlist = PyList_New( 0 );
-
-        if ( hostList ) {
-          for ( unsigned int i = 0; i < hostList->size(); ++i ) {
-            PyObject *pyhostinfo = ConvertType<XrdCl::HostInfo>(
-                                   &hostList->at( i ) );
-            if ( !pyhostinfo || PyErr_Occurred() ) {
-              return Exit();
-            }
-
-            Py_INCREF( pyhostinfo );
-            if ( PyList_Append( pyhostlist, pyhostinfo ) != 0 ) {
-              return Exit();
-            }
+        if ( hostList != NULL ) {
+          pyhostlist = ConvertType<XrdCl::HostList>( hostList );
+          if ( pyhostlist == NULL || PyErr_Occurred() ) {
+            return Exit();
           }
         }
 
