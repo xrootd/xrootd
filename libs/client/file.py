@@ -1,3 +1,4 @@
+import XRootD
 from pyxrootd import client
 from XRootD.responses import XRootDStatus, StatInfo, VectorReadInfo
 
@@ -34,7 +35,7 @@ class File(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.open(url, flags, mode, timeout, callback))
     
     status, response = self.__file.open(url, flags, mode, timeout)
@@ -57,7 +58,7 @@ class File(object):
           print line,
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.close(timeout, callback))
     
     status, response = self.__file.close(timeout)
@@ -71,7 +72,7 @@ class File(object):
     :returns:     tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, StatInfo)
       return XRootDStatus(self.__file.stat(force, timeout, callback))
     
     status, response = self.__file.stat(force, timeout)
@@ -88,7 +89,7 @@ class File(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__filesystem.read(offset, size, timeout, callback))
     
     status, response = self.__file.read(offset, size, timeout)
@@ -143,7 +144,7 @@ class File(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.write(buffer, offset, size, timeout, callback))
     
     status, response = self.__file.write(buffer, offset, size, timeout)
@@ -155,7 +156,7 @@ class File(object):
     :returns: tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.sync(timeout, callback))
     
     status, response = self.__file.sync(timeout)
@@ -169,7 +170,7 @@ class File(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, None)
       return XRootDStatus(self.__file.truncate(size, timeout, callback))
     
     status, response = self.__file.truncate(size, timeout)
@@ -187,7 +188,7 @@ class File(object):
                    info dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback)
+      callback = XRootD.client.CallbackWrapper(callback, VectorReadInfo)
       return XRootDStatus(self.__file.vector_read(chunks, timeout, callback))
     
     status, response = self.__file.vector_read(chunks, timeout)
