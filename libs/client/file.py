@@ -74,12 +74,9 @@ class File(object):
       callback = XRootD.client.CallbackWrapper(callback)
       return XRootDStatus(self.__file.stat(force, timeout, callback))
     
-    print "+++++ calling stat()"
     status, response = self.__file.stat(force, timeout)
-    print "+++++ stat() returned"
-    print status
-    print response
-    return XRootDStatus(status), q(response, StatInfo(response), None)
+    if response: response = StatInfo(response)
+    return XRootDStatus(status), response
       
   def read(self, offset=0, size=0, timeout=0, callback=None):
     """Read a data chunk from a given offset.
@@ -97,18 +94,14 @@ class File(object):
     status, response = self.__file.read(offset, size, timeout)
     return XRootDStatus(status), response
       
-  def readline(self, offset=0, size=0, timeout=0, callback=None):
-    """Read a data chunk from a given offset, until the first newline
-    encountered or a maximum of `size` bytes are read.
-    
-    :param offset: offset from the beginning of the file
-    :type  offset: integer
-    :param   size: maximum number of bytes to be read
-    :type    size: integer
+  def readline(self):
+    """Read a data chunk from a given offset, until the first newline or EOF
+    encountered.
+
     :returns:      data that was read, including the trailing newline
     :rtype:        string
     """
-    response = self.__file.readline(offset, size, timeout, callback)
+    response = self.__file.readline()
     return response
       
   def readlines(self, offset, size):
@@ -198,7 +191,8 @@ class File(object):
       return XRootDStatus(self.__file.vector_read(chunks, timeout, callback))
     
     status, response = self.__file.vector_read(chunks, timeout)
-    return XRootDStatus(status), q(response, VectorReadInfo(response), None)
+    if response: response = VectorReadInfo(response)
+    return XRootDStatus(status), response
       
   def is_open(self):
     """Check if the file is open.
