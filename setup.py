@@ -38,8 +38,7 @@ setup( name             = 'pyxrootd',
                depends   = depends,
                libraries = ['XrdCl', 'XrdUtils', 'dl'],
                extra_compile_args = ['-g', '-O0', # for debugging
-                                     '-Wno-deprecated',
-                                     '-Wno-shorten-64-to-32', 
+                                     '-Wno-deprecated', 
                                      '-Wno-write-strings'],
                include_dirs = [xrdincdir],
                library_dirs = [xrdlibdir]
