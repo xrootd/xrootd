@@ -20,7 +20,6 @@
 #include "PyXRootDFileSystem.hh"
 #include "PyXRootDFile.hh"
 #include "PyXRootDCopyProcess.hh"
-#include "PyXRootDCopyJob.hh"
 
 namespace PyXRootD
 {
@@ -64,10 +63,6 @@ namespace PyXRootD
     if ( PyType_Ready( &CopyProcessType ) < 0 ) return;
     Py_INCREF( &CopyProcessType );
 
-    CopyJobType.tp_new = PyType_GenericNew;
-    if ( PyType_Ready( &CopyJobType ) < 0 ) return;
-    Py_INCREF( &CopyJobType );
-
     ClientModule = Py_InitModule3("client", module_methods, client_module_doc);
 
     if (ClientModule == NULL) {
@@ -78,6 +73,5 @@ namespace PyXRootD
     PyModule_AddObject( ClientModule, "File", (PyObject *) &FileType );
     PyModule_AddObject( ClientModule, "URL", (PyObject *) &URLType );
     PyModule_AddObject( ClientModule, "CopyProcess", (PyObject *) &CopyProcessType );
-    PyModule_AddObject( ClientModule, "CopyJob", (PyObject *) &CopyJobType );
   }
 }

@@ -17,7 +17,6 @@
 //------------------------------------------------------------------------------
 
 #include "PyXRootDCopyProcess.hh"
-#include "PyXRootDCopyJob.hh"
 
 namespace PyXRootD
 {
