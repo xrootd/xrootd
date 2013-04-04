@@ -1,6 +1,6 @@
 from XRootD import client
 
-myclient = client.Client("root://localhost")
+myclient = client.FileSystem("root://localhost")
 print 'URL:', myclient.url
 
 #-------------------------------------------------------------------------------
@@ -14,7 +14,7 @@ print 'Status:', status['message']
 #-------------------------------------------------------------------------------
 def callback(status, hostList):
   print 'Response status:', status['message']
-   
+
   for host in hostList:
     print "Host:", host.url
 

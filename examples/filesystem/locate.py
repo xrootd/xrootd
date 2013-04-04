@@ -1,6 +1,6 @@
 from XRootD import client
 
-myclient = client.Client("root://localhost")
+myclient = client.FileSystem("root://localhost")
 print 'URL:', myclient.url
 
 #-------------------------------------------------------------------------------
