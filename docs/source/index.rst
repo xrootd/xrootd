@@ -29,10 +29,11 @@ API Reference
 
    modules/client/client
    modules/client/file
-   modules/client/handler
    modules/client/copyprocess
+   modules/client/handler
    modules/client/url
-   modules/enums
+   modules/client/responses
+   modules/client/enums
 
 
 

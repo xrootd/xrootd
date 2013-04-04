@@ -3,11 +3,19 @@
 ================================
 
 .. warning::
-  
+
   This page is under construction
-  
+
+Class Reference
+---------------
+
 .. module:: XRootD.client
 
 .. autoclass:: XRootD.client.CopyProcess
-   :members:
-   :undoc-members:
+
+Methods
+*******
+ 
+.. automethod:: XRootD.client.CopyProcess.add_job
+.. automethod:: XRootD.client.CopyProcess.prepare
+.. automethod:: XRootD.client.CopyProcess.run
