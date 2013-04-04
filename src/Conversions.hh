@@ -26,33 +26,6 @@
 
 namespace PyXRootD
 {
-  //----------------------------------------------------------------------------
-  //! Convert a C++ type to its corresponding Python binding type. We cast
-  //! the object to a void * before packing it into a PyCObject.
-  //!
-  //! Note: The PyCObject API is deprecated as of Python 2.7
-  //----------------------------------------------------------------------------
-  template<class Type>
-  PyObject* ConvertType( Type *type, PyTypeObject *bindType )
-  {
-    PyObject *args = Py_BuildValue( "(O)",
-        PyCObject_FromVoidPtr( (void *) type, NULL ) );
-    if ( !args )
-      return NULL;
-
-    bindType->tp_new = PyType_GenericNew;
-    if ( PyType_Ready( bindType ) < 0 ) {
-      return NULL;
-    }
-
-    PyObject *bind = PyObject_CallObject( (PyObject *) bindType, args );
-    Py_DECREF( args );
-    if ( !bind )
-      return NULL;
-
-    return bind;
-  }
-
   template<typename T> struct PyDict;
 
   template<typename Type>
@@ -60,14 +33,6 @@ namespace PyXRootD
   {
     return PyDict<Type>::Convert(type);
   }
-
-  template<> struct PyDict<XrdCl::AnyObject>
-  {
-      static PyObject* Convert( XrdCl::AnyObject *object )
-      {
-        Py_RETURN_NONE;
-      }
-  };
 
   template<typename T>
   PyObject* ConvertResponse( T *response )
@@ -78,6 +43,14 @@ namespace PyXRootD
       Py_RETURN_NONE;
     }
   }
+
+  template<> struct PyDict<XrdCl::AnyObject>
+  {
+      static PyObject* Convert( XrdCl::AnyObject *object )
+      {
+        Py_RETURN_NONE;
+      }
+  };
 
   template<> struct PyDict<XrdCl::XRootDStatus>
   {
