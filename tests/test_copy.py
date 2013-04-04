@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.enums import OpenFlags
+from XRootD.client.enums import OpenFlags
 from env import *
 
 def test_copy():
@@ -24,7 +24,7 @@ def test_copy():
   assert s.ok
   assert f.is_open()
   size2 = f.stat()[1].size
-   
+
   assert size1 == size2
-  
+
   f.close()

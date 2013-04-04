@@ -10,12 +10,11 @@ if [[ @slavename@ =~ client ]]; then
   PYTHON=`which python`
   PYVER=`$PYTHON -V`
   log "Working with $PYVER from $PYTHON ..."
-  
+
   log "Running pytest ..."
-  
+
   export XRD_LOGLEVEL=Dump
-  $PYTHON -m py.test
+  #$PYTHON -m py.test
 
 fi
-
 
