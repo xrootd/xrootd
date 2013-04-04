@@ -17,18 +17,40 @@
 //------------------------------------------------------------------------------
 
 #include "PyXRootDCopyProcess.hh"
+#include "Conversions.hh"
 
 namespace PyXRootD
 {
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    const char *source, *target;
+    static char *kwlist[]  = { "source", "target", "sourcelimit", "force",
+                               "posc", "coerce", "thirdparty", "checksumprint",
+                               "chunksize", "parallelchunks", NULL };
+    const char  *source;
+    const char  *target;
+    uint16_t sourceLimit   = 1;
+    bool force             = false;
+    bool posc              = false;
+    bool coerce            = false;
+    bool thirdParty        = false;
+    bool checkSumPrint     = false;
+    uint32_t chunkSize     = 4194304;
+    uint8_t parallelChunks = 8;
 
-    if ( !PyArg_ParseTuple( args, "ss", &source, &target ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbbIb:add_job", kwlist,
+        &source, &target, &sourceLimit, &force, &posc, &coerce, &thirdParty,
+        &checkSumPrint, &chunkSize, &parallelChunks ) )
+      return NULL;
 
     XrdCl::JobDescriptor *job = new XrdCl::JobDescriptor();
     job->source = XrdCl::URL( source );
     job->target = XrdCl::URL( target );
+    job->sourceLimit = sourceLimit;
+    job->force = force;
+    job->posc = posc;
+    job->coerce = coerce;
+    job->thirdParty = thirdParty;
+    job->checkSumPrint = checkSumPrint;
 
     self->process->AddJob( job );
     Py_RETURN_NONE;
@@ -37,17 +59,13 @@ namespace PyXRootD
   PyObject* CopyProcess::Prepare( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::XRootDStatus status = self->process->Prepare();
-    if (status.IsOK()) {
-      printf(">>>>> 'prepped");
-    }
+    return ConvertType<XrdCl::XRootDStatus>( &status );
   }
 
   PyObject* CopyProcess::Run( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();
     XrdCl::XRootDStatus status = self->process->Run( handler );
-    if (status.IsOK()) {
-      printf(">>>>> 'sall good");
-    }
+    return ConvertType<XrdCl::XRootDStatus>( &status );
   }
 }

@@ -167,10 +167,10 @@ namespace PyXRootD
         if ( list ) {
           for ( unsigned int i = 0; i < list->size(); ++i ) {
             XrdCl::HostInfo *info = &list->at( i );
-            std::cout << ">>>>> " << info;
+
             PyObject *url = PyObject_CallObject( (PyObject*) &URLType,
                 Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
-            _PyObject_Dump(url);
+
             PyObject *pyhostinfo = Py_BuildValue( "{sIsIsOsO}",
                 "flags",        info->flags,
                 "protocol",     info->protocol,

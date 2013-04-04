@@ -32,13 +32,13 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Open( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]             = { "url", "flags", "mode",
+    static char            *kwlist[] = { "url", "flags", "mode",
                                          "timeout", "callback", NULL };
-    const  char             *url;
-    XrdCl::OpenFlags::Flags flags     = XrdCl::OpenFlags::None;
-    XrdCl::Access::Mode     mode      = XrdCl::Access::None;
-    uint16_t                timeout   = 5;
-    PyObject                *callback = NULL;
+    const  char            *url;
+    XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
+    XrdCl::Access::Mode     mode     = XrdCl::Access::None;
+    uint16_t                timeout  = 5;
+    PyObject               *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
