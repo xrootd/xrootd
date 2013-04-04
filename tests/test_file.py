@@ -1,6 +1,7 @@
 from XRootD import client
 from XRootD.client import AsyncResponseHandler
 from XRootD.enums import OpenFlags
+from env import *
  
 import pytest
 import sys
@@ -10,7 +11,7 @@ def test_write():
     buffer = 'eggs and ham\n'
  
     pytest.raises(ValueError, "f.write(buffer)")
-    status, response = f.open('root://localhost//tmp/spam', OpenFlags.DELETE)
+    status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.DELETE)
     assert status.ok
  
     status, response = f.write(buffer)
@@ -34,7 +35,7 @@ def test_read():
     f = client.File()
     pytest.raises(ValueError, 'f.read()')
  
-    status, response = f.open('root://localhost//tmp/bigfile', OpenFlags.READ)
+    status, response = f.open(SERVER_URL + '/tmp/bigfile', OpenFlags.READ)
     assert status.ok
      
     status, response = f.stat(timeout=5)
@@ -56,7 +57,7 @@ def test_vector_read():
     f = client.File()
     pytest.raises(ValueError, 'f.vector_read(v)')
  
-    status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
+    status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.READ)
     assert status.ok
     status, response = f.vector_read(chunks=v)
     assert status.ok == False
@@ -64,7 +65,7 @@ def test_vector_read():
     f.close()
  
     f = client.File()
-    status, response = f.open('root://localhost//tmp/bigfile', OpenFlags.READ)
+    status, response = f.open(SERVER_URL + '/tmp/bigfile', OpenFlags.READ)
     print status
     assert status.ok
     status, response = f.vector_read(chunks=v)
@@ -78,7 +79,7 @@ def test_stat():
     pytest.raises(ValueError, 'f.stat()')
          
  
-    status, response = f.open('root://localhost//tmp/spam')
+    status, response = f.open(SERVER_URL + '/tmp/spam')
     assert status.ok
  
     status, response = f.stat()
@@ -91,7 +92,7 @@ def test_sync():
      
     pytest.raises(ValueError, 'f.sync()')
  
-    status, response = f.open('root://localhost//tmp/spam')
+    status, response = f.open(SERVER_URL + '/tmp/spam')
     assert status.ok
      
     status, response = f.sync()
@@ -103,7 +104,7 @@ def test_truncate():
  
     pytest.raises(ValueError, 'f.truncate(10000)')
      
-    status, response = f.open('root://localhost//tmp/spam', OpenFlags.UPDATE)
+    status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.UPDATE)
     assert status.ok
  
     status, response = f.truncate(size=10000)
@@ -115,7 +116,7 @@ def test_misc():
     f = client.File()
     assert not f.is_open()
      
-    status, response = f.open('root://localhost//tmp/spam', OpenFlags.READ)
+    status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.READ)
     assert status.ok
     assert f.is_open()
  

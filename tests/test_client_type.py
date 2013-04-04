@@ -1,12 +1,13 @@
 from XRootD import client
 import pytest, sys
+from env import *
 
 def test_creation():
-    c = client.Client("root://localhost")
+    c = client.Client(SERVER_URL)
     assert c.url is not None
 
 def test_deletion():
-    c = client.Client("root://localhost")
+    c = client.Client(SERVER_URL)
     del c
     
     if sys.hexversion > 0x03000000:

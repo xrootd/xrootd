@@ -2,10 +2,11 @@ from XRootD import client
 from XRootD.client import AsyncResponseHandler
 from XRootD.enums  import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
                           DirListFlags, PrepareFlags
+from env import *
 import pytest
   
 def test_filesystem():
-    c = client.Client("root://localhost")
+    c = client.Client(SERVER_URL)
   
     funcspecs = [(c.locate,     ('/tmp', OpenFlags.REFRESH), True),
                  (c.deeplocate, ('/tmp', OpenFlags.REFRESH), True),
@@ -30,7 +31,7 @@ def test_filesystem():
   
     # Create new temp file
     f = client.File()
-    status, response = f.open('root://localhost//tmp/spam', OpenFlags.NEW)
+    status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.NEW)
   
     for func, args, hasReturnObject in funcspecs:
         async(func, args, hasReturnObject)
@@ -58,7 +59,7 @@ def async(func, args, hasReturnObject):
       assert host.url
   
 def test_args():
-    c = client.Client("root://localhost")
+    c = client.Client(SERVER_URL)
     status, response = c.locate(path="/tmp", flags=0, timeout=1)
     assert status
     assert response

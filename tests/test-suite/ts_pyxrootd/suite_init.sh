@@ -11,26 +11,18 @@ CONFIG_PATH=/etc/xrootd/${CONFIG_FILE}
 log "Fetching latest xrootd build ..."
 
 mkdir -p tmp_initsh
-rm -rf tmpinitsh/*
 cd tmp_initsh
 curl -sSkO "@proto@://master.xrd.test:@port@/showScript/utils/get_xrd_latest.py" > /dev/null
 chmod 755 get_xrd_latest.py
 rm -rf xrd_rpms
 python get_xrd_latest.py
 rm -rf xrd_rpms/slc-6-x86_64/xrootd-*.src.*.rpm
-rm -rf xrd_rpms/slc-6-x86_64/xrootd-*-devel-*.rpm
 
 #-------------------------------------------------------------------------------
 log "Installing xrootd packages ..."
 
-COMMAND=(rpm -e --allmatches --nodeps xrootd-client xrootd-client-admin-perl \
-         xrootd-fuse xrootd-server xrootd-libs)
-
-if "${COMMAND[@]}"; then log "xrootd packages removed."; fi
-
 COMMAND=(rpm -U --force \
 xrd_rpms/slc-6-x86_64/xrootd-libs-*.rpm \
-xrd_rpms/slc-6-x86_64/xrootd-client-*.rpm \
 xrd_rpms/slc-6-x86_64/xrootd-cl-*.rpm \
 xrd_rpms/slc-6-x86_64/xrootd-server-*.rpm)
 
@@ -113,7 +105,5 @@ stamp tail --lines=$N /var/log/xrootd/${NAME}/xrootd.log
 #-------------------------------------------------------------------------------
 # log "Last ${N} lines of cmsd /var/log/xrootd/${NAME}/cmsd.log file:"
 # stamp tail --lines=$N /var/log/xrootd/${NAME}/cmsd.log
-
-
 
 log "Suite initialization complete."

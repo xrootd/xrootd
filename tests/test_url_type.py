@@ -1,12 +1,13 @@
 from XRootD import client
 import pytest, sys
+from env import *
 
 def test_creation():
-    u = client.Client("root://localhost").url
+    u = client.Client(SERVER_URL).url
     assert u is not None
 
 def test_deletion():
-    u = client.Client("root://localhost").url
+    u = client.Client(SERVER_URL).url
     del u
     
     if sys.hexversion > 0x03000000:
@@ -27,7 +28,7 @@ def test_getters():
     assert u.path_with_params == '/path?param1=val1&param2=val2'
 
 def test_setters():
-    u = client.Client('root://localhost').url
+    u = client.Client(SERVER_URL).url
     print u
     u.protocol = 'root'
     print u

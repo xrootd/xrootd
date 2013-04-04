@@ -1,0 +1,1 @@
+SERVER_URL = 'root://vagabond.cern.ch/'
