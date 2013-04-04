@@ -3,9 +3,9 @@ source /etc/XrdTest/utils/functions.sh
 
 log "Running test case on slave" @slavename@ "..."
 
-cd /tmp/xrootd-python-master
-
 if [[ @slavename@ =~ client ]]; then
+
+  cd /tmp/xrootd-python-master
 
   PYTHON=`which python`
   PYVER=`$PYTHON -V`

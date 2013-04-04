@@ -24,6 +24,7 @@ log "Installing xrootd packages ..."
 COMMAND=(rpm -U --force \
 xrd_rpms/slc-6-x86_64/xrootd-libs-*.rpm \
 xrd_rpms/slc-6-x86_64/xrootd-cl-*.rpm \
+xrd_rpms/slc-6-x86_64/xrootd-client-*.rpm \
 xrd_rpms/slc-6-x86_64/xrootd-server-*.rpm)
 
 if "${COMMAND[@]}"; then log "xrootd packages upgraded."; fi
