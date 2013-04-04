@@ -19,7 +19,6 @@ User Guide
 
    install
 
-
 API Reference
 =============
 
@@ -27,15 +26,12 @@ API Reference
    :numbered:
    :maxdepth: 2
 
-   modules/client/client
+   modules/client/filesystem
    modules/client/file
    modules/client/copyprocess
-   modules/client/handler
-   modules/client/url
    modules/client/responses
    modules/client/enums
-
-
+   modules/client/utils
 
 Examples
 ========

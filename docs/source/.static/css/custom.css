@@ -66,7 +66,6 @@ div.documentwrapper {
     background-color: #e8ecef;
 }
 
-
 /* HEADINGS --------------------------------------------------------------- */
 
 h1 {
@@ -117,7 +116,6 @@ h5 a.anchor:hover, h6 a.anchor:hover {
     color: #777;
     background-color: #eee;
 }
-
 
 /* LINKS ------------------------------------------------------------------ */
 
@@ -173,7 +171,6 @@ div.body a.headerlink:hover {
     color: #c60f0f;
     border: none;
 }
-
 
 /* NAVIGATION BAR --------------------------------------------------------- */
 
@@ -232,7 +229,6 @@ div.related ul li a tt {
     background: inherit !important;
     color: inherit !important;
 }
-
 
 /* SIDEBAR ---------------------------------------------------------------- */
 
@@ -395,9 +391,6 @@ div.sphinxsidebar p.logo a {
 div.sphinxsidebar h3 a {
 }
 
-
-
-
 /* OTHER STUFF ------------------------------------------------------------ */
 
 cite, code, tt {
@@ -420,7 +413,6 @@ hr {
     border: 1px solid #abc;
     margin: 2em;
 }
-
 
 pre, #_fontwidthtest {
     font-family: 'Consolas', 'Deja Vu Sans Mono',
@@ -471,7 +463,6 @@ table td, table th {
     padding: 0.2em 0.5em 0.2em 0.5em;
 }
 
-
 /* ADMONITIONS AND WARNINGS ------------------------------------------------- */
 
 /* Shared by admonitions, warnings and sidebars */
@@ -515,7 +506,6 @@ div.sidebar ul, div.sidebar ol {
     padding: 0;
 }
 
-
 /* Admonitions and sidebars only */
 div.admonition, div.sidebar {
     border: 1px solid #609060;
@@ -527,7 +517,6 @@ div.sidebar p.sidebar-title {
     border-bottom: 1px solid #609060;
 }
 
-
 /* Warnings only */
 div.warning {
     border: 1px solid #900000;
@@ -538,13 +527,10 @@ div.warning p.admonition-title {
     border-bottom: 1px solid #900000;
 }
 
-
 /* Sidebars only */
 div.sidebar {
   max-width: 30%;
 }
-
-
 
 div.versioninfo {
     margin: 1em 0 0 0;
@@ -600,16 +586,14 @@ p {
     margin: 0;
 }
 
-
 .section p img {
     margin: 1em 2em;
 }
 
-
 /* MOBILE LAYOUT -------------------------------------------------------------- */
 
 @media screen and (max-width: 600px) {
-    
+
     h1, h2, h3, h4, h5 {
         position: relative;
     }

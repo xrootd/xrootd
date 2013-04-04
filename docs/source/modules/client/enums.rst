@@ -1,6 +1,6 @@
-====================================================
-:mod:`XRootD.enums`: Enumeration flags and constants
-====================================================
+===========================================================
+:mod:`XRootD.client.enums`: Enumeration flags and constants
+===========================================================
 
 .. module:: XRootD.enums
 
@@ -19,7 +19,7 @@
   | :mod:`OpenFlags.REPLICA`:  The file is being opened for replica creation
   | :mod:`OpenFlags.POSC`:     Enable `Persist On Successful Close` processing
   | :mod:`OpenFlags.NOWAIT`:   Open the file only if it does not cause a wait. 
-                               For :func:`XRootD.client.Client.locate` : provide 
+                               For :func:`XRootD.client.FileSystem.locate` : provide 
                                a location as soon as one becomes known. This 
                                means that not all locations are necessarily 
                                returned. If the file does not exist a wait is 
@@ -72,5 +72,5 @@
   | :mod:`QueryCode.VISA`:           Query file visa attributes
   | :mod:`QueryCode.OPAQUE`:         Implementation dependent
   | :mod:`QueryCode.OPAQUEFILE`:     Implementation dependent
-  
+
   

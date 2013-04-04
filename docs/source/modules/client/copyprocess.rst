@@ -1,6 +1,6 @@
-================================
-:mod:`XRootD.client.CopyProcess`
-================================
+===============================================
+:mod:`XRootD.client.CopyProcess`: Copying files
+===============================================
 
 .. warning::
 
@@ -15,7 +15,7 @@ Class Reference
 
 Methods
 *******
- 
+
 .. automethod:: XRootD.client.CopyProcess.add_job
 .. automethod:: XRootD.client.CopyProcess.prepare
 .. automethod:: XRootD.client.CopyProcess.run
