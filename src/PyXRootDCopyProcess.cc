@@ -21,6 +21,9 @@
 
 namespace PyXRootD
 {
+  //----------------------------------------------------------------------------
+  // Add a job to the copy process
+  //----------------------------------------------------------------------------
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     static char *kwlist[]  = { "source", "target", "sourcelimit", "force",
@@ -56,12 +59,18 @@ namespace PyXRootD
     Py_RETURN_NONE;
   }
 
+  //----------------------------------------------------------------------------
+  // Prepare the copy jobs
+  //----------------------------------------------------------------------------
   PyObject* CopyProcess::Prepare( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::XRootDStatus status = self->process->Prepare();
     return ConvertType<XrdCl::XRootDStatus>( &status );
   }
 
+  //----------------------------------------------------------------------------
+  // Run the copy jobs
+  //----------------------------------------------------------------------------
   PyObject* CopyProcess::Run( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
     XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();

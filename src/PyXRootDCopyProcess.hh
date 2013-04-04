@@ -26,18 +26,33 @@
 
 namespace PyXRootD
 {
+  //----------------------------------------------------------------------------
+  //! Interface for copy progress notification (not really used here)
+  //----------------------------------------------------------------------------
   class PyCopyProgressHandler : public XrdCl::CopyProgressHandler
   {
     public:
+      //------------------------------------------------------------------------
+      //! Notify when a new job is about to start
+      //------------------------------------------------------------------------
       void BeginJob( uint16_t jobNum, uint16_t jobTotal,
           const XrdCl::URL *source, const XrdCl::URL *destination ) {}
 
+      //------------------------------------------------------------------------
+      //! Notify when the previous job has finished
+      //------------------------------------------------------------------------
       void EndJob( const XrdCl::XRootDStatus &status ) {}
 
+      //------------------------------------------------------------------------
+      //! Notify about the progress of the current job
+      //------------------------------------------------------------------------
       void JobProgress( uint64_t bytesProcessed, uint64_t bytesTotal ) {}
 
   };
 
+  //----------------------------------------------------------------------------
+  //! Copy the data from one point to another
+  //----------------------------------------------------------------------------
   class CopyProcess
   {
     public:
@@ -53,7 +68,7 @@ namespace PyXRootD
   PyDoc_STRVAR(copyprocess_type_doc, "CopyProcess object (internal)");
 
   //----------------------------------------------------------------------------
-  //! __init__() equivalent
+  //! __init__()
   //----------------------------------------------------------------------------
   static int CopyProcess_init( CopyProcess *self, PyObject *args )
   {
