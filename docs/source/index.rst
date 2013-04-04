@@ -27,12 +27,11 @@ API Reference
    :numbered:
    :maxdepth: 2
 
-   modules/client/classes/client
-   modules/client/classes/file
-   modules/client/classes/handler
-   modules/client/classes/copyprocess
-   modules/client/classes/copyjob
-   modules/client/classes/url
+   modules/client/client
+   modules/client/file
+   modules/client/handler
+   modules/client/copyprocess
+   modules/client/url
    modules/enums
 
 
