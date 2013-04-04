@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 
 from threading import Lock
-from XRootD.responses import XRootDStatus, HostInfo
+from XRootD.client.responses import XRootDStatus, HostInfo
 import inspect
 
 class CallbackWrapper(object):
@@ -26,7 +26,7 @@ class CallbackWrapper(object):
       raise TypeError('callback must be callable function, class or lambda')
     self.callback = callback
     self.responsetype = responsetype
-    
+
   def __call__(self, status, response, hostlist):
     self.status = XRootDStatus(status)
     self.response = response
@@ -35,7 +35,6 @@ class CallbackWrapper(object):
         self.response = self.response.__init__(response)
     self.hostlist = HostInfo(hostlist)
     self.callback(self.status, self.response, self.hostlist)
-
 
 class AsyncResponseHandler(object):
   """Utility class to handle asynchronous method calls."""

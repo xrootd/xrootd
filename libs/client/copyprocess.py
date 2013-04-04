@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 
 from pyxrootd import client
-from XRootD.responses import XRootDStatus
+from XRootD.client.responses import XRootDStatus
 
 class CopyProcess(object):
   """TODO: write me"""
@@ -29,7 +29,7 @@ class CopyProcess(object):
               coerce=False, thirdparty=False, checksumprint=False, 
               chunksize=4194304, parallelchunks=8):
     """Add a job to the copy process.
-    
+
     :param         source: original source URL
     :type          source: string
     :param         target: target directory or file

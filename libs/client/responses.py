@@ -27,7 +27,7 @@ class XRootDStatus(object):
     self.error = status['isError']
     self.fatal = status['isFatal']
     self.ok = status['isOK']
-  
+
   def __str__(self):
     return self.message
 
@@ -39,7 +39,7 @@ class StatInfo(object):
     self.size = info['size']
     self.modtime = info['modTime']
     self.modtimestr = info['modTimeAsString']
-    
+
 class StatInfoVFS(object):
   def __init__(self, info):
     self.nodes_rw = info['nodesRW']
@@ -54,10 +54,10 @@ class LocationInfo(object):
     self.locations = list()
     for l in locations:
       self.locations.append(Location(l))
-      
+
   def __iter__(self):
     return iter(self.locations)
-  
+
 class Location(object):
   def __init__(self, location):
     self.address = location['address']
@@ -65,7 +65,7 @@ class Location(object):
     self.accesstype = location['accessType']
     self.is_manager = location['isManager']
     self.is_server = location['isServer']
-  
+
 class HostInfo(object):
   def __init__(self, info):
     self.hosts = list()
@@ -74,14 +74,14 @@ class HostInfo(object):
 
   def __iter__(self):
     return iter(self.hosts)
-  
+
 class Host(object):
   def __init__(self, host):
     self.url = host['url']
     self.protocol = host['protocol']
     self.flags = host['flags']
     self.load_balancer = host['loadBalancer']
-    
+
 class VectorReadInfo(object):
   def __init__(self, info):
     self.size = info['size']
@@ -97,7 +97,7 @@ class ChunkInfo(object):
     self.offset = chunk['offset']
     self.length = chunk['length']
     self.buffer = chunk['buffer']
-  
+
 class ProtocolInfo(object):
   def __init__(self, info):
     self.version = info['version']

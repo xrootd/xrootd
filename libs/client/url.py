@@ -20,15 +20,15 @@ from pyxrootd import client
 
 class URL(object):
   """Server URL object.
-  
+
   This class has each portion of an `XRootD` URL split up as attributes. For
   example, given the URL::
-  
+
     >>> url = URL(root://user1:passwd1@host1:1234//path?param1=val1&param2=val2)
-    
+
   then ``url.hostid`` would return `user1:passwd1@host1:1234`.
   """
-  
+
   def __init__(self, url):
     self.__url = url
 
@@ -69,7 +69,7 @@ class URL(object):
   def path(self):
     """The path part of the URL, i.e. ``path``"""
     return self.__url.path
-    
+
   @property
   def path_with_params(self):
     """The path part of the URL with parameters, i.e. 
@@ -79,11 +79,11 @@ class URL(object):
 
   def is_valid(self):
     """Return the validity of the URL
-    
+
     :rtype: boolean
     """
     return self.__url.is_valid()
-  
+
   def clear(self):
     """Clear the URL"""
     return self.__url.clear()

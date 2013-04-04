@@ -16,18 +16,18 @@
 # along with XRootD.  If not, see <http:#www.gnu.org/licenses/>.
 #-------------------------------------------------------------------------------
 
-import XRootD
 from pyxrootd import client
-from XRootD.responses import XRootDStatus, StatInfo, StatInfoVFS, \
-                             LocationInfo, DirectoryList, ProtocolInfo
+from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
+from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
+from XRootD.client.utils import CallbackWrapper
 
-class Client(object):
+class FileSystem(object):
   """The client class
-  
+
   :param url: The URL of the server to connect with
   :type  url: string
   """
-  
+
   def __init__(self, url):
     self.__fs = client.FileSystem(url)
 
@@ -45,9 +45,9 @@ class Client(object):
     :returns:     :class:`XRootD.responses.XRootDStatus` and 
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
+      callback = CallbackWrapper(callback, LocationInfo)
       return XRootDStatus(self.__fs.locate(path, flags, timeout, callback))
-    
+
     status, response = self.__fs.locate(path, flags, timeout)
     if response: response = LocationInfo(response)
     return XRootDStatus(status), response
@@ -61,9 +61,9 @@ class Client(object):
     :returns:     tuple containing status and location info (see above)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, LocationInfo)
+      callback = CallbackWrapper(callback, LocationInfo)
       return XRootDStatus(self.__fs.deeplocate(path, flags, timeout, callback))
-    
+
     status, response = self.__fs.deeplocate(path, flags, timeout)
     if response: response = LocationInfo(response)
     return XRootDStatus(status), response
@@ -78,37 +78,37 @@ class Client(object):
     :returns:      tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.mv(source, dest, timeout, callback))
-    
+
     status, response = self.__fs.mv(source, dest, timeout)
     return XRootDStatus(status), None
-    
+
   def query(self, querycode, arg, timeout=0, callback=None):
     """Obtain server information.
-    
+
     :param querycode: the query code as specified in
                       :mod:`XRootD.enums.QueryCode`
     :param       arg: query argument
     :type        arg: string
     :returns:         the query response or None if there was an error
     :rtype:           string
-    
+
     .. note::
       For more information about XRootD query codes and arguments, see 
       `the relevant section in the protocol reference 
       <http://xrootd.slac.stanford.edu/doc/prod/XRdv299.htm#_Toc337053385>`_.
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.query(querycode, arg, timeout, callback))
-    
+
     status, response = self.__fs.query(querycode, arg, timeout)
     return XRootDStatus(status), response
-    
+
   def truncate(self, path, size, timeout=0, callback=None):
     """Truncate a file.
-    
+
     :param path: path to the file to be truncated
     :type  path: string
     :param size: file size
@@ -116,29 +116,29 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.truncate(path, size, timeout, callback))
-    
+
     status, response = self.__fs.truncate(path, size, timeout)
     return XRootDStatus(status), None
-    
+
   def rm(self, path, timeout=0, callback=None):
     """Remove a file.
-    
+
     :param path: path to the file to be removed
     :type  path: string
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.rm(path, timeout, callback))
-    
+
     status, response = self.__fs.rm(path, timeout)
     return XRootDStatus(status), None
 
   def mkdir(self, path, flags=0, mode=0, timeout=0, callback=None):
     """Create a directory.
-    
+
     :param  path: path to the directory to create
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.enums.MkDirFlags`
@@ -149,29 +149,29 @@ class Client(object):
     :returns:     tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.mkdir(path, flags, mode, timeout, callback))
-    
+
     status, response = self.__fs.mkdir(path, flags, mode, timeout)
     return XRootDStatus(status), None
-    
+
   def rmdir(self, path, timeout=0, callback=None):
     """Remove a directory.
-    
+
     :param path: path to the directory to remove
     :type  path: string
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.rmdir(path, timeout, callback))
-    
+
     status, response = self.__fs.rmdir(path, timeout)
     return XRootDStatus(status), None
-      
+
   def chmod(self, path, mode=0, timeout=0, callback=None):
     """Change access mode on a directory or a file.
-    
+
     :param path: path to the file/directory to change access mode
     :type  path: string
     :param mode: An `OR`ed` combination of :mod:`XRootD.enums.AccessMode`
@@ -179,73 +179,73 @@ class Client(object):
     :returns:    tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.chmod(path, mode, timeout, callback))
-    
+
     status, response = self.__fs.chmod(path, mode, timeout)
     return XRootDStatus(status), None
-    
+
   def ping(self, timeout=0, callback=None):
     """Check if the server is alive.
-    
+
     :returns: tuple containing status dictionary and None
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.ping(timeout, callback))
-    
+
     status, response = self.__fs.ping(timeout)
     return XRootDStatus(status), None
-    
+
   def stat(self, path, timeout=0, callback=None):
     """Obtain status information for a path.
-    
+
     :param path: path to the file/directory to stat
     :type  path: string
     :returns:    tuple containing status dictionary and stat info
                  dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, StatInfo)
+      callback = CallbackWrapper(callback, StatInfo)
       return XRootDStatus(self.__fs.stat(path, timeout, callback))
-    
+
     status, response = self.__fs.stat(path, timeout)
     if response: response = StatInfo(response)
     return XRootDStatus(status), response
-  
+
   def statvfs(self, path, timeout=0, callback=None):
     """Obtain status information for a Virtual File System.
-    
+
     :param path: path to the file/directory to stat
     :type  path: string
     :returns:    tuple containing status dictionary and statvfs info
                  dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, StatInfoVFS)
+      callback = CallbackWrapper(callback, StatInfoVFS)
       return XRootDStatus(self.__fs.statvfs(path, timeout, callback))
-    
+
     status, response = self.__fs.statvfs(path, timeout)
     if response: response = StatInfoVFS(response)
     return XRootDStatus(status), response
-    
+
   def protocol(self, timeout=0, callback=None):
     """Obtain server protocol information.
-    
+
     :returns: tuple containing status dictionary and protocol info
               dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, ProtocolInfo)
+      callback = CallbackWrapper(callback, ProtocolInfo)
       return XRootDStatus(self.__fs.protocol(timeout, callback))
-    
+
     status, response = self.__fs.protocol(timeout)
     if response: response = ProtocolInfo(response)
     return XRootDStatus(status), response
-    
+
   def dirlist(self, path, flags=0, timeout=0, callback=None):
     """List entries of a directory.
-    
+
     :param  path: path to the directory to list
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.enums.DirListFlags`
@@ -254,30 +254,30 @@ class Client(object):
                   list info dictionary (see below)
     """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, DirectoryList)
+      callback = CallbackWrapper(callback, DirectoryList)
       return XRootDStatus(self.__fs.dirlist(path, flags, timeout, callback))
-    
+
     status, response = self.__fs.dirlist(path, flags, timeout)
     if response: response = DirectoryList(response)
     return XRootDStatus(status), response
-    
+
   def sendinfo(self, info, timeout=0, callback=None):
     """Send info to the server (up to 1024 characters).
-    
+
     :param info: the info string to be sent
     :type  info: string
     :returns:    tuple containing status dictionary and None
      """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.sendinfo(info, timeout, callback))
-    
+
     status, response = self.__fs.sendinfo(info, timeout)
     return XRootDStatus(status), response
-    
+
   def prepare(self, files, flags, priority=0, timeout=0, callback=None):
     """Prepare one or more files for access.
-    
+
     :param    files: list of files to be prepared
     :type     files: list
     :param    flags: An `ORed` combination of
@@ -287,10 +287,10 @@ class Client(object):
     :returns:        tuple containing status dictionary and None
      """
     if callback:
-      callback = XRootD.client.CallbackWrapper(callback, None)
+      callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.prepare(files, flags, priority, timeout, 
                                             callback))
-    
+
     status, response = self.__fs.prepare(files, flags, priority, timeout)
     return XRootDStatus(status), response
 
