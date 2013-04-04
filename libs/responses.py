@@ -4,7 +4,7 @@ class XRootDStatus(object):
   def __init__(self, status):
     self.status = status['status']       #: = 0, the status
     self.code = status['code']
-    self.errNo = status['errNo']
+    self.errno = status['errNo']
     self.message = status['message']
     self.shellcode = status['shellCode']
     self.error = status['isError']
