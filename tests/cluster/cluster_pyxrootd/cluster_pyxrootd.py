@@ -23,7 +23,7 @@ def getCluster():
     # Network definition
     #---------------------------------------------------------------------------
     net = Network()
-    net.bridgeName = 'virbr_cl_pyxrd' 
+    net.bridgeName = 'virbr_cl_pyxrd'
     net.name = network_name
     net.ip = '192.168.10.1'
     net.netmask = '255.255.255.0'

@@ -59,15 +59,6 @@ def async(func, args, hasReturnObject):
     for host in hostlist:
       assert host.url
 
-def test_valid_url():
-    c = client.FileSystem(SERVER_URL)
-    assert  c.url.is_valid()
-
-def test_invalid_url():
-    c = client.FileSystem('root://')
-    print c.url
-    assert c.url.is_valid() == False
-
 def test_args():
     c = client.FileSystem(url=SERVER_URL)
     assert c
