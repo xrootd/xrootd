@@ -42,8 +42,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static int ChunkIterator_init(ChunkIterator *self, PyObject *args)
   {
-    if ( !PyArg_ParseTuple( args, "OIk", &self->file,
-        &self->blocksize, &self->startOffset ) ) return -1;
+    if ( !PyArg_ParseTuple( args, "OkI", &self->file,
+        &self->startOffset, &self->blocksize ) ) return -1;
 
     self->currentOffset = self->startOffset;
     return 0;
@@ -65,10 +65,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyObject* ChunkIterator_iternext(ChunkIterator *self)
   {
-    PyObject *line = self->file->Read( self->file,
+    PyObject *chunk = self->file->Read( self->file,
         Py_BuildValue( "kI", self->currentOffset, self->blocksize ), NULL );
 
-    if ( !PyString_Size( PyTuple_GetItem( line, 1 ) ) ) {
+    if ( !PyString_Size( PyTuple_GetItem( chunk, 1 ) ) ) {
       //------------------------------------------------------------------------
       // Raise standard StopIteration exception with empty value
       //------------------------------------------------------------------------
@@ -77,7 +77,7 @@ namespace PyXRootD
     }
 
     self->currentOffset += self->blocksize;
-    return line;
+    return chunk;
   }
 
   //----------------------------------------------------------------------------

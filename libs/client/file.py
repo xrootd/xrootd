@@ -118,8 +118,7 @@ class File(object):
     :returns:      data that was read, including the trailing newline
     :rtype:        string
     """
-    response = self.__file.readline()
-    return response
+    return self.__file.readline()
 
   def readlines(self, offset=0, size=0):
     """Read lines from a given offset until EOF encountered. Return list of
@@ -132,22 +131,19 @@ class File(object):
     :returns:      data that was read, including trailing newlines
     :rtype:        list of strings
     """
-    response = self.__file.readlines(offset, size)
-    return response
+    return self.__file.readlines(offset, size)
 
-  def readchunks(self, offset, blocksize):
-    """Read data chunks from a given offset of the given size until EOF.
-    Return list of chunks read.
+  def readchunks(self, offset=0, blocksize=1024*1024*2):
+    """Return an iterator object which will read data chunks from a given 
+    offset of the given blocksize until EOF.
 
     :param    offset: offset from the beginning of the file
     :type     offset: integer
     :param blocksize: size of chunk to read, in bytes
     :type  blocksize: integer
-    :returns:         chunks that were read
-    :rtype:           list of strings
+    :returns:         iterator object
     """
-    status, response = self.__file.readchunks(offset, blocksize)
-    return XRootDStatus(status), response
+    return self.__file.readchunks(offset, blocksize)
 
   def write(self, buffer, offset=0, size=0, timeout=0, callback=None):
     """Write a data chunk at a given offset.

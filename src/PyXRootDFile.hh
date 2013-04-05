@@ -88,9 +88,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static void File_dealloc( File *self )
   {
-    delete self->file;
-    delete self->partial;
-    delete self->surplus;
+//    delete self->file;
+//    delete self->partial;
+//    delete self->surplus;
     self->ob_type->tp_free( (PyObject*) self );
   }
 

@@ -156,6 +156,7 @@ namespace PyXRootD
       uint32_t bytesRead;
       status = self->file->Read( offset, size, buffer, bytesRead, timeout );
       pyresponse = Py_BuildValue( "s#", buffer, bytesRead );
+      delete[] buffer;
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -179,6 +180,7 @@ namespace PyXRootD
     }
 
     chunk = ReadChunk( self, chunksize, self->currentOffset );
+
     if ( chunk.empty() ) {
 
       if ( self->partial->empty() ) {
@@ -293,20 +295,20 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadChunks( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char *kwlist[]  = { "blocksize", "offset", NULL };
-    uint32_t           blocksize = 4096;
+    static const char *kwlist[]  = { "offset", "blocksize", NULL };
     uint64_t           offset    = 0;
+    uint32_t           blocksize = 1042 * 1024 * 2; // 2MB
     ChunkIterator     *iterator;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|Ik:readchunks",
-         (char**) kwlist, &blocksize, &offset ) ) return NULL;
+         (char**) kwlist, &offset, &blocksize ) ) return NULL;
 
     ChunkIteratorType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
 
-    args = Py_BuildValue( "OIk", self, blocksize, offset );
+    args = Py_BuildValue( "OkI", self, offset, blocksize );
     iterator = (ChunkIterator*)
                PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
     Py_DECREF( args );
