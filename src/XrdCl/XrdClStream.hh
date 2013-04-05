@@ -230,10 +230,17 @@ namespace XrdCl
       void RemoveEventHandler( ChannelEventHandler *handler );
 
       //------------------------------------------------------------------------
-      //! Get a raw message handler for given message header if such handler
-      //! has been registered
+      //! Install a message handler for the given message if there is one
+      //! available, if the handler want's to be called in the raw mode
+      //! it will be returned, the message ownership flag is returned
+      //! in any case
+      //!
+      //! @param msg    message header
+      //! @param stream stream concerned
+      //! @return       a pair containing the handler and ownership flag
       //------------------------------------------------------------------------
-      IncomingMsgHandler *GetRawHandler( Message *msg, uint16_t stream );
+      std::pair<IncomingMsgHandler *, bool>
+        InstallIncHandler( Message *msg, uint16_t stream );
 
     private:
 

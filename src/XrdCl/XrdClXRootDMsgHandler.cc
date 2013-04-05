@@ -106,6 +106,18 @@ namespace XrdCl
       dlen   = rsp->hdr.dlen;
     }
 
+    //--------------------------------------------------------------------------
+    // We take the ownership of the message and decide what we will do
+    // with the handler itself, the options are:
+    // 1) we want to either read in raw mode (the Raw flag) or have the message
+    //    body reconstructed for us by the TransportHandler by the time
+    //    Process() is called (default, no extra flag)
+    // 2) we either got a full response in which case we don't want to be
+    //    notified about anything anymore (RemoveHandler) or we got a partial
+    //    answer and we need to wait for more (default, no extra flag)
+    //--------------------------------------------------------------------------
+    pResponse = msg;
+
     Log *log = DefaultEnv::GetLog();
     switch( status )
     {
@@ -126,45 +138,79 @@ namespace XrdCl
       case kXR_ok:
       {
         //----------------------------------------------------------------------
-        // For kXR_read we read in raw mode if possible
+        // For kXR_read we read in raw mode if we haven't got the full message
+        // already (handler installed to late and the message has been cached)
         //----------------------------------------------------------------------
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read && msg->GetSize() == 8 )
         {
-          pRawReadSize = pRawLeftToBeRead = dlen;
+          pReadRawStarted = false;
+          pAsyncMsgSize   = dlen;
           return Take | Raw | RemoveHandler;
         }
+
+        //----------------------------------------------------------------------
+        // kXR_readv is the same as kXR_read
+        //----------------------------------------------------------------------
+        if( reqId == kXR_readv  && msg->GetSize() == 8 )
+        {
+          pAsyncMsgSize      = dlen;
+          pReadVRawMsgOffset = 0;
+          return Take | Raw | RemoveHandler;
+        }
+
+        //----------------------------------------------------------------------
+        // For everything else we just take what we got
+        //----------------------------------------------------------------------
         return Take | RemoveHandler;
       }
 
       //------------------------------------------------------------------------
-      // kXR_oksofars have some special cases - we add them to the partial
-      // response list and possibly handle in raw mode
+      // kXR_oksofars are special, they are not full responses, so we reset
+      // the response pointer to 0 and add the message to the partial list
       //------------------------------------------------------------------------
       case kXR_oksofar:
       {
         log->Dump( XRootDMsg, "[%s] Got a kXR_oksofar response to request "
                    "%s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
+        pResponse = 0;
         pPartialResps.push_back( msg );
 
         //----------------------------------------------------------------------
-        // For kXR_read we either read in raw mode or get the offset updated
-        // because of cached data
+        // For kXR_read we either read in raw mode if the message has not
+        // been fully reconstructed already, if it has, we adjust
+        // the buffer offset to prepare for the next one
         //----------------------------------------------------------------------
         uint16_t reqId = ntohs( req->header.requestid );
         if( reqId == kXR_read )
         {
           if( msg->GetSize() == 8 )
           {
-            pRawReadSize = pRawLeftToBeRead = dlen;
+            pReadRawStarted = false;
+            pAsyncMsgSize   = dlen;
             return Take | Raw;
           }
           else
           {
-            pRawCurrentOffset += dlen;
+            pReadRawCurrentOffset += dlen;
             return Take;
           }
+        }
+
+        //----------------------------------------------------------------------
+        // kXR_readv is similar to read, except that the payload is different
+        //----------------------------------------------------------------------
+        if( reqId == kXR_readv )
+        {
+          if( msg->GetSize() == 8 )
+          {
+            pAsyncMsgSize      = dlen;
+            pReadVRawMsgOffset = 0;
+            return Take | Raw;
+          }
+          else
+            return Take;
         }
 
         return Take;
@@ -200,6 +246,7 @@ namespace XrdCl
       Message *embededMsg = new Message( rsp->hdr.dlen-8 );
       embededMsg->Append( msg->GetBuffer( 16 ), rsp->hdr.dlen-8 );
       delete msg;
+      pResponse = embededMsg; // this can never happen for oksofars
 
       // we need to unmarshall the header by hand
       XRootDTransport::UnMarshallHeader( embededMsg );
@@ -219,8 +266,6 @@ namespace XrdCl
     qryResult.Get( qryResponse );
     pHosts->back().protocol = *qryResponse; delete qryResponse;
 
-    std::auto_ptr<Message> msgPtr( msg );
-
     //--------------------------------------------------------------------------
     // Process the message
     //--------------------------------------------------------------------------
@@ -235,7 +280,6 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Got a kXR_ok response to request %s",
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
-        pResponse = msgPtr.release();
         pStatus   = Status();
         HandleResponse();
         return;
@@ -251,7 +295,6 @@ namespace XrdCl
                    pRequest->GetDescription().c_str(), rsp->body.error.errnum,
                    rsp->body.error.errmsg );
 
-        pResponse = msgPtr.release();
         HandleError( Status(stError, errErrorResponse), pResponse );
         return;
       }
@@ -261,6 +304,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_redirect:
       {
+        std::auto_ptr<Message> msgPtr( pResponse );
+        pResponse = 0;
         char *urlInfoBuff = new char[rsp->hdr.dlen-3];
         urlInfoBuff[rsp->hdr.dlen-4] = 0;
         memcpy( urlInfoBuff, rsp->body.redirect.host, rsp->hdr.dlen-4 );
@@ -379,6 +424,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_wait:
       {
+        std::auto_ptr<Message> msgPtr( pResponse );
+        pResponse = 0;
+
         char *infoMsg = new char[rsp->hdr.dlen-3];
         infoMsg[rsp->hdr.dlen-4] = 0;
         memcpy( infoMsg, rsp->body.wait.infomsg, rsp->hdr.dlen-4 );
@@ -415,6 +463,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
+        std::auto_ptr<Message> msgPtr( pResponse );
+        pResponse = 0;
         log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response of %d seconds to "
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
@@ -429,7 +479,6 @@ namespace XrdCl
       {
         // we do nothing here, we queued partials in examine to have them
         // in the right order
-        msgPtr.release();
         return;
       }
 
@@ -438,6 +487,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       default:
       {
+        std::auto_ptr<Message> msgPtr( pResponse );
+        pResponse = 0;
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->hdr.status, pRequest->GetDescription().c_str() );
@@ -497,59 +548,44 @@ namespace XrdCl
                                         uint32_t &bytesRead )
   {
     Log *log = DefaultEnv::GetLog();
-    //--------------------------------------------------------------------------
-    // Nothing left to be read for this message
-    //--------------------------------------------------------------------------
-    if( !pRawLeftToBeRead )
-      return Status( stOK, suDone );
 
     //--------------------------------------------------------------------------
     // We need to check if we have and overflow, before we start reading
     // anything
     //--------------------------------------------------------------------------
-    ChunkInfo chunk = pChunkList->front();
-    if( pRawReadSize == pRawLeftToBeRead )
+    if( !pReadRawStarted )
     {
-      if( pRawCurrentOffset + pRawReadSize > chunk.length )
+      ChunkInfo chunk  = pChunkList->front();
+      pAsyncReadOffset = 0;
+      pAsyncReadSize   = pAsyncMsgSize;
+      pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
+      if( pReadRawCurrentOffset + pAsyncMsgSize > chunk.length )
       {
         log->Error( XRootDMsg, "[%s] Overflow data while reading response to %s"
                     ": expected: %d, got %d bytes",
                    pUrl.GetHostId().c_str(), pRequest->GetDescription().c_str(),
-                   chunk.length, pRawCurrentOffset + pRawReadSize );
+                   chunk.length, pReadRawCurrentOffset + pAsyncMsgSize );
 
-        pRawOverflowError = true;
+        pChunkStatus.front().sizeError = true;
+        pOtherRawStarted               = false;
       }
+      else
+        pReadRawCurrentOffset += pAsyncMsgSize;
+      pReadRawStarted = true;
     }
 
     //--------------------------------------------------------------------------
     // If we have an overflow we discard all the incoming data. We do this
     // instead of just quitting in order to keep the stream sane.
     //--------------------------------------------------------------------------
-    if( pRawOverflowError )
+    if( pChunkStatus.front().sizeError )
       return ReadRawOther( msg, socket, bytesRead );
 
     //--------------------------------------------------------------------------
     // Read the data
     //--------------------------------------------------------------------------
-    char *buffer = (char*)chunk.buffer;
-    buffer += pRawCurrentOffset;
-    while( pRawLeftToBeRead )
-    {
-
-      int status = ::read( socket, buffer, pRawLeftToBeRead );
-      if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
-        return Status( stOK, suRetry );
-
-      if( status <= 0 )
-        return Status( stError, errSocketError, errno );
-
-      pRawLeftToBeRead  -= status;
-      pRawCurrentOffset += status;
-      buffer            += status;
-    }
-
-    return Status( stOK, suDone );
-  }
+    return ReadAsync( socket, bytesRead );
+ }
 
   //----------------------------------------------------------------------------
   // Handle a kXR_readv in raw mode
@@ -558,7 +594,179 @@ namespace XrdCl
                                          int       socket,
                                          uint32_t &bytesRead )
   {
-    return Status( stOK, suDone );
+    if( pReadVRawMsgOffset == pAsyncMsgSize )
+      return Status( stOK, suDone );
+
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // We've had an error and we are in the discarding mode
+    //--------------------------------------------------------------------------
+    if( pReadVRawMsgDiscard )
+    {
+      Status st = ReadAsync( socket, bytesRead );
+
+      if( st.IsOK() && st.code == suDone )
+      {
+        log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes.",
+                   pUrl.GetHostId().c_str(), pAsyncMsgSize );
+
+        pReadVRawMsgOffset          += pAsyncMsgSize;
+        pReadVRawChunkHeaderDone    = false;
+        pReadVRawChunkHeaderStarted = false;
+        pReadVRawMsgDiscard         = false;
+        delete [] pAsyncReadBuffer;
+        st.code = suRetry;
+      }
+      return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Handle chunk header
+    //--------------------------------------------------------------------------
+    if( !pReadVRawChunkHeaderDone )
+    {
+      //------------------------------------------------------------------------
+      // Set up the header reading
+      //------------------------------------------------------------------------
+      if( !pReadVRawChunkHeaderStarted )
+      {
+        pReadVRawChunkHeaderStarted = true;
+
+        //----------------------------------------------------------------------
+        // We cannot afford to read the next header from the stream because
+        // we will cross the message boundry
+        //----------------------------------------------------------------------
+        if( pReadVRawMsgOffset + 16 > pAsyncMsgSize )
+        {
+          uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+          log->Error( XRootDMsg, "[%s] ReadRawReadV: No enough data to read "
+                      "another chunk header. Discarding %d bytes.",
+                     pUrl.GetHostId().c_str(), discardSize );
+
+          pReadVRawMsgDiscard = true;
+          pAsyncReadOffset    = 0;
+          pAsyncReadSize      = discardSize;
+          pAsyncReadBuffer    = new char[discardSize];
+          return Status( stOK, suRetry );
+        }
+
+        //----------------------------------------------------------------------
+        // We set up reading of the next header
+        //----------------------------------------------------------------------
+        pAsyncReadOffset = 0;
+        pAsyncReadSize   = 16;
+        pAsyncReadBuffer = (char*)&pReadVRawChunkHeader;
+      }
+
+      //------------------------------------------------------------------------
+      // Do the reading
+      //------------------------------------------------------------------------
+      Status st = ReadAsync( socket, bytesRead );
+
+      //------------------------------------------------------------------------
+      // Finalize the header and set everything up for the actual buffer
+      //------------------------------------------------------------------------
+      if( st.IsOK() && st.code == suDone )
+      {
+        pReadVRawChunkHeaderDone =  true;
+        pReadVRawMsgOffset       += 16;
+
+        pReadVRawChunkHeader.rlen   = ntohl( pReadVRawChunkHeader.rlen );
+        pReadVRawChunkHeader.offset = ntohll( pReadVRawChunkHeader.offset );
+
+        //----------------------------------------------------------------------
+        // Find the buffer corresponding to the chunk
+        //----------------------------------------------------------------------
+        ++pReadVRawChunkIndex;
+        bool chunkFound = false;
+        for( int i = pReadVRawChunkIndex; i < (int)pChunkList->size(); ++i )
+        {
+          if( (*pChunkList)[i].offset == (uint64_t)pReadVRawChunkHeader.offset &&
+              (*pChunkList)[i].length == (uint32_t)pReadVRawChunkHeader.rlen )
+          {
+            chunkFound = true;
+            pReadVRawChunkIndex = i;
+            break;
+          }
+        }
+
+        //----------------------------------------------------------------------
+        // If the chunk was no found we discard the chunk
+        //----------------------------------------------------------------------
+        if( !chunkFound )
+        {
+          log->Error( XRootDMsg, "[%s] ReadRawReadV: Imposible to find chunk "
+                      "buffer corresponding to %d bytes at %ld.",
+                      pUrl.GetHostId().c_str(), pReadVRawChunkHeader.rlen,
+                      pReadVRawChunkHeader.offset );
+
+          uint32_t discardSize = pReadVRawChunkHeader.rlen;
+          if( pReadVRawMsgOffset + discardSize > pAsyncMsgSize )
+            discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+          pAsyncReadOffset = 0;
+          pAsyncReadSize   = discardSize;
+          pAsyncReadBuffer = new char[discardSize];
+          return Status( stOK, suRetry );
+        }
+
+        //----------------------------------------------------------------------
+        // The chunk was found, but reading all the data will cross the message
+        // boundry
+        //----------------------------------------------------------------------
+        if( pReadVRawMsgOffset + pReadVRawChunkHeader.rlen > pAsyncMsgSize )
+        {
+          uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
+
+          log->Error( XRootDMsg, "[%s] ReadRawReadV: Malformed chunk header: "
+                      "reading %d bytes from message would cross the message "
+                      "boundry, discarding %d bytes.", pUrl.GetHostId().c_str(),
+                      pReadVRawChunkHeader.rlen, discardSize );
+
+          pAsyncReadOffset = 0;
+          pAsyncReadSize   = discardSize;
+          pAsyncReadBuffer = new char[discardSize];
+          pChunkStatus[pReadVRawChunkIndex].sizeError = true;
+          return Status( stOK, suRetry );
+        }
+
+        //----------------------------------------------------------------------
+        // We're good
+        //----------------------------------------------------------------------
+         pAsyncReadOffset = 0;
+         pAsyncReadSize   = pReadVRawChunkHeader.rlen;
+         pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
+      }
+
+      //------------------------------------------------------------------------
+      // We've seen a reading error
+      //------------------------------------------------------------------------
+      if( !st.IsOK() )
+        return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Read the body
+    //--------------------------------------------------------------------------
+    Status st = ReadAsync( socket, bytesRead );
+
+    if( st.IsOK() && st.code == suDone )
+    {
+
+      pReadVRawMsgOffset          += pAsyncReadSize;
+      pReadVRawChunkHeaderDone    = false;
+      pReadVRawChunkHeaderStarted = false;
+      pChunkStatus[pReadVRawChunkIndex].done = true;
+
+      log->Dump( XRootDMsg, "[%s] ReadRawReadV: read buffer for chunk %d@%ld",
+                 pUrl.GetHostId().c_str(),
+                 pReadVRawChunkHeader.rlen, pReadVRawChunkHeader.offset,
+                 pReadVRawMsgOffset, pAsyncMsgSize );
+
+      if( pReadVRawMsgOffset < pAsyncMsgSize )
+        st.code = suRetry;
+    }
+    return st;
   }
 
   //----------------------------------------------------------------------------
@@ -568,6 +776,48 @@ namespace XrdCl
                                          int       socket,
                                          uint32_t &bytesRead )
   {
+    if( !pOtherRawStarted )
+    {
+      pAsyncReadOffset = 0;
+      pAsyncReadSize   = pAsyncMsgSize;
+      pAsyncReadBuffer = new char[pAsyncMsgSize];
+      pOtherRawStarted = true;
+    }
+
+    Status st = ReadAsync( socket, bytesRead );
+
+    if( st.IsOK() && st.code == suRetry )
+      return st;
+
+    delete [] pAsyncReadBuffer;
+    pAsyncReadBuffer = 0;
+    pAsyncReadOffset = pAsyncReadSize = 0;
+
+    return st;
+  }
+
+  //--------------------------------------------------------------------------
+  // Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
+  // and pAsyncOffset
+  //--------------------------------------------------------------------------
+  Status XRootDMsgHandler::ReadAsync( int socket, uint32_t &bytesRead )
+  {
+    char *buffer = pAsyncReadBuffer;
+    buffer += pAsyncReadOffset;
+    while( pAsyncReadOffset < pAsyncReadSize )
+    {
+      uint32_t toBeRead = pAsyncReadSize - pAsyncReadOffset;
+      int status = ::read( socket, buffer, toBeRead );
+      if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
+        return Status( stOK, suRetry );
+
+      if( status <= 0 )
+        return Status( stError, errSocketError, errno );
+
+      pAsyncReadOffset += status;
+      buffer           += status;
+      bytesRead        += status;
+    }
     return Status( stOK, suDone );
   }
 
@@ -676,6 +926,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   Status XRootDMsgHandler::ParseResponse( AnyObject *&response )
   {
+    if( !pResponse )
+      return Status();
+
     ServerResponse *rsp = (ServerResponse *)pResponse->GetBuffer();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
     Log            *log = DefaultEnv::GetLog();
@@ -723,7 +976,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Partial answers, we need to glue them together before parsing
     //--------------------------------------------------------------------------
-    else if( req->header.requestid != kXR_read )
+    else if( req->header.requestid != kXR_read &&
+             req->header.requestid != kXR_readv )
     {
       for( uint32_t i = 0; i < pPartialResps.size(); ++i )
       {
@@ -896,15 +1150,16 @@ namespace XrdCl
         // Glue in the cached responses if necessary
         //----------------------------------------------------------------------
         ChunkInfo  chunk         = pChunkList->front();
-        bool       overflow      = false;
+        bool       sizeMismatch  = false;
         uint32_t   currentOffset = 0;
         char      *cursor        = (char*)chunk.buffer;
         for( uint32_t i = 0; i < pPartialResps.size(); ++i )
         {
           ServerResponse *part = (ServerResponse*)pPartialResps[i]->GetBuffer();
+
           if( currentOffset + part->hdr.dlen > chunk.length )
           {
-            overflow = true;
+            sizeMismatch = true;
             break;
           }
 
@@ -913,6 +1168,7 @@ namespace XrdCl
           currentOffset += part->hdr.dlen;
           cursor        += part->hdr.dlen;
         }
+
         if( currentOffset + rsp->hdr.dlen <= chunk.length )
         {
           if( pResponse->GetSize() > 8 )
@@ -920,15 +1176,15 @@ namespace XrdCl
           currentOffset += rsp->hdr.dlen;
         }
         else
-          overflow = true;
+          sizeMismatch = true;
 
         //----------------------------------------------------------------------
         // Overflow
         //----------------------------------------------------------------------
-        if( pRawOverflowError || overflow )
+        if( pChunkStatus.front().sizeError || sizeMismatch )
         {
-          log->Error( XRootDMsg, "[%s] Handling response to %s: user "
-                      "supplied buffer is to small",
+          log->Error( XRootDMsg, "[%s] Handling response to %s: user supplied "
+                      "buffer is too small for the received data.",
                       pUrl.GetHostId().c_str(),
                       pRequest->GetDescription().c_str() );
           return Status( stError, errInvalidResponse );
@@ -952,7 +1208,7 @@ namespace XrdCl
                    pRequest->GetDescription().c_str() );
 
         VectorReadInfo *info = new VectorReadInfo();
-        Status st = UnpackVectorRead( info, pChunkList, buffer, length );
+        Status st = PostProcessReadV( info );
         if( !st.IsOK() )
         {
           delete info;
@@ -1074,61 +1330,95 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Unpack vector read - crazy stuff
+  // Post process vector read
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::UnpackVectorRead( VectorReadInfo *vReadInfo,
-                                             ChunkList      *list,
-                                             char           *sourceBuffer,
-                                             uint32_t        sourceBufferSize )
+  Status XRootDMsgHandler::PostProcessReadV( VectorReadInfo *vReadInfo )
+  {
+    //--------------------------------------------------------------------------
+    // Unpack the stuff that needs to be unpacked
+    //--------------------------------------------------------------------------
+    for( uint32_t i = 0; i < pPartialResps.size(); ++i )
+      if( pPartialResps[i]->GetSize() != 8 )
+        UnPackReadVResponse( pPartialResps[i] );
+
+    if( pResponse->GetSize() != 8 )
+      UnPackReadVResponse( pResponse );
+
+    //--------------------------------------------------------------------------
+    // See if all the chunks are OK and put them in the reponse
+    //--------------------------------------------------------------------------
+    uint32_t size = 0;
+    for( uint32_t i = 0; i < pChunkList->size(); ++i )
+    {
+      if( !pChunkStatus[i].done )
+        return Status( stFatal, errInvalidResponse );
+
+      vReadInfo->GetChunks().push_back(
+                      ChunkInfo( (*pChunkList)[i].offset,
+                                 (*pChunkList)[i].length,
+                                 (*pChunkList)[i].buffer ) );
+      size += (*pChunkList)[i].length;
+    }
+    vReadInfo->SetSize( size );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Unpack a single readv response
+  //----------------------------------------------------------------------------
+  Status XRootDMsgHandler::UnPackReadVResponse( Message *msg )
   {
     Log *log = DefaultEnv::GetLog();
-    char     *cursorSource = sourceBuffer;
-    int64_t   len          = sourceBufferSize;
-    uint32_t  offset       = 0;
-    uint32_t  size         = 0;
+    log->Dump( XRootDMsg, "[%s] Handling response to %s: unpacking "
+               "data from a cached message", pUrl.GetHostId().c_str(),
+               pRequest->GetDescription().c_str() );
 
-    uint32_t  reqChunks  = list->size();
-    uint32_t  reqCurrent = 0;
+    uint32_t  offset       = 0;
+    uint32_t  len          = msg->GetSize()-8;
+    uint32_t  currentChunk = 0;
+    char     *cursor       = msg->GetBuffer(8);
 
     while( 1 )
     {
       //------------------------------------------------------------------------
       // Check whether we should stop
       //------------------------------------------------------------------------
-      if( offset > len-16 )
+      if( offset+16 > len )
         break;
-
-      if( reqCurrent >= reqChunks )
-      {
-        log->Error( XRootDMsg, "[%s] Handling response to %s: the server "
-                    "responded with more chunks than it has been asked for.",
-                    pUrl.GetHostId().c_str(),
-                    pRequest->GetDescription().c_str() );
-        return Status( stFatal, errInvalidResponse );
-      }
 
       //------------------------------------------------------------------------
       // Extract and check the validity of the chunk
       //------------------------------------------------------------------------
-      readahead_list *chunk = (readahead_list*)(cursorSource);
+      readahead_list *chunk = (readahead_list*)(cursor);
       chunk->rlen   = ntohl( chunk->rlen );
       chunk->offset = ntohll( chunk->offset );
-      size += chunk->rlen;
 
-      if( (uint32_t)chunk->rlen != (*list)[reqCurrent].length ||
-          (uint64_t)chunk->offset != (*list)[reqCurrent].offset )
+      bool chunkFound = false;
+      for( uint32_t i = currentChunk; i < pChunkList->size(); ++i )
+      {
+        if( (*pChunkList)[i].offset == (uint64_t)chunk->offset &&
+            (*pChunkList)[i].length == (uint32_t)chunk->rlen )
+        {
+          chunkFound   = true;
+          currentChunk = i;
+          break;
+        }
+      }
+
+      if( !chunkFound )
       {
         log->Error( XRootDMsg, "[%s] Handling response to %s: the response "
-                    "chunk doesn't match the requested one.",
-                    pUrl.GetHostId().c_str(),
-                    pRequest->GetDescription().c_str() );
+                    "no corresponding chunk buffer found to store %d bytes "
+                    "at %ld", pUrl.GetHostId().c_str(),
+                    pRequest->GetDescription().c_str(), chunk->rlen,
+                    chunk->offset );
         return Status( stFatal, errInvalidResponse );
       }
 
       //------------------------------------------------------------------------
       // Extract the data
       //------------------------------------------------------------------------
-      if( !(*list)[reqCurrent].buffer )
+      if( !(*pChunkList)[currentChunk].buffer )
       {
         log->Error( XRootDMsg, "[%s] Handling response to %s: the user "
                     "supplied buffer is 0, discarding the data",
@@ -1136,18 +1426,24 @@ namespace XrdCl
                     pRequest->GetDescription().c_str() );
       }
       else
-        memcpy( (*list)[reqCurrent].buffer, cursorSource+16, chunk->rlen );
+      {
+        if( offset+chunk->rlen+16 > len )
+        {
+          log->Error( XRootDMsg, "[%s] Handling response to %s: copying "
+                      "requested data would cross message boundry",
+                      pUrl.GetHostId().c_str(),
+                      pRequest->GetDescription().c_str() );
+          return Status( stFatal, errInvalidResponse );
+        }
+        memcpy( (*pChunkList)[currentChunk].buffer, cursor+16, chunk->rlen );
+      }
 
-      vReadInfo->GetChunks().push_back(
-                      ChunkInfo( chunk->offset,
-                                 chunk->rlen,
-                                 (*list)[reqCurrent].buffer ) );
+      pChunkStatus[currentChunk].done = true;
 
-      offset += 16 + chunk->rlen;
-      cursorSource = sourceBuffer+offset;
-      ++reqCurrent;
+      offset += (16 + chunk->rlen);
+      cursor += (16 + chunk->rlen);
+      ++currentChunk;
     }
-    vReadInfo->SetSize( size );
     return Status();
   }
 

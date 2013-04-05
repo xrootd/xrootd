@@ -821,10 +821,10 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  //! Get a raw message handler for given message header if such handler
-  //! has been registered
+  // Install a incoming message handler
   //----------------------------------------------------------------------------
-  IncomingMsgHandler *Stream::GetRawHandler( Message *msg, uint16_t stream )
+  std::pair<IncomingMsgHandler *, bool>
+        Stream::InstallIncHandler( Message *msg, uint16_t stream )
   {
     InMessageHelper &mh = pSubStreams[stream]->inMsgHelper;
     if( !mh.handler )
@@ -833,10 +833,11 @@ namespace XrdCl
                                                          mh.action );
 
     if( !mh.handler )
-      return 0;
+      return std::make_pair( (IncomingMsgHandler*)0, false );
 
+    bool ownership = mh.action & IncomingMsgHandler::Take;
     if( mh.action & IncomingMsgHandler::Raw )
-      return mh.handler;
-    return 0;
+      return std::make_pair( mh.handler, ownership );
+    return std::make_pair( (IncomingMsgHandler*)0, ownership );
   }
 }
