@@ -109,7 +109,6 @@ namespace PyXRootD
       return -1;
 
     self->filesystem = new XrdCl::FileSystem( *self->url->url );
-
     return 0;
   }
 
@@ -126,10 +125,11 @@ namespace PyXRootD
   //! Visible member definitions
   //----------------------------------------------------------------------------
   static PyMemberDef FileSystemMembers[] =
-    {
-      { "url", T_OBJECT_EX, offsetof(FileSystem, url), 0, "Server URL" },
-      { NULL } /* Sentinel */
-    };
+  {
+    { const_cast<char *>("url"), T_OBJECT_EX, offsetof(FileSystem, url), 0,
+      const_cast<char *>("Server URL") },
+    { NULL } /* Sentinel */
+  };
 
   //----------------------------------------------------------------------------
   //! FileSystem binding type object

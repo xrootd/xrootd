@@ -96,18 +96,22 @@ namespace PyXRootD
 
   static PyGetSetDef URLGetSet[] =
     {
-      { "hostid", (getter) URL::GetHostId, NULL, NULL, NULL },
-      { "protocol", (getter) URL::GetProtocol, (setter) URL::SetProtocol,
-         NULL, NULL },
-      { "username", (getter) URL::GetUserName, (setter) URL::SetUserName,
-         NULL, NULL },
-      { "password", (getter) URL::GetPassword, (setter) URL::SetPassword,
-         NULL, NULL },
-      { "hostname", (getter) URL::GetHostName, (setter) URL::SetHostName,
-         NULL, NULL },
-      { "port", (getter) URL::GetPort, (setter) URL::SetPort, NULL, NULL },
-      { "path", (getter) URL::GetPath, (setter) URL::SetPath, NULL, NULL },
-      { "path_with_params", (getter) URL::GetPathWithParams, NULL, NULL, NULL },
+      { const_cast<char *>("hostid"),
+        (getter) URL::GetHostId, NULL, NULL, NULL },
+      { const_cast<char *>("protocol"),
+        (getter) URL::GetProtocol, (setter) URL::SetProtocol, NULL, NULL },
+      { const_cast<char *>("username"),
+        (getter) URL::GetUserName, (setter) URL::SetUserName, NULL, NULL },
+      { const_cast<char *>("password"),
+        (getter) URL::GetPassword, (setter) URL::SetPassword, NULL, NULL },
+      { const_cast<char *>("hostname"),
+        (getter) URL::GetHostName, (setter) URL::SetHostName, NULL, NULL },
+      { const_cast<char *>("port"),
+        (getter) URL::GetPort,     (setter) URL::SetPort, NULL, NULL },
+      { const_cast<char *>("path"),
+        (getter) URL::GetPath,     (setter) URL::SetPath, NULL, NULL },
+      { const_cast<char *>("path_with_params"),
+        (getter) URL::GetPathWithParams, NULL, NULL, NULL },
       { NULL } /* Sentinel */
     };
 

@@ -191,5 +191,7 @@ namespace PyXRootD
   {
     self->url->Clear();
     Py_RETURN_NONE ;
+
+    (void) URLType; // Suppress unused variable warning
   }
 }

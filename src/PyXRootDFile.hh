@@ -141,7 +141,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyObject* File_exit( File *self )
   {
-    PyObject *ret = PyObject_CallMethod( (PyObject*) self, "close", NULL );
+    PyObject *ret = PyObject_CallMethod( (PyObject*) self,
+                                         const_cast<char*>("close"), NULL );
     if ( !ret )
       return NULL;
 
@@ -185,9 +186,9 @@ namespace PyXRootD
     { "get_data_server",
        (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS, NULL },
     {"__enter__",
-       (PyCFunction) File_enter,                          METH_NOARGS, NULL},
+       (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
     {"__exit__",
-       (PyCFunction) File_exit,                           METH_VARARGS, NULL},
+       (PyCFunction) File_exit,                           METH_VARARGS,  NULL},
 
     { NULL } /* Sentinel */
   };

@@ -26,9 +26,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[]  = { "source", "target", "sourcelimit", "force",
-                               "posc", "coerce", "thirdparty", "checksumprint",
-                               "chunksize", "parallelchunks", NULL };
+    static const char *kwlist[]
+      = { "source", "target", "sourcelimit", "force", "posc", "coerce",
+          "thirdparty", "checksumprint", "chunksize", "parallelchunks", NULL };
     const char  *source;
     const char  *target;
     uint16_t sourceLimit   = 1;
@@ -40,9 +40,9 @@ namespace PyXRootD
     uint32_t chunkSize     = 4194304;
     uint8_t parallelChunks = 8;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbbIb:add_job", kwlist,
-        &source, &target, &sourceLimit, &force, &posc, &coerce, &thirdParty,
-        &checkSumPrint, &chunkSize, &parallelChunks ) )
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbbIb:add_job",
+         (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
+         &coerce, &thirdParty, &checkSumPrint, &chunkSize, &parallelChunks ) )
       return NULL;
 
     XrdCl::JobDescriptor *job = new XrdCl::JobDescriptor();
@@ -76,5 +76,7 @@ namespace PyXRootD
     XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();
     XrdCl::XRootDStatus status = self->process->Run( handler );
     return ConvertType<XrdCl::XRootDStatus>( &status );
+
+    (void) CopyProcessType; // Suppress unused variable warning
   }
 }

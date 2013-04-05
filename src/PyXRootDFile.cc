@@ -32,19 +32,20 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Open( File *self, PyObject *args, PyObject *kwds )
   {
-    static char            *kwlist[] = { "url", "flags", "mode",
+    static const char      *kwlist[] = { "url", "flags", "mode",
                                          "timeout", "callback", NULL };
     const  char            *url;
     XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
     XrdCl::Access::Mode     mode     = XrdCl::Access::None;
     uint16_t                timeout  = 5;
     PyObject               *callback = NULL;
-    XrdCl::XRootDStatus status;
+    XrdCl::XRootDStatus     status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open", kwlist,
-        &url, &flags, &mode, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:open",
+         (char**) kwlist, &url, &flags, &mode, &timeout, &callback ) )
+      return NULL;
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Open( url, flags, mode, handler, timeout ) );
@@ -63,15 +64,15 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Close( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t     timeout  = 5;
-    PyObject    *callback = NULL;
+    static const char  *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL;
     XrdCl::XRootDStatus status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:close", (char**) kwlist,
         &timeout, &callback ) ) return NULL;
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Close( handler, timeout ) );
@@ -90,18 +91,18 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Stat( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "force", "timeout", "callback", NULL };
-    bool         force    = false;
-    uint16_t     timeout  = 5;
-    PyObject    *callback = NULL, *pyresponse = NULL;
+    static const char  *kwlist[] = { "force", "timeout", "callback", NULL };
+    bool                force    = false;
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|iHO:stat", (char**) kwlist,
         &force, &timeout, &callback ) ) return NULL;
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::StatInfo>( callback );
       async( status = self->file->Stat( force, handler, timeout ) );
       return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
@@ -121,18 +122,19 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Read( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[] = { "offset", "size", "timeout", "callback", NULL };
-    uint64_t       offset   = 0;
-    uint32_t       size     = 0;
-    uint16_t       timeout  = 5;
-    PyObject      *callback = NULL, *pyresponse = NULL;
-    XrdCl::Buffer *buffer;
+    static const char  *kwlist[] = { "offset", "size", "timeout", "callback",
+                                      NULL };
+    uint64_t            offset   = 0;
+    uint32_t            size     = 0;
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL, *pyresponse = NULL;
+    XrdCl::Buffer      *buffer;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO:read", kwlist,
-        &offset, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kIHO:read",
+        (char**) kwlist, &offset, &size, &timeout, &callback ) ) return NULL;
 
     if (!size) {
       XrdCl::StatInfo *info = 0;
@@ -144,7 +146,7 @@ namespace PyXRootD
     buffer = new XrdCl::Buffer( size );
     buffer->Zero();
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Read( offset, size, buffer->GetBuffer(),
@@ -232,16 +234,16 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLines( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[]  = { "offset", "size", NULL };
-    uint64_t       offset    = 0;
-    uint32_t       size      = 0;
-    uint32_t       bytesRead = 0;
-    XrdCl::Buffer *buffer;
+    static const char *kwlist[]  = { "offset", "size", NULL };
+    uint64_t           offset    = 0;
+    uint32_t           size      = 0;
+    uint32_t           bytesRead = 0;
+    XrdCl::Buffer     *buffer;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readlines", kwlist,
-        &offset, &size ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readlines",
+        (char**) kwlist, &offset, &size ) ) return NULL;
 
     //--------------------------------------------------------------------------
     // Find the file size
@@ -295,21 +297,22 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadChunks( File *self, PyObject *args, PyObject *kwds )
   {
-    static char   *kwlist[]  = { "blocksize", "offset", NULL };
-    uint32_t       blocksize = 4096;
-    uint64_t       offset    = 0;
-    ChunkIterator *iterator;
+    static const char *kwlist[]  = { "blocksize", "offset", NULL };
+    uint32_t           blocksize = 4096;
+    uint64_t           offset    = 0;
+    ChunkIterator     *iterator;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|Ik:readchunks", kwlist,
-           &blocksize, &offset ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|Ik:readchunks",
+         (char**) kwlist, &blocksize, &offset ) ) return NULL;
 
     ChunkIteratorType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
 
     args = Py_BuildValue( "OIk", self, blocksize, offset );
-    iterator = (ChunkIterator*) PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
+    iterator = (ChunkIterator*)
+               PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
     Py_DECREF( args );
     if ( !iterator ) return NULL;
 
@@ -321,25 +324,26 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Write( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "buffer", "offset", "size", "timeout",
-                                "callback", NULL };
-    const  char *buffer;
-    uint64_t     offset   = 0;
-    uint32_t     size     = 0;
-    uint16_t     timeout  = 5;
-    PyObject    *callback = NULL;
+    static const char  *kwlist[] = { "buffer", "offset", "size", "timeout",
+                                     "callback", NULL };
+    const  char        *buffer;
+    uint64_t            offset   = 0;
+    uint32_t            size     = 0;
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO:write", kwlist,
-        &buffer, &offset, &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO:write",
+         (char**) kwlist, &buffer, &offset, &size, &timeout, &callback ) )
+      return NULL;
 
     if (!size) {
       size = strlen(buffer);
     }
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Write( offset, size, buffer, handler, timeout ) );
@@ -358,17 +362,17 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Sync( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t     timeout  = 5;
-    PyObject    *callback = NULL;
+    static const char  *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:sync", (char**) kwlist,
         &timeout, &callback ) ) return NULL;
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Sync( handler, timeout ) );
@@ -387,25 +391,25 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::Truncate( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "size", "timeout", "callback", NULL };
-    uint64_t     size;
-    uint16_t     timeout  = 5;
-    PyObject    *callback = NULL;
+    static const char  *kwlist[] = { "size", "timeout", "callback", NULL };
+    uint64_t            size;
+    uint16_t            timeout  = 5;
+    PyObject           *callback = NULL;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate", kwlist,
-        &size, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "k|HO:truncate",
+         (char**) kwlist, &size, &timeout, &callback ) ) return NULL;
 
-    if ( callback && callback != Py_None ) { // async
+    if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::AnyObject>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->Truncate( size, handler, timeout ) );
       return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
-    else { // async
+    else {
       status = self->file->Truncate( size, timeout );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   Py_BuildValue("") );
@@ -417,16 +421,16 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::VectorRead( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "chunks", "timeout", "callback", NULL };
-    uint16_t     timeout  = 5;
-    PyObject    *pychunks = NULL, *callback = NULL, *pyresponse = NULL;
+    static const char  *kwlist[] = { "chunks", "timeout", "callback", NULL };
+    uint16_t            timeout  = 5;
+    PyObject           *pychunks = NULL, *callback = NULL, *pyresponse = NULL;
     XrdCl::XRootDStatus status;
     XrdCl::ChunkList    chunks;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:vector_read", kwlist,
-        &pychunks, &timeout, &callback ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "O|HO:vector_read",
+         (char**) kwlist, &pychunks, &timeout, &callback ) ) return NULL;
 
     if ( !PyList_Check( pychunks ) ) {
       PyErr_SetString( PyExc_TypeError, "chunks parameter must be a list" );
@@ -449,8 +453,9 @@ namespace PyXRootD
       chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
     }
 
-    if ( callback && callback != Py_None ) { // async
-      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::VectorReadInfo>( callback );
+    if ( callback && callback != Py_None ) {
+      XrdCl::ResponseHandler *handler
+        = GetHandler<XrdCl::VectorReadInfo>( callback );
       if ( !handler ) return NULL;
       async( status = self->file->VectorRead( chunks, 0, handler, timeout ) );
       return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
@@ -470,7 +475,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::IsOpen( File *self, PyObject *args, PyObject *kwds )
   {
-    if ( !PyArg_ParseTuple( args, ":is_open" ) ) return NULL; // Allow no arguments
+    if ( !PyArg_ParseTuple( args, ":is_open" ) ) return NULL; // Allow no args
     return PyBool_FromLong(self->file->IsOpen());
   }
 
@@ -480,11 +485,11 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::EnableReadRecovery( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "enable", NULL };
-    bool        enable   = NULL;
+    static const char *kwlist[] = { "enable", NULL };
+    bool               enable   = NULL;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_read_recovery",
-        kwlist, &enable ) ) return NULL;
+         (char**) kwlist, &enable ) ) return NULL;
 
     self->file->EnableReadRecovery(enable);
     Py_RETURN_NONE;
@@ -496,11 +501,11 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::EnableWriteRecovery( File *self, PyObject *args, PyObject *kwds )
   {
-    static char *kwlist[] = { "enable", NULL };
-    bool        enable   = NULL;
+    static const char *kwlist[] = { "enable", NULL };
+    bool               enable   = NULL;
 
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_write_recovery",
-        kwlist, &enable ) ) return NULL;
+         (char**) kwlist, &enable ) ) return NULL;
 
     self->file->EnableWriteRecovery(enable);
     Py_RETURN_NONE;
@@ -511,7 +516,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::GetDataServer( File *self, PyObject *args, PyObject *kwds )
   {
-    if ( !PyArg_ParseTuple( args, ":get_data_server" ) ) return NULL; // Allow no arguments
+    if ( !PyArg_ParseTuple( args, ":get_data_server" ) ) return NULL; // No args
     return Py_BuildValue("s", self->file->GetDataServer().c_str());
+
+    (void) FileType; // Suppress unused variable warning
   }
 }

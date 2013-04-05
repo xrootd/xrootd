@@ -20,6 +20,7 @@
 #include "PyXRootDFileSystem.hh"
 #include "PyXRootDFile.hh"
 #include "PyXRootDCopyProcess.hh"
+#include "PyXRootDURL.hh"
 
 namespace PyXRootD
 {
