@@ -106,7 +106,7 @@ class File(object):
     """
     if callback:
       callback = CallbackWrapper(callback, None)
-      return XRootDStatus(self.__filesystem.read(offset, size, timeout, callback))
+      return XRootDStatus(self.__file.read(offset, size, timeout, callback))
 
     status, response = self.__file.read(offset, size, timeout)
     return XRootDStatus(status), response
