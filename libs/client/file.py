@@ -35,8 +35,8 @@ class File(object):
   def __iter__(self):
     return self
 
-  def __iternext__(self):
-    return self.__file.__iternext__()
+  def next(self):
+    return self.__file.next()
 
   def open(self, url, flags=0, mode=0, timeout=0, callback=None):
     """Open the file pointed to by the given URL.
@@ -121,7 +121,7 @@ class File(object):
     response = self.__file.readline()
     return response
 
-  def readlines(self, offset, size):
+  def readlines(self, offset=0, size=0):
     """Read lines from a given offset until EOF encountered. Return list of
     lines read.
 
@@ -132,8 +132,8 @@ class File(object):
     :returns:      data that was read, including trailing newlines
     :rtype:        list of strings
     """
-    status, response = self.__file.readlines(offset, size)
-    return XRootDStatus(status), response
+    response = self.__file.readlines(offset, size)
+    return response
 
   def readchunks(self, offset, blocksize):
     """Read data chunks from a given offset of the given size until EOF.
