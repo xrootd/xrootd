@@ -38,9 +38,7 @@ namespace PyXRootD
       //! Constructor
       //------------------------------------------------------------------------
       AsyncResponseHandler( PyObject *callback ) :
-          callback( callback ), state( PyGILState_UNLOCKED )
-      {
-      }
+          callback( callback ), state( PyGILState_UNLOCKED ) {}
 
       //------------------------------------------------------------------------
       //! Handle the asynchronous response call without host list
