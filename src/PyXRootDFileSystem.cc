@@ -51,7 +51,7 @@ namespace PyXRootD
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->Locate( path, flags, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
+      pyresponse = ConvertType<XrdCl::LocationInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -83,7 +83,7 @@ namespace PyXRootD
     else {
       XrdCl::LocationInfo *response = 0;
       status = self->filesystem->DeepLocate( path, flags, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::LocationInfo>( response );
+      pyresponse = ConvertType<XrdCl::LocationInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -148,7 +148,7 @@ namespace PyXRootD
     else {
       XrdCl::Buffer *response;
       status = self->filesystem->Query( queryCode, argbuffer, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::Buffer>( response );
+      pyresponse = ConvertType<XrdCl::Buffer>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -350,7 +350,7 @@ namespace PyXRootD
     else {
       XrdCl::StatInfo *response = 0;
       status = self->filesystem->Stat( path, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::StatInfo>( response );
+      pyresponse = ConvertType<XrdCl::StatInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -380,7 +380,7 @@ namespace PyXRootD
     else {
       XrdCl::StatInfoVFS *response = 0;
       status = self->filesystem->StatVFS( path, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::StatInfoVFS>( response );
+      pyresponse = ConvertType<XrdCl::StatInfoVFS>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -409,7 +409,7 @@ namespace PyXRootD
     else {
       XrdCl::ProtocolInfo *response = 0;
       status = self->filesystem->Protocol( response, timeout );
-      pyresponse = ConvertResponse<XrdCl::ProtocolInfo>( response );
+      pyresponse = ConvertType<XrdCl::ProtocolInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
