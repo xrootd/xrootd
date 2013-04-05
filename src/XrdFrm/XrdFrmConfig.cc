@@ -735,6 +735,13 @@ int XrdFrmConfig::ConfigMP(const char *pType)
 //
    while((tP = expList)) {expList = tP->next; delete tP;}
 
+// For purging, make sure we have at least one path to purge
+//
+   if (xOpt == XRDEXP_PURGE && !pathList)
+      {Say.Emsg("Config","No purgeable paths specified!");
+       NoGo = 1;
+      }
+
 // The oss would have already set NORCREATE and NOCHECK for all stageable paths.
 // But now, we must also off the R/O flag on every purgeable and stageable path
 // to prevent oss complaints. This needs to be defered to here because we need
