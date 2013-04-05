@@ -111,7 +111,7 @@ namespace PyXRootD
     else {
       XrdCl::StatInfo *response = 0;
       status = self->file->Stat( force, response, timeout );
-      pyresponse = ConvertResponse<XrdCl::StatInfo>( response );
+      pyresponse = ConvertType<XrdCl::StatInfo>( response );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -128,7 +128,7 @@ namespace PyXRootD
     uint32_t            size     = 0;
     uint16_t            timeout  = 5;
     PyObject           *callback = NULL, *pyresponse = NULL;
-    XrdCl::Buffer      *buffer;
+    char               *buffer   = 0;
     XrdCl::XRootDStatus status;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
@@ -143,22 +143,19 @@ namespace PyXRootD
       if (info) delete info;
     }
 
-    buffer = new XrdCl::Buffer( size );
-    buffer->Zero();
+    buffer = new char[size];
 
     if ( callback && callback != Py_None ) {
-      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ChunkInfo>( callback );
       if ( !handler ) return NULL;
-      async( status = self->file->Read( offset, size, buffer->GetBuffer(),
-                                        handler, timeout ) );
+      async( status = self->file->Read( offset, size, buffer, handler, timeout ) );
       return Py_BuildValue( "O", ConvertType<XrdCl::XRootDStatus>( &status ) );
     }
 
     else {
       uint32_t bytesRead;
-      status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead,
-                                 timeout );
-      pyresponse = ConvertResponse<XrdCl::Buffer>(buffer);
+      status = self->file->Read( offset, size, buffer, bytesRead, timeout );
+      pyresponse = Py_BuildValue( "s#", buffer, bytesRead );
       return Py_BuildValue( "OO", ConvertType<XrdCl::XRootDStatus>( &status ),
                                   pyresponse );
     }
@@ -238,7 +235,7 @@ namespace PyXRootD
     uint64_t           offset    = 0;
     uint32_t           size      = 0;
     uint32_t           bytesRead = 0;
-    XrdCl::Buffer     *buffer;
+    char              *buffer    = 0;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
@@ -255,16 +252,15 @@ namespace PyXRootD
       if (info) delete info;
     }
 
+    buffer = new char[size];
+
     //--------------------------------------------------------------------------
     // Read the whole file...
     //--------------------------------------------------------------------------
-    buffer = new XrdCl::Buffer( size + 1 );
-    buffer->Zero();
-    self->file->Read( offset, size, buffer->GetBuffer(), bytesRead );
+    self->file->Read( offset, size, buffer, bytesRead );
 
     // Convert into list, split by newlines
-    std::istringstream stream(
-                       std::string( buffer->GetBuffer(), buffer->GetSize() ) );
+    std::istringstream stream( std::string( (const char*) buffer, bytesRead ) );
     std::string        line;
     PyObject          *lines = PyList_New( 0 );
 
