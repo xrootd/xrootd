@@ -28,17 +28,11 @@ namespace PyXRootD
 {
   template<typename T> struct PyDict;
 
-  template<typename Type>
-  PyObject* ConvertType( Type *type )
-  {
-    return PyDict<Type>::Convert(type);
-  }
-
   template<typename T>
-  PyObject* ConvertResponse( T *response )
+  PyObject* ConvertType( T *response )
   {
     if ( response ) {
-      return ConvertType<T>( response );
+      return PyDict<T>::Convert( response );
     } else {
       Py_RETURN_NONE;
     }
@@ -113,7 +107,7 @@ namespace PyXRootD
         PyObject *statInfo;
         for ( XrdCl::DirectoryList::Iterator i = list->Begin(); i < list->End();
             ++i ) {
-          statInfo = ConvertResponse<XrdCl::StatInfo>( (*i)->GetStatInfo() );
+          statInfo = ConvertType<XrdCl::StatInfo>( (*i)->GetStatInfo() );
           PyList_Append( directoryList,
               Py_BuildValue( "{sssssO}",
                   "hostAddress", (*i)->GetHostAddress().c_str(),
@@ -183,6 +177,14 @@ namespace PyXRootD
       static PyObject* Convert( XrdCl::Buffer *buffer )
       {
         return Py_BuildValue( "s#", buffer->GetBuffer(), buffer->GetSize() );
+      }
+  };
+
+  template<> struct PyDict<XrdCl::ChunkInfo>
+  {
+      static PyObject* Convert( XrdCl::ChunkInfo *chunk )
+      {
+        return Py_BuildValue( "s#", chunk->buffer, chunk->length );
       }
   };
 
