@@ -167,27 +167,28 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
-    uint64_t    chunksize = 1024 * 1024 * 2; // 2MB
-    std::string chunk;
-    std::string line;
-    PyObject   *pyline    = NULL;
+    uint64_t                  chunksize = 1024 * 1024 * 2; // 2MB
+    XrdCl::ChunkInfo          chunk;
+    std::string               line;
     std::vector<std::string> *lines;
+    PyObject                 *pyline    = NULL;
 
     if ( !self->surplus->empty() ) {
-      pyline = PyString_FromString( self->surplus->front().c_str() );
+      pyline = PyString_FromStringAndSize( self->surplus->front().c_str(),
+                                           self->surplus->front().length() );
       self->surplus->pop_front();
       return pyline;
     }
 
     chunk = ReadChunk( self, chunksize, self->currentOffset );
-
-    if ( chunk.empty() ) {
+    if ( chunk.length == 0 ) {
 
       if ( self->partial->empty() ) {
         return Py_BuildValue( "s", "" );
       }
       else {
-        pyline = PyString_FromString( self->partial->c_str() );
+        pyline = PyString_FromStringAndSize( self->partial->c_str(),
+                                             self->surplus->front().length() );
         self->partial->clear();
         return pyline;
       }
@@ -195,13 +196,15 @@ namespace PyXRootD
 
     self->currentOffset += chunksize;
 
-    while ( !HasNewline( chunk ) && chunk.size() == chunksize ) {
-      self->partial->append( chunk );
+    while ( !HasNewline( (const char*) chunk.buffer, chunk.length )
+            && chunk.length == chunksize )
+    {
+      self->partial->append( std::string( (const char*) chunk.buffer, chunk.length ) );
       chunk = ReadChunk( self, chunksize , self->currentOffset );
       self->currentOffset += chunksize;
     }
 
-    lines = SplitNewlines( chunk );
+    lines = SplitNewlines( (const char*) chunk.buffer, chunk.length );
 
     if ( lines->size() == 0 ) {
       line = *self->partial;
@@ -221,7 +224,7 @@ namespace PyXRootD
       self->partial->clear();
     }
 
-    pyline = PyString_FromString( line.c_str() );
+    pyline = PyString_FromStringAndSize( line.c_str(), line.length() );
     if ( !pyline ) return NULL;
     return pyline;
   }
@@ -233,11 +236,13 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLines( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char *kwlist[]  = { "offset", "size", NULL };
-    uint64_t           offset    = 0;
-    uint32_t           size      = 0;
-    uint32_t           bytesRead = 0;
-    char              *buffer    = 0;
+    static const char        *kwlist[]  = { "offset", "size", NULL };
+    uint64_t                  offset    = 0;
+    uint32_t                  size      = 0;
+    uint32_t                  bytesRead = 0;
+    char                     *buffer    = 0;
+    std::vector<std::string> *lines;
+    PyObject                 *pylines   = PyList_New( 0 );
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
@@ -260,33 +265,41 @@ namespace PyXRootD
     // Read the whole file...
     //--------------------------------------------------------------------------
     self->file->Read( offset, size, buffer, bytesRead );
+//    lines = SplitNewlines( buffer, bytesRead );
+//
+//    std::vector<std::string>::iterator i;
+//    for ( i = lines->begin(); i != lines->end(); ++i ) {
+//      PyList_Append( pylines, PyString_FromStringAndSize( (*i).c_str(),
+//                                                          (*i).length() ) );
+//    }
 
     // Convert into list, split by newlines
     std::istringstream stream( std::string( (const char*) buffer, bytesRead ) );
     std::string        line;
-    PyObject          *lines = PyList_New( 0 );
 
     while ( std::getline( stream, line )) {
-      line += '\n'; // Restore the newline
-      PyList_Append( lines, PyString_FromString( line.c_str() ) );
+      if ( !stream.eof() ) line += '\n'; // Restore the newline
+      PyList_Append( pylines, PyString_FromStringAndSize( line.c_str(),
+                                                        line.length() ) );
       if ( stream.eof() ) break;
     }
 
-    return lines;
+    delete[] buffer;
+    //delete lines;
+    return pylines;
   }
 
   //----------------------------------------------------------------------------
   //! Read a chunk of the given size from the given offset as a string
   //----------------------------------------------------------------------------
-  std::string File::ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
+  XrdCl::ChunkInfo File::ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
   {
-    PyObject *args = Py_BuildValue( "kI", offset, chunksize );
-    if ( !args ) return NULL;
+    XrdCl::XRootDStatus status;
+    char               *buffer = new char[chunksize];
+    uint32_t            bytesRead;
 
-    PyObject *pychunk = PyTuple_GetItem( self->Read( self, args, NULL ), 1 );
-    if ( !pychunk ) return NULL;
-
-    return PyString_AsString( pychunk );
+    status = self->file->Read( offset, chunksize, buffer, bytesRead );
+    return XrdCl::ChunkInfo( 0, bytesRead, buffer );
   }
 
   //----------------------------------------------------------------------------
@@ -325,6 +338,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "buffer", "offset", "size", "timeout",
                                      "callback", NULL };
     const  char        *buffer;
+    int                 buffsize;
     uint64_t            offset   = 0;
     uint32_t            size     = 0;
     uint16_t            timeout  = 5;
@@ -333,12 +347,12 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|kIHO:write",
-         (char**) kwlist, &buffer, &offset, &size, &timeout, &callback ) )
-      return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|kIHO:write",
+         (char**) kwlist, &buffer, &buffsize, &offset, &size, &timeout,
+         &callback ) ) return NULL;
 
     if (!size) {
-      size = strlen(buffer);
+      size = buffsize;
     }
 
     if ( callback && callback != Py_None ) {

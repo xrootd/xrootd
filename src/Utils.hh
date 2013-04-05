@@ -38,12 +38,12 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Check if the given chunk of data contains a newline
   //----------------------------------------------------------------------------
-  bool HasNewline( std::string chunk );
+  bool HasNewline( const char *chunk, uint64_t size );
 
   //----------------------------------------------------------------------------
   //! Split the given string by newlines
   //----------------------------------------------------------------------------
-  std::vector<std::string>* SplitNewlines( std::string chunk );
+  std::vector<std::string>* SplitNewlines( const char *chunk, uint64_t size );
 }
 
 #endif /* UTILS_HH_ */

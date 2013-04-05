@@ -40,7 +40,7 @@ namespace PyXRootD
       static PyObject* Read( File *self, PyObject *args, PyObject *kwds );
       static PyObject* ReadLine( File *self, PyObject *args, PyObject *kwds );
       static PyObject* ReadLines( File *self, PyObject *args, PyObject *kwds );
-      static std::string ReadChunk( File *self, uint64_t chunksize, uint32_t offset );
+      static XrdCl::ChunkInfo ReadChunk( File *self, uint64_t chunksize, uint32_t offset );
       static PyObject* ReadChunks( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Write( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
