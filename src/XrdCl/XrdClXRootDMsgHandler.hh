@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClMessage.hh"
+#include "XProtocol/XProtocol.hh"
 
 namespace XrdCl
 {
@@ -63,15 +64,28 @@ namespace XrdCl
         pHasSessionId( false ),
         pChunkList( 0 ),
         pRedirectCounter( 0 ),
-        pRawReadSize( 0 ),
-        pRawLeftToBeRead( 0 ),
-        pRawCurrentChunk( 0 ),
-        pRawCurrentOffset( 0 ),
-        pRawOverflowError( 0 )
+
+        pAsyncReadOffset( 0 ),
+        pAsyncReadSize( 0 ),
+        pAsyncReadBuffer( 0 ),
+        pAsyncMsgSize( 0 ),
+
+        pReadRawStarted( false ),
+        pReadRawCurrentOffset( 0 ),
+
+        pReadVRawMsgOffset( 0 ),
+        pReadVRawChunkHeaderDone( false ),
+        pReadVRawChunkHeaderStarted( false ),
+        pReadVRawSizeError( false ),
+        pReadVRawChunkIndex( -1 ),
+        pReadVRawMsgDiscard( false ),
+
+        pOtherRawStarted( false )
       {
         pPostMaster = DefaultEnv::GetPostMaster();
         if( msg->GetSessionId() )
           pHasSessionId = true;
+        memset( &pReadVRawChunkHeader, 0, sizeof( readahead_list ) );
       }
 
       //------------------------------------------------------------------------
@@ -117,27 +131,6 @@ namespace XrdCl
       virtual Status ReadMessageBody( Message  *msg,
                                       int       socket,
                                       uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
-      // Handle a kXR_read in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawRead( Message  *msg,
-                          int       socket,
-                          uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
-      // Handle a kXR_readv in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawReadV( Message  *msg,
-                           int       socket,
-                           uint32_t &bytesRead );
-
-      //------------------------------------------------------------------------
-      // Handle anything other than kXR_read and kXR_readv in raw mode
-      //------------------------------------------------------------------------
-      Status ReadRawOther( Message  *msg,
-                           int       socket,
-                           uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Handle an event other that a message arrival
@@ -214,6 +207,10 @@ namespace XrdCl
       void SetChunkList( ChunkList *chunkList )
       {
         pChunkList = chunkList;
+        if( chunkList )
+          pChunkStatus.resize( chunkList->size() );
+        else
+          pChunkStatus.clear();
       }
 
       //------------------------------------------------------------------------
@@ -225,6 +222,33 @@ namespace XrdCl
       }
 
     private:
+      //------------------------------------------------------------------------
+      //! Handle a kXR_read in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawRead( Message  *msg,
+                          int       socket,
+                          uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Handle a kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawReadV( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Handle anything other than kXR_read and kXR_readv in raw mode
+      //------------------------------------------------------------------------
+      Status ReadRawOther( Message  *msg,
+                           int       socket,
+                           uint32_t &bytesRead );
+
+      //------------------------------------------------------------------------
+      //! Read a buffer asynchronously - depends on pAsyncBuffer, pAsyncSize
+      //! and pAsyncOffset
+      //------------------------------------------------------------------------
+      Status ReadAsync( int socket, uint32_t &btesRead );
+
       //------------------------------------------------------------------------
       //! Recover error
       //------------------------------------------------------------------------
@@ -263,12 +287,14 @@ namespace XrdCl
       Status RewriteRequestWait();
 
       //------------------------------------------------------------------------
-      //! Unpack vector read
+      //! Post process vector read
       //------------------------------------------------------------------------
-      Status UnpackVectorRead( VectorReadInfo *vReadInfo,
-                               ChunkList      *list,
-                               char           *sourceBuffer,
-                               uint32_t        sourceBufferSize );
+      Status PostProcessReadV( VectorReadInfo *vReadInfo );
+
+      //------------------------------------------------------------------------
+      //! Unpack a single readv response
+      //------------------------------------------------------------------------
+      Status UnPackReadVResponse( Message *msg );
 
       //------------------------------------------------------------------------
       //! Update the "tried=" part of the CGI of the current message
@@ -279,6 +305,16 @@ namespace XrdCl
       //! Switch on the refresh flag for some requests
       //------------------------------------------------------------------------
       void SwitchOnRefreshFlag();
+
+      //------------------------------------------------------------------------
+      // Helper struct for async reading of chunks
+      //------------------------------------------------------------------------
+      struct ChunkStatus
+      {
+        ChunkStatus(): sizeError( false ), done( false ) {}
+        bool sizeError;
+        bool done;
+      };
 
       Message                   *pRequest;
       Message                   *pResponse;
@@ -296,13 +332,26 @@ namespace XrdCl
       bool                       pHasSessionId;
       std::string                pRedirectCgi;
       ChunkList                 *pChunkList;
+      std::vector<ChunkStatus>   pChunkStatus;
       uint16_t                   pRedirectCounter;
 
-      uint32_t                   pRawReadSize;
-      uint32_t                   pRawLeftToBeRead;
-      uint32_t                   pRawCurrentChunk;
-      uint32_t                   pRawCurrentOffset;
-      bool                       pRawOverflowError;
+      uint32_t                   pAsyncReadOffset;
+      uint32_t                   pAsyncReadSize;
+      char*                      pAsyncReadBuffer;
+      uint32_t                   pAsyncMsgSize;
+
+      bool                       pReadRawStarted;
+      uint32_t                   pReadRawCurrentOffset;
+
+      uint32_t                   pReadVRawMsgOffset;
+      bool                       pReadVRawChunkHeaderDone;
+      bool                       pReadVRawChunkHeaderStarted;
+      bool                       pReadVRawSizeError;
+      int32_t                    pReadVRawChunkIndex;
+      readahead_list             pReadVRawChunkHeader;
+      bool                       pReadVRawMsgDiscard;
+
+      bool                       pOtherRawStarted;
   };
 }
 

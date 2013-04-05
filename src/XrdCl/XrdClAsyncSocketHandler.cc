@@ -45,7 +45,6 @@ namespace XrdCl
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
     pHeaderDone( false ),
-    pRawIncHandler( 0 ),
     pIncMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
@@ -56,6 +55,7 @@ namespace XrdCl
 
     memset( &pSockAddr, 0, sizeof( pSockAddr ) );
     pSocket = new Socket();
+    pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
   }
 
   //----------------------------------------------------------------------------
@@ -412,10 +412,10 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pIncoming )
     {
-      pHeaderDone    = false;
-      pIncoming      = new Message();
-      pRawIncHandler = 0;
-      pIncMsgSize    = 0;
+      pHeaderDone  = false;
+      pIncoming    = new Message();
+      pIncHandler  = std::make_pair( (IncomingMsgHandler*)0, false );
+      pIncMsgSize  = 0;
     }
 
     Status  st;
@@ -441,9 +441,10 @@ namespace XrdCl
                 pStreamName.c_str(), pIncoming->GetCursor() );
       pIncMsgSize = pIncoming->GetCursor();
       pHeaderDone = true;
-      pRawIncHandler = pStream->GetRawHandler( pIncoming, pSubStreamNum );
+      std::pair<IncomingMsgHandler *, bool> raw;
+      pIncHandler = pStream->InstallIncHandler( pIncoming, pSubStreamNum );
 
-      if( pRawIncHandler )
+      if( pIncHandler.first )
       {
         log->Dump( AsyncSockMsg,
                    "[%s] Will use the raw handler to read message body.",
@@ -454,11 +455,11 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We need to call a raw message handler to get the data from the socket
     //--------------------------------------------------------------------------
-    if( pRawIncHandler )
+    if( pIncHandler.first )
     {
       uint32_t bytesRead = 0;
-      st = pRawIncHandler->ReadMessageBody( pIncoming, pSocket->GetFD(),
-                                            bytesRead );
+      st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket->GetFD(),
+                                                  bytesRead );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -613,7 +614,10 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     log->Error( AsyncSockMsg, "[%s] Socket error encountered: %s",
                 pStreamName.c_str(), st.ToString().c_str() );
-    delete pIncoming;
+
+    if( !pIncHandler.second )
+      delete pIncoming;
+
     pIncoming = 0;
     pOutgoing = 0;
 
