@@ -63,12 +63,12 @@ const  char **nameVec() {return (const char **)PupNVec;}
        XrdCmsParseInit(int mVal, ...)
                       {va_list ap;
                        int vp = mVal;
-                       const char *Dummy;
+//                     const char *Dummy;
                        memset(PupNVec, 0, sizeof(PupNVec));
                        va_start(ap, mVal);
                        do { if (vp < XrdCmsRRData::Arg_Count)
                                PupNVec[vp] = va_arg(ap, char *);
-                               else Dummy  = va_arg(ap, char *);
+                               else          va_arg(ap, char *);
                           } while((vp = va_arg(ap, int)));
                        va_end(ap);
                       }

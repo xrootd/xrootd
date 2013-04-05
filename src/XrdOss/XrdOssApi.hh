@@ -371,4 +371,8 @@ int    RenameLink3(char *cPath, char *old_path, char *new_path);
    XRDEXP_REMOTE & (flags = PathOpts(path)); \
    if (flags & XRDEXP_NOTRW) \
       return OssEroute.Emsg(#act, -XRDOSS_E8005, opname, path)
+
+#define Check_RW(act, path, opname) \
+   if (PathOpts(path) & XRDEXP_NOTRW) \
+      return OssEroute.Emsg(#act, -XRDOSS_E8005, opname, path)
 #endif

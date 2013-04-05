@@ -246,7 +246,7 @@ void* XrdFfsPosix_x_deleteall(void *x)
         
 int XrdFfsPosix_deleteall(const char *rdrurl, const char *path, uid_t user_uid, mode_t st_mode)
 {
-    int i, nurls, res, rval;
+    int i, nurls, res;
     char *newurls[XrdFfs_MAX_NUM_NODES];
     int res_i[XrdFfs_MAX_NUM_NODES];
     int errno_i[XrdFfs_MAX_NUM_NODES];
@@ -254,7 +254,6 @@ int XrdFfsPosix_deleteall(const char *rdrurl, const char *path, uid_t user_uid, 
     struct XrdFfsQueueTasks *jobs[XrdFfs_MAX_NUM_NODES];
 
     nurls = XrdFfsMisc_get_all_urls(rdrurl, newurls, XrdFfs_MAX_NUM_NODES);
-    if (nurls < 0) rval = -1;
 
     for (i = 0; i < nurls; i++)
     {

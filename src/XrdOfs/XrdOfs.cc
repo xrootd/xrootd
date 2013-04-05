@@ -2253,7 +2253,7 @@ void XrdOfs::Unpersist(XrdOfsHandle *oh, int xcev)
 
 char *XrdOfs::WaitTime(int stime, char *buff, int blen)
 {
-   int mlen, hr, min, sec;
+   int hr, min, sec;
 
 // Compute hours, minutes, and seconds
 //
@@ -2265,17 +2265,17 @@ char *XrdOfs::WaitTime(int stime, char *buff, int blen)
 // Now format the message based on time duration
 //
         if (!hr && !min)
-           mlen = snprintf(buff,blen,"%d second%s",sec,(sec > 1 ? "s" : ""));
+           snprintf(buff,blen,"%d second%s",sec,(sec > 1 ? "s" : ""));
    else if (!hr)
           {if (sec > 10) min++;
-           mlen = snprintf(buff,blen,"%d minute%s",min,(min > 1 ? "s" : ""));
+           snprintf(buff,blen,"%d minute%s",min,(min > 1 ? "s" : ""));
           }
    else   {if (hr == 1)
               if (min <= 30)
-                      mlen = snprintf(buff,blen,"%d minutes",min+60);
-                 else mlen = snprintf(buff,blen,"%d hour and %d minutes",hr,min);
+                      snprintf(buff,blen,"%d minutes",min+60);
+                 else snprintf(buff,blen,"%d hour and %d minutes",hr,min);
               else {if (min > 30) hr++;
-                      mlen = snprintf(buff,blen,"%d hours",hr);
+                      snprintf(buff,blen,"%d hours",hr);
                    }
           }
 

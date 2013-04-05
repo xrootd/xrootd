@@ -339,9 +339,9 @@ void XrdCmsAdmin::Relay(int setSock, int newSock)
   
 void XrdCmsAdmin::Send(const char *Req, XrdCmsRRData &Data)
 {
-   AdminReq *arP;
+// AdminReq *arP;
 
-   if (AdminReq::numinQ < AdminReq::maxinQ) arP = new AdminReq(Req, Data);
+   if (AdminReq::numinQ < AdminReq::maxinQ) new AdminReq(Req, Data);
       else Say.Emsg("Send", "Queue full; ignoring", Req, Data.Path);
 }
 

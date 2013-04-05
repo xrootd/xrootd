@@ -589,7 +589,7 @@ int XrdXrootdProtocol::do_Endsess()
   
 int XrdXrootdProtocol::do_Getfile()
 {
-   int gopts, buffsz;
+// int gopts, buffsz;
 
 // Keep Statistics
 //
@@ -597,8 +597,8 @@ int XrdXrootdProtocol::do_Getfile()
 
 // Unmarshall the data
 //
-   gopts  = int(ntohl(Request.getfile.options));
-   buffsz = int(ntohl(Request.getfile.buffsz));
+// gopts  = int(ntohl(Request.getfile.options));
+// buffsz = int(ntohl(Request.getfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "getfile request is not supported");
 }
@@ -975,7 +975,7 @@ int XrdXrootdProtocol::do_Open()
 {
    static XrdXrootdCallBack openCB("open file", XROOTD_MON_OPENR);
    int fhandle;
-   int rc, mode, opts, openopts, mkpath = 0, doforce = 0, compchk = 0;
+   int rc, mode, opts, openopts, doforce = 0, compchk = 0;
    int popt, retStat = 0;
    const char *opaque;
    char usage, ebuff[2048], opC;
@@ -1011,13 +1011,13 @@ int XrdXrootdProtocol::do_Open()
             if (opts & kXR_replica)   {*op++ = '+';
                                        openopts |= SFS_O_REPLICA;
                                       }
-            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+            if (opts & kXR_mkdir)     {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
    else if (opts & kXR_delete)
            {openopts  = SFS_O_TRUNC;   *op++ = 'd'; opC = XROOTD_MON_OPENW;
-            if (opts & kXR_mkdir)     {*op++ = 'm'; mkpath = 1;
+            if (opts & kXR_mkdir)     {*op++ = 'm';
                                        mode |= SFS_O_MKPTH;
                                       }
            }
@@ -1330,7 +1330,7 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
   
 int XrdXrootdProtocol::do_Putfile()
 {
-   int popts, buffsz;
+// int popts, buffsz;
 
 // Keep Statistics
 //
@@ -1338,8 +1338,8 @@ int XrdXrootdProtocol::do_Putfile()
 
 // Unmarshall the data
 //
-   popts  = int(ntohl(Request.putfile.options));
-   buffsz = int(ntohl(Request.putfile.buffsz));
+// popts  = int(ntohl(Request.putfile.options));
+// buffsz = int(ntohl(Request.putfile.buffsz));
 
    return Response.Send(kXR_Unsupported, "putfile request is not supported");
 }

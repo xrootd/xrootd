@@ -736,7 +736,7 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo    *einfo,
    XrdSecsssKT::ktEnt  decKey;
    XrdSecsssRR_Data    prData;
    char *lidP = 0, *idP, *dP, *eodP, idType;
-   int lidSz, idSz, dLen;
+   int idSz, dLen;
 
 // Decode the credentials
 //
@@ -759,8 +759,8 @@ int XrdSecProtocolsss::getCred(XrdOucErrInfo    *einfo,
          ||  !idP || *idP == '\0')
             return Fatal(einfo, "getCred", EINVAL, "Invalid id string.");
          switch(idType)
-               {case XrdSecsssRR_Data::theLgid: lidP = idP; lidSz = idSz; break;
-                case XrdSecsssRR_Data::theRand:                           break;
+               {case XrdSecsssRR_Data::theLgid: lidP = idP; break;
+                case XrdSecsssRR_Data::theRand:             break;
                 default: return Fatal(einfo,"getCred",EINVAL,"Invalid id type.");
                }
         }

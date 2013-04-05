@@ -321,7 +321,7 @@ int XrdCnsConfig::Configure()
    XrdOucTokenizer mToks(0);
    XrdNetSocket   *EventSock;
    pthread_t tid;
-   int n, retc, NoGo = 0;
+   int retc, NoGo = 0;
    const char *iP;
    char buff[2048], *dP, *tP, *eVar;
 
@@ -381,7 +381,6 @@ int XrdCnsConfig::Configure()
 //
    if ((eVar = getenv("XRDEXPORTS")) && *eVar)
       {eVar = strdup(eVar); mToks.Attach(eVar); mToks.GetLine();
-       n = 9999;
        while((dP = mToks.GetToken()))
             {if (!LocalPath(dP, buff, sizeof(buff))) NoGo = 1;
                 else {Exports =  new XrdOucTList(buff, strlen(buff), Exports);

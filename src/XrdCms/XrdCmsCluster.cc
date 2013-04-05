@@ -344,7 +344,7 @@ int XrdCmsCluster::Broadsend(SMask_t Who, XrdCms::CmsRRHdr &Hdr,
 
 // Run through the table looking for a node to send the message to
 //
-do{for (i = Beg; i <= STHi; i++)
+do{for (i = Beg; i <= Fin; i++)
        {if ((nP = NodeTab[i]) && nP->isNode(Who))
            {nP->Lock();
             STMutex.UnLock();

@@ -2417,7 +2417,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 {
     XrdCmsRole::RoleID roleID;
     char *val, *Tok1, *Tok2;
-    int rc, xMeta=0, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0, xSup=0;
+    int rc, xMeta=0, xPeer=0, xProxy=0, xServ=0, xMan=0, xSolo=0;
 
 // Get the first token
 //
@@ -2452,7 +2452,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
    switch(roleID)
          {case XrdCmsRole::MetaManager:  xMeta  = xMan  =         -1; break;
           case XrdCmsRole::Manager:               xMan  =         -1; break;
-          case XrdCmsRole::Supervisor:   xSup   = xMan  = xServ = -1; break;
+          case XrdCmsRole::Supervisor:            xMan  = xServ = -1; break;
           case XrdCmsRole::Server:                        xServ = -1; break;
           case XrdCmsRole::ProxyManager: xProxy = xMan  =         -1; break;
           case XrdCmsRole::ProxySuper:   xProxy = xMan  = xServ = -1; break;
