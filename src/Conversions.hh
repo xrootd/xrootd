@@ -103,21 +103,29 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::DirectoryList *list )
       {
-        PyObject *directoryList = PyList_New( 0 );
+        PyObject *directoryList = PyList_New( list->GetSize() );
         PyObject *statInfo;
-        for ( XrdCl::DirectoryList::Iterator i = list->Begin(); i < list->End();
-            ++i ) {
-          statInfo = ConvertType<XrdCl::StatInfo>( (*i)->GetStatInfo() );
-          PyList_Append( directoryList,
+        int i = 0;
+
+        for ( XrdCl::DirectoryList::Iterator it = list->Begin();
+              it < list->End(); ++it ) {
+          statInfo = ConvertType<XrdCl::StatInfo>( (*it)->GetStatInfo() );
+
+          PyList_SET_ITEM( directoryList, i,
               Py_BuildValue( "{sssssO}",
-                  "hostAddress", (*i)->GetHostAddress().c_str(),
-                  "name",        (*i)->GetName().c_str(),
+                  "hostAddress", (*it)->GetHostAddress().c_str(),
+                  "name",        (*it)->GetName().c_str(),
                   "statInfo",    statInfo ) );
+          Py_DECREF( statInfo );
+          i++;
         }
-        return Py_BuildValue( "{sisssO}",
+
+        PyObject *o = Py_BuildValue( "{sisssO}",
             "size",     list->GetSize(),
             "parent",   list->GetParentName().c_str(),
             "dirList",  directoryList );
+        Py_DECREF( directoryList );
+        return o;
       }
   };
 
@@ -129,7 +137,7 @@ namespace PyXRootD
         if ( PyType_Ready( &URLType ) < 0 ) return NULL;
         Py_INCREF( &URLType );
 
-        PyObject *pyhostlist = PyList_New( 0 );
+        PyObject *pyhostlist = PyList_New( list->size() );
 
         if ( list ) {
           for ( unsigned int i = 0; i < list->size(); ++i ) {
@@ -144,8 +152,8 @@ namespace PyXRootD
                 "loadBalancer", PyBool_FromLong(info->loadBalancer),
                 "url",          url );
 
-            Py_INCREF( pyhostinfo );
-            PyList_Append( pyhostlist, pyhostinfo );
+            Py_DECREF( url );
+            PyList_SET_ITEM( pyhostlist, i, pyhostinfo );
           }
         }
 
@@ -157,18 +165,24 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::LocationInfo *info )
       {
-        PyObject *locationList = PyList_New( 0 );
-        for ( XrdCl::LocationInfo::Iterator i = info->Begin(); i < info->End();
-            ++i ) {
-          PyList_Append( locationList,
+        PyObject *locationList = PyList_New( info->GetSize() );
+        int i = 0;
+
+        for ( XrdCl::LocationInfo::Iterator it = info->Begin(); it < info->End();
+            ++it ) {
+          PyList_SET_ITEM( locationList, i,
               Py_BuildValue( "{sssIsIsOsO}",
-                  "address",    i->GetAddress().c_str(),
-                  "type",       i->GetType(),
-                  "accessType", i->GetAccessType(),
-                  "isServer",   PyBool_FromLong( i->IsServer() ),
-                  "isManager",  PyBool_FromLong( i->IsManager() ) ) );
+                  "address",    it->GetAddress().c_str(),
+                  "type",       it->GetType(),
+                  "accessType", it->GetAccessType(),
+                  "isServer",   PyBool_FromLong( it->IsServer() ),
+                  "isManager",  PyBool_FromLong( it->IsManager() ) ) );
+          i++;
         }
-        return Py_BuildValue( "O", locationList );
+
+        PyObject *o = Py_BuildValue( "O", locationList );
+        Py_DECREF( locationList );
+        return o;
       }
   };
 
@@ -194,22 +208,26 @@ namespace PyXRootD
       {
         if ( !info ) return Py_BuildValue( "" );
 
-        PyObject        *pychunks = PyList_New( 0 );
         XrdCl::ChunkList chunks   = info->GetChunks();
+        PyObject        *pychunks = PyList_New( chunks.size() );
 
         for ( uint32_t i = 0; i < chunks.size(); ++i ) {
-          XrdCl::ChunkInfo chunk  = chunks.at( i );
+          XrdCl::ChunkInfo chunk = chunks.at( i );
 
-          PyList_Append( pychunks,
+          PyObject *buffer = Py_BuildValue( "s#", (const char *) chunk.buffer,
+                                                  chunk.length );
+          PyList_SET_ITEM( pychunks, i,
               Py_BuildValue( "{sksIsO}",
                   "offset", chunk.offset,
                   "length", chunk.length,
-                  "buffer", Py_BuildValue( "s#", (const char *) chunk.buffer,
-                                           chunk.length ) ) );
+                  "buffer", buffer ) );
+          Py_DECREF( buffer );
         }
-        return Py_BuildValue( "{sIsO}",
-            "size",   info->GetSize(),
-            "chunks", pychunks );
+
+        PyObject *o = Py_BuildValue( "{sIsO}", "size", info->GetSize(),
+                                               "chunks", pychunks );
+        Py_DECREF( pychunks );
+        return o;
       }
   };
 }
