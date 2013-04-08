@@ -110,10 +110,14 @@ class DirectoryList(object):
     self.dirlist = list()
     for f in dirlist['dirList']:
       self.dirlist.append(ListEntry(f))
+      
+  def __iter__(self):
+    return iter(self.dirlist)
 
 class ListEntry(object):
   def __init__(self, entry):
     self.hostaddr = entry['hostAddress']
     self.name = entry['name']
-    self.statinfo = entry['statInfo']
+    if entry['statInfo']: self.statinfo = StatInfo(entry['statInfo'])
+    else: self.statinfo = None
 
