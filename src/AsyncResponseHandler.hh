@@ -96,7 +96,7 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         // Build the callback arguments
         //----------------------------------------------------------------------
-        if (pyresponse == NULL) pyresponse = Py_BuildValue("");
+        if (pyresponse == NULL) pyresponse = Py_BuildValue( "" );
         PyObject *args = Py_BuildValue( "(OOO)", pystatus, pyresponse, pyhostlist );
         if ( !args || PyErr_Occurred() ) {
           return Exit();
@@ -107,7 +107,7 @@ namespace PyXRootD
         //----------------------------------------------------------------------
         PyObject *callbackResult = PyObject_CallObject( this->callback, args );
         Py_DECREF( args );
-        if ( PyErr_Occurred() ) {
+        if ( !callbackResult || PyErr_Occurred() ) {
           return Exit();
         }
 
@@ -118,7 +118,7 @@ namespace PyXRootD
         Py_XDECREF( pyresponse );
         Py_XDECREF( pyhostlist );
         Py_XDECREF( callbackResult );
-        Py_DECREF( this->callback );
+        Py_XDECREF( this->callback );
 
         PyGILState_Release( state );
 
