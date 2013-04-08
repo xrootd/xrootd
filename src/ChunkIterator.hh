@@ -68,18 +68,22 @@ namespace PyXRootD
     XrdCl::ChunkInfo *chunk = self->file->ReadChunk( self->file,
                                                      self->blocksize,
                                                      self->currentOffset );
+    PyObject *pychunk = NULL;
 
     if ( chunk->length == 0 ) {
       //------------------------------------------------------------------------
-      // Raise standard StopIteration exception with empty value
+      // Raise StopIteration exception when we are done
       //------------------------------------------------------------------------
       PyErr_SetNone( PyExc_StopIteration );
-      return NULL;
     }
 
-    self->currentOffset += self->blocksize;
-    PyObject *pychunk = PyString_FromStringAndSize( (const char*) chunk->buffer,
-                                                                  chunk->length );
+    else {
+      self->currentOffset += self->blocksize;
+      pychunk = PyString_FromStringAndSize( (const char*) chunk->buffer,
+                                                          chunk->length );
+    }
+
+    delete[] (char*) chunk->buffer;
     delete chunk;
     return pychunk;
   }
