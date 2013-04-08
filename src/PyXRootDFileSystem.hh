@@ -117,6 +117,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static void FileSystem_dealloc( FileSystem *self )
   {
+    delete self->filesystem;
     Py_XDECREF( self->url );
     self->ob_type->tp_free( (PyObject*) self );
   }
