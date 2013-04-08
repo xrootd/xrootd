@@ -18,7 +18,6 @@
 
 from threading import Lock
 from XRootD.client.responses import XRootDStatus, HostInfo
-import inspect
 
 class CallbackWrapper(object):
   def __init__(self, callback, responsetype):
@@ -30,9 +29,8 @@ class CallbackWrapper(object):
   def __call__(self, status, response, hostlist):
     self.status = XRootDStatus(status)
     self.response = response
-    if self.responsetype: 
-      if inspect.isclass(self.response):
-        self.response = self.response.__init__(response)
+    if self.responsetype:
+      self.response = self.responsetype(response)
     self.hostlist = HostInfo(hostlist)
     self.callback(self.status, self.response, self.hostlist)
 
