@@ -10,7 +10,7 @@ smallfile = SERVER_URL + '/tmp/spam'
 smallbuffer = 'eggs and ham\n'
 bigfile = SERVER_URL + '/tmp/bigfile'
 
-def test_open_close():
+def test_open_close_sync():
   f = client.File()
   pytest.raises(ValueError, "f.stat()")
   status, response = f.open(smallfile, OpenFlags.READ)
@@ -24,6 +24,22 @@ def test_open_close():
   f.close()
   f.close()
 
+def test_open_close_async():
+  f = client.File()
+  handler = AsyncResponseHandler()
+  status = f.open(smallfile, OpenFlags.READ, callback=handler)
+  assert status.ok
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  assert f.is_open()
+  
+  handler = AsyncResponseHandler()
+  status = f.close(callback=handler)
+  assert status.ok
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  assert f.is_open() == False
+  
 def test_write_sync():
   f = client.File()
   pytest.raises(ValueError, "f.write(smallbuffer)")
@@ -64,7 +80,6 @@ def test_read_sync():
   pytest.raises(ValueError, 'f.read()')
   status, response = f.open(bigfile, OpenFlags.READ)
   assert status.ok
-
   status, response = f.stat()
   size = response.size
 
@@ -79,7 +94,6 @@ def test_read_async():
   f = client.File()
   status, response = f.open(bigfile, OpenFlags.READ)
   assert status.ok
-  
   status, response = f.stat()
   size = response.size
 
@@ -91,8 +105,8 @@ def test_read_async():
   assert len(response) == size
   
   f.close()
-  
-def test_iteration():
+
+def test_iter_small():
   f = client.File()
   f.open(smallfile, OpenFlags.DELETE)
   f.write('gre\0en\neggs\nand\nham\n')
@@ -106,6 +120,7 @@ def test_iteration():
   assert total == size
   f.close()
 
+def test_iter_big():
   f = client.File()
   f.open(bigfile, OpenFlags.READ)
     
@@ -113,6 +128,7 @@ def test_iteration():
   total = 0
     
   for line in f:
+    #print '+++++ %r' % line
     total += len(line)
      
   assert total == size
@@ -156,9 +172,7 @@ def test_readlines():
   size = f.stat()[1].size
    
   response = f.readlines()
-  assert len(response) == 2583484
-  print '+++++', len(response[-1])
-  assert len(response[-1]) == 626237
+  assert len(response) == len(open('/tmp/bigfile').readlines())
   
   total = 0
   for l in f.readlines():
@@ -173,69 +187,120 @@ def test_readchunks():
   size = f.stat()[1].size
   
   total = 0
-  for status, chunk in f.readchunks(blocksize=1024*1024*2):
+  for chunk in f.readchunks(blocksize=1024*1024*2):
     total += len(chunk)
     
   assert total == size
   f.close()
 
-def test_vector_read():
+def test_vector_read_sync():
   v = [(0, 100), (101, 200), (201, 200)]
+  vlen = sum([vec[1] for vec in v])
 
   f = client.File()
   pytest.raises(ValueError, 'f.vector_read(v)')
-
-  status, response = f.open(smallfile, OpenFlags.READ)
+  status, response = f.open(bigfile, OpenFlags.READ)
   assert status.ok
-  status, response = f.vector_read(chunks=v)
+  
+  pytest.raises(TypeError, 'f.vector_read(chunks=100)')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[1,2,3])')
+  pytest.raises(TypeError, 'f.vector_read(chunks=("lol"))')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[(1), (2)])')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[(1, 2), (3)])')
+  
+  status, response = f.vector_read(chunks=[(-1, -100), (-100, 10*10*10)])
   assert status.ok == False
   assert not response
   f.close()
 
   f = client.File()
   status, response = f.open(bigfile, OpenFlags.READ)
-  print status
   assert status.ok
   status, response = f.vector_read(chunks=v)
   assert status.ok
-  assert response
+  assert response.size == vlen
+  f.close()
+  
+def test_vector_read_async():
+  v = [(0, 100), (101, 200), (201, 200)]
+  vlen = sum([vec[1] for vec in v])
+  f = client.File()
+  status, response = f.open(bigfile, OpenFlags.READ)
+  assert status.ok
+  
+  handler = AsyncResponseHandler()
+  status = f.vector_read(chunks=v, callback=handler)
+  assert status.ok
+  status, response, hostlist = handler.wait()
+  print response
+  print status
+  assert response.size == vlen
   f.close()
 
-def test_stat():
+def test_stat_sync():
   f = client.File()
-
   pytest.raises(ValueError, 'f.stat()')
-
-  status, response = f.open(smallfile)
+  status, response = f.open(bigfile)
+  
   assert status.ok
-
   status, response = f.stat()
   assert status.ok
   assert response.size
   f.close()
-
-def test_sync():
+  
+def test_stat_async():
   f = client.File()
-
-  pytest.raises(ValueError, 'f.sync()')
-
-  status, response = f.open(smallfile)
+  status, response = f.open(bigfile)
   assert status.ok
+  
+  handler = AsyncResponseHandler()
+  status = f.stat(callback=handler)
+  assert status.ok
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  assert response.size
+  f.close()
 
+def test_sync_sync():
+  f = client.File()
+  pytest.raises(ValueError, 'f.sync()')
+  status, response = f.open(bigfile)
+  assert status.ok
+  
   status, response = f.sync()
   assert status.ok
   f.close()
-
-def test_truncate():
+  
+def test_sync_async():
   f = client.File()
-
+  status, response = f.open(bigfile)
+  assert status.ok
+  
+  handler = AsyncResponseHandler()
+  status = f.sync(callback=handler)
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  f.close()
+  
+def test_truncate_sync():
+  f = client.File()
   pytest.raises(ValueError, 'f.truncate(10000)')
-
-  status, response = f.open(smallfile, OpenFlags.UPDATE)
+  status, response = f.open(smallfile, OpenFlags.DELETE)
+  assert status.ok
+  
+  status, response = f.truncate(size=10000)
+  assert status.ok
+  f.close()
+  
+def test_truncate_async():
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.DELETE)
   assert status.ok
 
-  status, response = f.truncate(size=10000)
-  print status
+  handler = AsyncResponseHandler()
+  status = f.truncate(size=10000, callback=handler)
+  assert status.ok
+  status, response, hostlist = handler.wait()
   assert status.ok
   f.close()
 

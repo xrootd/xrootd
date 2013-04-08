@@ -1,1 +1,1 @@
-SERVER_URL = 'root://vagabond.cern.ch/'
+SERVER_URL = 'root://localhost/'

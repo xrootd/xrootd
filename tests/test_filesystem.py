@@ -5,6 +5,7 @@ from XRootD.client.enums import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
 from env import *
 import pytest
 import sys
+import inspect
 
 def test_filesystem():
     c = client.FileSystem(SERVER_URL)
@@ -58,6 +59,9 @@ def async(func, args, hasReturnObject):
 
     for host in hostlist:
       assert host.url
+      
+    if hasReturnObject:
+      assert response
 
 def test_args():
     c = client.FileSystem(url=SERVER_URL)
