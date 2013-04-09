@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.enums import MkDirFlags
+from XRootD.client.enums import MkDirFlags
 
 myclient = client.FileSystem("root://localhost")
 
