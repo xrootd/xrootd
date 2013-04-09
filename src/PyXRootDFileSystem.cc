@@ -34,7 +34,7 @@ namespace PyXRootD
                                          NULL };
     const  char            *path;
     XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
-    uint16_t                timeout  = 5;
+    uint16_t                timeout  = 0;
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
@@ -72,7 +72,7 @@ namespace PyXRootD
                                          NULL };
     const  char            *path;
     XrdCl::OpenFlags::Flags flags    = XrdCl::OpenFlags::None;
-    uint16_t                timeout  = 5;
+    uint16_t                timeout  = 0;
     PyObject               *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus     status;
 
@@ -110,7 +110,7 @@ namespace PyXRootD
                                      NULL };
     const  char        *source;
     const  char        *dest;
-    uint16_t            timeout = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -143,7 +143,7 @@ namespace PyXRootD
     static const char     *kwlist[] = { "querycode", "arg", "timeout",
                                         "callback", NULL };
     const  char           *arg;
-    uint16_t               timeout = 5;
+    uint16_t               timeout  = 0;
     PyObject              *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::QueryCode::Code queryCode;
     XrdCl::XRootDStatus    status;
@@ -184,7 +184,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "path", "size", "timeout", "callback", NULL };
     const  char        *path;
     uint64_t            size     = 0;
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -216,7 +216,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -251,7 +251,7 @@ namespace PyXRootD
     const  char             *path;
     XrdCl::MkDirFlags::Flags flags    = XrdCl::MkDirFlags::None;
     XrdCl::Access::Mode      mode     = XrdCl::Access::None;
-    uint16_t                 timeout  = 5;
+    uint16_t                 timeout  = 0;
     PyObject                *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus      status;
 
@@ -283,7 +283,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    uint16_t            timeout = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -316,7 +316,7 @@ namespace PyXRootD
     static const char  *kwlist[] = { "path", "mode", "timeout", "callback", NULL };
     const  char        *path;
     XrdCl::Access::Mode mode     = XrdCl::Access::None;
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -347,7 +347,7 @@ namespace PyXRootD
   PyObject* FileSystem::Ping( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -379,7 +379,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -415,7 +415,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "path", "timeout", "callback", NULL };
     const  char        *path;
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -450,7 +450,7 @@ namespace PyXRootD
   PyObject* FileSystem::Protocol( FileSystem *self, PyObject *args, PyObject *kwds )
   {
     static const char  *kwlist[] = { "timeout", "callback", NULL };
-    uint16_t            timeout  = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -488,7 +488,7 @@ namespace PyXRootD
                                             "callback", NULL };
     const  char               *path;
     XrdCl::DirListFlags::Flags flags = XrdCl::DirListFlags::None;
-    uint16_t                   timeout = 5;
+    uint16_t                   timeout  = 0;
     PyObject                  *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
 
@@ -524,7 +524,7 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "info", "timeout", "callback", NULL };
     const  char        *info;
-    uint16_t            timeout = 5;
+    uint16_t            timeout  = 0;
     PyObject           *callback = NULL, *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
 
@@ -562,7 +562,7 @@ namespace PyXRootD
                                             "timeout", "callback", NULL };
     XrdCl::PrepareFlags::Flags flags;
     uint8_t                    priority = 0;
-    uint16_t                   timeout  = 5;
+    uint16_t                   timeout  = 0;
     PyObject                  *pyfiles = NULL, *callback = NULL;
     PyObject                  *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus        status;
