@@ -2,47 +2,70 @@
 :mod:`XRootD.client.FileSystem`: Filesystem operations
 ======================================================
 
-.. warning::
-  This page is under construction
+.. warning:: This page is under construction
 
 The FileSystem object is used to perform filesystem operations such as creating
 directories, changing file permissions, listing directories, etc.
 
-The `XRootDStatus` response object
-----------------------------------
+Synchronous and Asynchronous requests
+-------------------------------------
 
-With each request, even asynchronous requests, you get one of these:
+The new XRootD client is capable of making both synchronous and asynchronous 
+requests. Therefore, ``pyxrootd`` must also be capable of this, although most
+people will probably only need synchronous functionality most of the time.
 
-.. module:: XRootD.client.responses
+Each method in the `FileSystem` class can take an optional ``callback`` 
+argument. If you don't pass in a callback, you're asking for a synchronous
+request. If you do, the request becomes asynchronous (assuming the callback is
+valid, of course), and your callback will be invoked when the response is
+received.
 
-.. autoclass:: XRootD.client.responses.XRootDStatus()
-  :members:
+``pyxrootd`` comes with a callback helper class: 
+:mod:`XRootD.client.utils.AsyncResponseHandler`. If you use an instance of this
+class as your callback, you can call the :func:`wait` function whenever you 
+like after the request is made, and it will block until the response is 
+received. Just thought that might be useful for someone.
 
-The `HostInfo` response object
----------------------------------
+Return types
+------------
 
-With asynchronous requests, you even get one of these:
+.. note:: Pay attention. The return signature of these functions changes 
+          depending on whether you make a synchronous or asynchronous request.
 
-.. autoclass:: XRootD.client.responses.HostInfo()
-  :members:
+Synchronous requests
+********************
 
-.. note::
-  All methods accept keyword arguments.
+You always get a **2-tuple** in return when you make a synchronous request. The
+first item in the tuple is always an :mod:`XRootD.client.responses.XRootDStatus`
+instance. The ``XRootDStatus`` object tells you whether the request was 
+successful or not, along with some other information.
 
-.. note::
-  All methods accept an optional callback argument. This will make the function
-  call happen asynchronously. All methods also accept optional timeout argument.
+The second item in the tuple depends on which request you made. If it's a simple
+request without any response information, such as :func:`ping`, the second item 
+is ``None``. Otherwise, you get one of the objects in 
+:mod:`XRootD.client.responses`. For example, if you call :func:`dirlist`, you 
+get an instance of :mod:`XRootD.client.responses.DirectoryList`.
 
-.. note::
-  **For all synchronous function calls**, you get a tuple in return. The tuple 
-  contains the status dictionary and the response dictionary, if any. If the 
-  function has no return dictionary, the second item of the tuple will be None.
+Asynchronous requests
+*********************
 
-  **For all asynchronous requests**, you will get the initial status of the 
-  request when the call returns, i.e. you can discover network problems etc, 
-  but not the server response. When your callback is invoked, you will get 
-  another status dict and the response dict (if any, otherwise None). You also
-  get the host info
+You get a single object, an :mod:`XRootD.client.responses.XRootDStatus`
+instance, when you fire off an asynchronous request. This can inform you about
+any immediate problems in making the request, e.g. the network is not reachable
+(or something). 
+
+However, when that callback you gave us (remember him?) gets triggered - you get
+not 2, but a **3-tuple**. The first, again, is an ``XRootDStatus``. The second
+follows the synchronous pattern, i.e. you get your response object, or ``None``.
+The third item is an :mod:`XRootD.client.responses.HostList` instance. This 
+contains a list of all the hosts that were implicated while carrying out that 
+request you made.
+
+Tiemouts
+--------
+
+All of the functions in this class accept an optional ``timeout`` keyword 
+argument. 
 
 Class Reference
 ---------------

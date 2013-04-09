@@ -2,7 +2,9 @@
 :mod:`XRootD.client.enums`: Enumeration flags and constants
 ===========================================================
 
-.. module:: XRootD.enums
+.. warning:: This page is under construction
+
+.. module:: XRootD.client.enums
 
 .. attribute:: OpenFlags
 
@@ -19,9 +21,9 @@
   | :mod:`OpenFlags.REPLICA`:  The file is being opened for replica creation
   | :mod:`OpenFlags.POSC`:     Enable `Persist On Successful Close` processing
   | :mod:`OpenFlags.NOWAIT`:   Open the file only if it does not cause a wait. 
-                               For :func:`XRootD.client.FileSystem.locate` : provide 
-                               a location as soon as one becomes known. This 
-                               means that not all locations are necessarily 
+                               For :func:`XRootD.client.FileSystem.locate` : 
+                               provide a location as soon as one becomes known. 
+                               This means that not all locations are necessarily 
                                returned. If the file does not exist a wait is 
                                still imposed.
   | :mod:`OpenFlags.SEQIO`:    File will be read or written sequentially
@@ -73,4 +75,42 @@
   | :mod:`QueryCode.OPAQUE`:         Implementation dependent
   | :mod:`QueryCode.OPAQUEFILE`:     Implementation dependent
 
-  
+.. attribute:: HostTypes
+
+  | :mod:`HostTypes.IS_MANAGER`: Manager
+  | :mod:`HostTypes.IS_SERVER`:  Data server
+  | :mod:`HostTypes.ATTR_META`:  Meta manager attribute
+  | :mod:`HostTypes.ATTR_PROXY`: Proxy server attribute
+  | :mod:`HostTypes.ATTR_SUPER`: Supervisor attribute
+
+.. attribute:: StatInfoFlags
+
+  | :mod:`StatInfoFlags.X_BIT_SET`:    Executable/searchable bit set
+  | :mod:`StatInfoFlags.IS_DIR`:       This is a directory
+  | :mod:`StatInfoFlags.OTHER`:        Neither a file nor a directory
+  | :mod:`StatInfoFlags.OFFLINE`:      File is not online (ie. on disk)
+  | :mod:`StatInfoFlags.POSC_PENDING`: File opened with POSC flag, not yet
+                                       successfully closed
+  | :mod:`StatInfoFlags.IS_READABLE`:  Read access is allowed
+  | :mod:`StatInfoFlags.IS_WRITABLE`:  Write access is allowed
+
+.. attribute:: LocationType
+
+  Describes the node type and file status for a given location. Used with the 
+  ``type`` attribute of :mod:`XRootD.client.responses.LocationInfo`.
+
+  | :mod:`LocationType.MANAGER_ONLINE`:  manager node where the file is online
+  | :mod:`LocationType.MANAGER_PENDING`: manager node where the file is pending 
+                                         to be online
+  | :mod:`LocationType.SERVER_ONLINE`:   server node where the file is online
+  | :mod:`LocationType.SERVER_PENDING`:  server node where the file is pending 
+                                         to be online
+
+.. attribute:: AccessType
+
+  Describes the allowed access type for the file at given location Used with the 
+  ``accesstype`` attribute of :mod:`XRootD.client.responses.LocationInfo`.
+
+  | :mod:`AccessType.READ`:       Read access is allowed
+  | :mod:`AccessType.READ_WRITE`: Write access is allowed
+

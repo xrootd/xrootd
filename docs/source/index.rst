@@ -1,14 +1,13 @@
-======================================
-`pyxrootd`: Python bindings for XRootD
-======================================
+========================================
+``pyxrootd``: Python bindings for XRootD
+========================================
 
-`pyxrootd` is a set of simple but pythonic bindings for `XRootD`.
+``pyxrootd`` is a set of simple but pythonic bindings for `XRootD <http://xrootd.slac.stanford.edu>`_.
 
-.. warning::
-  This documentation is still under construction.
+.. warning:: This documentation is still under construction.
 
 Bug reporting and issue tracking: `the pyxrootd github issue tracker
-<http://github.com/jussy/pyxrootd/issues>`_
+<http://github.com/xrootd/xrootd-python/issues>`_
 
 User Guide
 ==========
@@ -18,6 +17,8 @@ User Guide
    :maxdepth: 2
 
    install
+   gettingstarted
+   examples
 
 API Reference
 =============
@@ -31,13 +32,6 @@ API Reference
    modules/client/copyprocess
    modules/client/responses
    modules/client/enums
+   modules/client/url
    modules/client/utils
-
-Examples
-========
-
-.. toctree::
-   :maxdepth: 1
-
-   examples/client
 
