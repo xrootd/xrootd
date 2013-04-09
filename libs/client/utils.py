@@ -17,7 +17,7 @@
 #-------------------------------------------------------------------------------
 
 from threading import Lock
-from XRootD.client.responses import XRootDStatus, HostInfo
+from XRootD.client.responses import XRootDStatus, HostList
 
 class CallbackWrapper(object):
   def __init__(self, callback, responsetype):
@@ -31,7 +31,7 @@ class CallbackWrapper(object):
     self.response = response
     if self.responsetype:
       self.response = self.responsetype(response)
-    self.hostlist = HostInfo(hostlist)
+    self.hostlist = HostList(hostlist)
     self.callback(self.status, self.response, self.hostlist)
 
 class AsyncResponseHandler(object):
