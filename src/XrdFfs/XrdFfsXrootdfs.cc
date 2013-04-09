@@ -151,14 +151,14 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
 //  int res, fd;
     int res;
     char rootpath[1024];
-    uid_t user_uid, uid;
-    gid_t user_gid, gid;
+//    uid_t user_uid, uid;
+//    gid_t user_gid, gid;
 
-    user_uid = fuse_get_context()->uid;
-    uid = getuid();
+//    user_uid = fuse_get_context()->uid;
+//    uid = getuid();
 
-    user_gid = fuse_get_context()->gid;
-    gid = getgid();
+//    user_gid = fuse_get_context()->gid;
+//    gid = getgid();
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
 

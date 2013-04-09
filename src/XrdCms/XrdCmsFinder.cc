@@ -878,7 +878,6 @@ int XrdCmsFinderTRG::RunAdmin(char *Path)
 void *XrdCmsFinderTRG::Start()
 {
    XrdCmsRRData Data;
-   int retc;
 
 // First step is to connect to the local cmsd. We also establish a binary
 // read stream (old olbd's never used it) to get requests that can only be
@@ -890,7 +889,7 @@ void *XrdCmsFinderTRG::Start()
              // Login to cmsd
              //
              myData.Lock();
-             retc = CMSp->Put(Login);
+             CMSp->Put(Login);
              myData.UnLock();
 
              // Get the FD for this connection
