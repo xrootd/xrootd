@@ -21,7 +21,8 @@ from XRootD.client.responses import XRootDStatus, StatInfo, VectorReadInfo
 from XRootD.client.utils import CallbackWrapper
 
 class File(object):
-  """The file class"""
+  """The file class.
+  """
 
   def __init__(self):
     self.__file = client.File()
@@ -43,10 +44,10 @@ class File(object):
 
     :param   url: url of the file to be opened
     :type    url: string
-    :param flags: An `ORed` combination of :mod:`XRootD.enums.OpenFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
                   where the default is `OpenFlags.NONE`
     :param  mode: access mode for new files, an `ORed` combination of
-                 :mod:`XRootD.enums.AccessMode` where the default is
+                 :mod:`XRootD.client.enums.AccessMode` where the default is
                  `AccessMode.NONE`
     :returns:    tuple containing status dictionary and None
     """

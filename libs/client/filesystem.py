@@ -41,7 +41,7 @@ class FileSystem(object):
 
     :param  path: path to the file to be located
     :type   path: string
-    :param flags: An `ORed` combination of :mod:`XRootD.enums.OpenFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
     :returns:     :class:`XRootD.responses.XRootDStatus` and 
     """
     if callback:
@@ -57,7 +57,7 @@ class FileSystem(object):
 
     :param  path: path to the file to be located
     :type   path: string
-    :param flags: An `ORed` combination of :mod:`XRootD.enums.OpenFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
     :returns:     tuple containing status and location info (see above)
     """
     if callback:
@@ -88,7 +88,7 @@ class FileSystem(object):
     """Obtain server information.
 
     :param querycode: the query code as specified in
-                      :mod:`XRootD.enums.QueryCode`
+                      :mod:`XRootD.client.enums.QueryCode`
     :param       arg: query argument
     :type        arg: string
     :returns:         the query response or None if there was an error
@@ -141,10 +141,10 @@ class FileSystem(object):
 
     :param  path: path to the directory to create
     :type   path: string
-    :param flags: An `ORed` combination of :mod:`XRootD.enums.MkDirFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.MkDirFlags`
                   where the default is `MkDirFlags.NONE`
     :param  mode: the initial file access mode, an `ORed` combination of
-                  :mod:`XRootD.enums.AccessMode` where the default is
+                  :mod:`XRootD.client.enums.AccessMode` where the default is
                   `AccessMode.NONE`
     :returns:     tuple containing status dictionary and None
     """
@@ -174,7 +174,7 @@ class FileSystem(object):
 
     :param path: path to the file/directory to change access mode
     :type  path: string
-    :param mode: An `OR`ed` combination of :mod:`XRootD.enums.AccessMode`
+    :param mode: An `OR`ed` combination of :mod:`XRootD.client.enums.AccessMode`
                  where the default is `AccessMode.NONE`
     :returns:    tuple containing status dictionary and None
     """
@@ -248,7 +248,7 @@ class FileSystem(object):
 
     :param  path: path to the directory to list
     :type   path: string
-    :param flags: An `ORed` combination of :mod:`XRootD.enums.DirListFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.DirListFlags`
                   where the default is `DirListFlags.NONE`
     :returns:     tuple containing status dictionary and directory
                   list info dictionary (see below)
@@ -281,7 +281,7 @@ class FileSystem(object):
     :param    files: list of files to be prepared
     :type     files: list
     :param    flags: An `ORed` combination of
-                     :mod:`XRootD.enums.PrepareFlags`
+                     :mod:`XRootD.client.enums.PrepareFlags`
     :param priority: priority of the request 0 (lowest) - 3 (highest)
     :type  priority: integer
     :returns:        tuple containing status dictionary and None
