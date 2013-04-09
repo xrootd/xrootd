@@ -7,7 +7,7 @@ import pytest
 import sys
 
 smallfile = SERVER_URL + '/tmp/spam'
-smallbuffer = 'eggs and ham\n'
+smallbuffer = 'gre\0en\neggs\nand\nham\n'
 bigfile = SERVER_URL + '/tmp/bigfile'
 
 def test_open_close_sync():
@@ -109,7 +109,7 @@ def test_read_async():
 def test_iter_small():
   f = client.File()
   f.open(smallfile, OpenFlags.DELETE)
-  f.write('gre\0en\neggs\nand\nham\n')
+  f.write(smallbuffer)
   size = f.stat(force=True)[1].size
   
   total = 0
@@ -137,7 +137,7 @@ def test_iter_big():
 def test_readline():
   f = client.File()
   f.open(smallfile, OpenFlags.DELETE)
-  f.write('gre\0en\neggs\nand\nham\n')
+  f.write(smallbuffer)
   
   response = f.readline()
   assert response == 'gre\0en\n'
@@ -151,7 +151,7 @@ def test_readline():
   
   f = client.File()
   f.open(smallfile, OpenFlags.DELETE)
-  f.write('green\neggs\nand\nham')
+  f.write(smallbuffer[:-1])
   f.readline()
   f.readline()
   f.readline()
@@ -159,25 +159,34 @@ def test_readline():
   assert response == 'ham'
   f.close()
   
-def test_readlines():
+def test_readlines_small():
   f = client.File()
   f.open(smallfile, OpenFlags.DELETE)
-  f.write('gre\0en\neggs\nand\nham\n')
+  f.write(smallbuffer)
   response = f.readlines()
   assert len(response) == 4
   f.close()
-  
+
+def test_readlines_big():
   f = client.File()
   f.open(bigfile, OpenFlags.READ)
   size = f.stat()[1].size
    
-  response = f.readlines()
-  assert len(response) == len(open('/tmp/bigfile').readlines())
+#   response = f.readlines()
+#   assert len(response) == len(open('/tmp/bigfile').readlines())
+
+  #pylines = open('/tmp/bigfile').readlines()
+  #nlines = len(pylines)
   
   total = 0
-  for l in f.readlines():
-    #print '+++++ %r' % l
+  lines = f.readlines()
+  for i, l in enumerate(lines):
     total += len(l)
+#     if l != pylines[i]:
+#       print '!!!!!', i
+#       print '+++++ py: %r' % pylines[i]
+#       print '+++++ me: %r' % l
+    
   assert total == size
   f.close()
   
