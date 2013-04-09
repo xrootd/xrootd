@@ -87,3 +87,33 @@ PrepareFlags = enum(
   COLOCATE  = 32,
   FRESH     = 64
 )
+
+HostTypes = enum(
+  IS_MANAGER = 0x00000002,
+  IS_SERVER  = 0x00000001,
+  ATTR_META  = 0x00000100,
+  ATTR_PROXY = 0x00000200,
+  ATTR_SUPER = 0x00000400
+)
+
+StatInfoFlags = enum(
+  X_BIT_SET    = 1,
+  IS_DIR       = 2,
+  OTHER        = 4,
+  OFFLINE      = 8,
+  IS_READABLE  = 16,
+  IS_WRITABLE  = 32,
+  POSC_PENDING = 64
+)
+
+LocationType = enum(
+  MANAGER_ONLINE  = 0,
+  MANAGER_PENDING = 1,
+  SERVER_ONLINE   = 2,
+  SERVER_PENDING  = 3
+)
+
+AccessType = enum(
+  READ       = 0,
+  READ_WRITE = 1
+)
