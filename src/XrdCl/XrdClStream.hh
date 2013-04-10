@@ -187,12 +187,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Call when one of the sockets is ready to accept a new message
       //------------------------------------------------------------------------
-      Message *OnReadyToWrite( uint16_t subStream );
+      std::pair<Message *, OutgoingMsgHandler *>
+        OnReadyToWrite( uint16_t subStream );
 
       //------------------------------------------------------------------------
       // Call when a message is written to the socket
       //------------------------------------------------------------------------
-      void OnMessageSent( uint16_t subStream, Message *msg );
+      void OnMessageSent( uint16_t  subStream,
+                          Message  *msg,
+                          uint32_t  bytesSent );
 
       //------------------------------------------------------------------------
       //! Call back when a message has been reconstructed

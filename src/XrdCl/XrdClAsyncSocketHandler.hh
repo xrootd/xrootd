@@ -198,7 +198,10 @@ namespace XrdCl
       time_t                         pConnectionTimeout;
       bool                           pHeaderDone;
       std::pair<IncomingMsgHandler*, bool> pIncHandler;
+      bool                           pOutMsgDone;
+      OutgoingMsgHandler            *pOutHandler;
       uint32_t                       pIncMsgSize;
+      uint32_t                       pOutMsgSize;
   };
 }
 
