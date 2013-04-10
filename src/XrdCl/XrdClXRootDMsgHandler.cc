@@ -556,7 +556,7 @@ namespace XrdCl
     if( !pReadRawStarted )
     {
       ChunkInfo chunk  = pChunkList->front();
-      pAsyncReadOffset = 0;
+      pAsyncOffset     = 0;
       pAsyncReadSize   = pAsyncMsgSize;
       pAsyncReadBuffer = ((char*)chunk.buffer)+pReadRawCurrentOffset;
       if( pReadRawCurrentOffset + pAsyncMsgSize > chunk.length )
@@ -645,7 +645,7 @@ namespace XrdCl
                      pUrl.GetHostId().c_str(), discardSize );
 
           pReadVRawMsgDiscard = true;
-          pAsyncReadOffset    = 0;
+          pAsyncOffset        = 0;
           pAsyncReadSize      = discardSize;
           pAsyncReadBuffer    = new char[discardSize];
           return Status( stOK, suRetry );
@@ -654,7 +654,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // We set up reading of the next header
         //----------------------------------------------------------------------
-        pAsyncReadOffset = 0;
+        pAsyncOffset     = 0;
         pAsyncReadSize   = 16;
         pAsyncReadBuffer = (char*)&pReadVRawChunkHeader;
       }
@@ -704,7 +704,7 @@ namespace XrdCl
           uint32_t discardSize = pReadVRawChunkHeader.rlen;
           if( pReadVRawMsgOffset + discardSize > pAsyncMsgSize )
             discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
-          pAsyncReadOffset = 0;
+          pAsyncOffset     = 0;
           pAsyncReadSize   = discardSize;
           pAsyncReadBuffer = new char[discardSize];
           return Status( stOK, suRetry );
@@ -723,7 +723,7 @@ namespace XrdCl
                       "boundry, discarding %d bytes.", pUrl.GetHostId().c_str(),
                       pReadVRawChunkHeader.rlen, discardSize );
 
-          pAsyncReadOffset = 0;
+          pAsyncOffset     = 0;
           pAsyncReadSize   = discardSize;
           pAsyncReadBuffer = new char[discardSize];
           pChunkStatus[pReadVRawChunkIndex].sizeError = true;
@@ -733,7 +733,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // We're good
         //----------------------------------------------------------------------
-         pAsyncReadOffset = 0;
+         pAsyncOffset     = 0;
          pAsyncReadSize   = pReadVRawChunkHeader.rlen;
          pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
       }
@@ -778,7 +778,7 @@ namespace XrdCl
   {
     if( !pOtherRawStarted )
     {
-      pAsyncReadOffset = 0;
+      pAsyncOffset     = 0;
       pAsyncReadSize   = pAsyncMsgSize;
       pAsyncReadBuffer = new char[pAsyncMsgSize];
       pOtherRawStarted = true;
@@ -791,7 +791,7 @@ namespace XrdCl
 
     delete [] pAsyncReadBuffer;
     pAsyncReadBuffer = 0;
-    pAsyncReadOffset = pAsyncReadSize = 0;
+    pAsyncOffset     = pAsyncReadSize = 0;
 
     return st;
   }
@@ -803,10 +803,10 @@ namespace XrdCl
   Status XRootDMsgHandler::ReadAsync( int socket, uint32_t &bytesRead )
   {
     char *buffer = pAsyncReadBuffer;
-    buffer += pAsyncReadOffset;
-    while( pAsyncReadOffset < pAsyncReadSize )
+    buffer += pAsyncOffset;
+    while( pAsyncOffset < pAsyncReadSize )
     {
-      uint32_t toBeRead = pAsyncReadSize - pAsyncReadOffset;
+      uint32_t toBeRead = pAsyncReadSize - pAsyncOffset;
       int status = ::read( socket, buffer, toBeRead );
       if( status < 0 && (errno == EAGAIN || errno == EWOULDBLOCK) )
         return Status( stOK, suRetry );
@@ -814,7 +814,7 @@ namespace XrdCl
       if( status <= 0 )
         return Status( stError, errSocketError, errno );
 
-      pAsyncReadOffset += status;
+      pAsyncOffset     += status;
       buffer           += status;
       bytesRead        += status;
     }
@@ -849,6 +849,64 @@ namespace XrdCl
                 "recover.", pUrl.GetHostId().c_str(),
                 message->GetDescription().c_str() );
     HandleError( status, 0 );
+  }
+
+  //----------------------------------------------------------------------------
+  // Are we a raw writer or not?
+  //----------------------------------------------------------------------------
+  bool XRootDMsgHandler::IsRaw() const
+  {
+    ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
+    uint16_t reqId = ntohs( req->header.requestid );
+    if( reqId == kXR_write )
+      return true;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Write the message body
+  //----------------------------------------------------------------------------
+  Status XRootDMsgHandler::WriteMessageBody( int       socket,
+                                             uint32_t &bytesRead )
+  {
+    char     *buffer          = (char*)(*pChunkList)[0].buffer;
+    uint32_t  size            = (*pChunkList)[0].length;
+    uint32_t  leftToBeWritten = size-pAsyncOffset;
+
+    while( leftToBeWritten )
+    {
+      //------------------------------------------------------------------------
+      // We use send with MSG_NOSIGNAL to avoid SIGPIPEs on Linux
+      //------------------------------------------------------------------------
+#ifdef __linux__
+      int status = ::send( socket, buffer+pAsyncOffset, leftToBeWritten,
+                           MSG_NOSIGNAL );
+#else
+      int status = ::write( socket, buffer+pAsyncOffset, leftToBeWritten );
+#endif
+      if( status <= 0 )
+      {
+        //----------------------------------------------------------------------
+        // Writing operation would block! So we are done for now, but we will
+        // return here
+        //----------------------------------------------------------------------
+        if( errno == EAGAIN || errno == EWOULDBLOCK )
+          return Status( stOK, suRetry );
+
+        //----------------------------------------------------------------------
+        // Actual socket error error!
+        //----------------------------------------------------------------------
+        return Status( stError, errSocketError, errno );
+      }
+      pAsyncOffset    += status;
+      bytesRead       += status;
+      leftToBeWritten -= status;
+    }
+
+    //--------------------------------------------------------------------------
+    // We're done have written the message successfully
+    //--------------------------------------------------------------------------
+    return Status();
   }
 
   //----------------------------------------------------------------------------

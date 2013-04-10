@@ -65,7 +65,7 @@ namespace XrdCl
         pChunkList( 0 ),
         pRedirectCounter( 0 ),
 
-        pAsyncReadOffset( 0 ),
+        pAsyncOffset( 0 ),
         pAsyncReadSize( 0 ),
         pAsyncReadBuffer( 0 ),
         pAsyncMsgSize( 0 ),
@@ -148,6 +148,24 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void OnStatusReady( const Message *message,
                                   Status         status );
+
+      //------------------------------------------------------------------------
+      //! Are we a raw writer or not?
+      //------------------------------------------------------------------------
+      virtual bool IsRaw() const;
+
+      //------------------------------------------------------------------------
+      //! Write message body directly to a socket - called if IsRaw returns
+      //! true - only socket related errors may be returned here
+      //!
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data needs to be written
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status WriteMessageBody( int       socket,
+                                       uint32_t &bytesRead );
 
       //------------------------------------------------------------------------
       //! Called after the wait time for kXR_wait has elapsed
@@ -335,7 +353,7 @@ namespace XrdCl
       std::vector<ChunkStatus>   pChunkStatus;
       uint16_t                   pRedirectCounter;
 
-      uint32_t                   pAsyncReadOffset;
+      uint32_t                   pAsyncOffset;
       uint32_t                   pAsyncReadSize;
       char*                      pAsyncReadBuffer;
       uint32_t                   pAsyncMsgSize;

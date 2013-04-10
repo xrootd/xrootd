@@ -560,18 +560,22 @@ namespace XrdCl
 
     Message            *msg;
     ClientWriteRequest *req;
-    MessageUtils::CreateRequest( msg, req, size );
+    MessageUtils::CreateRequest( msg, req );
 
     req->requestid  = kXR_write;
     req->offset     = offset;
     req->dlen       = size;
     memcpy( req->fhandle, pFileHandle, 4 );
-    msg->Append( (char*)buffer, size, 24 );
+
+    ChunkList *list   = new ChunkList();
+    list->push_back( ChunkInfo( 0, size, (char*)buffer ) );
 
     MessageSendParams params;
     params.timeout         = timeout;
     params.followRedirects = false;
     params.stateful        = true;
+    params.chunkList       = list;
+
     MessageUtils::ProcessSendParams( params );
 
     XRootDTransport::SetDescription( msg );
