@@ -22,7 +22,7 @@ from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
 
 class FileSystem(object):
-  """The client class
+  """The filesystem class
 
   :param url: The URL of the server to connect with
   :type  url: string

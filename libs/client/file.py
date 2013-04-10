@@ -131,6 +131,10 @@ class File(object):
     :type    size: integer
     :returns:      data that was read, including trailing newlines
     :rtype:        list of strings
+    
+    .. warning:: This method will read the whole file into memory if you don't
+                 specify an offset. Think twice about using it if your files
+                 are big.
     """
     return self.__file.readlines(offset, size)
 
