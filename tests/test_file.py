@@ -213,14 +213,11 @@ def test_vector_read_sync():
   
   pytest.raises(TypeError, 'f.vector_read(chunks=100)')
   pytest.raises(TypeError, 'f.vector_read(chunks=[1,2,3])')
-  pytest.raises(TypeError, 'f.vector_read(chunks=("lol"))')
+  pytest.raises(TypeError, 'f.vector_read(chunks=[("lol", "cakes")])')
   pytest.raises(TypeError, 'f.vector_read(chunks=[(1), (2)])')
   pytest.raises(TypeError, 'f.vector_read(chunks=[(1, 2), (3)])')
-  
-  status, response = f.vector_read(chunks=[(-1, -100), (-100, 10*10*10)])
-  assert status.ok == False
-  assert not response
-  f.close()
+  pytest.raises(TypeError, 'f.vector_read(chunks=[(-1, -100), (-100, -100)])')
+  pytest.raises(OverflowError, 'f.vector_read(chunks=[(0, 10**10*10)])')
 
   f = client.File()
   status, response = f.open(bigfile, OpenFlags.READ)
@@ -228,6 +225,8 @@ def test_vector_read_sync():
   status, response = f.vector_read(chunks=v)
   assert status.ok
   assert response.size == vlen
+  for chunk in response:
+    print '%r' % chunk.buffer
   f.close()
   
 def test_vector_read_async():
