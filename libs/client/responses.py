@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with XRootD.  If not, see <http:#www.gnu.org/licenses/>.
 #-------------------------------------------------------------------------------
-
+from XRootD.client.url import URL
 
 class LocationInfo(object):
   """Path location information (a list of discovered file locations).
@@ -265,7 +265,7 @@ class HostInfo(object):
   :var load_balancer: Was the host used as a load balancer
   """
   def __init__(self, host):
-    self.url = XRootD.client.URL(host['url'])
+    self.url = URL(host['url'])
     self.protocol = host['protocol']
     self.flags = host['flags']
     self.load_balancer = host['loadBalancer']
