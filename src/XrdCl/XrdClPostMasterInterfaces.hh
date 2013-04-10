@@ -167,8 +167,8 @@ namespace XrdCl
       virtual bool IsRaw() const { return false; }
 
       //------------------------------------------------------------------------
-      //! Read message body directly from a socket - called if Examine returns
-      //! Raw flag - only socket related errors may be returned here
+      //! Write message body directly to a socket - called if IsRaw returns
+      //! true - only socket related errors may be returned here
       //!
       //! @param socket    the socket to read from
       //! @param bytesRead number of bytes read by the method
