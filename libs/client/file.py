@@ -49,7 +49,8 @@ class File(object):
     :param  mode: access mode for new files, an `ORed` combination of
                  :mod:`XRootD.client.enums.AccessMode` where the default is
                  `AccessMode.NONE`
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -61,7 +62,8 @@ class File(object):
   def close(self, timeout=0, callback=None):
     """Close the file.
 
-    :returns: tuple containing status dictionary and None
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+              object and None
 
     As of Python 2.5, you can avoid having to call this method explicitly if you
     use the :keyword:`with` statement.  For example, the following code will
@@ -86,7 +88,8 @@ class File(object):
 
     :param force: do not use the cached information, force re-stating
     :type  force: boolean
-    :returns:     tuple containing status dictionary and None
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                  object and :mod:`XRootD.client.responses.StatInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, StatInfo)
@@ -103,7 +106,8 @@ class File(object):
     :type  offset: integer
     :param   size: number of bytes to be read
     :type    size: integer
-    :returns:      tuple containing status dictionary and None
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                   object and the data that was read
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -158,7 +162,8 @@ class File(object):
     :type  offset: integer
     :param   size: number of bytes to be written
     :type    size: integer
-    :returns:      tuple containing status dictionary and None
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                   object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -170,7 +175,8 @@ class File(object):
   def sync(self, timeout=0, callback=None):
     """Commit all pending disk writes.
 
-    :returns: tuple containing status dictionary and None
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+              object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -184,7 +190,8 @@ class File(object):
 
     :param size: desired size of the file
     :type  size: integer
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -201,8 +208,9 @@ class File(object):
                    number of chunks per request is 1024. The server may
                    be queried using :mod:`query` for the actual settings.
     :type  chunks: list of 2-tuples of the form (offset, size)
-    :returns:      tuple containing status dictionary and vector read
-                   info dictionary (see below)
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                   object and :mod:`XRootD.client.responses.VectorReadInfo`
+                   object
     """
     if callback:
       callback = CallbackWrapper(callback, VectorReadInfo)

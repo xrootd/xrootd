@@ -42,7 +42,8 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
-    :returns:     :class:`XRootD.responses.XRootDStatus` and 
+    :returns:     :mod:`XRootD.client.responses.XRootDStatus` object and
+                  :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, LocationInfo)
@@ -58,7 +59,8 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
-    :returns:     tuple containing status and location info (see above)
+    :returns:     :mod:`XRootD.client.responses.XRootDStatus` object and
+                  :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, LocationInfo)
@@ -75,7 +77,8 @@ class FileSystem(object):
     :type  source: string
     :param   dest: the new name
     :type    dest: string
-    :returns:      tuple containing status dictionary and None
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                   object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -113,7 +116,8 @@ class FileSystem(object):
     :type  path: string
     :param size: file size
     :type  size: integer
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -127,7 +131,8 @@ class FileSystem(object):
 
     :param path: path to the file to be removed
     :type  path: string
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -146,7 +151,8 @@ class FileSystem(object):
     :param  mode: the initial file access mode, an `ORed` combination of
                   :mod:`XRootD.client.enums.AccessMode` where the default is
                   `AccessMode.NONE`
-    :returns:     tuple containing status dictionary and None
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                  object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -160,7 +166,8 @@ class FileSystem(object):
 
     :param path: path to the directory to remove
     :type  path: string
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -176,7 +183,8 @@ class FileSystem(object):
     :type  path: string
     :param mode: An `OR`ed` combination of :mod:`XRootD.client.enums.AccessMode`
                  where the default is `AccessMode.NONE`
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -188,7 +196,8 @@ class FileSystem(object):
   def ping(self, timeout=0, callback=None):
     """Check if the server is alive.
 
-    :returns: tuple containing status dictionary and None
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+              object and None
     """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -202,8 +211,8 @@ class FileSystem(object):
 
     :param path: path to the file/directory to stat
     :type  path: string
-    :returns:    tuple containing status dictionary and stat info
-                 dictionary (see below)
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and :mod:`XRootD.client.responses.StatInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, StatInfo)
@@ -218,8 +227,8 @@ class FileSystem(object):
 
     :param path: path to the file/directory to stat
     :type  path: string
-    :returns:    tuple containing status dictionary and statvfs info
-                 dictionary (see below)
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and :mod:`XRootD.client.responses.StatInfoVFS` object
     """
     if callback:
       callback = CallbackWrapper(callback, StatInfoVFS)
@@ -232,8 +241,8 @@ class FileSystem(object):
   def protocol(self, timeout=0, callback=None):
     """Obtain server protocol information.
 
-    :returns: tuple containing status dictionary and protocol info
-              dictionary (see below)
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+              object and :mod:`XRootD.client.responses.ProtocolInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, ProtocolInfo)
@@ -250,8 +259,8 @@ class FileSystem(object):
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.enums.DirListFlags`
                   where the default is `DirListFlags.NONE`
-    :returns:     tuple containing status dictionary and directory
-                  list info dictionary (see below)
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                  object and :mod:`XRootD.client.responses.DirectoryList` object
     """
     if callback:
       callback = CallbackWrapper(callback, DirectoryList)
@@ -266,7 +275,8 @@ class FileSystem(object):
 
     :param info: the info string to be sent
     :type  info: string
-    :returns:    tuple containing status dictionary and None
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                 object and None
      """
     if callback:
       callback = CallbackWrapper(callback, None)
@@ -284,7 +294,8 @@ class FileSystem(object):
                      :mod:`XRootD.client.enums.PrepareFlags`
     :param priority: priority of the request 0 (lowest) - 3 (highest)
     :type  priority: integer
-    :returns:        tuple containing status dictionary and None
+    :returns:        tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                     object and None
      """
     if callback:
       callback = CallbackWrapper(callback, None)
