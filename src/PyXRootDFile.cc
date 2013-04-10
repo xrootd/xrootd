@@ -161,7 +161,9 @@ namespace PyXRootD
 
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::ChunkInfo>( callback );
-      if ( !handler ) return NULL;
+      if ( !handler ) {
+        delete[] buffer; return NULL;
+      }
       async( status = self->file->Read( offset, size, buffer, handler, timeout ) );
     }
 
@@ -535,6 +537,8 @@ namespace PyXRootD
   {
     static const char  *kwlist[] = { "chunks", "timeout", "callback", NULL };
     uint16_t            timeout  = 0;
+    uint64_t            offset   = 0;
+    uint32_t            length   = 0;
     PyObject           *pychunks = NULL, *callback = NULL;
     PyObject           *pyresponse = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus status;
@@ -553,15 +557,23 @@ namespace PyXRootD
     for ( int i = 0; i < PyList_Size( pychunks ); ++i ) {
       PyObject *chunk = PyList_GetItem( pychunks, i );
 
-      if ( !PyTuple_Check( chunk ) || !(PyTuple_Size( chunk ) == 2) ) {
+      if ( !PyTuple_Check( chunk ) || ( PyTuple_Size( chunk ) != 2 ) ) {
         PyErr_SetString( PyExc_TypeError, "vector_read() expects list of tuples"
-                                          "of length 2" );
+                                          " of length 2" );
         return NULL;
       }
 
-      // Compute chunk size and make chunk
-      uint64_t offset = PyInt_AsLong( PyTuple_GetItem( chunk, 0 ) );
-      uint32_t length = PyInt_AsLong( PyTuple_GetItem( chunk, 1 ) );
+      // Check the offset/length values are valid
+      int tmpoffset, tmplength;
+      if ( !PyArg_ParseTuple( chunk, "ii", &tmpoffset, &tmplength ) ) return NULL;
+
+      if ( tmpoffset < 0 || tmplength < 0 ) {
+        PyErr_SetString( PyExc_TypeError, "offsets and lengths must be positive" );
+        return NULL;
+      }
+
+      offset = tmpoffset;
+      length = tmplength;
       char    *buffer = new char[length];
       chunks.push_back( XrdCl::ChunkInfo( offset, length, buffer ) );
     }
