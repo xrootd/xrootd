@@ -422,7 +422,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call when one of the sockets is ready to accept a new message
   //----------------------------------------------------------------------------
-  Message *Stream::OnReadyToWrite( uint16_t subStream )
+  std::pair<Message *, OutgoingMsgHandler *>
+    Stream::OnReadyToWrite( uint16_t subStream )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     Log *log = DefaultEnv::GetLog();
@@ -432,7 +433,7 @@ namespace XrdCl
                  pSubStreams[subStream]->socket->GetStreamName().c_str() );
 
       pSubStreams[subStream]->socket->DisableUplink();
-      return 0;
+      return std::make_pair( (Message *)0, (OutgoingMsgHandler *)0 );
     }
 
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
@@ -442,16 +443,18 @@ namespace XrdCl
     scopedLock.UnLock();
     if( h.handler )
       h.handler->OnReadyToSend( h.msg, pStreamNum );
-    return h.msg;
+    return std::make_pair( h.msg, h.handler );
   }
 
   //----------------------------------------------------------------------------
   // Call when a message is written to the socket
   //----------------------------------------------------------------------------
-  void Stream::OnMessageSent( uint16_t subStream, Message *msg )
+  void Stream::OnMessageSent( uint16_t  subStream,
+                              Message  *msg,
+                              uint32_t  bytesSent )
   {
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
-    pBytesSent += h.msg->GetSize();
+    pBytesSent += bytesSent;
     if( h.handler )
       h.handler->OnStatusReady( msg, Status() );
     pSubStreams[subStream]->outMsgHelper.Reset();

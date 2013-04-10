@@ -45,7 +45,10 @@ namespace XrdCl
     pConnectionStarted( 0 ),
     pConnectionTimeout( 0 ),
     pHeaderDone( false ),
-    pIncMsgSize( 0 )
+    pOutMsgDone( false ),
+    pOutHandler( 0 ),
+    pIncMsgSize( 0 ),
+    pOutMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -304,28 +307,70 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pOutgoing )
     {
-      pOutgoing = pStream->OnReadyToWrite( pSubStreamNum );
+      pOutMsgDone = false;
+      std::pair<Message *, OutgoingMsgHandler *> toBeSent;
+      toBeSent = pStream->OnReadyToWrite( pSubStreamNum );
+      pOutgoing = toBeSent.first; pOutHandler = toBeSent.second;
+
       if( !pOutgoing )
         return;
 
       pOutgoing->SetCursor( 0 );
+      pOutMsgSize = pOutgoing->GetSize();
     }
 
     //--------------------------------------------------------------------------
-    // Write the message and notify the handler if done
+    // Write the message if not already written
     //--------------------------------------------------------------------------
     Status st;
-    if( !(st = WriteCurrentMessage()).IsOK() )
+    if( !pOutMsgDone )
     {
-      OnFault( st );
-      return;
+      if( !(st = WriteCurrentMessage()).IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
+
+      if( st.code == suRetry )
+        return;
+
+      Log *log = DefaultEnv::GetLog();
+
+      if( pOutHandler && pOutHandler->IsRaw() )
+      {
+        log->Dump( AsyncSockMsg,
+                   "[%s] Will call raw handler to write payload for message: "
+                   "%s.", pStreamName.c_str(),
+                   pOutgoing->GetDescription().c_str() );
+      }
+
+      pOutMsgDone = true;
     }
 
-    // if we're not done we need to get back here
-    if( st.code == suContinue )
-      return;
+    //--------------------------------------------------------------------------
+    // Check if the handler needs to be called
+    //--------------------------------------------------------------------------
+    if( pOutHandler && pOutHandler->IsRaw() )
+    {
+      uint32_t bytesWritten = 0;
+      st = pOutHandler->WriteMessageBody( pSocket->GetFD(), bytesWritten );
+      pOutMsgSize += bytesWritten;
+      if( !st.IsOK() )
+      {
+        OnFault( st );
+        return;
+      }
 
-    pStream->OnMessageSent( pSubStreamNum, pOutgoing );
+      if( st.code == suRetry )
+        return;
+    }
+
+    Log *log = DefaultEnv::GetLog();
+    log->Dump( AsyncSockMsg,
+               "[%s] Successfuly sent message: %s.", pStreamName.c_str(),
+               pOutgoing->GetDescription().c_str() );
+
+    pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
   }
 
@@ -348,7 +393,7 @@ namespace XrdCl
       return;
     }
 
-    if( st.code != suContinue )
+    if( st.code != suRetry )
     {
       delete pOutgoing;
       pOutgoing = 0;
@@ -381,7 +426,7 @@ namespace XrdCl
         // return
         //----------------------------------------------------------------------
         if( errno == EAGAIN || errno == EWOULDBLOCK )
-          return Status( stOK, suContinue );
+          return Status( stOK, suRetry );
 
         //----------------------------------------------------------------------
         // Actual socket error error!
@@ -396,8 +441,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have written the message successfully
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message of %d bytes",
-               pStreamName.c_str(), pOutgoing->GetSize() );
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s, %d bytes",
+               pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
+               pOutgoing->GetSize() );
     return Status();
   }
 
@@ -618,8 +664,9 @@ namespace XrdCl
     if( !pIncHandler.second )
       delete pIncoming;
 
-    pIncoming = 0;
-    pOutgoing = 0;
+    pIncoming   = 0;
+    pOutgoing   = 0;
+    pOutHandler = 0;
 
     pStream->OnError( pSubStreamNum, st );
   }

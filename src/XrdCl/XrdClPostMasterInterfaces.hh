@@ -158,6 +158,29 @@ namespace XrdCl
       //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
       virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
+
+      //------------------------------------------------------------------------
+      //! Determines whether the handler wants to write some data directly
+      //! to the socket after the message (or message header) has been sent,
+      //! WriteMessageBody will be called
+      //------------------------------------------------------------------------
+      virtual bool IsRaw() const { return false; }
+
+      //------------------------------------------------------------------------
+      //! Read message body directly from a socket - called if Examine returns
+      //! Raw flag - only socket related errors may be returned here
+      //!
+      //! @param socket    the socket to read from
+      //! @param bytesRead number of bytes read by the method
+      //! @return          stOK & suDone if the whole body has been processed
+      //!                  stOK & suRetry if more data needs to be written
+      //!                  stError on failure
+      //------------------------------------------------------------------------
+      virtual Status WriteMessageBody( int       socket,
+                                       uint32_t &bytesRead )
+      {
+        return Status();
+      }
   };
 
   //----------------------------------------------------------------------------
