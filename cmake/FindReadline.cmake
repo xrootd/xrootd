@@ -47,7 +47,7 @@ else( READLINE_INCLUDE_DIR AND READLINE_LIBRARY )
           ${LIB_SEARCH_OPTIONS})
 
         if( NCURSES_LIBRARY )
-          set( READLINE_LIBRARY "${READLINE_LIB} ${NCURSES_LIBRARY}" )
+          set( READLINE_LIBRARY "${READLINE_LIB};${NCURSES_LIBRARY}" )
         endif()
 
       endif()
