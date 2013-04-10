@@ -223,7 +223,7 @@ void XrdSysSemaphore::Wait()
 // Wait until the sempahore value is positive. This will not be starvation
 // free is the OS implements an unfair mutex;
 //
-   semVar.Lock();
+   XrdSysCondVarHelper scopedLock(&semVar);
    if (semVal < 1 || semWait)
       while(semVal < 1)
            {semWait++;
@@ -234,7 +234,6 @@ void XrdSysSemaphore::Wait()
 // Decrement the semaphore value and return
 //
    semVal--;
-   semVar.UnLock();
 }
 #endif
  
