@@ -52,11 +52,11 @@ def test_write_sync():
   assert status.ok
   assert len(response) == len(smallbuffer)
   
-  status, response = f.write(smallbuffer, offset=13, size=len(smallbuffer) - 2)
+  status, response = f.write(smallbuffer, offset=2, size=len(smallbuffer) - 2)
   assert status.ok
   status, response = f.read()
   assert status.ok
-  assert len(response) == len(smallbuffer*2) - 2
+  assert len(response) == len(smallbuffer) - 4
   
   f.close()
 
@@ -172,20 +172,20 @@ def test_readlines_big():
   f.open(bigfile, OpenFlags.READ)
   size = f.stat()[1].size
    
-#   response = f.readlines()
-#   assert len(response) == len(open('/tmp/bigfile').readlines())
+  response = f.readlines()
+  assert len(response) == len(open('/tmp/bigfile').readlines())
 
-  #pylines = open('/tmp/bigfile').readlines()
-  #nlines = len(pylines)
+  pylines = open('/tmp/bigfile').readlines()
+  nlines = len(pylines)
   
   total = 0
   lines = f.readlines()
   for i, l in enumerate(lines):
     total += len(l)
-#     if l != pylines[i]:
-#       print '!!!!!', i
-#       print '+++++ py: %r' % pylines[i]
-#       print '+++++ me: %r' % l
+    if l != pylines[i]:
+      print '!!!!!', i
+      print '+++++ py: %r' % pylines[i]
+      print '+++++ me: %r' % l
     
   assert total == size
   f.close()

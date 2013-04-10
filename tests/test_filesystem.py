@@ -82,6 +82,25 @@ def test_locate_async():
   
   for item in response:
     assert item
+    
+def test_deeplocate_sync():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.deeplocate('/tmp', OpenFlags.REFRESH)
+  assert status.ok
+  
+  for item in response:
+    assert item
+    
+def test_deeplocate_async():
+  c = client.FileSystem(SERVER_URL)
+  handler = AsyncResponseHandler()
+  response = c.deeplocate('/tmp', OpenFlags.REFRESH, callback=handler)
+  
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  
+  for item in response:
+    assert item
       
 def test_dirlist_sync():
   c = client.FileSystem(SERVER_URL)
@@ -112,6 +131,24 @@ def test_dirlist_async():
     assert item.hostaddr
   
   assert hostlist
+  
+def test_query_sync():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.query(QueryCode.STATS, 'a')
+  assert status.ok
+  assert response
+  print response
+
+def test_query_async():
+  c = client.FileSystem(SERVER_URL)
+  handler = AsyncResponseHandler()
+  status = c.query(QueryCode.STATS, 'a', callback=handler)
+  assert status.ok
+  
+  status, response, hostlist = handler.wait()
+  assert status.ok
+  assert response
+  print response
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
