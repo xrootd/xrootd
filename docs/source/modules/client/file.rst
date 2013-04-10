@@ -2,51 +2,59 @@
 :mod:`XRootD.client.File`: File operations
 ==========================================
 
-The file object is cool
+The file object is used to perform file-based operations such as reading, 
+writing, vector reading, etc.
 
-.. note::
+Similarities with Python built-in `file` object
+-----------------------------------------------
 
-  To provide an interface like the python built-in file object, we have the 
-  readline() and readlines() methods. These look for newlines in files, which
-  may not always be appropriate. Also, readlines() reads the whole file, which
-  is probably not a good idea.
+To provide an interface like the python built-in file object, the 
+__iter__(), next(), readline() and readlines() methods have been implemented. 
+These look for newlines in files, which may not always be appropriate,
+especially for binary data. 
 
-  Also, these methods can't be given a callback, and they don't return a status
-  dictionary like the others, only the data that was read.
+Additionally, these methods can't be called asynchronously, and they don't 
+return an ``XRootDStatus`` object like the others. You only get the data that 
+was read.
 
-Examples of cool usage
------------------------
+Say we have the following file::
 
-You can iterate over lines in this file, like this::
+  >>> with client.File() as f:
+  ...   f.open('root://someserver//somefile')
+  ...   f.write('green\neggs\nand\nham\n')
 
-  >>> f = client.File()
-  >>> f.open('root://someserver//somefile')
-  >>> f.write('green\neggs\nand\nham\n')
+You can iterate over lines in the file, like this::
 
   >>> for line in f:
-  >>>   print '%r' % line
-  'green\n'
-  'eggs\n'
-  'and\n'
-  'ham\n'
+  >>>   print line
+  green
+  eggs
+  and
+  ham
+
+Read a single line from the file::
+
+  >>> print f.readline()
+  green
+
+Read all the lines in a file at once::
+
+  >>> print f.readlines()
+  ['eggs\n', 'and\n', 'ham\n']
+  
+Note how the first line is not returned here, because we ate it with the first
+call to :func:`readline`.
 
 Or also iterate over chunks of a particular size::
 
-  >>> f = client.File()
-  >>> f.open('root://someserver//somefile')
-  >>> f.write('green\neggs\nand\nham\n')
-
-  >>> for status, chunk in f.readchunks(offset=0, blocksize=10):
-    >>> print '%r' % chunk
+  >>> with client.File() as f:
+  ...   f.open('root://someserver//somefile')
+  ...   f.write('green\neggs\nand\nham\n')
+  ...   for status, chunk in f.readchunks(offset=0, blocksize=10):
+  ...     print '%r' % chunk
   'green\neggs'
-  '\nand\nham'
+  '\nand\nham\n'
 
-You can also use the `with` statement on this file, like this::
-
-  with client.File() as f:
-    f.open('root://someserver//somefile')
-
-    f.read()
 
 Class Reference
 ---------------
