@@ -198,7 +198,9 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::ChunkInfo *chunk )
       {
-        return Py_BuildValue( "s#", chunk->buffer, chunk->length );
+        PyObject *o = Py_BuildValue( "s#", chunk->buffer, chunk->length );
+        delete[] (char*) chunk->buffer;
+        return o;
       }
   };
 
