@@ -65,12 +65,12 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyObject* ChunkIterator_iternext(ChunkIterator *self)
   {
-    XrdCl::ChunkInfo *chunk = self->file->ReadChunk( self->file,
-                                                     self->blocksize,
-                                                     self->currentOffset );
+    XrdCl::Buffer *chunk = self->file->ReadChunk( self->file,
+                                                  self->blocksize,
+                                                  self->currentOffset );
     PyObject *pychunk = NULL;
 
-    if ( chunk->length == 0 ) {
+    if ( chunk->GetSize() == 0 ) {
       //------------------------------------------------------------------------
       // Raise StopIteration exception when we are done
       //------------------------------------------------------------------------
@@ -79,11 +79,10 @@ namespace PyXRootD
 
     else {
       self->currentOffset += self->blocksize;
-      pychunk = PyString_FromStringAndSize( (const char*) chunk->buffer,
-                                                          chunk->length );
+      pychunk = PyString_FromStringAndSize( (const char*) chunk->GetBuffer(),
+                                                          chunk->GetSize() );
     }
 
-    delete[] (char*) chunk->buffer;
     delete chunk;
     return pychunk;
   }
