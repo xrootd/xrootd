@@ -12,8 +12,7 @@ Requirements
 * Python 2.4 or later
     * Works on Python 2.4 -> 2.7
     * Python 3 not yet supported (coming soon)
-* New `XRootD <http://xrootd.slac.stanford.edu/dload.html>`_ client + 
-  development headers 
+* New `XRootD <http://xrootd.slac.stanford.edu/dload.html>`_ client + development headers 
     * `xrootd-cl, xrootd-cl-devel` packages
 
 RPM Installation
