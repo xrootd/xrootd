@@ -1322,7 +1322,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Fail queued messages
   //----------------------------------------------------------------------------
-  void FileStateHandler::FailQueuedMessages( Status status )
+  void FileStateHandler::FailQueuedMessages( XRootDStatus status )
   {
     RequestList::iterator it;
     for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); ++it )
