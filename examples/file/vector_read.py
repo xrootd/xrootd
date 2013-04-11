@@ -1,7 +1,6 @@
 from XRootD import client
 from XRootD.client.enums import OpenFlags
 
-# Text file
 with client.File() as f:
     status, response = f.open('root://localhost//tmp/spam', OpenFlags.UPDATE)
     assert f.is_open()
