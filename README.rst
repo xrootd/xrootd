@@ -1,11 +1,20 @@
+.. image:: https://teamcity-dss.cern.ch:8443/app/rest/builds/buildType:(id:bt79)/statusIcon
+
 Requirements
 ------------
 
-- Python 2.4 or later
-  - Works on Python 2.4 compiled with gcc-4.4.7 (redhat)
-  - Python 3 not yet supported (coming soon)
-- New XRootD client + development headers (`xrootd-cl, xrootd-cl-devel`
-  packages)
+* Python 2.4 or later
+    * Works on Python 2.4 -> 2.7
+    * Python 3 not yet supported (coming soon)
+* New `XRootD <http://xrootd.slac.stanford.edu/dload.html>`_ client + development headers 
+    * `xrootd-cl, xrootd-cl-devel` packages
+
+RPM Installation
+----------------
+
+If you just want to install via RPM, we build one incrementally using TeamCity. You can get it 
+`here <https://teamcity-dss.cern.ch:8443/guestLogin.html?guest=1>`_. Once you've done that, 
+you're done - you don't need to follow any of the rest of the isntructions here.
 
 Getting the source
 ------------------
