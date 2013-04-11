@@ -28,7 +28,7 @@
 #include <iostream>
 #include "structmember.h"
 
-#if PY_MINOR_VERSION < 5
+#if PY_MINOR_VERSION <= 5
 #define PyUnicode_FromString PyString_FromString
 #endif
 
