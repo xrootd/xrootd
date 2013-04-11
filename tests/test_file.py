@@ -52,11 +52,13 @@ def test_write_sync():
   assert status.ok
   assert len(response) == len(smallbuffer)
   
-  status, response = f.write(smallbuffer, offset=2, size=len(smallbuffer) - 2)
+  buffer = 'eggs and ham\n'
+  status, response = f.write(buffer, offset=13, size=len(buffer) - 2)
   assert status.ok
   status, response = f.read()
   assert status.ok
-  assert len(response) == len(smallbuffer) - 4
+  assert len(response) == len(buffer*2) - 2
+
   
   f.close()
 
@@ -165,6 +167,8 @@ def test_readlines_small():
   f.write(smallbuffer)
   response = f.readlines()
   assert len(response) == 4
+  for line in response:
+    print '%r' % line
   f.close()
 
 def test_readlines_big():
@@ -173,7 +177,13 @@ def test_readlines_big():
   size = f.stat()[1].size
    
   response = f.readlines()
-  assert len(response) == len(open('/tmp/bigfile').readlines())
+  pylines = open('/tmp/bigfile').readlines()
+  print len(response)
+  print len(pylines)
+  print '%r' % response[10695]
+  print '-----'
+  print '%r'  % pylines[10695]
+  assert len(response) == len(pylines)
 
   pylines = open('/tmp/bigfile').readlines()
   nlines = len(pylines)
@@ -182,10 +192,10 @@ def test_readlines_big():
   lines = f.readlines()
   for i, l in enumerate(lines):
     total += len(l)
-    if l != pylines[i]:
-      print '!!!!!', i
-      print '+++++ py: %r' % pylines[i]
-      print '+++++ me: %r' % l
+#    if l != pylines[i]:
+#      print '!!!!!', i
+#      print '+++++ py: %r' % pylines[i]
+#      print '+++++ me: %r' % l
     
   assert total == size
   f.close()
@@ -321,15 +331,12 @@ def test_misc():
   assert f.is_open()
 
   pytest.raises(TypeError, "f.enable_read_recovery(enable='foo')")
-
   f.enable_read_recovery(enable=True)
 
   pytest.raises(TypeError, "f.enable_write_recovery(enable='foo')")
-
   f.enable_write_recovery(enable=True)
 
   assert f.get_data_server()
-
   pytest.raises(TypeError, 'f.get_data_server("invalid_arg")')
 
   # testing context manager

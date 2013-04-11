@@ -63,7 +63,7 @@ def async(func, args, hasReturnObject):
     
   if hasReturnObject:
     assert response
-    
+
 def test_locate_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.locate('/tmp', OpenFlags.REFRESH)
