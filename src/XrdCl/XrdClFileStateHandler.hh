@@ -329,7 +329,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Fail queued messages
       //------------------------------------------------------------------------
-      void FailQueuedMessages( Status status );
+      void FailQueuedMessages( XRootDStatus status );
 
       //------------------------------------------------------------------------
       //! Re-send queued messages
