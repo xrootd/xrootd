@@ -188,85 +188,116 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
-    uint64_t                  chunksize = 1024 * 1024 * 2; // 2MB
-    XrdCl::ChunkInfo         *chunk;
-    std::string               line;
-    std::vector<std::string> *lines;
-    PyObject                 *pyline    = NULL;
+    XrdCl::Buffer *chunk;
+    uint64_t       chunksize = 1024 * 1024 * 2; // 2MB
+    PyObject      *pyline    = NULL;
 
     // If we read multiple lines last time, return one here
-    if ( !self->surplus->empty() ) {
-      pyline = PyString_FromStringAndSize( self->surplus->front().c_str(),
-                                           self->surplus->front().length() );
-      //Py_DECREF( pyline );
+    if ( !self->surplus->empty() )
+    {
+      pyline = PyString_FromStringAndSize( self->surplus->front()->GetBuffer(),
+                                           self->surplus->front()->GetSize() );
       self->surplus->pop_front();
       return pyline;
     }
 
-    // Read a 2MB chunk
-    chunk = ReadChunk( self, chunksize, self->currentOffset );
+    chunk = self->ReadChunk( self, chunksize, self->currentOffset );
+    self->currentOffset += chunksize;
 
     // We read nothing
-    if ( chunk->length == 0 ) {
+    if ( chunk->GetSize() == 0 )
+    {
+      delete chunk;
 
       // We have no partial line, return empty string
-      if ( self->partial->empty() ) {
-        delete[] (char*) chunk->buffer;
-        delete chunk;
+      if ( self->partial->GetSize() == 0 )
+      {
         return Py_BuildValue( "s", "" );
       }
       // We can return the partial line
-      else {
-        pyline = PyString_FromStringAndSize( self->partial->c_str(),
-                                             self->partial->length() );
-        //Py_DECREF( pyline );
-        self->partial->clear();
-        delete[] (char*) chunk->buffer;
-        delete chunk;
+      else
+      {
+        pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
+                                             self->partial->GetSize() );
+        self->partial->Free();
         return pyline;
       }
     }
 
-    self->currentOffset += chunksize;
-
-    while ( !HasNewline( (const char*) chunk->buffer, chunk->length )
-            && chunk->length == chunksize )
+    for( uint32_t i = 0; i < chunk->GetSize(); ++i )
     {
-      self->partial->append( std::string( (const char*) chunk->buffer, chunk->length ) );
-      delete[] (char*) chunk->buffer;
-      delete chunk;
-      chunk = ReadChunk( self, chunksize, self->currentOffset );
-      self->currentOffset += chunksize;
+      chunk->SetCursor( i );
+
+      if( chunk->GetBufferAtCursor() == '\n' )
+      {
+        // we found a newline... what now? (go to sleep)
+      }
     }
 
-    lines = SplitNewlines( (const char*) chunk->buffer, chunk->length );
-
-    // The chunk had no newlines
-    if ( lines->size() == 0 ) {
-      line = *self->partial;
-    }
-    else {
-      line = *self->partial + lines->front();
-    }
-
-    if ( lines->size() == 2 ) {
-      self->partial = &lines->back();
-    }
-    else if ( lines->size() > 2 ) {
-      self->surplus->insert(
-      self->surplus->end(), lines->begin() + 1, lines->end() );
-    }
-    else {
-      self->partial->clear();
-    }
-
-    pyline = PyString_FromStringAndSize( line.c_str(), line.length() );
-    //Py_DECREF( pyline );
-    if ( !pyline ) return NULL;
-    delete[] (char*) chunk->buffer;
-    delete chunk;
-    delete lines;
-    return pyline;
+//    XrdCl::ChunkInfo         *chunk;
+//    std::string               line;
+//    std::vector<std::string> *lines;
+//    PyObject                 *pyline    = NULL;
+//
+//    // If we read multiple lines last time, return one here
+//    if ( !self->surplus->empty() ) {
+//      pyline = PyString_FromStringAndSize( self->surplus->front().c_str(),
+//                                           self->surplus->front().length() );
+//      self->surplus->pop_front();
+//      return pyline;
+//    }
+//
+//    // Read a 2MB chunk
+//    chunk = ReadChunk( self, chunksize, self->currentOffset );
+//
+//    // We read nothing
+//    if ( chunk->length == 0 ) {
+//      delete chunk;
+//
+//      // We have no partial line, return empty string
+//      if ( self->partial->empty() ) {
+//        return Py_BuildValue( "s", "" );
+//      }
+//      // We can return the partial line
+//      else {
+//        pyline = PyString_FromStringAndSize( self->partial->c_str(),
+//                                             self->partial->length() );
+//        self->partial->clear();
+//        return pyline;
+//      }
+//    }
+//
+//    self->currentOffset += chunksize;
+//
+//    while ( !HasNewline( (const char*) chunk->buffer, chunk->length )
+//            && chunk->length == chunksize )
+//    {
+//      self->partial->append( (char*) chunk->buffer, chunk->length );
+//      delete[] (char*) chunk->buffer; delete chunk;
+//      chunk = ReadChunk( self, chunksize, self->currentOffset );
+//      self->currentOffset += chunksize;
+//    }
+//
+//    lines = SplitNewlines( (const char*) chunk->buffer, chunk->length );
+//
+//    if ( lines->size() == 2 ) {
+//      self->partial = &lines->back();
+//    }
+//    else if ( lines->size() > 2 ) {
+//      self->surplus->insert(
+//      self->surplus->end(), lines->begin() + 1, lines->end() );
+//    }
+//    else {
+//      line = *self->partial + lines->front();
+//      self->partial->clear();
+//    }
+//
+//    pyline = PyString_FromStringAndSize( line.c_str(), line.length() );
+//    if ( !pyline ) return NULL;
+//    delete[] (char*) chunk->buffer;
+//    delete chunk;
+//    delete lines;
+//    return pyline;
   }
 
   //----------------------------------------------------------------------------
@@ -279,10 +310,6 @@ namespace PyXRootD
     static const char        *kwlist[]  = { "offset", "size", NULL };
     uint64_t                  offset    = 0;
     uint32_t                  size      = 0;
-    //uint32_t                  bytesRead = 0;
-    //char                     *buffer    = 0;
-    //std::vector<std::string>  lines;
-    //PyObject                 *pylines;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
@@ -292,7 +319,8 @@ namespace PyXRootD
     PyObject *lines = PyList_New( 0 );
     PyObject *line  = NULL;
 
-    for (;;) {
+    for (;;)
+    {
       line = self->ReadLine( self, NULL, NULL );
       if ( !line || PyString_Size( line ) == 0 ) {
         break;
@@ -300,96 +328,21 @@ namespace PyXRootD
       PyList_Append( lines, line );
     }
 
-//
-//    while( line && PyString_Size( line ) != 0 ) {
-//      PyList_Append( lines, line );
-//    }
-
     return lines;
-//    //--------------------------------------------------------------------------
-//    // Find the file size
-//    //--------------------------------------------------------------------------
-//    if (!size) {
-//      XrdCl::StatInfo    *info   = 0;
-//      XrdCl::XRootDStatus status = self->file->Stat( true, info );
-//      size = info->GetSize();
-//      if (info) delete info;
-//    }
-//
-//    buffer = new char[size];
-//
-//    //--------------------------------------------------------------------------
-//    // Read the whole file...
-//    //--------------------------------------------------------------------------
-//    self->file->Read( offset, size, buffer, bytesRead );
-//    lines = SplitNewlines( buffer, bytesRead );
-//
-//    std::vector<std::string>::iterator i;
-//    for ( i = lines->begin(); i != lines->end(); ++i ) {
-//      PyList_Append( pylines, PyString_FromStringAndSize( (*i).c_str(),
-//                                                          (*i).length() ) );
-//    }
-
-    // Convert into list, split by newlines
-//    std::istringstream stream( std::string( (const char*) buffer, bytesRead ) );
-//    std::string        line;
-//
-//    while ( std::getline( stream, line )) {
-//      if ( !stream.eof() ) line += '\n'; // Restore the newline
-//      lines.push_back( line );
-//      if ( stream.eof() ) break;
-//    }
-
-
-//    pylines = PyList_New( 0 );
-//    uint64_t lastNewlineIndex = 0;
-//    PyObject *s;
-//    XrdCl::ChunkList chunks;
-//    uint64_t offset;
-//    uint32_t length;
-//
-//    for ( uint64_t i = 0; i < bytesRead; ++i ) {
-//      if ( buffer[i] == '\n' || ( i == bytesRead - 1 ) ) {
-//
-//        offset =
-//        chunks.push_back(XrdCl::ChunkInfo());
-//        s = PyString_FromStringAndSize(
-//            buffer +
-//              (lastNewlineIndex == 0 ? lastNewlineIndex : lastNewlineIndex + 1),
-//            i -
-//              (lastNewlineIndex == 0 ? lastNewlineIndex - 1 : lastNewlineIndex)
-//        );
-//
-//        PyList_Append( pylines, s );
-//        Py_DECREF( s );
-//        lastNewlineIndex = i;
-//      }
-//    }
-//
-//    delete[] buffer;
-
-
-    //pylines = PyList_New( lines.size() );
-
-//    for ( unsigned int i = 0; i < lines.size(); ++i ) {
-//      PyList_SET_ITEM( pylines, i,
-//          PyString_FromStringAndSize( lines.at(i).c_str(), lines.at(i).length() ) );
-//    }
-
-    //return pylines;
   }
 
   //----------------------------------------------------------------------------
   //! Read a chunk of the given size from the given offset as a string
   //----------------------------------------------------------------------------
-  XrdCl::ChunkInfo* File::ReadChunk( File *self, uint64_t chunksize, uint32_t offset )
+  XrdCl::Buffer* File::ReadChunk( File *self, uint64_t size, uint32_t offset )
   {
     XrdCl::XRootDStatus status;
-    char               *buffer = new char[chunksize];
+    XrdCl::Buffer      *buffer;
     uint32_t            bytesRead;
 
-    status = self->file->Read( offset, chunksize, buffer, bytesRead );
-    return new XrdCl::ChunkInfo( offset, bytesRead, buffer );
+    buffer = new XrdCl::Buffer( size );
+    status = self->file->Read( offset, size, buffer->GetBuffer(), bytesRead );
+    return buffer;
   }
 
   //----------------------------------------------------------------------------
