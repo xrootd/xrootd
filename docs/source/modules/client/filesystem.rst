@@ -22,6 +22,7 @@ Attributes
 Methods
 *******
 
+.. automethod:: XRootD.client.FileSystem.copy
 .. automethod:: XRootD.client.FileSystem.locate
 .. automethod:: XRootD.client.FileSystem.deeplocate
 .. automethod:: XRootD.client.FileSystem.mv

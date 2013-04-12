@@ -27,6 +27,17 @@ class URL(object):
     >>> url = URL(root://user1:passwd1@host1:1234//path?param1=val1&param2=val2)
 
   then ``url.hostid`` would return `user1:passwd1@host1:1234`.
+  
+  
+  :var           hostid: The host part of the URL, i.e. ``user1:passwd1@host1:1234``
+  :var         protocol: The protocol part of the URL, i.e. ``root``
+  :var         username: The username part of the URL, i.e. ``user1``
+  :var         password: The password part of the URL, i.e. ``passwd1``
+  :var         hostname: The name of the target host part of the URL, i.e. ``host1``
+  :var             port: The target port part of the URL, i.e. ``1234``
+  :var             path: The path part of the URL, i.e. ``path``
+  :var path_with_params: The path part of the URL with parameters, i.e. 
+                         ``path?param1=val1&param2=val2``
   """
 
   def __init__(self, url):
@@ -37,44 +48,34 @@ class URL(object):
 
   @property
   def hostid(self):
-    """The host part of the URL, i.e. ``user1:passwd1@host1:1234``"""
     return self.__url.hostid
 
   @property
   def protocol(self):
-    """The protocolpart of the URL, i.e. ``root``"""
     return self.__url.protocol
 
   @property
   def username(self):
-    """The username part of the URL, i.e. ``user1``"""
     return self.__url.username
 
   @property
   def password(self):
-    """The password part of the URL, i.e. ``passwd1``"""
     return self.__url.password
 
   @property
   def hostname(self):
-    """The name of the target host part of the URL, i.e. ``host1``"""
     return self.__url.hostname
 
   @property
   def port(self):
-    """The target port part of the URL, i.e. ``1234``"""
     return self.__url.port
 
   @property
   def path(self):
-    """The path part of the URL, i.e. ``path``"""
     return self.__url.path
 
   @property
   def path_with_params(self):
-    """The path part of the URL with parameters, i.e. 
-    ``path?param1=val1&param2=val2``
-    """
     return self.__url.path_with_params
 
   def is_valid(self):
