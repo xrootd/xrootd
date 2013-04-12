@@ -73,10 +73,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::Run( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
+    (void) CopyProcessType; // Suppress unused variable warning
+
     XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();
     XrdCl::XRootDStatus status = self->process->Run( handler );
     return ConvertType<XrdCl::XRootDStatus>( &status );
-
-    (void) CopyProcessType; // Suppress unused variable warning
   }
 }

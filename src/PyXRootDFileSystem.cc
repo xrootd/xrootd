@@ -18,6 +18,7 @@
 
 #include "PyXRootD.hh"
 #include "PyXRootDFileSystem.hh"
+#include "PyXRootDCopyProcess.hh"
 #include "AsyncResponseHandler.hh"
 #include "Utils.hh"
 
@@ -25,6 +26,39 @@
 
 namespace PyXRootD
 {
+  //----------------------------------------------------------------------------
+  //! Copy a file
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::Copy( FileSystem *self, PyObject *args, PyObject *kwds )
+  {
+    static const char      *kwlist[] = { "source", "target", "force", NULL };
+    const  char            *source, *target;
+    bool                    force = false;
+    PyObject               *pystatus = NULL;
+    CopyProcess            *copyprocess = NULL;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|i:copy",
+         (char**) kwlist, &source, &target, &force ) ) return NULL;
+
+    CopyProcessType.tp_new = PyType_GenericNew;
+    if ( PyType_Ready( &CopyProcessType ) < 0 ) return NULL;
+
+    copyprocess = (CopyProcess*)
+               PyObject_CallObject( (PyObject *) &CopyProcessType, NULL );
+    if ( !copyprocess ) return NULL;
+
+    copyprocess->AddJob( copyprocess, args, kwds );
+    pystatus = copyprocess->Prepare( copyprocess, NULL, NULL );
+    if ( !pystatus ) return NULL;
+    if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False ) return pystatus;
+
+    pystatus = copyprocess->Run( copyprocess, NULL, NULL );
+    if ( !pystatus ) return NULL;
+
+    Py_DECREF( copyprocess );
+    return pystatus;
+  }
+
   //----------------------------------------------------------------------------
   //! Locate a file
   //----------------------------------------------------------------------------

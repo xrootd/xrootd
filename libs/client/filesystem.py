@@ -35,6 +35,19 @@ class FileSystem(object):
   def url(self):
     """The server URL object, instance of :mod:`XRootD.client.URL`"""
     return self.__fs.url
+  
+  def copy(self, source, target, force=False):
+    """Copy a file.
+    
+    :param source: Source file path
+    :type  source: string
+    :param target: Destination file path
+    :type  target: string
+    :param  force: overwrite target if it exists
+    :type   force: boolean
+    :returns:      :mod:`XRootD.client.responses.XRootDStatus` object
+    """
+    return XRootDStatus(self.__fs.copy(source=source, target=target, force=force))
 
   def locate(self, path, flags, timeout=0, callback=None):
     """Locate a file.

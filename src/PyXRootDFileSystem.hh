@@ -33,6 +33,7 @@ namespace PyXRootD
   class FileSystem
   {
     public:
+      static PyObject* Copy( FileSystem *self, PyObject *args, PyObject *kwds );
       static PyObject* Locate( FileSystem *self, PyObject *args, PyObject *kwds );
       static PyObject* DeepLocate( FileSystem *self, PyObject *args, PyObject *kwds );
       static PyObject* Mv( FileSystem *self, PyObject *args, PyObject *kwds );
@@ -63,6 +64,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static PyMethodDef FileSystemMethods[] =
     {
+      { "copy",
+          (PyCFunction) PyXRootD::FileSystem::Copy,       METH_KEYWORDS, NULL },
       { "locate",
           (PyCFunction) PyXRootD::FileSystem::Locate,     METH_KEYWORDS, NULL },
       { "deeplocate",
