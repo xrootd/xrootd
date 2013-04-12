@@ -53,9 +53,9 @@ class Location(Struct):
   
   :var    address: The address of this location
   :var       type: The type of this location, one of 
-                   :mod:`XRootD.client.enums.LocationType`
+                   :mod:`XRootD.client.flags.LocationType`
   :var accesstype: The allowed access type of this location, one of 
-                   :mod:`XRootD.client.enums.AccessType`
+                   :mod:`XRootD.client.flags.AccessType`
   :var is_manager: Is the location a manager 
   :var  is_server: Is the location a server
   """
@@ -85,7 +85,7 @@ class ProtocolInfo(Struct):
   
   :var  version: The version of the protocol this server is speaking
   :var hostinfo: Informational flags for this host. An `ORed` combination of
-                 :mod:`XRootD.client.enums.HostTypes`
+                 :mod:`XRootD.client.flags.HostTypes`
   """
   def __init__(self, info):
     super(ProtocolInfo, self).__init__(info)
@@ -95,7 +95,7 @@ class StatInfo(Struct):
   
   :var         id: This file's unique identifier
   :var      flags: Informational flags. An `ORed` combination of 
-                   :mod:`XRootD.client.enums.StatInfoFlags`
+                   :mod:`XRootD.client.flags.StatInfoFlags`
   :var       size: The file size (in bytes)
   :var    modtime: Modification time (in seconds since epoch)
   :var modtimestr: Modification time (as readable string)
@@ -203,7 +203,7 @@ class VectorReadInfo(Struct):
   """
   def __init__(self, info):
     info.update({'chunks': [ChunkInfo(c) for c in info['chunks']]})
-    super(ChunkInfo, self).__init__(info)
+    super(VectorReadInfo, self).__init__(info)
 
   def __iter__(self):
     return iter(self.chunks)
@@ -235,7 +235,7 @@ class HostInfo(Struct):
   :var           url: URL of the host, instance of :mod:`XRootD.client.URL`
   :var      protocol: Version of the protocol the host is speaking
   :var         flags: Host type, an `ORed` combination of 
-                      :mod:`XRootD.client.enums.HostTypes` 
+                      :mod:`XRootD.client.flags.HostTypes` 
   :var load_balancer: Was the host used as a load balancer
   """
   def __init__(self, info):

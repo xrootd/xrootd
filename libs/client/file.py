@@ -44,10 +44,10 @@ class File(object):
 
     :param   url: url of the file to be opened
     :type    url: string
-    :param flags: An `ORed` combination of :mod:`XRootD.client.enums.OpenFlags`
+    :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
                   where the default is `OpenFlags.NONE`
     :param  mode: access mode for new files, an `ORed` combination of
-                 :mod:`XRootD.client.enums.AccessMode` where the default is
+                 :mod:`XRootD.client.flags.AccessMode` where the default is
                  `AccessMode.NONE`
     :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
@@ -116,23 +116,25 @@ class File(object):
     status, response = self.__file.read(offset, size, timeout)
     return XRootDStatus(status), response
 
-  def readline(self):
+  def readline(self, offset=0, size=0):
     """Read a data chunk from a given offset, until the first newline or EOF
     encountered.
-
-    :returns:      data that was read, including the trailing newline
-    :rtype:        string
-    """
-    return self.__file.readline()
-
-  def readlines(self, offset=0, size=0):
-    """Read lines from a given offset until EOF encountered. Return list of
-    lines read.
 
     :param offset: offset from the beginning of the file
     :type  offset: integer
     :param   size: maximum number of bytes to be read
     :type    size: integer
+    :returns:      data that was read, including the trailing newline
+    :rtype:        string
+    """
+    return self.__file.readline(offset, size)
+
+  def readlines(self, offset=0, chunksize=0):
+    """Read lines from a given offset until EOF encountered. Return list of
+    lines read.
+
+    :param offset: offset from the beginning of the file
+    :type  offset: integer
     :returns:      data that was read, including trailing newlines
     :rtype:        list of strings
     
@@ -140,7 +142,7 @@ class File(object):
                  specify an offset. Think twice about using it if your files
                  are big.
     """
-    return self.__file.readlines(offset, size)
+    return self.__file.readlines(offset=offset, chunksize=chunksize)
 
   def readchunks(self, offset=0, blocksize=1024*1024*2):
     """Return an iterator object which will read data chunks from a given 
