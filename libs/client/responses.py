@@ -158,12 +158,6 @@ class ListEntry(Struct):
                   `DirListFlags.STAT` with the call to 
                   :mod:`XRootD.client.FileSystem.dirlist()` to retrieve status
                   information.
-  
-  .. warning::
-  
-    Currently, passing `DirListFlags.STAT` with an asynchronous call to
-    :mod:`XRootD.client.FileSystem.dirlist()` does not work, due to an xrootd
-    client bug. So you'll get ``None`` instead of the ``StatInfo`` instance.
   """
   def __init__(self, entry):
     if entry['statinfo']: entry.update({'statinfo': StatInfo(entry['statinfo'])})

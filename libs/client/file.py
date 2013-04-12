@@ -21,8 +21,8 @@ from XRootD.client.responses import XRootDStatus, StatInfo, VectorReadInfo
 from XRootD.client.utils import CallbackWrapper
 
 class File(object):
-  """The file class.
-  """
+  """Interact with an ``xrootd`` server to perform file-based operations such
+  as reading, writing, vector reading, etc."""
 
   def __init__(self):
     self.__file = client.File()

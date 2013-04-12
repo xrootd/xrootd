@@ -20,7 +20,8 @@ from pyxrootd import client
 from XRootD.client.responses import XRootDStatus
 
 class CopyProcess(object):
-  """TODO: write me"""
+  """Add multiple individually-configurable copy jobs to a "copy process" and
+  run them in parallel."""
 
   def __init__(self):
     self.__process = client.CopyProcess()
@@ -56,7 +57,7 @@ class CopyProcess(object):
                            thirdparty, checksumprint, chunksize, parallelchunks)
 
   def prepare(self):
-    """Prepare the copy jobs."""
+    """Prepare the copy jobs. **Must be called before** ``run()``."""
     status = self.__process.prepare()
     return XRootDStatus(status)
 

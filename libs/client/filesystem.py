@@ -22,7 +22,9 @@ from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
 
 class FileSystem(object):
-  """The filesystem class
+  """Interact with an ``xrootd`` server to perform filesystem-based operations 
+  such as copying files, creating directories, changing file permissions, 
+  listing directories, etc.
 
   :param url: The URL of the server to connect with
   :type  url: string
@@ -37,7 +39,14 @@ class FileSystem(object):
     return self.__fs.url
   
   def copy(self, source, target, force=False):
-    """Copy a file.
+    """Copy a file. 
+    
+    .. note:: This method is less configurable than using 
+              :mod:`XRootD.client.CopyProcess` - it is designed to be as simple
+              as possible by using sensible defaults for the underlying copy
+              job. If you need more configurability, or want to make multiple
+              copy jobs run at once in parallel, use 
+              :mod:`XRootD.client.CopyProcess`.
     
     :param source: Source file path
     :type  source: string
@@ -274,6 +283,13 @@ class FileSystem(object):
                   where the default is `DirListFlags.NONE`
     :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
                   object and :mod:`XRootD.client.responses.DirectoryList` object
+                  
+    .. warning:: Currently, passing `DirListFlags.STAT` with an asynchronous 
+                 call to :mod:`XRootD.client.FileSystem.dirlist()` does not 
+                 work, due to an xrootd client limitation. So you'll get 
+                 ``None`` instead of the ``StatInfo`` instance. See 
+                 `the GitHub issue <https://github.com/xrootd/xrootd/issues/2>`_ 
+                 for more details.
     """
     if callback:
       callback = CallbackWrapper(callback, DirectoryList)
