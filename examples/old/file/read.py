@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.client.enums import OpenFlags
+from XRootD.client.flags import OpenFlags
 
 # Text file
 # with client.File() as f:

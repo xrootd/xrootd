@@ -1,5 +1,5 @@
 from XRootD import client
-from XRootD.client.enums import OpenFlags
+from XRootD.client.flags import OpenFlags
 
 f = client.File()
 status, response = f.open('root://localhost//tmp/eggs', OpenFlags.APPEND | OpenFlags.NEW)
