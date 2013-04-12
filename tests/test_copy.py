@@ -2,18 +2,12 @@ from XRootD import client
 from XRootD.client.enums import OpenFlags
 from env import *
 
-smallfile = SERVER_URL + '/tmp/spam'
-smallcopy = SERVER_URL + '/tmp/eggs'
-buffer = 'cheese and biscuits\n'
-bigfile = SERVER_URL + '/tmp/bigfile'
-bigcopy = SERVER_URL + '/tmp/bigcopy'
-
 def test_copy_smallfile():
 
   f = client.File()
   s, r = f.open(smallfile, OpenFlags.DELETE )
   assert s.ok
-  f.write(buffer)
+  f.write(smallbuffer)
   size1 = f.stat(force=True)[1].size
   f.close()
 

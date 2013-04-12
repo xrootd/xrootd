@@ -6,10 +6,6 @@ from env import *
 import pytest
 import sys
 
-smallfile = SERVER_URL + '/tmp/spam'
-smallbuffer = 'gre\0en\neggs\nand\nham\n'
-bigfile = SERVER_URL + '/tmp/bigfile'
-
 def test_open_close_sync():
   f = client.File()
   pytest.raises(ValueError, "f.stat()")
@@ -108,99 +104,124 @@ def test_read_async():
   
   f.close()
 
-def test_iter_small():
-  f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
-  f.write(smallbuffer)
-  size = f.stat(force=True)[1].size
+# def test_iter_small():
+#   f = client.File()
+#   f.open(smallfile, OpenFlags.DELETE)
+#   f.write(smallbuffer)
+#   size = f.stat(force=True)[1].size
+#   
+#   total = 0
+#   for line in f:
+#     print '+++++ %r' % line
+#     total += len(line)
+#     assert line.endswith('\n')
+# 
+#   assert total == size
+#   f.close()
+# 
+# def test_iter_big():
+#   f = client.File()
+#   f.open(bigfile, OpenFlags.READ)
+#     
+#   size = f.stat()[1].size
+#   total = 0
+#     
+#   for line in f:
+#     #print '+++++ %r' % line
+#     total += len(line)
+#     assert line.endswith('\n')
+#      
+#   assert total == size
+#   f.close()
+#   
+# def test_readline():
+#   f = client.File()
+#   f.open(smallfile, OpenFlags.DELETE)
+#   f.write(smallbuffer)
+#   
+#   response = f.readline(offset=0, size=100)
+#   assert response == 'gre\0en\n'
+#   response = f.readline()
+#   assert response == 'eggs\n'
+#   response = f.readline()
+#   assert response == 'and\n'
+#   response = f.readline()
+#   assert response == 'ham\n'
+#   f.close()
+#   
+#   f = client.File()
+#   f.open(smallfile, OpenFlags.DELETE)
+#   f.write(smallbuffer[:-1])
+#   f.readline()
+#   f.readline()
+#   f.readline()
+#   response = f.readline()
+#   assert response == 'ham'
+#   f.close()
+#   
+# def test_readlines_small():
+#   f = client.File()
+#   f.open(smallfile, OpenFlags.DELETE)
+#   f.write(smallbuffer)
+#   response = f.readlines(offset=0, chunksize=3)
+#   assert len(response) == 4
+#   for line in response:
+#     print '%r' % line
+#     assert line.endswith('\n')
+#   f.close()
+# 
+# def test_readlines_big():
+#   f = client.File()
+#   f.open(bigfile, OpenFlags.READ)
+#   size = f.stat()[1].size
+#    
+# #   response = f.readlines()
+# #   pylines = open('/tmp/bigfile').readlines()
+# #   print len(response)
+# #   print len(pylines)
+# #   print '%r' % response[10695]
+# #   print '-----'
+# #   print '%r'  % pylines[10695]
+# #   assert len(response) == len(pylines)
+# 
+#   pylines = open('/tmp/bigfile').readlines()
+#   nlines = len(pylines)
+#   
+#   total = 0
+#   lines = f.readlines()
+#   for i, l in enumerate(lines):
+#     total += len(l)
+#     assert line.endswith('\n')
+#     if l != pylines[i]:
+#       print '!!!!!', total, i
+#       print '+++++ py: %r' % pylines[i]
+#       print '+++++ me: %r' % l
+#       break
+#     
+#   print '>>> %r' % lines[5396]
+#   print '>>> %r' % pylines[5396]
+#   print '>>> %r' % lines[5397]
+#   print '>>> %r' % pylines[5397]
+#   
+#     
+#   assert total == size
+#   f.close()
   
-  total = 0
-  for line in f:
-    print '+++++ %r' % line
-    total += len(line)
-
-  assert total == size
-  f.close()
-
-def test_iter_big():
+def test_readchunks_small():
   f = client.File()
-  f.open(bigfile, OpenFlags.READ)
-    
+  f.open(smallfile, OpenFlags.READ)
   size = f.stat()[1].size
-  total = 0
-    
-  for line in f:
-    #print '+++++ %r' % line
-    total += len(line)
-     
-  assert total == size
-  f.close()
-  
-def test_readline():
-  f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
-  f.write(smallbuffer)
-  
-  response = f.readline()
-  assert response == 'gre\0en\n'
-  response = f.readline()
-  assert response == 'eggs\n'
-  response = f.readline()
-  assert response == 'and\n'
-  response = f.readline()
-  assert response == 'ham\n'
-  f.close()
-  
-  f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
-  f.write(smallbuffer[:-1])
-  f.readline()
-  f.readline()
-  f.readline()
-  response = f.readline()
-  assert response == 'ham'
-  f.close()
-  
-def test_readlines_small():
-  f = client.File()
-  f.open(smallfile, OpenFlags.DELETE)
-  f.write(smallbuffer)
-  response = f.readlines()
-  assert len(response) == 4
-  for line in response:
-    print '%r' % line
-  f.close()
 
-def test_readlines_big():
-  f = client.File()
-  f.open(bigfile, OpenFlags.READ)
-  size = f.stat()[1].size
-   
-  response = f.readlines()
-  pylines = open('/tmp/bigfile').readlines()
-  print len(response)
-  print len(pylines)
-  print '%r' % response[10695]
-  print '-----'
-  print '%r'  % pylines[10695]
-  assert len(response) == len(pylines)
-
-  pylines = open('/tmp/bigfile').readlines()
-  nlines = len(pylines)
-  
   total = 0
-  lines = f.readlines()
-  for i, l in enumerate(lines):
-    total += len(l)
-#    if l != pylines[i]:
-#      print '!!!!!', i
-#      print '+++++ py: %r' % pylines[i]
-#      print '+++++ me: %r' % l
+  chunks = ['gre', '\0en', '\neg', 'gs\n', 'and', '\nha', 'm\n']
+  for i, chunk in enumerate(f.readchunks(blocksize=3)):
+    assert chunk == chunks[i]
+    total += len(chunk)
     
   assert total == size
   f.close()
-  
-def test_readchunks():
+
+def test_readchunks_big():
   f = client.File()
   f.open(bigfile, OpenFlags.READ)
   size = f.stat()[1].size

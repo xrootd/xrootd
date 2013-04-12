@@ -33,7 +33,7 @@ def test_filesystem():
 
   # Create new temp file
   f = client.File()
-  status, response = f.open(SERVER_URL + '/tmp/spam', OpenFlags.NEW)
+  status, response = f.open(smallfile, OpenFlags.NEW)
 
   for func, args, hasReturnObject in funcspecs:
       async(func, args, hasReturnObject)
