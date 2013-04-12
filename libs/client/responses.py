@@ -17,7 +17,14 @@
 #-------------------------------------------------------------------------------
 from XRootD.client.url import URL
 
-class LocationInfo(object):
+class Struct(object):
+    def __init__(self, entries):
+        self.__dict__.update(**entries)
+    def __repr__(self): 
+      return '<%s>' % str(', '.join('%s: %s' % (k, repr(v)) 
+                                    for (k, v) in self.__dict__.iteritems()))
+
+class LocationInfo(Struct):
   """Path location information (a list of discovered file locations).
   
   :param locations: (List of :mod:`XRootD.client.responses.Location` objects) 
@@ -35,14 +42,13 @@ class LocationInfo(object):
     
   """
   def __init__(self, locations):
-    self.locations = list()
-    for l in locations:
-      self.locations.append(Location(l))
+    super(LocationInfo, self).__init__({'locations': 
+                                        [Location(l) for l in locations]})
 
   def __iter__(self):
     return iter(self.locations)
 
-class Location(object):
+class Location(Struct):
   """Information about a single location.
   
   :var    address: The address of this location
@@ -54,13 +60,9 @@ class Location(object):
   :var  is_server: Is the location a server
   """
   def __init__(self, location):
-    self.address = location['address']
-    self.type = location['type']
-    self.accesstype = location['accessType']
-    self.is_manager = location['isManager']
-    self.is_server = location['isServer']
+    super(Location, self).__init__(location)
 
-class XRootDStatus(object):
+class XRootDStatus(Struct):
   """Status of a request. Returned with all requests.
   
   :var   message: Message describing the status of this request
@@ -73,19 +75,12 @@ class XRootDStatus(object):
   :var     errno: Errno, if any
   """
   def __init__(self, status):
-    self.status = status['status']
-    self.code = status['code']
-    self.errno = status['errNo']
-    self.message = status['message']
-    self.shellcode = status['shellCode']
-    self.error = status['isError']
-    self.fatal = status['isFatal']
-    self.ok = status['isOK']
+    super(XRootDStatus, self).__init__(status)
 
   def __str__(self):
     return self.message
 
-class ProtocolInfo(object):
+class ProtocolInfo(Struct):
   """Protocol information for a server.
   
   :var  version: The version of the protocol this server is speaking
@@ -93,10 +88,9 @@ class ProtocolInfo(object):
                  :mod:`XRootD.client.enums.HostTypes`
   """
   def __init__(self, info):
-    self.version = info['version']
-    self.hostinfo = info['hostInfo']
+    super(ProtocolInfo, self).__init__(info)
     
-class StatInfo(object):
+class StatInfo(Struct):
   """Status information for files and directories.
   
   :var         id: This file's unique identifier
@@ -107,13 +101,9 @@ class StatInfo(object):
   :var modtimestr: Modification time (as readable string)
   """
   def __init__(self, info):
-    self.id = info['id']
-    self.flags = info['flags']
-    self.size = info['size']
-    self.modtime = info['modTime']
-    self.modtimestr = info['modTimeAsString']
+    super(StatInfo, self).__init__(info)
 
-class StatInfoVFS(object):
+class StatInfoVFS(Struct):
   """Status information for Virtual File Systems.
   
   :var            nodes_rw: Number of nodes that can provide read/write space
@@ -128,14 +118,9 @@ class StatInfoVFS(object):
                             by ``free_staging``
   """
   def __init__(self, info):
-    self.nodes_rw = info['nodesRW']
-    self.free_rw = info['freeRW']
-    self.utilization_rw = info['utilizationRW']
-    self.nodes_staging = info['nodesStaging']
-    self.free_staging = info['freeStaging']
-    self.utilization_staging = info['utilizationStaging']
-    
-class DirectoryList(object):
+    super(StatInfoVFS, self).__init__(info)
+
+class DirectoryList(Struct):
   """Directory listing.
   
   This object is iterable::
@@ -157,16 +142,13 @@ class DirectoryList(object):
                  The list of directory entries
   """
   def __init__(self, dirlist):
-    self.size = dirlist['size']
-    self.parent = dirlist['parent']
-    self.dirlist = list()
-    for f in dirlist['dirList']:
-      self.dirlist.append(ListEntry(f))
-      
+    dirlist.update({'dirlist': [ListEntry(e) for e in dirlist['dirlist']]})
+    super(DirectoryList, self).__init__(dirlist)
+
   def __iter__(self):
     return iter(self.dirlist)
 
-class ListEntry(object):
+class ListEntry(Struct):
   """An entry in a directory listing.
   
   :var      name: The name of the file/directory
@@ -184,24 +166,20 @@ class ListEntry(object):
     client bug. So you'll get ``None`` instead of the ``StatInfo`` instance.
   """
   def __init__(self, entry):
-    self.hostaddr = entry['hostAddress']
-    self.name = entry['name']
-    if entry['statInfo']: self.statinfo = StatInfo(entry['statInfo'])
-    else: self.statinfo = None
+    if entry['statinfo']: entry.update({'statinfo': StatInfo(entry['statinfo'])})
+    super(ListEntry, self).__init__(entry)
 
-class ChunkInfo(object):
+class ChunkInfo(Struct):
   """Describes a data chunk for a vector read.
   
   :var offset: The offset in the file from which this chunk came
   :var length: The length of this chunk
   :var buffer: The actual chunk data
   """
-  def __init__(self, chunk):
-    self.offset = chunk['offset']
-    self.length = chunk['length']
-    self.buffer = chunk['buffer']
+  def __init__(self, info):
+    super(ChunkInfo, self).__init__(info)
     
-class VectorReadInfo(object):
+class VectorReadInfo(Struct):
   """Vector read response object. 
   Returned by :mod:`XRootD.client.File.vector_read()`.
   
@@ -224,15 +202,13 @@ class VectorReadInfo(object):
                 The list of chunks that were read
   """
   def __init__(self, info):
-    self.size = info['size']
-    self.chunks = list()
-    for c in info['chunks']:
-      self.chunks.append(ChunkInfo(c))
+    info.update({'chunks': [ChunkInfo(c) for c in info['chunks']]})
+    super(ChunkInfo, self).__init__(info)
 
   def __iter__(self):
     return iter(self.chunks)
 
-class HostList(object):
+class HostList(Struct):
   """A list of hosts that were involved in the request.
   
   This object is iterable::
@@ -247,15 +223,13 @@ class HostList(object):
   :var  hosts: (List of :mod:`XRootD.client.responses.HostInfo` objects) - 
                The list of hosts
   """
-  def __init__(self, info):
-    self.hosts = list()
-    for h in info:
-      self.hosts.append(HostInfo(h))
+  def __init__(self, hostlist):
+    super(HostList, self).__init__({'hosts': [HostInfo(h) for h in hostlist]})
 
   def __iter__(self):
     return iter(self.hosts)
 
-class HostInfo(object):
+class HostInfo(Struct):
   """Information about a single host.
   
   :var           url: URL of the host, instance of :mod:`XRootD.client.URL`
@@ -264,8 +238,5 @@ class HostInfo(object):
                       :mod:`XRootD.client.enums.HostTypes` 
   :var load_balancer: Was the host used as a load balancer
   """
-  def __init__(self, host):
-    self.url = URL(host['url'])
-    self.protocol = host['protocol']
-    self.flags = host['flags']
-    self.load_balancer = host['loadBalancer']
+  def __init__(self, info):
+    super(HostInfo, self).__init__(info)

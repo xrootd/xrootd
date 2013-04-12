@@ -53,12 +53,12 @@ namespace PyXRootD
         return Py_BuildValue( "{sHsHsIsssisOsOsO}",
             "status",    status->status,
             "code",      status->code,
-            "errNo",     status->errNo,
+            "errno",     status->errNo,
             "message",   status->ToStr().c_str(),
-            "shellCode", status->GetShellCode(),
-            "isError",   PyBool_FromLong( status->IsError() ),
-            "isFatal",   PyBool_FromLong( status->IsFatal() ),
-            "isOK",      PyBool_FromLong( status->IsOK() ) );
+            "shellcode", status->GetShellCode(),
+            "error",     PyBool_FromLong( status->IsError() ),
+            "fatal",     PyBool_FromLong( status->IsFatal() ),
+            "ok",        PyBool_FromLong( status->IsOK() ) );
       }
   };
 
@@ -68,7 +68,7 @@ namespace PyXRootD
       {
         return Py_BuildValue( "{sIsI}",
             "version",  info->GetVersion(),
-            "hostInfo", info->GetHostInfo() );
+            "hostinfo", info->GetHostInfo() );
       }
   };
 
@@ -77,11 +77,11 @@ namespace PyXRootD
       static PyObject* Convert( XrdCl::StatInfo *info )
       {
         return Py_BuildValue( "{sssksIskss}",
-            "id",               info->GetId().c_str(),
-            "size",             info->GetSize(),
-            "flags",            info->GetFlags(),
-            "modTime",          info->GetModTime(),
-            "modTimeAsString",  info->GetModTimeAsString().c_str() );
+            "id",         info->GetId().c_str(),
+            "size",       info->GetSize(),
+            "flags",      info->GetFlags(),
+            "modtime",    info->GetModTime(),
+            "modtimestr", info->GetModTimeAsString().c_str() );
       }
   };
 
@@ -90,12 +90,12 @@ namespace PyXRootD
       static PyObject* Convert( XrdCl::StatInfoVFS *info )
       {
         return Py_BuildValue( "{sksksksksbsb}",
-            "nodesRW",            info->GetNodesRW(),
-            "nodesStaging",       info->GetNodesStaging(),
-            "freeRW",             info->GetFreeRW(),
-            "freeStaging",        info->GetFreeStaging(),
-            "utilizationRW",      info->GetUtilizationRW(),
-            "utilizationStaging", info->GetUtilizationStaging() );
+            "nodes_rw",            info->GetNodesRW(),
+            "nodes_staging",       info->GetNodesStaging(),
+            "free_rw",             info->GetFreeRW(),
+            "free_staging",        info->GetFreeStaging(),
+            "utilization_rw",      info->GetUtilizationRW(),
+            "utilization_staging", info->GetUtilizationStaging() );
       }
   };
 
@@ -113,9 +113,9 @@ namespace PyXRootD
 
           PyList_SET_ITEM( directoryList, i,
               Py_BuildValue( "{sssssO}",
-                  "hostAddress", (*it)->GetHostAddress().c_str(),
-                  "name",        (*it)->GetName().c_str(),
-                  "statInfo",    statInfo ) );
+                  "hostaddr", (*it)->GetHostAddress().c_str(),
+                  "name",     (*it)->GetName().c_str(),
+                  "statinfo", statInfo ) );
           Py_DECREF( statInfo );
           i++;
         }
@@ -123,7 +123,7 @@ namespace PyXRootD
         PyObject *o = Py_BuildValue( "{sisssO}",
             "size",     list->GetSize(),
             "parent",   list->GetParentName().c_str(),
-            "dirList",  directoryList );
+            "dirlist",  directoryList );
         Py_DECREF( directoryList );
         return o;
       }
@@ -147,10 +147,10 @@ namespace PyXRootD
                 Py_BuildValue( "(s)", info->url.GetURL().c_str() ) );
 
             PyObject *pyhostinfo = Py_BuildValue( "{sIsIsOsO}",
-                "flags",        info->flags,
-                "protocol",     info->protocol,
-                "loadBalancer", PyBool_FromLong(info->loadBalancer),
-                "url",          url );
+                "flags",         info->flags,
+                "protocol",      info->protocol,
+                "load_balancer", PyBool_FromLong(info->loadBalancer),
+                "url",           url );
 
             Py_DECREF( url );
             PyList_SET_ITEM( pyhostlist, i, pyhostinfo );
@@ -172,11 +172,11 @@ namespace PyXRootD
             ++it ) {
           PyList_SET_ITEM( locationList, i,
               Py_BuildValue( "{sssIsIsOsO}",
-                  "address",    it->GetAddress().c_str(),
-                  "type",       it->GetType(),
-                  "accessType", it->GetAccessType(),
-                  "isServer",   PyBool_FromLong( it->IsServer() ),
-                  "isManager",  PyBool_FromLong( it->IsManager() ) ) );
+                  "address",     it->GetAddress().c_str(),
+                  "type",        it->GetType(),
+                  "accesstype",  it->GetAccessType(),
+                  "is_server",   PyBool_FromLong( it->IsServer() ),
+                  "is_manager",  PyBool_FromLong( it->IsManager() ) ) );
           i++;
         }
 
