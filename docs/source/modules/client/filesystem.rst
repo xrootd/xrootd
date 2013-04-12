@@ -1,11 +1,6 @@
-======================================================
-:mod:`XRootD.client.FileSystem`: Filesystem operations
-======================================================
-
-.. warning:: This page is under construction
-
-The FileSystem object is used to perform filesystem operations such as creating
-directories, changing file permissions, listing directories, etc.
+============================================================
+:mod:`XRootD.client.FileSystem`: Filesystem-based operations
+============================================================
 
 Class Reference
 ---------------

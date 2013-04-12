@@ -2,8 +2,6 @@
 :mod:`XRootD.client.flags`: Flags and constants
 ===============================================
 
-.. warning:: This page is under construction
-
 .. module:: XRootD.client.flags
 
 .. attribute:: OpenFlags

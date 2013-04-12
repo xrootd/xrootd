@@ -2,8 +2,6 @@
 :mod:`XRootD.client.responses`: Server response objects
 =======================================================
 
-.. warning:: This page is under construction
-
 This page documents the various response objects that are returned by making
 requests to an `XRootD` server.
 

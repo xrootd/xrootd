@@ -2,10 +2,6 @@
 :mod:`XRootD.client.CopyProcess`: Copying files
 ===============================================
 
-.. warning::
-
-  This page is under construction
-
 Class Reference
 ---------------
 

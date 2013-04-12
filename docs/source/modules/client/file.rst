@@ -1,9 +1,10 @@
-==========================================
-:mod:`XRootD.client.File`: File operations
-==========================================
+================================================
+:mod:`XRootD.client.File`: File-based operations
+================================================
 
-The file object is used to perform file-based operations such as reading, 
-writing, vector reading, etc.
+.. module:: XRootD.client
+
+.. autoclass:: XRootD.client.File
 
 Similarities with Python built-in `file` object
 -----------------------------------------------
@@ -58,10 +59,6 @@ Or also iterate over chunks of a particular size::
 
 Class Reference
 ---------------
-
-.. module:: XRootD.client
-
-.. autoclass:: XRootD.client.File
 
 Methods
 *******

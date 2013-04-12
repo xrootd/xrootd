@@ -12,6 +12,8 @@ rest of the examples::
   from XRootD.client.flags import DirListFlags, OpenFlags, MkDirFlags, QueryCode
 
   myclient = client.FileSystem('root://someserver:1094')
+  
+  
 
 .. -----------------------------------------------------------------------------
 .. dirlist 
