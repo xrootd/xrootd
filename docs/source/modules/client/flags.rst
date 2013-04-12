@@ -1,10 +1,10 @@
-===========================================================
-:mod:`XRootD.client.enums`: Enumeration flags and constants
-===========================================================
+===============================================
+:mod:`XRootD.client.flags`: Flags and constants
+===============================================
 
 .. warning:: This page is under construction
 
-.. module:: XRootD.client.enums
+.. module:: XRootD.client.flags
 
 .. attribute:: OpenFlags
 

@@ -31,7 +31,7 @@ API Reference
    modules/client/file
    modules/client/copyprocess
    modules/client/responses
-   modules/client/enums
+   modules/client/flags
    modules/client/url
    modules/client/utils
 
