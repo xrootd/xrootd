@@ -1,6 +1,6 @@
 from XRootD import client
 from XRootD.client.utils import AsyncResponseHandler
-from XRootD.client.enums import OpenFlags
+from XRootD.client.flags import OpenFlags
 from env import *
 
 import pytest

@@ -1,6 +1,6 @@
 from XRootD import client
 from XRootD.client.utils import AsyncResponseHandler
-from XRootD.client.enums import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
+from XRootD.client.flags import OpenFlags, QueryCode, MkDirFlags, AccessMode, \
                                  DirListFlags, PrepareFlags
 from env import *
 import pytest
