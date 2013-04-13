@@ -228,7 +228,7 @@ namespace PyXRootD
     {
       chunk->SetCursor( i );
 
-      if( chunk->GetBufferAtCursor() == '\n' )
+      if( chunk->GetBufferAtCursor() == "\n" )
       {
         // we found a newline... what now? (go to sleep)
       }
