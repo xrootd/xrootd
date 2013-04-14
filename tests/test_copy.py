@@ -45,3 +45,16 @@ def test_copy_bigfile():
 
   assert size1 == size2
   f.close()
+  
+def test_copy_nojobs():
+  c = client.CopyProcess()
+  s = c.prepare()
+  assert s.ok
+  s = c.run()
+  assert s.ok
+  
+def test_copy_noprep():
+  c = client.CopyProcess()
+  c.add_job( source=bigfile, target=bigcopy, force=True )
+  s = c.run()
+  assert s.ok
