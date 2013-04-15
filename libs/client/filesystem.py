@@ -54,9 +54,11 @@ class FileSystem(object):
     :type  target: string
     :param  force: overwrite target if it exists
     :type   force: boolean
-    :returns:      :mod:`XRootD.client.responses.XRootDStatus` object
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                   object and None
     """
-    return XRootDStatus(self.__fs.copy(source=source, target=target, force=force))
+    return XRootDStatus(self.__fs.copy(source=source, target=target, 
+                                       force=force)), None
 
   def locate(self, path, flags, timeout=0, callback=None):
     """Locate a file.
@@ -64,8 +66,8 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
-    :returns:     :mod:`XRootD.client.responses.XRootDStatus` object and
-                  :mod:`XRootD.client.responses.LocationInfo` object
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                  object and :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, LocationInfo)
@@ -81,8 +83,8 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
-    :returns:     :mod:`XRootD.client.responses.XRootDStatus` object and
-                  :mod:`XRootD.client.responses.LocationInfo` object
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+                  object and :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
       callback = CallbackWrapper(callback, LocationInfo)
