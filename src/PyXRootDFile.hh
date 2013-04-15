@@ -55,7 +55,7 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       XrdCl::File                *file;
-      uint64_t                    currentOffset;
+      uint32_t                    currentOffset;
       XrdCl::Buffer              *partial;
       std::deque<XrdCl::Buffer*> *surplus;
   };
