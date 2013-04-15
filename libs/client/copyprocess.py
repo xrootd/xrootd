@@ -21,7 +21,8 @@ from XRootD.client.responses import XRootDStatus
 
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
-  run them in parallel."""
+  run them in parallel (yes, in parallel, because ``xrootd`` isn't limited
+  by the `GIL`."""
 
   def __init__(self):
     self.__process = client.CopyProcess()

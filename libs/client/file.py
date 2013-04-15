@@ -129,7 +129,7 @@ class File(object):
     """
     return self.__file.readline(offset, size)
 
-  def readlines(self, offset=0, chunksize=0):
+  def readlines(self, offset=0):
     """Read lines from a given offset until EOF encountered. Return list of
     lines read.
 
@@ -142,7 +142,7 @@ class File(object):
                  specify an offset. Think twice about using it if your files
                  are big.
     """
-    return self.__file.readlines(offset=offset, chunksize=chunksize)
+    return self.__file.readlines(offset)
 
   def readchunks(self, offset=0, blocksize=1024*1024*2):
     """Return an iterator object which will read data chunks from a given 
@@ -208,7 +208,8 @@ class File(object):
     :param chunks: list of the chunks to be read. The default maximum
                    chunk size is 2097136 bytes and the default maximum
                    number of chunks per request is 1024. The server may
-                   be queried using :mod:`query` for the actual settings.
+                   be queried using :func:`XRootD.client.FileSystem.query` 
+                   for the actual settings.
     :type  chunks: list of 2-tuples of the form (offset, size)
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
                    object and :mod:`XRootD.client.responses.VectorReadInfo`
