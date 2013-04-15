@@ -165,14 +165,20 @@ def test_readline():
   f.close()
 
 def test_readlines_small():
+  f = client.File()
+  f.open(smallfile, OpenFlags.DELETE)
+  f.write(smallbuffer)
+  pylines = open('/tmp/spam').readlines()
+  print pylines
+  
   for i in range(1, 100):
     f = client.File()
-    f.open(smallfile, OpenFlags.DELETE)
-    f.write(smallbuffer)
+    f.open(smallfile)
     response = f.readlines(offset=0, chunksize=i)
     assert len(response) == 4
-    for line in response:
-      assert line.endswith('\n')
+    for j, line in enumerate(response):
+      if pylines[j].endswith('\n'):
+        assert line.endswith('\n')
     f.close()
 
 def test_readlines_big():
@@ -182,8 +188,6 @@ def test_readlines_big():
   
   lines = f.readlines()
   pylines = open('/tmp/bigfile').readlines()
-  print len(lines)
-  print len(pylines)
   assert len(lines) == len(pylines)
 
   nlines = len(pylines)
