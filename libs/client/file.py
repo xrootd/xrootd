@@ -144,17 +144,17 @@ class File(object):
     """
     return self.__file.readlines(offset, size, chunksize)
 
-  def readchunks(self, offset=0, blocksize=1024*1024*2):
+  def readchunks(self, offset=0, chunksize=1024*1024*2):
     """Return an iterator object which will read data chunks from a given 
-    offset of the given blocksize until EOF.
+    offset of the given chunksize until EOF.
 
     :param    offset: offset from the beginning of the file
     :type     offset: integer
-    :param blocksize: size of chunk to read, in bytes
-    :type  blocksize: integer
+    :param chunksize: size of chunk to read, in bytes
+    :type  chunksize: integer
     :returns:         iterator object
     """
-    return self.__file.readchunks(offset, blocksize)
+    return self.__file.readchunks(offset, chunksize)
 
   def write(self, buffer, offset=0, size=0, timeout=0, callback=None):
     """Write a data chunk at a given offset.
