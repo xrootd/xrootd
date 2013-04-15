@@ -188,116 +188,163 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLine( File *self, PyObject *args, PyObject *kwds )
   {
-    XrdCl::Buffer *chunk;
-    uint64_t       chunksize = 1024 * 1024 * 2; // 2MB
-    PyObject      *pyline    = NULL;
+    static const char *kwlist[]  = { "offset", "size", "chunksize", NULL };
+    uint64_t           offset    = 0;
+    uint32_t           size      = 0;
+    uint32_t           chunksize = 0;
+    PyObject          *pyline;
+    XrdCl::Buffer     *chunk;
 
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kII:readline",
+        (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
+
+    //--------------------------------------------------------------------------
+    // Default chunk size == 2MB
+    //--------------------------------------------------------------------------
+    if ( !chunksize ) chunksize = 1024 * 1024 * 2;
+
+    //--------------------------------------------------------------------------
     // If we read multiple lines last time, return one here
+    //--------------------------------------------------------------------------
     if ( !self->surplus->empty() )
     {
       pyline = PyString_FromStringAndSize( self->surplus->front()->GetBuffer(),
                                            self->surplus->front()->GetSize() );
+      std::cerr << "Returning a surplus line:\n";
+      _PyObject_Dump(pyline);
       self->surplus->pop_front();
       return pyline;
     }
 
-    chunk = self->ReadChunk( self, chunksize, self->currentOffset );
-    self->currentOffset += chunksize;
+    //--------------------------------------------------------------------------
+    // Don't read more than "size"
+    //--------------------------------------------------------------------------
+    if ( size && self->currentOffset >= size )
+    {
+      chunk = new XrdCl::Buffer();
+    }
+    else
+    {
+      chunk = self->ReadChunk( self, chunksize, self->currentOffset );
+      self->currentOffset += chunksize;
+    }
 
+    //--------------------------------------------------------------------------
     // We read nothing
+    //--------------------------------------------------------------------------
     if ( chunk->GetSize() == 0 )
     {
       delete chunk;
 
+      //------------------------------------------------------------------------
       // We have no partial line, return empty string
+      //------------------------------------------------------------------------
       if ( self->partial->GetSize() == 0 )
       {
-        return Py_BuildValue( "s", "" );
+        std::cerr << "No surplus, no partial - returning empty string\n";
+        return PyString_FromString( "" );
       }
+      //------------------------------------------------------------------------
       // We can return the partial line
+      //------------------------------------------------------------------------
       else
       {
         pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
                                              self->partial->GetSize() );
+        std::cerr << "Returning a partial line:\n";
+        _PyObject_Dump(pyline);
         self->partial->Free();
         return pyline;
       }
     }
 
-    for( uint32_t i = 0; i < chunk->GetSize(); ++i )
-    {
-      chunk->SetCursor( i );
+    //--------------------------------------------------------------------------
+    // We read a chunk, scan for newlines
+    //--------------------------------------------------------------------------
+    uint32_t  lastNewlineIndex = 0;
+    bool      newlineFound     = false;
 
-      if( chunk->GetBufferAtCursor() == "\n" )
+    while ( !newlineFound )
+    {
+      for( uint32_t i = 0; i < chunk->GetSize(); ++i )
       {
-        // we found a newline... what now? (go to sleep)
+        chunk->SetCursor( i );
+        std::cerr << *chunk->GetBufferAtCursor() << "\n";
+
+        if( *chunk->GetBufferAtCursor() == '\n' )
+        {
+          std::cerr << "Found a newline!\n";
+          newlineFound = true;
+          //----------------------------------------------------------------------
+          // We found a newline... what now?
+          //----------------------------------------------------------------------
+
+          // If it has multiple lines, append the last line (which probably won't
+          // end with a newline) to the partial buffer (which should be empty at
+          // this point). Put the other lines except the first in separate buffers
+          // and add them to the surplus vector. Return the first line.
+          //
+          // If it has two lines, append the first to the partial buffer and
+          // return the first.
+          if ( !lastNewlineIndex )
+          {
+            lastNewlineIndex = i;
+            std::cerr << "First newline index: " << i << std::endl;
+
+            if ( self->partial->GetSize() != 0 )
+            {
+              self->partial->Append( chunk->GetBuffer(), lastNewlineIndex + 1 );
+              pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
+                                                   self->partial->GetSize() );
+              std::cerr << "Made a line using partial:" << std::endl;
+              _PyObject_Dump(pyline);
+              self->partial->Free();
+            }
+            else
+            {
+              pyline = PyString_FromStringAndSize( chunk->GetBuffer(), i + 1 );
+              std::cerr << "Made a line:" << std::endl;
+              _PyObject_Dump(pyline);
+            }
+
+
+          }
+          else
+          {
+            XrdCl::Buffer *surplus = new XrdCl::Buffer();
+            surplus->Grab( chunk->GetBuffer( lastNewlineIndex + 1 ),
+                           i - lastNewlineIndex );
+
+            std::cerr << "Appending to surplus: " << std::string(surplus->GetBuffer(), surplus->GetSize());
+            self->surplus->push_back( surplus );
+            lastNewlineIndex = i;
+            std::cerr << "Last newline index: " << i << std::endl;
+          }
+        }
+      }
+
+      if( !newlineFound || lastNewlineIndex != chunk->GetSize() - 1 )
+      {
+        //------------------------------------------------------------------------
+        // We have a partial line left in the buffer
+        //------------------------------------------------------------------------
+        uint32_t offset;
+        offset = !lastNewlineIndex ? lastNewlineIndex : lastNewlineIndex + 1;
+        self->partial->Append( chunk->GetBuffer( offset ),
+                               chunk->GetSize() - lastNewlineIndex );
+        std::cerr << "Appending to partial: " << std::string(chunk->GetBuffer(offset), chunk->GetSize() - lastNewlineIndex) << std::endl;
+        std::cerr << "Partial now contains: " << std::string(self->partial->GetBuffer(), self->partial->GetSize()) << std::endl;
+      }
+
+      if ( !newlineFound ) {
+        chunk = self->ReadChunk( self, chunksize, self->currentOffset );
+        self->currentOffset += chunksize;
       }
     }
 
-//    XrdCl::ChunkInfo         *chunk;
-//    std::string               line;
-//    std::vector<std::string> *lines;
-//    PyObject                 *pyline    = NULL;
-//
-//    // If we read multiple lines last time, return one here
-//    if ( !self->surplus->empty() ) {
-//      pyline = PyString_FromStringAndSize( self->surplus->front().c_str(),
-//                                           self->surplus->front().length() );
-//      self->surplus->pop_front();
-//      return pyline;
-//    }
-//
-//    // Read a 2MB chunk
-//    chunk = ReadChunk( self, chunksize, self->currentOffset );
-//
-//    // We read nothing
-//    if ( chunk->length == 0 ) {
-//      delete chunk;
-//
-//      // We have no partial line, return empty string
-//      if ( self->partial->empty() ) {
-//        return Py_BuildValue( "s", "" );
-//      }
-//      // We can return the partial line
-//      else {
-//        pyline = PyString_FromStringAndSize( self->partial->c_str(),
-//                                             self->partial->length() );
-//        self->partial->clear();
-//        return pyline;
-//      }
-//    }
-//
-//    self->currentOffset += chunksize;
-//
-//    while ( !HasNewline( (const char*) chunk->buffer, chunk->length )
-//            && chunk->length == chunksize )
-//    {
-//      self->partial->append( (char*) chunk->buffer, chunk->length );
-//      delete[] (char*) chunk->buffer; delete chunk;
-//      chunk = ReadChunk( self, chunksize, self->currentOffset );
-//      self->currentOffset += chunksize;
-//    }
-//
-//    lines = SplitNewlines( (const char*) chunk->buffer, chunk->length );
-//
-//    if ( lines->size() == 2 ) {
-//      self->partial = &lines->back();
-//    }
-//    else if ( lines->size() > 2 ) {
-//      self->surplus->insert(
-//      self->surplus->end(), lines->begin() + 1, lines->end() );
-//    }
-//    else {
-//      line = *self->partial + lines->front();
-//      self->partial->clear();
-//    }
-//
-//    pyline = PyString_FromStringAndSize( line.c_str(), line.length() );
-//    if ( !pyline ) return NULL;
-//    delete[] (char*) chunk->buffer;
-//    delete chunk;
-//    delete lines;
-//    return pyline;
+    return pyline;
   }
 
   //----------------------------------------------------------------------------
@@ -307,21 +354,22 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::ReadLines( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char        *kwlist[]  = { "offset", "size", NULL };
-    uint64_t                  offset    = 0;
-    uint32_t                  size      = 0;
+    static const char *kwlist[]  = { "offset", "size", "chunksize", NULL };
+    uint64_t           offset    = 0;
+    uint32_t           size      = 0;
+    uint32_t           chunksize = 0;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readlines",
-        (char**) kwlist, &offset, &size ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kII:readlines",
+        (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
 
     PyObject *lines = PyList_New( 0 );
     PyObject *line  = NULL;
 
     for (;;)
     {
-      line = self->ReadLine( self, NULL, NULL );
+      line = self->ReadLine( self, args, kwds );
       if ( !line || PyString_Size( line ) == 0 ) {
         break;
       }
