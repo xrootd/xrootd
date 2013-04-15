@@ -15,5 +15,7 @@ from XRootD import client
 with client.File() as f:
   f.open('root://localhost//tmp/eggs')
   
-  print f.readline()
-  print f.readlines()
+#   l = f.readline(chunksize=3)
+#   print '>>> %r' % l
+  ls = f.readlines(chunksize=3)
+  print '>>>', ls
