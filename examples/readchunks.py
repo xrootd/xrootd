@@ -13,5 +13,5 @@ from XRootD import client
 with client.File() as f:
   f.open('root://localhost//tmp/eggs')
   
-  for chunk in f.readchunks(offset=0, blocksize=10):
+  for chunk in f.readchunks(offset=0, chunksize=10):
     print '%r' % chunk
