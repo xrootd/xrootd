@@ -115,11 +115,13 @@ namespace PyXRootD
   {
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    PyObject *line = self->ReadLine( self, NULL, NULL );
+    PyObject *line = PyObject_CallMethod( (PyObject*) self,
+                                          const_cast<char*>("readline"), NULL );
+    if( !line ) return NULL;
     //--------------------------------------------------------------------------
     // Raise StopIteration if the line we just read is empty
     //--------------------------------------------------------------------------
-    if ( !line || PyString_Size( line ) == 0 ) {
+    if ( PyString_Size( line ) == 0 ) {
       PyErr_SetNone( PyExc_StopIteration );
       return NULL;
     }
@@ -143,9 +145,7 @@ namespace PyXRootD
   {
     PyObject *ret = PyObject_CallMethod( (PyObject*) self,
                                          const_cast<char*>("close"), NULL );
-    if ( !ret )
-      return NULL;
-
+    if ( !ret ) return NULL;
     Py_DECREF( ret );
     Py_RETURN_NONE ;
   }

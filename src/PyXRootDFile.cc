@@ -192,7 +192,7 @@ namespace PyXRootD
     uint64_t           offset    = 0;
     uint32_t           size      = 0;
     uint32_t           chunksize = 0;
-    PyObject          *pyline;
+    PyObject          *pyline    = NULL;
     XrdCl::Buffer     *chunk;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
@@ -200,6 +200,7 @@ namespace PyXRootD
     if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kII:readline",
         (char**) kwlist, &offset, &size, &chunksize ) ) return NULL;
 
+    //std::cout << "ReadLine() called\n";
     //--------------------------------------------------------------------------
     // Default chunk size == 2MB
     //--------------------------------------------------------------------------
@@ -212,7 +213,8 @@ namespace PyXRootD
     {
       pyline = PyString_FromStringAndSize( self->surplus->front()->GetBuffer(),
                                            self->surplus->front()->GetSize() );
-      std::cerr << "Returning a surplus line: "; PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
+      //std::cerr << "Returning a surplus line: ";
+      //PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
       self->surplus->pop_front();
       return pyline;
     }
@@ -228,6 +230,10 @@ namespace PyXRootD
     {
       chunk = self->ReadChunk( self, chunksize, self->currentOffset );
       self->currentOffset += chunksize;
+      //PyObject *c = PyString_FromStringAndSize(chunk->GetBuffer(),
+      //                                         chunk->GetSize());
+      //std::cerr << "Read chunk: "; PyObject_Print(c, stderr, 0);
+      //std::cerr << std::endl;
     }
 
     //--------------------------------------------------------------------------
@@ -242,7 +248,7 @@ namespace PyXRootD
       //------------------------------------------------------------------------
       if ( self->partial->GetSize() == 0 )
       {
-        std::cerr << "No surplus, no partial - returning empty string\n";
+        //std::cerr << "No surplus, no partial - returning empty string\n";
         return PyString_FromString( "" );
       }
       //------------------------------------------------------------------------
@@ -252,7 +258,8 @@ namespace PyXRootD
       {
         pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
                                              self->partial->GetSize() );
-        std::cerr << "Returning a partial line: "; PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
+        //std::cerr << "Returning a partial line: ";
+        //PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
         self->partial->Free();
         return pyline;
       }
@@ -269,11 +276,11 @@ namespace PyXRootD
       for( uint32_t i = 0; i < chunk->GetSize(); ++i )
       {
         chunk->SetCursor( i );
-        std::cerr << *chunk->GetBufferAtCursor() << "\n";
+        //std::cerr << *chunk->GetBufferAtCursor() << "\n";
 
         if( *chunk->GetBufferAtCursor() == '\n' )
         {
-          std::cerr << "Found a newline!\n";
+          //std::cerr << "Found a newline!\n";
           newlineFound = true;
           //----------------------------------------------------------------------
           // We found a newline... what now?
@@ -286,32 +293,38 @@ namespace PyXRootD
           //
           // If it has two lines, append the first to the partial buffer and
           // return the first.
-          if ( !lastNewlineIndex )
+          if ( !lastNewlineIndex && !pyline )
           {
             lastNewlineIndex = i;
-            std::cerr << "First newline index: " << i << std::endl;
+            //std::cerr << "First newline index: " << i << std::endl;
 
             if ( self->partial->GetSize() != 0 )
             {
-              PyObject *partialBefore = PyString_FromStringAndSize(self->partial->GetBuffer(), self->partial->GetSize());
-              std::cerr << "Partial before: "; PyObject_Print(partialBefore, stderr, 0); std::cerr << std::endl;
+              //PyObject *partialBefore = PyString_FromStringAndSize(self->partial->GetBuffer(),
+              //                                                     self->partial->GetSize());
+              //std::cerr << "Partial before: ";
+              //PyObject_Print(partialBefore, stderr, 0); std::cerr << std::endl;
 
               self->partial->Append( chunk->GetBuffer(), lastNewlineIndex + 1 );
 
-              PyObject *partialAfter = PyString_FromStringAndSize(self->partial->GetBuffer(), self->partial->GetSize());
-              std::cerr << "Partial after: "; PyObject_Print(partialAfter, stderr, 0); std::cerr << std::endl;
+              //PyObject *partialAfter = PyString_FromStringAndSize(self->partial->GetBuffer(),
+              //                                                    self->partial->GetSize());
+              //std::cerr << "Partial after: ";
+              //PyObject_Print(partialAfter, stderr, 0); std::cerr << std::endl;
 
               pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
                                                    self->partial->GetSize() );
 
-              std::cerr << "Made a line using partial:"; PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
+              //std::cerr << "Made a line using partial:";
+              //PyObject_Print(pyline, stderr, 0); std::cerr << std::endl;
 
               self->partial->Free();
             }
             else
             {
-              pyline = PyString_FromStringAndSize( chunk->GetBuffer(), i + 1 );
-              std::cerr << "Made a line:"; PyObject_Print(pyline, stderr, 0);
+              pyline = PyString_FromStringAndSize( chunk->GetBuffer(), lastNewlineIndex + 1 );
+              //std::cerr << "Made a line:"; PyObject_Print(pyline, stderr, 0);
+              //std::cerr << std::endl;
             }
 
 
@@ -322,10 +335,14 @@ namespace PyXRootD
             surplus->Grab( chunk->GetBuffer( lastNewlineIndex + 1 ),
                            i - lastNewlineIndex );
 
-            std::cerr << "Appending to surplus: " << PyObject_Print(PyString_FromStringAndSize(surplus->GetBuffer(), surplus->GetSize()), stderr, 0); std::cerr << std::endl;
+            //std::cerr << "Appending to surplus: "
+            //std::cerr << PyObject_Print(PyString_FromStringAndSize(surplus->GetBuffer(),
+            //                                                       surplus->GetSize()),
+            //                            stderr, 0);
+            //std::cerr << std::endl;
             self->surplus->push_back( surplus );
             lastNewlineIndex = i;
-            std::cerr << "Last newline index: " << i << std::endl;
+            //std::cerr << "Last newline index: " << i << std::endl;
           }
         }
       }
@@ -338,39 +355,60 @@ namespace PyXRootD
         uint32_t off = 0, sze = 0;
         if( lastNewlineIndex == 0 )
         {
+          //std::cerr << "lastNewlineIndex was 0\n";
+
           if( *chunk->GetBuffer() == '\n' )
           {
+            //std::cerr << "first char in buffer was newline\n";
             off = 1;
             sze = chunk->GetSize() - 1;
           }
           else
           {
+            //std::cerr << "first char not newline\n";
             off = 0;
-            sze = chunk->GetSize() - 1;
+            sze = chunk->GetSize();
           }
         }
         else if ( *chunk->GetBuffer( chunk->GetSize() - 1 ) == '\n' )
+        {
+          //std::cerr << "last char was newline\n";
+          off = lastNewlineIndex + 1;
+          sze = chunk->GetSize() - lastNewlineIndex - 1;
+        }
+        else
         {
           off = lastNewlineIndex + 1;
           sze = chunk->GetSize() - lastNewlineIndex - 1;
         }
 
-        PyObject *partialBefore = PyString_FromStringAndSize(self->partial->GetBuffer(), self->partial->GetSize());
-        std::cerr << "Partial before: "; PyObject_Print(partialBefore, stderr, 0); std::cerr << std::endl;
+        //std::cerr << "offset: " << off << std::endl;
+        //std::cerr << "size: " << sze << std::endl;
+        //PyObject *partialBefore = PyString_FromStringAndSize(self->partial->GetBuffer(),
+        //                                                     self->partial->GetSize());
+        //std::cerr << "Partial before: "; PyObject_Print(partialBefore, stderr, 0);
+        //std::cerr << std::endl;
 
-        PyObject *app = PyString_FromStringAndSize(chunk->GetBuffer(off), sze);
-        std::cerr << "Appending to partial: "; PyObject_Print(app, stderr, 0); std::cerr << std::endl;
+        //PyObject *app = PyString_FromStringAndSize(chunk->GetBuffer(off), sze);
+        //std::cerr << "Appending to partial: "; PyObject_Print(app, stderr, 0);
+        //std::cerr << std::endl;
 
         self->partial->Append( chunk->GetBuffer( off ), sze );
 
-        PyObject *partialAfter = PyString_FromStringAndSize(self->partial->GetBuffer(), self->partial->GetSize());
-                      std::cerr << "Partial after: "; PyObject_Print(partialAfter, stderr, 0); std::cerr << std::endl;
+        //PyObject *partialAfter = PyString_FromStringAndSize(self->partial->GetBuffer(),
+        //                                                    self->partial->GetSize());
+        //std::cerr << "Partial after: "; PyObject_Print(partialAfter, stderr, 0);
+        //std::cerr << std::endl;
 
       }
 
       if ( !newlineFound ) {
         chunk = self->ReadChunk( self, chunksize, self->currentOffset );
         self->currentOffset += chunksize;
+        //PyObject *c = PyString_FromStringAndSize(chunk->GetBuffer(),
+        //                                         chunk->GetSize());
+        //std::cerr << "Read chunk: "; PyObject_Print(c, stderr, 0);
+        //std::cerr << std::endl;
       }
     }
 
