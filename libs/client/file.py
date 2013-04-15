@@ -116,7 +116,7 @@ class File(object):
     status, response = self.__file.read(offset, size, timeout)
     return XRootDStatus(status), response
 
-  def readline(self, offset=0, size=0):
+  def readline(self, offset=0, size=0, chunksize=0):
     """Read a data chunk from a given offset, until the first newline or EOF
     encountered.
 
@@ -127,9 +127,9 @@ class File(object):
     :returns:      data that was read, including the trailing newline
     :rtype:        string
     """
-    return self.__file.readline(offset, size)
+    return self.__file.readline(offset, size, chunksize)
 
-  def readlines(self, offset=0):
+  def readlines(self, offset=0, size=0, chunksize=0):
     """Read lines from a given offset until EOF encountered. Return list of
     lines read.
 
@@ -142,7 +142,7 @@ class File(object):
                  specify an offset. Think twice about using it if your files
                  are big.
     """
-    return self.__file.readlines(offset)
+    return self.__file.readlines(offset, size, chunksize)
 
   def readchunks(self, offset=0, blocksize=1024*1024*2):
     """Return an iterator object which will read data chunks from a given 
