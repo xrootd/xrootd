@@ -12,7 +12,7 @@ Produces output similar to the following::
 from XRootD import client
 from XRootD.client.flags import DirListFlags
 
-myclient = client.FileSystem('root://someserver:1094')
+myclient = client.FileSystem('root://localhost')
 status, listing = myclient.dirlist('/tmp', DirListFlags.STAT)
 
 print listing.parent
