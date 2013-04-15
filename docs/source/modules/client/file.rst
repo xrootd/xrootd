@@ -18,45 +18,6 @@ Additionally, these methods can't be called asynchronously, and they don't
 return an ``XRootDStatus`` object like the others. You only get the data that 
 was read.
 
-Say we have the following file::
-
-  >>> with client.File() as f:
-  ...   f.open('root://someserver//somefile')
-  ...   f.write('green\neggs\nand\nham\n')
-
-You can iterate over lines in the file, like this::
-
-  >>> for line in f:
-  >>>   print line
-  green
-  eggs
-  and
-  ham
-
-Read a single line from the file::
-
-  >>> print f.readline()
-  green
-
-Read all the lines in a file at once::
-
-  >>> print f.readlines()
-  ['eggs\n', 'and\n', 'ham\n']
-  
-Note how the first line is not returned here, because we ate it with the first
-call to :func:`readline`.
-
-Or also iterate over chunks of a particular size::
-
-  >>> with client.File() as f:
-  ...   f.open('root://someserver//somefile')
-  ...   f.write('green\neggs\nand\nham\n')
-  ...   for status, chunk in f.readchunks(offset=0, blocksize=10):
-  ...     print '%r' % chunk
-  'green\neggs'
-  '\nand\nham\n'
-
-
 Class Reference
 ---------------
 

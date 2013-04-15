@@ -10,4 +10,4 @@
 
    examples/filesystem
    examples/file
-   examples/copy
+   examples/copyprocess

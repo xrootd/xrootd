@@ -1,5 +1,5 @@
 =======================
-``FileSystem`` Examples
+``FileSystem`` examples
 =======================
 
 This page includes some simple examples of basic usage of the ``pyxrootd``
@@ -13,7 +13,20 @@ rest of the examples::
 
   myclient = client.FileSystem('root://someserver:1094')
   
-  
+.. -----------------------------------------------------------------------------
+.. copy 
+.. -----------------------------------------------------------------------------
+
+.. include:: ../../../examples/copy.py
+   :start-line: 1
+   :end-line: 3
+
+.. literalinclude:: ../../../examples/copy.py
+   :lines: 11-
+   
+.. include:: ../../../examples/copy.py
+   :start-line: 4
+   :end-line: 6
 
 .. -----------------------------------------------------------------------------
 .. dirlist 
@@ -97,9 +110,9 @@ rest of the examples::
    :end-line: 3
 
 .. literalinclude:: ../../../examples/query.py
-   :lines: 13-
+   :lines: 17-
 
 .. include:: ../../../examples/query.py
    :start-line: 4
-   :end-line: 7
+   :end-line: 11
 
