@@ -32,7 +32,7 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       File    *file;
-      uint64_t blocksize;
+      uint64_t chunksize;
       uint32_t startOffset;
       uint32_t currentOffset;
   };
@@ -43,7 +43,7 @@ namespace PyXRootD
   static int ChunkIterator_init(ChunkIterator *self, PyObject *args)
   {
     if ( !PyArg_ParseTuple( args, "OkI", &self->file,
-        &self->startOffset, &self->blocksize ) ) return -1;
+        &self->startOffset, &self->chunksize ) ) return -1;
 
     self->currentOffset = self->startOffset;
     return 0;
@@ -66,7 +66,7 @@ namespace PyXRootD
   static PyObject* ChunkIterator_iternext(ChunkIterator *self)
   {
     XrdCl::Buffer *chunk = self->file->ReadChunk( self->file,
-                                                  self->blocksize,
+                                                  self->chunksize,
                                                   self->currentOffset );
     PyObject *pychunk = NULL;
 
@@ -78,7 +78,7 @@ namespace PyXRootD
     }
 
     else {
-      self->currentOffset += self->blocksize;
+      self->currentOffset += self->chunksize;
       pychunk = PyString_FromStringAndSize( (const char*) chunk->GetBuffer(),
                                                           chunk->GetSize() );
     }
