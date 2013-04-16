@@ -53,7 +53,8 @@ namespace XrdCl
   {
     TaskSet::iterator  it, itE;
     for( it = pTasks.begin(); it != pTasks.end(); ++it )
-      delete it->task;
+      if( it->own )
+        delete it->task;
   }
 
   //----------------------------------------------------------------------------
@@ -121,7 +122,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Run the given task at the given time
   //----------------------------------------------------------------------------
-  void TaskManager::RegisterTask( Task *task, time_t time )
+  void TaskManager::RegisterTask( Task *task, time_t time, bool own )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -129,7 +130,7 @@ namespace XrdCl
                 task->GetName().c_str(), Utils::TimeToString(time).c_str() );
 
     XrdSysMutexHelper scopedLock( pMutex );
-    pTasks.insert( TaskHelper( task, time ) );
+    pTasks.insert( TaskHelper( task, time, own ) );
   }
 
   //--------------------------------------------------------------------------
@@ -184,9 +185,11 @@ namespace XrdCl
       for( itRem = iteratorList.begin(); itRem != iteratorList.end(); ++itRem )
       {
         Task *tsk = (*itRem)->task;
+        bool  own = (*itRem)->own;
         log->Debug( TaskMgrMsg, "Removing task: \"%s\"", tsk->GetName().c_str() );
         pTasks.erase( *itRem );
-        delete tsk;
+        if( own )
+          delete tsk;
       }
 
       pToBeUnregistered.clear();
@@ -194,14 +197,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Select the tasks to be run
       //------------------------------------------------------------------------
-      time_t   now = time(0);
-      TaskList toRun;
+      time_t                          now = time(0);
+      std::list<TaskHelper>           toRun;
+      std::list<TaskHelper>::iterator trIt;
 
       it  = pTasks.begin();
       itE = pTasks.upper_bound( TaskHelper( 0, now ) );
 
       for( ; it != itE; ++it )
-        toRun.push_back( it->task );
+        toRun.push_back( TaskHelper( it->task, 0, it->own ) );
 
       pTasks.erase( pTasks.begin(), itE );
       pMutex.UnLock();
@@ -209,25 +213,26 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Run the tasks and reinsert them if necessary
       //------------------------------------------------------------------------
-      for( listIt = toRun.begin(); listIt != toRun.end(); ++listIt )
+      for( trIt = toRun.begin(); trIt != toRun.end(); ++trIt )
       {
         log->Dump( TaskMgrMsg, "Running task: \"%s\"",
-                   (*listIt)->GetName().c_str() );
-        time_t schedule = (*listIt)->Run( now );
+                   trIt->task->GetName().c_str() );
+        time_t schedule = trIt->task->Run( now );
         if( schedule )
         {
           log->Dump( TaskMgrMsg, "Will rerun task \"%s\" at [%s]",
-                     (*listIt)->GetName().c_str(),
+                     trIt->task->GetName().c_str(),
                      Utils::TimeToString(schedule).c_str() );
           pMutex.Lock();
-          pTasks.insert( TaskHelper( *listIt, schedule ) );
+          pTasks.insert( TaskHelper( trIt->task, schedule, trIt->own ) );
           pMutex.UnLock();
         }
         else
         {
           log->Debug( TaskMgrMsg, "Done with task: \"%s\"",
-                      (*listIt)->GetName().c_str() );
-          delete *listIt;
+                      trIt->task->GetName().c_str() );
+          if( trIt->own )
+            delete trIt->task;
         }
       }
 
