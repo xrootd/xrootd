@@ -38,7 +38,7 @@ namespace XrdCl
       virtual ~Job() {};
 
       //------------------------------------------------------------------------
-      //! The method run by the 
+      //! The job logic
       //------------------------------------------------------------------------
       virtual void Run( void *arg ) = 0;
   };
@@ -88,7 +88,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Add a job to be run
       //------------------------------------------------------------------------
-      void QueueJob( Job *job, void *arg )
+      void QueueJob( Job *job, void *arg = 0 )
       {
         pJobs.Put( JobHelper( job, arg ) );
       }
