@@ -63,6 +63,8 @@ add_library(
                               XrdClEnum.hh
                               XrdClSyncQueue.hh
   XrdClJobManager.cc          XrdClJobManager.hh
+                              XrdClResponseJob.hh
+  XrdClFileTimer.cc           XrdClFileTimer.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

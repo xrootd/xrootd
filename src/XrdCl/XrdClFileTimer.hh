@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2013 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
@@ -16,29 +16,39 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_FORK_HANDLER_HH__
-#define __XRD_CL_FORK_HANDLER_HH__
+#ifndef __XRD_CL_FILE_TIMER_HH__
+#define __XRD_CL_FILE_TIMER_HH__
 
-#include <XrdSys/XrdSysPthread.hh>
-#include <set>
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClTaskManager.hh"
 
 namespace XrdCl
 {
   class FileStateHandler;
-  class FileSystem;
-  class PostMaster;
-  class FileTimer;
 
   //----------------------------------------------------------------------------
-  // Helper class for handling forking
+  //! Task generating timeout events for FileStateHandlers in recovery mode
   //----------------------------------------------------------------------------
-  class ForkHandler
+  class FileTimer: public Task
   {
     public:
-      ForkHandler();
+      //------------------------------------------------------------------------
+      //! Constructor
+      //------------------------------------------------------------------------
+      FileTimer()
+      {
+        SetName( "FileTimer task" );
+      }
 
       //------------------------------------------------------------------------
-      //! Register a file object
+      //! Destructor
+      //------------------------------------------------------------------------
+      virtual ~FileTimer()
+      {
+      }
+
+      //------------------------------------------------------------------------
+      //! Register a file state handler
       //------------------------------------------------------------------------
       void RegisterFileObject( FileStateHandler *file )
       {
@@ -47,7 +57,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Un-register a file object
+      //! Un-register a file state handler
       //------------------------------------------------------------------------
       void UnRegisterFileObject( FileStateHandler *file )
       {
@@ -56,60 +66,30 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // Register a file system object
+      //! Lock the task
       //------------------------------------------------------------------------
-      void RegisterFileSystemObject( FileSystem *fs )
+      void Lock()
       {
-        XrdSysMutexHelper scopedLock( pMutex );
-        pFileSystemObjects.insert( fs );
+        pMutex.Lock();
       }
 
       //------------------------------------------------------------------------
-      //! Un-register a file system object
+      //! Un-lock the task
       //------------------------------------------------------------------------
-      void UnRegisterFileSystemObject( FileSystem *fs )
+      void UnLock()
       {
-        XrdSysMutexHelper scopedLock( pMutex );
-        pFileSystemObjects.erase( fs );
+        pMutex.UnLock();
       }
 
       //------------------------------------------------------------------------
-      //! Register a post master object
+      //! Perform the task's action
       //------------------------------------------------------------------------
-      void RegisterPostMaster( PostMaster *postMaster )
-      {
-        XrdSysMutexHelper scopedLock( pMutex );
-        pPostMaster = postMaster;
-      }
-
-      void RegisterFileTimer( FileTimer *fileTimer )
-      {
-        XrdSysMutexHelper scopedLock( pMutex );
-        pFileTimer = fileTimer;
-      }
-
-      //------------------------------------------------------------------------
-      //! Handle the preparation part of the forking process
-      //------------------------------------------------------------------------
-      void Prepare();
-
-      //------------------------------------------------------------------------
-      //! Handle the parent post-fork
-      //------------------------------------------------------------------------
-      void Parent();
-
-      //------------------------------------------------------------------------
-      //! Handler the child post-fork
-      //------------------------------------------------------------------------
-      void Child();
+      virtual time_t Run( time_t now );
 
     private:
-      std::set<FileStateHandler*>  pFileObjects;
-      std::set<FileSystem*>        pFileSystemObjects;
-      PostMaster                  *pPostMaster;
-      FileTimer                   *pFileTimer;
-      XrdSysMutex                  pMutex;
+      std::set<FileStateHandler*> pFileObjects;
+      XrdSysMutex                 pMutex;
   };
 }
 
-#endif // __XRD_CL_FORK_HANDLER_HH__
+#endif // __XRD_CL_FILE_TIMER_HH__
