@@ -183,6 +183,14 @@ namespace XrdCl
         return pTaskManager;
       }
 
+      //------------------------------------------------------------------------
+      //! Get the job manager object user by the post master
+      //------------------------------------------------------------------------
+      JobManager *GetJobManager()
+      {
+        return pJobManager;
+      }
+
     private:
       Channel *GetChannel( const URL &url );
 
