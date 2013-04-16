@@ -33,6 +33,7 @@ namespace XrdCl
   class Monitor;
   class CheckSumManager;
   class TransportManager;
+  class FileTimer;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -66,6 +67,11 @@ namespace XrdCl
       //! Get the fork handler
       //------------------------------------------------------------------------
       static ForkHandler *GetForkHandler();
+
+      //------------------------------------------------------------------------
+      //! Get file timer task
+      //------------------------------------------------------------------------
+      static FileTimer *GetFileTimer();
 
       //------------------------------------------------------------------------
       //! Get the monitor object
@@ -105,6 +111,7 @@ namespace XrdCl
       static PostMaster        *sPostMaster;
       static Log               *sLog;
       static ForkHandler       *sForkHandler;
+      static FileTimer         *sFileTimer;
       static Monitor           *sMonitor;
       static XrdSysPlugin      *sMonitorLibHandle;
       static bool               sMonitorInitialized;

@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClPostMaster.hh"
+#include "XrdCl/XrdClFileTimer.hh"
 #include "XrdCl/XrdClFileStateHandler.hh"
 
 namespace XrdCl
@@ -28,7 +29,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ForkHandler::ForkHandler()
+  ForkHandler::ForkHandler():
+    pPostMaster(0), pFileTimer(0)
   {
   }
 
@@ -44,6 +46,7 @@ namespace XrdCl
 
     pMutex.Lock();
     pPostMaster->Stop();
+    pFileTimer->Lock();
 
     //--------------------------------------------------------------------------
     // Lock the user-level objects
@@ -85,6 +88,7 @@ namespace XrdCl
          ++itFs )
       (*itFs)->UnLock();
 
+    pFileTimer->UnLock();
     pPostMaster->Start();
 
     pMutex.UnLock();
@@ -116,9 +120,11 @@ namespace XrdCl
          ++itFs )
       (*itFs)->UnLock();
 
+    pFileTimer->UnLock();
     pPostMaster->Finalize();
     pPostMaster->Initialize();
     pPostMaster->Start();
+    pPostMaster->GetTaskManager()->RegisterTask( pFileTimer, time(0), false );
 
     pMutex.UnLock();
   }

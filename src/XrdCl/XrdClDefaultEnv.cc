@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClPostMaster.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClForkHandler.hh"
+#include "XrdCl/XrdClFileTimer.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
@@ -129,6 +130,7 @@ namespace XrdCl
   PostMaster        *DefaultEnv::sPostMaster         = 0;
   Log               *DefaultEnv::sLog                = 0;
   ForkHandler       *DefaultEnv::sForkHandler        = 0;
+  FileTimer         *DefaultEnv::sFileTimer          = 0;
   Monitor           *DefaultEnv::sMonitor            = 0;
   XrdSysPlugin      *DefaultEnv::sMonitorLibHandle   = 0;
   bool               DefaultEnv::sMonitorInitialized = false;
@@ -206,6 +208,7 @@ namespace XrdCl
         return 0;
       }
       sForkHandler->RegisterPostMaster( sPostMaster );
+      sPostMaster->GetTaskManager()->RegisterTask( sFileTimer, time(0), false );
     }
     return sPostMaster;
   }
@@ -224,6 +227,14 @@ namespace XrdCl
   ForkHandler *DefaultEnv::GetForkHandler()
   {
     return sForkHandler;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get fork handler
+  //----------------------------------------------------------------------------
+  FileTimer *DefaultEnv::GetFileTimer()
+  {
+    return sFileTimer;
   }
 
   //----------------------------------------------------------------------------
@@ -336,6 +347,8 @@ namespace XrdCl
     sLog         = new Log();
     sEnv         = new DefaultEnv();
     sForkHandler = new ForkHandler();
+    sFileTimer   = new FileTimer();
+    sForkHandler->RegisterFileTimer( sFileTimer );
     SetUpLog();
 
     //--------------------------------------------------------------------------
@@ -397,6 +410,9 @@ namespace XrdCl
 
     delete sForkHandler;
     sForkHandler = 0;
+
+    delete sFileTimer;
+    sFileTimer = 0;
 
     delete sEnv;
     sEnv = 0;

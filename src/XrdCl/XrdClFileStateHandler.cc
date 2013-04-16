@@ -27,6 +27,9 @@
 #include "XrdCl/XrdClXRootDTransport.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClFileTimer.hh"
+#include "XrdCl/XrdClResponseJob.hh"
+#include "XrdCl/XrdClJobManager.hh"
 
 #include <sstream>
 #include <sys/time.h>
@@ -257,6 +260,7 @@ namespace XrdCl
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
     DefaultEnv::GetForkHandler()->RegisterFileObject( this );
+    DefaultEnv::GetFileTimer()->RegisterFileObject( this );
   }
 
   //----------------------------------------------------------------------------
@@ -264,6 +268,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
+    DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
     DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
 
     if( pFileState != Closed )
@@ -1083,6 +1088,43 @@ namespace XrdCl
         break;
       }
     };
+  }
+
+  //------------------------------------------------------------------------
+  //! Tick
+  //------------------------------------------------------------------------
+  void FileStateHandler::Tick( time_t now )
+  {
+    TimeOutRequests( now );
+    XrdSysMutexHelper scopedLock( pMutex );
+  }
+
+  //----------------------------------------------------------------------------
+  // Declare timeout on requests being recovered
+  //----------------------------------------------------------------------------
+  void FileStateHandler::TimeOutRequests( time_t now )
+  {
+    if( !pToBeRecovered.empty() )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Dump( FileMsg, "[0x%x@%s] Got a timer event", this,
+                 pFileUrl->GetURL().c_str() );
+      RequestList::iterator it;
+      JobManager *jobMan = DefaultEnv::GetPostMaster()->GetJobManager();
+      for( it = pToBeRecovered.begin(); it != pToBeRecovered.end(); )
+      {
+        if( it->params.expires <= now )
+        {
+          jobMan->QueueJob( new ResponseJob(
+                              it->handler,
+                              new XRootDStatus( stError, errOperationExpired ),
+                              0, it->params.hostList ) );
+          it = pToBeRecovered.erase( it );
+        }
+        else
+          ++it;
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
