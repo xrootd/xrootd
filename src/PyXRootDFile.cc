@@ -195,7 +195,6 @@ namespace PyXRootD
     uint32_t    lastNewlineIndex = 0;
     bool        newlineFound     = false;
     PyObject          *pyline    = NULL;
-    XrdCl::Buffer     *chunk;
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
@@ -212,9 +211,11 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     if ( !self->surplus->empty() )
     {
-      pyline = PyString_FromStringAndSize( self->surplus->front()->GetBuffer(),
-                                           self->surplus->front()->GetSize() );
+      XrdCl::Buffer *surplus = self->surplus->front();
+      pyline = PyString_FromStringAndSize( surplus->GetBuffer(),
+                                           surplus->GetSize() );
       self->surplus->pop_front();
+      delete surplus;
       return pyline;
     }
 
@@ -223,20 +224,20 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     if ( size && self->currentOffset >= size )
     {
-      chunk = new XrdCl::Buffer();
+      self->chunk = new XrdCl::Buffer();
     }
     else
     {
-      chunk = self->ReadChunk( self, chunksize, self->currentOffset );
+      self->chunk = self->ReadChunk( self, chunksize, self->currentOffset );
       self->currentOffset += chunksize;
     }
 
     //--------------------------------------------------------------------------
     // We read nothing
     //--------------------------------------------------------------------------
-    if ( chunk->GetSize() == 0 )
+    if ( self->chunk->GetSize() == 0 )
     {
-      delete chunk;
+      //delete self->chunk;
 
       //------------------------------------------------------------------------
       // We have no partial line, return empty string
@@ -262,11 +263,11 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     while ( !newlineFound )
     {
-      for( uint32_t i = 0; i < chunk->GetSize(); ++i )
+      for( uint32_t i = 0; i < self->chunk->GetSize(); ++i )
       {
-        chunk->SetCursor( i );
+        self->chunk->SetCursor( i );
 
-        if( *chunk->GetBufferAtCursor() == '\n' )
+        if( *self->chunk->GetBufferAtCursor() == '\n' )
         {
           //--------------------------------------------------------------------
           // We found a newline
@@ -285,7 +286,8 @@ namespace PyXRootD
             //------------------------------------------------------------------
             if ( self->partial->GetSize() != 0 )
             {
-              self->partial->Append( chunk->GetBuffer(), lastNewlineIndex + 1 );
+              self->partial->Append( self->chunk->GetBuffer(),
+                                     lastNewlineIndex + 1 );
               pyline = PyString_FromStringAndSize( self->partial->GetBuffer(),
                                                    self->partial->GetSize() );
               self->partial->Free();
@@ -296,7 +298,7 @@ namespace PyXRootD
             //--------------------------------------------------------------------
             else
             {
-              pyline = PyString_FromStringAndSize( chunk->GetBuffer(),
+              pyline = PyString_FromStringAndSize( self->chunk->GetBuffer(),
                                                    lastNewlineIndex + 1 );
             }
           }
@@ -307,9 +309,8 @@ namespace PyXRootD
           else
           {
             XrdCl::Buffer *surplus = new XrdCl::Buffer();
-            surplus->Grab( chunk->GetBuffer( lastNewlineIndex + 1 ),
-                           i - lastNewlineIndex );
-
+            surplus->Append( self->chunk->GetBuffer( lastNewlineIndex + 1 ),
+                             i - lastNewlineIndex );
             self->surplus->push_back( surplus );
             lastNewlineIndex = i;
           }
@@ -320,40 +321,42 @@ namespace PyXRootD
       // We didn't find a newline in this chunk: read another
       //------------------------------------------------------------------------
       if ( !newlineFound ) {
-        chunk = self->ReadChunk( self, chunksize, self->currentOffset );
+        delete self->chunk;
+        self->chunk = self->ReadChunk( self, chunksize, self->currentOffset );
         self->currentOffset += chunksize;
       }
 
       //------------------------------------------------------------------------
       // We have a partial line left in the buffer
       //------------------------------------------------------------------------
-      if( lastNewlineIndex != chunk->GetSize() - 1 )
+      if( lastNewlineIndex != self->chunk->GetSize() - 1 )
       {
         uint32_t off = 0, sze = 0;
 
         if( lastNewlineIndex == 0 )
         {
-          if( *chunk->GetBuffer() == '\n' )
+          if( *self->chunk->GetBuffer() == '\n' )
           {
             off = 1;
-            sze = chunk->GetSize() - 1;
+            sze = self->chunk->GetSize() - 1;
           }
           else
           {
             off = 0;
-            sze = chunk->GetSize();
+            sze = self->chunk->GetSize();
           }
         }
         else
         {
           off = lastNewlineIndex + 1;
-          sze = chunk->GetSize() - lastNewlineIndex - 1;
+          sze = self->chunk->GetSize() - lastNewlineIndex - 1;
         }
 
-        self->partial->Append( chunk->GetBuffer( off ), sze );
+        self->partial->Append( self->chunk->GetBuffer( off ), sze );
       }
     }
 
+    delete self->chunk;
     return pyline;
   }
 
@@ -395,13 +398,16 @@ namespace PyXRootD
   XrdCl::Buffer* File::ReadChunk( File *self, uint64_t size, uint32_t offset )
   {
     XrdCl::XRootDStatus status;
-    char               *charbuf;
+    XrdCl::Buffer      *buffer;
+    XrdCl::Buffer      *temp;
     uint32_t            bytesRead;
 
-    charbuf = new char[size];
-    status = self->file->Read( offset, size, charbuf, bytesRead );
-    XrdCl::Buffer *buffer = new XrdCl::Buffer();
-    buffer->Grab( charbuf, bytesRead );
+    temp = new XrdCl::Buffer( size );
+    status = self->file->Read( offset, size, temp->GetBuffer(), bytesRead );
+
+    buffer = new XrdCl::Buffer( bytesRead );
+    buffer->Append( temp->GetBuffer(), bytesRead );
+    delete temp;
     return buffer;
   }
 

@@ -56,6 +56,7 @@ namespace PyXRootD
       PyObject_HEAD
       XrdCl::File                *file;
       uint32_t                    currentOffset;
+      XrdCl::Buffer              *chunk;
       XrdCl::Buffer              *partial;
       std::deque<XrdCl::Buffer*> *surplus;
   };
@@ -76,10 +77,10 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   static int File_init( File *self, PyObject *args )
   {
-    self->file = new XrdCl::File();
-    self->currentOffset = 0;
+    self->file    = new XrdCl::File();
     self->partial = new XrdCl::Buffer();
     self->surplus = new std::deque<XrdCl::Buffer*>();
+    self->currentOffset = 0;
     return 0;
   }
 
@@ -89,6 +90,7 @@ namespace PyXRootD
   static void File_dealloc( File *self )
   {
     delete self->file;
+    delete self->chunk;
     delete self->partial;
     delete self->surplus;
     self->ob_type->tp_free( (PyObject*) self );
