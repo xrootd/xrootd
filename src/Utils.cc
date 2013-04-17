@@ -41,25 +41,5 @@ namespace PyXRootD
     Py_INCREF( &URLType );
     return 0;
   }
-
-  bool HasNewline( const char *chunk, uint64_t size )
-  {
-    return ( std::string::npos != std::string( chunk, size ).find( "\n" ) );
-  }
-
-  std::vector<std::string>* SplitNewlines( const char *chunk, uint64_t size )
-  {
-    std::istringstream        stream( std::string( chunk, size ) );
-    std::string               line;
-    std::vector<std::string> *lines = new std::vector<std::string>();
-
-    while ( std::getline( stream, line )) {
-      if ( !stream.eof() ) line += '\n'; // Restore the newline
-      lines->push_back( line );
-      if ( stream.eof() ) break;
-    }
-
-    return lines;
-  }
 }
 
