@@ -56,6 +56,7 @@ namespace XrdCl
       virtual void Run( void *arg )
       {
         pHandler->HandleResponseWithHosts( pStatus, pResponse, pHostList );
+        delete this;
       }
 
     private:
