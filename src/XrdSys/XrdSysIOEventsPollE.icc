@@ -97,7 +97,6 @@ XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
 {
    static const int allocFD = 1024;
    struct epoll_event *pp, myEvent = {(EPOLLIN | EPOLLPRI), {0}};
-   Poller *myPoller;
    int pfd;
 
 // Open the /dev/poll driver
