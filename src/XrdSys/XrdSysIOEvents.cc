@@ -536,15 +536,17 @@ void XrdSys::IOEvents::Poller::Attach(XrdSys::IOEvents::Channel *cP)
 void XrdSys::IOEvents::Poller::CbkTMO()
 {
    Channel *cP;
-   time_t tNow = time(0);
 
 // Process each element in the timeout queue, calling the callback function
-// if the timeout has passed. As the timeout mutex is recursive, we can keep
-// it throughout this code as only this thread will modify the timeout list.
+// if the timeout has passed. As this method can be called with a lock on the
+// channel mutex, we need to drop it prior to calling the callback.
 //
    toMutex.Lock();
-   while((cP = tmoBase) && cP->deadLine <= tNow)
-        CbkXeq(cP, cP->dlType, 0, 0);
+   while((cP = tmoBase) && cP->deadLine <= time(0))
+        {toMutex.UnLock();
+         CbkXeq(cP, cP->dlType, 0, 0);
+         toMutex.Lock();
+        }
    toMutex.UnLock();
 }
 
@@ -1033,12 +1035,15 @@ int XrdSys::IOEvents::Poller::TmoGet()
 //
    toMutex.Lock();
 
-// Calculate wait time
+// Calculate wait time. If the deadline passed, invoke the timeout callback.
+// we will need to drop the timeout lock as we don't have the channel lock.
 //
    do {if (!tmoBase) {wtval = -1; break;}
        wtval = (tmoBase->deadLine - time(0)) * 1000;
        if (wtval > 0) break;
+       toMutex.UnLock();
        CbkTMO();
+       toMutex.Lock();
       } while(1);
 
 // Return the value
