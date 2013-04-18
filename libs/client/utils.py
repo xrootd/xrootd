@@ -51,4 +51,3 @@ class AsyncResponseHandler(object):
     self.mutex.acquire()
     self.mutex.release()
     return self.status, self.response, self.hostlist
-  

@@ -144,7 +144,7 @@ class File(object):
     """
     return self.__file.readlines(offset, size, chunksize)
 
-  def readchunks(self, offset=0, chunksize=1024*1024*2):
+  def readchunks(self, offset=0, chunksize=1024 * 1024 * 2):
     """Return an iterator object which will read data chunks from a given 
     offset of the given chunksize until EOF.
 

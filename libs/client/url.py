@@ -79,10 +79,7 @@ class URL(object):
     return self.__url.path_with_params
 
   def is_valid(self):
-    """Return the validity of the URL
-
-    :rtype: boolean
-    """
+    """Return the validity of the URL"""
     return self.__url.is_valid()
 
   def clear(self):

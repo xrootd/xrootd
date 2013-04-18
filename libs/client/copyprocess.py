@@ -27,8 +27,8 @@ class CopyProcess(object):
   def __init__(self):
     self.__process = client.CopyProcess()
 
-  def add_job(self, source, target, sourcelimit=1, force=False, posc=False, 
-              coerce=False, thirdparty=False, checksumprint=False, 
+  def add_job(self, source, target, sourcelimit=1, force=False, posc=False,
+              coerce=False, thirdparty=False, checksumprint=False,
               chunksize=4194304, parallelchunks=8):
     """Add a job to the copy process.
 
@@ -54,7 +54,7 @@ class CopyProcess(object):
     :param parallelchunks: number of chunks that should be requested in parallel
     :type  parallelchunks: integer
     """
-    self.__process.add_job(source, target, sourcelimit, force, posc, coerce, 
+    self.__process.add_job(source, target, sourcelimit, force, posc, coerce,
                            thirdparty, checksumprint, chunksize, parallelchunks)
 
   def prepare(self):
@@ -66,4 +66,3 @@ class CopyProcess(object):
     """Run the copy jobs."""
     status = self.__process.run()
     return XRootDStatus(status)
-  

@@ -18,11 +18,12 @@
 from XRootD.client.url import URL
 
 class Struct(object):
-    def __init__(self, entries):
-        self.__dict__.update(**entries)
-    def __repr__(self): 
-      return '<%s>' % str(', '.join('%s: %s' % (k, repr(v)) 
-                                    for (k, v) in self.__dict__.iteritems()))
+  """Convert a dict into an object by adding each dict entry to __dict__"""
+  def __init__(self, entries):
+      self.__dict__.update(**entries)
+  def __repr__(self):
+    return '<%s>' % str(', '.join('%s: %s' % (k, repr(v))
+                                  for (k, v) in self.__dict__.iteritems()))
 
 class LocationInfo(Struct):
   """Path location information (a list of discovered file locations).
@@ -42,7 +43,7 @@ class LocationInfo(Struct):
     
   """
   def __init__(self, locations):
-    super(LocationInfo, self).__init__({'locations': 
+    super(LocationInfo, self).__init__({'locations':
                                         [Location(l) for l in locations]})
 
   def __iter__(self):
@@ -89,7 +90,7 @@ class ProtocolInfo(Struct):
   """
   def __init__(self, info):
     super(ProtocolInfo, self).__init__(info)
-    
+
 class StatInfo(Struct):
   """Status information for files and directories.
   
@@ -172,7 +173,7 @@ class ChunkInfo(Struct):
   """
   def __init__(self, info):
     super(ChunkInfo, self).__init__(info)
-    
+
 class VectorReadInfo(Struct):
   """Vector read response object. 
   Returned by :mod:`XRootD.client.File.vector_read()`.

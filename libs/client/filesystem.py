@@ -37,7 +37,7 @@ class FileSystem(object):
   def url(self):
     """The server URL object, instance of :mod:`XRootD.client.URL`"""
     return self.__fs.url
-  
+
   def copy(self, source, target, force=False):
     """Copy a file. 
     
@@ -57,7 +57,7 @@ class FileSystem(object):
     :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
                    object and None
     """
-    return XRootDStatus(self.__fs.copy(source=source, target=target, 
+    return XRootDStatus(self.__fs.copy(source=source, target=target,
                                        force=force)), None
 
   def locate(self, path, flags, timeout=0, callback=None):
@@ -330,7 +330,7 @@ class FileSystem(object):
      """
     if callback:
       callback = CallbackWrapper(callback, None)
-      return XRootDStatus(self.__fs.prepare(files, flags, priority, timeout, 
+      return XRootDStatus(self.__fs.prepare(files, flags, priority, timeout,
                                             callback))
 
     status, response = self.__fs.prepare(files, flags, priority, timeout)
