@@ -119,10 +119,8 @@ namespace PyXRootD
   //! Visible method definitions
   //----------------------------------------------------------------------------
   static PyMethodDef URLMethods[] = {
-    { "is_valid", (PyCFunction) URL::IsValid, METH_NOARGS,
-        "Return the validity of the URL" },
-    { "clear",    (PyCFunction) URL::Clear,   METH_NOARGS,
-        "Clear the url" },
+    { "is_valid", (PyCFunction) URL::IsValid, METH_NOARGS, NULL },
+    { "clear",    (PyCFunction) URL::Clear,   METH_NOARGS, NULL },
     { NULL } /* Sentinel */
   };
 

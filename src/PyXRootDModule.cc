@@ -27,7 +27,7 @@ namespace PyXRootD
   // Global module object
   PyObject* ClientModule;
 
-  PyDoc_STRVAR(client_module_doc, "XRootD Client extension module.");
+  PyDoc_STRVAR(client_module_doc, "XRootD Client extension module");
 
   //----------------------------------------------------------------------------
   //! Visible module-level method declarations

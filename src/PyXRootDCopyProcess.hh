@@ -47,11 +47,10 @@ namespace PyXRootD
       //! Notify about the progress of the current job
       //------------------------------------------------------------------------
       void JobProgress( uint64_t bytesProcessed, uint64_t bytesTotal ) {}
-
   };
 
   //----------------------------------------------------------------------------
-  //! Copy the data from one point to another
+  //! XrdCl::CopyProcess binding class
   //----------------------------------------------------------------------------
   class CopyProcess
   {

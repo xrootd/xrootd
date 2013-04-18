@@ -26,6 +26,9 @@
 
 namespace PyXRootD
 {
+  //----------------------------------------------------------------------------
+  //! Convert an object of type T into a Python dictionary type.
+  //----------------------------------------------------------------------------
   template<typename T> struct PyDict;
 
   template<typename T>

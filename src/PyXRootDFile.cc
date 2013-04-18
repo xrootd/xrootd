@@ -666,9 +666,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::GetDataServer( File *self, PyObject *args, PyObject *kwds )
   {
+    (void) FileType; // Suppress unused variable warning
+
     if ( !PyArg_ParseTuple( args, ":get_data_server" ) ) return NULL; // No args
     return Py_BuildValue("s", self->file->GetDataServer().c_str());
-
-    (void) FileType; // Suppress unused variable warning
   }
 }
