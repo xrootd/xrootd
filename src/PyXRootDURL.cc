@@ -26,7 +26,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::IsValid( URL *self )
   {
-    return Py_BuildValue( "O", PyBool_FromLong( self->url->IsValid() ) );
+    return PyBool_FromLong( self->url->IsValid() );
   }
 
   //----------------------------------------------------------------------------
@@ -34,8 +34,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetHostId( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetHostId().c_str() ) );
+    return PyUnicode_FromString( self->url->GetHostId().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -43,8 +42,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetProtocol( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetProtocol().c_str() ) );
+    return PyUnicode_FromString( self->url->GetProtocol().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -66,8 +64,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetUserName( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetUserName().c_str() ) );
+    return PyUnicode_FromString( self->url->GetUserName().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -89,8 +86,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetPassword( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPassword().c_str() ) );
+    return PyUnicode_FromString( self->url->GetPassword().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -112,8 +108,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetHostName( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetHostName().c_str() ) );
+    return PyUnicode_FromString( self->url->GetHostName().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -135,7 +130,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetPort( URL *self, void *closure )
   {
-    return Py_BuildValue( "i", self->url->GetPort() );
+    return PyInt_FromLong( self->url->GetPort() );
   }
 
   //----------------------------------------------------------------------------
@@ -157,8 +152,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetPath( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPath().c_str() ) );
+    return PyUnicode_FromString( self->url->GetPath().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -180,8 +174,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::GetPathWithParams( URL *self, void *closure )
   {
-    return Py_BuildValue( "S",
-        PyUnicode_FromString( self->url->GetPathWithParams().c_str() ) );
+    return PyUnicode_FromString( self->url->GetPathWithParams().c_str() );
   }
 
   //----------------------------------------------------------------------------
@@ -189,9 +182,9 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* URL::Clear( URL *self )
   {
+    (void) URLType; // Suppress unused variable warning
+
     self->url->Clear();
     Py_RETURN_NONE ;
-
-    (void) URLType; // Suppress unused variable warning
   }
 }
