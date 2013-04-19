@@ -189,9 +189,9 @@ namespace XrdCl
       static void SetDescription( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Check whether the transport can highjack the message
+      //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual bool Highjack( Message *msg, AnyObject &channelData );
+      virtual uint32_t StreamAction( Message *msg, AnyObject &channelData );
 
     private:
 
