@@ -836,7 +836,7 @@ namespace XrdCl
   //------------------------------------------------------------------------
   // Check whether the transport can highjack the message
   //------------------------------------------------------------------------
-  bool XRootDTransport::Highjack( Message *msg, AnyObject &channelData )
+  uint32_t XRootDTransport::StreamAction( Message *msg, AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
@@ -851,7 +851,7 @@ namespace XrdCl
     if( rsp->hdr.status == kXR_attn )
     {
       if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
-        return false;
+        return NoAction;
       rsp = (ServerResponse*)msg->GetBuffer(16);
     }
 
@@ -862,9 +862,9 @@ namespace XrdCl
                   msg, rsp->hdr.streamid[0], rsp->hdr.streamid[1] );
       info->sidManager->ReleaseTimedOut( rsp->hdr.streamid );
       delete msg;
-      return true;
+      return DigestMsg;
     }
-    return false;
+    return NoAction;
   }
 
   //----------------------------------------------------------------------------
