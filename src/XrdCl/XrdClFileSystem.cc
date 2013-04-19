@@ -92,6 +92,7 @@ namespace
                         "the initial location list: %s", this, pPath.c_str(),
                         status->ToStr().c_str() );
             pHandler->HandleResponse( status, response );
+            scopedLock.UnLock();
             delete this;
             return;
           }
@@ -105,6 +106,7 @@ namespace
             log->Debug( FileSystemMsg, "[0x%x@DeepLocate(%s)] No outstanding "
                         "requests, give out what we've got", this,
                         pPath.c_str() );
+            scopedLock.UnLock();
             HandleFinalResponse();
           }
           delete status;
@@ -150,7 +152,10 @@ namespace
         delete response;
         delete status;
         if( !pOutstanding )
+        {
+          scopedLock.UnLock();
           HandleFinalResponse();
+        }
       }
 
       //------------------------------------------------------------------------
