@@ -94,7 +94,7 @@ namespace XrdCl
       Status EnableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
-          return Status( stError, errPollerError );
+          return Status( stFatal, errPollerError );
         return Status();
       }
 
@@ -104,7 +104,7 @@ namespace XrdCl
       Status DisableUplink()
       {
         if( !pPoller->EnableWriteNotification( pSocket, false ) )
-          return Status( stError, errPollerError );
+          return Status( stFatal, errPollerError );
         return Status();
       }
 
