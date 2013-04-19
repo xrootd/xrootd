@@ -552,6 +552,7 @@ namespace XrdCl
       //! List entries of a directory - async
       //!
       //! @param path    directory path
+      //! @param flags   currently unused
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a DirectoryList
       //!                object if the procedure is successfull
@@ -559,9 +560,10 @@ namespace XrdCl
       //!                be used
       //! @return        status of the operation
       //------------------------------------------------------------------------
-      XRootDStatus DirList( const std::string &path,
-                            ResponseHandler   *handler,
-                            uint16_t           timeout = 0 );
+      XRootDStatus DirList( const std::string   &path,
+                            DirListFlags::Flags  flags,
+                            ResponseHandler     *handler,
+                            uint16_t             timeout = 0 );
 
       //------------------------------------------------------------------------
       //! List entries of a directory - sync

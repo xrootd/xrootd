@@ -782,9 +782,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // List entries of a directory - async
   //----------------------------------------------------------------------------
-  XRootDStatus FileSystem::DirList( const std::string &path,
-                                    ResponseHandler   *handler,
-                                    uint16_t           timeout )
+  XRootDStatus FileSystem::DirList( const std::string   &path,
+                                    DirListFlags::Flags  flags,
+                                    ResponseHandler     *handler,
+                                    uint16_t             timeout )
   {
     Message           *msg;
     ClientStatRequest *req;
@@ -877,7 +878,7 @@ namespace XrdCl
     // We just ask the current server
     //--------------------------------------------------------------------------
     SyncResponseHandler handler;
-    XRootDStatus st = DirList( path, &handler, timeout );
+    XRootDStatus st = DirList( path, flags, &handler, timeout );
     if( !st.IsOK() )
       return st;
 
