@@ -269,6 +269,26 @@ namespace XrdCl
   class TransportHandler
   {
     public:
+
+      //------------------------------------------------------------------------
+      //! Stream actions that may be triggered by incoming control messages
+      //------------------------------------------------------------------------
+      enum StreamAction
+      {
+        NoAction     = 0x0000, //!< No action
+        DigestMsg    = 0x0001, //!< Digest the incoming message so that it won't
+                               //!< be passed to the user handlers
+        AbortStream  = 0x0002, //!< Disconnect, abort all the on-going
+                               //!< operations and mark the stream as
+                               //!< permanently broken [not yet implemented]
+        CloseStream  = 0x0004, //!< Disconnect and attempt reconnection later
+                               //!< [not yet implemented]
+        ResumeStream = 0x0008, //!< Resume sending requests
+                               //!< [not yet implemented]
+        HoldStream   = 0x0010  //!< Stop sending requests [not yet implemented]
+      };
+
+
       virtual ~TransportHandler() {}
 
       //------------------------------------------------------------------------
@@ -366,10 +386,9 @@ namespace XrdCl
                             AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
-      //! Check whether the transport can highjack the message
+      //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual bool Highjack( Message *msg, AnyObject &channelData ) = 0;
-
+      virtual uint32_t StreamAction( Message *msg, AnyObject &channelData ) = 0;
   };
 }
 
