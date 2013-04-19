@@ -310,9 +310,8 @@ namespace XrdCl
       //! Recover a message
       //!
       //! @param rd                request data associated with the message
-      //! @param callbackOnFailure should the current message be inserted into
-      //!                          the recovery queue if the recovery procedure
-      //!                          fails
+      //! @param callbackOnFailure should the current handler be called back
+      //!                          if the recovery procedure fails
       //------------------------------------------------------------------------
       Status RecoverMessage( RequestData rd, bool callbackOnFailure = true );
 
