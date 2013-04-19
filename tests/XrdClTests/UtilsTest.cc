@@ -339,7 +339,6 @@ void UtilsTest::TaskManagerTest()
   taskMan.RegisterTask( tsk2, now+1 );
 
   ::sleep( 6 );
-  taskMan.UnregisterTask( tsk1 );
   taskMan.UnregisterTask( tsk2 );
 
   ::sleep( 2 );
