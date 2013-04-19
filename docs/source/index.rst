@@ -2,12 +2,16 @@
 ``pyxrootd``: Python bindings for XRootD
 ========================================
 
-``pyxrootd`` is a set of simple but pythonic bindings for `XRootD <http://xrootd.slac.stanford.edu>`_.
+.. warning:: This documentation is still under construction, it is likely to
+             change.
 
-.. warning:: This documentation is still under construction.
+``pyxrootd`` is a set of simple but pythonic bindings for 
+`XRootD <http://xrootd.slac.stanford.edu>`_. It is designed to make it easy to
+interface with the XRootD client, by writing Python instead of having to write
+C++. 
 
-Bug reporting and issue tracking: `the pyxrootd github issue tracker
-<http://github.com/xrootd/xrootd-python/issues>`_
+For bug reporting and issue tracking, please see `the pyxrootd github issue 
+tracker <http://github.com/xrootd/xrootd-python/issues>`_
 
 User Guide
 ==========
@@ -25,7 +29,7 @@ API Reference
 
 .. toctree::
    :numbered:
-   :maxdepth: 2
+   :maxdepth: 1
 
    modules/client/filesystem
    modules/client/file
