@@ -16,10 +16,10 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_ENUM_HH__
-#define __XRD_CL_ENUM_HH__
+#ifndef __XRD_OUC_ENUM_HH__
+#define __XRD_OUC_ENUM_HH__
 
-#define XRDCL_ENUM_OPERATORS( T ) \
+#define XRDOUC_ENUM_OPERATORS( T ) \
   inline T  operator |  (const T  a, const T b) { return T(int(a) | int(b)); }  \
   inline T &operator |= (      T &a, const T b) { return a = a | b; }           \
   inline T  operator &  (const T  a, const T b) { return T(int(a) & int(b)); }  \
@@ -29,4 +29,4 @@
   inline T  operator ~  (const T a)             { return T(~int(a)); }
 
 
-#endif // __XRD_CL_ENUM_HH__
+#endif // __XRD_OUC_ENUM_HH__

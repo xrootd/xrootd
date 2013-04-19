@@ -21,7 +21,7 @@
 
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClStatus.hh"
-#include "XrdCl/XrdClEnum.hh"
+#include "XrdOuc/XrdOucEnum.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XProtocol/XProtocol.hh"
@@ -93,7 +93,7 @@ namespace XrdCl
       SeqIO    = kXR_seqio       //!< File will be read or written sequentially
     };
   };
-  XRDCL_ENUM_OPERATORS( OpenFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( OpenFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Access mode
@@ -117,7 +117,7 @@ namespace XrdCl
       OX   = kXR_ox          //!< world executable/browsable
     };
   };
-  XRDCL_ENUM_OPERATORS( Access::Mode )
+  XRDOUC_ENUM_OPERATORS( Access::Mode )
 
   //----------------------------------------------------------------------------
   //! MkDir flags
@@ -130,7 +130,7 @@ namespace XrdCl
       MakePath = 1   //!< create the entire directory tree if it doesn't exist
     };
   };
-  XRDCL_ENUM_OPERATORS( MkDirFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( MkDirFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! DirList flags
@@ -145,7 +145,7 @@ namespace XrdCl
                    //!< the dirlist request to all of them
     };
   };
-  XRDCL_ENUM_OPERATORS( DirListFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( DirListFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Prepare flags
@@ -163,7 +163,7 @@ namespace XrdCl
                                   //!< modification
     };
   };
-  XRDCL_ENUM_OPERATORS( PrepareFlags::Flags )
+  XRDOUC_ENUM_OPERATORS( PrepareFlags::Flags )
 
   //----------------------------------------------------------------------------
   //! Send file/filesystem queries to an XRootD cluster
