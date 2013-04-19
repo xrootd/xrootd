@@ -66,6 +66,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   uint8_t XRootDMsgHandler::Examine( Message *msg )
   {
+    if( msg->GetSize() < 8 )
+      return Ignore;
+
     ServerResponse *rsp    = (ServerResponse *)msg->GetBuffer();
     ClientRequest  *req    = (ClientRequest *)pRequest->GetBuffer();
     uint16_t        status = 0;
@@ -76,10 +79,16 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( rsp->hdr.status == kXR_attn )
     {
+      if( msg->GetSize() < 12 )
+        return Ignore;
+
       //------------------------------------------------------------------------
       // We only care about async responses
       //------------------------------------------------------------------------
       if( rsp->body.attn.actnum != (int32_t)htonl(kXR_asynresp) )
+        return Ignore;
+
+      if( msg->GetSize() < 24 )
         return Ignore;
 
       //------------------------------------------------------------------------
@@ -306,6 +315,16 @@ namespace XrdCl
       {
         std::auto_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
+
+        if( rsp->hdr.dlen < 4 )
+        {
+          log->Error( XRootDMsg, "[%s] Got invalid redirect response.",
+                      pUrl.GetHostId().c_str() );
+          pStatus = Status( stError, errInvalidResponse );
+          HandleResponse();
+          return;
+        }
+
         char *urlInfoBuff = new char[rsp->hdr.dlen-3];
         urlInfoBuff[rsp->hdr.dlen-4] = 0;
         memcpy( urlInfoBuff, rsp->body.redirect.host, rsp->hdr.dlen-4 );
@@ -476,6 +495,16 @@ namespace XrdCl
       {
         std::auto_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
+
+        if( rsp->hdr.dlen < 4 )
+        {
+          log->Error( XRootDMsg, "[%s] Got invalid waitresp response.",
+                      pUrl.GetHostId().c_str() );
+          pStatus = Status( stError, errInvalidResponse );
+          HandleResponse();
+          return;
+        }
+
         log->Dump( XRootDMsg, "[%s] Got kXR_waitresp response of %d seconds to "
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
@@ -1149,6 +1178,13 @@ namespace XrdCl
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
 
+        if( rsp->hdr.dlen < 8 )
+        {
+          log->Error( XRootDMsg, "[%s] Got invalid redirect response.",
+                      pUrl.GetHostId().c_str() );
+          return Status( stError, errInvalidResponse );
+        }
+
         ProtocolInfo *data = new ProtocolInfo( rsp->body.protocol.pval,
                                                rsp->body.protocol.flags );
         obj->Set( data );
@@ -1185,6 +1221,13 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as OpenInfo",
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
+
+        if( rsp->hdr.dlen < 4 )
+        {
+          log->Error( XRootDMsg, "[%s] Got invalid open response.",
+                      pUrl.GetHostId().c_str() );
+          return Status( stError, errInvalidResponse );
+        }
 
         AnyObject *obj      = new AnyObject();
         StatInfo  *statInfo = 0;
