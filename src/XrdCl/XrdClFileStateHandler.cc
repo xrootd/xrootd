@@ -1178,7 +1178,7 @@ namespace XrdCl
       // Invalid session id means that the connection has been broken while we
       // were iddle so we haven't been informed about this fact earlier.
       //------------------------------------------------------------------------
-      if( !st.IsOK() && st.code == errInvalidSession )
+      if( !st.IsOK() && st.code == errInvalidSession && IsRecoverable( st ) )
         return RecoverMessage( RequestData( msg, handler, sendParams ), false );
 
       if( st.IsOK() )
@@ -1241,7 +1241,8 @@ namespace XrdCl
 
     if( callbackOnFailure )
       FailMessage( rd, st );
-    return Status();
+
+    return st;
   }
 
   //----------------------------------------------------------------------------
