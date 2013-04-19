@@ -426,15 +426,26 @@ namespace XrdCl
       {
         std::auto_ptr<Message> msgPtr( pResponse );
         pResponse = 0;
+        uint32_t waitSeconds = 0;
 
-        char *infoMsg = new char[rsp->hdr.dlen-3];
-        infoMsg[rsp->hdr.dlen-4] = 0;
-        memcpy( infoMsg, rsp->body.wait.infomsg, rsp->hdr.dlen-4 );
-        log->Dump( XRootDMsg, "[%s] Got kXR_wait response of %d seconds to "
-                   "message %s: %s", pUrl.GetHostId().c_str(),
-                   rsp->body.wait.seconds, pRequest->GetDescription().c_str(),
-                   infoMsg );
-        delete [] infoMsg;
+        if( rsp->hdr.dlen >= 4 )
+        {
+          char *infoMsg = new char[rsp->hdr.dlen-3];
+          infoMsg[rsp->hdr.dlen-4] = 0;
+          memcpy( infoMsg, rsp->body.wait.infomsg, rsp->hdr.dlen-4 );
+          log->Dump( XRootDMsg, "[%s] Got kXR_wait response of %d seconds to "
+                     "message %s: %s", pUrl.GetHostId().c_str(),
+                     rsp->body.wait.seconds, pRequest->GetDescription().c_str(),
+                     infoMsg );
+          delete [] infoMsg;
+          waitSeconds = rsp->body.wait.seconds;
+        }
+        else
+        {
+          log->Dump( XRootDMsg, "[%s] Got kXR_wait response of 0 seconds to "
+                     "message %s", pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str() );
+        }
 
         //----------------------------------------------------------------------
         // Some messages require rewriting before they can be sent again
@@ -453,7 +464,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         TaskManager *taskMgr = pPostMaster->GetTaskManager();
         taskMgr->RegisterTask( new WaitTask( this ),
-                               ::time(0)+rsp->body.wait.seconds );
+                               ::time(0)+waitSeconds );
         return;
       }
 
