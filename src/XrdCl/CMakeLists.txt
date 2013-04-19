@@ -60,7 +60,6 @@ add_library(
   XrdClForkHandler.cc         XrdClForkHandler.hh
   XrdClCheckSumManager.cc     XrdClCheckSumManager.hh
   XrdClTransportManager.cc    XrdClTransportManager.hh
-                              XrdClEnum.hh
                               XrdClSyncQueue.hh
   XrdClJobManager.cc          XrdClJobManager.hh
                               XrdClResponseJob.hh
@@ -134,7 +133,6 @@ install(
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
-    XrdClEnum.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(

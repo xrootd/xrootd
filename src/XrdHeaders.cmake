@@ -60,6 +60,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucTrace.hh
   XrdOuc/XrdOucUtils.hh
   XrdOuc/XrdOuca2x.hh
+  XrdOuc/XrdOucEnum.hh
   XrdPosix/XrdPosixCallBack.hh
   XrdPosix/XrdPosixExtern.hh
   XrdPosix/XrdPosixOsDep.hh

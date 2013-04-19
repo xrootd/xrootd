@@ -91,6 +91,7 @@ add_library(
                                 XrdOuc/XrdOucTable.hh
                                 XrdOuc/XrdOucTList.hh
                                 XrdOuc/XrdOucXAttr.hh
+                                XrdOuc/XrdOucEnum.hh
 
   #-----------------------------------------------------------------------------
   # XrdNet
