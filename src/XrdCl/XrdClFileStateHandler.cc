@@ -1195,34 +1195,16 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsRecoverable( const XRootDStatus &status ) const
   {
-    if( status.code == errOperationExpired )
-      return false;
-
-    if( status.code == errRedirectLimit )
-      return false;
-
-    if( IsReadOnly() && !pDoRecoverRead )
-      return false;
-
-    if( !IsReadOnly() && !pDoRecoverWrite )
-      return false;
-
-    if( status.code == errErrorResponse )
+    if( status.code == errSocketError || status.code == errInvalidSession )
     {
-      if( IsReadOnly() && pLoadBalancer && (status.errNo == kXR_FSError ||
-          status.errNo == kXR_IOError || status.errNo == kXR_ServerError) )
-      {
-        return true;
-      }
-      return false;
-    }
+      if( IsReadOnly() && !pDoRecoverRead )
+        return false;
 
-    if( !IsReadOnly() && (pOpenFlags & kXR_posc) )
-      return false;
+      if( !IsReadOnly() && !pDoRecoverWrite )
+        return false;
 
-    if( !status.IsFatal() )
       return true;
-
+    }
     return false;
   }
 
