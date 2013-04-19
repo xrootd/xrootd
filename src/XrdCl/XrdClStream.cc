@@ -399,7 +399,9 @@ namespace XrdCl
       log->Dump( PostMasterMsg, "[%s] Queuing received message.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
 
-      if( pTransport->Highjack( msg, *pChannelData ) )
+      uint32_t streamAction = pTransport->StreamAction( msg, *pChannelData );
+
+      if( streamAction & TransportHandler::DigestMsg )
         return;
       pJobManager->QueueJob( pQueueIncMsgJob, msg );
       return;
