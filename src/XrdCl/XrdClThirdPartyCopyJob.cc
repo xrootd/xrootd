@@ -26,6 +26,7 @@
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdOuc/XrdOucTPC.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
 #include <cctype>
 #include <sstream>
@@ -243,7 +244,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     while( 1 )
     {
-      sleep(1);
+      XrdSysTimer::Wait( 1000 );
 
       if( progress )
       {

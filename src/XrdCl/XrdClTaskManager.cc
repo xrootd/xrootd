@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 #include <iostream>
 
@@ -240,7 +241,7 @@ namespace XrdCl
       // Enable the cancelation and go to sleep
       //------------------------------------------------------------------------
       pthread_setcancelstate( PTHREAD_CANCEL_ENABLE, 0 );
-      ::sleep( pResolution );
+      XrdSysTimer::Wait( pResolution*1000 );
     }
   }
 }
