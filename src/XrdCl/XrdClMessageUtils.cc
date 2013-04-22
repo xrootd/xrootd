@@ -194,8 +194,9 @@ namespace XrdCl
         delete [] pathWithNull;
 
         URL currentPath( o.str() );
-        URL::ParamsMap &currentCgi = currentPath.GetParams();
+        URL::ParamsMap currentCgi = currentPath.GetParams();
         MergeCGI( currentCgi, newCgi, replace );
+        currentPath.SetParams( currentCgi );
         std::string newPath = currentPath.GetPathWithParams();
 
         //----------------------------------------------------------------------

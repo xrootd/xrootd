@@ -433,7 +433,7 @@ namespace XrdCl
         // Send the request to the new location
         //----------------------------------------------------------------------
         pHosts->push_back( pUrl );
-        pHosts->back().url.GetParams() = cgiURL.GetParams();
+        pHosts->back().url.SetParams( cgiURL.GetParams() );
         HandleError( RetryAtServer(pUrl) );
         return;
       }
