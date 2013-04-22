@@ -161,7 +161,17 @@ if test -d common -a -r common; then
 fi
 
 #-------------------------------------------------------------------------------
-# Make a tarball 
+# Generate the spec file
+#-------------------------------------------------------------------------------
+if test ! -r rhel/xrootd.spec.in; then
+  echo "[!] The specfile template does not exist!" 1>&2
+  exit 7
+fi
+cat rhel/xrootd.spec.in | sed "s/__VERSION__/$VERSION/" | \
+  sed "s/__RELEASE__/$RELEASE/" > $TEMPDIR/xrootd.spec
+
+#-------------------------------------------------------------------------------
+# Make a tarball of the latest commit on the branch
 #-------------------------------------------------------------------------------
 # no more exiting on error
 set +e
@@ -182,17 +192,27 @@ if test $? -ne 0; then
   echo "[!] Unable to create the source tarball" 1>&2
   exit 6
 fi
-cd $CWD
 
 #-------------------------------------------------------------------------------
-# Generate the spec file
+# Check if we need some other versions
 #-------------------------------------------------------------------------------
-if test ! -r rhel/xrootd.spec.in; then
-  echo "[!] The specfile template does not exist!" 1>&2
-  exit 7
-fi
-cat rhel/xrootd.spec.in | sed "s/__VERSION__/$VERSION/" | \
-  sed "s/__RELEASE__/$RELEASE/" > $TEMPDIR/xrootd.spec
+OTHER_VERSIONS=`cat $TEMPDIR/xrootd.spec | \
+    egrep '^Source[0-9]+:[[:space:]]*xrootd-[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz$' |\
+    awk  '{ print $2; }'`
+
+for VER in $OTHER_VERSIONS; do
+    VER=${VER/xrootd-/}
+    VER=${VER/.tar.gz/}
+
+    git archive --prefix=xrootd-$VER/ --format=tar v$VER | gzip -9fn > \
+        $RPMSOURCES/xrootd-$VER.tar.gz
+
+    if test $? -ne 0; then
+        echo "[!] Unable to create the source tarball" 1>&2
+        exit 9
+    fi
+done
+cd $CWD
 
 #-------------------------------------------------------------------------------
 # Build the source RPM
