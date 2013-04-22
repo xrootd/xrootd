@@ -65,6 +65,7 @@
 #ifdef __solaris__
 #define posix_memalign(memp, algn, sz) \
         ((*memp = memalign(algn, sz)) ? 0 : ENOMEM)
+#define __USE_LEGACY_PROTOTYPES__ 1
 #endif
 
 #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__)
