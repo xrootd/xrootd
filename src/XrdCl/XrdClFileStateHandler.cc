@@ -806,15 +806,17 @@ namespace XrdCl
       pLoadBalancer = 0;
 
       pDataServer = new URL( hostList->back().url );
-      pDataServer->GetParams() = pFileUrl->GetParams();
+      pDataServer->SetParams( pFileUrl->GetParams() );
       pDataServer->SetPath( pFileUrl->GetPath() );
       HostList::const_iterator itC;
+      URL::ParamsMap params = pDataServer->GetParams();
       for( itC = hostList->begin(); itC != hostList->end(); ++itC )
       {
-        MessageUtils::MergeCGI( pDataServer->GetParams(),
+        MessageUtils::MergeCGI( params,
                                 itC->url.GetParams(),
                                 true );
       }
+      pDataServer->SetParams( params );
 
       HostList::const_reverse_iterator it;
       for( it = hostList->rbegin(); it != hostList->rend(); ++it )
@@ -1005,9 +1007,11 @@ namespace XrdCl
       o << redirectInfo->host << ":" << redirectInfo->port << "//fakepath?";
       o << redirectInfo->cgi;
       pStateRedirect = new URL( o.str() );
-      MessageUtils::MergeCGI( pFileUrl->GetParams(),
+      URL::ParamsMap params = pFileUrl->GetParams();
+      MessageUtils::MergeCGI( params,
                               pStateRedirect->GetParams(),
                               false );
+      pFileUrl->SetParams( params );
     }
 
     RecoverMessage( RequestData( message, userHandler, sendParams ) );

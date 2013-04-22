@@ -942,8 +942,10 @@ namespace XrdCl
     {
       if( src->GetSize() >= 0 )
       {
+        URL::ParamsMap params = newDestUrl.GetParams();
         std::ostringstream o; o << src->GetSize();
-        newDestUrl.GetParams()["oss.asize"] = o.str();
+        params["oss.asize"] = o.str();
+        newDestUrl.SetParams( params );
       }
       dest.reset( new XRootDDestination( &newDestUrl ) );
     }

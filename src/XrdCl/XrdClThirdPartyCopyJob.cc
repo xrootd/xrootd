@@ -138,12 +138,13 @@ namespace XrdCl
     delete [] cgiBuff;
 
     pJob->realTarget = pJob->target;
-    MessageUtils::MergeCGI( pJob->realTarget.GetParams(),
-                            cgiURL.GetParams(), true );
+    URL::ParamsMap params = pJob->realTarget.GetParams();
+    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
 
     std::ostringstream o; o << pTPCInfo.sourceSize;
-    pJob->realTarget.GetParams()["oss.asize"] = o.str();
-    pJob->realTarget.GetParams()["tpc.stage"] = "copy";
+    params["oss.asize"] = o.str();
+    params["tpc.stage"] = "copy";
+    pJob->realTarget.SetParams( params );
 
     log->Debug( UtilityMsg, "Target url is: %s",
                 pJob->realTarget.GetURL().c_str() );
@@ -190,9 +191,10 @@ namespace XrdCl
     delete [] cgiBuff;
     pJob->sources.clear();
     pJob->sources.push_back( pTPCInfo.source );
-    MessageUtils::MergeCGI( pJob->sources[0].GetParams(),
-                            cgiURL.GetParams(), true );
-    pJob->sources[0].GetParams()["tpc.stage"] = "copy";
+    params = pJob->sources[0].GetParams();
+    MessageUtils::MergeCGI( params, cgiURL.GetParams(), true );
+    params["tpc.stage"] = "copy";
+    pJob->sources[0].SetParams( params );
 
     log->Debug( UtilityMsg, "Source url is: %s",
                 pJob->sources[0].GetURL().c_str() );
@@ -401,7 +403,9 @@ namespace XrdCl
     XRootDStatus  st;
     URL           sourceURL = jd->source;
 
-    sourceURL.GetParams()["tpc.stage"] = "placement";
+    URL::ParamsMap params = sourceURL.GetParams();
+    params["tpc.stage"] = "placement";
+    sourceURL.SetParams( params );
     log->Debug( UtilityMsg, "Trying to open %s for reading",
                 sourceURL.GetURL().c_str() );
     st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read );
