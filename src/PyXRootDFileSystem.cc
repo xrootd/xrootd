@@ -532,7 +532,7 @@ namespace PyXRootD
     if ( callback && callback != Py_None ) {
       XrdCl::ResponseHandler *handler = GetHandler<XrdCl::DirectoryList>( callback );
       if ( !handler ) return NULL;
-      async( status = self->filesystem->DirList( path, handler, timeout ) );
+      async( status = self->filesystem->DirList( path, flags, handler, timeout ) );
     }
 
     else {
