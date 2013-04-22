@@ -21,6 +21,8 @@ URL:       http://xrootd.org/
 # cd xrootd
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
+Source1:   xrootd-3.3.1.tar.gz
+
 BuildRoot: %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.8
@@ -186,6 +188,7 @@ This package contains a set of CPPUnit tests for xrootd.
 #-------------------------------------------------------------------------------
 %prep
 %setup -c -n %{name}
+%setup -T -D -n %{name} -a 1
 
 %build
 cd %{name}
@@ -199,6 +202,15 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
 %endif
 
 make VERBOSE=1 %{?_smp_mflags}
+
+#-------------------------------------------------------------------------------
+# Build old libXrdCl.so.0.0.1
+#-------------------------------------------------------------------------------
+cd ../../xrootd-3.3.1
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
+make VERBOSE=1 %{?_smp_mflags} XrdCl
 
 #-------------------------------------------------------------------------------
 # Installation
@@ -252,6 +264,14 @@ mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.pm \
    $RPM_BUILD_ROOT%{perl_vendorarch}
 mv $RPM_BUILD_ROOT/%{_libdir}/XrdClientAdmin.so \
    $RPM_BUILD_ROOT%{perl_vendorarch}/auto/XrdClientAdmin
+
+#-------------------------------------------------------------------------------
+# Install libXrdCl.so.0.0.1
+#-------------------------------------------------------------------------------
+cd ../xrootd-3.3.1/build
+install -m 755 src/XrdCl/libXrdCl.so.0.0.1 $RPM_BUILD_ROOT%{_libdir}/libXrdCl.so.0.0.1
+cd $RPM_BUILD_ROOT%{_libdir}
+ln -sf libXrdCl.so.0.0.1 libXrdCl.so.0
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -479,6 +499,9 @@ exit 0
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Apr 22 2013 Lukasz Janyst <ljanyst@cern.ch>
+- add libXrdCl.so.0.0.1 for backwards compatibility
+
 * Thu Nov 1 2012 Justin Salmon <jsalmon@cern.ch>
 - add tests package
 
