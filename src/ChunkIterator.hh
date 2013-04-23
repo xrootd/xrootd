@@ -32,9 +32,9 @@ namespace PyXRootD
     public:
       PyObject_HEAD
       File    *file;
-      uint64_t chunksize;
-      uint32_t startOffset;
-      uint32_t currentOffset;
+      uint32_t chunksize;
+      uint64_t startOffset;
+      uint64_t currentOffset;
   };
 
   //----------------------------------------------------------------------------
