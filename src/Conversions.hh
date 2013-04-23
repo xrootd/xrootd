@@ -79,12 +79,13 @@ namespace PyXRootD
   {
       static PyObject* Convert( XrdCl::StatInfo *info )
       {
-        return Py_BuildValue( "{sssksIskss}",
-            "id",         info->GetId().c_str(),
-            "size",       info->GetSize(),
-            "flags",      info->GetFlags(),
-            "modtime",    info->GetModTime(),
-            "modtimestr", info->GetModTimeAsString().c_str() );
+        return Py_BuildValue("{sOsOsOsOsO}",
+            "id",         Py_BuildValue("s", info->GetId().c_str()),
+            "size",       Py_BuildValue("k", info->GetSize()),
+            "flags",      Py_BuildValue("I", info->GetFlags()),
+            "modtime",    Py_BuildValue("k", info->GetModTime()),
+            "modtimestr", Py_BuildValue("s",
+                                        info->GetModTimeAsString().c_str()));
       }
   };
 
@@ -222,9 +223,9 @@ namespace PyXRootD
           PyObject *buffer = Py_BuildValue( "s#", (const char *) chunk.buffer,
                                                   chunk.length );
           PyList_SET_ITEM( pychunks, i,
-              Py_BuildValue( "{sksIsO}",
-                  "offset", chunk.offset,
-                  "length", chunk.length,
+              Py_BuildValue( "{sOsOsO}",
+                  "offset", Py_BuildValue( "k", chunk.offset ),
+                  "length", Py_BuildValue( "I", chunk.length ),
                   "buffer", buffer ) );
           Py_DECREF( buffer );
         }

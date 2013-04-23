@@ -424,13 +424,14 @@ namespace PyXRootD
 
     if ( !self->file->IsOpen() ) return FileClosedError();
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|Ik:readchunks",
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|kI:readchunks",
          (char**) kwlist, &offset, &chunksize ) ) return NULL;
 
     ChunkIteratorType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &ChunkIteratorType ) < 0 ) return NULL;
 
-    args = Py_BuildValue( "OkI", self, offset, chunksize );
+    args = Py_BuildValue( "OOO", self, Py_BuildValue("k", offset),
+                                       Py_BuildValue("I", chunksize) );
     iterator = (ChunkIterator*)
                PyObject_CallObject( (PyObject *) &ChunkIteratorType, args );
     Py_DECREF( args );
