@@ -53,7 +53,7 @@ namespace XrdCl
   const int DefaultCPChunkSize          = 16777216;
   const int DefaultCPParallelChunks     = 4;
 
-  const char * const DefaultPollerPreference   = "built-in,libevent";
+  const char * const DefaultPollerPreference   = "libevent,built-in";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
 }
