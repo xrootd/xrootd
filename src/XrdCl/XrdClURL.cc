@@ -368,8 +368,13 @@ namespace XrdCl
   void URL::ComputeHostId()
   {
     std::ostringstream o;
-    if( pUserName.length() )
-      o << pUserName << "@";
+    if( !pUserName.empty() )
+    {
+      o << pUserName;
+      if( !pPassword.empty() )
+        o << ":" << pPassword;
+      o << "@";
+    }
     o << pHostName << ":" << pPort;
     pHostId = o.str();
   }
