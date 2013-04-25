@@ -52,7 +52,7 @@ namespace
       //------------------------------------------------------------------------
       // Message handler
       //------------------------------------------------------------------------
-      virtual uint8_t Examine( XrdCl::Message *msg )
+      virtual uint16_t Examine( XrdCl::Message *msg )
       {
         if( pFilter->Filter( msg ) )
           return Take | RemoveHandler;

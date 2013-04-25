@@ -58,9 +58,9 @@ namespace XrdCl
       //!
       //! @return handler or 0 if none is interested
       //------------------------------------------------------------------------
-      IncomingMsgHandler *GetHandlerForMessage( Message *msg,
-                                                time_t  &expires,
-                                                uint8_t &action );
+      IncomingMsgHandler *GetHandlerForMessage( Message  *msg,
+                                                time_t   &expires,
+                                                uint16_t &action );
 
       //------------------------------------------------------------------------
       //! Re-insert the handler without scanning the cached messages

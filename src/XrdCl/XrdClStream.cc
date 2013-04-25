@@ -63,7 +63,7 @@ namespace XrdCl
     InMessageHelper( Message              *message = 0,
                      IncomingMsgHandler   *hndlr   = 0,
                      time_t                expir   = 0,
-                     uint8_t               actio   = 0 ):
+                     uint16_t              actio   = 0 ):
       msg( message ), handler( hndlr ), expires( expir ), action( actio ) {}
     void Reset()
     {
@@ -72,7 +72,7 @@ namespace XrdCl
     Message              *msg;
     IncomingMsgHandler   *handler;
     time_t                expires;
-    uint8_t               action;
+    uint16_t              action;
   };
 
   //----------------------------------------------------------------------------
@@ -396,7 +396,7 @@ namespace XrdCl
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
     if( !mh.handler )
     {
-      log->Dump( PostMasterMsg, "[%s] Queuing received message.",
+      log->Dump( PostMasterMsg, "[%s] Queuing received message: %s.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
 
       uint32_t streamAction = pTransport->StreamAction( msg, *pChannelData );
@@ -410,13 +410,21 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have a handler, so we call the callback
     //--------------------------------------------------------------------------
-    log->Dump( PostMasterMsg, "[%s] Handling received message.",
+    log->Dump( PostMasterMsg, "[%s] Handling received message: %s.",
                pStreamName.c_str(), msg->GetDescription().c_str() );
-    Job *job = new HandleIncMsgJob( mh.handler );
 
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
+    if( mh.action & IncomingMsgHandler::NoProcess )
+    {
+      log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: %s.",
+                 pStreamName.c_str(), msg->GetDescription().c_str() );
+      mh.Reset();
+      return;
+    }
+
+    Job *job = new HandleIncMsgJob( mh.handler );
     mh.Reset();
     pJobManager->QueueJob( job, msg );
   }

@@ -108,7 +108,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t Examine( Message *msg  );
+      virtual uint16_t Examine( Message *msg  );
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
