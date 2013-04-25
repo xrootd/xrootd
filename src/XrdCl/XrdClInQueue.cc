@@ -29,18 +29,17 @@ namespace XrdCl
     pMutex.Lock();
 
     HandlerList::iterator  it;
-    uint8_t                action  = 0;
+    uint16_t               action  = 0;
     IncomingMsgHandler    *handler = 0;
-    for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
+    for( it = pHandlers.begin(); it != pHandlers.end(); )
     {
       handler = it->first;
       action  = handler->Examine( msg );
 
       if( action & IncomingMsgHandler::RemoveHandler )
-      {
         it = pHandlers.erase( it );
-        --it;
-      }
+      else
+        ++it;
 
       if( action & IncomingMsgHandler::Take )
         break;
@@ -52,7 +51,7 @@ namespace XrdCl
       pMessages.push_front( msg );
 
     pMutex.UnLock();
-    if( handler )
+    if( handler && !(action & IncomingMsgHandler::NoProcess) )
       handler->Process( msg );
 
     return true;
@@ -66,17 +65,19 @@ namespace XrdCl
     XrdSysMutexHelper scopedLock( pMutex );
 
     std::list<Message *>::iterator it;
-    uint8_t                        action = 0;
-    for( it = pMessages.begin(); it != pMessages.end(); ++it )
+    uint16_t                       action = 0;
+    for( it = pMessages.begin(); it != pMessages.end(); )
     {
       action = handler->Examine( *it );
 
       if( action & IncomingMsgHandler::Take )
       {
-        handler->Process( *it );
+        if( !(action & IncomingMsgHandler::NoProcess ) )
+          handler->Process( *it );
         it = pMessages.erase( it );
-        --it;
       }
+      else
+        ++it;
 
       if( action & IncomingMsgHandler::RemoveHandler )
         break;
@@ -90,15 +91,15 @@ namespace XrdCl
   // Get a message handler inerested in receiving message whose header
   // is storead in msg
   //----------------------------------------------------------------------------
-  IncomingMsgHandler *InQueue::GetHandlerForMessage( Message *msg,
-                                                     time_t  &expires,
-                                                     uint8_t &action )
+  IncomingMsgHandler *InQueue::GetHandlerForMessage( Message  *msg,
+                                                     time_t   &expires,
+                                                     uint16_t &action )
   {
     XrdSysMutexHelper scopedLock( pMutex );
     HandlerList::iterator  it;
     IncomingMsgHandler    *handler = 0;
-    time_t  exp = 0;
-    uint8_t act = 0;
+    time_t   exp = 0;
+    uint16_t act = 0;
     for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
     {
       handler = it->first;

@@ -64,7 +64,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Examine an incomming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
-  uint8_t XRootDMsgHandler::Examine( Message *msg )
+  uint16_t XRootDMsgHandler::Examine( Message *msg )
   {
     if( msg->GetSize() < 8 )
       return Ignore;
@@ -198,12 +198,12 @@ namespace XrdCl
           {
             pReadRawStarted = false;
             pAsyncMsgSize   = dlen;
-            return Take | Raw;
+            return Take | Raw | NoProcess;
           }
           else
           {
             pReadRawCurrentOffset += dlen;
-            return Take;
+            return Take | NoProcess;
           }
         }
 
@@ -216,13 +216,13 @@ namespace XrdCl
           {
             pAsyncMsgSize      = dlen;
             pReadVRawMsgOffset = 0;
-            return Take | Raw;
+            return Take | Raw | NoProcess;
           }
           else
-            return Take;
+            return Take | NoProcess;
         }
 
-        return Take;
+        return Take | NoProcess;
       }
 
       //------------------------------------------------------------------------
@@ -509,16 +509,6 @@ namespace XrdCl
                    "message %s", pUrl.GetHostId().c_str(),
                    rsp->body.waitresp.seconds,
                    pRequest->GetDescription().c_str() );
-        return;
-      }
-
-      //------------------------------------------------------------------------
-      // We've got a partial answer. Wait for more
-      //------------------------------------------------------------------------
-      case kXR_oksofar:
-      {
-        // we do nothing here, we queued partials in examine to have them
-        // in the right order
         return;
       }
 

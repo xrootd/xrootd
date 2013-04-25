@@ -58,13 +58,16 @@ namespace XrdCl
       //------------------------------------------------------------------------
       enum Action
       {
-        Take          = 0x01,     //!< Take ownership over the message
-        Ignore        = 0x02,     //!< Ignore the message
-        RemoveHandler = 0x04,     //!< Remove the handler from the notification
-                                  //!< list
-        Raw           = 0x08      //!< the handler is interested in reding
-                                  //!< the message body directly from the
-                                  //!< socket
+        Take          = 0x0001,    //!< Take ownership over the message
+        Ignore        = 0x0002,    //!< Ignore the message
+        RemoveHandler = 0x0004,    //!< Remove the handler from the notification
+                                   //!< list
+        Raw           = 0x0008,    //!< the handler is interested in reding
+                                   //!< the message body directly from the
+                                   //!< socket
+        NoProcess     = 0x0010     //!< don't call the processing callback
+                                   //!< even if the message belongs to this
+                                   //!< handler
       };
 
       //------------------------------------------------------------------------
@@ -91,7 +94,7 @@ namespace XrdCl
       //! @return       action type that needs to be take wrt the message and
       //!               the handler
       //------------------------------------------------------------------------
-      virtual uint8_t Examine( Message *msg ) = 0;
+      virtual uint16_t Examine( Message *msg ) = 0;
 
       //------------------------------------------------------------------------
       //! Process the message if it was "taken" by the examine action
