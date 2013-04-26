@@ -1,3 +1,8 @@
+%if 0%{?rhel} && 0%{?rhel} <= 5
+%{!?python_sitelib: %global python_sitelib %(%{__python} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")}
+%{!?python_sitearch: %global python_sitearch %(%{__python} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(1))")}
+%endif
+
 %global _binaries_in_noarch_packages_terminate_build 0
 
 %global __os_install_post    \
@@ -28,10 +33,10 @@ pyxrootd is a set of python language bindings for xrootd.
 %setup -n %{name}-%{version}
 
 %build
-env CFLAGS="$RPM_OPT_FLAGS" python setup.py build
+env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 
 %install
-python setup.py install --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
+%{__python} setup.py install --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 
 %clean
 [ "x%{buildroot}" != "x/" ] && rm -rf %{buildroot}
@@ -40,5 +45,7 @@ python setup.py install --root=$RPM_BUILD_ROOT --record=INSTALLED_FILES
 %defattr(-,root,root)
 
 %changelog
+* Fri Apr 26 2013 Justin Salmon <jsalmon@cern.ch>
+- Install to correct place in RHEL5
 * Wed Apr 03 2013 Justin Salmon <jsalmon@cern.ch>
 - Initial version
