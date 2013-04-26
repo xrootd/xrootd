@@ -311,6 +311,8 @@ public:
 
        void Wait();
 
+static void CleanUp(void *semVar);
+
   XrdSysSemaphore(int semval=1,const char *cid=0) : semVar(0, cid)
                                   {semVal = semval; semWait = 0;}
  ~XrdSysSemaphore() {}
