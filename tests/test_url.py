@@ -26,7 +26,7 @@ def test_invalid():
 def test_getters():
   u = client.FileSystem("root://user1:passwd1@host1:123//path?param1=val1&param2=val2").url
   assert u.is_valid()
-  assert u.hostid == 'user1@host1:123'
+  assert u.hostid == 'user1:passwd1@host1:123'
   assert u.protocol == 'root'
   assert u.username == 'user1'
   assert u.password == 'passwd1'
