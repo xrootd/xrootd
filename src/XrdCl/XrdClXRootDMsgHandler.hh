@@ -102,7 +102,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Examine an incomming message, and decide on the action to be taken
+      //! Examine an incoming message, and decide on the action to be taken
       //!
       //! @param msg    the message, may be zero if receive failed
       //! @return       action type that needs to be take wrt the message and
@@ -232,7 +232,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Set the redirect coutner
+      //! Set the redirect counter
       //------------------------------------------------------------------------
       void SetRedirectCounter( uint16_t redirectCounter )
       {
@@ -300,7 +300,7 @@ namespace XrdCl
       Status RewriteRequestRedirect( const URL::ParamsMap &newCgi );
 
       //------------------------------------------------------------------------
-      //! Some requests need to be rewriten also after getting kXR_wait - sigh
+      //! Some requests need to be rewritten also after getting kXR_wait - sigh
       //------------------------------------------------------------------------
       Status RewriteRequestWait();
 

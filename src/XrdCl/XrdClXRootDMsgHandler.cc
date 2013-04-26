@@ -62,7 +62,7 @@ namespace
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
-  // Examine an incomming message, and decide on the action to be taken
+  // Examine an incoming message, and decide on the action to be taken
   //----------------------------------------------------------------------------
   uint16_t XRootDMsgHandler::Examine( Message *msg )
   {
@@ -360,7 +360,7 @@ namespace XrdCl
           if( flags & kXR_isManager )
           {
             //------------------------------------------------------------------
-            // If the current server is a meta manager then it superseeds
+            // If the current server is a meta manager then it supersedes
             // any existing load balancer, otherwise we assign a load-balancer
             // only if it has not been already assigned
             //------------------------------------------------------------------
@@ -665,7 +665,7 @@ namespace XrdCl
 
         //----------------------------------------------------------------------
         // We cannot afford to read the next header from the stream because
-        // we will cross the message boundry
+        // we will cross the message boundary
         //----------------------------------------------------------------------
         if( pReadVRawMsgOffset + 16 > pAsyncMsgSize )
         {
@@ -726,7 +726,7 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( !chunkFound )
         {
-          log->Error( XRootDMsg, "[%s] ReadRawReadV: Imposible to find chunk "
+          log->Error( XRootDMsg, "[%s] ReadRawReadV: Impossible to find chunk "
                       "buffer corresponding to %d bytes at %ld.",
                       pUrl.GetHostId().c_str(), pReadVRawChunkHeader.rlen,
                       pReadVRawChunkHeader.offset );
@@ -742,7 +742,7 @@ namespace XrdCl
 
         //----------------------------------------------------------------------
         // The chunk was found, but reading all the data will cross the message
-        // boundry
+        // boundary
         //----------------------------------------------------------------------
         if( pReadVRawMsgOffset + pReadVRawChunkHeader.rlen > pAsyncMsgSize )
         {
@@ -750,7 +750,7 @@ namespace XrdCl
 
           log->Error( XRootDMsg, "[%s] ReadRawReadV: Malformed chunk header: "
                       "reading %d bytes from message would cross the message "
-                      "boundry, discarding %d bytes.", pUrl.GetHostId().c_str(),
+                      "boundary, discarding %d bytes.", pUrl.GetHostId().c_str(),
                       pReadVRawChunkHeader.rlen, discardSize );
 
           pAsyncOffset     = 0;
@@ -861,7 +861,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
-    // We were successfull, so we now need to listen for a response
+    // We were successful, so we now need to listen for a response
     //--------------------------------------------------------------------------
     if( status.IsOK() )
     {
@@ -1397,7 +1397,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Some requests need to be rewriten also after getting kXR_wait
+  // Some requests need to be rewritten also after getting kXR_wait
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RewriteRequestWait()
   {
@@ -1447,7 +1447,7 @@ namespace XrdCl
       UnPackReadVResponse( pResponse );
 
     //--------------------------------------------------------------------------
-    // See if all the chunks are OK and put them in the reponse
+    // See if all the chunks are OK and put them in the response
     //--------------------------------------------------------------------------
     uint32_t size = 0;
     for( uint32_t i = 0; i < pChunkList->size(); ++i )
@@ -1532,7 +1532,7 @@ namespace XrdCl
         if( offset+chunk->rlen+16 > len )
         {
           log->Error( XRootDMsg, "[%s] Handling response to %s: copying "
-                      "requested data would cross message boundry",
+                      "requested data would cross message boundary",
                       pUrl.GetHostId().c_str(),
                       pRequest->GetDescription().c_str() );
           return Status( stFatal, errInvalidResponse );
@@ -1597,9 +1597,9 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // Nothing can be done if:
-    // 1) a user timeout has occured
+    // 1) a user timeout has occurred
     // 2) has a non-zero session id
-    // 3) if another error occured and the validity of the message expired
+    // 3) if another error occurred and the validity of the message expired
     //--------------------------------------------------------------------------
     if( status.code == errOperationExpired || pRequest->GetSessionId() ||
         time(0) >= pExpiration )

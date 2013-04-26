@@ -113,7 +113,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Open the file
     //--------------------------------------------------------------------------
-    log->Debug( UtilityMsg, "Openning %s for reading (chacksum calc)",
+    log->Debug( UtilityMsg, "Opening %s for reading (checksum calc)",
                filePath.c_str() );
 
     int fd = open( filePath.c_str(), O_RDONLY );

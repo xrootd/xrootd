@@ -60,7 +60,7 @@ namespace XrdCl
       virtual void Finalize() {};
 
       //------------------------------------------------------------------------
-      //! Called when an event occured on a given socket
+      //! Called when an event occurred on a given socket
       //------------------------------------------------------------------------
       virtual void Event( uint8_t  type,
                           Socket  *socket ) = 0;
@@ -130,7 +130,7 @@ namespace XrdCl
       //!
       //! @param socket  the socket
       //! @param notify  specify if the handler should be notified
-      //! @param timeout if no read event occured after this time a timeout
+      //! @param timeout if no read event occurred after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableReadNotification( Socket  *socket,
@@ -141,7 +141,7 @@ namespace XrdCl
       //! Notify the handler about write events
       //! @param socket  the socket
       //! @param notify  specify if the handler should be notified
-      //! @param timeout if no write event occured after this time a timeout
+      //! @param timeout if no write event occurred after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,

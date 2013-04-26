@@ -58,7 +58,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Add a listener that should be notified about incomming messages
+  // Add a listener that should be notified about incoming messages
   //----------------------------------------------------------------------------
   void InQueue::AddMessageHandler( IncomingMsgHandler *handler, time_t expires )
   {
@@ -88,8 +88,8 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Get a message handler inerested in receiving message whose header
-  // is storead in msg
+  // Get a message handler interested in receiving message whose header
+  // is stored in msg
   //----------------------------------------------------------------------------
   IncomingMsgHandler *InQueue::GetHandlerForMessage( Message  *msg,
                                                      time_t   &expires,

@@ -49,7 +49,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url the sercer that the executor should contact
+      //! @param url the server that the executor should contact
       //! @param env execution environment, the executor takes ownership over it
       //------------------------------------------------------------------------
       FSExecutor( const URL &url, Env *env = 0 );

@@ -81,7 +81,7 @@ namespace XrdCl
       //!
       //! @param socket  the socket
       //! @param notify  specify if the handler should be notified
-      //! @param timeout if no read event occured after this time a timeout
+      //! @param timeout if no read event occurred after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableReadNotification( Socket  *socket,
@@ -93,7 +93,7 @@ namespace XrdCl
       //!
       //! @param socket  the socket
       //! @param notify  specify if the handler should be notified
-      //! @param timeout if no write event occured after this time a timeout
+      //! @param timeout if no write event occurred after this time a timeout
       //!                event will be generated
       //------------------------------------------------------------------------
       virtual bool EnableWriteNotification( Socket  *socket,

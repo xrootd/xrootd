@@ -73,7 +73,7 @@ namespace XrdCl
       void ReleaseAllTimedOut();
 
       //------------------------------------------------------------------------
-      //! Number of timeoud sids
+      //! Number of timeout sids
       //------------------------------------------------------------------------
       uint32_t NumberOfTimedOutSIDs() const
       {

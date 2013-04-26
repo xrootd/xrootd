@@ -215,4 +215,4 @@ elif test x"`diff src/XrdVersion.hh.new src/XrdVersion.hh`" != x; then
 else
   rm src/XrdVersion.hh.new
 fi
-echo "[I] src/XrdVersion.hh successfuly generated" 1>&2
+echo "[I] src/XrdVersion.hh successfully generated" 1>&2

@@ -69,7 +69,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Run short tasks at a given time in the future
   //!
-  //! The task manager just runs one extra thread so the execution of one taks
+  //! The task manager just runs one extra thread so the execution of one tasks
   //! may interfere with the execution of another
   //----------------------------------------------------------------------------
   class TaskManager
@@ -101,7 +101,7 @@ namespace XrdCl
       //! Run the given task at the given time.
       //!
       //! @param task task to be run
-      //! @param time time at which the task schould be run
+      //! @param time time at which the task should be run
       //! @param own  determines whether the task object should be destroyed
       //!             when no longer needed
       //------------------------------------------------------------------------

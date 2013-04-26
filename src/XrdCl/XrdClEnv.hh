@@ -30,7 +30,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! A simple key value store intended to hold global configuration.
   //! It is able to import the settings from the shell environment, the
-  //! variables imported this way surceede these provided from the C++
+  //! variables imported this way supersede these provided from the C++
   //! code.
   //----------------------------------------------------------------------------
   class Env

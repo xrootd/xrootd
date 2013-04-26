@@ -971,7 +971,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     Obtain server information. Query codes:\n\n"                );
 
   printf( "     config         <what>   Server configuration\n"             );
-  printf( "     checksumcancel <path>   File checksum cancelation\n"        );
+  printf( "     checksumcancel <path>   File checksum cancellation\n"       );
   printf( "     checksum       <path>   File checksum\n"                    );
   printf( "     opaque         <arg>    Implementation dependent\n"         );
   printf( "     opaquefile     <arg>    Implementation dependent\n"         );

@@ -62,7 +62,7 @@ namespace XrdCl
         Ignore        = 0x0002,    //!< Ignore the message
         RemoveHandler = 0x0004,    //!< Remove the handler from the notification
                                    //!< list
-        Raw           = 0x0008,    //!< the handler is interested in reding
+        Raw           = 0x0008,    //!< the handler is interested in reading
                                    //!< the message body directly from the
                                    //!< socket
         NoProcess     = 0x0010     //!< don't call the processing callback
@@ -71,13 +71,13 @@ namespace XrdCl
       };
 
       //------------------------------------------------------------------------
-      //! Events that may have occured to the stream
+      //! Events that may have occurred to the stream
       //------------------------------------------------------------------------
       enum StreamEvent
       {
         Ready      = 1, //!< The stream has become connected
         Broken     = 2, //!< The stream is broken
-        Timeout    = 3, //!< The declared timeout has occured
+        Timeout    = 3, //!< The declared timeout has occurred
         FatalError = 4  //!< Stream has been broken and won't be recovered
       };
 
@@ -88,7 +88,7 @@ namespace XrdCl
       virtual ~IncomingMsgHandler() {}
 
       //------------------------------------------------------------------------
-      //! Examine an incomming message, and decide on the action to be taken
+      //! Examine an incoming message, and decide on the action to be taken
       //!
       //! @param msg    the message, may be zero if receive failed
       //! @return       action type that needs to be take wrt the message and
@@ -193,7 +193,7 @@ namespace XrdCl
   {
     public:
       //------------------------------------------------------------------------
-      //! Events that may have occured to the channel
+      //! Events that may have occurred to the channel
       //------------------------------------------------------------------------
       enum ChannelEvent
       {
@@ -210,7 +210,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Event callback
       //!
-      //! @param event   the event that has occured
+      //! @param event   the event that has occurred
       //! @param stream  the stream concerned
       //! @param status  the status info
       //! @return true if the handler should be kept
@@ -296,9 +296,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Read a message header from the socket, the socket is non-blocking,
-      //! so if there is not enough data the function should retutn errRetry
+      //! so if there is not enough data the function should return errRetry
       //! in which case it will be called again when more data arrives, with
-      //! the data previousely read stored in the message buffer
+      //! the data previously read stored in the message buffer
       //!
       //! @param message the message buffer
       //! @param socket  the socket

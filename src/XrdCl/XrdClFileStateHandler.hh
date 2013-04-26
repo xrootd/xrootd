@@ -32,7 +32,7 @@ namespace XrdCl
   class Message;
 
   //----------------------------------------------------------------------------
-  //! Handle the statefull operations
+  //! Handle the stateful operations
   //----------------------------------------------------------------------------
   class FileStateHandler
   {
@@ -94,7 +94,7 @@ namespace XrdCl
       //! @param force   do not use the cached information, force re-stating
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -113,7 +113,7 @@ namespace XrdCl
       //!                or 0 if the buffer should be allocated by the system
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a buffer object if
-      //!                the procedure was successful, if a prealocated
+      //!                the procedure was successful, if a preallocated
       //!                buffer was specified then the buffer object will
       //!                "wrap" this buffer
       //! @param timeout timeout value, if 0 the environment default will be
@@ -127,7 +127,7 @@ namespace XrdCl
                          uint16_t         timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! Write a data chank at a given offset - async
+      //! Write a data chunk at a given offset - async
       //!
       //! @param offset  offset from the beginning of the file
       //! @param size    number of bytes to be written
@@ -279,7 +279,7 @@ namespace XrdCl
 
     private:
       //------------------------------------------------------------------------
-      // Helper for queueing messages
+      // Helper for queuing messages
       //------------------------------------------------------------------------
       struct RequestData
       {

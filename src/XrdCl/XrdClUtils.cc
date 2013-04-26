@@ -97,7 +97,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Get the elapsed mictoseconds between two timevals
+  // Get the elapsed microseconds between two timevals
   //----------------------------------------------------------------------------
   uint64_t Utils::GetElapsedMicroSecs( timeval start, timeval end )
   {

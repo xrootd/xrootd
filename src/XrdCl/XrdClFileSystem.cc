@@ -1013,7 +1013,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Assign a loadbalancer if it has not already been assigned
+  // Assign a load balancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )
   {

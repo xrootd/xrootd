@@ -243,7 +243,7 @@ namespace XrdCl
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
-    // Some usefull variables
+    // Some useful variables
     //--------------------------------------------------------------------------
     bytesRead = 0;
 
@@ -338,7 +338,7 @@ namespace XrdCl
       return Status( stError, errInvalidOp );
 
     //--------------------------------------------------------------------------
-    // Some usefull variables
+    // Some useful variables
     //--------------------------------------------------------------------------
     bytesWritten = 0;
 
@@ -466,7 +466,7 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // We loop on poll because it may return -1 even thought no fatal error
-    // has occured, these may be:
+    // has occurred, these may be:
     // * a signal interrupting the execution (errno == EINTR)
     // * a failure to initialize some internal structures (Solaris only)
     //   (errno == EAGAIN)

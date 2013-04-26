@@ -45,7 +45,7 @@ namespace XrdCl
     enum Code
     {
       Config         = kXR_Qconfig,    //!< Query server configuration
-      ChecksumCancel = kXR_Qckscan,    //!< Query file checksum cancelation
+      ChecksumCancel = kXR_Qckscan,    //!< Query file checksum cancellation
       Checksum       = kXR_Qcksum,     //!< Query file checksum
       Opaque         = kXR_Qopaque,    //!< Implementation dependent
       OpaqueFile     = kXR_Qopaquf,    //!< Implementation dependent
@@ -68,7 +68,7 @@ namespace XrdCl
     enum Flags
     {
       None     = 0,              //!< Nothing
-      Delete   = kXR_delete,     //!< Open a new file, deleting any axisting
+      Delete   = kXR_delete,     //!< Open a new file, deleting any existing
                                  //!< file
       Force    = kXR_force,      //!< Ignore file usage rules
       MakePath = kXR_mkpath,     //!< Create directory path if it does not
@@ -195,7 +195,7 @@ namespace XrdCl
       //! @param flags   some of the OpenFlags::Flags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a Buffer object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -227,7 +227,7 @@ namespace XrdCl
       //! @param flags   some of the OpenFlags::Flags
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a Buffer object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -287,7 +287,7 @@ namespace XrdCl
       //! @param arg       query argument
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -474,7 +474,7 @@ namespace XrdCl
       //! @param path    file/directory path
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -502,7 +502,7 @@ namespace XrdCl
       //! @param path    file/directory path
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfoVFS object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -529,7 +529,7 @@ namespace XrdCl
       //!
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a ProtocolInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -555,7 +555,7 @@ namespace XrdCl
       //! @param flags   currently unused
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a DirectoryList
-      //!                object if the procedure is successfull
+      //!                object if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -586,7 +586,7 @@ namespace XrdCl
       //! @param info      the info string to be sent
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -616,7 +616,7 @@ namespace XrdCl
       //! @param priority  priority of the request 0 (lowest) - 3 (highest)
       //! @param handler   handler to be notified when the response arrives,
       //!                  the response parameter will hold a Buffer object
-      //!                  if the procedure is successfull
+      //!                  if the procedure is successful
       //! @param timeout   timeout value, if 0 the environment default will
       //!                  be used
       //! @return          status of the operation
@@ -654,7 +654,7 @@ namespace XrdCl
                    const MessageSendParams &params );
 
       //------------------------------------------------------------------------
-      // Assign a loadbalancer if it has not already been assigned
+      // Assign a load balancer if it has not already been assigned
       //------------------------------------------------------------------------
       void AssignLoadBalancer( const URL &url );
 
