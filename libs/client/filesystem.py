@@ -22,8 +22,8 @@ from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
 
 class FileSystem(object):
-  """Interact with an ``xrootd`` server to perform filesystem-based operations 
-  such as copying files, creating directories, changing file permissions, 
+  """Interact with an ``xrootd`` server to perform filesystem-based operations
+  such as copying files, creating directories, changing file permissions,
   listing directories, etc.
 
   :param url: The URL of the server to connect with
@@ -39,22 +39,22 @@ class FileSystem(object):
     return self.__fs.url
 
   def copy(self, source, target, force=False):
-    """Copy a file. 
-    
-    .. note:: This method is less configurable than using 
+    """Copy a file.
+
+    .. note:: This method is less configurable than using
               :mod:`XRootD.client.CopyProcess` - it is designed to be as simple
               as possible by using sensible defaults for the underlying copy
               job. If you need more configurability, or want to make multiple
-              copy jobs run at once in parallel, use 
+              copy jobs run at once in parallel, use
               :mod:`XRootD.client.CopyProcess`.
-    
+
     :param source: Source file path
     :type  source: string
     :param target: Destination file path
     :type  target: string
     :param  force: overwrite target if it exists
     :type   force: boolean
-    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
     return XRootDStatus(self.__fs.copy(source=source, target=target,
@@ -66,7 +66,7 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
-    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
@@ -83,7 +83,7 @@ class FileSystem(object):
     :param  path: path to the file to be located
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.flags.OpenFlags`
-    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and :mod:`XRootD.client.responses.LocationInfo` object
     """
     if callback:
@@ -101,7 +101,7 @@ class FileSystem(object):
     :type  source: string
     :param   dest: the new name
     :type    dest: string
-    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
     if callback:
@@ -122,8 +122,8 @@ class FileSystem(object):
     :rtype:           string
 
     .. note::
-      For more information about XRootD query codes and arguments, see 
-      `the relevant section in the protocol reference 
+      For more information about XRootD query codes and arguments, see
+      `the relevant section in the protocol reference
       <http://xrootd.slac.stanford.edu/doc/prod/XRdv299.htm#_Toc337053385>`_.
     """
     if callback:
@@ -140,7 +140,7 @@ class FileSystem(object):
     :type  path: string
     :param size: file size
     :type  size: integer
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
     if callback:
@@ -155,7 +155,7 @@ class FileSystem(object):
 
     :param path: path to the file to be removed
     :type  path: string
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
     if callback:
@@ -175,7 +175,7 @@ class FileSystem(object):
     :param  mode: the initial file access mode, an `ORed` combination of
                   :mod:`XRootD.client.flags.AccessMode` where the default is
                   `AccessMode.NONE`
-    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and None
     """
     if callback:
@@ -190,7 +190,7 @@ class FileSystem(object):
 
     :param path: path to the directory to remove
     :type  path: string
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
     if callback:
@@ -207,7 +207,7 @@ class FileSystem(object):
     :type  path: string
     :param mode: An `OR`ed` combination of :mod:`XRootD.client.flags.AccessMode`
                  where the default is `AccessMode.NONE`
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
     if callback:
@@ -220,7 +220,7 @@ class FileSystem(object):
   def ping(self, timeout=0, callback=None):
     """Check if the server is alive.
 
-    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus`
               object and None
     """
     if callback:
@@ -235,7 +235,7 @@ class FileSystem(object):
 
     :param path: path to the file/directory to stat
     :type  path: string
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and :mod:`XRootD.client.responses.StatInfo` object
     """
     if callback:
@@ -251,7 +251,7 @@ class FileSystem(object):
 
     :param path: path to the file/directory to stat
     :type  path: string
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and :mod:`XRootD.client.responses.StatInfoVFS` object
     """
     if callback:
@@ -265,7 +265,7 @@ class FileSystem(object):
   def protocol(self, timeout=0, callback=None):
     """Obtain server protocol information.
 
-    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus`
               object and :mod:`XRootD.client.responses.ProtocolInfo` object
     """
     if callback:
@@ -283,14 +283,14 @@ class FileSystem(object):
     :type   path: string
     :param flags: An `ORed` combination of :mod:`XRootD.client.flags.DirListFlags`
                   where the default is `DirListFlags.NONE`
-    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and :mod:`XRootD.client.responses.DirectoryList` object
-                  
-    .. warning:: Currently, passing `DirListFlags.STAT` with an asynchronous 
-                 call to :mod:`XRootD.client.FileSystem.dirlist()` does not 
-                 work, due to an xrootd client limitation. So you'll get 
-                 ``None`` instead of the ``StatInfo`` instance. See 
-                 `the GitHub issue <https://github.com/xrootd/xrootd/issues/2>`_ 
+
+    .. warning:: Currently, passing `DirListFlags.STAT` with an asynchronous
+                 call to :mod:`XRootD.client.FileSystem.dirlist()` does not
+                 work, due to an xrootd client limitation. So you'll get
+                 ``None`` instead of the ``StatInfo`` instance. See
+                 `the GitHub issue <https://github.com/xrootd/xrootd/issues/2>`_
                  for more details.
     """
     if callback:
@@ -306,7 +306,7 @@ class FileSystem(object):
 
     :param info: the info string to be sent
     :type  info: string
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
      """
     if callback:
@@ -325,7 +325,7 @@ class FileSystem(object):
                      :mod:`XRootD.client.flags.PrepareFlags`
     :param priority: priority of the request 0 (lowest) - 3 (highest)
     :type  priority: integer
-    :returns:        tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:        tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                      object and None
      """
     if callback:

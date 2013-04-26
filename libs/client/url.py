@@ -27,8 +27,7 @@ class URL(object):
     >>> url = URL(root://user1:passwd1@host1:1234//path?param1=val1&param2=val2)
 
   then ``url.hostid`` would return `user1:passwd1@host1:1234`.
-  
-  
+
   :var           hostid: The host part of the URL, i.e. ``user1:passwd1@host1:1234``
   :var         protocol: The protocol part of the URL, i.e. ``root``
   :var         username: The username part of the URL, i.e. ``user1``
@@ -36,7 +35,7 @@ class URL(object):
   :var         hostname: The name of the target host part of the URL, i.e. ``host1``
   :var             port: The target port part of the URL, i.e. ``1234``
   :var             path: The path part of the URL, i.e. ``path``
-  :var path_with_params: The path part of the URL with parameters, i.e. 
+  :var path_with_params: The path part of the URL with parameters, i.e.
                          ``path?param1=val1&param2=val2``
   """
 

@@ -1,4 +1,4 @@
-from XrdTest.ClusterUtils import Cluster, Network, Host, Disk 
+from XrdTest.ClusterUtils import Cluster, Network, Host, Disk
 
 def getCluster():
     cluster = Cluster()
@@ -43,17 +43,17 @@ def getCluster():
     client8 = Host('client8.xrd.test', '192.168.10.18')
 
     # Hosts to be included in the cluster
-    hosts = [manager, client1, client2, client3, client4, client5, client6, 
+    hosts = [manager, client1, client2, client3, client4, client5, client6,
              client7, client8]
 
     #---------------------------------------------------------------------------
     # Additional host disk definitions
     #
-    # As per the libvirt docs, the device name given here is not guaranteed to 
+    # As per the libvirt docs, the device name given here is not guaranteed to
     # map to the same name in the guest OS. Incrementing the device name works
     # (i.e. disk1 = vda, disk2 = vdb etc.).
     #
-    # Disk sizes should be larger than 10GB for data server nodes, otherwise 
+    # Disk sizes should be larger than 10GB for data server nodes, otherwise
     # the node might not be selected by the cmsd.
     #---------------------------------------------------------------------------
     manager.disks =  [Disk('disk1', '20G', device='vda', mountPoint='/data')]
@@ -77,5 +77,5 @@ def getCluster():
     net.addHosts(hosts)
     cluster.network = net
     cluster.addHosts(hosts)
-    return cluster 
+    return cluster
 

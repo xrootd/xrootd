@@ -30,7 +30,7 @@ if [[ @slavename@ =~ client ]]; then
 
   #-----------------------------------------------------------------------------
   log "Installing custom Python version ..."
-  cd /tmp 
+  cd /tmp
 
   if [ ! -d "Python-$PYVER" ]; then
     curl -sSkO "http://www.python.org/ftp/python/$PYVER/Python-$PYVER.tar.bz2" > /dev/null

@@ -28,8 +28,8 @@ setup( name             = 'pyxrootd',
        description      = "XRootD Python bindings",
        long_description = "XRootD Python bindings",
        packages         = ['pyxrootd', 'XRootD', 'XRootD.client'],
-       package_dir      = {'pyxrootd'     : 'src', 
-                           'XRootD'       : 'libs', 
+       package_dir      = {'pyxrootd'     : 'src',
+                           'XRootD'       : 'libs',
                            'XRootD.client': 'libs/client'},
        ext_modules      = [
            Extension(

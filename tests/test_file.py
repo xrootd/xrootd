@@ -55,7 +55,6 @@ def test_write_sync():
   assert status.ok
   assert len(response) == len(buffer * 2) - 2
 
-
   f.close()
 
 def test_write_async():
@@ -170,7 +169,7 @@ def test_readlines_small():
   f.write(smallbuffer)
   pylines = open('/tmp/spam').readlines()
   print pylines
-  
+
   for i in range(1, 100):
     f = client.File()
     f.open(smallfile)
@@ -185,7 +184,7 @@ def test_readlines_big():
   f = client.File()
   f.open(bigfile, OpenFlags.READ)
   size = f.stat()[1].size
-  
+
   lines = f.readlines()
   pylines = open('/tmp/bigfile').readlines()
   assert len(lines) == len(pylines)

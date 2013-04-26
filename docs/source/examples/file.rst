@@ -39,7 +39,7 @@ We'll use the following `File` object as a basis for the rest of the examples::
 
 .. literalinclude:: ../../../examples/write.py
    :lines: 16-
-   
+
 .. include:: ../../../examples/write.py
    :start-line: 4
    :end-line: 8
@@ -73,7 +73,7 @@ We'll use the following `File` object as a basis for the rest of the examples::
 .. include:: ../../../examples/readlines.py
    :start-line: 4
    :end-line: 10
-   
+
 .. -----------------------------------------------------------------------------
 .. readchunks
 .. -----------------------------------------------------------------------------

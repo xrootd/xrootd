@@ -60,7 +60,7 @@ def async(func, args, hasReturnObject):
   for host in hostlist:
     assert host.url
     print host.url
-    
+
   if hasReturnObject:
     assert response
 
@@ -68,51 +68,51 @@ def test_locate_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.locate('/tmp', OpenFlags.REFRESH)
   assert status.ok
-  
+
   for item in response:
     assert item
-    
+
 def test_locate_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()
   response = c.locate('/tmp', OpenFlags.REFRESH, callback=handler)
-  
+
   status, response, hostlist = handler.wait()
   assert status.ok
-  
+
   for item in response:
     assert item
-    
+
 def test_deeplocate_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.deeplocate('/tmp', OpenFlags.REFRESH)
   assert status.ok
-  
+
   for item in response:
     assert item
-    
+
 def test_deeplocate_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()
   response = c.deeplocate('/tmp', OpenFlags.REFRESH, callback=handler)
-  
+
   status, response, hostlist = handler.wait()
   assert status.ok
-  
+
   for item in response:
     assert item
-      
+
 def test_dirlist_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.dirlist('/tmp', DirListFlags.STAT)
   assert status.ok
-  
+
   for item in response:
     assert item.name
     print item.statinfo
     assert item.statinfo
     assert item.hostaddr
-    
+
 def test_dirlist_async():
   c = client.FileSystem(SERVER_URL)
   handler = AsyncResponseHandler()
@@ -120,18 +120,18 @@ def test_dirlist_async():
   assert status.ok
   status, response, hostlist = handler.wait()
   assert status.ok
-  
+
   for h in hostlist:
     print h.url
-  
+
   for item in response:
     assert item.name
     print item.statinfo
     assert item.statinfo
     assert item.hostaddr
-  
+
   assert hostlist
-  
+
 def test_query_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.query(QueryCode.STATS, 'a')
@@ -144,7 +144,7 @@ def test_query_async():
   handler = AsyncResponseHandler()
   status = c.query(QueryCode.STATS, 'a', callback=handler)
   assert status.ok
-  
+
   status, response, hostlist = handler.wait()
   assert status.ok
   assert response

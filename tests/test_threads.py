@@ -11,15 +11,15 @@ class TestThread(Thread):
   def run(self):
     self.file.open(smallfile, OpenFlags.DELETE)
     assert self.file.is_open()
-    
+
     s, _ = self.file.write(smallbuffer)
     assert s.ok
-    
+
     print '+++ thread %d says: %s' % (self.id, self.file.read())
-    
+
     for line in self.file:
       print '+++ thread %d says: %s' % (self.id, line)
-    
+
     self.file.close()
 
 def test_threads():

@@ -22,7 +22,7 @@ def test_valid():
 def test_invalid():
   u = client.FileSystem('root://').url
   assert u.is_valid() == False
-    
+
 def test_getters():
   u = client.FileSystem("root://user1:passwd1@host1:123//path?param1=val1&param2=val2").url
   assert u.is_valid()

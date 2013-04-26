@@ -62,7 +62,7 @@ class File(object):
   def close(self, timeout=0, callback=None):
     """Close the file.
 
-    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus`
               object and None
 
     As of Python 2.5, you can avoid having to call this method explicitly if you
@@ -88,7 +88,7 @@ class File(object):
 
     :param force: do not use the cached information, force re-stating
     :type  force: boolean
-    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and :mod:`XRootD.client.responses.StatInfo` object
     """
     if callback:
@@ -106,7 +106,7 @@ class File(object):
     :type  offset: integer
     :param   size: number of bytes to be read
     :type    size: integer
-    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and the data that was read
     """
     if callback:
@@ -137,7 +137,7 @@ class File(object):
     :type  offset: integer
     :returns:      data that was read, including trailing newlines
     :rtype:        list of strings
-    
+
     .. warning:: This method will read the whole file into memory if you don't
                  specify an offset. Think twice about using it if your files
                  are big.
@@ -145,7 +145,7 @@ class File(object):
     return self.__file.readlines(offset, size, chunksize)
 
   def readchunks(self, offset=0, chunksize=1024 * 1024 * 2):
-    """Return an iterator object which will read data chunks from a given 
+    """Return an iterator object which will read data chunks from a given
     offset of the given chunksize until EOF.
 
     :param    offset: offset from the beginning of the file
@@ -164,7 +164,7 @@ class File(object):
     :type  offset: integer
     :param   size: number of bytes to be written
     :type    size: integer
-    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and None
     """
     if callback:
@@ -177,7 +177,7 @@ class File(object):
   def sync(self, timeout=0, callback=None):
     """Commit all pending disk writes.
 
-    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns: tuple containing :mod:`XRootD.client.responses.XRootDStatus`
               object and None
     """
     if callback:
@@ -192,7 +192,7 @@ class File(object):
 
     :param size: desired size of the file
     :type  size: integer
-    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
     if callback:
@@ -208,10 +208,10 @@ class File(object):
     :param chunks: list of the chunks to be read. The default maximum
                    chunk size is 2097136 bytes and the default maximum
                    number of chunks per request is 1024. The server may
-                   be queried using :func:`XRootD.client.FileSystem.query` 
+                   be queried using :func:`XRootD.client.FileSystem.query`
                    for the actual settings.
     :type  chunks: list of 2-tuples of the form (offset, size)
-    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus` 
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                    object and :mod:`XRootD.client.responses.VectorReadInfo`
                    object
     """

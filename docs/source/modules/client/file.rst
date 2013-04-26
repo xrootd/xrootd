@@ -9,13 +9,13 @@
 Similarities with Python built-in `file` object
 -----------------------------------------------
 
-To provide an interface like the python built-in file object, the 
-__iter__(), next(), readline() and readlines() methods have been implemented. 
+To provide an interface like the python built-in file object, the
+__iter__(), next(), readline() and readlines() methods have been implemented.
 These look for newlines in files, which may not always be appropriate,
-especially for binary data. 
+especially for binary data.
 
-Additionally, these methods can't be called asynchronously, and they don't 
-return an ``XRootDStatus`` object like the others. You only get the data that 
+Additionally, these methods can't be called asynchronously, and they don't
+return an ``XRootDStatus`` object like the others. You only get the data that
 was read.
 
 Class Reference

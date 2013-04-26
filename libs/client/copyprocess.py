@@ -42,7 +42,7 @@ class CopyProcess(object):
     :type           force: boolean
     :param           posc: persist on successful close
     :type            posc: boolean
-    :param         coerce: ignore file usage rules, i.e. apply `FORCE` flag to 
+    :param         coerce: ignore file usage rules, i.e. apply `FORCE` flag to
                            ``open()``
     :type          coerce: boolean
     :param     thirdparty: do third party copy if possible

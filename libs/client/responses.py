@@ -27,12 +27,12 @@ class Struct(object):
 
 class LocationInfo(Struct):
   """Path location information (a list of discovered file locations).
-  
-  :param locations: (List of :mod:`XRootD.client.responses.Location` objects) 
+
+  :param locations: (List of :mod:`XRootD.client.responses.Location` objects)
                     List of discovered locations
-  
+
   This object is iterable::
-  
+
     >>> status, locations = filesystem.locate('/tmp', OpenFlags.REFRESH)
     >>> print locations
     <XRootD.client.responses.LocationInfo object at 0x288b9f0>
@@ -40,7 +40,7 @@ class LocationInfo(Struct):
     ...   print location.address
     ...
     [::127.0.0.1]:1094
-    
+
   """
   def __init__(self, locations):
     super(LocationInfo, self).__init__({'locations':
@@ -51,13 +51,13 @@ class LocationInfo(Struct):
 
 class Location(Struct):
   """Information about a single location.
-  
+
   :var    address: The address of this location
-  :var       type: The type of this location, one of 
+  :var       type: The type of this location, one of
                    :mod:`XRootD.client.flags.LocationType`
-  :var accesstype: The allowed access type of this location, one of 
+  :var accesstype: The allowed access type of this location, one of
                    :mod:`XRootD.client.flags.AccessType`
-  :var is_manager: Is the location a manager 
+  :var is_manager: Is the location a manager
   :var  is_server: Is the location a server
   """
   def __init__(self, location):
@@ -65,7 +65,7 @@ class Location(Struct):
 
 class XRootDStatus(Struct):
   """Status of a request. Returned with all requests.
-  
+
   :var   message: Message describing the status of this request
   :var        ok: The request was successful
   :var     error: Error making request
@@ -83,7 +83,7 @@ class XRootDStatus(Struct):
 
 class ProtocolInfo(Struct):
   """Protocol information for a server.
-  
+
   :var  version: The version of the protocol this server is speaking
   :var hostinfo: Informational flags for this host. An `ORed` combination of
                  :mod:`XRootD.client.flags.HostTypes`
@@ -93,9 +93,9 @@ class ProtocolInfo(Struct):
 
 class StatInfo(Struct):
   """Status information for files and directories.
-  
+
   :var         id: This file's unique identifier
-  :var      flags: Informational flags. An `ORed` combination of 
+  :var      flags: Informational flags. An `ORed` combination of
                    :mod:`XRootD.client.flags.StatInfoFlags`
   :var       size: The file size (in bytes)
   :var    modtime: Modification time (in seconds since epoch)
@@ -106,16 +106,16 @@ class StatInfo(Struct):
 
 class StatInfoVFS(Struct):
   """Status information for Virtual File Systems.
-  
+
   :var            nodes_rw: Number of nodes that can provide read/write space
-  :var             free_rw: Size of the largest contiguous area of free r/w 
+  :var             free_rw: Size of the largest contiguous area of free r/w
                             space (in MB)
-  :var      utilization_rw: Percentage of the partition utilization represented 
+  :var      utilization_rw: Percentage of the partition utilization represented
                             by ``free_rw``
   :var       nodes_staging: Number of nodes that can provide staging space
-  :var        free_staging: Size of the largest contiguous area of free staging 
+  :var        free_staging: Size of the largest contiguous area of free staging
                             space (in MB)
-  :var utilization_staging: Percentage of the partition utilization represented 
+  :var utilization_staging: Percentage of the partition utilization represented
                             by ``free_staging``
   """
   def __init__(self, info):
@@ -123,9 +123,9 @@ class StatInfoVFS(Struct):
 
 class DirectoryList(Struct):
   """Directory listing.
-  
+
   This object is iterable::
-  
+
     >>> status, dirlist = filesystem.dirlist('/tmp', DirListFlags.STAT)
     >>> print dirlist
     <XRootD.client.responses.DirectoryList object at 0x288b9f0>
@@ -136,7 +136,7 @@ class DirectoryList(Struct):
     ...
     spam 1024
     eggs 2048
-  
+
   :var     size: The size of this listing (number of entries)
   :var   parent: The name of the parent directory of this directory
   :var  dirlist: (List of :mod:`XRootD.client.responses.ListEntry` objects) -
@@ -151,12 +151,12 @@ class DirectoryList(Struct):
 
 class ListEntry(Struct):
   """An entry in a directory listing.
-  
+
   :var      name: The name of the file/directory
   :var  hostaddr: The address of the host on which this file/directory lives
-  :var  statinfo: (Instance of :mod:`XRootD.client.responses.StatInfo`) - 
+  :var  statinfo: (Instance of :mod:`XRootD.client.responses.StatInfo`) -
                   Status information about this file/directory. You must pass
-                  `DirListFlags.STAT` with the call to 
+                  `DirListFlags.STAT` with the call to
                   :mod:`XRootD.client.FileSystem.dirlist()` to retrieve status
                   information.
   """
@@ -166,7 +166,7 @@ class ListEntry(Struct):
 
 class ChunkInfo(Struct):
   """Describes a data chunk for a vector read.
-  
+
   :var offset: The offset in the file from which this chunk came
   :var length: The length of this chunk
   :var buffer: The actual chunk data
@@ -175,11 +175,11 @@ class ChunkInfo(Struct):
     super(ChunkInfo, self).__init__(info)
 
 class VectorReadInfo(Struct):
-  """Vector read response object. 
+  """Vector read response object.
   Returned by :mod:`XRootD.client.File.vector_read()`.
-  
+
   This object is iterable::
-  
+
     >>> f.open('root://localhost/tmp/spam')
     >>> status, chunks = file.vector_read([(0, 10), (10, 10)])
     >>> print chunks
@@ -191,9 +191,9 @@ class VectorReadInfo(Struct):
     ...
     0 10
     10 10
-  
+
   :var    size: Total size of all chunks
-  :var  chunks: (List of :mod:`XRootD.client.responses.ChunkInfo` objects) - 
+  :var  chunks: (List of :mod:`XRootD.client.responses.ChunkInfo` objects) -
                 The list of chunks that were read
   """
   def __init__(self, info):
@@ -205,7 +205,7 @@ class VectorReadInfo(Struct):
 
 class HostList(Struct):
   """A list of hosts that were involved in the request.
-  
+
   This object is iterable::
 
     >>> print hostlist
@@ -214,8 +214,8 @@ class HostList(Struct):
     ...   print host.url
     ...
     root://localhost
-      
-  :var  hosts: (List of :mod:`XRootD.client.responses.HostInfo` objects) - 
+
+  :var  hosts: (List of :mod:`XRootD.client.responses.HostInfo` objects) -
                The list of hosts
   """
   def __init__(self, hostlist):
@@ -226,11 +226,11 @@ class HostList(Struct):
 
 class HostInfo(Struct):
   """Information about a single host.
-  
+
   :var           url: URL of the host, instance of :mod:`XRootD.client.URL`
   :var      protocol: Version of the protocol the host is speaking
-  :var         flags: Host type, an `ORed` combination of 
-                      :mod:`XRootD.client.flags.HostTypes` 
+  :var         flags: Host type, an `ORed` combination of
+                      :mod:`XRootD.client.flags.HostTypes`
   :var load_balancer: Was the host used as a load balancer
   """
   def __init__(self, info):

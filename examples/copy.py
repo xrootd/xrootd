@@ -3,7 +3,7 @@ Copy a file
 -----------
 
 See :mod:`XRootD.client.CopyProcess` if you need multiple/more configurable
-copy jobs. 
+copy jobs.
 """
 from XRootD import client
 

@@ -7,7 +7,7 @@ def getTestSuite():
     # exactly, minus the extension. (mandatory)
     ts.name = "ts_pyxrootd"
     # Names of all clusters which this test suite requires. (mandatory)
-    ts.clusters = ['cluster_pyxrootd'] 
+    ts.clusters = ['cluster_pyxrootd']
     # Names of all machines required by this test suite (optional)
     # ts.machines = ['manager1', 'manager2', 'ds1', 'ds2', 'ds3', 'ds4', 'client1']
     # Names of test cases to be run in this suite. These are actually the names

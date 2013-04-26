@@ -14,6 +14,6 @@ from XRootD import client
 
 with client.File() as f:
   f.open('root://localhost//tmp/eggs')
-  
+
   for line in f:
     print '%r' % line
