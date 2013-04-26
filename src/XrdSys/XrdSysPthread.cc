@@ -220,10 +220,14 @@ void XrdSysSemaphore::Post()
 void XrdSysSemaphore::Wait()
 {
 
-// Wait until the sempahore value is positive. This will not be starvation
-// free is the OS implements an unfair mutex;
+// Wait until the semaphore value is positive. This will not be starvation
+// free if the OS implements an unfair mutex.
+// Adding a cleanup handler to the stack here enables threads using this OSX
+// semaphore to be canceled (which is rare). A scoped lock won't work here
+// because OSX is broken and doesn't call destructors properly.
 //
-   XrdSysCondVarHelper scopedLock(&semVar);
+   semVar.Lock();
+   pthread_cleanup_push(&XrdSysSemaphore::CleanUp, (void *) &semVar);
    if (semVal < 1 || semWait)
       while(semVal < 1)
            {semWait++;
@@ -231,9 +235,20 @@ void XrdSysSemaphore::Wait()
             semWait--;
            }
 
-// Decrement the semaphore value and return
+// Decrement the semaphore value, unlock the underlying cond var and return
 //
    semVal--;
+   pthread_cleanup_pop(1);
+}
+
+/******************************************************************************/
+/*                               C l e a n U p                                */
+/******************************************************************************/
+
+void XrdSysSemaphore::CleanUp(void *semVar)
+{
+  XrdSysCondVar *sv = (XrdSysCondVar *) semVar;
+  sv->UnLock();
 }
 #endif
  
