@@ -24,6 +24,7 @@ URL:            http://github.com/xrootd/python-xrootd
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:       python >= 2.4
+Requires:       xrootd-cl >= 3.3.2
 BuildRequires:  xrootd-cl-devel python-devel
 
 %description
@@ -45,6 +46,8 @@ env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 %defattr(-,root,root)
 
 %changelog
+* Fri Apr 26 2013 Justin Salmon <jsalmon@cern.ch>
+- Add requirement for xrootd-cl 3.3.2
 * Fri Apr 26 2013 Justin Salmon <jsalmon@cern.ch>
 - Install to correct place in RHEL5
 * Wed Apr 03 2013 Justin Salmon <jsalmon@cern.ch>
