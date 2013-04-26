@@ -353,11 +353,11 @@ int main( int argc, char **argv )
 
   //----------------------------------------------------------------------------
   // If we have multiple sources and target is not a directory then we cannot
-  // procees
+  // proceed
   //----------------------------------------------------------------------------
   if( CountSources(config.srcFile) > 1 && !targetIsDir )
   {
-    std::cerr << "Multuple sources were given but target is not a directory.";
+    std::cerr << "Multiple sources were given but target is not a directory.";
     return 255;
   }
 

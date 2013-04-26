@@ -289,7 +289,7 @@ namespace
         //----------------------------------------------------------------------
         // Open the file for reading and get it's size
         //----------------------------------------------------------------------
-        log->Debug( UtilityMsg, "Openning %s for reading", pPath.c_str() );
+        log->Debug( UtilityMsg, "Opening %s for reading", pPath.c_str() );
 
         int fd = open( pPath.c_str(), O_RDONLY );
         if( fd == -1 )
@@ -338,7 +338,7 @@ namespace
         int64_t bytesRead = read( pFD, buffer, toRead );
         if( bytesRead == -1 )
         {
-          log->Debug( UtilityMsg, "Unable read from %s: %s",
+          log->Debug( UtilityMsg, "Unable to read from %s: %s",
                                   pPath.c_str(), strerror( errno ) );
           close( pFD );
           pFD = -1;
@@ -422,7 +422,7 @@ namespace
           int64_t bRead = read( 0, buffer+offset, toRead );
           if( bRead == -1 )
           {
-            log->Debug( UtilityMsg, "Unable read from stdin: %s",
+            log->Debug( UtilityMsg, "Unable to read from stdin: %s",
                         strerror( errno ) );
             delete [] buffer;
             return XRootDStatus( stError, errOSError, errno );
@@ -684,7 +684,7 @@ namespace
         //----------------------------------------------------------------------
         // Open the file for reading and get it's size
         //----------------------------------------------------------------------
-        log->Debug( UtilityMsg, "Openning %s for writing", pPath.c_str() );
+        log->Debug( UtilityMsg, "Opening %s for writing", pPath.c_str() );
 
         int flags = O_WRONLY|O_CREAT|O_TRUNC;
         if( !pForce )
@@ -988,7 +988,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pJob->checkSumType.empty() )
     {
-      log->Debug( UtilityMsg, "Attempring checksum calculation." );
+      log->Debug( UtilityMsg, "Attempting checksum calculation." );
 
       //------------------------------------------------------------------------
       // Get the check sum at source

@@ -89,7 +89,7 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      // Wait for the arraival of the message
+      // Wait for the arrival of the message
       //------------------------------------------------------------------------
       XrdCl::Message *GetMessage()
       {
@@ -228,7 +228,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Register the task generating timout events
+    // Register the task generating timeout events
     //--------------------------------------------------------------------------
     pTickGenerator = new TickGeneratorTask( this, pUrl.GetHostId() );
     pTaskManager->RegisterTask( pTickGenerator, ::time(0)+timeoutResolution );
@@ -272,7 +272,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Synchronously receive a message - blocks until a message maching
+  // Synchronously receive a message - blocks until a message matching
   //----------------------------------------------------------------------------
   Status Channel::Receive( Message       *&msg,
                            MessageFilter  *filter,
@@ -290,7 +290,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Listen to incomming messages
+  // Listen to incoming messages
   //----------------------------------------------------------------------------
   Status Channel::Receive( IncomingMsgHandler *handler, time_t expires )
   {

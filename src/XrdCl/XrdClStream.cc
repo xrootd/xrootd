@@ -144,7 +144,7 @@ namespace XrdCl
     Disconnect( true );
 
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Destructing stream",
+    log->Debug( PostMasterMsg, "[%s] Destroying stream",
                 pStreamName.c_str() );
 
     MonitorDisconnection( Status() );
@@ -214,8 +214,8 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // The main stream is not connected, we need to check whether enough time
-    // has passed since we last encoutnered an error (if any) so that we could
-    // reattempt the connection
+    // has passed since we last encountered an error (if any) so that we could
+    // re-attempt the connection
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     time_t now = ::time(0);
@@ -588,7 +588,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Check if we still have time to try and do somethig in the current window
+    // Check if we still have time to try and do something in the current window
     //--------------------------------------------------------------------------
     time_t elapsed = now-pConnectionInitTime;
     if( elapsed < pConnectionWindow )
@@ -652,7 +652,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Call back when an error has occured
+  // Call back when an error has occurred
   //----------------------------------------------------------------------------
   void Stream::OnError( uint16_t subStream, Status status )
   {

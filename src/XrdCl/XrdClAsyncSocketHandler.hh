@@ -69,7 +69,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Connect to the currently set addres
+      //! Connect to the currently set address
       //------------------------------------------------------------------------
       Status Connect( time_t timeout );
 
@@ -139,12 +139,12 @@ namespace XrdCl
       Status WriteCurrentMessage();
 
       //------------------------------------------------------------------------
-      // Got a read rediness event
+      // Got a read readiness event
       //------------------------------------------------------------------------
       void OnRead();
 
       //------------------------------------------------------------------------
-      // Got a read rediness event while handshaking
+      // Got a read readiness event while handshaking
       //------------------------------------------------------------------------
       void OnReadWhileHandshaking();
 

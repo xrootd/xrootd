@@ -210,7 +210,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Listen to incomming messages
+  // Listen to incoming messages
   //----------------------------------------------------------------------------
   Status PostMaster::Receive( const URL          &url,
                               IncomingMsgHandler *handler,

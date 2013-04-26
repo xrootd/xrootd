@@ -103,7 +103,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Send the messafe
+    // Send the message
     //--------------------------------------------------------------------------
     st = postMaster->Send( url, msg, msgHandler, sendParams.stateful,
                            sendParams.expires );

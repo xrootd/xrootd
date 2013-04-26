@@ -30,7 +30,7 @@ namespace XrdCl
   class Message;
 
   //----------------------------------------------------------------------------
-  //! A synchronize queue for incomming data
+  //! A synchronize queue for incoming data
   //----------------------------------------------------------------------------
   class InQueue
   {
@@ -41,7 +41,7 @@ namespace XrdCl
       bool AddMessage( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Add a listener that should be notified about incomming messages
+      //! Add a listener that should be notified about incoming messages
       //!
       //! @param handler message handler
       //! @param expires time when the message handler expires
@@ -49,8 +49,8 @@ namespace XrdCl
       void AddMessageHandler( IncomingMsgHandler *handler, time_t expires );
 
       //------------------------------------------------------------------------
-      //! Get a message handler inerested in receiving message whose header
-      //! is storead in msg
+      //! Get a message handler interested in receiving message whose header
+      //! is stored in msg
       //!
       //! @param msg     message header
       //! @param expires handle's expiration timestamp

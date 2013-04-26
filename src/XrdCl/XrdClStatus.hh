@@ -29,7 +29,7 @@ namespace XrdCl
   // Constants
   //----------------------------------------------------------------------------
   const uint16_t stOK    = 0x0000;  //!< Everything went OK
-  const uint16_t stError = 0x0001;  //!< An error occured that could potentially be retried
+  const uint16_t stError = 0x0001;  //!< An error occurred that could potentially be retried
   const uint16_t stFatal = 0x0003;  //!< Fatal error, it's still an error
 
   //----------------------------------------------------------------------------
@@ -98,7 +98,7 @@ namespace XrdCl
   const uint16_t errErrorResponse      = 400;
 
   //----------------------------------------------------------------------------
-  //! Proceure execution status
+  //! Procedure execution status
   //----------------------------------------------------------------------------
   struct Status
   {

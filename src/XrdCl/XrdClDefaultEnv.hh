@@ -89,7 +89,7 @@ namespace XrdCl
       static TransportManager *GetTransportManager();
 
       //------------------------------------------------------------------------
-      //! Initialize the environemnt
+      //! Initialize the environment
       //------------------------------------------------------------------------
       static void Initialize();
 

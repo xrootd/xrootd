@@ -103,7 +103,7 @@ namespace XrdCl
       //! @param force   do not use the cached information, force re-stating
       //! @param handler handler to be notified when the response arrives,
       //!                the response parameter will hold a StatInfo object
-      //!                if the procedure is successfull
+      //!                if the procedure is successful
       //! @param timeout timeout value, if 0 the environment default will
       //!                be used
       //! @return        status of the operation
@@ -164,7 +164,7 @@ namespace XrdCl
                          uint16_t  timeout = 0 );
 
       //------------------------------------------------------------------------
-      //! Write a data chank at a given offset - async
+      //! Write a data chunk at a given offset - async
       //! The call interprets and returns the server response, which may be
       //! either a success or a failure, it does not contain the number
       //! of bytes that were actually written.

@@ -175,7 +175,7 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
 
     //--------------------------------------------------------------------------
-    // Print some debing info
+    // Print some debugging info
     //--------------------------------------------------------------------------
     const char *compiledVersion = LIBEVENT_VERSION;
     const char *runningVersion  = event_get_version();

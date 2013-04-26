@@ -85,7 +85,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Number of tasks finishig with an error
+      //! Number of tasks finishing with an error
       //------------------------------------------------------------------------
       uint32_t FailureCount() const
       {

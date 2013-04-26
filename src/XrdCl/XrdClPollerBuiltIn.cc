@@ -130,7 +130,7 @@ namespace XrdCl
     pPoller = IOEvents::Poller::Create( errNum, &errMsg );
     if( !pPoller )
     {
-      log->Error( PollerMsg, "Unable to create the interal poller object: ",
+      log->Error( PollerMsg, "Unable to create the internal poller object: ",
                              "%s (%s)", strerror( errno ), errMsg );
       return false;
     }

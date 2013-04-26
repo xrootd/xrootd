@@ -336,8 +336,8 @@ namespace XrdCl
         Other        = kXR_other,     //!< Neither a file nor a directory
         Offline      = kXR_offline,   //!< File is not online (ie. on disk)
         POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
-                                      //!< successfuly closed
-        IsReadable   = kXR_readable,  //!< Read access is alowed
+                                      //!< successfully closed
+        IsReadable   = kXR_readable,  //!< Read access is allowed
         IsWritable   = kXR_writable   //!< Write access is allowed
       };
 
@@ -435,7 +435,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get size of the largest contiguous aread of free r/w space (in MB)
+      //! Get size of the largest contiguous area of free r/w space (in MB)
       //------------------------------------------------------------------------
       uint64_t GetFreeRW() const
       {
@@ -459,7 +459,7 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Get size of the largest contiguous aread of free staging space (in MB)
+      //! Get size of the largest contiguous area of free staging space (in MB)
       //------------------------------------------------------------------------
       uint64_t GetFreeStaging() const
       {

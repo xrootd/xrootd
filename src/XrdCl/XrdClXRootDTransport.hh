@@ -56,9 +56,9 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Read a message header from the socket, the socket is non-blocking,
-      //! so if there is not enough data the function should retutn errRetry
+      //! so if there is not enough data the function should return errRetry
       //! in which case it will be called again when more data arrives, with
-      //! the data previousely read stored in the message buffer
+      //! the data previously read stored in the message buffer
       //!
       //! @param message the message buffer
       //! @param socket  the socket
@@ -149,18 +149,18 @@ namespace XrdCl
       static Status MarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the request - sometimes the requests need to be rewritten,
+      //! Unmarshall the request - sometimes the requests need to be rewritten,
       //! so we need to unmarshall them
       //------------------------------------------------------------------------
       static Status UnMarshallRequest( Message *msg );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the body of the incomming message
+      //! Unmarshall the body of the incoming message
       //------------------------------------------------------------------------
       static Status UnMarshallBody( Message *msg, uint16_t reqType );
 
       //------------------------------------------------------------------------
-      //! Unmarshal the header incomming message
+      //! Unmarshall the header incoming message
       //------------------------------------------------------------------------
       static void UnMarshallHeader( Message *msg );
 

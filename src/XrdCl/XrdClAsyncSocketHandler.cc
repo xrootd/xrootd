@@ -71,7 +71,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Connect to gien address
+  // Connect to given address
   //----------------------------------------------------------------------------
   Status AsyncSocketHandler::Connect( time_t timeout )
   {
@@ -367,7 +367,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Dump( AsyncSockMsg,
-               "[%s] Successfuly sent message: %s.", pStreamName.c_str(),
+               "[%s] successfully sent message: %s.", pStreamName.c_str(),
                pOutgoing->GetDescription().c_str() );
 
     pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );

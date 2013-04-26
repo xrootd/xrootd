@@ -236,7 +236,7 @@ namespace XrdCl
     {
       Log *log = DefaultEnv::GetLog();
       log->Error( XRootDTransportMsg,
-                  "[%s] Iternal error: not enough substreams",
+                  "[%s] Internal error: not enough substreams",
                   handShakeData->streamName.c_str() );
       return Status( stFatal, errInternal );
     }
@@ -373,7 +373,7 @@ namespace XrdCl
 
     //--------------------------------------------------------------------------
     // Second step - we got the reply message to the initial handshake,
-    // if successfull we need to send bind
+    // if successful we need to send bind
     //--------------------------------------------------------------------------
     if( sInfo.status == XRootDStreamInfo::HandShakeSent )
     {
@@ -664,13 +664,13 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Unmarshal the request - sometimes the requests need to be rewritten,
+  // Unmarshall the request - sometimes the requests need to be rewritten,
   // so we need to unmarshall them
   //----------------------------------------------------------------------------
   Status XRootDTransport::UnMarshallRequest( Message *msg )
   {
-    // We rely on the marshaling process to be symetric!
-    // First we unmarshal the request ID and the length because
+    // We rely on the marshaling process to be symmetric!
+    // First we unmarshall the request ID and the length because
     // MarshallRequest() relies on these, and then we need to unmarshall these
     // two again, because they get marshalled in MarshallRequest().
     // All this is pretty damn ugly and should be rewritten.
@@ -684,7 +684,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Unmarshall the body of the incomming message
+  // Unmarshall the body of the incoming message
   //----------------------------------------------------------------------------
   Status XRootDTransport::UnMarshallBody( Message *msg, uint16_t reqType )
   {
@@ -742,7 +742,7 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Unmarshall the header of the incomming message
+  // Unmarshall the header of the incoming message
   //------------------------------------------------------------------------
   void XRootDTransport::UnMarshallHeader( Message *msg )
   {
@@ -834,7 +834,7 @@ namespace XrdCl
   }
 
   //------------------------------------------------------------------------
-  // Check whether the transport can highjack the message
+  // Check whether the transport can hijack the message
   //------------------------------------------------------------------------
   uint32_t XRootDTransport::StreamAction( Message *msg, AnyObject &channelData )
   {
@@ -1693,7 +1693,7 @@ namespace XrdCl
           default: o << sreq->infotype; break;
         }
         o << ", ";
-        o << "arg lenght: " << sreq->dlen << ")";
+        o << "arg length: " << sreq->dlen << ")";
         break;
       }
 
