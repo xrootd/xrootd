@@ -2,8 +2,6 @@
 **Examples**
 ============
 
-.. warning:: This page is under construction
-
 .. toctree::
    :numbered:
    :maxdepth: 2
