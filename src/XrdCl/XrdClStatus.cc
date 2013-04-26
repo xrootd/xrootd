@@ -48,7 +48,7 @@ namespace
     { errPollerError,        "Poller error"         },
     { errSocketOptError,     "Socket opt error"     },
     { errStreamDisconnect,   "Stream disconnect"    },
-    { errConnectionError,    "Conection error"      },
+    { errConnectionError,    "Connection error"     },
     { errInvalidSession,     "Invalid session"      },
     { errInvalidMessage,     "Invalid message"      },
     { errNotFound,           "Resource not found"   },

@@ -156,7 +156,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Write a data chank at a given offset - async
+  // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
   XRootDStatus File::Write( uint64_t         offset,
                             uint32_t         size,

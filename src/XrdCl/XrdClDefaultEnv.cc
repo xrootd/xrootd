@@ -78,7 +78,7 @@ namespace
       for( it = topics.begin(); it != topics.end(); ++it )
       {
         //----------------------------------------------------------------------
-        // Check for reseting pseudo topics
+        // Check for resetting pseudo topics
         //----------------------------------------------------------------------
         if( *it == "All" )
         {

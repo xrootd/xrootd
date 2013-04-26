@@ -326,7 +326,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Check if the recovery procedures should be enables
+    // Check if the recovery procedures should be enabled
     //--------------------------------------------------------------------------
     const URL::ParamsMap &urlParams = pFileUrl->GetParams();
     URL::ParamsMap::const_iterator it;
@@ -545,7 +545,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Write a data chank at a given offset - async
+  // Write a data chunk at a given offset - async
   //----------------------------------------------------------------------------
   XRootDStatus FileStateHandler::Write( uint64_t         offset,
                                         uint32_t         size,
@@ -874,7 +874,7 @@ namespace XrdCl
         pStatInfo = new StatInfo( *openInfo->GetStatInfo() );
       }
 
-      log->Debug( FileMsg, "[0x%x@%s] Successfuly opened at %s, handle: 0x%x, "
+      log->Debug( FileMsg, "[0x%x@%s] successfully opened at %s, handle: 0x%x, "
                   "session id: %ld", this, pFileUrl->GetURL().c_str(),
                   pDataServer->GetHostId().c_str(), *((uint32_t*)pFileHandle),
                   pSessionId );
@@ -1180,7 +1180,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       // Invalid session id means that the connection has been broken while we
-      // were iddle so we haven't been informed about this fact earlier.
+      // were idle so we haven't been informed about this fact earlier.
       //------------------------------------------------------------------------
       if( !st.IsOK() && st.code == errInvalidSession && IsRecoverable( st ) )
         return RecoverMessage( RequestData( msg, handler, sendParams ), false );

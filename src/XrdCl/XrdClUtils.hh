@@ -86,7 +86,7 @@ namespace XrdCl
       static std::string TimeToString( time_t timestamp );
 
       //------------------------------------------------------------------------
-      //! Get the elapsed mictoseconds between two timevals
+      //! Get the elapsed microseconds between two timevals
       //------------------------------------------------------------------------
       static uint64_t GetElapsedMicroSecs( timeval start, timeval end );
 

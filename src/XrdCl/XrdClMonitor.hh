@@ -203,7 +203,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Event codes passed to the Event() method. Event code values not
-      //! listed here, if encounetered, should be ignored.
+      //! listed here, if encountered, should be ignored.
       //------------------------------------------------------------------------
       enum EventCode
       {
@@ -212,7 +212,7 @@ namespace XrdCl
         EvCheckSum,       //!< CheckSumInfo: File checksummed
         EvOpen,           //!< OpenInfo: File opened
         EvClose,          //!< CloseInfo: File closed
-        EvErrIO,          //!< ErrorInfo: An I/O error occured
+        EvErrIO,          //!< ErrorInfo: An I/O error occurred
         EvConnect,        //!< ConnectInfo: Login  into a server
         EvDisconnect      //!< DisconnectInfo: Logout from a server
 
@@ -221,7 +221,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Inform the monitor of an event.
       //!
-      //! @parm evCode  is the event that occured (see enum evNum)
+      //! @parm evCode  is the event that occurred (see enum evNum)
       //! @parm evInfo  is the event information structure describing the event
       //!               it is cast to (void *) so that one method can be used
       //!               and should be recast to the correct corresponding struct

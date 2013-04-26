@@ -166,7 +166,7 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       // Remove the tasks from the active set - super inefficient,
-      // but, hopefuly, never really necessary. We first need tu build a list
+      // but, hopefully, never really necessary. We first need to build a list
       // of iterators because it is impossible to remove elements from
       // a multiset when iterating over it
       //------------------------------------------------------------------------

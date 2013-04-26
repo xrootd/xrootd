@@ -200,7 +200,7 @@ namespace XrdCl
                 pJob->sources[0].GetURL().c_str() );
 
     //--------------------------------------------------------------------------
-    // Open the source and set up the randez-vous
+    // Open the source and set up the rendez-vous
     //--------------------------------------------------------------------------
     File sourceFile;
     st = sourceFile.Open( pJob->sources[0].GetURL(), OpenFlags::Read );
@@ -216,7 +216,7 @@ namespace XrdCl
     st = targetFile.Sync();
     if( !st.IsOK() )
     {
-      log->Error( UtilityMsg, "Unable set up randez-vous: %s",
+      log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
                    st.ToStr().c_str() );
       sourceFile.Close();
       targetFile.Close();
@@ -265,7 +265,7 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Sync has returned so we can check if it was successfull
+    // Sync has returned so we can check if it was successful
     //--------------------------------------------------------------------------
     st = *statusHandler.GetStatus();
 
@@ -290,7 +290,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( !pJob->checkSumType.empty() )
     {
-      log->Debug( UtilityMsg, "Attemping checksum calculation." );
+      log->Debug( UtilityMsg, "Attempting checksum calculation." );
 
       //------------------------------------------------------------------------
       // Get the check sum at source
@@ -437,7 +437,7 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Generate a randez-vous key
+  // Generate a rendez-vous key
   //----------------------------------------------------------------------------
   std::string ThirdPartyCopyJob::GenerateKey()
   {

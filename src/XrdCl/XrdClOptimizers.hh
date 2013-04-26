@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //------------------------------------------------------------------------------
 
-#ifndef __XRD_CL_OPRIMIZERS_HH__
+#ifndef __XRD_CL_OPTIMIZERS_HH__
 #define __XRD_CL_OPTIMIZERS_HH__
 
 #ifdef __GNUC__
