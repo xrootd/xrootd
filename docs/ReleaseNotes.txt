@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 3.3.2
+-------------
++ **Major bug fixes**
+   * Fix the opaque information setting in xrdcp using -OD (issue #1)
+   * Fix compilation on Solaris 11 (issue #7)
+   * Fix issues with semaphore locking during thread cancelation on
+     MaxOSX (issue #10)
+   * Solve locking problems in the built-in poller (issue #4)
+   * Solve performance issues in the new client. Note: this actually
+     changes some low level public interfaces, so the soname of
+     libXrdCl.so has been bumped to libXrdCl.so.1. The xrootd.org
+     RPMs also provide the old libXrdCl.so.0 in order to preserve the
+     binary compatibility with the clients linked against it.
+
+-------------
 Version 3.3.1
 -------------
 + **Major bug fixes**
