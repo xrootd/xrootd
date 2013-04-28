@@ -496,7 +496,7 @@ void WakeUp();
 static Poller *newPoller(int pFD[2], int &eNum, const char **eTxt);
 
 XrdSysMutex    adMutex; // Mutex for adding & detaching channels
-XrdSysRecMutex toMutex; // Mutex for handling the timeout list
+XrdSysMutex    toMutex; // Mutex for handling the timeout list
 };
 };
 };
