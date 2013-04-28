@@ -36,6 +36,9 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Fix race condition when adding a new channel to a poll set. This only
+     affected MacOS. Revert the timeout mutex to be a simple non-recursive
+     mutex. Produce an event trace when the envar XrdSysIOE_TRACE is set.
    * Avoid lock inversion when handling the timeout queue in the presence of a
      timeout callback. This may cause a deadlock.
    * Prevent SEGV when freeing the DS/DI arguments list.
