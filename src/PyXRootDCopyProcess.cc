@@ -17,6 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include "PyXRootDCopyProcess.hh"
+#include "PyXRootDCopyProgressHandler.hh"
 #include "Conversions.hh"
 
 namespace PyXRootD
@@ -73,9 +74,15 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::Run( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
-    (void) CopyProcessType; // Suppress unused variable warning
+    (void) CopyProcessType;   // Suppress unused variable warning
+    static const char          *kwlist[]   = { "handler", NULL };
+    PyObject                   *pyhandler  = 0;
+    XrdCl::CopyProgressHandler *handler    = 0;
 
-    XrdCl::CopyProgressHandler *handler = new PyCopyProgressHandler();
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "|O", (char**) kwlist,
+        &pyhandler ) ) return NULL;
+
+    handler = new CopyProgressHandler( pyhandler );
     XrdCl::XRootDStatus status = self->process->Run( handler );
     return ConvertType<XrdCl::XRootDStatus>( &status );
   }
