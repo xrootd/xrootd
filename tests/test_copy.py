@@ -58,3 +58,23 @@ def test_copy_noprep():
   c.add_job( source=bigfile, target=bigcopy, force=True )
   s = c.run()
   assert s.ok
+
+class TestProgressHandler():
+  def begin(self, id, total, source, target):
+    print '+++ begin(): %d, total: %d' % (id, total)
+    print '+++ source: %s' % source
+    print '+++ target: %s' % target
+
+  def end(self, status):
+    print '+++ end():', status
+
+  def update(self, processed, total):
+    print '+++ update(): processed: %d, total: %d' % (processed, total)
+
+def test_copy_progress_handler():
+  c = client.CopyProcess()
+  c.add_job( source=bigfile, target=bigcopy, force=True )
+  c.prepare()
+
+  h = TestProgressHandler()
+  c.run(handler=h)
