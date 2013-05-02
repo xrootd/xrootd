@@ -17,7 +17,23 @@
 #-------------------------------------------------------------------------------
 
 from pyxrootd import client
+from XRootD.client import URL
 from XRootD.client.responses import XRootDStatus
+
+class ProgressHandlerWrapper(object):
+  """Internal progress handler wrapper to convert parameters to friendly 
+  types"""
+  def __init__(self, handler):
+    self.handler = handler
+
+  def begin(self, id, total, source, target):
+    self.handler.begin(id, total, URL(source), URL(target))
+
+  def end(self, status):
+    self.handler.end(XRootDStatus(status))
+
+  def update(self, processed, total):
+    self.handler.update(processed, total)
 
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
@@ -62,7 +78,10 @@ class CopyProcess(object):
     status = self.__process.prepare()
     return XRootDStatus(status)
 
-  def run(self):
-    """Run the copy jobs."""
-    status = self.__process.run()
+  def run(self, handler=None):
+    """Run the copy jobs.
+
+    :param handler: TODO
+    """
+    status = self.__process.run(ProgressHandlerWrapper(handler))
     return XRootDStatus(status)

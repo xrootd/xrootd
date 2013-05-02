@@ -51,3 +51,42 @@ class AsyncResponseHandler(object):
     self.mutex.acquire()
     self.mutex.release()
     return self.status, self.response, self.hostlist
+
+class CopyProgressHandler(object):
+  """Utility class to handle progress updates from copy jobs
+
+  ..note:: This class does nothing by itself. You have to subclass it and do
+           something useful with the progress updates yourself.
+  """
+
+  def begin(self, id, total, source, target):
+    """Notify when a new job is about to start
+
+    :param     id: the job number of the copy job concerned
+    :type      id: integer
+    :param  total: total number of jobs being processed
+    :type   total: integer
+    :param source: the source url of the current job
+    :type  source: :mod:`XRootD.client.URL` object
+    :param target: the destination url of the current job
+    :type  target: :mod:`XRootD.client.URL` object
+    """
+    pass
+
+  def end(self, status):
+    """Notify when the previous job has finished
+
+    :param status: status of the job
+    :type  status: :mod:`XRootD.client.responses.XRootDStatus` object
+    """
+    pass
+
+  def update(self, processed, total):
+    """Notify about the progress of the current job
+
+    :param processed: bytes processed by the current job
+    :type  processed: integer
+    :param     total: total number of bytes to be processed by the current job
+    :type      total: integer
+    """
+    pass
