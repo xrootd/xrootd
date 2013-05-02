@@ -55,8 +55,8 @@ class AsyncResponseHandler(object):
 class CopyProgressHandler(object):
   """Utility class to handle progress updates from copy jobs
 
-  ..note:: This class does nothing by itself. You have to subclass it and do
-           something useful with the progress updates yourself.
+  .. note:: This class does nothing by itself. You have to subclass it and do
+            something useful with the progress updates yourself.
   """
 
   def begin(self, id, total, source, target):

@@ -79,9 +79,12 @@ class CopyProcess(object):
     return XRootDStatus(status)
 
   def run(self, handler=None):
-    """Run the copy jobs.
+    """Run the copy jobs with an optional progress handler.
 
-    :param handler: TODO
+    :param handler: a copy progress handler. You can subclass 
+                    :mod:`XRootD.client.utils.CopyProgressHandler` and implement
+                    the three methods (``begin()``, ``progress()`` and ``end()``
+                    ) to get regular progress updates for your copy jobs.
     """
     status = self.__process.run(ProgressHandlerWrapper(handler))
     return XRootDStatus(status)
