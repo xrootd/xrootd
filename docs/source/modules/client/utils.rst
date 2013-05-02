@@ -6,3 +6,6 @@
 
 .. autoclass:: XRootD.client.utils.AsyncResponseHandler
    :members:
+
+.. autoclass:: XRootD.client.utils.CopyProgressHandler
+   :members:

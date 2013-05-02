@@ -7,4 +7,8 @@
    :end-line: 3
 
 .. literalinclude:: ../../../examples/copyprocess.py
-   :lines: 5-
+   :lines: 29-
+
+.. include:: ../../../examples/copyprocess.py
+   :start-line: 4
+   :end-line: 27

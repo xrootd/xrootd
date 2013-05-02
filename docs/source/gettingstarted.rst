@@ -22,7 +22,7 @@ response is received.
 :mod:`XRootD.client.utils.AsyncResponseHandler`. If you use an instance of this
 class as your callback, you can call the :func:`wait` function whenever you
 like after the request is made, and it will block until the response is
-received. Just thought that might be useful for someone.
+received.
 
 Return types
 ------------
@@ -72,3 +72,17 @@ optional parameter, or you can set it system-wide with the
 (time interval between timeout detection) can be set with the
 ``XRD_TIMEOUTRESOLUTION`` environment variable.
 
+Copying files
+=============
+
+If you want to copy files simply and quickly with default options, you can just
+use :func:`XRootD.client.FileSystem.copy`. 
+
+But if you want more configurable copy jobs, or you want to copy a large number
+of files at once, you can use :mod:`XRootD.client.CopyProcess`.
+
+You can even pass in a copy progress handler to :func:`CopyProcess.run()` and 
+use it to build some kind of progress display (much like the ``xrdcopy``
+command does).
+
+ 
