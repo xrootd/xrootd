@@ -109,6 +109,8 @@ namespace XrdCl
       return st;
     }
 
+    pSocket->SetStatus( Socket::Connecting );
+
     //--------------------------------------------------------------------------
     // We should get the ready to write event once we're really connected
     // so we need to listen to it
