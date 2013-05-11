@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add the StatPF method to the oss plugin. This is used by the frm for
+     Performance reasons if it as actually implemented.
    * Add new class to quickly generate stream ID's.
    * Define a new plug-in to allow replacement of the stat() function when
      used to determine exported file characteristics. This plug-in is meant
@@ -36,6 +38,8 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Resolve naming conflicts within the frm that resulted from the
+     statlib plugin implementation.
    * Fix race condition when adding a new channel to a poll set. This only
      affected MacOS. Revert the timeout mutex to be a simple non-recursive
      mutex. Produce an event trace when the envar XrdSysIOE_TRACE is set.
