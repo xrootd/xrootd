@@ -118,7 +118,7 @@ int XrdFrmXfrQueue::Add(XrdFrcRequest *rP, XrdFrcReqFile *reqFQ, int qNum)
 // Check if the file exists or not. For incomming requests, the file must not
 // exist. For outgoing requests the file must exist.
 //
-   if (Config.ossFS->Stat(lclpath, &buf, XRDOSS_resonly))
+   if (Config.Stat((rP->LFN)+rP->LFO, lclpath, &buf))
       {if (Outgoing)
           {if (Config.Verbose || Trace.What & TRACE_Debug)
               Say.Say(0, xfrType,"skipped; ",lclpath," not resident.");

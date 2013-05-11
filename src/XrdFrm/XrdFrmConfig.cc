@@ -193,6 +193,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
    runOld   = 0;
    runNew   = 1;
    nonXA    = 0;
+   doStatPF = 0;
 
    myUid    = geteuid();
    myGid    = getegid();
@@ -406,7 +407,10 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        if (!NoGo)
           {if (!(ossFS=XrdOssGetSS(Say.logger(), ConfigFN, ossLib, ossParms,
                                    *myVersion))) NoGo = 1;
-              else runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
+              else {struct stat Stat;
+                    doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
+                    runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);
+                   }
           }
       }
 
@@ -581,6 +585,16 @@ XrdOucTList *XrdFrmConfig::Space(const char *Name, const char *Path)
    tP = vP->Dir;
    while(tP && strcmp(Path, tP->text)) tP = tP->next;
    return (tP ? tP : &nullEnt);
+}
+
+/******************************************************************************/
+/*                                  S t a t                                   */
+/******************************************************************************/
+  
+int XrdFrmConfig::Stat(const char *xLfn, const char *xPfn, struct stat *buff)
+{
+   return (doStatPF ? ossFS->StatPF(xPfn, buff)
+                    : ossFS->Stat  (xLfn, buff, XRDOSS_resonly));
 }
 
 /******************************************************************************/

@@ -48,6 +48,7 @@ class XrdSysLogger;
 class XrdFrmConfigSE;
 
 struct XrdVersionInfo;
+struct stat;
 
 class XrdFrmConfig
 {
@@ -168,6 +169,8 @@ int          RemotePath (const char *oldp, char *newp, int newpsz);
 
 XrdOucTList *Space(const char *Name, const char *Path=0);
 
+int          Stat(const char *xLfn, const char *xPfn, struct stat *buff);
+
 enum  SubSys {ssAdmin, ssMigr, ssPstg, ssPurg, ssXfr};
 
       XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo);
@@ -219,6 +222,7 @@ char               *RemoteRoot;
 XrdOucStream       *cFile;
 XrdVersionInfo     *myVersion;
 
+bool                doStatPF;
 int                 plnDTS;
 const char         *pfxDTS;
 const char         *vOpts;

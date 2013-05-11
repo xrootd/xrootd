@@ -129,7 +129,7 @@ const char *XrdFrmTransfer::checkFF(const char *Path)
       {if (buf.st_ctime+Config.FailHold >= time(0))
           return "request previously failed";
        if (Config.Test) {DEBUG("would have removed '" <<Path <<"'");}
-          else {Config.ossFS->Unlink(Path, XRDOSS_isPFN);
+          else {unlink(Path);
                 DEBUG("removed '" <<Path <<"'");
                }
       }
@@ -184,7 +184,8 @@ const char *XrdFrmTransfer::Fetch()
 
 // Check if the file exists
 //
-   if (!Config.ossFS->Stat(xfrP->PFN, &pfnStat, XRDOSS_resonly))
+   Lfn = (xfrP->reqData.LFN)+xfrP->reqData.LFO;
+   if (!Config.Stat(Lfn, xfrP->PFN, &pfnStat))
       {DEBUG(xfrP->PFN <<" exists; not fetched.");
        return 0;
       }
@@ -192,7 +193,6 @@ const char *XrdFrmTransfer::Fetch()
 // Construct the file name to which to we originally transfer the data. This is
 // the lfn if we do not pre-allocate files and "lfn.anew" otherwise.
 //
-   Lfn = (xfrP->reqData.LFN)+xfrP->reqData.LFO;
    lfnEnd = strlen(Lfn);
    strlcpy(lfnpath, Lfn, sizeof(lfnpath)-8);
    if (Config.xfrCmd[iXfr].Opts & Config.cmdAlloc)
@@ -234,7 +234,7 @@ const char *XrdFrmTransfer::Fetch()
 //
    xfrET = time(0);
    if (!(rc = cmdArg.theCmd->Run(pdBuff, pdSZ)))
-      {if ((rc = Config.ossFS->Stat(xfrP->PFN, &pfnStat, XRDOSS_resonly)))
+      {if ((rc = Config.Stat(lfnpath, xfrP->PFN, &pfnStat)))
           {Say.Emsg("Fetch", lfnpath, "fetched but not resident!"); fSize = 0;}
           else {fSize  = pfnStat.st_size;
                 if (Config.xfrCmd[iXfr].Opts & Config.cmdAlloc)
@@ -621,7 +621,7 @@ const char *XrdFrmTransfer::Throw()
 
 // Check if the file exists (we only copy resident files)
 //
-   if (Config.ossFS->Stat(xfrP->PFN, &begStat, XRDOSS_resonly))
+   if (Config.Stat(lfnpath+xfrP->reqData.LFO, xfrP->PFN, &begStat))
       return (xfrP->reqFQ ? "file not found" : 0);
 
 // Check for a fail file
@@ -673,7 +673,7 @@ const char *XrdFrmTransfer::Throw()
 // internally generated requests will simply be retried.
 //
    if (!rc)
-      {if ((rc = Config.ossFS->Stat(xfrP->PFN, &endStat, XRDOSS_resonly)))
+      {if ((rc = Config.Stat(lfnpath+xfrP->reqData.LFO, xfrP->PFN, &endStat)))
           {Say.Emsg("Throw", lfnpath, "transfered but not found!");
            retMsg = "unable to verify copy";
           } else {
@@ -767,7 +767,7 @@ void XrdFrmTransfer::ThrowDone(XrdFrmTranChk *cP, time_t endTime)
       } else {
        struct stat Stat;
        strcpy(&xfrP->PFN[xfrP->pfnEnd], ".lock");
-       if (!Config.ossFS->Stat(xfrP->PFN, &Stat, XRDOSS_resonly))
+       if (stat(xfrP->PFN, &Stat))
           {struct utimbuf tbuff;
            tbuff.actime = tbuff.modtime = endTime;
            if (utime(xfrP->PFN, &tbuff))
