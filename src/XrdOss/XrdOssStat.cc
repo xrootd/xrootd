@@ -258,6 +258,31 @@ int XrdOssSys::StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen)
 }
 
 /******************************************************************************/
+/*                                S t a t P F                                 */
+/******************************************************************************/
+
+/*
+  Function: Determine if physical file 'path' actually exists online.
+
+  Input:    path        - Is the fully qualified name of the file to be tested.
+            buff        - pointer to a 'stat' structure to hold the attributes
+                          of the file.
+
+  Output:   Returns XrdOssOK upon success and -errno upon failure.
+*/
+
+int XrdOssSys::StatPF(const char *path, struct stat *buff)
+{
+   int retc;
+
+// Stat the file in the local filesystem. Return result.
+//
+   retc = (STT_Func ? (*STT_Func)(path, buff, XRDOSS_resonly, 0) :
+                            stat (path, buff));
+   return (retc ? (errno ? -errno : -ENOMSG) : XrdOssOK);
+}
+  
+/******************************************************************************/
 /*                                S t a t V S                                 */
 /******************************************************************************/
   

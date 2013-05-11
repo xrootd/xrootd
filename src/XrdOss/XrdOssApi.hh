@@ -181,6 +181,7 @@ int       StatFS(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatFS(const char *path, unsigned long long &Opt,
                  long long &fSize, long long &fSpace);
 int       StatLS(XrdOucEnv &env, const char *path, char *buff, int &blen);
+int       StatPF(const char *, struct stat *);
 int       StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0);
 int       StatXA(const char *path, char *buff, int &blen, XrdOucEnv *Env=0);
 int       StatXP(const char *path, unsigned long long &attr, XrdOucEnv *Env=0);

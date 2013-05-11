@@ -187,6 +187,8 @@ virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
                       {return -ENOTSUP;}
 virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
                       {return -ENOTSUP;}
+virtual int     StatPF(const char *, struct stat *)
+                      {return -ENOTSUP;}
 virtual int     StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
                       {return -ENOTSUP;}
 virtual int     StatXP(const char *path, unsigned long long &attr,
