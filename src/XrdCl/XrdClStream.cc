@@ -221,7 +221,7 @@ namespace XrdCl
     time_t now = ::time(0);
 
     if( now-pLastStreamError < pStreamErrorWindow )
-      return Status( stFatal, errConnectionError );
+      return pLastFatalError;
 
     gettimeofday( &pConnectionStarted, 0 );
     pConnectionInitTime = now;
@@ -236,7 +236,8 @@ namespace XrdCl
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
                   "the host", pStreamName.c_str() );
       pLastStreamError = now;
-      st.status = stFatal;
+      st.status        = stFatal;
+      pLastFatalError  = st;
       return st;
     }
 
@@ -484,6 +485,7 @@ namespace XrdCl
     if( subStream == 0 )
     {
       pLastStreamError = 0;
+      pLastFatalError  = Status();
       pConnectionCount = 0;
       uint16_t numSub = pTransport->SubStreamNumber( *pChannelData );
       ++pSessionId;
@@ -769,6 +771,7 @@ namespace XrdCl
 
     pConnectionCount = 0;
     pLastStreamError = ::time(0);
+    pLastFatalError  = status;
 
     SubStreamList::iterator it;
     OutQueue q;
