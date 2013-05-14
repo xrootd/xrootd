@@ -309,7 +309,8 @@ namespace XrdCl
       XrdSysRecMutex                 pMutex;
       InQueue                       *pIncomingQueue;
       AnyObject                     *pChannelData;
-      uint16_t                       pLastStreamError;
+      uint32_t                       pLastStreamError;
+      Status                         pLastFatalError;
       uint16_t                       pStreamErrorWindow;
       uint16_t                       pConnectionCount;
       uint16_t                       pConnectionRetry;
