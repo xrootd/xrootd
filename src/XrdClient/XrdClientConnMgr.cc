@@ -157,8 +157,6 @@ int DestroyPhyConn(const char *key,
 			  XrdClientPhyConnection *p, void *voidcmgr)
 {
   // Function applied to the hash table to destroy all the phyconns
-  XrdClientConnectionMgr *cmgr = (XrdClientConnectionMgr *)voidcmgr;
-  assert(cmgr != 0);
 
   if (p) {
     p->Touch();
