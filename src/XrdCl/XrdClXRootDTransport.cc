@@ -1209,40 +1209,53 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      // We have either succeeded or failed, in either case we need to clean up
+      // We have succeeded
+      //------------------------------------------------------------------------
+      else if( rsp->hdr.status == kXR_ok )
+      {
+        info->authProtocolName = info->authProtocol->Entity.prot;
+        CleanUpAuthentication( info );
+
+        log->Debug( XRootDTransportMsg,
+                    "[%s] Authenticated with %s.", hsData->streamName.c_str(),
+                    protocolName.c_str() );
+        return Status();
+      } 
+      //------------------------------------------------------------------------
+      // Failure
+      //------------------------------------------------------------------------
+      else if( rsp->hdr.status == kXR_error )
+      {
+        log->Error( XRootDTransportMsg,
+                    "[%s] Authentication with %s failed: %s",
+                    hsData->streamName.c_str(), protocolName.c_str(),
+                    rsp->body.error.errmsg );
+
+        if( info->authProtocol )
+        {
+          info->authProtocol->Delete();
+          info->authProtocol = 0;
+        }
+
+        //----------------------------------------------------------------------
+        // Find another protocol that gives us valid credentials
+        //----------------------------------------------------------------------
+        Status st = GetCredentials( credentials, hsData, info );
+        if( !st.IsOK() )
+        {
+          CleanUpAuthentication( info );
+          return st;
+        }
+        protocolName = info->authProtocol->Entity.prot;
+      }
+      //------------------------------------------------------------------------
+      // God knows what
       //------------------------------------------------------------------------
       else
       {
         info->authProtocolName = info->authProtocol->Entity.prot;
         CleanUpAuthentication( info );
 
-        //----------------------------------------------------------------------
-        // Success
-        //----------------------------------------------------------------------
-        if( rsp->hdr.status == kXR_ok )
-        {
-          log->Debug( XRootDTransportMsg,
-                      "[%s] Authenticated with %s.", hsData->streamName.c_str(),
-                      protocolName.c_str() );
-          return Status();
-        }
-
-        //----------------------------------------------------------------------
-        // Failure
-        //----------------------------------------------------------------------
-        else if( rsp->hdr.status == kXR_error )
-        {
-          log->Error( XRootDTransportMsg,
-                      "[%s] Authentication with %s failed: %s",
-                      hsData->streamName.c_str(), protocolName.c_str(),
-                      rsp->body.error.errmsg );
-
-          return Status( stFatal, errAuthFailed );
-        }
-
-        //----------------------------------------------------------------------
-        // God knows what
-        //----------------------------------------------------------------------
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: unexpected answer",
                     hsData->streamName.c_str(), protocolName.c_str() );
