@@ -1149,6 +1149,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       info->authEnv = new XrdOucEnv();
       info->authEnv->Put( "sockname", hsData->clientName.c_str() );
+      info->authEnv->Put( "username", hsData->url->GetUserName().c_str() );
+      info->authEnv->Put( "password", hsData->url->GetPassword().c_str() );
 
       size_t authBuffLen = strlen( info->authBuffer );
       char *pars = (char *)malloc( authBuffLen );
