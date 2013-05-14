@@ -37,9 +37,7 @@ setup( name             = 'pyxrootd',
                sources   = sources,
                depends   = depends,
                libraries = ['XrdCl', 'XrdUtils', 'dl'],
-               extra_compile_args = ['-g', '-O0', # for debugging
-                                     #'-Wno-shorten-64-to-32' # Needed on mac, breaks on SLC5...
-                                     ],
+               extra_compile_args = ['-g'],
                include_dirs = [xrdincdir],
                library_dirs = [xrdlibdir]
                )
