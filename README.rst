@@ -55,11 +55,12 @@ already (put this in your .bashrc)::
 
   $ export PATH=${HOME}/.local/bin${PATH:+:$PATH}
 
-Running the tests
------------------
-
-Testing requires the `pytest <https://pytest.org/latest/>`_ package.
-Once pyxrootd is installed, it may be tested (from inside the source directory)
-by running::
-
-  $ py.test
+..
+  Running the tests
+  -----------------
+  
+  Testing requires the `pytest <https://pytest.org/latest/>`_ package.
+  Once pyxrootd is installed, it may be tested (from inside the source directory)
+  by running::
+  
+    $ py.test
