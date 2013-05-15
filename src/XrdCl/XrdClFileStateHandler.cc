@@ -268,8 +268,11 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileStateHandler::~FileStateHandler()
   {
-    DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
-    DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
+    if( DefaultEnv::GetFileTimer() )
+      DefaultEnv::GetFileTimer()->UnRegisterFileObject( this );
+
+    if( DefaultEnv::GetForkHandler() )
+      DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
 
     if( pFileState != Closed )
     {
