@@ -274,7 +274,7 @@ namespace XrdCl
     if( DefaultEnv::GetForkHandler() )
       DefaultEnv::GetForkHandler()->UnRegisterFileObject( this );
 
-    if( pFileState != Closed )
+    if( pFileState != Closed && DefaultEnv::GetPostMaster() )
     {
       XRootDStatus st;
       MonitorClose( &st );
