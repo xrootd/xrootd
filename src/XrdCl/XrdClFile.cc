@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClFileStateHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdCl
 {
@@ -38,7 +39,15 @@ namespace XrdCl
   //------------------------------------------------------------------------
   File::~File()
   {
-    Close();
+    //--------------------------------------------------------------------------
+    // This, in principle, should never ever happen. Except for the case
+    // when we're interfaced with ROOT that may call this desctructor from
+    // its garbage collector, from its __cxa_finalize, ie. after the XrdCl lib
+    // has been finalized by the linker. So, if we don't have the log object
+    // at this point we just give up the hope.
+    //--------------------------------------------------------------------------
+    if( DefaultEnv::GetLog() )
+      Close();
     delete pStateHandler;
   }
 
