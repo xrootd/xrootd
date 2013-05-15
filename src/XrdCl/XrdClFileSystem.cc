@@ -306,7 +306,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileSystem::~FileSystem()
   {
-    DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
+    if( DefaultEnv::GetForkHandler() )
+      DefaultEnv::GetForkHandler()->UnRegisterFileSystemObject( this );
     delete pUrl;
   }
 
