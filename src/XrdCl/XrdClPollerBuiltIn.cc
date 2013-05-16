@@ -59,10 +59,11 @@ namespace
       {
         using namespace XrdCl;
         uint8_t ev      = 0;
-        if( evFlags & ReadyToRead )  ev = SocketHandler::ReadyToRead;
-        if( evFlags & ReadTimeOut )  ev = SocketHandler::ReadTimeOut;
-        if( evFlags & ReadyToWrite ) ev = SocketHandler::ReadyToWrite;
-        if( evFlags & WriteTimeOut ) ev = SocketHandler::WriteTimeOut;
+
+        if( evFlags & ReadyToRead )  ev |= SocketHandler::ReadyToRead;
+        if( evFlags & ReadTimeOut )  ev |= SocketHandler::ReadTimeOut;
+        if( evFlags & ReadyToWrite ) ev |= SocketHandler::ReadyToWrite;
+        if( evFlags & WriteTimeOut ) ev |= SocketHandler::WriteTimeOut;
 
         Log *log = DefaultEnv::GetLog();
         if( unlikely(log->GetLevel() >= Log::DumpMsg) )
