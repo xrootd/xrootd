@@ -167,50 +167,50 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
-    switch( type )
+    //--------------------------------------------------------------------------
+    // Read event
+    //--------------------------------------------------------------------------
+    if( type & ReadyToRead )
     {
-      //------------------------------------------------------------------------
-      // Read event
-      //------------------------------------------------------------------------
-      case ReadyToRead:
-        if( likely( pHandShakeDone ) )
-          OnRead();
-        else
-          OnReadWhileHandshaking();
-        break;
+      if( likely( pHandShakeDone ) )
+        OnRead();
+      else
+        OnReadWhileHandshaking();
+    }
 
-      //------------------------------------------------------------------------
-      // Read timeout
-      //------------------------------------------------------------------------
-      case ReadTimeOut:
-        if( likely( pHandShakeDone ) )
-          OnReadTimeout();
-        else
-          OnTimeoutWhileHandshaking();
-        break;
+    //--------------------------------------------------------------------------
+    // Read timeout
+    //--------------------------------------------------------------------------
+    else if( type & ReadTimeOut )
+    {
+      if( likely( pHandShakeDone ) )
+        OnReadTimeout();
+      else
+        OnTimeoutWhileHandshaking();
+    }
 
-      //------------------------------------------------------------------------
-      // Write event
-      //------------------------------------------------------------------------
-      case ReadyToWrite:
-        if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
-          OnConnectionReturn();
-        else if( likely( pHandShakeDone ) )
-          OnWrite();
-        else
-          OnWriteWhileHandshaking();
+    //--------------------------------------------------------------------------
+    // Write event
+    //--------------------------------------------------------------------------
+    if( type & ReadyToWrite )
+    {
+      if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
+        OnConnectionReturn();
+      else if( likely( pHandShakeDone ) )
+        OnWrite();
+      else
+        OnWriteWhileHandshaking();
+    }
 
-        break;
-
-      //------------------------------------------------------------------------
-      // Write timeout
-      //------------------------------------------------------------------------
-      case WriteTimeOut:
-        if( likely( pHandShakeDone ) )
-          OnWriteTimeout();
-        else
-          OnTimeoutWhileHandshaking();
-        break;
+    //--------------------------------------------------------------------------
+    // Write timeout
+    //--------------------------------------------------------------------------
+    else if( type & WriteTimeOut )
+    {
+      if( likely( pHandShakeDone ) )
+        OnWriteTimeout();
+      else
+        OnTimeoutWhileHandshaking();
     }
   }
 
