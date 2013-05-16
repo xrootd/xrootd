@@ -48,6 +48,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucHash.hh
   XrdOuc/XrdOucHash.icc
+  XrdOuc/XrdOucIOVec.hh
   XrdOuc/XrdOucLock.hh
   XrdOuc/XrdOucName2Name.hh
   XrdOuc/XrdOucRash.hh
