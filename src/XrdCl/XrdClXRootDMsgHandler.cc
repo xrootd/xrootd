@@ -1163,7 +1163,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_protocol:
       {
-        AnyObject *obj = new AnyObject();
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as ProtocolInfo",
                    pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str() );
@@ -1175,6 +1174,7 @@ namespace XrdCl
           return Status( stError, errInvalidResponse );
         }
 
+        AnyObject *obj = new AnyObject();
         ProtocolInfo *data = new ProtocolInfo( rsp->body.protocol.pval,
                                                rsp->body.protocol.flags );
         obj->Set( data );
