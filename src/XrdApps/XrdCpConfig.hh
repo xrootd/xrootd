@@ -121,6 +121,9 @@ static const int    OpRecurse  =  'r';
 static const int    OpRecursv  =  'R';
 static const int    DoRecurse  =  0x00000800; // -r | --recursive | -R {legacy}
 
+static const int    OpMkPath   =  'p';
+static const int    DoMkPath   =  0x00200000; // -p | --mkpath
+
 static const int    OpRetry    =  't';
 static const int    DoRetry    =  0x00001000; // --coerce
 
