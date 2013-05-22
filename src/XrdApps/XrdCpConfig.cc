@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NpPrRsS:t:T:vVX:y:";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -96,6 +96,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
+      {OPT_TYPE "mkpath",    0, 0, XrdCpConfig::OpMkPath},
       {OPT_TYPE "retry",     1, 0, XrdCpConfig::OpRetry},
       {OPT_TYPE "server",    0, 0, XrdCpConfig::OpServer},
       {OPT_TYPE "silent",    0, 0, XrdCpConfig::OpSilent},
@@ -233,6 +234,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpRecurse:  OpSpec |= DoRecurse;
                            break;
           case OpRecursv:  OpSpec |= DoRecurse;
+                           break;
+          case OpMkPath:   OpSpec |= DoMkPath;
                            break;
           case OpRetry:    OpSpec |= DoRetry;
                            if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
