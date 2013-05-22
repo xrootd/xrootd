@@ -296,6 +296,22 @@ Additional optional parameters that will be passed to the monitoring object
 on initialization.
 .RE
 
+XRD_WORKERTHREADS
+.RS 5
+Number of threads processing user callbacks.
+.RE
+
+XRD_CPPARALLELCHUNKS
+.RS 5
+Maximum number of asynchronous requests being processed by the xrdcopy command
+at any given time.
+.RE
+
+XRD_CPCHUNKSIZE
+.RS 5
+Size of a single data chunk handled by xrdcopy.
+.RE
+
 .SH NOTES
 Documentation for all components associated with \fBxrdcopy\fR can be found at
 http://xrootd.org/docs.html
