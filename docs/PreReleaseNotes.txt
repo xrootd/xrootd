@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Merge xrdhttp with origin to facilitate http protocol implementation.
+   * Implement the kXR_dstat option for kXR_dirlist which is necessary
+     for WEBDAV requests via the bridge.
    * Add the StatPF method to the oss plugin. This is used by the frm for
      Performance reasons if it as actually implemented.
    * Add new class to quickly generate stream ID's.
