@@ -54,6 +54,9 @@ extern  XrdOucTrace *XrdXrootdTrace;
 #undef  TRACELINK
 #define TRACELINK Link
 
+#define XRD_GETNUM(x)\
+        ntohl(*(static_cast<unsigned int *>(static_cast<void *>(x))))
+
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
@@ -123,7 +126,7 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
 // Reissue the request if it's a wait 0 response.
 //
    if (rcode==kXR_wait
-   &&  (!ioN || *(static_cast<unsigned int *>(ioV[0].iov_base)) == 0))
+   &&  (!ioN || XRD_GETNUM(ioV[0].iov_base) == 0))
       {Sched->Schedule((XrdJob *)&waitJob);
        return 0;
       }
@@ -302,12 +305,12 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
   
 int XrdXrootdTransit::Process(XrdLink *lp)
 {
-   int rc, isActive;
+   int rc, bridgeActive;
 
 // This entry is serialized via link processing. First, get the run status.
 //
    AtomicBeg(runMutex);
-   isActive = AtomicGet(runStatus);
+   bridgeActive = AtomicGet(runStatus);
    AtomicEnd(runMutex);
 
 // If we are running then we need to reflect this to the xrootd protocol as
@@ -319,7 +322,7 @@ int XrdXrootdTransit::Process(XrdLink *lp)
 // = 0 -> OK, get next request, if allowed, o/w enable the link
 // > 0 -> Slow link, stop getting requests  and enable the link
 //
-   if (isActive)
+   if (bridgeActive)
       {rc = XrdXrootdProtocol::Process(lp);
        if (rc < 0) return rc;
        if (runWait)
@@ -377,7 +380,8 @@ int XrdXrootdTransit::Process()
 {
    static int  eCode         = htonl(kXR_NoMemory);
    static char eText[]       = "Insufficent memory to re-issue request";
-   static struct iovec ioV[] = {{&eCode,sizeof(eCode)},{&eText,sizeof(eText)}};
+   static struct iovec ioV[] = {{(void *)&eCode,sizeof(eCode)},
+                                {(void *)&eText,sizeof(eText)}};
    int rc;
 
 // Update wait statistics
@@ -637,7 +641,7 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
    runDone = true;
    switch(rcode)
          {case kXR_error:
-                   rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
+                   rc = XRD_GETNUM(ioV[0].iov_base);
                    eMsg = (ioN < 2 ? "" : (const char *)ioV[1].iov_base);
                    if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
                    aOK = respObj->Error(rInfo, rc, eMsg);
@@ -653,7 +657,7 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
                    break;
           case kXR_redirect:
                    if (wBuff) respObj->Free(rInfo, wBuff, wBLen);
-                   rc = ntohl(*(static_cast<kXR_unt32 *>(ioV[0].iov_base)));
+                   rc = XRD_GETNUM(ioV[0].iov_base);
                    aOK = respObj->Redir(rInfo,rc,(const char *)ioV[1].iov_base);
                    break;
           case kXR_wait:
@@ -698,7 +702,7 @@ int XrdXrootdTransit::Wait(XrdXrootd::Bridge::Context &rInfo,
 
 // Trace this request if need be
 //
-   runWait = ntohl(*(static_cast<unsigned int *>(ioV[0].iov_base)));
+   runWait = XRD_GETNUM(ioV[0].iov_base);
    eMsg = (ioN < 2 ? "reason unknown" : (const char *)ioV[1].iov_base);
 
 // Check if the protocol wants to handle all waits
@@ -744,7 +748,7 @@ int XrdXrootdTransit::WaitResp(XrdXrootd::Bridge::Context &rInfo,
 
 // Trace this request if need be
 //
-   wTime = ntohl(*(static_cast<unsigned int *>(ioV[0].iov_base)));
+   wTime = XRD_GETNUM(ioV[0].iov_base);
    eMsg = (ioN < 2 ? "reason unknown" : (const char *)ioV[1].iov_base);
    TRACEP(REQ, "Bridge waiting for resp; sid=" <<rInfo.sID.num
                <<" wt=" <<wTime <<" (" <<eMsg <<")");
