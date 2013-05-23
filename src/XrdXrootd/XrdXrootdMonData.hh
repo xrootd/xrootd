@@ -105,7 +105,7 @@ const kXR_char XROOTD_MON_MAPTRCE       = 't';
 const kXR_char XROOTD_MON_MAPUSER       = 'u';
 const kXR_char XROOTD_MON_MAPXFER       = 'x';
 
-// The following bits are insert in the low order 4 bits of the MON_REDIRECT
+// The following bits are insert in the low order 6 bits of the MON_REDIRECT
 // entry code to indicate the actual operation that was requestded.
 //
 const kXR_char XROOTD_MON_REDSID        = 0xf0; // Server Identification
@@ -128,6 +128,11 @@ const kXR_char XROOTD_MON_RM            = 0x0b;
 const kXR_char XROOTD_MON_RMDIR         = 0x0c;
 const kXR_char XROOTD_MON_STAT          = 0x0d;
 const kXR_char XROOTD_MON_TRUNC         = 0x0e;
+
+// Note - these were added later on to support redirection on reads.
+const kXR_char XROOTD_RMON_READ          = 0x0f;
+const kXR_char XROOTD_RMON_READV         = 0x21;
+const kXR_char XROOTD_RMON_WRITE         = 0x22;
 
 const kXR_char XROOTD_MON_FORCED        = 0x01;
 const kXR_char XROOTD_MON_BOUNDP        = 0x02;

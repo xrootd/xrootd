@@ -48,12 +48,12 @@
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
-#define AtomicAdd(x, y)     x += y
+#define AtomicAdd(x, y)     x; x += y
 #define AtomicCAS(x, y, z)  if (x == y) x = z
 #define AtomicDec(x)        x--
 #define AtomicFAZ(x)        x; x = 0
 #define AtomicGet(x)        x
 #define AtomicInc(x)        x++
-#define AtomicSub(x, y)     x -= y
+#define AtomicSub(x, y)     x; x -= y
 #endif
 #endif
