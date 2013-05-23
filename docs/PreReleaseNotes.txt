@@ -105,6 +105,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Remove errant 'using namespace std'.
    * Create a working stat() plugin for gpfs+tape (libXrdOssSIgpfsT.so)
      that also serves as a template for writing other such plugins.
    * Use the underlying storage system to determine file transfer
