@@ -63,6 +63,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Use corresponding struct name in memset size to clear the whole area.
    * Gaurd against SEGV when frm_purged started with no purgeable paths.
    * Ruggedize the poll() wait to avoid early timeouts under heavy loads.
    * Pass back any close errors from the oss layer to the client.
