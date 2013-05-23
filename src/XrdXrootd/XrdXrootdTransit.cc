@@ -92,8 +92,6 @@ int XrdXrootdTransit::Attn(XrdLink *lP, short *theSID, int rcode,
                            const struct iovec *ioV, int ioN, int ioL)
 {
    XrdXrootdTransPend *tP;
-   const char *eMsg;
-   int         rc;
 
 // Find the request
 //
@@ -255,7 +253,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
 //
    myMutex.Lock(); pID = ++bID; myMutex.UnLock();
    n = strlen(nameP);
-   if (n >= sizeof(uname)) n = sizeof(uname)-1;
+   if (n >= int(sizeof(uname))) n = sizeof(uname)-1;
    strncpy(uname, nameP, n);
    uname[n] = 0;
    linkP->setID(uname, pID);
@@ -550,8 +548,9 @@ bool XrdXrootdTransit::Run(const char *xreqP, char *xdataP, int xdataL)
 // Validate that we can actually handle this request
 //
    Request.header.requestid = ntohs(Request.header.requestid);
-   if (Request.header.requestid < 0 || Request.header.requestid > kXR_truncate
-   ||  !reqTab[Request.header.requestid - kXR_auth])
+   if (Request.header.requestid & 0x8000
+   || Request.header.requestid > static_cast<kXR_unt16>(kXR_truncate)
+   || !reqTab[Request.header.requestid - kXR_auth])
       return Fail(kXR_Unsupported, "Unsupported bridge request");
 
 // Validate the data length
@@ -631,7 +630,6 @@ int XrdXrootdTransit::Send(int rcode, const struct iovec *ioV, int ioN, int ioL)
                                           Request.header.requestid);
    const char *eMsg;
    int         rc;
-   short       sID;
    bool        aOK;
 
 // Invoke the result object (we initially assume this is the final result)

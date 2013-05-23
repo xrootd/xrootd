@@ -279,7 +279,6 @@ int XrdXrootdResponse::Send(XrdXrootdReqID &ReqID,
    static const int sfxLen = sizeof(asynResp) - sizeof(asynResp.atnHdr);
 
    XrdLink           *Link;
-   XrdProtocol       *Prot;
    unsigned char      theSID[2];
    int                theFD, rc, ioxlen = iolen;
    unsigned int       theInst;
