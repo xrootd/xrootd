@@ -409,7 +409,7 @@ char *XrdSecProtocolsss::Load_Client(XrdOucErrInfo *erp, const char *parms)
 
 // All done
 //
-   return strdup("");
+   return (char *)"";
 }
   
 /******************************************************************************/
