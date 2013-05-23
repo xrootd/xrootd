@@ -165,7 +165,8 @@ enum XStatRespFlags {
 };
 
 enum XDirlistRequestOption {
-   kXR_online = 1
+   kXR_online = 1,
+   kXR_dstat  = 2
 };
 
 enum XOpenRequestOption {

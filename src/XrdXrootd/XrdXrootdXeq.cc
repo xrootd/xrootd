@@ -496,9 +496,9 @@ int XrdXrootdProtocol::do_Dirlist()
        return rc;
       }
 
-// As a temporary hack, we check if the caller wants stat information as well
+// Check if the caller wants stat information as well
 //
-   if (opaque && !strcmp(opaque, "xrd.dirstat=1"))
+   if (Request.dirlist.options[0] & kXR_dstat)
       return do_DirStat(dp, ebuff, opaque);
 
 // Start retreiving each entry and place in a local buffer with a trailing new
@@ -562,6 +562,16 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
             dLoc = pbuff+dlen;
            }
 
+// The initial leadin is a "dot" entry to indicate to the client that we
+// support the dstat option (older servers will not do that). It's up to the
+// client to issue individual stat requests in that case.
+//
+   memset(&Stat, 0, sizeof(Stat));
+   strcpy(ebuff, ".\n");
+   buff = ebuff+2; bleft = sizeof(ebuff)-2;
+   dlen = StatGen(Stat, buff);
+   bleft -= (dlen+1); buff += dlen; *buff = '\n'; buff++;
+
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
 // full entry in the buffer, send what we have with an OKSOFAR and continue.
@@ -570,8 +580,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 // are allowed to be reflected at this point.
 //
   dname = 0;
-  do {buff = ebuff; bleft = sizeof(ebuff);
-      while(dname || (dname = dp->nextEntry()))
+  do {while(dname || (dname = dp->nextEntry()))
            {dlen = strlen(dname);
             if (dlen > 2 || dname[0] != '.' || (dlen == 2 && dname[1] != '.'))
                {if ((bleft -= (dlen+1)) < 0 || bleft < statSz) break;
@@ -588,6 +597,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
             dname = 0;
            }
        if (dname) rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
+       buff = ebuff; bleft = sizeof(ebuff);
      } while(!rc && dname);
 
 // Send the ending packet if we actually have one to send
