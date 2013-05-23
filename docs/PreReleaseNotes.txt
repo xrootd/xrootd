@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add AtomicZAP() to avoid gcc warnings about "no effect" statements on
+     platforms that do not have builtin atomic operations.
    * Merge xrdhttp with origin to facilitate http protocol implementation.
    * Implement the kXR_dstat option for kXR_dirlist which is necessary
      for WEBDAV requests via the bridge.
@@ -66,6 +68,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Use AtomicZAP when the data source is not needed to avoid compilation
+     issues on platforms that don't have atomic primitives.
    * Fix tiny memory leak during sss client initialization.
    * Use corresponding struct name in memset size to clear the whole area.
    * Gaurd against SEGV when frm_purged started with no purgeable paths.
