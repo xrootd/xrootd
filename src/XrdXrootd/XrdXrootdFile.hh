@@ -54,6 +54,8 @@ char         FileMode;          // 'r' or 'w'
 char         AsyncMode;         // 1 -> if file in async r/w mode
 char         isMMapped;         // 1 -> file is memory mapped
 char         sfEnabled;         // 1 -> file is sendfile enabled
+char         prEnabled;         // 1 -> prereads should be emitted prior to
+                                //      mmap/sendfile IO
 int          fdNum;             // File descriptor number if regular file
 const char  *ID;                // File user
 

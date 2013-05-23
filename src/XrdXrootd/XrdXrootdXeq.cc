@@ -1649,6 +1649,13 @@ int XrdXrootdProtocol::do_Read()
    return do_ReadAll();
 }
 
+#define DO_PREREAD(offset, amount) \
+if (myFile->prEnabled) \
+   {int prc = myFile->XrdSfsp->read(myOffset, myIOLen); \
+    if (prc == SFS_REDIRECT) \
+       return fsError(prc, XROOTD_RMON_READ, myFile->XrdSfsp->error, myFile->XrdSfsp->FName()); \
+   }
+
 /******************************************************************************/
 /*                            d o _ R e a d A l l                             */
 /******************************************************************************/
@@ -1667,6 +1674,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 //
    if (myFile->isMMapped)
       {if (myOffset >= myFile->Stats.fSize) return Response.Send();
+       DO_PREREAD(myOffset, myIOLen);
        if (myOffset+myIOLen <= myFile->Stats.fSize)
           {myFile->Stats.rdOps(myIOLen);
            return Response.Send(myFile->mmAddr+myOffset, myIOLen);
@@ -1681,6 +1689,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
       {myFile->Stats.rdOps(myIOLen);
+       DO_PREREAD(myOffset, myIOLen);
        return Response.Send(myFile->fdNum, myOffset, myIOLen);
       }
 
@@ -1688,7 +1697,8 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 //
    if (asyncOK && myFile->AsyncMode)
       {if (myIOLen >= as_miniosz && Link->UseCnt() < as_maxperlnk)
-          if ((rc = aio_Read()) != -EAGAIN) return rc;
+          if ((rc = aio_Read()) != -EAGAIN)
+             return rc == 0 ? 0 : fsError(rc, XROOTD_RMON_READ, myFile->XrdSfsp->error, myFile->XrdSfsp->FName());
        SI->AsyncRej++;
       }
 
@@ -1713,7 +1723,7 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
 // Determine why we ended here
 //
    if (xframt == 0) return Response.Send();
-   return fsError(xframt, 0, myFile->XrdSfsp->error, 0);
+   return fsError(xframt, XROOTD_RMON_READ, myFile->XrdSfsp->error, myFile->XrdSfsp->FName());
 }
 
 /******************************************************************************/

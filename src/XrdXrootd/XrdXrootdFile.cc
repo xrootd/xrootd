@@ -87,6 +87,10 @@ XrdXrootdFile::XrdXrootdFile(const char *id, XrdSfsFile *fp, char mode,
       else fdNum = fp->error.getErrInfo();
    sfEnabled = (sfOK && sfok && fdNum >= 0 ? 1 : 0);
 
+// Determine if we should issue pre-reads prior to any sendfile or mmap calls
+//
+   prEnabled = (fp->fctl(SFS_FCTL_PREAD, 0, fp->error) == SFS_OK);
+
 // Determine if file is memory mapped
 //
    if (fp->getMmap((void **)&mmAddr, mmSize) != SFS_OK) isMMapped = 0;

@@ -72,6 +72,11 @@
 //
 #define SFS_FCTL_GETFD    1 // Return file descriptor if possible
 #define SFS_FCTL_STATV    2 // Return visa information
+#define SFS_FCTL_PREAD    3 // Return 1 if a pre-read should be issued for each
+                            // IO operation that bypasses the SFS object.  This
+                            // is useful if the SFS is collecting statistics
+                            // about the reads performed, but would like to still
+                            // support sendfile()- and mmap()-based IO.
 
 // Common fsctl command values (0 to 255)
 //
