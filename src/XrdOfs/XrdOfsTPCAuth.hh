@@ -36,8 +36,6 @@
 #include "XrdOfs/XrdOfsTPC.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
-using namespace std;
-
 class XrdOfsTPCAuth : XrdOfsTPC
 {
 friend class XrdOfsTPCJob;
