@@ -488,7 +488,7 @@ int        statfs(         const char *path, struct statfs *buf)
    int rc;
 
    if ((rc = XrdPosix_Statfs(path, (struct statfs *)&buf64))) return rc;
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statfs));
    buf->f_type    = buf64.f_type;
    buf->f_bsize   = buf64.f_bsize;
    buf->f_blocks  = buf64.f_blocks;
@@ -515,7 +515,7 @@ int        statvfs(         const char *path, struct statvfs *buf)
    struct statvfs64 buf64;
    int rc;
    if ((rc = XrdPosix_Statvfs(path, (struct statvfs *)&buf64))) return rc;
-   memset(buf, 0, sizeof(buf));
+   memset(buf, 0, sizeof(struct statvfs));
    buf->f_flag    = buf64.f_flag;
    buf->f_bsize   = buf64.f_bsize;
    buf->f_blocks  = buf64.f_blocks;
