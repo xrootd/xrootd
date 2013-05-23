@@ -380,8 +380,8 @@ int XrdXrootdTransit::Process()
 {
    static int  eCode         = htonl(kXR_NoMemory);
    static char eText[]       = "Insufficent memory to re-issue request";
-   static struct iovec ioV[] = {{(void *)&eCode,sizeof(eCode)},
-                                {(void *)&eText,sizeof(eText)}};
+   static struct iovec ioV[] = {{(char *)&eCode,sizeof(eCode)},
+                                {(char *)&eText,sizeof(eText)}};
    int rc;
 
 // Update wait statistics
