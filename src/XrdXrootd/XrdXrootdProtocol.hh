@@ -68,6 +68,7 @@ class XrdOucErrInfo;
 class XrdOucStream;
 class XrdOucTokenizer;
 class XrdOucTrace;
+class XrdSfsDirectory;
 class XrdSfsFileSystem;
 class XrdSecProtocol;
 class XrdBuffer;
@@ -92,9 +93,13 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
 
        void          DoIt() {(*this.*Resume)();}
 
+       int           do_WriteSpan();
+
        XrdProtocol  *Match(XrdLink *lp);
 
        int           Process(XrdLink *lp); //  Sync: Job->Link.DoIt->Process
+
+       int           Process2();
 
        void          Recycle(XrdLink *lp, int consec, const char *reason);
 
@@ -123,6 +128,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_CKsum(const char *Path, const char *Opaque);
        int   do_Close();
        int   do_Dirlist();
+       int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, const char *opaque);
        int   do_Endsess();
        int   do_Getfile();
        int   do_Login();
@@ -173,9 +179,7 @@ static int   Config(const char *fn);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
 static int   mapMode(int mode);
-       void  MonAuth();
 static void  PidFile();
-       int   Process2();
        void  Reset();
 static int   rpCheck(char *fn, const char **opaque);
        int   rpEmsg(const char *op, char *fn);
@@ -201,6 +205,8 @@ static XrdObjectQ<XrdXrootdProtocol> ProtStack;
 XrdObject<XrdXrootdProtocol>         ProtLink;
 
 protected:
+
+       void  MonAuth();
 
 static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT

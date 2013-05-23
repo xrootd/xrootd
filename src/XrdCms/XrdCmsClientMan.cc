@@ -326,7 +326,7 @@ int XrdCmsClientMan::Hookup()
                 else     {opts = 0; tries = 12;}
              continue;
             }
-       lp->Bind(XrdSysThread::ID());
+//     lp->Bind(XrdSysThread::ID());
        memset(&Data, 0, sizeof(Data));
        Data.Mode = CmsLoginData::kYR_director;
        Data.HoldTime = static_cast<int>(getpid());
