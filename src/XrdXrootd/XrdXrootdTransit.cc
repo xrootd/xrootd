@@ -140,7 +140,7 @@ int XrdXrootdTransit::AttnCont(XrdXrootdTransPend *tP,  int rcode,
    if (rc >= 0)
       {if (runDone && !runWait)
           {AtomicBeg(runMutex);
-           AtomicFAZ(runStatus);
+           AtomicZAP(runStatus);
            AtomicEnd(runMutex);
            tP->link->Enable();
           } else {
@@ -332,7 +332,7 @@ int XrdXrootdTransit::Process(XrdLink *lp)
           }
        if (!runDone) return rc;
        AtomicBeg(runMutex);
-       AtomicFAZ(runStatus);
+       AtomicZAP(runStatus);
        AtomicEnd(runMutex);
        if (!reInvoke) return 1;
       }
@@ -354,7 +354,7 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
                        }
                     if (!runDone) return rc;
                     AtomicBeg(runMutex);
-                    AtomicFAZ(runStatus);
+                    AtomicZAP(runStatus);
                     AtomicEnd(runMutex);
                    }
                }
@@ -365,7 +365,7 @@ do{rc = realProt->Process((reInvoke ? 0 : lp));
 //
    if (runStatus)
       {AtomicBeg(runMutex);
-       AtomicFAZ(runStatus);
+       AtomicZAP(runStatus);
        AtomicEnd(runMutex);
       }
 
@@ -408,7 +408,7 @@ int XrdXrootdTransit::Process()
 //
    if (runStatus)
       {AtomicBeg(runMutex);
-       AtomicFAZ(runStatus);
+       AtomicZAP(runStatus);
        AtomicEnd(runMutex);
       }
 

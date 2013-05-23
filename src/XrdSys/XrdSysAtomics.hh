@@ -45,6 +45,7 @@
 #define AtomicGet(x)        __sync_fetch_and_or(&x, 0)
 #define AtomicInc(x)        __sync_fetch_and_add(&x, 1)
 #define AtomicSub(x, y)     __sync_fetch_and_sub(&x, y)
+#define AtomicZAP(x)        __sync_fetch_and_and(&x, 0)
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
@@ -55,5 +56,6 @@
 #define AtomicGet(x)        x
 #define AtomicInc(x)        x++
 #define AtomicSub(x, y)     x -= y
+#define AtomicZAP(x)        x = 0
 #endif
 #endif
