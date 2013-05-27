@@ -113,6 +113,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Correct issues reported by gcc 4.7.2 (narrowing & pointer comparison).
    * Remove errant 'using namespace std'.
    * Create a working stat() plugin for gpfs+tape (libXrdOssSIgpfsT.so)
      that also serves as a template for writing other such plugins.
