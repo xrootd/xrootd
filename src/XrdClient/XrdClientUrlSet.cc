@@ -338,7 +338,7 @@ void XrdClientUrlSet::CheckPort(int &port)
 
       struct servent *svc = getservbyname("rootd", "tcp");
 
-      if (svc <= 0) {
+      if (!svc) {
          Info(XrdClientDebug::kHIDEBUG, "CheckPort",
 	      "service rootd not specified in /etc/services;" <<
               "using default IANA tcp port 1094");
