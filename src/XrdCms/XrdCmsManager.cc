@@ -167,8 +167,10 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
 void XrdCmsManager::Inform(XrdCms::CmsReqCode rCode, int rMod,
                                   const char *Arg,  int Alen)
 {
-    CmsRRHdr Hdr = {0, rCode, rMod, htons(static_cast<unsigned short>(Alen))};
-    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},{(char *)Arg, Alen}};
+    CmsRRHdr Hdr = {0, rCode, (kXR_char)rMod,
+                    htons(static_cast<unsigned short>(Alen))};
+    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},
+                           {(char *)Arg, (size_t)Alen}};
 
     Inform(Router.getName((int)rCode), ioV, (Arg ? 2 : 1), Alen+sizeof(Hdr));
 }
@@ -177,7 +179,8 @@ void XrdCmsManager::Inform(XrdCms::CmsReqCode rCode, int rMod,
 
 void XrdCmsManager::Inform(CmsRRHdr &Hdr, const char *Arg, int Alen)
 {
-    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},{(char *)Arg, Alen}};
+    struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},
+                           {(char *)Arg, (size_t)Alen}};
 
     Hdr.datalen = htons(static_cast<unsigned short>(Alen));
 

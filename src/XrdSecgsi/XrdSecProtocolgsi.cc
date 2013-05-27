@@ -3073,7 +3073,7 @@ int XrdSecProtocolgsi::ClientDoCert(XrdSutBuffer *br, XrdSutBuffer **bm,
    }
    //
    // Verify the chain
-   x509ChainVerifyOpt_t vopt = { 0, hs->TimeStamp, -1, hs->Crl};
+   x509ChainVerifyOpt_t vopt = {0,static_cast<int>(hs->TimeStamp),-1,hs->Crl};
    XrdCryptoX509Chain::EX509ChainErr ecode = XrdCryptoX509Chain::kNone;
    if (!(hs->Chain->Verify(ecode, &vopt))) {
       emsg = "certificate chain verification failed: ";
@@ -3529,7 +3529,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    }
    //
    // Verify the chain
-   x509ChainVerifyOpt_t vopt = { 0, hs->TimeStamp, -1, hs->Crl};
+   x509ChainVerifyOpt_t vopt = {0,static_cast<int>(hs->TimeStamp),-1,hs->Crl};
    XrdCryptoX509Chain::EX509ChainErr ecode = XrdCryptoX509Chain::kNone;
    if (!(hs->Chain->Verify(ecode, &vopt))) {
       cmsg = "certificate chain verification failed: ";

@@ -1190,7 +1190,7 @@ void XrdCmsNode::do_StateDFS(XrdCmsBaseFR *rP, int rc)
 {
    EPNAME("StateDFs");
    static const SMask_t allNodes(~0);
-   CmsRRHdr Request = {rP->Sid, 0, rP->Mod | kYR_raw, 0};
+   CmsRRHdr Request = {rP->Sid, 0, (kXR_char)(rP->Mod | kYR_raw), 0};
    XrdCmsSelect Sel(0, rP->Path, rP->PathLen);
    int isNew;
 

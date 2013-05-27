@@ -111,12 +111,12 @@ void  Reset();
 
 private:
 
-XrdSysMutex  sidMutex;
-XrdOucSid   *globalSid;
-char        *sidVec;
-int          sidFree;
-int          sidSize;
-int          sidMax;
-bool         sidLock;
+XrdSysMutex    sidMutex;
+XrdOucSid     *globalSid;
+unsigned char *sidVec;
+int            sidFree;
+int            sidSize;
+int            sidMax;
+bool           sidLock;
 };
 #endif

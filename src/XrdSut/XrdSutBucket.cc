@@ -38,7 +38,7 @@
 /*             M a s k s  f o r   A S C I I  c h a r a c t e r s              */
 /******************************************************************************/
 static kXR_int32 XrdSutCharMsk[4][4] =
-   { {0x00000000, 0xffffffff, 0xffffffff, 0xfffffffe},   // any printable char
+   { {0x00000000,         -1,         -1,         -2},   // any printable char
      {0x00000000, 0x0000ffc0, 0x7fffffe0, 0x7fffffe0},   // letters/numbers  (up/low case)
      {0x00000000, 0x0000ffc0, 0x7e000000, 0x7e000000},   // hex characters   (up/low case)
      {0x00000000, 0x03ffc000, 0x07fffffe, 0x07fffffe} }; // crypt like [a-zA-Z0-9./]

@@ -50,7 +50,7 @@ XrdOucSid::XrdOucSid(int numSid, bool mtproof, XrdOucSid *glblSid)
 
 // Allocate a sid table for the number we want
 //
-   sidVec = (char *)malloc(sidSize);
+   sidVec = (unsigned char *)malloc(sidSize);
    memset(sidVec, 255, sidSize);
 }
 
@@ -70,8 +70,8 @@ XrdOucSid::~XrdOucSid()
 bool XrdOucSid::Obtain(XrdOucSid::theSid *sidP)
 {
 //                             0000 0001 0010 0011 0100 0101 0110 0111
-//                             1000 1001 1010 1011 1100 1101 1110 1111
-   static const char mask[] = {0x00,0x11,0x22,0x11,0x44,0x11,0x22,0x11,
+   static const          //    1000 1001 1010 1011 1100 1101 1110 1111
+   unsigned     char mask[] = {0x00,0x11,0x22,0x11,0x44,0x11,0x22,0x11,
                                0x88,0x11,0x22,0x11,0x44,0x11,0x22,0x11};
    bool aOK = true;
 
@@ -114,8 +114,8 @@ bool XrdOucSid::Obtain(XrdOucSid::theSid *sidP)
   
 bool XrdOucSid::Release(XrdOucSid::theSid *sidP)
 {
-//                                0    1    2    3    4    5    6    7
-   static const char mask[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
+   static const             //    0    1    2    3    4    5    6    7
+   unsigned     char mask[] = {0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80};
    bool   aOK = true;
 
 // Lock if need be
