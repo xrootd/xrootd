@@ -251,7 +251,7 @@ XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
   if( !status.IsOK() )
   {
     log->Error( AppMsg, "Error listing directory: %s",
-                        status.GetErrorMessage().c_str());
+                        status.ToStr().c_str());
     return status;
   }
 
