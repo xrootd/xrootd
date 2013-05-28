@@ -238,7 +238,7 @@ void AdjustFileInfo( XrdCpFile *file )
 // Get a list of files and a list of directories inside a remote directory
 //------------------------------------------------------------------------------
 XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
-                                XrdCl::URL                url,
+                                const XrdCl::URL         &url,
                                 std::vector<std::string> *&files,
                                 std::vector<std::string> *&directories )
 {
