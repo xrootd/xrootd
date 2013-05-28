@@ -71,7 +71,7 @@ namespace XrdCl
   {
     JobDescriptor(): sourceLimit(1), force(false), posc(false), coerce(false),
       thirdParty(false), checkSumPrint(false), chunkSize( 4194304 ),
-      parallelChunks(8)
+      makedir(false), parallelChunks(8)
     {}
 
     URL              source;               //!< [in] original source URL
@@ -83,6 +83,8 @@ namespace XrdCl
                                            //!< close
     bool             coerce;               //!< [in] ignore file usage rules,
                                            //!< ie. apply Force flag to Open
+    bool             makedir;              //!< [in] create directory path to
+                                           //!< file if it doesn't exist
     bool             thirdParty;           //!< [in] do third party copy if
                                            //!< possible
     bool             thirdPartyFallBack;   //!< [in] fall back to classic copy

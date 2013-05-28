@@ -201,7 +201,7 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       Destination():
-        pPosc( false ), pForce( false ), pCoerce( false ) {}
+        pPosc( false ), pForce( false ), pCoerce( false ), pMakeDir( false ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -251,10 +251,19 @@ namespace
         pCoerce = coerce;
       }
 
+      //------------------------------------------------------------------------
+      //! Set makedir
+      //------------------------------------------------------------------------
+      void SetMakeDir( bool makedir )
+      {
+        pMakeDir = makedir;
+      }
+
     protected:
       bool pPosc;
       bool pForce;
       bool pCoerce;
+      bool pMakeDir;
   };
 
   //----------------------------------------------------------------------------
@@ -682,6 +691,17 @@ namespace
         Log *log = DefaultEnv::GetLog();
 
         //----------------------------------------------------------------------
+        // Make the directory path if necessary
+        //----------------------------------------------------------------------
+        if( pMakeDir )
+        {
+          std::string dirpath = pPath.substr(0, pPath.find_last_of("/"));
+          XRootDStatus st = MkPath( dirpath );
+          if( !st.IsOK() )
+            return st;
+        }
+
+        //----------------------------------------------------------------------
         // Open the file for reading and get it's size
         //----------------------------------------------------------------------
         log->Debug( UtilityMsg, "Opening %s for writing", pPath.c_str() );
@@ -738,6 +758,46 @@ namespace
                                                std::string &checkSumType )
       {
         return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pPath );
+      }
+
+      //------------------------------------------------------------------------
+      //! Create a directory path
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus MkPath( std::string &path )
+      {
+        using namespace XrdCl;
+        Log   *log = DefaultEnv::GetLog();
+        struct stat st;
+
+        for( std::string::iterator iter = path.begin(); iter != path.end(); )
+        {
+          std::string::iterator newIter = std::find( iter, path.end(), '/' );
+          std::string           newPath = std::string( path.begin(), newIter );
+
+          if( stat( newPath.c_str(), &st ) != 0 )
+          {
+            if( mkdir( newPath.c_str(), 0755 ) != 0 && errno != EEXIST )
+            {
+              log->Debug( UtilityMsg, "Cannot create directory %s: %s",
+                                      newPath.c_str(), strerror( errno ) );
+              return XRootDStatus( stError, errOSError, errno );
+            }
+          }
+          else if( !S_ISDIR( st.st_mode ) )
+          {
+            errno = ENOTDIR;
+            log->Debug( UtilityMsg, "Path %s not a directory: %s",
+                                    newPath.c_str(), strerror( errno ) );
+            return XRootDStatus( stError, errOSError, errno );
+          }
+          else
+            log->Dump( UtilityMsg, "Path %s already exists", newPath.c_str() );
+
+          iter = newIter;
+          if( newIter != path.end() )
+            ++iter;
+        }
+        return 0;
       }
 
     private:
@@ -953,6 +1013,7 @@ namespace XrdCl
     dest->SetForce( pJob->force );
     dest->SetPOSC( pJob->posc );
     dest->SetCoerce( pJob->coerce );
+    dest->SetMakeDir( pJob->makedir );
     st = dest->Initialize();
     if( !st.IsOK() ) return st;
 
