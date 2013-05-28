@@ -797,7 +797,7 @@ namespace
           if( newIter != path.end() )
             ++iter;
         }
-        return 0;
+        return XRootDStatus();
       }
 
     private:
