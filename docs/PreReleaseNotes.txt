@@ -43,6 +43,8 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Merge in commit 4085a4 from apeters to prevent SEGV's when reusing a
+     recycled protocol object under certain conditions.
    * Resolve naming conflicts within the frm that resulted from the
      statlib plugin implementation.
    * Fix race condition when adding a new channel to a poll set. This only
@@ -69,7 +71,7 @@ Prerelease Notes
 
 + **Minor bug fixes**
    * Use AtomicZAP when the data source is not needed to avoid compilation
-     issues on platforms that don't have atomic primitives.
+     Issues on platforms that don't have atomic primitives.
    * Fix tiny memory leak during sss client initialization.
    * Use corresponding struct name in memset size to clear the whole area.
    * Gaurd against SEGV when frm_purged started with no purgeable paths.
