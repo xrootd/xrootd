@@ -677,6 +677,7 @@ void XrdXrootdProtocol::Reset()
    myIOLen            = 0;
    myStalls           = 0;
    myAioReq           = 0;
+   myFile             = 0;
    numReads           = 0;
    numReadP           = 0;
    numWrites          = 0;
