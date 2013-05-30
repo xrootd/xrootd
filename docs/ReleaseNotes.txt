@@ -6,7 +6,14 @@ Release Notes
 =============
 
 -------------
-Version 3.2.6
+Version 3.2.8
+-------------
++ **Major bug fixes**
+   * Prevent SEGV's when reusing a recycled protocol object under certain
+     conditions.
+
+-------------
+Version 3.2.7
 -------------
 + **Major bug fixes**
    * For OpenSSL versions prior to 1, make the 'default' and 'old' hash
