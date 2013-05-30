@@ -222,6 +222,56 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Set log level
+  //----------------------------------------------------------------------------
+  void DefaultEnv::SetLogLevel( const std::string &level )
+  {
+    Log *log = GetLog();
+    log->SetLevel( level );
+  }
+
+  //----------------------------------------------------------------------------
+  // Set log file
+  //----------------------------------------------------------------------------
+  bool DefaultEnv::SetLogFile( const std::string &filepath )
+  {
+    Log *log = GetLog();
+    LogOutFile *out = new LogOutFile();
+
+    if( out->Open( filepath ) )
+    {
+      log->SetOutput( out );
+      return true;
+    }
+
+    delete out;
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set log mask.
+  //------------------------------------------------------------------------
+  void DefaultEnv::SetLogMask( const std::string &level,
+                               const std::string &mask )
+  {
+    Log *log = GetLog();
+    MaskTranslator translator;
+    uint64_t topicMask = translator.translateMask( mask );
+
+    if( level == "All" )
+    {
+      log->SetMask( Log::ErrorMsg,   topicMask );
+      log->SetMask( Log::WarningMsg, topicMask );
+      log->SetMask( Log::InfoMsg,    topicMask );
+      log->SetMask( Log::DebugMsg,   topicMask );
+      log->SetMask( Log::DumpMsg,    topicMask );
+      return;
+    }
+
+    log->SetMask( level, topicMask );
+  }
+
+  //----------------------------------------------------------------------------
   // Get fork handler
   //----------------------------------------------------------------------------
   ForkHandler *DefaultEnv::GetForkHandler()
