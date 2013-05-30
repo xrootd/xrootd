@@ -64,6 +64,45 @@ namespace XrdCl
       static Log *GetLog();
 
       //------------------------------------------------------------------------
+      //! Set log level
+      //!
+      //! @param level Dump, Debug, Info, Warning or Error
+      //------------------------------------------------------------------------
+      static void SetLogLevel( const std::string &level );
+
+      //------------------------------------------------------------------------
+      //! Set log file
+      //!
+      //! @param filepath path to the log file
+      //------------------------------------------------------------------------
+      static bool SetLogFile( const std::string &filepath );
+
+      //------------------------------------------------------------------------
+      //! Set log mask.
+      //! Determines which diagnostics topics should be printed. It's a
+      //! "|" separated list of topics. The first element may be "All" in which
+      //! case all the topics are enabled and the subsequent elements may turn
+      //! them off, or "None" in which case all the topics are disabled and
+      //! the subsequent flags may turn them on. If the topic name is prefixed
+      //! with "^", then it means that the topic should be disabled. If the
+      //! topic name is not prefixed, then it means that the topic should be
+      //! enabled.
+      //!
+      //! The default for each level is "All", except for the "Dump" level,
+      //! where the default is "All|^PollerMsg". This means that, at the
+      //! "Dump" level, all the topics but "PollerMsg" are enabled.
+      //!
+      //! Available topics: AppMsg, UtilityMsg, FileMsg, PollerMsg,
+      //! PostMasterMsg, XRootDTransportMsg, TaskMgrMsg, XRootDMsg,
+      //! FileSystemMsg, AsyncSockMsg
+      //!
+      //! @param level log level or "All" for all levels
+      //! @param mask  log mask
+      //------------------------------------------------------------------------
+      static void SetLogMask( const std::string &level,
+                              const std::string &mask );
+
+      //------------------------------------------------------------------------
       //! Get the fork handler
       //------------------------------------------------------------------------
       static ForkHandler *GetForkHandler();
