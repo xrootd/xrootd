@@ -41,6 +41,7 @@ namespace
     { errUninitialized,      "Initialization error" },
     { errOSError,            "OS Error"             },
     { errNotSupported,       "Operation not supported" },
+    { errDataError,          "Received corrupted data" },
     { errInvalidAddr,        "Invalid address"      },
     { errSocketError,        "Socket error"         },
     { errSocketTimeout,      "Socket timeout"       },
