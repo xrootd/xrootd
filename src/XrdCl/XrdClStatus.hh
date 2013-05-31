@@ -61,6 +61,7 @@ namespace XrdCl
   const uint16_t errUninitialized  = 11;
   const uint16_t errOSError        = 12;
   const uint16_t errNotSupported   = 13;
+  const uint16_t errDataError      = 14; //!< data is corrupted
 
   //----------------------------------------------------------------------------
   // Socket related errors
