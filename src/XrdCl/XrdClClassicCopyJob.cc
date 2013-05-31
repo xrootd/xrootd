@@ -984,6 +984,17 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
+    // The size of the source is known and not enough data has been transfered
+    // to the destination
+    //--------------------------------------------------------------------------
+    if( src->GetSize() >= 0 && size != processed )
+    {
+      log->Error( UtilityMsg, "The declared source size is %ld bytes, but "
+                  "received %ld bytes.", size, processed );
+      return XRootDStatus( stError, errDataError );
+    }
+
+    //--------------------------------------------------------------------------
     // Verify the checksums if needed
     //--------------------------------------------------------------------------
     if( !pJob->checkSumType.empty() )
