@@ -1090,7 +1090,7 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    if (strcmp(dst, "-"))
       // Copy to local fs
       //unlink(dst);
-     {f = open(dst, loc_wr_flags,
+     {f = open(getFName(dst), loc_wr_flags,
           S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
       if (f < 0)
          {EMSG(strerror(errno) <<" creating '" <<getFName(dst) <<"'.");
