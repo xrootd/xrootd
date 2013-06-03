@@ -70,6 +70,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Strip off opaque information from dest filename when copying to local
+     filesystem. This only affects xrdcp.
    * Use AtomicZAP when the data source is not needed to avoid compilation
      Issues on platforms that don't have atomic primitives.
    * Fix tiny memory leak during sss client initialization.
