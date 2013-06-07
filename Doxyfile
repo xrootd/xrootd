@@ -82,7 +82,6 @@ src/XrdCks/XrdCksData.hh \
 src/XrdCks/XrdCksManager.hh \
 src/XrdCks/XrdCksCalc.hh \
 src/XrdCks/XrdCks.hh \
-src/XrdVersion.hh \
 src/XrdSfs/XrdSfsInterface.hh \
 src/XrdSfs/XrdSfsAio.hh \
 src/XrdNet/XrdNet.hh \
