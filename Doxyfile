@@ -67,10 +67,102 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = 
-FILE_PATTERNS          = *.cc \
-                         *.hh \
-                         *.icc
+INPUT                  = \
+src/xrootd/XrdSec/XrdSecEntity.hh \
+src/xrootd/XrdSec/XrdSecInterface.hh \
+src/xrootd/Xrd/XrdJob.hh \
+src/xrootd/Xrd/XrdBuffer.hh \
+src/xrootd/Xrd/XrdScheduler.hh \
+src/xrootd/Xrd/XrdLink.hh \
+src/xrootd/Xrd/XrdLinkMatch.hh \
+src/xrootd/Xrd/XrdProtocol.hh \
+src/xrootd/XrdXrootd/XrdXrootdMonData.hh \
+src/xrootd/XrdVersionPlugin.hh \
+src/xrootd/XrdCks/XrdCksData.hh \
+src/xrootd/XrdCks/XrdCksManager.hh \
+src/xrootd/XrdCks/XrdCksCalc.hh \
+src/xrootd/XrdCks/XrdCks.hh \
+src/xrootd/XrdSfs/XrdSfsInterface.hh \
+src/xrootd/XrdSfs/XrdSfsAio.hh \
+src/xrootd/XrdNet/XrdNet.hh \
+src/xrootd/XrdNet/XrdNetCmsNotify.hh \
+src/xrootd/XrdNet/XrdNetConnect.hh \
+src/xrootd/XrdNet/XrdNetOpts.hh \
+src/xrootd/XrdNet/XrdNetSocket.hh \
+src/xrootd/XrdSys/XrdSysError.hh \
+src/xrootd/XrdSys/XrdSysPlatform.hh \
+src/xrootd/XrdSys/XrdSysLogger.hh \
+src/xrootd/XrdSys/XrdSysPthread.hh \
+src/xrootd/XrdSys/XrdSysTimer.hh \
+src/xrootd/XrdSys/XrdSysHeaders.hh \
+src/xrootd/XrdSys/XrdSysDNS.hh \
+src/xrootd/XrdSys/XrdSysXSLock.hh \
+src/xrootd/XrdSys/XrdSysIOEvents.hh \
+src/xrootd/XrdSys/XrdSysAtomics.hh \
+src/xrootd/XrdSys/XrdSysPlugin.hh \
+src/xrootd/XrdSys/XrdSysSemWait.hh \
+src/xrootd/XrdClient/XrdClientConst.hh \
+src/xrootd/XrdClient/XrdClientVector.hh \
+src/xrootd/XrdClient/XrdClientAbs.hh \
+src/xrootd/XrdClient/XrdClientAbsMonIntf.hh \
+src/xrootd/XrdClient/XrdClient.hh \
+src/xrootd/XrdClient/XrdClientUnsolMsg.hh \
+src/xrootd/XrdClient/XrdClientAdmin.hh \
+src/xrootd/XrdClient/XrdClientUrlSet.hh \
+src/xrootd/XrdClient/XrdClientUrlInfo.hh \
+src/xrootd/XrdClient/XrdClientEnv.hh \
+src/xrootd/XrdOuc/XrdOucRash.hh \
+src/xrootd/XrdOuc/XrdOucStream.hh \
+src/xrootd/XrdOuc/XrdOuca2x.hh \
+src/xrootd/XrdOuc/XrdOucTrace.hh \
+src/xrootd/XrdOuc/XrdOucCRC.hh \
+src/xrootd/XrdOuc/XrdOucErrInfo.hh \
+src/xrootd/XrdOuc/XrdOucDLlist.hh \
+src/xrootd/XrdOuc/XrdOucCache.hh \
+src/xrootd/XrdOuc/XrdOucTList.hh \
+src/xrootd/XrdOuc/XrdOucName2Name.hh \
+src/xrootd/XrdOuc/XrdOucTable.hh \
+src/xrootd/XrdOuc/XrdOucIOVec.hh \
+src/xrootd/XrdOuc/XrdOucCallBack.hh \
+src/xrootd/XrdOuc/XrdOucEnum.hh \
+src/xrootd/XrdOuc/XrdOucLock.hh \
+src/xrootd/XrdOuc/XrdOucTokenizer.hh \
+src/xrootd/XrdOuc/XrdOucEnv.hh \
+src/xrootd/XrdOuc/XrdOucString.hh \
+src/xrootd/XrdOuc/XrdOucChain.hh \
+src/xrootd/XrdOuc/XrdOucUtils.hh \
+src/xrootd/XrdOuc/XrdOucHash.hh \
+src/xrootd/XrdOss/XrdOss.hh \
+src/xrootd/XrdOss/XrdOssStatInfo.hh \
+src/xrootd/XrdOss/XrdOssDefaultSS.hh \
+src/xrootd/XrdPosix/XrdPosixXrootd.hh \
+src/xrootd/XrdPosix/XrdPosixExtern.hh \
+src/xrootd/XrdPosix/XrdPosixXrootdPath.hh \
+src/xrootd/XrdPosix/XrdPosixOsDep.hh \
+src/xrootd/XrdPosix/XrdPosixCallBack.hh \
+src/xrootd/XrdAcc/XrdAccAuthorize.hh \
+src/xrootd/XrdAcc/XrdAccPrivs.hh \
+src/xrootd/XProtocol/XPtypes.hh \
+src/xrootd/XProtocol/XProtocol.hh \
+src/xrootd/XrdCms/XrdCmsClient.hh \
+src/xrootd/XrdCl/XrdClEnum.hh \
+src/xrootd/XrdCl/XrdClEnv.hh \
+src/xrootd/XrdCl/XrdClPostMaster.hh \
+src/xrootd/XrdCl/XrdClFileSystem.hh \
+src/xrootd/XrdCl/XrdClPostMasterInterfaces.hh \
+src/xrootd/XrdCl/XrdClBuffer.hh \
+src/xrootd/XrdCl/XrdClConstants.hh \
+src/xrootd/XrdCl/XrdClCopyProcess.hh \
+src/xrootd/XrdCl/XrdClDefaultEnv.hh \
+src/xrootd/XrdCl/XrdClMessage.hh \
+src/xrootd/XrdCl/XrdClMonitor.hh \
+src/xrootd/XrdCl/XrdClStatus.hh \
+src/xrootd/XrdCl/XrdClTransportManager.hh \
+src/xrootd/XrdCl/XrdClURL.hh \
+src/xrootd/XrdCl/XrdClAnyObject.hh \
+src/xrootd/XrdCl/XrdClXRootDResponses.hh \
+src/xrootd/XrdCl/XrdClFile.hh
+FILE_PATTERNS          = *.hh
 RECURSIVE              = YES
 EXCLUDE                = 
 EXCLUDE_SYMLINKS       = NO
