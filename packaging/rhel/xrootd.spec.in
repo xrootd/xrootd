@@ -525,7 +525,7 @@ exit 0
 * Fri Jun 7 2013 Lukasz Janyst <ljanyst@cern.ch>
 - adopt the EPEL RPM layout by Mattias Ellert
 
-* Tue Apr 2 2014 Lukasz Janyst <ljanyst@cern.ch>
+* Tue Apr 2 2013 Lukasz Janyst <ljanyst@cern.ch>
 - remove perl
 
 * Thu Nov 1 2012 Justin Salmon <jsalmon@cern.ch>
