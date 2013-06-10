@@ -1145,13 +1145,26 @@ namespace XrdCl
                                       hsData->streamName.c_str() );
 
       //------------------------------------------------------------------------
-      // Initialize some structs
+      // Set up the authentication environment
       //------------------------------------------------------------------------
       info->authEnv = new XrdOucEnv();
       info->authEnv->Put( "sockname", hsData->clientName.c_str() );
       info->authEnv->Put( "username", hsData->url->GetUserName().c_str() );
       info->authEnv->Put( "password", hsData->url->GetPassword().c_str() );
 
+      const URL::ParamsMap &urlParams = hsData->url->GetParams();
+      URL::ParamsMap::const_iterator it;
+      for( it = urlParams.begin(); it != urlParams.end(); ++it )
+      {
+        if( it->first.compare( 0, 7, "XrdSec." ) )
+          continue;
+
+        info->authEnv->Put( it->first.c_str(), it->second.c_str() );
+      }
+
+      //------------------------------------------------------------------------
+      // Initialize some other structs
+      //------------------------------------------------------------------------
       size_t authBuffLen = strlen( info->authBuffer );
       char *pars = (char *)malloc( authBuffLen );
       memcpy( pars, info->authBuffer, authBuffLen );
