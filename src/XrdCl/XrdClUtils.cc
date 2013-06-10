@@ -38,7 +38,6 @@ namespace XrdCl
     Env                            *env = DefaultEnv::GetEnv();
     int                             value = defaultVal;
     char                           *endPtr;
-    int                             urlValue;
     URL::ParamsMap::const_iterator  it;
 
     env->GetInt( name, value );
