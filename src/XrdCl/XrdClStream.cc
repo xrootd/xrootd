@@ -122,18 +122,18 @@ namespace XrdCl
     o << pUrl->GetHostId() << " #" << pStreamNum;
     pStreamName = o.str();
 
-    Env *env = DefaultEnv::GetEnv();
-    int connectionWindow = DefaultConnectionWindow;
-    env->GetInt( "ConnectionWindow", connectionWindow );
-    pConnectionWindow = connectionWindow;
+    pConnectionWindow  = Utils::GetIntParameter( *url, "ConnectionWindow",
+                                                 DefaultConnectionWindow );
+    pConnectionRetry   = Utils::GetIntParameter( *url, "ConnectionRetry",
+                                                 DefaultConnectionRetry );
+    pStreamErrorWindow = Utils::GetIntParameter( *url, "StreamErrorWindow",
+                                                 DefaultStreamErrorWindow );
 
-    int connectionRetry = DefaultConnectionRetry;
-    env->GetInt( "ConnectionRetry", connectionRetry );
-    pConnectionRetry = connectionRetry;
-
-    int streamErrorWindow = DefaultStreamErrorWindow;
-    env->GetInt( "StreamErrorWindow", streamErrorWindow );
-    pStreamErrorWindow = streamErrorWindow;
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( PostMasterMsg, "[%s] Stream parameters: Connection Window: %d, "
+                "ConnectionRetry: %d, Stream Error Widnow: %d",
+                pStreamName.c_str(), pConnectionWindow, pConnectionRetry,
+                pStreamErrorWindow );
   }
 
   //----------------------------------------------------------------------------
