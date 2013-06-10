@@ -29,6 +29,30 @@
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
+  // Get a parameter either from the environment or URL
+  //----------------------------------------------------------------------------
+  int Utils::GetIntParameter( const URL         &url,
+                              const std::string &name,
+                              int                defaultVal )
+  {
+    Env                            *env = DefaultEnv::GetEnv();
+    int                             value = defaultVal;
+    char                           *endPtr;
+    int                             urlValue;
+    URL::ParamsMap::const_iterator  it;
+
+    env->GetInt( name, value );
+    it = url.GetParams().find( std::string("XrdCl.") + name );
+    if( it != url.GetParams().end() )
+    {
+      int urlValue = (int)strtol( it->second.c_str(), &endPtr, 0 );
+      if( !*endPtr )
+        value = urlValue;
+    }
+    return value;
+  }
+
+  //----------------------------------------------------------------------------
   // Resolve IP addresses
   //----------------------------------------------------------------------------
   Status Utils::GetHostAddresses( std::vector<sockaddr_in> &addresses,

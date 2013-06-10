@@ -67,6 +67,13 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Get a parameter either from the environment or URL
+      //------------------------------------------------------------------------
+      static int GetIntParameter( const URL         &url,
+                                  const std::string &name,
+                                  int                defaultVal );
+
+      //------------------------------------------------------------------------
       //! Resolve IP addresses
       //------------------------------------------------------------------------
       static Status GetHostAddresses( std::vector<sockaddr_in> &addresses,
