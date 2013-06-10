@@ -50,11 +50,13 @@ BuildRequires:	graphviz
 BuildRequires:	graphviz-gd
 %endif
 
-Provides:	  %{name}-server      = %{epoch}:%{version}-%{release}
-Obsoletes:	%{name}-server      < %{epoch}:%{version}-%{release}
 Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
+Provides:	%{name}-server = %{epoch}:%{version}-%{release}
+Provides:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-server < %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-server%{?_isa} < %{epoch}:%{version}-%{release}
 
 Requires(pre):		shadow-utils
 Requires(pre):		chkconfig
@@ -176,6 +178,11 @@ Summary:	Xrootd command line client tools
 Group:		Applications/Internet
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl%{?_isa} < %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl < %{epoch}:%{version}-%{release}
+
 
 %description client
 This package contains the command line tools used to communicate with
@@ -246,10 +253,11 @@ cd %{name}
 mkdir build
 cd build
 
+PERLPATH=$(eval "`perl -V:archlib`"; echo $archlib/CORE)
 %if %{?_with_tests:1}%{!?_with_tests:0}
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE  -DPERL_LIBRARY=$PERLPATH/libperl.so -DPERL_INCLUDE_PATH=$PERLPATH ..
 %else
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DPERL_LIBRARY=$PERLPATH/libperl.so -DPERL_INCLUDE_PATH=$PERLPATH ..
 %endif
 
 make VERBOSE=1 %{?_smp_mflags}
@@ -353,7 +361,7 @@ rm -rf $RPM_BUILD_ROOT
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
-       -s /sbin/nologin -d %{_localstatedir}/spool/%{name}
+       -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
 %endif
 
