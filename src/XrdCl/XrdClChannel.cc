@@ -211,6 +211,8 @@ namespace XrdCl
     log->Debug( PostMasterMsg, "Creating new channel to: %s %d stream(s)",
                                 url.GetHostId().c_str(), numStreams );
 
+    pUrl.SetParams( url.GetParams() );
+
     //--------------------------------------------------------------------------
     // Create the streams
     //--------------------------------------------------------------------------
