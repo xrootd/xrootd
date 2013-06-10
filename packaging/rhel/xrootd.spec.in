@@ -44,11 +44,13 @@ BuildRequires:	graphviz
 BuildRequires:	graphviz-gd
 %endif
 
-Provides:	  %{name}-server      = %{epoch}:%{version}-%{release}
-Obsoletes:	%{name}-server      < %{epoch}:%{version}-%{release}
 Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
+Provides:	%{name}-server = %{epoch}:%{version}-%{release}
+Provides:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-server < %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-server%{?_isa} < %{epoch}:%{version}-%{release}
 
 Requires(pre):		shadow-utils
 Requires(pre):		chkconfig
@@ -170,6 +172,11 @@ Summary:	Xrootd command line client tools
 Group:		Applications/Internet
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl%{?_isa} < %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl < %{epoch}:%{version}-%{release}
+
 
 %description client
 This package contains the command line tools used to communicate with
@@ -346,7 +353,7 @@ fi
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
-       -s /sbin/nologin -d %{_localstatedir}/spool/%{name}
+       -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
 %endif
 
