@@ -6,7 +6,7 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_POSIX_VERSION   1.0.0 )
 set( XRD_POSIX_SOVERSION 1 )
-set( XRD_POSIX_PRELOAD_VERSION   0.0.1 )
+set( XRD_POSIX_PRELOAD_VERSION   0.0.2 )
 set( XRD_POSIX_PRELOAD_SOVERSION 0 )
 
 #-------------------------------------------------------------------------------
