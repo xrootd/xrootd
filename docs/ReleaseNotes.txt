@@ -6,6 +6,37 @@ Release Notes
 =============
 
 -------------
+Version 3.3.3
+-------------
+
++ **Major bug fixes**
+   * Prevent SEGV's when reusing a recycled protocol object under certain
+     conditions (xrootd server)
+   * Prevent SEGV when using the -DS/-DI commandline parameters in xrdcp
+     (issue #13)
+   * Prevent integer overflow when calculating client recovery windows
+   * Make sure the new client tries all available authentication protocols
+     when connecting to a security enabled server (issue #14)
+   * Detect buffer size mis-matches when server returned valid response with
+     invalid size (xrdcopy)
+
++ **Minor bug fixes**
+   * Prevent the new client deadlock on Solaris and MacOS when using
+     the built-in poller and connecting to localhost (issue #5)
+   * Compensate for ROOT garbage colletion issues when calling the
+     new client code
+   * Avoid favoring socket writes when using new client with the built-in
+     poller
+   * Strip off opaque information from dest filename when copying to local
+     filesystem using xrdcp (issue #21)
+
++ **Miscellaneous**
+   * Change the RPM package layout to match the one used by EPEL (issue #12)
+   * Allow new client connection parameters to be tweaked by connection URL CGI
+   * Make the built-in poller default again in the new client - after resolving
+     issue #5
+
+-------------
 Version 3.3.2
 -------------
 + **Major bug fixes**
