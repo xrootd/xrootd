@@ -123,6 +123,11 @@ Summary:	Development files for xrootd clients
 Group:		Development/Libraries
 Requires:	%{name}-devel%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl-devel%{?_isa} = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl-devel%{?_isa} < %{epoch}:%{version}-%{release}
+Provides:	%{name}-cl-devel = %{epoch}:%{version}-%{release}
+Obsoletes:	%{name}-cl-devel < %{epoch}:%{version}-%{release}
+
 
 %description client-devel
 This package contains header files and development libraries for xrootd
