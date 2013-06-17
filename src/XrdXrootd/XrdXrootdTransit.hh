@@ -129,6 +129,13 @@ int           Send(int rcode, const struct iovec *ioVec, int ioNum, int ioLen);
 int           Send(long long offset, int dlen, int fdnum);
 
 //-----------------------------------------------------------------------------
+//! Set sendfile() enablement.
+//-----------------------------------------------------------------------------
+
+int           setSF(kXR_char *fhandle, bool seton=false)
+                   {return SetSF(fhandle, seton);}
+
+//-----------------------------------------------------------------------------
 //! Set maximum wait time.
 //-----------------------------------------------------------------------------
 

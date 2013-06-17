@@ -172,6 +172,23 @@ virtual bool  Run(const char *xreqP,       //!< xrootd request header
 virtual bool  Disc() = 0;
 
 //-----------------------------------------------------------------------------
+//! Set file's sendfile capability.
+//!
+//! The setSF() method allows you to turn on or off the ability of an open
+//! file to be used with the sendfile() system call. This is useful when you
+//! must see the data prior to sending to the client (e.g. for encryption).
+//!
+//! @param  fhandle the filehandle as returned by kXR_open.
+//! @param  mode    When true, enables sendfile() otherwise it is disabled.
+//!
+//! @return =0      Sucessful.
+//! @return <0      Call failed. The return code is -errno and usually will
+//!                 indicate that the filehandle is not valid.
+//-----------------------------------------------------------------------------
+
+virtual int   setSF(kXR_char *fhandle, bool seton=false) = 0;
+
+//-----------------------------------------------------------------------------
 //! Set the maximum delay.
 //!
 //! The setWait() method allows you to specify the maximum amount of time a

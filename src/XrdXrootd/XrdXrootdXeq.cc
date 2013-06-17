@@ -2751,6 +2751,27 @@ int XrdXrootdProtocol::rpEmsg(const char *op, char *fn)
 }
  
 /******************************************************************************/
+/*                                 S e t S F                                  */
+/******************************************************************************/
+
+int XrdXrootdProtocol::SetSF(kXR_char *fhandle, bool seton)
+{
+   XrdXrootdFHandle fh(fhandle);
+   XrdXrootdFile   *theFile;
+
+   if (!FTab || !(theFile = FTab->Get(fh.handle))) return -EBADF;
+
+// Turn it off or on if so wanted
+//
+   if (!seton) theFile->sfEnabled = 0;
+      else if (theFile->fdNum >= 0) theFile->sfEnabled = 1;
+
+// All done
+//
+   return 0;
+}
+  
+/******************************************************************************/
 /*                                S q u a s h                                 */
 /******************************************************************************/
   

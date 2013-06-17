@@ -207,6 +207,7 @@ XrdObject<XrdXrootdProtocol>         ProtLink;
 protected:
 
        void  MonAuth();
+       int   SetSF(kXR_char *fhandle, bool seton=false);
 
 static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
