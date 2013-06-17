@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add setSF() method to the bridge to allow brdiged protocols to disable
+     using sendfile() for an open file (nenecassry for https wgets).
    * Write on a '.env' file to record execution environment. This is to
      allow automatic collection of debugging information.
    * Add AtomicZAP() to avoid gcc warnings about "no effect" statements on
