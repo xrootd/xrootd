@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Write on a '.env' file to record execution environment. This is to
+     allow automatic collection of debugging information.
    * Add AtomicZAP() to avoid gcc warnings about "no effect" statements on
      platforms that do not have builtin atomic operations.
    * Merge xrdhttp with origin to facilitate http protocol implementation.
