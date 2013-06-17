@@ -44,6 +44,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "XrdVersion.hh"
+
 #include "Xrd/XrdConfig.hh"
 #include "Xrd/XrdInfo.hh"
 #include "Xrd/XrdLink.hh"
@@ -210,7 +212,7 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdInst="XRDINSTANCE=";
 
    static sockaddr myIPAddr;
-   int n, retc, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
+   int n, retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
    long long logkeep = 0;
@@ -220,6 +222,10 @@ int XrdConfig::Configure(int argc, char **argv)
    extern int optind, opterr;
    int pipeFD[2] = {-1, -1};
    const char *pidFN = 0;
+   static const int myMaxc = 80;
+   char *myArgv[myMaxc], argBuff[myMaxc*3+8];
+   char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
+   int   myArgc = 1;
 
 // Obtain the protocol name we will be using
 //
@@ -237,12 +243,14 @@ int XrdConfig::Configure(int argc, char **argv)
        while (*p && *p != '.') p++;
        if (*p == '.') {*p = '\0'; dfltProt = strdup(dfltProt); *p = '.';}
       }
+   myArgv[0] = argv[0];
 
-// Process the options
+// Process the options. Note that we cannot passthrough long options or
+// options that take arguments because getopt permutes the arguments.
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,"bc:dhHk:l:n:p:P:R:s:S:"))
+      while ((c = getopt(argc,argv,":bc:dhHk:l:n:p:P:R:s:S:v"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -282,15 +290,25 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'S': mySitName = optarg;
                  break;
+       case ':': buff[0] = '-'; buff[1] = optopt; buff[2] = 0;
+                 Log.Emsg("Config", buff, "parameter not specified.");
+                 Usage(1);
+                 break;
+       case 'v': cerr <<XrdVSTRING <<endl;
+                 _exit(0);
+                 break;
 
-       default:  if (index("clpP", (int)(*(argv[optind-1]+1))))
-                    {Log.Emsg("Config", argv[optind-1],
-                                 "parameter not specified.");
-                     Usage(1);
-                    }
-                 argv[aP++] = argv[optind-1];
-                 if (argv[optind] && *argv[optind] != '-') 
-                    argv[aP++] = argv[optind++];
+       default: if (optopt == '-' && *(argv[optind]+1) == '-')
+                   {Log.Emsg("Config", "Long options are not supported.");
+                    Usage(1);
+                   }
+                if (myArgc >= myMaxc || argbP >= argbE)
+                   {Log.Emsg("Config", "Too many command line arguments.");
+                    Usage(1);
+                   }
+                myArgv[myArgc++] = argbP;
+                *argbP++ = '-'; *argbP++ = optopt; *argbP++ = 0;
+                break;
        }
      }
 
@@ -307,12 +325,14 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Pass over any parameters
 //
-   if (aP != optind)
-      {for ( ; optind < argc; optind++) argv[aP++] = argv[optind];
-       argv[aP] = 0;
-       ProtInfo.argc = aP;
-      } else ProtInfo.argc = argc;
-   ProtInfo.argv = argv;
+   if (argc-optind+2 >= myMaxc)
+      {Log.Emsg("Config", "Too many command line arguments.");
+       Usage(1);
+      }
+   for ( ; optind < argc; optind++) myArgv[myArgc++] = argv[optind];
+   myArgv[myArgc] = 0;
+   ProtInfo.argc = myArgc;
+   ProtInfo.argv = myArgv;
 
 // Resolve background/foreground issues
 //
@@ -799,8 +819,8 @@ void XrdConfig::Usage(int rc)
 
   if (rc < 0) cerr <<XrdLicense;
      else
-     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-k {n|sz}] [-l <fn>] "
-            "[-L] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [-S site] "
+     cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-k {n|sz}] "
+            "[-l <fn>] [-n name] [-p <port>] [-P <prot>] [-s pidfile] [-S site] "
             "[<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
