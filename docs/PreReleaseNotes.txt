@@ -70,6 +70,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Correct option parsing to prevent possible SEGV.
    * Strip off opaque information from dest filename when copying to local
      filesystem. This only affects xrdcp.
    * Use AtomicZAP when the data source is not needed to avoid compilation
