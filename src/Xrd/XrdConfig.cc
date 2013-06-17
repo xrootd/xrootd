@@ -417,7 +417,7 @@ int XrdConfig::Configure(int argc, char **argv)
    if (ConfigFN && *ConfigFN)
       {Log.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
-       XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
+       setCFG();
        NoGo = ConfigProc();
       }
    if (clPort >= 0) PortTCP = clPort;
@@ -647,8 +647,8 @@ void XrdConfig::Manifest(const char *pidfn)
                      "&cfgfn=%s&cwd=%s&apath=%s&logfn=%s\n",
                      static_cast<int>(getpid()), ProtInfo.myName,
                      ProtInfo.myInst, XrdVSTRING,
-                     (ProtInfo.ConfigFN ? ProtInfo.ConfigFN : ""), pwdBuff,
-                     ProtInfo.AdmPath, Log.logger()->xlogFN());
+                     (getenv("XRDCONFIGFN") ? getenv("XRDCONFIGFN") : ""),
+                     pwdBuff, ProtInfo.AdmPath, Log.logger()->xlogFN());
 
 // Find out where we should write this
 //
@@ -676,6 +676,35 @@ void XrdConfig::Manifest(const char *pidfn)
 // All done
 //
    close(envFD);
+}
+
+/******************************************************************************/
+/*                                s e t C F G                                 */
+/******************************************************************************/
+  
+void XrdConfig::setCFG()
+{
+   char cwdBuff[1024], *cfnP = cwdBuff;
+   int n;
+
+// If the config file is absolute, export it as is
+//
+   if (*ConfigFN == '/')
+      {XrdOucEnv::Export("XRDCONFIGFN", ConfigFN);
+       return;
+      }
+
+// Prefix current working directory to the config file
+//
+   if (!getcwd(cwdBuff, sizeof(cwdBuff)-strlen(ConfigFN)-2)) cfnP = ConfigFN;
+      else {n = strlen(cwdBuff);
+            if (cwdBuff[n-1] != '/') cwdBuff[n++] = '/';
+            strcpy(cwdBuff+n, ConfigFN);
+           }
+
+// Export result
+//
+   XrdOucEnv::Export("XRDCONFIGFN", cfnP);
 }
 
 /******************************************************************************/
