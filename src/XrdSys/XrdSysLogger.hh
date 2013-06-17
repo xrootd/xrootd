@@ -90,6 +90,10 @@ char  traceEnd() {Logger_Mutex.UnLock(); return '\n';}
 //
 int   xlogFD();
 
+// xlogFN() return the filename of the log file or "stderr"
+//
+const char *xlogFN() {return (ePath ? ePath : "stderr");}
+
 private:
 
 XrdSysMutex Logger_Mutex;

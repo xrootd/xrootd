@@ -445,6 +445,10 @@ int XrdConfig::Configure(int argc, char **argv)
    }
 #endif
 
+// Establish a pid/manifest file for auto-collection
+//
+   if (!NoGo) Manifest(pidFN);
+
 // All done, close the stream and return the return code.
 //
    temp = (NoGo ? " initialization failed." : " initialization completed.");
@@ -618,6 +622,60 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
       }
    newGid = pp->pw_gid;
    return 1;
+}
+
+/******************************************************************************/
+/*                              M a n i f e s t                               */
+/******************************************************************************/
+  
+void XrdConfig::Manifest(const char *pidfn)
+{
+   const char *Slash;
+   char envBuff[8192], pwdBuff[1024], manBuff[1024], *pidP;
+   int envFD, envLen;
+
+// Get the current working directory
+//
+   if (!getcwd(pwdBuff, sizeof(pwdBuff)))
+      {Log.Emsg("Config", "Unable to get current working directory!");
+       return;
+      }
+
+// Create environment string
+//
+   envLen = snprintf(envBuff, sizeof(envBuff), "pid=%d&host=%s&inst=%s&ver=%s"
+                     "&cfgfn=%s&cwd=%s&apath=%s&logfn=%s\n",
+                     static_cast<int>(getpid()), ProtInfo.myName,
+                     ProtInfo.myInst, XrdVSTRING,
+                     (ProtInfo.ConfigFN ? ProtInfo.ConfigFN : ""), pwdBuff,
+                     ProtInfo.AdmPath, Log.logger()->xlogFN());
+
+// Find out where we should write this
+//
+   if (pidfn && (Slash = rindex(pidfn, '/')))
+      {strncpy(manBuff, pidfn, Slash-pidfn); pidP = manBuff+(Slash-pidfn);}
+      else {strcpy(manBuff, "/tmp");         pidP = manBuff+4;}
+
+// Construct the pid file name for ourselves
+//
+   snprintf(pidP, sizeof(manBuff)-(pidP-manBuff), "/%s.%s.env",
+                     ProtInfo.myProg, ProtInfo.myInst);
+
+// Open the file
+//
+   if ((envFD = open(manBuff, O_WRONLY|O_CREAT|O_TRUNC, 0664)) < 0)
+      {Log.Emsg("Config", errno, "create envfile", manBuff);
+       return;
+      }
+
+// Write out environmental information
+//
+   if (write(envFD, envBuff, envLen) < 0)
+      Log.Emsg("Config", errno, "write to envfile", manBuff);
+
+// All done
+//
+   close(envFD);
 }
 
 /******************************************************************************/

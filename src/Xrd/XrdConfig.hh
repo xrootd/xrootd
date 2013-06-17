@@ -65,6 +65,7 @@ private:
 int   ASocket(const char *path, const char *fname, mode_t mode);
 int   ConfigProc(void);
 int   getUG(char *parm, uid_t &theUid, gid_t &theGid);
+void  Manifest(const char *pidfn);
 int   setFDL();
 int   Setup(char *dfltp);
 void  Usage(int rc);
