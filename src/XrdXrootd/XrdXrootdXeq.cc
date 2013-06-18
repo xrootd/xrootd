@@ -596,8 +596,10 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                }
             dname = 0;
            }
-       if (dname) rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
-       buff = ebuff; bleft = sizeof(ebuff);
+       if (dname)
+          {rc = Response.Send(kXR_oksofar, ebuff, buff-ebuff);
+           buff = ebuff; bleft = sizeof(ebuff);
+          }
      } while(!rc && dname);
 
 // Send the ending packet if we actually have one to send
