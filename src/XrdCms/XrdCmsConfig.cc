@@ -207,21 +207,27 @@ int XrdCmsConfig::Configure1(int argc, char **argv, char *cfn)
 //
    opterr = 0; optind = 1;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c=getopt(argc,argv,"imsw")) && ((unsigned char)c != 0xff))
+      while ((c=getopt(argc,argv,"iw")) && ((unsigned char)c != 0xff))
      { switch(c)
        {
        case 'i': immed = 1;
                  break;
-       case 'm': isManager = 1;
-                 break;
-       case 's': isServer = 1;
-                 break;
        case 'w': immed = -1;   // Backward compatability only
                  break;
        default:  buff[0] = '-'; buff[1] = optopt; buff[2] = '\0';
-                 Say.Say("Config warning: unrecognized option,",buff,", ignored.");
+                 Say.Say("Config warning: unrecognized option, ",buff,", ignored.");
        }
      }
+
+// Accept a single parameter defining the overiding major role
+//
+   if (optind < argc)
+      {     if (!strcmp(argv[optind], "manager")) isManager = 1;
+       else if (!strcmp(argv[optind], "server" )) isServer  = 1;
+       else if (!strcmp(argv[optind], "super"  )) isServer  = isManager = 1;
+       else Say.Say("Config warning: unrecognized parameter, ",
+                    argv[optind],", ignored.");
+      }
 
 // Bail if no configuration file specified
 //
@@ -2471,7 +2477,7 @@ int XrdCmsConfig::xrole(XrdSysError *eDest, XrdOucStream &CFile)
 // If the role was specified on the command line, issue warning and ignore this
 //
    if (isServer > 0 || isManager > 0 || isProxy > 0 || isPeer > 0)
-      {eDest->Say("Config warning: role directive over-ridden by command line options.");
+      {eDest->Say("Config warning: role directive over-ridden by command line.");
        return 0;
       }
 
