@@ -752,8 +752,8 @@ int XrdConfig::setFDL()
 int XrdConfig::Setup(char *dfltp)
 {
    XrdInet *NetWAN;
-   XrdConfigProt *cp, *pp, *po, *POrder = 0;
-   int wsz, lastPort = -17;
+   XrdConfigProt *cp;
+   int i, wsz, arbNet;
 
 // Establish the FD limit
 //
@@ -812,27 +812,22 @@ int XrdConfig::Setup(char *dfltp)
           else PortTCP = -1;
       }
 
-// We now go through all of the protocols and get each respective port
-// number and arrange them in descending port number order.
-// XrdOucEnv::Export(XRDPORT
+// We now go through all of the protocols and get each respective port number.
 //
-   XrdProtLoad::Init(&Log, &Trace);
-   while((cp = Firstcp))
+   XrdProtLoad::Init(&Log, &Trace); cp = Firstcp;
+   while(cp)
         {ProtInfo.Port = (cp->port < 0 ? PortTCP : cp->port);
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
          if ((cp->port = XrdProtLoad::Port(cp->libpath, cp->proname,
                                            cp->parms, &ProtInfo)) < 0) return 1;
-         pp = 0; po = POrder; Firstcp = cp->Next;
-         while(po && po->port > cp->port) {pp = po; po = po->Next;}
-         if (pp) {pp->Next = cp;   cp->Next = po;}
-            else {cp->Next = POrder; POrder = cp;}
+         cp = cp->Next; i++;
         }
 
 // Allocate the statistics object. This is akward since we only know part
 // of the current configuration. The object will figure this out later.
 //
    ProtInfo.Stats = new XrdStats(&Log, &Sched, &BuffPool,
-                                 ProtInfo.myName, POrder->port,
+                                 ProtInfo.myName, Firstcp->port,
                                  ProtInfo.myInst, ProtInfo.myProg, mySitName);
 
 // Allocate a WAN port number of we need to
@@ -852,8 +847,12 @@ int XrdConfig::Setup(char *dfltp)
 // network object to handle the port dependent communications part. All
 // port issues will have been resolved at this point.
 //
-   while((cp= POrder))
-        {if (cp->port != lastPort)
+   arbNet = XrdProtLoad::ProtoMax;
+   while((cp = Firstcp))
+        {if (!(cp->port)) i = arbNet;
+            else for (i = 0; i < XrdProtLoad::ProtoMax && NetTCP[i]; i++)
+                     {if (cp->port == NetTCP[i]->Port()) break;}
+         if (i >= XrdProtLoad::ProtoMax || !NetTCP[i])
             {NetTCP[++NetTCPlep] = new XrdInet(&Log, &Trace, Police);
              if (Net_Opts || Net_Blen)
                 NetTCP[NetTCPlep]->setDefaults(Net_Opts, Net_Blen);
@@ -869,14 +868,13 @@ int XrdConfig::Setup(char *dfltp)
                 {ProtInfo.WANPort = PortWAN;
                  ProtInfo.WANWSize= Wan_Blen;
                 } else ProtInfo.WANPort = ProtInfo.WANWSize = 0;
+             if (!(cp->port)) arbNet = NetTCPlep;
              if (!NetTCPlep) XrdLink::Init(NetTCP[0]);
              XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
-             lastPort = cp->port;
             }
          if (!XrdProtLoad::Load(cp->libpath,cp->proname,cp->parms,&ProtInfo))
             return 1;
-         POrder = cp->Next;
-         delete cp;
+         Firstcp = cp->Next; delete cp;
         }
 
 // Leave the env port number to be the first used port number. This may
