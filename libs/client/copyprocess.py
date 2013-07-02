@@ -27,13 +27,16 @@ class ProgressHandlerWrapper(object):
     self.handler = handler
 
   def begin(self, id, total, source, target):
-    self.handler.begin(id, total, URL(source), URL(target))
+    if self.handler:
+      self.handler.begin(id, total, URL(source), URL(target))
 
   def end(self, status):
-    self.handler.end(XRootDStatus(status))
+    if self.handler:
+      self.handler.end(XRootDStatus(status))
 
   def update(self, processed, total):
-    self.handler.update(processed, total)
+    if self.handler:
+      self.handler.update(processed, total)
 
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
