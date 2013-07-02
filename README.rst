@@ -13,8 +13,8 @@ Requirements
     * Works on Python 2.4 -> 2.7
     * Python 3 not yet supported (coming soon)
 * New `XRootD <http://xrootd.org/dload.html>`_ client + development headers
-    * `xrootd-cl, xrootd-cl-devel` packages
-    * Version 3.3.x required
+    * `xrootd-client, xrootd-client-devel` packages
+    * Version 3.3.3 or above required
 
 RPM Installation
 ----------------

@@ -24,8 +24,8 @@ URL:            http://github.com/xrootd/python-xrootd
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:       python >= 2.4
-Requires:       xrootd-cl >= 3.3.2
-BuildRequires:  xrootd-cl-devel python-devel
+Requires:       xrootd-client >= 3.3.3
+BuildRequires:  xrootd-client-devel python-devel
 
 %description
 pyxrootd is a set of python language bindings for xrootd.
@@ -46,6 +46,9 @@ env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 %defattr(-,root,root)
 
 %changelog
+* Tue Jul 01 2013 Justin Salmon <jsalmon@cern.ch>
+- Depend on updated new client package name
+  (xrootd-client)
 * Tue May 14 2013 Justin Salmon <jsalmon@cern.ch>
 - Tag version 0.1.1
 * Fri Apr 26 2013 Justin Salmon <jsalmon@cern.ch>
@@ -56,3 +59,4 @@ env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 - Install to correct place in RHEL5
 * Wed Apr 03 2013 Justin Salmon <jsalmon@cern.ch>
 - Initial version
+
