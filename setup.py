@@ -20,7 +20,7 @@ for dirname, dirnames, filenames in walk('src'):
       depends.append(path.join(dirname, filename))
 
 setup( name             = 'pyxrootd',
-       version          = '0.1.1',
+       version          = '0.1.2',
        author           = 'Justin Salmon',
        author_email     = 'jsalmon@cern.ch',
        url              = 'http://xrootd.org',

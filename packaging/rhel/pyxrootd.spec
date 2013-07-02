@@ -14,7 +14,7 @@
 %{nil}
 
 Name:           xrootd-python
-Version:        0.1.1
+Version:        0.1.2
 Release:        1%{?dist}
 License:        GPL3
 Summary:        Python bindings for XRootD
@@ -46,6 +46,8 @@ env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 %defattr(-,root,root)
 
 %changelog
+* Tue Jul 01 2013 Justin Salmon <jsalmon@cern.ch>
+- Tag version 0.1.2
 * Tue Jul 01 2013 Justin Salmon <jsalmon@cern.ch>
 - Depend on updated new client package name
   (xrootd-client)
