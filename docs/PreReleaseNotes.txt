@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add new command, xrdmapc, to display the topology of a cluster.
    * Add setSF() method to the bridge to allow brdiged protocols to disable
      using sendfile() for an open file (nenecassry for https wgets).
    * Write on a '.env' file to record execution environment. This is to
