@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClSIDManager.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -1318,13 +1319,14 @@ namespace XrdCl
     // Loop over the possible protocols to find one that gives us valid
     // credentials
     //--------------------------------------------------------------------------
+    XrdNetAddr srvAddr((sockaddr*)hsData->serverAddr); // IPV6
     while(1)
     {
       //------------------------------------------------------------------------
       // Get the protocol
       //------------------------------------------------------------------------
       info->authProtocol = (*authHandler)( hsData->url->GetHostName().c_str(),
-                                           *((sockaddr*)hsData->serverAddr),
+                                           srvAddr,
                                            *info->authParams,
                                            0 );
       if( !info->authProtocol )
@@ -1373,7 +1375,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Get the authentication function handle
   //----------------------------------------------------------------------------
-  XRootDTransport::XrdSecGetProt_t XRootDTransport::GetAuthHandler()
+  XrdSecGetProt_t XRootDTransport::GetAuthHandler()
   {
     Log *log = DefaultEnv::GetLog();
 

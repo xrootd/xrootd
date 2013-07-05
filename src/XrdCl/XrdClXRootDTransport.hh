@@ -277,10 +277,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Get the authentication function handle
       //------------------------------------------------------------------------
-      typedef XrdSecProtocol *(*XrdSecGetProt_t)( const char             *,
-                                                  const sockaddr         &,
-                                                  const XrdSecParameters &,
-                                                  XrdOucErrInfo          * );
 
       XrdSecGetProt_t GetAuthHandler();
 
