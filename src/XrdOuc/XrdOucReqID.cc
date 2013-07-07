@@ -53,7 +53,7 @@
 XrdOucReqID::XrdOucReqID()
 {
    char xbuff[256];
-   int n, eNow = static_cast<int>(time(0)), myPid = static_cast<int>(getpid());
+   int eNow = static_cast<int>(time(0)), myPid = static_cast<int>(getpid());
 
 // Now format the formatting template
 //
@@ -123,7 +123,7 @@ char *XrdOucReqID::isMine(char *reqid, int &hport, char *hname, int hlen)
 //
    if (theAddr.Set(&IP.Addr)
    ||  !(theHost = theAddr.Name())
-   ||  strlen(theHost) >= hlen) return 0;
+   ||  strlen(theHost) >= (unsigned int)hlen) return 0;
 
 // Return the alternate host
 //

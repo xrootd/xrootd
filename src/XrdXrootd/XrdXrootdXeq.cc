@@ -1278,7 +1278,7 @@ int XrdXrootdProtocol::do_Ping()
   
 int XrdXrootdProtocol::do_Prepare()
 {
-   int rc, hport, idOff, pathnum = 0;
+   int rc, hport, pathnum = 0;
    const char *opaque;
    char opts, hname[256], reqid[128], nidbuff[512], *path;
    XrdOucErrInfo myError(Link->ID, Monitor.Did);

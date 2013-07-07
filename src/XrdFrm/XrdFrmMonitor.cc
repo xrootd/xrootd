@@ -134,7 +134,7 @@ int XrdFrmMonitor::Init(const char *iHost, const char *iProg, const char *iName)
 {
    XrdXrootdMonMap *mP;
    long long  mySid;
-   const char *etext;
+   const char *etext = 0;
    char        iBuff[1024];
    bool       aOK;
 

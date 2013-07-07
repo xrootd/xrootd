@@ -80,7 +80,7 @@ bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
 // If there is no pointer to a list, then the caller merely wanted sPort
 //
    if (!oldMans)
-      {while(newP = newMans) {newMans = newMans->next; delete newP;}
+      {while((newP = newMans)) {newMans = newMans->next; delete newP;}
        return true;
       }
 

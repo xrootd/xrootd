@@ -224,7 +224,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 // Do length check to see if we can fit the host name in our buffer.
 //
    aLen = strlen(hSpec);
-   if (aLen >= sizeof(aBuff)) return "host id too long";
+   if (aLen >= (int)sizeof(aBuff)) return "host id too long";
 
 // Convert the address as appropriate. Note that we do accept RFC5156 deprecated
 // IPV4 mapped IPV6 addresses(i.e. [::a.b.c.d]. This is historical.

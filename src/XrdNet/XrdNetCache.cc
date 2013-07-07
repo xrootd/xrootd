@@ -223,7 +223,7 @@ int XrdNetCache::GenKey(XrdNetCache::anItem &Item, XrdNetAddrInfo *hAddr)
   
 XrdNetCache::anItem *XrdNetCache::Locate(XrdNetCache::anItem &Item)
 {
-  anItem *nip, *pip = 0;
+  anItem *nip;
   unsigned int kent;
 
 // Find the entry

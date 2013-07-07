@@ -216,7 +216,7 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdInst="XRDINSTANCE=";
 
    static XrdNetAddr myIPAddr(0);
-   int n, retc, NoGo = 0, aP = 1, clPort = -1, optbg = 0;
+   int n, retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
    long long logkeep = 0;

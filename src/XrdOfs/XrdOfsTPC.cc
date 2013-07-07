@@ -155,7 +155,7 @@ int XrdOfsTPC::Authorize(XrdOfsTPC        **pTPC,
                                int          isPLE)
 {
    XrdOfsTPCAuth *myTPC;
-   const char *eMsg, *dstHost;
+   const char *dstHost;
    int rc, NoGo = 0;
 
 // Determine if we can handle any TPC requests

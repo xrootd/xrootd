@@ -199,9 +199,7 @@ char *XrdNetAddrInfo::LowCase(char *str)
   
 const char *XrdNetAddrInfo::Name(const char *eName, const char **eText)
 {
-   char buff[INET6_ADDRSTRLEN+8];
-   void *aP;
-   int n, rc, family;
+   int rc;
 
 // Preset errtxt to zero
 //

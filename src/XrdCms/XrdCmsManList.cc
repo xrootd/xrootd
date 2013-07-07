@@ -172,7 +172,7 @@ void XrdCmsManList::Del(int ref)
 // Delete all ref entries
 //
    while(mrp)
-        {if (mrp->ManRef == ref)
+        {if (mrp->ManRef == (unsigned int)ref)
             {nrp = mrp->Next;
              if (!prp) allMans  = nrp;
                 else {prp->Next = nrp;

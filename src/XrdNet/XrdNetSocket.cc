@@ -204,7 +204,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 {
    const char *epath, *eText, *action = "configure socket";
    char pbuff[128];
-   int myEC, SockSize, backlog, SockProt;
+   int myEC, backlog, SockProt;
    int SockType = (flags & XRDNET_UDPSOCKET ? SOCK_DGRAM : SOCK_STREAM);
    const int one = 1;
    const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);

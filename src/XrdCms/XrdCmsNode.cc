@@ -166,7 +166,7 @@ XrdCmsNode::~XrdCmsNode()
   
 void XrdCmsNode::setName(XrdLink *lnkp, int port)
 {
-   char *bp, buff[512];
+   char buff[512];
    const char *hname = lnkp->Host();
    int oldPort = 0, fmtOpts = XrdNetAddr::old6Map4;
 
@@ -1525,7 +1525,6 @@ const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 const char *XrdCmsNode::do_Try(XrdCmsRRData &Arg)
 {
    EPNAME("do_Try")
-   char *tp;
 
 // Do somde debugging
 //

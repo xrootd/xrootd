@@ -536,7 +536,7 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 {
    static     XrdXrootdMonitor_Ident MonIdent(sp, monIdent);
    XrdXrootdMonMap *mP;
-   char      *etext, iBuff[1024], iPuff[1024], *sName, *cP;
+   char       iBuff[1024], iPuff[1024], *sName, *cP;
    int        i, Now = time(0);
    bool       aOK;
 

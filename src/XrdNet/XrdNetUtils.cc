@@ -52,7 +52,7 @@ int XrdNetUtils::Decode(XrdNetSockAddr *sadr, const char *buff, int blen)
 {
    static const int ipv4Sz = sizeof(struct in_addr)*2+4;
    static const int ipv6Sz = sizeof(struct in6_addr)*2+4;
-   char *dest, bval[sizeof(struct in6_addr)+2];
+   char bval[sizeof(struct in6_addr)+2];
    int isv6, n, i = 0, Odd = 0;
 
 // Determine if this will be IPV4 or IPV6 (only ones allowed)
@@ -246,7 +246,7 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
     if (i && HostPat[i-1] != '+')
        {XrdNetAddr InetAddr[maxIP];
         char hBuff[264];
-        if (i >= sizeof(hBuff)) return false;
+        if (i >= (int)sizeof(hBuff)) return false;
         strncpy(hBuff, HostPat, i-1);
         hBuff[i] = 0;
         if (!InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
@@ -380,11 +380,12 @@ int XrdNetUtils::ProtoID(const char *pname)
   
 int XrdNetUtils::ServPort(const char *sName, bool isUDP, const char **eText)
 {
-   struct addrinfo *rP = 0, myHints = {0};
+   struct addrinfo *rP = 0, myHints;
    int rc, portnum = 0;
 
 // Fill out the hints
 //
+   memset(&myHints, 0, sizeof(myHints));
    myHints.ai_socktype = (isUDP ? SOCK_DGRAM : SOCK_STREAM);
 
 // Try to find the port number

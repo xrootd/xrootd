@@ -74,7 +74,6 @@ XrdSecService *XrdCmsSecurity::DHS    = 0;
 int XrdCmsSecurity::Authenticate(XrdLink *Link, const char *Token, int Toksz)
 {
    CmsRRHdr myHdr = {0, kYR_xauth, 0, 0};
-   struct sockaddr netaddr;
    XrdSecCredentials cred;
    XrdSecProtocol   *AuthProt = 0;
    XrdSecParameters *parm = 0;
