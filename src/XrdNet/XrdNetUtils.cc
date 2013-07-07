@@ -291,7 +291,7 @@ char *XrdNetUtils::MyHostName(const char *eName, const char **eText)
 bool XrdNetUtils::Parse(char *hSpec, char **hName, char **hNend,
                                      char **hPort, char **hPend)
 {
-   char *asep;
+   char *asep = 0;
 
 // Parse the specification
 //
@@ -308,7 +308,7 @@ bool XrdNetUtils::Parse(char *hSpec, char **hName, char **hNend,
 
 // See if we have a port to parse
 //
-   if (*asep == ':')
+   if (asep && *asep == ':')
       {*hPort = ++asep;
        while(isdigit(*asep)) asep++;
        if (*hPort == asep-1) return false;
