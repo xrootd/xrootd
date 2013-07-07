@@ -43,6 +43,9 @@
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#ifndef HAVE_PROTOR
+#include "XrdSys/XrdSysPthread.hh"
+#endif
 
 /******************************************************************************/
 /*                                D e c o d e                                 */
