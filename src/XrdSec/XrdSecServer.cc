@@ -38,13 +38,12 @@
 #include <stdio.h>
 #include <sys/param.h>
 
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdNet/XrdNetAddrInfo.hh"
+#include "XrdNet/XrdNetAddr.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecServer.hh"
@@ -583,10 +582,13 @@ int XrdSecServer::xpbind(XrdOucStream &Config, XrdSysError &Eroute)
        *sectoken = '\0';
       }
 
-// Translate "localhost" to our local hostname
+// Translate "localhost" to our local hostname, if possible.
 //
    if (!strcmp("localhost", thost))
-      {free(thost); thost = XrdSysDNS::getHostName();}
+      {XrdNetAddr myIPAddr(0);
+       free(thost);
+       thost = strdup(myIPAddr.Name("localhost"));
+      }
 
 // Create new bind object
 //
