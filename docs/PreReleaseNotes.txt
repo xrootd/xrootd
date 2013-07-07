@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * IPV6 support. This requires changes to the security authentication
+     plugins (done for all native plugins) and recompilation of all
+     other plugins. Please read docs/README_IPV4_To_IPV6 for details.
    * Add new command, xrdmapc, to display the topology of a cluster.
    * Add setSF() method to the bridge to allow brdiged protocols to disable
      using sendfile() for an open file (nenecassry for https wgets).
