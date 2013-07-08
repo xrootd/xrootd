@@ -246,13 +246,13 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
 // Now check for host expansion
 //
     i = strlen(HostPat);
-    if (i && HostPat[i-1] != '+')
+    if (i && HostPat[i-1] == '+')
        {XrdNetAddr InetAddr[maxIP];
         char hBuff[264];
         if (i >= (int)sizeof(hBuff)) return false;
         strncpy(hBuff, HostPat, i-1);
         hBuff[i] = 0;
-        if (!InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
+        if (InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
         while(i--) if ((mval = InetAddr[i].Name()) && !strcmp(mval, HostName))
                       return true;
        }
