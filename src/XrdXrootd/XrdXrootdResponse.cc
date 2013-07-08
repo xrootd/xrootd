@@ -57,6 +57,7 @@ const char *XrdXrootdResponse::TraceID = "Response";
 
 int XrdXrootdResponse::Send()
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
 
     TRACES(RSP, "sending OK");
 
@@ -65,7 +66,7 @@ int XrdXrootdResponse::Send()
         return Link->setEtext("send failure");
        }
 
-    Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
+    Resp.status = isOK;
     Resp.dlen   = 0;
 
     if (Link->Send((char *)&Resp, sizeof(Resp)) < 0)
@@ -77,6 +78,7 @@ int XrdXrootdResponse::Send()
 
 int XrdXrootdResponse::Send(const char *msg)
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
 
     TRACES(RSP, "sending OK: " <<msg);
 
@@ -88,7 +90,7 @@ int XrdXrootdResponse::Send(const char *msg)
         return Link->setEtext("send failure");
        }
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(RespIO[1].iov_len));
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + RespIO[1].iov_len) < 0)
@@ -150,7 +152,9 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
 
 int XrdXrootdResponse::Send(void *data, int dlen)
 {
-    TRACES(RSP, "sending " <<dlen <<" data bytes; status=0");
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
+
+    TRACES(RSP, "sending " <<dlen <<" data bytes");
 
     RespIO[1].iov_base = (caddr_t)data;
     RespIO[1].iov_len  = dlen;
@@ -160,7 +164,7 @@ int XrdXrootdResponse::Send(void *data, int dlen)
         return Link->setEtext("send failure");
        }
 
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
 
     if (Link->Send(RespIO, 2, sizeof(Resp) + dlen) < 0)
@@ -172,6 +176,7 @@ int XrdXrootdResponse::Send(void *data, int dlen)
 
 int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
 {
+    static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
     int i, dlen = 0;
 
     if (iolen < 0) for (i = 1; i < iornum; i++) dlen += IOResp[i].iov_len;
@@ -186,7 +191,7 @@ int XrdXrootdResponse::Send(struct iovec *IOResp, int iornum, int iolen)
 
     IOResp[0].iov_base = RespIO[0].iov_base;
     IOResp[0].iov_len  = RespIO[0].iov_len;
-    Resp.status        = static_cast<kXR_unt16>(htons(kXR_ok));
+    Resp.status        = isOK;
     Resp.dlen          = static_cast<kXR_int32>(htonl(dlen));
 
     if (Link->Send(IOResp, iornum, sizeof(Resp) + dlen) < 0)
@@ -226,18 +231,19 @@ int XrdXrootdResponse::Send(XErrorCode ecode, const char *msg)
 
 int XrdXrootdResponse::Send(int fdnum, long long offset, int dlen)
 {
-   struct XrdLink::sfVec myVec[2];
+   static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
+   XrdLink::sfVec myVec[2];
 
-    TRACES(RSP, "sendfile " <<dlen <<" data bytes; status=0");
+   TRACES(RSP, "sendfile " <<dlen <<" data bytes");
 
-    if (Bridge)
-       {if (Bridge->Send(offset, dlen, fdnum) >= 0) return 0;
-        return Link->setEtext("send failure");
-       }
+   if (Bridge)
+      {if (Bridge->Send(offset, dlen, fdnum) >= 0) return 0;
+       return Link->setEtext("send failure");
+      }
 
 // We are only called should sendfile be enabled for this response
 //
-   Resp.status = static_cast<kXR_unt16>(htons(kXR_ok));
+   Resp.status = isOK;
    Resp.dlen   = static_cast<kXR_int32>(htonl(dlen));
 
 // Fill out the sendfile vector
@@ -252,6 +258,34 @@ int XrdXrootdResponse::Send(int fdnum, long long offset, int dlen)
 // Send off the request
 //
     if (Link->Send(myVec, 2) < 0)
+       return Link->setEtext("sendfile failure");
+    return 0;
+}
+ 
+/******************************************************************************/
+
+int XrdXrootdResponse::Send(XrdOucSFVec *sfvec, int sfvnum, int dlen)
+{
+   static kXR_unt16 isOK = static_cast<kXR_unt16>(htons(kXR_ok));
+
+   TRACES(RSP, "sendfile " <<dlen <<" data bytes");
+
+   if (Bridge)
+      {if (Bridge->Send(sfvec, sfvnum, dlen) >= 0) return 0;
+       return Link->setEtext("send failure");
+      }
+
+// We are only called should sendfile be enabled for this response
+//
+   Resp.status = isOK;
+   Resp.dlen   = static_cast<kXR_int32>(htonl(dlen));
+   sfvec[0].buffer = (char *)&Resp;
+   sfvec[0].sendsz = sizeof(Resp);
+   sfvec[0].fdnum  = -1;
+
+// Send off the request
+//
+    if (Link->Send(sfvec, sfvnum) < 0)
        return Link->setEtext("sendfile failure");
     return 0;
 }

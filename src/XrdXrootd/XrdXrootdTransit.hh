@@ -44,6 +44,7 @@
 //! The Bridge object implementation.
 //-----------------------------------------------------------------------------
 
+class  XrdOucSFVec;
 class  XrdXrootdTransPend;
 struct iovec;
 
@@ -127,6 +128,8 @@ int           Send(int rcode, const struct iovec *ioVec, int ioNum, int ioLen);
 //-----------------------------------------------------------------------------
 
 int           Send(long long offset, int dlen, int fdnum);
+
+int           Send(XrdOucSFVec *sfvec, int sfvnum, int dlen);
 
 //-----------------------------------------------------------------------------
 //! Set sendfile() enablement.

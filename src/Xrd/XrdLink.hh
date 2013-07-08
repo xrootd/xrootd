@@ -34,6 +34,7 @@
 #include <time.h>
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdOuc/XrdOucSFVec.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "Xrd/XrdJob.hh"
@@ -206,17 +207,11 @@ int           RecvAll(char *buff, int blen, int timeout=-1);
 int           Send(const char *buff, int blen);
 int           Send(const struct iovec *iov, int iocnt, int bytes=0);
 
-struct sfVec {union {char *buffer;    // ->Data if fdnum < 0
-                     off_t offset;    // File offset      of data
-                    };
-              int   sendsz;           // Length of data at offset
-              int   fdnum;            // File descriptor for data
-             };
-static const int sfMax = 8;
-
 static int    sfOK;                   // True if Send(sfVec) enabled
 
-int           Send(const struct sfVec *sdP, int sdn); // Iff sfOK > 0
+typedef XrdOucSFVec sfVec;
+
+int           Send(const sfVec *sdP, int sdn); // Iff sfOK > 0
 
 void          Serialize();                              // ASYNC Mode
 

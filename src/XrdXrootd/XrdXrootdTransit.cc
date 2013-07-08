@@ -692,6 +692,20 @@ int XrdXrootdTransit::Send(long long offset, int dlen, int fdnum)
 }
 
 /******************************************************************************/
+
+int XrdXrootdTransit::Send(XrdOucSFVec *sfvec, int sfvnum, int dlen)
+{
+   XrdXrootdTransSend sfInfo(Link, Request.header.streamid,
+                                   Request.header.requestid,
+                                   sfvec, sfvnum, dlen);
+
+// Effect callback (this is always a final result)
+//
+   runDone = true;
+   return (respObj->File(sfInfo, dlen) ? 0 : -1);
+}
+
+/******************************************************************************/
 /* Private:                         W a i t                                   */
 /******************************************************************************/
   

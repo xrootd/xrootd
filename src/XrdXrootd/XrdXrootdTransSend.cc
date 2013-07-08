@@ -43,7 +43,8 @@ int XrdXrootdTransSend::Send(const struct iovec *headP, int headN,
 
 // Allocate a new sfVec to accomodate all the items
 //
-   sfVec = new XrdLink::sfVec[numV];
+   if (sfFD >= 0) sfVec = new XrdLink::sfVec[numV];
+      else        sfVec = new XrdLink::sfVec[numV-sfFD];
 
 // Copy the headers
 //
@@ -55,13 +56,21 @@ int XrdXrootdTransSend::Send(const struct iovec *headP, int headN,
 
 // Insert the sendfile request
 //
-       sfVec[k].offset = sfOff;
+   if (sfFD >= 0)
+      {sfVec[k].offset = sfOff;
        sfVec[k].sendsz = sfLen;
        sfVec[k].fdnum  = sfFD;
+       k++;
+      } else {
+       for (i = 1; i < -sfFD; i++)
+           {sfVec[k  ].offset = sfVP[i].offset;
+            sfVec[k  ].sendsz = sfVP[i].sendsz;
+            sfVec[k++].fdnum  = sfVP[i].fdnum;
+           }
+      }
 
 // Copy the trailer
 //
-   k++;
    if (tailP) for (i = 0; i < tailN; i++, k++)
       {sfVec[k].buffer = (char *)tailP[i].iov_base;
        sfVec[k].sendsz = tailP[i].iov_len;

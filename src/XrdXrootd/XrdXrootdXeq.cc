@@ -1768,7 +1768,13 @@ int XrdXrootdProtocol::do_ReadAll(int asyncOK)
    if (myFile->sfEnabled && myIOLen >= as_minsfsz
    &&  myOffset+myIOLen <= myFile->Stats.fSize)
       {myFile->Stats.rdOps(myIOLen);
-       return Response.Send(myFile->fdNum, myOffset, myIOLen);
+       if (myFile->fdNum >= 0)
+          return Response.Send(myFile->fdNum, myOffset, myIOLen);
+       rc = myFile->XrdSfsp->SendData((XrdSfsDio *)this, myOffset, myIOLen);
+       if (rc == SFS_OK)
+          {if (!myIOLen)    return 0;
+           if (myIOLen < 0) return -1;  // Otherwise retry using read()
+          } else return fsError(rc, 0, myFile->XrdSfsp->error, 0);
       }
 
 // If we are in async mode, schedule the read to ocur asynchronously
@@ -2565,6 +2571,54 @@ int XrdXrootdProtocol::do_WriteSpan()
    return Response.Send();
 }
   
+/******************************************************************************/
+/*                              S e n d F i l e                               */
+/******************************************************************************/
+
+int XrdXrootdProtocol::SendFile(int fildes)
+{
+
+// Make sure we have some data to send
+//
+   if (!myIOLen) return 1;
+
+// Send off the data
+//
+   myIOLen = Response.Send(fildes, myOffset, myIOLen);
+   return myIOLen;
+}
+
+/******************************************************************************/
+
+int XrdXrootdProtocol::SendFile(XrdOucSFVec *sfvec, int sfvnum)
+{
+   int i, xframt = 0;
+
+// Make sure we have some data to send
+//
+   if (!myIOLen) return 1;
+
+// Verify the length
+//
+   for (i = 1; i < sfvnum; i++) xframt += sfvec[i].sendsz;
+   if (xframt != myIOLen) return 1;
+
+// Send off the data
+//
+   myIOLen = Response.Send(sfvec, sfvnum, xframt);
+   return myIOLen;
+}
+
+/******************************************************************************/
+/*                                 S e t F D                                  */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::SetFD(int fildes)
+{
+   if (fildes < 0) myFile->sfEnabled = 0;
+      else myFile->fdNum = fildes;
+}
+
 /******************************************************************************/
 /*                       U t i l i t y   M e t h o d s                        */
 /******************************************************************************/

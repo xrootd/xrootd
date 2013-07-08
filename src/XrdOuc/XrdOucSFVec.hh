@@ -1,11 +1,10 @@
-#ifndef __XRDXROOTDTRANSSEND_HH_
-#define __XRDXROOTDTRANSSEND_HH_
+#ifndef __OUC_SFVEC_H__
+#define __OUC_SFVEC_H__
 /******************************************************************************/
 /*                                                                            */
-/*                 X r d X r o o t d T r a n s S e n d . h h                  */
+/*                        X r d O u c S F V e c . h h                         */
 /*                                                                            */
 /* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -30,43 +29,23 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/uio.h>
+#include <unistd.h>
 
-#include "XProtocol/XPtypes.hh"
-#include "XrdXrootd/XrdXrootdBridge.hh"
+//-----------------------------------------------------------------------------
+//! XrdOucSFVec
+//!
+//! The struct defined here is a generic data structure that is used whenever
+//! we need to pass a vector of file offsets, lengths, and the corresponding
+//! target buffer pointers to effect a sendfile() call. It is used by the
+//! xrd, sfs, ofs., and oss components.
+//-----------------------------------------------------------------------------
 
-class XrdLink;
-  
-class XrdXrootdTransSend : public XrdXrootd::Bridge::Context
-{
-public:
+struct XrdOucSFVec {union {char *buffer;    //!< ->Data if fdnum < 0
+                           off_t offset;    //!< File offset of data otherwise
+                          };
+                    int   sendsz;           //!< Length of data at offset
+                    int   fdnum;            //!< File descriptor for data
 
-        int   Send(const
-                   struct iovec *headP, //!< pointer to leading  data array
-                   int           headN, //!< array count
-                   const
-                   struct iovec *tailP, //!< pointer to trailing data array
-                   int           tailN  //!< array count
-                  );
-
-              XrdXrootdTransSend(XrdLink *lP, kXR_char *sid, kXR_unt16 req,
-                                 long long offset, int dlen, int fdnum)
-                                : Context(lP, sid, req),
-                                  sfOff(offset), sfLen(dlen), sfFD(fdnum) {}
-
-              XrdXrootdTransSend(XrdLink *lP, kXR_char *sid, kXR_unt16 req,
-                                 XrdOucSFVec *sfvec, int sfvnum, int dlen)
-                                : Context(lP, sid, req),
-                                  sfVP(sfvec), sfLen(dlen), sfFD(-sfvnum) {}
-
-             ~XrdXrootdTransSend() {}
-
-private:
-
-union {long long    sfOff;
-       XrdOucSFVec *sfVP;
-      };
-int       sfLen;
-int       sfFD;
-};
+                    enum {sfMax = 16};      //!< Maximum number of elements
+                   };
 #endif

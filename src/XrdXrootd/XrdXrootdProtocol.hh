@@ -36,6 +36,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSfs/XrdSfsDio.hh"
 
 #include "Xrd/XrdObject.hh"
 #include "Xrd/XrdProtocol.hh"
@@ -84,7 +85,7 @@ class XrdXrootdPio;
 class XrdXrootdStats;
 class XrdXrootdXPath;
 
-class XrdXrootdProtocol : public XrdProtocol
+class XrdXrootdProtocol : public XrdProtocol, public XrdSfsDio
 {
 friend class XrdXrootdAdmin;
 friend class XrdXrootdAioReq;
@@ -103,6 +104,12 @@ static int           Configure(char *parms, XrdProtocol_Config *pi);
        int           Process2();
 
        void          Recycle(XrdLink *lp, int consec, const char *reason);
+
+       int           SendFile(int fildes);
+
+       int           SendFile(XrdOucSFVec *sfvec, int sfvnum);
+
+       void          SetFD(int fildes);
 
        int           Stats(char *buff, int blen, int do_sync=0);
 

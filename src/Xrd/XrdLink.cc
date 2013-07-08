@@ -743,20 +743,20 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 }
  
 /******************************************************************************/
-int XrdLink::Send(const struct sfVec *sfP, int sfN)
+int XrdLink::Send(const sfVec *sfP, int sfN)
 {
 #if !defined(HAVE_SENDFILE) || defined(__macos__)
    return -1;
 #else
 // Make sure we have valid vector count
 //
-   if (sfN < 1 || sfN > sfMax)
+   if (sfN < 1 || sfN > XrdOucSFVec::sfMax)
       {XrdLog->Emsg("Link", EINVAL, "send file to", ID);
        return -1;
       }
 
 #ifdef __solaris__
-    sendfilevec_t vecSF[sfMax], *vecSFP = vecSF;
+    sendfilevec_t vecSF[XrdOucSFVec::sfMax], *vecSFP = vecSF;
     size_t xframt, totamt, bytes = 0;
     ssize_t retc;
     int i = 0;

@@ -42,6 +42,7 @@
 /******************************************************************************/
   
 class XrdLink;
+class XrdOucSFVec;
 class XrdXrootdTransit;
 
 class XrdXrootdResponse
@@ -58,6 +59,7 @@ const  char *ID() {return (const char *)trsid;}
        int   Send(XResponseType rcode, void *data, int dlen);
        int   Send(XResponseType rcode, int info, const char *data);
        int   Send(int fdnum, long long offset, int dlen);
+       int   Send(XrdOucSFVec *sfvec, int sfvnum, int dlen);
 static int   Send(XrdXrootdReqID &ReqID,  XResponseType Status,
                   struct iovec   *IOResp, int           iornum, int  iolen);
 
