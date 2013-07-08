@@ -135,6 +135,7 @@ XrdSecsssKT::~XrdSecsssKT()
 //
    if (ktRefID && !XrdSysThread::Kill(ktRefID))
       XrdSysThread::Join(ktRefID, &Dummy);
+   ktRefID= 0;
 
 // Now we can safely clean up
 //
