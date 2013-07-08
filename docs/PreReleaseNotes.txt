@@ -54,6 +54,7 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Prevent SEGV when comparing for '+' host extensions.
    * Prevent SEGV when deleting the Secsss keytab due to Linux issues.
    * Merge in commit 4085a4 from apeters to prevent SEGV's when reusing a
      recycled protocol object under certain conditions.
