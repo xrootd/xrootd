@@ -447,8 +447,8 @@ namespace XrdCl
       if( helper->readEnabled )
         return true;
 
-      log->Dump( PollerMsg, "%s Enable read notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
+                 socket->GetName().c_str(), timeout );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist
@@ -541,8 +541,8 @@ namespace XrdCl
       if( helper->writeEnabled )
         return true;
 
-      log->Dump( PollerMsg, "%s Enable write notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
+                 socket->GetName().c_str(), timeout );
 
       //------------------------------------------------------------------------
       // Create the read event if it doesn't exist
