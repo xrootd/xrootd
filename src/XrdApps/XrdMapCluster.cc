@@ -48,7 +48,9 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
+#include "XrdCl/XrdClEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdSys/XrdSysHeaders.hh"
@@ -157,7 +159,8 @@ void MapCluster(clMap *node)
    if (!Status.IsOK())
       {EMSG("Unable to connect to " <<node->name <<"; "
             <<Status.ToStr().c_str());
-       node->state = " unreachable";
+       node->state = "unreachable";
+//cerr <<"MapCluster set state: " <<node->state <<endl;
        node->valid = 0;
        return;
       }
@@ -221,6 +224,7 @@ void MapCode(XrdCl::XRootDStatus &Status, clMap *node)
                                        node->state = strdup(buff);
                                        break;
              }
+//cerr <<"MapCode set state: " <<node->state <<endl;
        return;
       }
 
@@ -250,6 +254,7 @@ void MapCode(XrdCl::XRootDStatus &Status, clMap *node)
          default: node->state = strdup(Status.ToStr().c_str());
                                             break;
         }
+//cerr <<"MapCode set state: " <<node->state <<endl;
 }
 };
   
@@ -283,6 +288,8 @@ void MapPath(clMap *node, const char *Path, bool doRefresh=false)
    if (!Status.IsOK())
       {EMSG("Unable to connect to " <<node->name <<"; "
             <<Status.ToStr().c_str());
+       node->state = "unreachable";
+//cerr <<"MapPath set state: " <<node->state <<endl;
        return;
       }
 
@@ -383,7 +390,7 @@ void PrintMap(clMap *clmP, int lvl)
                 {pfxbuff[1] = clnow->hasfile;
                  pfxbuff[2] = clnow->verfile;
                 }
-             cout <<' ' <<pfx <<"Srv " <<clnow->name <<clnow->state <<endl;
+             cout <<' ' <<pfx <<"Srv " <<clnow->name <<' ' <<clnow->state <<endl;
              clnow = clnow->nextSrv;
             }
       }
@@ -395,7 +402,7 @@ void PrintMap(clMap *clmP, int lvl)
        if (lvl) pfxbuff[2] = ' ';
        while(clnow)
             {if (lvl) pfxbuff[1] = clnow->hasfile;
-             cout <<lvl <<pfx <<"Man " <<clnow->name <<clnow->state <<endl;
+             cout <<lvl <<pfx <<"Man " <<clnow->name <<' ' <<clnow->state <<endl;
              if (clnow->valid && clnow->nextLvl) PrintMap(clnow->nextLvl,lvl+1);
              clnow = clnow->nextMan;
             }
@@ -407,6 +414,26 @@ void PrintMap(clMap *clmP, int lvl)
 }
 };
 
+/******************************************************************************/
+/*                                S e t E n v                                 */
+/******************************************************************************/
+
+namespace
+{
+int cwValue = 10;
+int crValue = 0;
+int trValue = 5;
+
+void SetEnv()
+{
+   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+   env->PutInt("ConnectionWindow", cwValue);
+   env->PutInt("ConnectionRetry",  crValue);
+   env->PutInt("TimeoutResolution",trValue);
+}
+};
+  
 /******************************************************************************/
 /*                                 U s a g e                                  */
 /******************************************************************************/
@@ -510,6 +537,10 @@ int main(int argc, char *argv[])
 //
    if (optind+1 < argc) Path = argv[optind+1];
       else doVerify = false;
+
+// Set default client values
+//
+   SetEnv();
 
 // Map the cluster
 //
