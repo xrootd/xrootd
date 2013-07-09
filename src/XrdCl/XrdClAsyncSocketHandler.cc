@@ -122,7 +122,7 @@ namespace XrdCl
       return st;
     }
 
-    if( !pPoller->EnableWriteNotification( pSocket, pTimeoutResolution ) )
+    if( !pPoller->EnableWriteNotification( pSocket, true, pTimeoutResolution ) )
     {
       Status st( stFatal, errPollerError );
       pPoller->RemoveSocket( pSocket );
