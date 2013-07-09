@@ -323,8 +323,8 @@ namespace XrdCl
         return true;
       helper->readTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable read notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
+                            socket->GetName().c_str(), timeout );
       const char *errMsg;
       bool status = helper->channel->Enable( Channel::readEvents, timeout,
                                              &errMsg );
@@ -401,8 +401,8 @@ namespace XrdCl
 
       helper->writeTimeout = timeout;
 
-      log->Dump( PollerMsg, "%s Enable write notifications",
-                            socket->GetName().c_str() );
+      log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
+                            socket->GetName().c_str(), timeout );
 
       const char *errMsg;
       bool status = helper->channel->Enable( Channel::writeEvents, timeout,
