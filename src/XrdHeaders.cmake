@@ -87,6 +87,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysTimer.hh
   XrdSys/XrdSysXSLock.hh
   XrdXrootd/XrdXrootdMonData.hh
+  XrdXrootd/XrdXrootdBridge.hh
 )
 
 set( XROOTD_PRIVATE_HEADERS
