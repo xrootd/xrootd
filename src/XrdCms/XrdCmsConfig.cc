@@ -1872,7 +1872,8 @@ int XrdCmsConfig::xmang(XrdSysError *eDest, XrdOucStream &CFile)
 // Calculate the correct queue and port number to update
 //
    if (isManager && !isServer)
-      {if (((xMeta && isMeta) || (!xMeta && !isMeta)) && PortTCP < 1)
+//    {if (((xMeta && isMeta) || (!xMeta && !isMeta)) && PortTCP < 1)
+      {if (((xMeta && isMeta) || (!xMeta && !isMeta)))
           myPort = &PortTCP;
         if (isMeta) theList = 0;
            else theList = (xMeta ? &ManList : &NanList);
