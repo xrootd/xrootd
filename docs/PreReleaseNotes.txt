@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add location information to XrdNetAddr for future use. This changes
+     the XrdLink's vtable and requires recompilation for its use. 
    * Add SFS interface to allow use of sendfile() without revealing the
      underlying file descriptor. This is an ABI change to SfsInterface
      and required recompliation of sfs-based plugins.
