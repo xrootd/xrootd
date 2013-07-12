@@ -19,6 +19,8 @@ Version 3.3.3
      when connecting to a security enabled server (issue #14)
    * Detect buffer size mis-matches when server returned valid response with
      invalid size (xrdcopy)
+   * Recognize /dev/null and /dev/zero as special files when using copy
+     commands
 
 + **Minor bug fixes**
    * Prevent the new client deadlock on Solaris and MacOS when using
@@ -29,6 +31,7 @@ Version 3.3.3
      poller
    * Strip off opaque information from dest filename when copying to local
      filesystem using xrdcp (issue #21)
+   * Fix setting client timeout resolution while connecting to a server
 
 + **Miscellaneous**
    * Change the RPM package layout to match the one used by EPEL (issue #12)
