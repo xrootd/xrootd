@@ -221,6 +221,8 @@ void          setID(const char *userid, int procid);
 
 static void   setKWT(int wkSec, int kwSec);
 
+void          setLocation(XrdNetAddrInfo::LocInfo &loc) {Addr.SetLocation(loc);}
+
 XrdProtocol  *setProtocol(XrdProtocol *pp);
 
 void          setRef(int cnt);                          // ASYNC Mode

@@ -115,6 +115,31 @@ bool        isLoopback();
 bool        isRegistered();
 
 //------------------------------------------------------------------------------
+//! Obtain the location of this address.
+//!
+//! @return !0       pointer to the unverified location information. Not all
+//!                  fields may be set.
+//! @return =0       location information is not available.
+//------------------------------------------------------------------------------
+
+struct LocInfo
+      {unsigned char  Country[2]; //!< Two letter TLD country code
+       unsigned char  Region;     //!< Region (may combine adjacent countries)
+       unsigned char  Locale;     //!< Locale (may combine adjacent regions)
+                char  TimeZone;   //!< +/- hours from GMT (-128 if not set)
+                char  Reserved;
+                short Speed;      //!< I/F speed (Gb*1024/100)(not supported)
+                int   Latitude;   //!< Degrees +/- xx.xxxxxx  (not supported)
+                int   Longtitude; //!< Degrees +/- xx.xxxxxx  (not supported)
+
+                LocInfo() : Region(0), Locale(0), TimeZone(-128), Reserved(0),
+                            Speed(0), Latitude(0), Longtitude(0) {}
+       };
+
+const struct
+LocInfo    *Location() {return (addrLoc.Country[0] ? &addrLoc : 0);}
+
+//------------------------------------------------------------------------------
 //! Convert our IP address to the corresponding [host] name.
 //!
 //! @param  eName    value to return when the name cannot be determined.
@@ -258,6 +283,7 @@ union {struct sockaddr    *sockAddr;
        struct sockaddr_un *unixPipe;
       };
 char                      *hostName;
+LocInfo                    addrLoc;
 SOCKLEN_t                  addrSize;
 short                      protType;
 short                      sockNum;

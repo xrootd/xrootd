@@ -157,6 +157,15 @@ static void SetCache(int keeptime);
 static void SetIPV4();
 
 //------------------------------------------------------------------------------
+//! Set the location for this address
+//!
+//! @param  loc  pointer to the structure that describes the location. See
+//!              XrdnetAddrInfo for the definition of the stucture.
+//------------------------------------------------------------------------------
+
+void        SetLocation(XrdNetAddrInfo::LocInfo &loc) {addrLoc = loc;}
+
+//------------------------------------------------------------------------------
 //! Assignment operator
 //------------------------------------------------------------------------------
 
