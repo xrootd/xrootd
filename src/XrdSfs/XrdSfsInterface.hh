@@ -571,6 +571,7 @@ virtual               ~XrdSfsFileSystem() {}
 
 class XrdSfsAio;
 class XrdSfsDio;
+class XrdSfsXio;
   
 class XrdSfsFile
 {
@@ -845,6 +846,14 @@ virtual int            truncate(XrdSfsFileOffset fsize) = 0;
 //-----------------------------------------------------------------------------
 
 virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
+
+//-----------------------------------------------------------------------------
+//! Enable exchange buffer I/O for write calls.
+//!
+//! @param  - Pointer to the XrdSfsXio object to be used for buffer exchanges.
+//-----------------------------------------------------------------------------
+
+virtual void           setXio(XrdSfsXio *xioP) {}
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newFile()!)
