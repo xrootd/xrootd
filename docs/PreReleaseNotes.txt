@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Enhance XrdSfsInterface to allow for exchange buffer I/O to minimize
+     data copying for those plug-ins that can do so. This changes the
+     vtable which requires recompliation of sfs-based pug-ins.
    * Add location information to XrdNetAddr for future use. This changes
      the XrdLink's vtable and requires recompilation for its use. 
    * Add SFS interface to allow use of sendfile() without revealing the
