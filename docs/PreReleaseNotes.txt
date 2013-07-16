@@ -59,6 +59,7 @@ Prerelease Notes
    * Allow clients to easily load checksum objects via XrdCksLoader object.
 
 + **Major bug fixes**
+   * Correct assignment operator and copy constructor in XrdNetAddr.
    * Use the original version of the cmsd port discovery algorithm to
      keep compatability with previous versions.
    * Prevent SEGV when comparing for '+' host extensions.
@@ -138,6 +139,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Make sure to return all nodes in a star locate request.
    * Remove conflicting undocumented cmsd options.
    * Always load protocols in the specified order.
    * Correct issues reported by gcc 4.7.2 (narrowing & pointer comparison).
