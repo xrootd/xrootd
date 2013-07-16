@@ -240,6 +240,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                         memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
                        } else sockAddr = &IP.Addr;
                    }
+                addrLoc = rhs.addrLoc;
                 return *this;
                }
 

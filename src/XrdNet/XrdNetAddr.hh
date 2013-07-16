@@ -166,17 +166,8 @@ static void SetIPV4();
 void        SetLocation(XrdNetAddrInfo::LocInfo &loc) {addrLoc = loc;}
 
 //------------------------------------------------------------------------------
-//! Assignment operator
+//! Assignment operator and copy constructor are inherited, no need to define
 //------------------------------------------------------------------------------
-
-XrdNetAddr &operator=(XrdNetAddr const &rhs)
-            {if (this != &rhs) XrdNetAddrInfo(rhs); return *this;}
-
-//------------------------------------------------------------------------------
-//! Copy constructor
-//------------------------------------------------------------------------------
-
-            XrdNetAddr(XrdNetAddr const &aP) : XrdNetAddrInfo(aP) {}
 
 //------------------------------------------------------------------------------
 //! Constructor
