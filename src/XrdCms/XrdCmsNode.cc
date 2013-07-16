@@ -497,6 +497,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    const char *Why;
    char theopts[8], *toP = theopts;
    int rc, bytes;
+   bool lsall = (*Arg.Path == '*');
 
 // Do a callout to the external manager if we have one
 //
@@ -550,7 +551,8 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
       {Resp.Val           = htonl(rc);
        DEBUGR(Why <<Arg.Path);
       } else {
-       bytes=do_LocFmt(Resp.outbuff,sP,Sel.Vec.pf,Sel.Vec.wf)+sizeof(Resp.Val)+1;
+       bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall)
+             + sizeof(Resp.Val)+1;
        Resp.Val            = 0;
        Arg.Request.rrCode  = kYR_data;
       }
@@ -568,9 +570,11 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 /******************************************************************************/
   
 int XrdCmsNode::do_LocFmt(char *buff, XrdCmsSelected *sP,
-                          SMask_t pfVec, SMask_t wfVec)
+                          SMask_t pfVec, SMask_t wfVec, bool lsall)
 {
    static const int Skip = (XrdCmsSelected::Disable | XrdCmsSelected::Offline);
+   static const int Hung = (XrdCmsSelected::Disable | XrdCmsSelected::Offline
+                         |  XrdCmsSelected::Suspend);
    XrdCmsSelected *pP;
    char *oP = buff;
 
@@ -578,6 +582,16 @@ int XrdCmsNode::do_LocFmt(char *buff, XrdCmsSelected *sP,
 // 01234567810123456789212345678
 // xy[::123.123.123.123]:123456
 //
+if (lsall)
+   while(sP)
+        {*oP = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
+         if (sP->Status & Hung) *oP = tolower(*oP);
+         *(oP+1) = (sP->Mask   & wfVec               ? 'w' : 'r');
+         strcpy(oP+2, sP->IPV6); oP += sP->IPV6Len + 2;
+         if (sP->next) *oP++ = ' ';
+         pP = sP; sP = sP->next; delete pP;
+        }
+   else
    while(sP)
         {if (!(sP->Status & Skip))
             {*oP     = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
