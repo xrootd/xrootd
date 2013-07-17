@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add version as a variable that can be returned by kXR_Qconfig.
    * Add implementation defined fctl() at file level (kXR_Query+kXR_Qopaqug).
      This changes the SfsInterface vtable and requires recompliation.
    * Add sitename as an argument to kXR_Query+kXR_Qconfig.
