@@ -53,6 +53,8 @@
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
 #include "XrdXrootd/XrdXrootdXPath.hh"
+
+#include "XrdVersion.hh"
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -1489,6 +1491,10 @@ int XrdXrootdProtocol::do_Qconf()
            }
    else if (!strcmp("window", val) && Window)
            {n = sprintf(bp, "%d\n", Window);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("version", val))
+           {n = sprintf(bp, "%s\n", XrdVSTRING);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);
