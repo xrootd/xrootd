@@ -1469,6 +1469,11 @@ int XrdXrootdProtocol::do_Qconf()
            {n = sprintf(bp, "%d\n", maxRvecsz);
             bp += n; bleft -= n;
            }
+   else if (!strcmp("sitename", val))
+           {const char *siteName = getenv("XRDSITE");
+            n = sprintf(bp, "%s\n", (siteName ? siteName : "sitename"));
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
             n = sprintf(bp, "%s\n", (tpcval ? tpcval : "tpc"));
@@ -1509,26 +1514,17 @@ int XrdXrootdProtocol::do_Qconf()
 
 int XrdXrootdProtocol::do_Qfh()
 {
-   static const int fsctl_cmd1 = SFS_FCTL_STATV;
    static XrdXrootdCallBack qryCB("query", XROOTD_MON_QUERY);
    XrdOucErrInfo myError(Link->ID, &qryCB, ReqID.getID(), Monitor.Did);
    XrdXrootdFHandle fh(Request.query.fhandle);
    XrdXrootdFile *fp;
+   const char *fArg = 0, *qType = "";
+   int rc;
    short qopt = (short)ntohs(Request.query.infotype);
-   int rc, fsctl_cmd;
 
 // Update misc stats count
 //
    SI->Bump(SI->miscCnt);
-
-// Perform the appropriate query
-//
-   switch(qopt)
-         {case kXR_Qvisa:   fsctl_cmd = fsctl_cmd1;
-                            break;
-          default:          return Response.Send(kXR_ArgMissing, 
-                                   "Required query argument not present");
-         }
 
 // Find the file object
 //
@@ -1536,10 +1532,25 @@ int XrdXrootdProtocol::do_Qfh()
       return Response.Send(kXR_FileNotOpen,
                            "query does not refer to an open file");
 
+// Perform the appropriate query
+//
+   switch(qopt)
+         {case kXR_Qopaqug: qType = "Qopaqug";
+                            fArg = (Request.query.dlen ? argp->buff : 0);
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_SPEC1,
+                                                   Request.query.dlen, fArg,
+                                                   myError, CRED);
+                            break;
+          case kXR_Qvisa:   qType = "Qvisa";
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_STATV, 0, myError);
+                            break;
+          default:          return Response.Send(kXR_ArgMissing, 
+                                   "Required query argument not present");
+         }
+
 // Preform the actual function
 //
-   rc = fp->XrdSfsp->fctl(fsctl_cmd, 0, myError);
-   TRACEP(FS, "query rc=" <<rc <<" fh=" <<fh.handle);
+   TRACEP(FS, "query " <<qType <<" rc=" <<rc <<" fh=" <<fh.handle);
 
 // Return appropriately
 //
@@ -1650,6 +1661,7 @@ int XrdXrootdProtocol::do_Query()
           case kXR_Qxattr:  return do_Qxattr();
           case kXR_Qopaque:
           case kXR_Qopaquf: return do_Qopaque(qopt);
+          case kXR_Qopaqug: return do_Qfh();
           default:          break;
          }
 

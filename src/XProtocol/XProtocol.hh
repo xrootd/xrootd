@@ -197,7 +197,8 @@ enum XQueryType {
    kXR_Qconfig= 7,
    kXR_Qvisa  = 8,
    kXR_Qopaque=16,
-   kXR_Qopaquf=32
+   kXR_Qopaquf=32,
+   kXR_Qopaqug=64
 };
 
 enum XVerifyType {

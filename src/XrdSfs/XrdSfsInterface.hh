@@ -73,6 +73,7 @@
 //
 #define SFS_FCTL_GETFD    1 // Return file descriptor if possible
 #define SFS_FCTL_STATV    2 // Return visa information
+#define SFS_FCTL_SPEC1    3 // Return implementation defined information
 
 #define SFS_SFIO_FDVAL 0x80000000 // Use SendData() method GETFD response value
 
@@ -622,12 +623,13 @@ virtual int            open(const char                *fileName,
 virtual int            close() = 0;
 
 //-----------------------------------------------------------------------------
-//! Execute a special operation on the file.
+//! Execute a special operation on the file (version 1)
 //!
 //! @param  cmd   - The operation to be performed (see below).
 //!                 SFS_FCTL_GETFD    Return file descriptor if possible
 //!                 SFS_FCTL_STATV    Reserved for future use.
-//! @param  args  - specific arguments to cmd (currently none for the above)
+//! @param  args  - specific arguments to cmd
+//!                 SFS_FCTL_GETFD    Set to zero.
 //!
 //! @return If an error occurs or the operation is not support, SFS_ERROR
 //!         should be returned with error.code set to errno. Otherwise,
@@ -642,12 +644,35 @@ virtual int            fctl(const int               cmd,
                                   XrdOucErrInfo    &eInfo) = 0;
 
 //-----------------------------------------------------------------------------
+//! Execute a special operation on the file (version 2)
+//!
+//! @param  cmd    - The operation to be performed:
+//!                  SFS_FCTL_SPEC1    Perform implementation defined action
+//! @param  alen   - Length of data pointed to by args.
+//! @param  args   - Data sent with request, zero if alen is zero.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//! @param  client - Client's identify (see common description).
+//!
+//! @return SFS_OK   a null response is sent.
+//! @return SFS_DATA error.code    length of the data to be sent.
+//!                  error.message contains the data to be sent.
+//!         o/w      one of SFS_ERROR, SFS_REDIRECT, or SFS_STALL.
+//-----------------------------------------------------------------------------
+
+virtual int            fctl(const int               cmd,
+                                  int               alen,
+                                  const char       *args,
+                                  XrdOucErrInfo    &eInfo,
+                            const XrdSecEntity     *client = 0) {return SFS_OK;}
+
+//-----------------------------------------------------------------------------
 //! Get the file path.
 //!
 //! @return Null terminated string of the path used in open().
 //-----------------------------------------------------------------------------
 
 virtual const char    *FName() = 0;
+
 
 //-----------------------------------------------------------------------------
 //! Get file's memory mapping if one exists (memory mapped files only).
