@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add implementation defined fctl() at file level (kXR_Query+kXR_Qopaqug).
+     This changes the SfsInterface vtable and requires recompliation.
+   * Add sitename as an argument to kXR_Query+kXR_Qconfig.
    * Enhance XrdSfsInterface to allow for exchange buffer I/O to minimize
      data copying for those plug-ins that can do so. This changes the
      vtable which requires recompliation of sfs-based pug-ins.
