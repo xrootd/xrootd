@@ -271,6 +271,7 @@ int XrdXrootdProtocol::do_Bind()
    free(cp);
    CapVer = pp->CapVer;
    Status = XRD_BOUNDPATH;
+   clientPV = pp->clientPV;
 
 // Get the required number of parallel I/O objects
 //
@@ -781,13 +782,25 @@ int XrdXrootdProtocol::do_Login()
 
 // Establish the session ID if the client can handle it (protocol version > 0)
 //
-   if (CapVer && kXR_vermask)
+   if ((i = (CapVer & kXR_vermask)))
       {sessID.FD   = Link->FDnum();
        sessID.Inst = Link->Inst();
        sessID.Pid  = myPID;
        sessMutex.Lock(); mySID = ++Sid; sessMutex.UnLock();
        sessID.Sid  = mySID;
        sendSID = 1;
+       if (!clientPV)
+          {        if (i >  kXR_ver003) clientPV = (int)0x0300;
+              else if (i == kXR_ver003) clientPV = (int)0x0299;
+              else if (i == kXR_ver002) clientPV = (int)0x0290;
+              else if (i == kXR_ver001) clientPV = (int)0x0200;
+              else                      clientPV = (int)0x0100;
+          }
+       if (CapVer & kXR_asyncap) clientPV |= XrdOucEI::uAsync;
+       if (Request.login.ability & kXR_fullurl)
+          clientPV |= XrdOucEI::uUrlOK;
+       if (Request.login.ability & kXR_multipr)
+          clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
       }
 
 // Check if this is an admin login
@@ -1405,7 +1418,9 @@ int XrdXrootdProtocol::do_Protocol(int retRole)
 //
    if (Request.protocol.clientpv)
       {Resp = &RespNew; RespLen = sizeof(RespNew);
-       if (!Status) clientPV = ntohl(Request.protocol.clientpv);
+       if (!Status || !(clientPV & XrdOucEI::uVMask))
+          clientPV = (clientPV & ~XrdOucEI::uVMask)
+                   | (XrdOucEI::uVMask & ntohl(Request.protocol.clientpv));
       }
 
 // Return info

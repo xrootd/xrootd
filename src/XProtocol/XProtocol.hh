@@ -134,6 +134,13 @@ enum XMkdirOptions {
 };
 
 // this is a bitmask
+enum XLoginAbility {
+   kXR_nothing =   0,
+   kXR_fullurl =   1,
+   kXR_multipr =   3
+};
+
+// this is a bitmask
 enum XLoginCapVer {
    kXR_lcvnone = 0,
    kXR_vermask = 63,
@@ -364,7 +371,8 @@ struct ClientLoginRequest {
    kXR_unt16 requestid;
    kXR_int32 pid;
    kXR_char username[8];
-   kXR_char reserved[2];
+   kXR_char reserved;
+   kXR_char ability;
    kXR_char capver[1];
    kXR_char role[1];
    kXR_int32  dlen;
