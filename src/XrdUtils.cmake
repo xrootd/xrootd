@@ -61,6 +61,7 @@ add_library(
                                 XrdOuc/XrdOucHash.hh
                                 XrdOuc/XrdOucHash.icc
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
+  XrdOuc/XrdOucErrInfo.cc       XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucHashVal.cc
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
@@ -82,7 +83,6 @@ add_library(
   XrdOuc/XrdOucUtils.cc         XrdOuc/XrdOucUtils.hh
                                 XrdOuc/XrdOucChain.hh
                                 XrdOuc/XrdOucDLlist.hh
-                                XrdOuc/XrdOucErrInfo.hh
                                 XrdOuc/XrdOucIOVec.hh
                                 XrdOuc/XrdOucLock.hh
                                 XrdOuc/XrdOucPList.hh
