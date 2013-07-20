@@ -296,7 +296,7 @@ int XrdXrootdProtocol::do_Chmod()
 {
    int mode, rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
@@ -379,7 +379,7 @@ int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
 {
    static char Space = ' ';
    static int  CKTLen = strlen(JobCKT);
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, JobCKT, Path,
                              myError, CRED, Opaque);
    const char *csData = myError.getErrText(ec);
@@ -493,6 +493,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // First open the directory
 //
+   dp->error.setUCap(clientPV);
    if ((rc = dp->open(argp->buff, CRED, opaque)))
       {rc = fsError(rc, XROOTD_MON_OPENDIR, dp->error, argp->buff);
        delete dp;
@@ -548,7 +549,7 @@ int XrdXrootdProtocol::do_Dirlist()
 int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                                                  const char *opaque)
 {
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    struct stat Stat;
    static const int statSz = 80;
    int bleft, rc = 0, dlen, cnt = 0;
@@ -702,7 +703,7 @@ int XrdXrootdProtocol::do_Locate()
    int rc, opts, fsctl_cmd = SFS_FSCTL_LOCATE;
    const char *opaque;
    char *Path, *fn = argp->buff, opt[8], *op=opt;
-   XrdOucErrInfo myError(Link->ID, &locCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Unmarshall the data
 //
@@ -872,7 +873,7 @@ int XrdXrootdProtocol::do_Mkdir()
 {
    int mode, rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
@@ -907,7 +908,7 @@ int XrdXrootdProtocol::do_Mv()
    int rc;
    const char *Opaque, *Npaque;
    char *oldp, *newp;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
@@ -1161,6 +1162,7 @@ int XrdXrootdProtocol::do_Open()
 // The open is elegible for a defered response, indicate we're ok with that
 //
    fp->error.setErrCB(&openCB, ReqID.getID());
+   fp->error.setUCap(clientPV);
 
 // Open the file
 //
@@ -1296,7 +1298,7 @@ int XrdXrootdProtocol::do_Prepare()
    int rc, hport, pathnum = 0;
    const char *opaque;
    char opts, hname[256], reqid[128], nidbuff[512], *path;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdOucTokenizer pathlist(argp->buff);
    XrdOucTList *pFirst=0, *pP, *pLast = 0;
    XrdOucTList *oFirst=0, *oP, *oLast = 0;
@@ -1536,7 +1538,7 @@ int XrdXrootdProtocol::do_Qconf()
 int XrdXrootdProtocol::do_Qfh()
 {
    static XrdXrootdCallBack qryCB("query", XROOTD_MON_QUERY);
-   XrdOucErrInfo myError(Link->ID, &qryCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&qryCB,ReqID.getID(),Monitor.Did,clientPV);
    XrdXrootdFHandle fh(Request.query.fhandle);
    XrdXrootdFile *fp;
    const char *fArg = 0, *qType = "";
@@ -1585,7 +1587,7 @@ int XrdXrootdProtocol::do_Qfh()
   
 int XrdXrootdProtocol::do_Qopaque(short qopt)
 {
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    XrdSfsFSctl myData;
    const char *opaque, *Act, *AData;
    int fsctl_cmd, rc, dlen = Request.query.dlen;
@@ -1633,7 +1635,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
 int XrdXrootdProtocol::do_Qspace()
 {
    static const int fsctl_cmd = SFS_FSCTL_STATLS;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
    const char *opaque;
    int n, rc;
 
@@ -1702,7 +1704,7 @@ int XrdXrootdProtocol::do_Qxattr()
    static const int fsctl_cmd = SFS_FSCTL_STATXA;
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Check for static routing
 //
@@ -2056,7 +2058,7 @@ int XrdXrootdProtocol::do_Rm()
 {
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
@@ -2087,7 +2089,7 @@ int XrdXrootdProtocol::do_Rmdir()
 {
    int rc;
    const char *opaque;
-   XrdOucErrInfo myError(Link->ID, Monitor.Did);
+   XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
 
 // Check for static routing
 //
@@ -2211,7 +2213,7 @@ int XrdXrootdProtocol::do_Stat()
    const char *opaque;
    char xxBuff[256];
    struct stat buf;
-   XrdOucErrInfo myError(Link->ID, &statCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statCB,ReqID.getID(),Monitor.Did,clientPV);
 
 // Update misc stats count
 //
@@ -2270,7 +2272,7 @@ int XrdXrootdProtocol::do_Statx()
    const char *opaque;
    char *path, *respinfo = argp->buff;
    mode_t mode;
-   XrdOucErrInfo myError(Link->ID, &statxCB, ReqID.getID(), Monitor.Did);
+   XrdOucErrInfo myError(Link->ID,&statxCB,ReqID.getID(),Monitor.Did,clientPV);
    XrdOucTokenizer pathlist(argp->buff);
 
 // Check for static routing
@@ -2370,7 +2372,7 @@ int XrdXrootdProtocol::do_Truncate()
 
    } else {
 
-       XrdOucErrInfo myError(Link->ID, Monitor.Did);
+       XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
        const char *opaque;
 
     // Check for static routing
