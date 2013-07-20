@@ -6,6 +6,11 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide a mechanism to allow the client to indicate additional
+     capabilities regarding redirection.
+   * Enhance the errorinfo object to be able to return longer response
+     data as well as to communicate client capabilities. This change
+     requires users of this object to recompile (i.e. most plugins).
    * Add version as a variable that can be returned by kXR_Qconfig.
    * Add implementation defined fctl() at file level (kXR_Query+kXR_Qopaqug).
      This changes the SfsInterface vtable and requires recompliation.
