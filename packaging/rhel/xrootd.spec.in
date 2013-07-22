@@ -11,7 +11,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}%{?_with_xrootd_user:.xu}
+Release:   __RELEASE__%{?dist}%{!?_with_xrootd_user:.du}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPL
