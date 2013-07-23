@@ -17,7 +17,7 @@ XROOTD_GROUP=xrootd
 # Define the commandline options for the instances of the daemons.
 # The format is:
 # DAEMON_NAME_OPTIONS, where:
-#   DAEMON - the daemon name, the valid values are: XROOTD, CMSD or FRMD
+#   DAEMON - the daemon name, the valid values are: XROOTD, CMSD, XFRD and PURD
 #   NAME   - the name of the instance, any uppercase alphanumeric string
 #            without whitespaces is valid
 #-------------------------------------------------------------------------------
