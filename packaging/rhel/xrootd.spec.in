@@ -1,17 +1,10 @@
 #-------------------------------------------------------------------------------
-# We assume the xrootd user when building for the OSG
-#-------------------------------------------------------------------------------
-%if "0%{?dist}" == "0.osg"
-%define _with_xrootd_user 1
-%endif
-
-#-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}%{!?_with_xrootd_user:.du}
+Release:   __RELEASE__%{?dist}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPL
@@ -303,25 +296,14 @@ mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{name}
 mkdir -p $RPM_BUILD_ROOT%{_initrddir}
 
-%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
-cat packaging/rhel/xrootd.sysconfig | sed -e 's/XROOTD_USER=daemon/XROOTD_USER=xrootd/g' \
-  -e 's/XROOTD_GROUP=daemon/XROOTD_GROUP=xrootd/g' > $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
-chmod 644 $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
-%else
 install -m 644 packaging/rhel/xrootd.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/%{name}
-%endif
-
 
 install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
 install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_purged
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
 install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
 
-%if 0%{?rhel} < 5
-install -m 755 packaging/rhel/xrootd.functions-slc4 $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
-%else
 install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
-%endif
 
 install -m 644 packaging/common/xrootd-clustered.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-clustered.cfg
 install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-standalone.cfg
@@ -361,14 +343,11 @@ rm -rf $RPM_BUILD_ROOT
 %postun server-libs -p /sbin/ldconfig
 
 %pre
-
-%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
        -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
-%endif
 
 %post
 if [ $1 -eq 1 ]; then
@@ -401,14 +380,12 @@ fi
 #-------------------------------------------------------------------------------
 # Add a new user and group if necessary
 #-------------------------------------------------------------------------------
-%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
 %pre fuse
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
        -s /sbin/nologin -d %{_localstatedir}/spool/%{name}
 exit 0
-%endif
 
 #-------------------------------------------------------------------------------
 # Files
@@ -441,19 +418,11 @@ exit 0
 %{_mandir}/man8/xrootd.8*
 %{_datadir}/xrootd
 %{_initrddir}/*
-%if %{?_with_xrootd_user:1}%{!?_with_xrootd_user:0}
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
 %attr(-,xrootd,xrootd) %dir %{_var}/log/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/run/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/%{name}
-%else
-%config(noreplace) %{_sysconfdir}/%{name}/xrootd-clustered.cfg
-%config(noreplace) %{_sysconfdir}/%{name}/xrootd-standalone.cfg
-%attr(-,daemon,daemon) %dir %{_var}/log/%{name}
-%attr(-,daemon,daemon) %dir %{_var}/run/%{name}
-%attr(-,daemon,daemon) %dir %{_var}/spool/%{name}
-%endif
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
 
 %files libs
