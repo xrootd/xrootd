@@ -35,6 +35,7 @@ Version 3.3.3
 
 + **Miscellaneous**
    * Change the RPM package layout to match the one used by EPEL (issue #12)
+   * Drop the daemon user RPMs
    * Allow new client connection parameters to be tweaked by connection URL CGI
    * Make the built-in poller default again in the new client - after resolving
      issue #5
