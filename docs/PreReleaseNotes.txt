@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Serialize client initialization to prevent race conditions
+     resulting in aborts when using sss authentication protocol.
    * Provide a mechanism to allow the client to indicate additional
      capabilities regarding redirection.
    * Enhance the errorinfo object to be able to return longer response
