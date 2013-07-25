@@ -292,8 +292,14 @@ XrdSecCredentials *XrdSecProtocolsss::getCredentials(XrdSecParameters *parms,
 /*                           I n i t _ C l i e n t                            */
 /******************************************************************************/
 
+namespace
+{
+XrdSysMutex initMutex;
+};
+
 int XrdSecProtocolsss::Init_Client(XrdOucErrInfo *erp, const char *pP)
 {
+   XrdSysMutexHelper initMon(&initMutex);
    XrdSecsssKT *ktP;
    struct stat buf;
    char *Colon;
