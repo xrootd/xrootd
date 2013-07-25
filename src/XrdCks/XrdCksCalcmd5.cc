@@ -180,10 +180,11 @@ char *XrdCksCalcmd5::Final()
 
    byteReverse(myContext.in, 14);
 
-// Append length in bits and transform
+// Append length in bits and transform (original code in comments)
 //
-   ((unsigned int *) myContext.in)[14] = myContext.bits[0];
-   ((unsigned int *) myContext.in)[15] = myContext.bits[1];
+// ((unsigned int *) myContext.in)[14] = myContext.bits[0];
+// ((unsigned int *) myContext.in)[15] = myContext.bits[1];
+   myContext.i64[7] = myContext.b64;
 
    MD5Transform(myContext.buf, (unsigned int *) myContext.in);
    byteReverse((unsigned char *) myContext.buf, 4);

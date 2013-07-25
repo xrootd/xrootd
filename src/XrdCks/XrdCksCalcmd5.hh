@@ -63,8 +63,12 @@ private:
   
 struct MD5Context
       {unsigned int  buf[4];
+union {long long     b64;
        unsigned int  bits[2];
+      };
+union {long long     i64[8];
        unsigned char in[64];
+      };
       };
 
 MD5Context    myContext;
