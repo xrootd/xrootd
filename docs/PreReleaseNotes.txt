@@ -148,6 +148,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Squelch casting complaints from C11 in md5 calculation.
    * Add additional methods for IPv6 address handling and change some methods
      to better conform to standard calling conventions.
    * Make sure to return all nodes in a star locate request.
