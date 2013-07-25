@@ -38,6 +38,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetCache.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 /******************************************************************************/
 /*                 P l a t f o r m   D e p e n d e n c i e s                  */
@@ -58,11 +59,13 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-struct addrinfo   *XrdNetAddr::hostHints = XrdNetAddr::Hints(0);
+struct addrinfo   *XrdNetAddr::hostHints    = XrdNetAddr::Hints(0, 0);
 
-struct addrinfo   *XrdNetAddr::huntHints = XrdNetAddr::Hints(1);
+struct addrinfo   *XrdNetAddr::huntHintsTCP = XrdNetAddr::Hints(1, SOCK_STREAM);
 
-bool               XrdNetAddr::useIPV4   = false;
+struct addrinfo   *XrdNetAddr::huntHintsUDP = XrdNetAddr::Hints(2, SOCK_DGRAM);
+
+bool               XrdNetAddr::useIPV4      = false;
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -82,45 +85,19 @@ XrdNetAddr::XrdNetAddr(int port) : XrdNetAddrInfo()
 /* Private:                        H i n t s                                  */
 /******************************************************************************/
   
-struct addrinfo *XrdNetAddr::Hints(int htype)
+struct addrinfo *XrdNetAddr::Hints(int htype, int stype)
 {
-   static struct addrinfo hints4Host, hints4Hunt;
+   static struct addrinfo theHints[3];
 
 // Return properly initialized hint structure. We need to do this dynamically
 // in a static constructor since the addrinfo layout differs by OS-type.
 //
-   if (htype)
-      {memset(&hints4Hunt, 0, sizeof(struct addrinfo));;
-       hints4Hunt.ai_flags    = AI_V4MAPPED;
-       hints4Hunt.ai_family   = AF_INET6;
-       hints4Hunt.ai_protocol = PF_INET6;
-       return &hints4Hunt;
-      }
-
-       memset(&hints4Host, 0, sizeof(struct addrinfo));;
-       hints4Host.ai_flags    = AI_V4MAPPED | AI_CANONNAME;
-       hints4Host.ai_family   = AF_INET6;
-       hints4Host.ai_protocol = PF_INET6;
-       return &hints4Host;
-}
-
-/******************************************************************************/
-/* Private:                         I n i t                                   */
-/******************************************************************************/
-  
-void XrdNetAddr::Init(struct addrinfo *rP, int Port)
-{
-
-// Simply copy over the information we have
-//
-   memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
-   addrSize = rP->ai_addrlen;
-   protType = rP->ai_protocol;
-   if (hostName) free(hostName);
-   hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
-   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
-   IP.v6.sin6_port = htons(static_cast<short>(Port));
-   sockNum = -1;
+   memset(&theHints[htype], 0, sizeof(struct addrinfo));;
+   if (htype) theHints[htype].ai_flags    = AI_V4MAPPED | AI_ALL;
+       else   theHints[htype].ai_flags    = AI_V4MAPPED | AI_CANONNAME;
+   theHints[htype].ai_family   = AF_INET6;
+   theHints[htype].ai_socktype = stype;
+   return &theHints[htype];
 }
 
 /******************************************************************************/
@@ -297,13 +274,14 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
 
 /******************************************************************************/
   
-const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP, int pNum)
+const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP,
+                            int pNum, bool optUDP)
 {
-   struct addrinfo *rP = 0, *pP, *nP;
+   struct addrinfo *hP, *rP = 0, *pP, *nP;
    XrdNetAddr *aVec = this;
-   const char *Colon, *iP;
-   char aBuff[MAXHOSTNAMELEN+8];
-   int  aLen, n;
+   const char *hnBeg, *hnEnd, *pnBeg, *pnEnd;
+   char hBuff[MAXHOSTNAMELEN+8];
+   int  hLen, n;
 
 // If only one address can be returned, just revert to standard processing
 //
@@ -315,24 +293,27 @@ const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP, int pNum)
 
 // Extract out host name
 //
-   if ((Colon = index(hSpec, ':')))
-      {aLen = Colon - hSpec;
-       if (aLen > MAXHOSTNAMELEN) return "invalid host name";
-       strncpy(aBuff, hSpec, aLen); aBuff[aLen] = 0; iP = aBuff;
-      } else iP = hSpec;
+   if (!XrdNetUtils::Parse(hSpec, &hnBeg, &hnEnd, &pnBeg, &pnEnd))
+      return "invalid host specification";
+   hLen = hnEnd - hnBeg;
+   if (hLen > MAXHOSTNAMELEN) return "host name too long";
+   strncpy(hBuff, hSpec, hLen); hBuff[hLen] = 0;
 
 // Get the port number we will be setting
 //
-   if (pNum == PortInSpec && !Colon) return "port not specified";
-   if (pNum <= 0 && Colon)
-      {char *eP;
-       pNum = strtol(Colon+1, &eP, 10);
-       if (pNum < 0 || pNum > 0xffff || *eP) return "invalid port number";
-      } else if (pNum < 0) pNum = -pNum;
+   if (pnBeg == hnEnd)
+      {if (pNum == PortInSpec) return "port not specified";
+       if (pNum < 0) pNum = -pNum;
+      } else {
+       if (*pnEnd || !(n = XrdNetUtils::ServPort(pnBeg, optUDP)))
+          return "invalid port";
+       if (pNum < 0) pNum = n;
+      }
 
 // Get all of the addresses
 //
-   n = getaddrinfo(iP, 0, huntHints, &rP);
+   hP = (optUDP ? huntHintsUDP : huntHintsTCP);
+   n = getaddrinfo(hBuff, 0, hP, &rP);
    if (n || !rP)
       {if (rP) freeaddrinfo(rP);
        return (n ? gai_strerror(n) : "host not found");
@@ -343,7 +324,7 @@ const char *XrdNetAddr::Set(const char *hSpec, int &numIP, int maxIP, int pNum)
    n = 0; pP = 0; nP = rP;
    do {if (!pP || pP->ai_addrlen != nP->ai_addrlen
        ||  memcmp((const void *)pP->ai_addr, (const void *)nP->ai_addr,
-                  nP->ai_addrlen)) {aVec[n].Init(nP, pNum); n++;}
+                  nP->ai_addrlen)) {aVec[n].Set(nP, pNum); n++;}
        pP = nP; nP = nP->ai_next;
       } while(n < maxIP && nP);
 
@@ -415,6 +396,24 @@ const char *XrdNetAddr::Set(int sockFD)
 }
 
 /******************************************************************************/
+  
+const char *XrdNetAddr::Set(struct addrinfo *rP, int Port)
+{
+
+// Simply copy over the information we have
+//
+   memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
+   addrSize = rP->ai_addrlen;
+   protType = rP->ai_protocol;
+   if (hostName) free(hostName);
+   hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
+   if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}
+   IP.v6.sin6_port = htons(static_cast<short>(Port));
+   sockNum = -1;
+   return 0;
+}
+
+/******************************************************************************/
 /*                              S e t C a c h e                               */
 /******************************************************************************/
   
@@ -440,11 +439,12 @@ void XrdNetAddr::SetIPV4()
 //
    hostHints->ai_flags    = AI_CANONNAME;
    hostHints->ai_family   = AF_INET;
-   hostHints->ai_protocol = PF_INET;
 
-   huntHints->ai_flags    = AI_ADDRCONFIG;
-   huntHints->ai_family   = AF_INET;
-   huntHints->ai_protocol = PF_INET;
+   huntHintsTCP->ai_flags    = AI_ADDRCONFIG;
+   huntHintsTCP->ai_family   = AF_INET;
+
+   huntHintsUDP->ai_flags    = AI_ADDRCONFIG;
+   huntHintsUDP->ai_family   = AF_INET;
 
    useIPV4 = true;
 }

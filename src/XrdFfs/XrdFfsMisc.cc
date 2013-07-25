@@ -272,7 +272,8 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
     XrdNetAddr uAddr;
     int i, n = 0;
     const char *netName;
-    char *url, *rc, *hostip, *hName, *hNend, *hPort, *hPend, hsep;
+    const char *hName, *hNend, *hPort, *hPend;
+    char *url, *rc, *hostip, hsep;
   
     rc = (char*)malloc(sizeof(char) * XrdFfs_MAX_NUM_NODES * 1024);
     rc[0] = '\0';
@@ -283,9 +284,11 @@ int XrdFfsMisc_get_list_of_data_servers(char* list)
         hostip = &url[7];
         if (XrdNetUtils::Parse(hostip, &hName, &hNend, &hPort, &hPend))
            {n++;
-            hsep = *hNend; *hNend = 0; *hPend = 0;
+            hsep = *hNend;
+            hostip[hNend-hostip] = 0;
+            hostip[hPend-hostip] = 0;
             if (uAddr.Set(hName,0) || !(netName = uAddr.Name()))
-               {*hNend = hsep;
+               {hostip[hNend-hostip] = hsep;
                 hName = hostip;
                 hPend = hNend;
                }

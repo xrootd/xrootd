@@ -78,7 +78,7 @@ int         Port(int pNum=-1);
 //!                  persistent storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-static const int PortInSpec = 0x80000000;
+static const int PortInSpec = (int)0x80000000;
 
 const char *Set(const char *hSpec, int pNum=PortInSpec);
 
@@ -93,7 +93,6 @@ const char *Set(const char *hSpec, int pNum=PortInSpec);
 //!                       IP.v4:   nnn.nnn.nnn.nnn[:<port>]
 //!                       IP.v6:   [ipv6_addr][:<port>]
 //!                       IP.xx:   name[:port] xx is determined by getaddrinfo()
-//!                       IP.Unix: /<path>
 //! @param  maxIP    number of elements in the array.
 //! @param  numIP    the number of IP addresses actually set (returned value).
 //! @param  pNum     >= 0 uses the value as the port number regardless of what
@@ -104,6 +103,8 @@ const char *Set(const char *hSpec, int pNum=PortInSpec);
 //!                  **** When set to PortInSpec(the default, see below) the
 //!                       port number/name must be specified in hSpec. If it is
 //!                       not, an error is returned.
+//! @param  forUDP   when true addresses are usable for UDP connections.
+//!                  Otherwise, they are for TCP connections.
 //!
 //! @return Success: 0 with numIP set to the number of elements set.
 //!         Failure: the error message text describing the error and
@@ -111,7 +112,8 @@ const char *Set(const char *hSpec, int pNum=PortInSpec);
 //!                  storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-const char *Set(const char *hSpec, int &numIP, int maxIP, int pNum=PortInSpec);
+const char *Set(const char *hSpec, int &numIP, int maxIP,
+                int pNum=PortInSpec, bool forUDP=false);
 
 //------------------------------------------------------------------------------
 //! Set our address via a sockaddr structure.
@@ -139,6 +141,19 @@ const char *Set(const struct sockaddr *sockP, int sockFD=-1);
 //------------------------------------------------------------------------------
 
 const char *Set(int sockFD);
+
+//------------------------------------------------------------------------------
+//! Set our address via and addrinfo structure and initialize the port.
+//!
+//! @param  rP       pointer to an addrinfo structure.
+//! @param  Port     the port number to set.
+//!
+//! @return Success: Returns 0.
+//!         Failure: Returns the error message text describing the error. The
+//!                  message is in persistent storage and cannot be modified.
+//------------------------------------------------------------------------------
+
+const char *Set(struct addrinfo *rP, int Port);
 
 //------------------------------------------------------------------------------
 //! Set the cache time for address to name resolutions. This method should only
@@ -199,12 +214,12 @@ void        SetLocation(XrdNetAddrInfo::LocInfo &loc) {addrLoc = loc;}
 
            ~XrdNetAddr() {}
 private:
-static struct addrinfo    *Hints(int htype);
-void                       Init(struct addrinfo *rP, int Port);
+static struct addrinfo    *Hints(int htype, int stype);
 bool                       Map64();
 
 static struct addrinfo    *hostHints;
-static struct addrinfo    *huntHints;
+static struct addrinfo    *huntHintsTCP;
+static struct addrinfo    *huntHintsUDP;
 static bool                useIPV4;
 };
 #endif

@@ -66,7 +66,9 @@ XrdNetCache           *XrdNetAddrInfo::dnsCache = 0;
 int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 {
    const char *pFmt = "]:%d";
-   int totLen, n, pNum, addBrak = 0, omitP = (fmtOpts & noPort);
+   int totLen, n, pNum, addBrak = 0;
+   int omitP = (fmtOpts & (noPort|noPortRaw));
+   int ipRaw = (fmtOpts & noPortRaw);
 
 // Handle the degenerative case first
 //
@@ -106,19 +108,23 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 //
         if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
-            *bAddr = '['; addBrak = 1;
             if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
-               {strcpy(bAddr, "[::");
+               {if (ipRaw) {strcpy(bAddr,  "::"); bAddr += 2; bLen -= 2;}
+                   else    {strcpy(bAddr, "[::"); bAddr += 3; bLen -= 3;}
                 if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
-                               bAddr+3, bLen-3)) return QFill(bAddr, bLen);
-               } else if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+1,bLen-1))
-                         return QFill(bAddr, bLen);
+                               bAddr, bLen)) return QFill(bAddr, bLen);
+               } else {
+                if (!ipRaw) {*bAddr = '['; addBrak = 1; bAddr++; bLen--;}
+                if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr,bLen))
+                    return QFill(bAddr, bLen);
+               }
            }
    else if (IP.Addr.sa_family == AF_INET)
            {if (theFmt != fmtAdv6) {n = 0; pFmt =  ":%d";}
                else {if (bLen < (INET_ADDRSTRLEN+9)) return QFill(bAddr, bLen);
                      if (fmtOpts & old6Map4) {strcpy(bAddr, "[::"); n = 3;}
                         else {strcpy(bAddr, "[::ffff:"); n = 8;}
+                     if (ipRaw) {strcpy(bAddr, bAddr+1); n--;}
                     }
             if (!inet_ntop(AF_INET, &(IP.v4.sin_addr),bAddr+n,bLen-n))
                return QFill(bAddr, bLen);
@@ -144,6 +150,17 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
    if ((n = snprintf(bAddr, bLen, pFmt, pNum)) >= bLen)
       return QFill(bAddr, bLen);
    return totLen+n;
+}
+
+/******************************************************************************/
+/*                              i s I P T y p e                               */
+/******************************************************************************/
+  
+bool XrdNetAddrInfo::isIPType(IPType ipType)
+{
+   return (ipType ? IP.Addr.sa_family == AF_INET6
+                  : IP.Addr.sa_family == AF_INET
+          );
 }
 
 /******************************************************************************/

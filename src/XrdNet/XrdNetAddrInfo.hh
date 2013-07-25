@@ -76,8 +76,9 @@ inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
 //! @param  bLen     length  of buffer
 //! @param  fmtType  specifies the type of format desired via fmtUse enum.
 //! @param  fmtOpts  additional formatting options (can be or'd):
-//!                  noPort   - do not append the port number to the address.
-//!                  old6Map4 - use deprecated IPV6 mapped format '[::x.x.x.x]'
+//!                  noPort    - do not append the port number to the address.
+//!                  noPortRaw - no port and no brackets for IPv6.
+//!                  old6Map4  - use deprecated IPV6 mapped format '[::x.x.x.x]'
 //!
 //! @return Success: The number of characters (less null) in Buff.
 //! @return Failure: 0 (buffer is too small or not a valid address). However,
@@ -90,8 +91,9 @@ enum fmtUse {fmtAuto=0, //!< Hostname if already resolved o/w use fmtAddr
              fmtAddr,   //!< Address using suitable ipv4 or ipv6 format
              fmtAdv6};  //!< Address only in ipv6 format
 
-static const int noPort   = 0x0000001; //!< Do not add port number
-static const int old6Map4 = 0x0000002; //!< Use deprecated IPV6 mapped format
+static const int noPort    = 0x0000001; //!< Do not add port number
+static const int noPortRaw = 0x0000002; //!< Use raw address format (no port)
+static const int old6Map4  = 0x0000004; //!< Use deprecated IPV6 mapped format
 
 int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0);
 
@@ -99,17 +101,39 @@ int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0)
 //! Indicate whether or not our address is the loopback address. Use this
 //! method to gaurd against UDP packet spoofing.
 //!
-//! @return Success: Returns true if this is the loopback address.
-//!         Failure: Returns false.
+//! @return True:    This is     the loopback address.
+//! @return False:   This is not the loopback address.
 //------------------------------------------------------------------------------
 
 bool        isLoopback();
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not our address is if teh desired type.
+//!
+//! @param ipType    The IP address version to test (see enum below).
+//!
+//! @return True:    This is     the address version of ipType.
+//! @return False:   This is not the address version of ipType.
+//------------------------------------------------------------------------------
+
+enum IPType {IPv4 = 0, IPv6 = 1};
+
+bool        isIPType(IPType ipType);
+
+//------------------------------------------------------------------------------
+//! Indicate whether or not our address is an IPv4 mapped to IPv6 address.
+//!
+//! @return True:  The address is     a mapped IPv4 address.
+//!         False: The address is not a mapped IPv4 address.
+//------------------------------------------------------------------------------
+
+inline bool isMapped() {return IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);}
+
+//------------------------------------------------------------------------------
 //! Indicate whether or not our address is registered in the DNS.
 //!
-//! @return Success: Returns true if this is registered.
-//!         Failure: Returns false.
+//! @return True:    This address is     registered.
+//!         False:   This address is not registered.
 //------------------------------------------------------------------------------
 
 bool        isRegistered();

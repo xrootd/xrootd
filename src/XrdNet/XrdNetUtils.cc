@@ -140,6 +140,116 @@ int XrdNetUtils::Encode(const XrdNetSockAddr *sadr, char *buff, int blen,
 }
 
 /******************************************************************************/
+/*                              G e t A d d r s                               */
+/******************************************************************************/
+  
+const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
+                                   XrdNetAddr            *aListP[], int &aListN,
+                                   XrdNetUtils::AddrOpts  opts,     int  pNum)
+{
+   static const char *badHS = "invalid host specification";
+   struct addrinfo hints, *nP, *rP = 0;
+   XrdNetAddr *aVec;
+   struct {char ipMap[7];                // ::ffff: (length = 7)
+           char ipAdr[MAXHOSTNAMELEN+15];
+         } aBuff;
+   const char *ipAddr, *hnBeg, *hnEnd, *pnBeg, *pnEnd;
+   int   n;
+
+// Prep the returned fields
+//
+   *aListP = 0;
+    aListN = 0;
+
+// Copy the host specification
+//
+   if (!hSpec) return badHS;
+   strlcpy(aBuff.ipAdr, hSpec, sizeof(aBuff.ipAdr));
+
+// Parse the host specification
+//
+   if (pNum == NoPortRaw)
+      {hnBeg = aBuff.ipAdr;
+       pNum  = 0;
+      } else {
+       if (!Parse(aBuff.ipAdr, &hnBeg, &hnEnd, &pnBeg, &pnEnd)) return badHS;
+       aBuff.ipAdr[hnEnd-aBuff.ipAdr] = 0;
+       if (pnBeg == hnEnd)
+          {if (pNum == PortInSpec) return "port not specified";
+           if (pNum < 0) pNum = -pNum;
+          } else {
+           const char *eText;
+           aBuff.ipAdr[pnEnd-aBuff.ipAdr] = 0;
+           n = ServPort(pnBeg, opts & onlyUDP, &eText);
+           if (!n) return eText;
+           if (pNum < 0) pNum = n;
+          }
+      }
+
+// Setup the hints
+//
+   memset(&hints, 0, sizeof(hints));
+   hints.ai_socktype = (opts & onlyUDP ? SOCK_DGRAM : SOCK_STREAM);
+   opts = opts & ~onlyUDP;
+   switch(opts)
+         {case allIPMap: hints.ai_family = AF_INET6;
+                         hints.ai_flags  = AI_V4MAPPED | AI_ALL;
+                         break;
+          case allIPv64: hints.ai_family = AF_UNSPEC;
+                         break;
+          case onlyIPv6: hints.ai_family = AF_INET6;
+                         break;
+          case onlyIPv4: hints.ai_family = AF_INET;
+                         break;
+          case prefIPv6: hints.ai_family = AF_INET6;
+                         hints.ai_flags  = AI_V4MAPPED;
+                         break;
+          default:       hints.ai_family = AF_INET6;
+                         hints.ai_flags  = AI_V4MAPPED | AI_ALL;
+                         break;
+         }
+
+// Check if we need to convert an ipv4 address to an ipv6 one
+//
+   if (hints.ai_family == AF_INET6
+   &&  isdigit(aBuff.ipAdr[0]) && index(aBuff.ipAdr, '.'))
+      {strncpy(aBuff.ipMap, "::ffff:", 7);
+       ipAddr = aBuff.ipMap;
+      } else ipAddr = hnBeg;
+
+// Get all of the addresses
+//
+   n = getaddrinfo(ipAddr, 0, &hints, &rP);
+   if (n || !rP)
+      {if (rP) freeaddrinfo(rP);
+       return (n ? gai_strerror(n) : "host not found");
+      }
+
+// Count the number of entries we will return and get the addr vector
+//
+   n = 0; nP = rP;
+   do {if (nP->ai_family == AF_INET6 || nP->ai_family == AF_INET) n++;
+       nP = nP->ai_next;
+      } while(nP);
+   if (!n) return 0;
+   aVec = new XrdNetAddr[n];
+   *aListP = aVec; aListN = n;
+
+// Now fill out the addresses
+//
+   n = 0; nP = rP;
+   do {if (nP->ai_family == AF_INET6 || nP->ai_family == AF_INET)
+          {aVec[n].Set(nP, pNum); n++;}
+       nP = nP->ai_next;
+      } while(nP);
+
+// All done
+//
+   if (rP) freeaddrinfo(rP);
+   return 0;
+}
+
+/******************************************************************************/
 /*                                 H o s t s                                  */
 /******************************************************************************/
   
@@ -288,10 +398,11 @@ char *XrdNetUtils::MyHostName(const char *eName, const char **eText)
 /*                                 P a r s e                                  */
 /******************************************************************************/
   
-bool XrdNetUtils::Parse(char *hSpec, char **hName, char **hNend,
-                                     char **hPort, char **hPend)
+bool XrdNetUtils::Parse(const char *hSpec, 
+                        const char **hName, const char **hNend,
+                        const char **hPort, const char **hPend)
 {
-   char *asep = 0;
+   const char *asep = 0;
 
 // Parse the specification
 //
@@ -300,18 +411,16 @@ bool XrdNetUtils::Parse(char *hSpec, char **hName, char **hNend,
        *hName = hSpec+1; asep = (*hNend)+1;
       } else {
        *hName = hSpec;
-       if (!(*hNend = index(hSpec, ':')))
-          {*hNend = hSpec + strlen(hSpec);
-           asep = *hNend;
-          }
+       if (!(*hNend = index(hSpec, ':'))) *hNend = hSpec + strlen(hSpec);
+          else asep = *hNend;
       }
 
-// See if we have a port to parse
+// See if we have a port to parse. We stop on a non-alphameric.
 //
    if (asep && *asep == ':')
       {*hPort = ++asep;
-       while(isdigit(*asep)) asep++;
-       if (*hPort == asep-1) return false;
+       while(isalnum(*asep)) asep++;
+       if (*hPort == asep) return false;
        *hPend = asep;
       } else *hPort = *hPend = *hNend;
 
@@ -385,6 +494,16 @@ int XrdNetUtils::ServPort(const char *sName, bool isUDP, const char **eText)
 {
    struct addrinfo *rP = 0, myHints;
    int rc, portnum = 0;
+
+// First check if this is a plain number
+//
+   if (isdigit(*sName))
+      {char *send;
+       portnum = strtol(sName, &send, 10);
+       if (portnum > 0 && portnum < 65536 && *send == 0) return portnum;
+       if (eText) *eText = "invalid port number";
+       return 0;
+      }
 
 // Fill out the hints
 //

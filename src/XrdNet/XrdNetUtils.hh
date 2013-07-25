@@ -30,7 +30,10 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucEnum.hh"
+
 class XrdOucTList;
+class XrdNetAddr;
 union XrdNetSockAddr;
   
 class XrdNetUtils
@@ -66,6 +69,60 @@ static int  Decode(XrdNetSockAddr *sadr, const char *buff, int blen);
 //------------------------------------------------------------------------------
 
 static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1);
+
+
+//------------------------------------------------------------------------------
+//! Return multiple addresses associated with a host or IP address. This form
+//! allows complete control of address handling. See XrdNetAddr::Set() for an
+//! alternate form that returns addresses suitable for use on the local host.
+//! The file descriptor association in each returned XrdNetAddr object is set
+//! to a negative value.
+//!
+//! @param  hSpec    -> convert specification to an address. Valid formats:
+//!                     IP.v4:   nnn.nnn.nnn.nnn[:<port>]
+//!                     IP.v6:   [ipv6_addr][:<port>]
+//!                     IP.xx:   name[:port] xx is determined by getaddrinfo()
+//! @param  aListP   place where the pointer to the returned array of XrdNetAddr
+//!                  objects is to be placed. Set to zero if none returned. The
+//!                  caller must delete this array when no longer needed.
+//! @param  aListN   place where the number of elements in aListP are to be
+//!                  returned.
+//! @param  opts     Options on what to return. Choose one of:
+//!                  allIPMap - all  IPv6 and   mapped IPv4 addrs (default)
+//!                  allIPv64 - all  IPv6 and unmapped IPv4 addrs
+//!                  onlyIPv6 - only          IPv6 addrs
+//!                  onlyIPv4 - only unmapped IPv4 addrs
+//!                  prefIPv6 - only IPv6 addrs; if none, mapped IPv4 addrs
+//!                  The above may be or'd with one of the following:
+//!                  onlyUDP  - only addrs valid for UDP connections else TCP
+//! @param  pNum     >= 0 uses the value as the port number regardless of what
+//!                       is in hSpec, should it be supplied. However, if is
+//!                       present, it must be a valid port number.
+//!                  <  0 uses the positive value as the port number if the
+//!                       port number has not been specified in hSpec.
+//!                  **** When set to PortInSpec(the default, see below) the
+//!                       port number/name must be specified in hSpec. If it is
+//!                       not, an error is returned.
+//!                  **** When set to NoPortRaw then hSpec does not contain a
+//!                       port number and is a host name, IPv4 address, or an
+//!                       IPv6 address *without* surrounding brackets.
+//!
+//! @return Success: 0 with aListN set to the number of elements in aListP.
+//!         Failure: the error message text describing the error and aListP
+//!                  and aListN is set to zero. The message is in persistent
+//!                  storage and cannot be modified.
+//------------------------------------------------------------------------------
+
+enum AddrOpts {allIPMap=  0, allIPv64=  1, onlyIPv6= 2, onlyIPv4=4, prefIPv6=8,
+               onlyUDP =128
+              };
+
+static const int PortInSpec = (int)0x80000000;
+static const int NoPortRaw  = (int)0xC0000000;
+
+static
+const char  *GetAddrs(const char *hSpec, XrdNetAddr *aListP[], int &aListN,
+                      AddrOpts    opts=allIPMap, int pNum=PortInSpec);
 
 //------------------------------------------------------------------------------
 //! Obtain an easily digestable list of hosts. This is the list of up to eight
@@ -198,8 +255,8 @@ static char *MyHostName(const char *eName="*unknown*", const char **eText=0);
 //!                  been set but shlould be ignored.
 //------------------------------------------------------------------------------
 
-static bool Parse(char *hSpec, char **hName, char **hNend,
-                               char **hPort, char **hPend);
+static bool Parse(const char *hSpec, const char **hName, const char **hNend,
+                                     const char **hPort, const char **hPend);
 
 //------------------------------------------------------------------------------
 //! Obtain the numeric port associated with a file descriptor.
@@ -227,7 +284,7 @@ static int  ProtoID(const char *pName);
 //------------------------------------------------------------------------------
 //! Obtain the numeric port corresponding to a symbolic name.
 //!
-//! @param  sName    the name of the service.
+//! @param  sName    the name of the service or a numeric port number.
 //! @param  isUDP    if true, returns the UDP service port o/w the TCP service
 //! @param  eText    when not null, the reason for a failure is returned.
 //!
@@ -235,7 +292,7 @@ static int  ProtoID(const char *pName);
 //!         Failure: 0 is returned and if eText is not null, the error message.
 //------------------------------------------------------------------------------
 
-static int  ServPort(const char *sName, bool isUDP=0, const char **eText=0);
+static int  ServPort(const char *sName, bool isUDP=false, const char **eText=0);
 
 //------------------------------------------------------------------------------
 //! Constructor
@@ -252,4 +309,7 @@ private:
 
 static int setET(char **errtxt, int rc);
 };
+
+XRDOUC_ENUM_OPERATORS(XrdNetUtils::AddrOpts)
+
 #endif
