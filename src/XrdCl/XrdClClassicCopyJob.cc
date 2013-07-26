@@ -29,6 +29,7 @@
 #include <memory>
 #include <iostream>
 #include <queue>
+#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/stat.h>
