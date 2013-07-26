@@ -56,7 +56,6 @@ namespace XrdCl
     env->GetInt( "TimeoutResolution", timeoutResolution );
     pTimeoutResolution = timeoutResolution;
 
-    memset( &pSockAddr, 0, sizeof( pSockAddr ) );
     pSocket = new Socket();
     pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
   }
@@ -97,7 +96,7 @@ namespace XrdCl
     // Initiate async connection to the address
     //--------------------------------------------------------------------------
     char nameBuff[256];
-    XrdSysDNS::IPFormat( (sockaddr*)&pSockAddr, nameBuff, sizeof(nameBuff) );
+    pSockAddr.Format( nameBuff, sizeof(nameBuff), XrdNetAddrInfo::fmtAdv6 );
     log->Debug( AsyncSockMsg, "[%s] Attempting connection to %s",
                 pStreamName.c_str(), nameBuff );
 
@@ -264,7 +263,7 @@ namespace XrdCl
     pHandShakeData = new HandShakeData( pStream->GetURL(),
                                         pStream->GetStreamNumber(),
                                         pSubStreamNum );
-    pHandShakeData->serverAddr = pSocket->GetServerAddress();
+    pHandShakeData->serverAddr = &pSocket->GetServerAddress();
     pHandShakeData->clientName = pSocket->GetSockName();
     pHandShakeData->streamName = pStreamName;
 

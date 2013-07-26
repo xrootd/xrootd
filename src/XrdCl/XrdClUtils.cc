@@ -22,7 +22,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
-
+#include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
 
@@ -54,31 +54,37 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Resolve IP addresses
   //----------------------------------------------------------------------------
-  Status Utils::GetHostAddresses( std::vector<sockaddr_in> &addresses,
-                                  const URL                &url )
+  Status Utils::GetHostAddresses( std::vector<XrdNetAddr> &addresses,
+                                  const URL               &url,
+                                  Utils::AddressType      type )
   {
-    //--------------------------------------------------------------------------
-    // The address resolution algorithm in XRootD has a weird interface
-    // so we need to limit the number of possible IP addresses for
-    // a given hostname to 25. Why? Because.
-    //--------------------------------------------------------------------------
-    sockaddr_in *sa = (sockaddr_in*)malloc( sizeof(sockaddr_in) * 25 );
-    int numAddr = XrdSysDNS::getHostAddr( url.GetHostName().c_str(),
-                                          (sockaddr*)sa, 25 );
-    if( numAddr == 0 )
+    Log *log = DefaultEnv::GetLog();
+    XrdNetAddr *addrs;
+    int         nAddrs = 0;
+    const char *err    = 0;
+
+    std::ostringstream o; o << url.GetHostName() << ":" << url.GetPort();
+
+    err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs );
+
+    if( err )
     {
-      free( sa );
+      log->Error( UtilityMsg, "Unable to resolve %s: %s", o.str().c_str(),
+                  err );
       return Status( stError, errInvalidAddr );
     }
 
-    addresses.resize( numAddr );
-    std::vector<sockaddr_in>::iterator it = addresses.begin();;
-    for( int i = 0; i < numAddr; ++i, ++it )
+    if( nAddrs == 0 )
     {
-      memcpy( &(*it), &sa[i], sizeof( sockaddr_in ) );
-      it->sin_port = htons( (unsigned short) url.GetPort() );
+      log->Error( UtilityMsg, "No addresses for %s were found",
+                  o.str().c_str() );
+      return Status( stError, errInvalidAddr );
     }
-    free( sa );
+
+    addresses.clear();
+    for( int i = 0; i < nAddrs; ++i )
+      addresses.push_back( addrs[i] );
+    delete [] addrs;
 
     std::random_shuffle( addresses.begin(), addresses.end() );
     return Status();
@@ -87,17 +93,18 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Log all the addresses on the list
   //----------------------------------------------------------------------------
-  void Utils::LogHostAddresses( Log                      *log,
-                                uint64_t                  type,
-                                const std::string        &hostId,
-                                std::vector<sockaddr_in> &addresses )
+  void Utils::LogHostAddresses( Log                     *log,
+                                uint64_t                 type,
+                                const std::string       &hostId,
+                                std::vector<XrdNetAddr> &addresses )
   {
     std::string addrStr;
-    std::vector<sockaddr_in>::iterator it;
+    std::vector<XrdNetAddr>::iterator it;
     for( it = addresses.begin(); it != addresses.end(); ++it )
     {
       char nameBuff[256];
-      XrdSysDNS::IPFormat( (sockaddr*)&(*it), nameBuff, sizeof(nameBuff) );
+      it->Format( nameBuff, 256, XrdNetAddrInfo::fmtAdv6,
+                  XrdNetAddrInfo::noPort );
       addrStr += nameBuff;
       addrStr += ", ";
     }

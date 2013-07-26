@@ -1319,14 +1319,14 @@ namespace XrdCl
     // Loop over the possible protocols to find one that gives us valid
     // credentials
     //--------------------------------------------------------------------------
-    XrdNetAddr srvAddr((sockaddr*)hsData->serverAddr); // IPV6
+    XrdNetAddr *srvAddr = (XrdNetAddr*)hsData->serverAddr;
     while(1)
     {
       //------------------------------------------------------------------------
       // Get the protocol
       //------------------------------------------------------------------------
       info->authProtocol = (*authHandler)( hsData->url->GetHostName().c_str(),
-                                           srvAddr,
+                                           *srvAddr,
                                            *info->authParams,
                                            0 );
       if( !info->authProtocol )

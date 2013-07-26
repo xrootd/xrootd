@@ -22,9 +22,9 @@
 #include <stdint.h>
 #include <string>
 #include <sys/socket.h>
-#include <netinet/in.h>
 
 #include "XrdCl/XrdClStatus.hh"
+#include "XrdNet/XrdNetAddr.hh"
 
 namespace XrdCl
 {
@@ -109,8 +109,8 @@ namespace XrdCl
       //! @param timout timeout in seconds, 0 for no timeout handling (may be
       //!               used for non blocking IO)
       //------------------------------------------------------------------------
-      Status ConnectToAddress( const sockaddr_in &addr,
-                               uint16_t           timout = 10 );
+      Status ConnectToAddress( const XrdNetAddr &addr,
+                               uint16_t          timout = 10 );
 
       //------------------------------------------------------------------------
       //! Disconnect
@@ -190,7 +190,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get the server address
       //------------------------------------------------------------------------
-      const sockaddr_in *GetServerAddress() const
+      const XrdNetAddr &GetServerAddress() const
       {
         return pServerAddr;
       }
@@ -213,7 +213,7 @@ namespace XrdCl
 
       int                  pSocket;
       SocketStatus         pStatus;
-      sockaddr_in         *pServerAddr;
+      XrdNetAddr           pServerAddr;
       mutable std::string  pSockName;     // mutable because it's for caching
       mutable std::string  pPeerName;
       mutable std::string  pName;

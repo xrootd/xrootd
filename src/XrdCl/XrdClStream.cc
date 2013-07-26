@@ -230,7 +230,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Resolve all the addresses of the host we're supposed to connect to
     //--------------------------------------------------------------------------
-    Status st = Utils::GetHostAddresses( pAddresses, *pUrl );
+    Status st = Utils::GetHostAddresses( pAddresses, *pUrl,
+                                         Utils::AllAddresses );
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
@@ -247,10 +248,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initiate the connection process to the first one on the list
     //--------------------------------------------------------------------------
-    sockaddr_in addr;
-    memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
+    pSubStreams[0]->socket->SetAddress( pAddresses.back() );
     pAddresses.pop_back();
-    pSubStreams[0]->socket->SetAddress( addr );
     st = pSubStreams[0]->socket->Connect( pConnectionWindow );
     if( st.IsOK() )
       pSubStreams[0]->status = Socket::Connecting;
@@ -600,10 +599,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       if( !pAddresses.empty() )
       {
-        sockaddr_in addr;
-        memcpy( &addr, &pAddresses.back(), sizeof( sockaddr_in ) );
-        pAddresses.pop_back();
-        pSubStreams[0]->socket->SetAddress( addr );
+        pSubStreams[0]->socket->SetAddress( pAddresses.back() );
 
         Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
         if( !st.IsOK() )

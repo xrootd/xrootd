@@ -55,15 +55,15 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set address
       //------------------------------------------------------------------------
-      void SetAddress( const sockaddr_in &address )
+      void SetAddress( const XrdNetAddr &address )
       {
-        memcpy( &pSockAddr, &address, sizeof( sockaddr_in ) );
+        pSockAddr = address;
       }
 
       //------------------------------------------------------------------------
       //! Get the address that the socket is connected to
       //------------------------------------------------------------------------
-      const sockaddr_in &GetAddress() const
+      const XrdNetAddr &GetAddress() const
       {
         return pSockAddr;
       }
@@ -190,7 +190,7 @@ namespace XrdCl
       Socket                        *pSocket;
       Message                       *pIncoming;
       Message                       *pOutgoing;
-      sockaddr_in                    pSockAddr;
+      XrdNetAddr                     pSockAddr;
       HandShakeData                 *pHandShakeData;
       bool                           pHandShakeDone;
       uint16_t                       pTimeoutResolution;

@@ -21,11 +21,11 @@
 
 #include <string>
 #include <vector>
-#include <netinet/in.h>
 #include "XrdCl/XrdClStatus.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
 
@@ -74,18 +74,29 @@ namespace XrdCl
                                   int                defaultVal );
 
       //------------------------------------------------------------------------
+      //! Address type
+      //------------------------------------------------------------------------
+      enum AddressType
+      {
+        AllAddresses  = 0,
+        IPv6          = 1,
+        IPv4          = 2,
+      };
+
+      //------------------------------------------------------------------------
       //! Resolve IP addresses
       //------------------------------------------------------------------------
-      static Status GetHostAddresses( std::vector<sockaddr_in> &addresses,
-                                      const URL                &url);
+      static Status GetHostAddresses( std::vector<XrdNetAddr> &addresses,
+                                      const URL               &url,
+                                      AddressType              type );
 
       //------------------------------------------------------------------------
       //! Log all the addresses on the list
       //------------------------------------------------------------------------
-      static void LogHostAddresses( Log                      *log,
-                                    uint64_t                  type,
-                                    const std::string        &hostId,
-                                    std::vector<sockaddr_in> &addresses );
+      static void LogHostAddresses( Log                     *log,
+                                    uint64_t                 type,
+                                    const std::string       &hostId,
+                                    std::vector<XrdNetAddr> &addresses );
 
       //------------------------------------------------------------------------
       //! Convert timestamp to a string

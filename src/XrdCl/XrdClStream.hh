@@ -28,9 +28,9 @@
 #include "XrdCl/XrdClInQueue.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdNet/XrdNetAddr.hh"
 #include <list>
 #include <vector>
-#include <netinet/in.h>
 
 namespace XrdCl
 {
@@ -317,7 +317,7 @@ namespace XrdCl
       time_t                         pConnectionInitTime;
       uint16_t                       pConnectionWindow;
       SubStreamList                  pSubStreams;
-      std::vector<sockaddr_in>       pAddresses;
+      std::vector<XrdNetAddr>        pAddresses;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
 
