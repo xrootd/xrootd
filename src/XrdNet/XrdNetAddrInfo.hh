@@ -272,7 +272,11 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
 //! Copy constructor
 //------------------------------------------------------------------------------
 
-               XrdNetAddrInfo(XrdNetAddrInfo const &oP) {*this = oP;}
+               XrdNetAddrInfo(XrdNetAddrInfo const &oP)
+                             {hostName = 0;
+                              unixPipe = 0;
+                              *this = oP;
+                             }
 
 //------------------------------------------------------------------------------
 //! Constructor
