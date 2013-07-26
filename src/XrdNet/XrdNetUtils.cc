@@ -361,7 +361,7 @@ bool XrdNetUtils::Match(const char *HostName, const char *HostPat)
         char hBuff[264];
         if (i >= (int)sizeof(hBuff)) return false;
         strncpy(hBuff, HostPat, i-1);
-        hBuff[i] = 0;
+        hBuff[i-1] = 0;
         if (InetAddr[0].Set(hBuff, i, maxIP, 0)) return false;
         while(i--) if ((mval = InetAddr[i].Name()) && !strcmp(mval, HostName))
                       return true;
