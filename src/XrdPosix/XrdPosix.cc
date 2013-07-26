@@ -166,7 +166,7 @@ int XrdPosix_Fclose(FILE *stream)
 
 // Close the associated file
 //
-   if (Xroot.myFD(nullfd)) Xroot.Close(nullfd, 1);
+   if (Xroot.myFD(nullfd)) Xroot.Close(nullfd);
 
 // Now close the stream
 //

@@ -15,6 +15,11 @@ set( XRD_POSIX_PRELOAD_SOVERSION 0 )
 add_library(
   XrdPosix
   SHARED
+  XrdPosix/XrdPosixAdmin.cc        XrdPosix/XrdPosixAdmin.hh
+  XrdPosix/XrdPosixDir.cc          XrdPosix/XrdPosixDir.hh
+  XrdPosix/XrdPosixFile.cc         XrdPosix/XrdPosixFile.hh
+  XrdPosix/XrdPosixMap.cc          XrdPosix/XrdPosixMap.hh
+  XrdPosix/XrdPosixObject.cc       XrdPosix/XrdPosixObject.hh
   XrdPosix/XrdPosixXrootd.cc       XrdPosix/XrdPosixXrootd.hh
   XrdPosix/XrdPosixXrootdPath.cc   XrdPosix/XrdPosixXrootdPath.hh
                                    XrdPosix/XrdPosixCallBack.hh
@@ -22,6 +27,7 @@ add_library(
 
 target_link_libraries(
   XrdPosix
+  XrdCl
   XrdClient
   XrdUtils
   pthread )

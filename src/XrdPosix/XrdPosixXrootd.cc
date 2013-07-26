@@ -35,460 +35,42 @@
 #include <sys/resource.h>
 #include <sys/uio.h>
 
-#include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientAdmin.hh"
-#include "XrdClient/XrdClientCallback.hh"
-#include "XrdClient/XrdClientEnv.hh"
-#include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdClient/XrdClientVector.hh"
+#include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdCl/XrdClURL.hh"
+#include "XrdCl/XrdClXRootDResponses.hh"
+
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+
 #include "XrdOuc/XrdOucCacheDram.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdOuc/XrdOucString.hh"
+
+#include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixCallBack.hh"
+#include "XrdPosix/XrdPosixDir.hh"
+#include "XrdPosix/XrdPosixFile.hh"
+#include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
 /******************************************************************************/
-/*                         L o c a l   C l a s s e s                          */
-/******************************************************************************/
-/******************************************************************************/
-/*                X r d P o s i x A d m i n N e w   C l a s s                 */
-/******************************************************************************/
-  
-class XrdPosixAdminNew
-{
-public:
-
-XrdClientAdmin Admin;
-
-int            Fault();
-
-int            isOK() {return eNum == 0;}
-
-int            lastError()
-                   {return XrdPosixXrootd::mapError(Admin.LastServerError()->errnum);}
-
-int            Result() {if (eNum) {errno = eNum; return -1;}
-                         return 0;
-                        }
-
-      XrdPosixAdminNew(const char *path);
-     ~XrdPosixAdminNew() {}
-
-private:
-
-int            eNum;
-};
-
-/******************************************************************************/
-/*                     X r d P o s i x D i r   C l a s s                      */
+/*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
-class XrdPosixDir {
-
-public:
-  XrdPosixDir(int dirno, const char *path);
- ~XrdPosixDir();
-
-  void             Lock()   { myMutex.Lock(); }
-  void             UnLock() { myMutex.UnLock(); }
-  int              dirNo()  { return fdirno; }
-  long             getEntries() { return fentries.GetSize(); }
-  long             getOffset() { return fentry; }
-  void             setOffset(long offset) { fentry = offset; }
-  dirent64        *nextEntry(dirent64 *dp=0);
-  void             rewind() { fentry = -1; fentries.Clear();}
-  int              Status() { return eNum;}
-
-  
-private:
-  XrdSysMutex     myMutex;
-  XrdClientAdmin  XAdmin;
-  dirent64       *myDirent;
-  static int      maxname;
-  int             fdirno;
-  char           *fpath;
-  vecString       fentries;
-  long            fentry;
-  int             eNum;
-};
-  
-/******************************************************************************/
-/*                    X r d P o s i x F i l e   C l a s s                     */
-/******************************************************************************/
-  
-class XrdPosixFile : public XrdOucCacheIO, public XrdClientCallback
-{
-public:
-
-XrdOucCacheIO *XCio;
-XrdClient     *XClient;
-
-int        Active() {return doClose;}
-
-void       isOpen();
-
-long long  Offset() {return currOffset;}
-
-long long  addOffset(long long offs, int updtSz=0)
-                    {currOffset += offs;
-                     if (updtSz && currOffset > stat.size) stat.size=currOffset;
-                     return currOffset;
-                    }
-
-long long   FSize() {return stat.size;}
-
-const char *Path();
-
-int         Read (char *Buff, long long Offs, int Len)
-                {return XClient->Read (Buff, Offs, Len);}
-
-int         ReadV (const XrdOucIOVec *readV, int n)
-{
-   size_t nbytes = 0;
-   std::vector<long long> offsets; offsets.reserve(n);
-   std::vector<int> lens; lens.reserve(n);
-   for (int i=0; i<n; i++)
-      {nbytes += readV[i].size;
-       offsets[i] = readV[i].offset;
-       lens[i] = readV[i].size;
-      }
-   std::vector<char> result_buffer;
-   result_buffer.reserve(nbytes);
-   ssize_t retval = XClient->ReadV(&(result_buffer[0]), &(offsets[0]), &(lens[0]), n);
-   if (retval < 0)
-       return retval;
-   nbytes = 0;
-   for (int i=0; i<n; i++)
-      {memcpy(readV[i].data, &(result_buffer[nbytes]), readV[i].size);
-       nbytes += readV[i].size;
-      }
-   return nbytes;
-}
-
-int         Sync() {return (XClient->Sync() ? 0 : -1);}
-
-int         Trunc(long long Offset)
-                 {return (XClient->Truncate(Offset) ? 0 : -1);}
-
-int         Write(char *Buff, long long Offs, int Len)
-                {return XClient->Write(Buff, Offs, Len);}
-
-long long  setOffset(long long offs)
-                    {currOffset = offs;
-                     return currOffset;
-                    }
-
-void         Lock() {myMutex.Lock();}
-void       UnLock() {myMutex.UnLock();}
-
-void       OpenComplete(XrdClientAbs *clientP, void *cbArg, bool res)
-                       {if (cbDone) return;
-                        XrdPosixXrootd::OpenCB(this, cbArg, res);
-                        cbDone=1;
-                       }
-
-XrdClientStatInfo stat;
-XrdPosixCallBack *theCB;
-XrdPosixFile     *Next;
-char             *fPath;
-int               FD;
-int               cbResult;
-
-static XrdOucCache *CacheR;
-static XrdOucCache *CacheW;
-static char        *sfSFX;
-static int          sfSLN;
-
-static const int realFD = 1;
-static const int isSync = 2;
-
-           XrdPosixFile(int fd, const char *path, int oMode,
-                        XrdPosixCallBack *cbP=0, int Opts=realFD);
-          ~XrdPosixFile();
-
-private:
-
-XrdSysMutex myMutex;
-long long   currOffset;
-int         cOpt;
-char        doClose;
-char        cbDone;
-char        fdClose;
-};
-
-
-typedef XrdClientVector<XrdOucString> vecString;
-typedef XrdClientVector<bool> vecBool;
-
-/******************************************************************************/
-/*                         L o c a l   D e f i n e s                          */
-/******************************************************************************/
-  
-#define Scuttle(fp, rc) fp->UnLock(); errno = rc; return -1
-
-/******************************************************************************/
-/*                               G l o b a l s                                */
-/******************************************************************************/
-
-XrdOucCache   *XrdPosixFile::CacheR   =  0;
-XrdOucCache   *XrdPosixFile::CacheW   =  0;
-char          *XrdPosixFile::sfSFX    =  0;
-int            XrdPosixFile::sfSLN    =  0;
-
-int            XrdPosixDir::maxname   = 255;
-
-XrdSysMutex    XrdPosixXrootd::myMutex;
-XrdPosixFile **XrdPosixXrootd::myFiles  =  0;
-XrdPosixDir  **XrdPosixXrootd::myDirs   =  0;
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
-int            XrdPosixXrootd::highFD   = -1;
-int            XrdPosixXrootd::lastFD   = -1;
-int            XrdPosixXrootd::baseFD   =  0;
-int            XrdPosixXrootd::freeFD   =  0;
-int            XrdPosixXrootd::highDir  = -1;
-int            XrdPosixXrootd::lastDir  = -1;
-int            XrdPosixXrootd::devNull  = -1;
-int            XrdPosixXrootd::pllOpen  =  0;
-int            XrdPosixXrootd::maxThreads= 0;
 int            XrdPosixXrootd::initDone  = 0;
 int            XrdPosixXrootd::Debug    = -2;
   
-/******************************************************************************/
-/*                     T h r e a d   I n t e r f a c e s                      */
-/******************************************************************************/
-
-void *XrdPosixXrootdCB(void *carg)
-     {XrdPosixXrootd::OpenCB(0,0,0); return (void *)0;}
-  
-/******************************************************************************/
-/*                X r d P o s i x A d m i n N e w   C l a s s                 */
-/******************************************************************************/
-/******************************************************************************/
-/*                           C o n s t r u c t o r                            */
-/******************************************************************************/
-  
-XrdPosixAdminNew::XrdPosixAdminNew(const char *path) : Admin(path)
-{
-
-// Now Connect to the target host
-//
-   if (!Admin.Connect())
-       eNum = XrdPosixXrootd::mapError(Admin.LastServerError()->errnum);
-       else eNum = 0;
-}
-
-/******************************************************************************/
-/*                                 F a u l t                                  */
-/******************************************************************************/
-
-int XrdPosixAdminNew::Fault()
-{
-   char *etext = Admin.LastServerError()->errmsg;
-   int RC = XrdPosixXrootd::mapError(Admin.LastServerError()->errnum);
-
-   if (RC != ENOENT && *etext && XrdPosixXrootd::Debug > -2)
-      cerr <<"XrdPosix: " <<etext <<endl;
-   errno = RC;
-   return -1;
-}
-  
-/******************************************************************************/
-/*                           X r d P o s i x D i r                            */
-/******************************************************************************/
-/******************************************************************************/
-/*                           C o n s t r u c t o r                            */
-/******************************************************************************/
-
-XrdPosixDir::XrdPosixDir(int dirno, const char *path) : XAdmin(path)
-{
-
-// Now connect up
-//
-   if (!XAdmin.Connect())
-      eNum = XrdPosixXrootd::mapError(XAdmin.LastServerError()->errnum);
-      else eNum = 0;
-
-   fentry = -1;     // indicates that the directory content is not valid
-   fentries.Clear();
-   fdirno = dirno;
-
-// Get the path of the url 
-//
-   XrdOucString str(path);
-   XrdClientUrlInfo url(str);
-   XrdOucString dir = url.File;
-   fpath = strdup(dir.c_str());
-
-// Allocate a local dirent. Note that we get additional padding because on
-// some system the dirent structure does not include the name buffer
-// Attempt to read the directory now so that we can reflect ENOENT at opendir()
-//
-   if ((myDirent = (dirent64 *)malloc(sizeof(dirent64) + maxname + 1)))
-      {if (XAdmin.DirList(fpath,fentries)) fentry = 0;
-          else eNum = XrdPosixXrootd::mapError(XAdmin.LastServerError()->errnum);
-      } else eNum = ENOMEM;
-}
-
-/******************************************************************************/
-/*                            D e s t r u c t o r                             */
-/******************************************************************************/
-
-XrdPosixDir::~XrdPosixDir()
-{
-  if (fpath)    free(fpath);
-  if (myDirent) free(myDirent);
-  close(fdirno);
-}
-
-/******************************************************************************/
-/*                            n e x t E n t r y                               */
-/******************************************************************************/
-
-dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
-{
-   const char *cp;
-   const int dirhdrln = dp->d_name - (char *)dp;
-   int reclen;
-
-// Object is already / must be locked at this point
-// Read directory if we haven't done that yet
-//
-   if (fentry<0)
-      {if (XAdmin.DirList(fpath,fentries)) fentry = 0;
-          else {eNum = XrdPosixXrootd::mapError(XAdmin.LastServerError()->errnum);
-                return 0;
-               }
-      }
-
-// Check if dir is empty or all entries have been read
-//
-   if ((fentries.GetSize()==0) || (fentry>=fentries.GetSize())) return 0;
-
-// Create a directory entry
-//
-   if (!dp) dp = myDirent;
-   cp = (fentries[fentry]).c_str();
-   reclen = strlen(cp);
-   if (reclen > maxname) reclen = maxname;
-#if defined(__macos__) || defined(__FreeBSD__)
-   dp->d_fileno = fentry;
-   dp->d_type   = DT_UNKNOWN;
-   dp->d_namlen = reclen;
-#else
-   dp->d_ino    = fentry;
-   dp->d_off    = fentry*maxname;
-#endif
-   dp->d_reclen = reclen + dirhdrln;
-   strncpy(dp->d_name, cp, reclen);
-   dp->d_name[reclen] = '\0';
-   fentry++;
-   return dp;
-}
-
-/******************************************************************************/
-/*                          X r d P o s i x F i l e                           */
-/******************************************************************************/
-/******************************************************************************/
-/*                           C o n s t r u c t o r                            */
-/******************************************************************************/
-
-XrdPosixFile::XrdPosixFile(int fd, const char *path, int oMode,
-                           XrdPosixCallBack *cbP, int Opts)
-             : XCio((XrdOucCacheIO *)this),
-               theCB(cbP),
-               Next(0),
-               fPath(0),
-               FD(fd),
-               cbResult(0),
-               currOffset(0),
-               cOpt(0),
-               doClose(0),
-               cbDone(0),
-               fdClose((Opts & realFD) != 0)
-{
-   static int OneVal = 1;
-   XrdClientCallback *myCB = (cbP ? (XrdClientCallback *)this : 0);
-   void *cbArg = (Opts & isSync ? (void *)&OneVal : 0);
-
-// Allocate a new client object
-//
-   stat.size = 0;
-   if (!(XClient = new XrdClient(path, myCB, cbArg))) return;
-
-// Check for structured file check
-//
-   if (sfSFX)
-      {int n = strlen(path);
-       if (n > sfSLN && !strcmp(sfSFX, path + n - sfSLN))
-          cOpt = XrdOucCache::optFIS;
-      }
-
-// Set cache options
-//
-   if (oMode & kXR_open_updt) cOpt |= XrdOucCache::optRW;
-}
-  
-/******************************************************************************/
-/*                            D e s t r u c t o r                             */
-/******************************************************************************/
-  
-XrdPosixFile::~XrdPosixFile()
-{
-   XrdClient *cP;
-   if ((cP = XClient))
-      {if (XCio) XCio = XCio->Detach();
-       XClient = 0;
-       if (doClose) {doClose = 0; cP->Close();}
-       delete cP;
-      }
-   if (FD >= 0 && fdClose) close(FD);
-   if (fPath) free(fPath);
-}
-
-/******************************************************************************/
-/*                                i s O p e n                                 */
-/******************************************************************************/
-  
-void XrdPosixFile::isOpen()
-{
-
-// See if we need to use a cache
-//
-   if (cOpt & XrdOucCache::optRW)
-      {    if (CacheW) XCio = CacheW->Attach((XrdOucCacheIO *)this, cOpt);}
-      else if (CacheR) XCio = CacheR->Attach((XrdOucCacheIO *)this, cOpt);
-
-// Indicate file needs to be closed
-//
-   doClose = 1;
-}
-
-/******************************************************************************/
-/*                                  P a t h                                   */
-/******************************************************************************/
-  
-const char *XrdPosixFile::Path()
-{
-   if (!fPath) fPath = strdup(XClient->GetCurrentUrl().GetUrl().c_str());
-   return fPath;
-}
-
-/******************************************************************************/
-/*                         X r d P o s i x X r o o t d                        */
-/******************************************************************************/
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
 
 XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 {
-   struct rlimit rlim;
-   long isize;
+   static XrdSysMutex myMutex;
 
 // Only static fields are initialized here. We need to do this only once!
-//                                                                             c
+//
    myMutex.Lock();
    if (initDone) {myMutex.UnLock(); return;}
    initDone = 1;
@@ -496,39 +78,14 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 
 // Initialize environment if not done before. To avoid static initialization
 // dependencies, we need to do it once but we must be the last ones to do it
-// before any XrdClient library routines are called.
+// before any library routines are called.
 //
    initEnv();
-   maxThreads = thrnum;
+   XrdPosixMap::SetDebug(Debug);
 
-// Compute size of table. if the passed fdnum is negative then the caller does
-// not want us to shadow fd's (ther caller promises to be honest). Otherwise,
-// the actual fdnum limit will be based on the current limit.
+// Initialize file tracking
 //
-   if (fdnum < 0)
-      {fdnum = -fdnum;
-       baseFD = ( getrlimit(RLIMIT_NOFILE, &rlim) ? 32768 : (int)rlim.rlim_cur);
-      } else {
-       if (!getrlimit(RLIMIT_NOFILE, &rlim))  fdnum = (int)rlim.rlim_cur;
-       if (fdnum > 65536) fdnum = 65536;
-      }
-   isize = fdnum * sizeof(XrdPosixFile *);
-
-// Allocate the table for fd-type pointers
-//
-   if (!(myFiles = (XrdPosixFile **)malloc(isize))) lastFD = -1;
-      else {memset((void *)myFiles, 0, isize); lastFD = fdnum+baseFD;}
-
-// Allocate table for DIR descriptors
-//
-   if (dirnum > 32768) dirnum = 32768;
-   isize = dirnum * sizeof(XrdPosixDir *);
-   if (!(myDirs = (XrdPosixDir **)malloc(isize))) lastDir = -1;
-      else {memset((void *)myDirs, 0, isize); lastDir = dirnum;}
-
-// Open /dev/null as we will be allocating file descriptors based on this fd
-//
-   devNull = open("/dev/null", O_RDWR, 0744);
+   XrdPosixObject::Init(fdnum);
 }
  
 /******************************************************************************/
@@ -537,25 +94,11 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
   
 XrdPosixXrootd::~XrdPosixXrootd()
 {
-   XrdPosixDir  *dP;
-   XrdPosixFile *fP;
-   int i;
 
-   myMutex.Lock();
-   if (myFiles)
-      {for (i = 0; i <= highFD; i++) 
-           if ((fP = myFiles[i])) {myFiles[i] = 0; delete fP;};
-       free(myFiles); myFiles = 0;
-      }
-
-   if (myDirs) {
-     for (i = 0; i <= highDir; i++)
-       if ((dP = myDirs[i])) {myDirs[i] = 0; delete dP;}
-     free(myDirs); myDirs = 0;
-   }
-
+// Shutdown processing
+//
+   XrdPosixObject::Shutdown();
    initDone = 0;
-   myMutex.UnLock();
 }
  
 /******************************************************************************/
@@ -564,34 +107,19 @@ XrdPosixXrootd::~XrdPosixXrootd()
   
 int XrdPosixXrootd::Access(const char *path, int amode)
 {
-   XrdPosixAdminNew admin(path);
-   long st_flags, st_modtime, st_id;
-   long long st_size;
-   int st_mode, aOK = 1;
+   XrdPosixAdmin admin(path);
+   mode_t stMode;
+   bool   aOK = true;
 
-// Make sure we connected
+// Issue the stat and verify that all went well
 //
-   if (!admin.isOK()) return admin.Result();
-
-// Extract out path from the url
-//
-   XrdOucString str(path);
-   XrdClientUrlInfo url(str);
-
-// Open the file first
-//
-   if (!admin.Admin.Stat(url.File.c_str(),
-                         st_id, st_size, st_flags, st_modtime))
-      {errno = admin.lastError();
-       return -1;
-      }
+   if (!admin.Stat(&stMode)) return -1;
 
 // Translate the mode bits
 //
-   st_mode = mapFlags(st_flags);
-   if (amode & R_OK && !(st_mode & S_IRUSR)) aOK = 0;
-   if (amode & W_OK && !(st_mode & S_IWUSR)) aOK = 0;
-   if (amode & X_OK && !(st_mode & S_IXUSR)) aOK = 0;
+   if (amode & R_OK && !(stMode & S_IRUSR)) aOK = 0;
+   if (amode & W_OK && !(stMode & S_IWUSR)) aOK = 0;
+   if (amode & X_OK && !(stMode & S_IXUSR)) aOK = 0;
 
 // All done
 //
@@ -604,26 +132,15 @@ int XrdPosixXrootd::Access(const char *path, int amode)
 /*                                 C l o s e                                  */
 /******************************************************************************/
 
-int     XrdPosixXrootd::Close(int fildes, int Stream)
+int XrdPosixXrootd::Close(int fildes)
 {
-   XrdPosixFile *fp;
+   XrdCl::XRootDStatus Status;
+   XrdPosixFile *fP;
 
-// Find the file object. We tell findFP() to leave the global lock on
-//
-   if (!(fp = findFP(fildes, 1))) return -1;
-   if (baseFD)
-      {int myFD = fp->FD - baseFD;
-       if (myFD < freeFD) freeFD = myFD;
-       myFiles[myFD] = 0;
-      } else myFiles[fp->FD] = 0;
-   if (Stream) fp->FD = -1;
+   if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
+      {errno = EBADF; return -1;}
 
-// Deallocate the file. We have the global lock.
-//
-   fp->UnLock();
-   myMutex.UnLock();
-   delete fp;
-   return 0;
+   return (fP->Close(Status) ? 0 : XrdPosixMap::Result(Status));
 }
 
 /******************************************************************************/
@@ -632,15 +149,17 @@ int     XrdPosixXrootd::Close(int fildes, int Stream)
 
 int XrdPosixXrootd::Closedir(DIR *dirp)
 {
-   XrdPosixDir *XrdDirp = findDIR(dirp,1);
-   if (!XrdDirp) return -1;
+   XrdPosixDir *dP;
+   int fildes = XrdPosixDir::dirNo(dirp);
+
+// Get the directory object
+//
+   if (!(dP = XrdPosixObject::ReleaseDir(fildes)))
+      {errno = EBADF; return -1;}
 
 // Deallocate the directory
 //
-   myDirs[XrdDirp->dirNo()] = 0;
-   XrdDirp->UnLock();
-   myMutex.UnLock();
-   if (XrdDirp) delete XrdDirp;
+   delete dP;
    return 0;
 }
 
@@ -650,30 +169,32 @@ int XrdPosixXrootd::Closedir(DIR *dirp)
   
 int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 {
-   XrdPosixFile    *fp;
-   XrdClientUrlInfo fURL;
+   XrdPosixFile *fp;
+   int uPort;
 
 // Find the file object
 //
-   if (!(fp = findFP(FD))) return 0;
-
-// Obtain the current url from the file
-//
-   fURL = fp->XClient->GetCurrentUrl();
-   fp->UnLock();
+   if (!(fp = XrdPosixObject::File(FD))) return 0;
 
 // Make sure url is valid
 //
-   if (!fURL.IsValid()) return -ENOTCONN;
+   if (!(fp->clFile.IsOpen()))
+      {fp->UnLock(); return -ENOTCONN;}
 
-// Format host and port number, check if result is too long
+// Make sure we can fit result in the buffer
 //
-   if (snprintf(Buff, Blen, "%s:%d", fURL.Host.c_str(), fURL.Port) >= Blen)
-      return -ENAMETOOLONG;
+   if (fp->clFile.GetDataServer().size() >= (uint32_t)Blen)
+      {fp->UnLock(); return -ENAMETOOLONG;}
 
-// All done
+// Copy the data server location
 //
-   return fURL.Port;
+   strcpy(Buff, fp->clFile.GetDataServer().c_str());
+
+// Get the port and return it
+//
+   uPort = fp->clFile.GetLastURL().GetPort();
+   fp->UnLock();
+   return uPort;
 }
 
 /******************************************************************************/
@@ -686,16 +207,16 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Return what little we can
 //
    initStat(buf);
-   buf->st_size   = fp->stat.size;
-   buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->stat.modtime;
+   buf->st_size   = fp->mySize;
+   buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->myMtime;
    buf->st_blocks = buf->st_size/512+1;
-   buf->st_ino    = fp->stat.id;
-   buf->st_mode   = mapFlags(fp->stat.flags);
+   buf->st_ino    = fp->myInode;
+   buf->st_mode   = fp->myMode;
 
 // All done
 //
@@ -707,17 +228,17 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
 /*                                 F s y n c                                  */
 /******************************************************************************/
   
-int     XrdPosixXrootd::Fsync(int fildes)
+int XrdPosixXrootd::Fsync(int fildes)
 {
    XrdPosixFile *fp;
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Do the sync
 //
-   if (fp->XCio->Sync() < 0) return Fault(fp);
+   if (fp->XCio->Sync() < 0) return Fault(fp, errno);
    fp->UnLock();
    return 0;
 }
@@ -726,17 +247,17 @@ int     XrdPosixXrootd::Fsync(int fildes)
 /*                             F t r u n c a t e                              */
 /******************************************************************************/
   
-int     XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
+int XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 {
    XrdPosixFile *fp;
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
-// Do the sync
+// Do the trunc
 //
-   if (fp->XCio->Trunc(offset) < 0) return Fault(fp);
+   if (fp->XCio->Trunc(offset) < 0) return Fault(fp, errno);
    fp->UnLock();
    return 0;
 }
@@ -752,35 +273,30 @@ int     XrdPosixXrootd::Ftruncate(int fildes, off_t offset)
 long long XrdPosixXrootd::Getxattr (const char *path, const char *name, 
                                     void *value, unsigned long long size)
 {
-  XrdPosixAdminNew admin(path);
-  kXR_int16 ReqCode = 0;
-  kXR_int32 vsize;
-  time_t    mTm;
+  XrdPosixAdmin admin(path);
+  XrdCl::QueryCode::Code reqCode;
+  int vsize = static_cast<int>(size);
 
 // Check if user just wants the maximum length needed
 //
    if (size == 0) return 1024;
-   vsize = static_cast<kXR_int32>(size);
 
 // Check if we support the query
 //
    if (name)
-      {     if (!strcmp(name, "xroot.cksum"))
-               return QueryChksum(path,mTm,(char *)value,static_cast<int>(size));
-       else if (!strcmp(name, "xroot.space")) ReqCode = kXR_Qspace;
-       else if (!strcmp(name, "xroot.xattr")) ReqCode = kXR_Qxattr;
+      {     if (!strcmp(name,"xroot.cksum")) reqCode=XrdCl::QueryCode::Checksum;
+       else if (!strcmp(name,"xroot.space")) reqCode=XrdCl::QueryCode::Space;
+       else if (!strcmp(name,"xroot.xattr")) reqCode=XrdCl::QueryCode::XAttr;
        else {errno = ENOATTR; return -1;}
       }else {errno = EINVAL;  return -1;}
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      if (admin.Admin.Query(ReqCode, (kXR_char *)url.File.c_str(),
-                                     (kXR_char *)value, vsize))
-         return strlen((char *)value);
-      return admin.Fault();
-     }
-  return admin.Result();
+// Stat the file first to allow vectoring of the request to the right server
+//
+   if (!admin.Stat()) return -1;
+
+// Return the result
+//
+  return admin.Query(reqCode, value, vsize);
 }
   
 /******************************************************************************/
@@ -794,15 +310,15 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Set the new offset
 //
    if (whence == SEEK_SET) curroffset = fp->setOffset(offset);
       else if (whence == SEEK_CUR) curroffset = fp->addOffset(offset);
               else if (whence == SEEK_END)
-                      curroffset = fp->setOffset(fp->stat.size+offset);
-                      else {Scuttle(fp, EINVAL);}
+                      curroffset = fp->setOffset(fp->mySize+offset);
+                      else return Fault(fp, EINVAL);
 
 // All done
 //
@@ -816,25 +332,18 @@ off_t   XrdPosixXrootd::Lseek(int fildes, off_t offset, int whence)
 
 int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 {
-  XrdPosixAdminNew admin(path);
-  int uMode = 0, gMode = 0, oMode = 0;
+  XrdPosixAdmin admin(path);
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      if (mode & S_IRUSR) uMode |= 4;
-      if (mode & S_IWUSR) uMode |= 2;
-      if (mode & S_IXUSR) uMode |= 1;
-      if (mode & S_IRGRP) gMode |= 4;
-      if (mode & S_IWGRP) gMode |= 2;
-      if (mode & S_IXGRP) gMode |= 1;
-      if (mode & S_IROTH) oMode |= 4;
-      if (mode & S_IXOTH) oMode |= 1;
-      if (admin.Admin.Mkdir(url.File.c_str(), uMode, gMode, oMode))
-         return 0;
-      return admin.Fault();
-     }
-  return admin.Result();
+// Make sure the admin is OK
+//
+  if (!admin.isOK()) return -1;
+
+// Issue the mkdir
+//
+   return XrdPosixMap::Result(admin.Xrd.MkDir(admin.Url.GetPathWithParams(),
+                                              XrdCl::MkDirFlags::None,
+                                              XrdPosixMap::Mode2Access(mode))
+                                             );
 }
 
 /******************************************************************************/
@@ -844,152 +353,74 @@ int XrdPosixXrootd::Mkdir(const char *path, mode_t mode)
 int XrdPosixXrootd::Open(const char *path, int oflags, mode_t mode,
                          XrdPosixCallBack *cbP)
 {
+   XrdCl::XRootDStatus Status;
    XrdPosixFile *fp;
-   int Opts  = ((maxThreads==0) || (oflags & O_SYNC) ? XrdPosixFile::isSync : 0)
-             | (baseFD ? 0 : XrdPosixFile::realFD);
-   int XMode = (mode && (oflags & O_CREAT) ? mapMode(mode) : 0);
-   int doclose = 1, retc = 0, fd, XOflags;
+   XrdCl::Access::Mode     XOmode = XrdCl::Access::None;
+   XrdCl::OpenFlags::Flags XOflags;
+   int Opts;
 
-// Translate option bits to the appropraite values. Always 
-// make directory path for new file.
+// Translate R/W and R/O flags
 //
-   XOflags = (oflags & (O_WRONLY | O_RDWR) ? kXR_open_updt : kXR_open_read);
-   if (oflags & O_CREAT) {
-       XOflags |= (oflags & O_EXCL ? kXR_new : kXR_delete);
-       XOflags |= kXR_mkpath;
-   }
-   else if (oflags & O_TRUNC && XOflags & kXR_open_updt)
-              XOflags |= kXR_delete;
+   if (oflags & (O_WRONLY | O_RDWR))
+      {Opts    = XrdPosixFile::isUpdt;
+       XOflags = XrdCl::OpenFlags::Update;
+      } else {
+       Opts    = 0;
+       XOflags = XrdCl::OpenFlags::Read;
+      }
 
-// Obtain a new filedscriptor from the system. Use the fd to track the file.
+// Pass along the stream flag
 //
-   if (baseFD)
-      {myMutex.Lock();
-       for (fd = freeFD; fd < baseFD && myFiles[fd]; fd++) {}
-       if (fd >= baseFD || oflags & isStream) fd = lastFD;
-          else freeFD = fd+1;
-       doclose = 0;
-      } else
-        do{if ((fd = dup(devNull)) < 0) return -1;
-           if (oflags & isStream && fd > 255)
-              {close(fd); errno = EMFILE; return -1;}
-           myMutex.Lock();
-           if (fd >= lastFD || !myFiles[fd]) break;
-           cerr <<"XrdPosix: FD " <<fd <<" closed outside of XrdPosix!" <<endl;
-           myMutex.UnLock();
-          } while(1);
+   if (oflags & isStream)
+      {if (XrdPosixObject::CanStream()) Opts |= XrdPosixFile::isStrm;
+          else {errno = EMFILE; return -1;}
+      }
+
+// Translate create vs simple open. Always make dirpath on create!
+//
+   if (oflags & O_CREAT)
+      {XOflags |= (oflags & O_EXCL ? XrdCl::OpenFlags::New
+                                   : XrdCl::OpenFlags::Delete);
+       XOflags |= XrdCl::OpenFlags::MakePath;
+       XOmode   = XrdPosixMap::Mode2Access(mode);
+      }
+      else if (oflags & O_TRUNC && Opts & XrdPosixFile::isUpdt)
+              XOflags |= XrdCl::OpenFlags::Delete;
 
 // Allocate the new file object
 //
-   if (fd >= lastFD 
-   ||  !(fp = new XrdPosixFile(fd+baseFD, path, XOflags, cbP, Opts)))
-      {myMutex.UnLock();
-       if (doclose) close(fd);
+   if (!(fp = new XrdPosixFile(path, cbP, Opts)))
+      {errno = EMFILE;
+       return -1;
+      }
+
+// Open the file (sync or async)
+//
+   if (!cbP) Status = fp->clFile.Open((std::string)path, XOflags, XOmode);
+      else   Status = fp->clFile.Open((std::string)path, XOflags, XOmode,
+                                      (XrdCl::ResponseHandler *)fp);
+
+// If we failed, return the reason
+//
+   if (!Status.IsOK())
+      {delete fp;
+       return XrdPosixMap::Result(Status);
+      }
+
+// Assign a file descriptor to this file
+//
+   if (!(fp->AssignFD(oflags & isStream)))
+      {delete fp;
        errno = EMFILE;
        return -1;
       }
-   myFiles[fd] = fp;
-   if (fd > highFD) highFD = fd;
-   myMutex.UnLock();
 
-// Open the file
+// Finalize the open (this gets the stat info). For async opens, the
+// finalization is defered until the callback happens.
 //
-   if (!fp->XClient->Open(XMode, XOflags, (cbP ? 1 : pllOpen))
-   || (!cbP && (fp->XClient->LastServerResp()->status != kXR_ok)))
-      {retc = Fault(fp, 0);
-       myMutex.Lock();
-       myFiles[fd] = 0;
-       delete fp;
-       if (baseFD && fd < freeFD) freeFD = fd;
-       if (doclose) close(fd);
-       myMutex.UnLock();
-       errno = retc;
-       return -1;
-      }
-
-// If this is a callback open then just return EINPROGRESS
-//
-   if (cbP)
-      {errno = EINPROGRESS;
-       return -1;
-      }
-
-// Get the file size
-//
-   fp->XClient->Stat(&fp->stat);
-   fp->isOpen();
-
-// Return the fd number
-//
-   return fd + baseFD;
-}
-
-/******************************************************************************/
-/*                                O p e n C B                                 */
-/******************************************************************************/
-  
-void XrdPosixXrootd::OpenCB(XrdPosixFile *fp, void *cbArg, int res)
-{
-   static XrdSysMutex     cbMutex;
-   static XrdSysSemaphore cbReady(0);
-   static XrdPosixFile   *First = 0, *Last = 0;
-   static int Waiting = 0, numThreads = 0;
-          XrdPosixFile *cbFP;
-          int rc = 0;
-
-// If this is a feeder thread, look for some work
-//
-   if (!fp)
-   do {cbMutex.Lock();
-       if (!First && !Waiting)
-          {numThreads--; cbMutex.UnLock(); return;}
-       while(!(cbFP = First))
-            {Waiting = 1;
-             cbMutex.UnLock(); cbReady.Wait(); cbMutex.Lock();
-             Waiting = 0;
-            }
-       if (!(First = cbFP->Next)) Last = 0;
-       cbMutex.UnLock();
-       if ((rc = (cbFP->cbResult < 0))) errno = -(cbFP->cbResult);
-       cbFP->theCB->Complete(cbFP->cbResult);
-       if (rc) delete cbFP;
-      } while(1);
-
-// Determine final result for this callback
-//
-   if (!res || (fp->XClient->LastServerResp()->status) != kXR_ok)
-      {fp->cbResult = -Fault(fp, 0);
-       myMutex.Lock();
-       myFiles[fp->FD - baseFD] = 0;
-       myMutex.UnLock();
-      } else {
-       fp->XClient->Stat(&fp->stat);
-       fp->isOpen();
-       fp->cbResult = fp->FD;
-      }
-
-// Lock our data structure and queue this element
-//
-   cbMutex.Lock();
-   if (Last) Last->Next = fp;
-      else   First    = fp;
-   Last = fp; fp->Next = 0;
-
-// See if we should start a thread
-//
-   if (!Waiting && numThreads < maxThreads)
-      {pthread_t tid;
-       if ((rc = XrdSysThread::Run(&tid, XrdPosixXrootdCB, (void *)0,
-                                  0, "Callback thread")))
-          cerr <<"XrdPosix: Unable to create callback thread; "
-               <<strerror(rc) <<endl;
-          else numThreads++;
-      }
-
-// All done
-//
-   cbReady.Post();
-   cbMutex.UnLock();
+   if (cbP) {errno = EINPROGRESS; return -1;}
+   if (fp->Finalize(Status)) return fp->FDNum();
+   return XrdPosixMap::Result(Status);
 }
 
 /******************************************************************************/
@@ -998,32 +429,33 @@ void XrdPosixXrootd::OpenCB(XrdPosixFile *fp, void *cbArg, int res)
   
 DIR* XrdPosixXrootd::Opendir(const char *path)
 {
-   XrdPosixDir *dirp = 0; // Avoid MacOS compiler warning
-   int rc, fd;
+   XrdPosixDir *dP;
+   DIR *dirP;
+   int rc;
 
-// Obtain a new filedscriptor from the system. Use the fd to track the dir.
+// Get a new directory object
 //
-   if ((fd = dup(devNull)) < 0) return (DIR*)0;
+   if (!(dP = new XrdPosixDir(path)))
+      {errno = ENOMEM; return (DIR *)0;}
 
-// Allocate a new directory structure
+// Assign a file descriptor to this file
 //
-   myMutex.Lock();
-   if (fd > lastDir) rc = EMFILE;
-      else if (!(dirp = new XrdPosixDir(fd, path))) rc = ENOMEM;
-              else rc = dirp->Status();
-
-   if (!rc)
-      {myDirs[fd] = dirp;
-       if (fd > highDir) highDir = fd;
+   if (!(dP->AssignFD()))
+      {delete dP;
+       errno = EMFILE;
+       return (DIR *)0;
       }
-   myMutex.UnLock();
 
-   if (rc) {if (dirp) {delete dirp; dirp = 0;}
-               else close(fd);
-            errno = rc;
-           }
+// Open the directory
+//
+   if ((dirP = dP->Open())) return dirP;
 
-   return (DIR*)dirp;
+// We failed
+//
+   rc = errno;
+   delete dP;
+   errno = rc;
+   return (DIR *)0;
 }
 
 /******************************************************************************/
@@ -1038,18 +470,18 @@ ssize_t XrdPosixXrootd::Pread(int fildes, void *buf, size_t nbyte, off_t offset)
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Make sure the size is not too large
 //
-   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
+   if (nbyte > (size_t)0x7fffffff) return Fault(fp,EOVERFLOW);
       else iosz = static_cast<int>(nbyte);
 
 // Issue the read
 //
    offs = static_cast<long long>(offset);
    bytes = fp->XCio->Read((char *)buf, offs, (int)iosz);
-   if (bytes <= 0) return Fault(fp,-1);
+   if (bytes < 0) return Fault(fp,errno);
 
 // All went well
 //
@@ -1069,22 +501,22 @@ ssize_t XrdPosixXrootd::Pwrite(int fildes, const void *buf, size_t nbyte, off_t 
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Make sure the size is not too large
 //
-   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
+   if (nbyte > (size_t)0x7fffffff) return Fault(fp,EOVERFLOW);
       else iosz = static_cast<int>(nbyte);
 
 // Issue the write
 //
    offs = static_cast<long long>(offset);
    bytes = fp->XCio->Write((char *)buf, offs, (int)iosz);
-   if (bytes <= 0 && iosz) return Fault(fp);
+   if (bytes < 0) return Fault(fp, errno);
 
 // All went well
 //
-   if (offs+iosz > fp->stat.size) fp->stat.size = offs + iosz;
+   if (offs+iosz > (long long)fp->mySize) fp->mySize = offs + iosz;
    fp->UnLock();
    return (ssize_t)iosz;
 }
@@ -1101,18 +533,17 @@ ssize_t XrdPosixXrootd::Read(int fildes, void *buf, size_t nbyte)
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
-
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Make sure the size is not too large
 //
-   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
+   if (nbyte > (size_t)0x7fffffff) return Fault(fp,EOVERFLOW);
       else iosz = static_cast<int>(nbyte);
 
 // Issue the read
 //
    bytes = fp->XCio->Read((char *)buf,fp->Offset(),(int)iosz);
-   if (bytes <= 0) return Fault(fp,-1);
+   if (bytes < 0) return Fault(fp, errno);
 
 // All went well
 //
@@ -1151,20 +582,20 @@ ssize_t XrdPosixXrootd::Readv(int fildes, const struct iovec *iov, int iovcnt)
 ssize_t XrdPosixXrootd::VRead(int fildes, const XrdOucIOVec *readV, int n)
 {
    XrdPosixFile *fp;
+   ssize_t bytes;
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Issue the read
 //
-   ssize_t bytes = fp->XCio->ReadV(readV, n);
-   if (bytes < 0) return Fault(fp,-1);
+   if ((bytes = fp->XCio->ReadV(readV, n)) < 0) return Fault(fp, errno);
 
-// All went well
+// Return bytes read
 //
    fp->UnLock();
-   return (ssize_t)bytes;
+   return bytes;
 }
 
 /******************************************************************************/
@@ -1179,10 +610,13 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
    if (!(dp64 = Readdir64(dirp))) return 0;
 
    dp32 = (struct dirent *)dp64;
-   if (dp32->d_name != dp64->d_name)
+   if (dp32->d_name  != dp64->d_name)
       {dp32->d_ino    = dp64->d_ino;
 #if !defined(__macos__) && !defined(__FreeBSD__)
-       dp32->d_off    = dp64->d_off;
+       dp32->d_off     = dp64->d_off;
+#endif
+#ifndef __solaris__
+       dp32->d_type   = dp64->d_type;
 #endif
        dp32->d_reclen = dp64->d_reclen;
        strcpy(dp32->d_name, dp64->d_name);
@@ -1192,21 +626,25 @@ struct dirent* XrdPosixXrootd::Readdir(DIR *dirp)
 
 struct dirent64* XrdPosixXrootd::Readdir64(DIR *dirp)
 {
-   XrdPosixDir *XrdDirp = findDIR(dirp);
-   dirent64 *dp;
-   int rc;
+   XrdPosixDir *dP;
+   dirent64 *dentP;
+   int rc, fildes = XrdPosixDir::dirNo(dirp);
 
-// Returns the next directory entry
+// Find the object
 //
-   if (!XrdDirp) return 0;
+   if (!(dP = XrdPosixObject::Dir(fildes)))
+      {errno = EBADF; return 0;}
 
-   if (!(dp = XrdDirp->nextEntry())) rc = XrdDirp->Status();
+// Get the next directory entry
+//
+   if (!(dentP = dP->nextEntry())) rc = dP->Status();
       else rc = 0;
 
-
-   XrdDirp->UnLock();
+// Return the appropriate result
+//
+   dP->UnLock();
    if (rc) errno = rc;
-   return dp;
+   return dentP;
 }
 
 /******************************************************************************/
@@ -1225,6 +663,9 @@ int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
 #if !defined(__macos__) && !defined(__FreeBSD__)
    entry->d_off    = dp64->d_off;
 #endif
+#ifndef __solaris__
+   entry->d_type   = dp64->d_type;
+#endif
    entry->d_reclen = dp64->d_reclen;
    strcpy(entry->d_name, dp64->d_name);
    *result = entry;
@@ -1234,17 +675,22 @@ int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
 int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
                                            struct dirent64 **result)
 {
-   XrdPosixDir *XrdDirp = findDIR(dirp);
-   int rc;
+   XrdPosixDir *dP;
+   int rc, fildes = XrdPosixDir::dirNo(dirp);
 
-// Thread safe verison of readdir
+// Find the object
 //
-   if (!XrdDirp) {errno = EBADF; return -1;}
+   if (!(dP = XrdPosixObject::Dir(fildes)))
+      {errno = EBADF; return 0;}
 
-   if (!(*result = XrdDirp->nextEntry(entry))) rc = XrdDirp->Status();
+// Get the next entry
+//
+   if (!(*result = dP->nextEntry(entry))) rc = dP->Status();
       else rc = 0;
 
-   XrdDirp->UnLock();
+// Return the appropriate result
+//
+   dP->UnLock();
    return rc;
 }
 
@@ -1254,20 +700,18 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 
 int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 {
-  XrdPosixAdminNew admin(oldpath);
+   XrdPosixAdmin admin(oldpath);
+   XrdCl::URL newUrl((std::string)newpath);
 
-  if (admin.isOK())
-     {XrdOucString    oldstr(oldpath);
-      XrdClientUrlInfo oldurl(oldstr);
-      XrdOucString    newstr(newpath);
-      XrdClientUrlInfo newurl(newstr);
-      if (admin.Admin.Mv(oldurl.File.c_str(),
-                         newurl.File.c_str())) return 0;
-      return admin.Fault();
-     }
-  return admin.Result();
+// Make sure the admin is OK and the new url is valid
+//
+  if (!admin.isOK() || !newUrl.IsValid()) {errno = EINVAL; return -1;}
+
+// Issue the rename
+//
+   return XrdPosixMap::Result(admin.Xrd.Mv(admin.Url.GetPathWithParams(),
+                                           newUrl.GetPathWithParams()));
 }
-
 
 /******************************************************************************/
 /*                            R e w i n d d i r                               */
@@ -1275,13 +719,15 @@ int XrdPosixXrootd::Rename(const char *oldpath, const char *newpath)
 
 void XrdPosixXrootd::Rewinddir(DIR *dirp)
 {
-// Updates and rewinds directory
-//
-   XrdPosixDir *XrdDirp = findDIR(dirp);
-   if (!XrdDirp) return;
+   XrdPosixDir *dP;
+   int fildes = XrdPosixDir::dirNo(dirp);
 
-   XrdDirp->rewind();
-   XrdDirp->UnLock();
+// Find the object and rewind it
+//
+   if ((dP = XrdPosixObject::Dir(fildes)))
+      {dP->rewind();
+       dP->UnLock();
+      }
 }
 
 /******************************************************************************/
@@ -1290,15 +736,15 @@ void XrdPosixXrootd::Rewinddir(DIR *dirp)
 
 int XrdPosixXrootd::Rmdir(const char *path)
 {
-  XrdPosixAdminNew admin(path);
+  XrdPosixAdmin admin(path);
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      if (admin.Admin.Rmdir(url.File.c_str())) return 0;
-      return admin.Fault();
-     }
-  return admin.Result();
+// Make sure the admin is OK
+//
+  if (!admin.isOK()) return -1;
+
+// Issue the rmdir
+//
+   return XrdPosixMap::Result(admin.Xrd.RmDir(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1307,17 +753,21 @@ int XrdPosixXrootd::Rmdir(const char *path)
 
 void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
 {
+   XrdPosixDir *dP;
+   int fildes = XrdPosixDir::dirNo(dirp);
+
+// Find the object
+//
+   if (!(dP = XrdPosixObject::Dir(fildes))) return;
+
 // Sets the current directory position
 //
-   XrdPosixDir *XrdDirp = findDIR(dirp);
-   if (!XrdDirp) return;
-   
-   if (XrdDirp->getOffset()<0) XrdDirp->nextEntry();  // read the directory
-   if (loc >= XrdDirp->getEntries()) loc = XrdDirp->getEntries()-1;
-   else if (loc<0) loc = 0;
-
-   XrdDirp->setOffset(loc);
-   XrdDirp->UnLock();
+   if (dP->Unread() && !(dP->Open()))
+      {if (loc >= dP->getEntries()) loc = dP->getEntries();
+          else if (loc < 0) loc = 0;
+       dP->setOffset(loc);
+      }
+   dP->UnLock();
 }
 
 /******************************************************************************/
@@ -1326,33 +776,24 @@ void XrdPosixXrootd::Seekdir(DIR *dirp, long loc)
   
 int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
-   XrdPosixAdminNew admin(path);
-   long st_flags, st_modtime, st_id;
-   long long st_size;
+   XrdPosixAdmin admin(path);
+   size_t stSize;
+   ino_t  stId;
+   time_t stMtime;
+   mode_t stFlags;
 
-// Make sure we connected
+// Issue the stat and verify that all went well
 //
-   if (!admin.isOK()) return admin.Result();
-
-// Extract out path from the url
-//
-   XrdOucString str(path);
-   XrdClientUrlInfo url(str);
-
-// Open the file first
-//
-   if (!admin.Admin.Stat(url.File.c_str(),
-                         st_id, st_size, st_flags, st_modtime))
-      return admin.Fault();
+   if (!admin.Stat(&stFlags, &stMtime, &stSize, &stId)) return -1;
 
 // Return what little we can
 //
    initStat(buf);
-   buf->st_size   = st_size;
-   buf->st_blocks = buf->st_size/512+1;
-   buf->st_atime  = buf->st_mtime = buf->st_ctime = st_modtime;
-   buf->st_ino    = st_id;
-   buf->st_mode   = mapFlags(st_flags);
+   buf->st_size   = stSize;
+   buf->st_blocks = stSize/512+1;
+   buf->st_atime  = buf->st_mtime = buf->st_ctime = stMtime;
+   buf->st_ino    = stId;
+   buf->st_mode   = stFlags;
    return 0;
 }
 
@@ -1401,24 +842,31 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 {
    static const int szVFS = sizeof(buf->f_bfree);
    static const long long max32 = 0x7fffffffLL;
-   XrdPosixAdminNew admin(path);
+
+   XrdPosixAdmin       admin(path);
+   XrdCl::StatInfoVFS *vfsStat;
+
    long long rwFree, ssFree, rwBlks;
    int       rwNum, ssNum, rwUtil, ssUtil;
 
 // Make sure we connected
 //
-   if (!admin.isOK()) return admin.Result();
+   if (!admin.isOK()) return -1;
 
-// Extract out path from the url
+// Issue the statfvs call
 //
-   XrdOucString str(path);
-   XrdClientUrlInfo url(str);
+   if (XrdPosixMap::Result(admin.Xrd.StatVFS(admin.Url.GetPathWithParams(),
+                                             vfsStat)) < 0) return -1;
 
-// Open the file first
+// Extract out the information
 //
-   if (!admin.Admin.Stat_vfs(url.File.c_str(),
-       rwNum, rwFree, rwUtil, ssNum, ssFree, ssUtil)) return admin.Fault();
-   if (rwNum < 0) {errno = ENOENT; return -1;}
+   rwNum  = static_cast<int>(vfsStat->GetNodesRW());
+   rwFree = (long long)vfsStat->GetFreeRW();
+   rwUtil = static_cast<int>(vfsStat->GetUtilizationRW());
+   ssNum  = static_cast<int>(vfsStat->GetNodesStaging());
+   ssFree = (long long)vfsStat->GetFreeStaging();
+   ssUtil = static_cast<int>(vfsStat->GetUtilizationStaging());
+   delete vfsStat;
 
 // Calculate number of blocks
 //
@@ -1457,15 +905,19 @@ int XrdPosixXrootd::Statvfs(const char *path, struct statvfs *buf)
 
 long XrdPosixXrootd::Telldir(DIR *dirp)
 {
-// Tells the current directory location
-//
-   XrdPosixDir *XrdDirp = findDIR(dirp);
-   if (!XrdDirp) return -1;
-
+   XrdPosixDir *dP;
    long pos;
-   if (XrdDirp->getOffset()<0) pos = 0;  // dir is open but not read yet
-   else pos = XrdDirp->getOffset();
-   XrdDirp->UnLock();
+   int fildes = XrdPosixDir::dirNo(dirp);
+
+// Find the object
+//
+   if (!(dP = XrdPosixObject::Dir(fildes)))
+      {errno = EBADF; return 0;}
+
+// Tell the current directory location
+//
+   pos = dP->getOffset();
+   dP->UnLock();
    return pos;
 }
 
@@ -1475,15 +927,17 @@ long XrdPosixXrootd::Telldir(DIR *dirp)
   
 int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 {
-  XrdPosixAdminNew admin(path);
+  XrdPosixAdmin admin(path);
+  uint64_t tSize = static_cast<uint64_t>(Size);
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      if (admin.Admin.Truncate(url.File.c_str(), Size)) return 0;
-      return admin.Fault();
-     }
-  return admin.Result();
+// Make sure the admin is OK
+//
+  if (!admin.isOK()) return -1;
+
+// Issue the truncate
+//
+   return XrdPosixMap::Result(admin.Xrd.Truncate(admin.Url.GetPathWithParams(),
+                                                 tSize));
 }
 
 /******************************************************************************/
@@ -1492,15 +946,15 @@ int XrdPosixXrootd::Truncate(const char *path, off_t Size)
 
 int XrdPosixXrootd::Unlink(const char *path)
 {
-  XrdPosixAdminNew admin(path);
+  XrdPosixAdmin admin(path);
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      if (admin.Admin.Rm(url.File.c_str())) return 0;
-      return admin.Fault();
-     }
-  return admin.Result();
+// Make sure the admin is OK
+//
+  if (!admin.isOK()) return -1;
+
+// Issue the UnLink
+//
+   return XrdPosixMap::Result(admin.Xrd.Rm(admin.Url.GetPathWithParams()));
 }
 
 /******************************************************************************/
@@ -1514,17 +968,17 @@ ssize_t XrdPosixXrootd::Write(int fildes, const void *buf, size_t nbyte)
 
 // Find the file object
 //
-   if (!(fp = findFP(fildes))) return -1;
+   if (!(fp = XrdPosixObject::File(fildes))) return -1;
 
 // Make sure the size is not too large
 //
-   if (nbyte > (size_t)0x7fffffff) {Scuttle(fp,EOVERFLOW);}
+   if (nbyte > (size_t)0x7fffffff) return Fault(fp,EOVERFLOW);
       else iosz = static_cast<int>(nbyte);
 
 // Issue the write
 //
    bytes = fp->XCio->Write((char *)buf,fp->Offset(),(int)iosz);
-   if (bytes <= 0 && iosz) return Fault(fp);
+   if (bytes < 0) return Fault(fp, errno);
 
 // All went well
 //
@@ -1563,23 +1017,14 @@ void XrdPosixXrootd::initEnv()
 {
    struct XrdPosix_Env {const char *eName; const char *xName; int *vDest;}
           Posix_Env[] =
-          {
-          {"XRDPOSIX_DEBUG",       NAME_DEBUG,                &Debug},
-          {"XRDPOSIX_DSTTL",       NAME_DATASERVERCONN_TTL,   0},
-          {"XRDPOSIX_POPEN",       "",                        &pllOpen},
-          {"XRDPOSIX_RASZ",        NAME_READAHEADSIZE,        0},
-          {"XRDPOSIX_RCSZ",        NAME_READCACHESIZE,        0},
-          {"XRDPOSIX_RCRP",        NAME_READCACHEBLKREMPOLICY,0},
-          {"XRDPOSIX_RCUP",        NAME_REMUSEDCACHEBLKS,     0},
-          {"XRDPOSIX_RDTTL",       NAME_LBSERVERCONN_TTL,     0},
-          {"XRDPOSIX_RTO",         NAME_REQUESTTIMEOUT,       0},
-          {"XRDPOSIX_TTO",         NAME_TRANSACTIONTIMEOUT,   0},
-          {"XRDPSOIX_PSPC",        NAME_MULTISTREAMCNT,       0},
-          {"XRDPOSIX_CTO",         NAME_CONNECTTIMEOUT,       0},
-          {"XRDPOSIX_CRDELAY",     NAME_RECONNECTWAIT,        0},
-          {"XRDPOSIX_CRETRY",      NAME_FIRSTCONNECTMAXCNT,   0},
-          {"XRDPOSIX_TCPWSZ",      NAME_DFLTTCPWINDOWSIZE,    0}
+          {{"", 0, 0}};
+/*        {"XRDPOSIX_DEBUG",       NAME_DEBUG,                &Debug},
+          {"XRDPOSIX_RTO",         "RequestTimeout",          0},
+          {"XRDPSOIX_PSPC",        "SubStreamsPerChannel",    0},
+          {"XRDPOSIX_CTO",         "ConnectionWindow",        0},
+          {"XRDPOSIX_CRETRY",      "ConnectionRetry",         0},
           };
+*/
    int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
    char *cvar, *evar;
    int i, doEcho;
@@ -1592,7 +1037,7 @@ void XrdPosixXrootd::initEnv()
 
 // Establish the default debugging level (none)
 //
-   setEnv(NAME_DEBUG, Debug);
+// setEnv(NAME_DEBUG, Debug); ???
 
 // Run through all of the numeric envars that may be set
 //
@@ -1700,8 +1145,8 @@ void XrdPosixXrootd::initEnv(char *eData)
    myParms.Options |= XrdOucCache::Serialized;
    if (!(XrdPosixFile::CacheR = myCache->Create(myParms, &apParms)))
       cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
-      else {setEnv(NAME_READAHEADSIZE, (long)0);
-            setEnv(NAME_READCACHESIZE, (long)0);
+      else {//???setEnv(NAME_READAHEADSIZE, (long)0);
+            //???setEnv(NAME_READCACHESIZE, (long)0);
             if (isRW) XrdPosixFile::CacheW = XrdPosixFile::CacheR;
            }
 }
@@ -1742,35 +1187,27 @@ void XrdPosixXrootd::initEnv(XrdOucEnv &theEnv, const char *vName, long long &De
 
 bool XrdPosixXrootd::isXrootdDir(DIR *dirp)
 {
+   XrdPosixDir *dP;
+   int fildes;
+
    if (!dirp) return false;
+   fildes = XrdPosixDir::dirNo(dirp);
 
-   for (int i = 0; i <= highDir; i++) 
-     if (((XrdPosixDir*)dirp)==myDirs[i]) return true;
+   if (!myFD(fildes) || !(dP = XrdPosixObject::Dir(fildes))) return false;
 
-   return false;
+   dP->UnLock();
+   return true;
 }
- 
+
 /******************************************************************************/
-/*                              m a p E r r o r                               */
+/*                                  m y F D                                   */
 /******************************************************************************/
-  
-int XrdPosixXrootd::mapError(int rc)
+
+bool XrdPosixXrootd::myFD(int fd)
 {
-    switch(rc)
-       {case kXR_NotFound:      return ENOENT;
-        case kXR_NotAuthorized: return EACCES;
-        case kXR_IOError:       return EIO;
-        case kXR_NoMemory:      return ENOMEM;
-        case kXR_NoSpace:       return ENOSPC;
-        case kXR_ArgTooLong:    return ENAMETOOLONG;
-        case kXR_noserver:      return EHOSTUNREACH;
-        case kXR_NotFile:       return ENOTBLK;
-        case kXR_isDirectory:   return EISDIR;
-        case kXR_FSError:       return ENOSYS;
-        default:                return ECANCELED;
-       }
+   return XrdPosixObject::Valid(fd);
 }
-
+  
 /******************************************************************************/
 /*                           Q u e r y C h k s u m                            */
 /******************************************************************************/
@@ -1778,34 +1215,15 @@ int XrdPosixXrootd::mapError(int rc)
 int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
                                       char *value, int     vsize)
 {
-   XrdPosixAdminNew admin(path);
-   long long st_size;
-   long st_flags, st_modtime, st_id;
-
-// Make sure we connected
-//
-   if (!admin.isOK()) return admin.Result();
-
-// Extract out path from the url
-//
-   XrdOucString str(path);
-   XrdClientUrlInfo url(str);
+   XrdPosixAdmin admin(path);
 
 // Stat the file first to allow vectoring of the request to the right server
 //
-   if (!admin.Admin.Stat(url.File.c_str(),st_id,st_size,st_flags,st_modtime))
-      return admin.Fault();
+   if (!admin.Stat(0, &Mtime)) return -1;
 
 // Now we can get the checksum as we have landed on the right server
 //
-   if (!admin.Admin.Query(kXR_Qcksum, (kXR_char *)url.File.c_str(),
-                                      (kXR_char *)value, vsize))
-      return admin.Result();
-
-// Return results
-//
-   Mtime = static_cast<time_t>(st_modtime);
-   return strlen((char *)value);
+   return admin.Query(XrdCl::QueryCode::Checksum, value, vsize);
 }
   
 /******************************************************************************/
@@ -1814,19 +1232,15 @@ int XrdPosixXrootd::QueryChksum(const char *path,  time_t &Mtime,
   
 long long XrdPosixXrootd::QueryOpaque(const char *path, char *value, int size)
 {
-  XrdPosixAdminNew admin(path);
-  kXR_int32 vsize = static_cast<kXR_int32>(size);
+   XrdPosixAdmin admin(path);
 
-  if (admin.isOK())
-     {XrdOucString str(path);
-      XrdClientUrlInfo url(str);
-      admin.Admin.GoBackToRedirector();
-      if (admin.Admin.Query(kXR_Qopaquf, (kXR_char *)url.File.c_str(), 
-                                         (kXR_char *)value, vsize))
-         return strlen((char *)value);
-      return admin.Fault();
-     }
-  return admin.Result();
+// Stat the file first to allow vectoring of the request to the right server
+//
+   if (!admin.Stat()) return -1;
+
+// Now we can get the checksum as we have landed on the right server
+//
+   return admin.Query(XrdCl::QueryCode::OpaqueFile, value, size);
 }
 
 /******************************************************************************/
@@ -1854,12 +1268,12 @@ void XrdPosixXrootd::setDebug(int val)
   
 void XrdPosixXrootd::setEnv(const char *var, const char *val)
 {
-     EnvPutString(var, val);
+//???EnvPutString(var, val);
 }
 
 void XrdPosixXrootd::setEnv(const char *var, long val)
 {
-     EnvPutInt(var, val);
+//???EnvPutInt(var, val);
 }
   
 /******************************************************************************/
@@ -1869,78 +1283,13 @@ void XrdPosixXrootd::setEnv(const char *var, long val)
 /*                                 F a u l t                                  */
 /******************************************************************************/
 
-int XrdPosixXrootd::Fault(XrdPosixFile *fp, int complete)
+int XrdPosixXrootd::Fault(XrdPosixFile *fp, int ecode)
 {
-   char *etext = fp->XClient->LastServerError()->errmsg;
-   int   ecode = fp->XClient->LastServerError()->errnum;
-   int   rc = -1;
-
-   if (complete < 0)
-      {if (ecode && ecode != kXR_noErrorYet) ecode = mapError(ecode);
-          else ecode = rc = 0;
-      } else {
-       ecode = mapError(ecode);
-       if (ecode != ENOENT && *etext && XrdPosixXrootd::Debug > -2)
-          cerr <<"XrdPosix: " <<etext <<endl;
-      }
-
-   if (!complete) return ecode;
    fp->UnLock();
    errno = ecode;
-   return rc;
-}
-  
-/******************************************************************************/
-/*                                f i n d F P                                 */
-/******************************************************************************/
-  
-XrdPosixFile *XrdPosixXrootd::findFP(int fd, int glk)
-{
-   XrdPosixFile *fp;
-
-// Validate the fildes
-//
-   if (fd >= lastFD || fd < baseFD)
-      {errno = EBADF; return (XrdPosixFile *)0;}
-
-// Obtain the file object, if any
-//
-   myMutex.Lock();
-   if (!(fp = myFiles[fd - baseFD]) || !(fp->Active()))
-      {myMutex.UnLock(); errno = EBADF; return (XrdPosixFile *)0;}
-
-// Lock the object and unlock the global lock unless it is to be held
-//
-   fp->Lock();
-   if (!glk) myMutex.UnLock();
-   return fp;
+   return -1;
 }
 
-/******************************************************************************/
-/*                                f i n d D I R                               */
-/******************************************************************************/
-
-XrdPosixDir *XrdPosixXrootd::findDIR(DIR *dirp, int glk)
-{
-   if (!dirp) { errno = EBADF; return 0; }
-
-// Check if this is really an open directory
-//
-   XrdPosixDir *XrdDirp = (XrdPosixDir*)dirp;
-   myMutex.Lock();
-   if (!(myDirs[XrdDirp->dirNo()]==XrdDirp))
-      {myMutex.UnLock();
-       errno = EBADF;
-       return 0;
-      }
-
-// Lock the object and unlock the global lock unless it is to be held
-//
-   XrdDirp->Lock();
-   if (!glk) myMutex.UnLock();
-   return XrdDirp;
-}
- 
 /******************************************************************************/
 /*                              i n i t S t a t                               */
 /******************************************************************************/
@@ -1975,52 +1324,16 @@ void XrdPosixXrootd::initStat(struct stat *buf)
   
 void XrdPosixXrootd::initXdev(dev_t &st_dev, dev_t &st_rdev)
 {
+   static dev_t tDev, trDev;
+   static bool aOK = false;
    struct stat buf;
 
 // Get the device id for /tmp used by stat()
 //
-   if (stat("/tmp", &buf)) {st_dev = 0; st_rdev = 0;}
-      else {st_dev = buf.st_dev; st_rdev = buf.st_rdev;}
-}
-
-/******************************************************************************/
-/*                              m a p F l a g s                               */
-/******************************************************************************/
-  
-int XrdPosixXrootd::mapFlags(int flags)
-{
-   int newflags = 0;
-
-// Map the xroot flags to unix flags
-//
-   if (flags & kXR_xset)     newflags |= S_IXUSR;
-   if (flags & kXR_readable) newflags |= S_IRUSR;
-   if (flags & kXR_writable) newflags |= S_IWUSR;
-   if (flags & kXR_other)    newflags |= S_IFBLK;
-      else if (flags & kXR_isDir) newflags |= S_IFDIR;
-              else newflags |= S_IFREG;
-   if (flags & kXR_offline) newflags |= S_ISVTX;
-   if (flags & kXR_poscpend)newflags |= S_ISUID;
-
-   return newflags;
-}
-
-/******************************************************************************/
-/*                               m a p M o d e                                */
-/******************************************************************************/
-  
-int XrdPosixXrootd::mapMode(mode_t mode)
-{  int XMode = 0;
-
-// Map the mode
-//
-   if (mode & S_IRUSR) XMode |= kXR_ur;
-   if (mode & S_IWUSR) XMode |= kXR_uw;
-   if (mode & S_IXUSR) XMode |= kXR_ux;
-   if (mode & S_IRGRP) XMode |= kXR_gr;
-   if (mode & S_IWGRP) XMode |= kXR_gw;
-   if (mode & S_IXGRP) XMode |= kXR_gx;
-   if (mode & S_IROTH) XMode |= kXR_or;
-   if (mode & S_IXOTH) XMode |= kXR_ox;
-   return XMode;
+   if (aOK) {st_dev = tDev; st_rdev = trDev;}
+      else if (stat("/tmp", &buf)) {st_dev = 0; st_rdev = 0;}
+              else {st_dev  = tDev  = buf.st_dev;
+                    st_rdev = trDev = buf.st_rdev;
+                    aOK = true;
+                   }
 }
