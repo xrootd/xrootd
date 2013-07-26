@@ -802,6 +802,8 @@ int XrdXrootdProtocol::do_Login()
           clientPV |= XrdOucEI::uUrlOK;
        if (Request.login.ability & kXR_multipr)
           clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
+       if (Request.login.ability & kXR_readrdok)
+          clientPV |= XrdOucEI::uReadR;
       }
 
 // Check if this is an admin login

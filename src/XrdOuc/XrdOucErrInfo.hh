@@ -59,6 +59,7 @@ static const int uVMask = 0x0000ffff;  //! ucap: Extract protocol version
 static const int uAsync = 0x80000000;  //! ucap: Supports async responses
 static const int uUrlOK = 0x40000000;  //! ucap: Supports url   redirects
 static const int uMProt = 0x20000000;  //! ucap: Supports multiple protocols
+static const int uReadR = 0x10000000;  //! ucap: Supports read redirects
 
 inline     void clear(const char *usr=0, int uc=0)
                      {code=0; ucap = uc; message[0]='\0';
