@@ -294,10 +294,10 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
 /******************************************************************************/
 
 int XrdNetUtils::IPFormat(const struct sockaddr *sAddr,
-                          char *bP, int bL, int fP)
+                          char *bP, int bL, int opts)
 {
    XrdNetAddr theAddr;
-   int fmtopts = XrdNetAddrInfo::old6Map4;
+   int fmtopts = (opts & oldFmt ? XrdNetAddrInfo::old6Map4 : 0);
 
 // Set the address
 //
@@ -305,13 +305,13 @@ int XrdNetUtils::IPFormat(const struct sockaddr *sAddr,
 
 // Now format the address
 //
-   if (!fP) fmtopts |=  XrdNetAddrInfo::noPort;
+   if (opts & noPort) fmtopts |=  XrdNetAddrInfo::noPort;
    return theAddr.Format(bP, bL, XrdNetAddrInfo::fmtAdv6, fmtopts);
 }
   
 /******************************************************************************/
 
-int XrdNetUtils::IPFormat(int fd, char *bP, int bL, int addP)
+int XrdNetUtils::IPFormat(int fd, char *bP, int bL, int opts)
 {
    XrdNetSockAddr theIP;
    SOCKLEN_t addrSize = sizeof(theIP);
@@ -325,7 +325,7 @@ int XrdNetUtils::IPFormat(int fd, char *bP, int bL, int addP)
 
 // Now format it
 //
-   return IPFormat(&theIP.Addr, bP, bL, addP);
+   return IPFormat(&theIP.Addr, bP, bL, opts);
 }
 
 /******************************************************************************/
