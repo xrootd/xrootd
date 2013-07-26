@@ -429,7 +429,8 @@ SMask_t XrdCmsCluster::getMask(const char *Cid)
   
 XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
 {
-    int i, lsall = opts & LS_All;
+    int i, lsall = opts & LS_All, retIP = opts & LS_IPO;
+    int retIP4 = opts & LS_IP4, onlyIP4 = (opts & LS_IP4) && !(opts & LS_IP6);
     XrdCmsNode     *nP;
     XrdCmsSelected *sipp = 0, *sip;
 
@@ -438,10 +439,14 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
    STMutex.Lock();
    for (i = 0; i <= STHi; i++)
         if ((nP=NodeTab[i]) && (lsall ||  (nP->NodeMask & mask)))
-           {sip = new XrdCmsSelected((opts & LS_IPO) ? 0 : nP->Name(), sipp);
-            if (opts & LS_IPO)
-               {sip->IPV6Len = nP->IPV6Len;
-                strcpy(sip->IPV6, nP->IPV6);
+           {if (onlyIP4 && !(nP->IPV4Len)) continue;
+            sip = new XrdCmsSelected((opts & LS_IPO) ? 0 : nP->Name(), sipp);
+            if (retIP)
+               {if (retIP4 && nP->IPV4Len)
+                   {sip->IPV6Len = nP->IPV4Len; strcpy(sip->IPV6, nP->IPV4);
+                   } else {
+                    sip->IPV6Len = nP->IPV6Len; strcpy(sip->IPV6, nP->IPV6);
+                   }
                }
             sip->Mask    = nP->NodeMask;
             sip->Id      = nP->NodeID;

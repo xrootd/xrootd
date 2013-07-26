@@ -754,6 +754,7 @@ int XrdXrootdProtocol::do_Login()
    static XrdSysMutex sessMutex;
    static unsigned int Sid = 0;
    XrdXrootdSessID sessID;
+   XrdNetAddrInfo *addrP;
    int i, pid, rc, sendSID = 0;
    char uname[sizeof(Request.login.username)+1];
 
@@ -805,6 +806,12 @@ int XrdXrootdProtocol::do_Login()
        if (Request.login.ability & kXR_readrdok)
           clientPV |= XrdOucEI::uReadR;
       }
+
+// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4
+//
+   addrP = Link->AddrInfo();
+   if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
+      clientPV |= XrdOucEI::uIPv4;
 
 // Check if this is an admin login
 //

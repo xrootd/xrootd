@@ -65,6 +65,8 @@
 #include "XrdOuc/XrdOucPup.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdNet/XrdNetUtils.hh"
+
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdCms;
@@ -134,6 +136,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     ConfigID =  0;
     TZValid  = 0;
     TimeZone = 0;
+    IPV6Len = 0; *IPV6 = 0; IPV4Len = 0; *IPV4 = 0;
 
 // setName() will set Ident, netID, IPV6, myName, myNlen, & Port!
 //
@@ -195,10 +198,29 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
 
    if (!Port) fmtOpts |= XrdNetAddr::noPort;
       else oldPort = netID.Port(Port);
+
+// Format out the address in IPv6 format
+//
    netID.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtOpts);
    if (oldPort) netID.Port(oldPort);
    strlcpy(IPV6, buff, sizeof(IPV6));
    IPV6Len = strlen(IPV6);
+
+// If this is an IPv6 address then try to find it's ipV4 address
+//
+   if (netID.isIPType(XrdNetAddrInfo::IPv6) && !netID.isMapped())
+      {XrdNetAddr *iP;
+       int iN;
+       if (!XrdNetUtils::GetAddrs(hname,&iP,iN,XrdNetUtils::onlyIPv4) && iN)
+          {iP[0].Port(Port);
+           iP[0].Format(buff,sizeof(buff),XrdNetAddr::fmtAdv6,fmtOpts);
+           strlcpy(IPV4, buff, sizeof(IPV4));
+           IPV4Len = strlen(IPV6);
+          }
+      } else {
+       strlcpy(IPV4, IPV6, sizeof(IPV4));
+       IPV4Len = IPV6Len;
+      }
 }
 
 /******************************************************************************/
@@ -496,6 +518,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
                           {(char *)&Resp,        0}};
    const char *Why;
    char theopts[8], *toP = theopts;
+   XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
    int rc, bytes;
    bool lsall = (*Arg.Path == '*');
 
@@ -534,10 +557,17 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
           }
       } else {Why = "?"; bytes = 0;}
 
+// Get the right options
+//
+   if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
+      lsopts |= XrdCmsCluster::LS_IP4;
+   if (Arg.Opts & CmsLocateRequest::kYR_retipv6)
+      lsopts |= XrdCmsCluster::LS_IP6;
+
 // List the servers
 //
    if (!rc)
-      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf,XrdCmsCluster::LS_IPO)))
+      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf, lsopts)))
           {Arg.Request.rrCode = kYR_error;
            rc = kYR_ENOENT; Why = "none ";
            bytes = strlcpy(Resp.outbuff, "No servers have the file",

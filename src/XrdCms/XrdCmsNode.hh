@@ -185,7 +185,9 @@ XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  
 int                IPV6Len;                   // 12345678901234567890123456
-char               IPV6[INET6_ADDRSTRLEN+10]; // [::123.123.123.123]:123456
+char               IPV6[INET6_ADDRSTRLEN+10]; // [full_ipv6_address]:123456
+int                IPV4Len;                   // 12345678901234567890123456
+char               IPV4[INET_ADDRSTRLEN+12];  // [::123.123.123.123]:123456
 
 SMask_t            NodeMask;
 int                NodeID;

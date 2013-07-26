@@ -340,6 +340,10 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
       {Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
                  | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
+       if (Resp.getUCap() & XrdOucEI::uIPv4)
+          Data.Opts |= CmsLocateRequest::kYR_retipv4;
+       if (flags & SFS_O_FORCE)
+          Data.Opts |= CmsLocateRequest::kYR_retipv6;
       } else
   {     Data.Request.rrCode = kYR_select;
         if (flags & SFS_O_TRUNC) Data.Opts = CmsSelectRequest::kYR_trunc;

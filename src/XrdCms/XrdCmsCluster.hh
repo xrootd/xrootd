@@ -37,6 +37,7 @@
   
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdOuc/XrdOucTList.hh"
+#include "XrdOuc/XrdOucEnum.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 class XrdLink;
@@ -136,7 +137,7 @@ SMask_t         getMask(const char *Cid);
 
 // Extracts out node information. Opts are one or more of CmsLSOpts
 //
-enum            CmsLSOpts {LS_All = 0x0001, LS_IPO  = 0x0002};
+enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3, LS_All=8};
 
 XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts);
 
@@ -234,6 +235,8 @@ SMask_t       resetMask;        // Nodes to receive a reset event
 SMask_t       peerHost;         // Nodes that are acting as peers
 SMask_t       peerMask;         // Always ~peerHost
 };
+
+XRDOUC_ENUM_OPERATORS(XrdCmsCluster::CmsLSOpts)
 
 namespace XrdCms
 {
