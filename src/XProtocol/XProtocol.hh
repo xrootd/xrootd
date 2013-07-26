@@ -45,8 +45,8 @@
 // Protocol version is repesented as three base10 digits x.y.z with x having no
 // upper limit (i.e. n.9.9 + 1 -> n+1.0.0).
 //
-#define kXR_PROTOCOLVERSION  0x00000297
-#define kXR_PROTOCOLVSTRING "2.9.7"
+#define kXR_PROTOCOLVERSION  0x00000300
+#define kXR_PROTOCOLVSTRING "3.0.0"
 
 #include "XProtocol/XPtypes.hh"
 
@@ -137,7 +137,8 @@ enum XMkdirOptions {
 enum XLoginAbility {
    kXR_nothing =   0,
    kXR_fullurl =   1,
-   kXR_multipr =   3
+   kXR_multipr =   3,
+   kXR_readrdok=   4
 };
 
 // this is a bitmask
@@ -372,8 +373,8 @@ struct ClientLoginRequest {
    kXR_int32 pid;
    kXR_char username[8];
    kXR_char reserved;
-   kXR_char ability;
-   kXR_char capver[1];
+   kXR_char ability;       // See XLoginAbility enum flags
+   kXR_char capver[1];     // See XLoginCapVer  enum flags
    kXR_char role[1];
    kXR_int32  dlen;
 };
