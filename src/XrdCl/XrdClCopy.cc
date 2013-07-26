@@ -235,6 +235,105 @@ void AdjustFileInfo( XrdCpFile *file )
 };
 
 //------------------------------------------------------------------------------
+// Get a list of files and a list of directories inside a remote directory
+//------------------------------------------------------------------------------
+XrdCl::XRootDStatus GetDirList( XrdCl::FileSystem        *fs,
+                                const XrdCl::URL         &url,
+                                std::vector<std::string> *&files,
+                                std::vector<std::string> *&directories )
+{
+  using namespace XrdCl;
+  DirectoryList *list;
+  XRootDStatus   status;
+  Log *log = DefaultEnv::GetLog();
+
+  status = fs->DirList( url.GetPath(), DirListFlags::Stat, list );
+  if( !status.IsOK() )
+  {
+    log->Error( AppMsg, "Error listing directory: %s",
+                        status.ToStr().c_str());
+    return status;
+  }
+
+  for ( DirectoryList::Iterator it = list->Begin(); it != list->End(); ++it )
+  {
+    if ( (*it)->GetStatInfo()->TestFlags( StatInfo::IsDir ) )
+    {
+      std::string directory = (*it)->GetName();
+      directories->push_back( directory );
+    }
+    else
+    {
+      std::string file = (*it)->GetName();
+      files->push_back( file );
+    }
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
+// Recursively index all files and directories inside a remote directory
+//------------------------------------------------------------------------------
+XrdCpFile* IndexRemote( XrdCl::FileSystem *fs,
+                        std::string        basePath,
+                        uint16_t           dirOffset )
+{
+  using namespace XrdCl;
+
+  XrdCpFile  *start = new XrdCpFile();
+  XrdCpFile  *end   = start;
+  XrdCpFile  *current;
+  URL         source( basePath );
+  int         badUrl;
+
+  std::vector<std::string> *files       = new std::vector<std::string>();
+  std::vector<std::string> *directories = new std::vector<std::string>();
+
+  Log *log = DefaultEnv::GetLog();
+  log->Debug( AppMsg, "Indexing %s", basePath.c_str() );
+
+  XRootDStatus status = GetDirList( fs, source, files, directories );
+  if( !status.IsOK() )
+  {
+    log->Info( AppMsg, "Failed to get directory listing for %s: %s",
+                       source.GetURL().c_str(),
+                       status.GetErrorMessage().c_str() );
+  }
+
+  std::vector<std::string>::iterator it;
+  for( it = files->begin(); it != files->end(); ++it )
+  {
+    std::string file = basePath + "/" + (*it);
+    log->Dump( AppMsg, "Found file %s", file.c_str() );
+
+    current = new XrdCpFile( file.c_str(), badUrl );
+    if( badUrl )
+    {
+      log->Error( AppMsg, "Bad URL: %s", current->Path );
+      return 0;
+    }
+
+    current->Doff = dirOffset;
+    end->Next     = current;
+    end           = current;
+  }
+
+  for( it = directories->begin(); it != directories->end(); ++it )
+  {
+    std::string directory = basePath + "/" + (*it);
+    log->Dump( AppMsg, "Found directory %s", directory.c_str() );
+
+    end->Next = IndexRemote( fs, directory, dirOffset );
+    while( end->Next ) end = end->Next;
+  }
+
+  delete files;
+  delete directories;
+  return start->Next;
+}
+
+//------------------------------------------------------------------------------
 // Clean up the copy job descriptors
 //------------------------------------------------------------------------------
 void CleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
@@ -255,7 +354,7 @@ int main( int argc, char **argv )
   // Configure the copy command, if it returns then everything went well, ugly
   //----------------------------------------------------------------------------
   XrdCpConfig config( argv[0] );
-  config.Config( argc, argv, 0 );
+  config.Config( argc, argv, XrdCpConfig::optRmtRec );
   if( !AllOptionsSupported( &config ) )
     return 254;
   ProcessCommandLineEnv( &config );
@@ -281,12 +380,14 @@ int main( int argc, char **argv )
   bool thirdPartyFallBack = true;
   bool force              = false;
   bool coerce             = false;
+  bool makedir            = false;
 
   if( config.Want( XrdCpConfig::DoPosc ) )     posc                = true;
   if( config.Want( XrdCpConfig::DoForce ) )    force               = true;
   if( config.Want( XrdCpConfig::DoCoerce ) )   coerce              = true;
   if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty          = true;
   if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdPartyFallBack  = false;
+  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir             = true;
 
   std::string checkSumType;
   std::string checkSumPreset;
@@ -362,9 +463,39 @@ int main( int argc, char **argv )
   }
 
   //----------------------------------------------------------------------------
+  // If we're doing remote recursive copy, chain all the files (if it's a
+  // directory)
+  //----------------------------------------------------------------------------
+  if( config.DoRecurse && config.srcFile->Protocol == XrdCpFile::isXroot )
+  {
+    URL          source( config.srcFile->Path );
+    FileSystem  *fs       = new FileSystem( source );
+    StatInfo    *statInfo = 0;
+
+    XRootDStatus st = fs->Stat( source.GetPath(), statInfo );
+    if( st.IsOK() && statInfo->TestFlags( StatInfo::IsDir ) )
+    {
+      //------------------------------------------------------------------------
+      // Recursively index the remote directory
+      //------------------------------------------------------------------------
+      delete config.srcFile;
+      config.srcFile = IndexRemote( fs, source.GetURL(),
+                                    source.GetURL().size() );
+      if ( !config.srcFile )
+      {
+        std::cerr << "Error indexing remote directory.";
+        return 255;
+      }
+    }
+
+    delete fs;
+    delete statInfo;
+  }
+
+  XrdCpFile *sourceFile = config.srcFile;
+  //----------------------------------------------------------------------------
   // Process the sources
   //----------------------------------------------------------------------------
-  XrdCpFile *sourceFile = config.srcFile;
   while( sourceFile )
   {
     AdjustFileInfo( sourceFile );
@@ -400,6 +531,7 @@ int main( int argc, char **argv )
     job->force                = force;
     job->posc                 = posc;
     job->coerce               = coerce;
+    job->makedir              = makedir;
     job->thirdParty           = thirdParty;
     job->thirdPartyFallBack   = thirdPartyFallBack;
     job->checkSumType         = checkSumType;
@@ -434,3 +566,4 @@ int main( int argc, char **argv )
   CleanUpJobs( jobs );
   return 0;
 }
+
