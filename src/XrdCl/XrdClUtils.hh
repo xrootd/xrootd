@@ -74,14 +74,27 @@ namespace XrdCl
                                   int                defaultVal );
 
       //------------------------------------------------------------------------
+      //! Get a parameter either from the environment or URL
+      //------------------------------------------------------------------------
+      static std::string GetStringParameter( const URL         &url,
+                                             const std::string &name,
+                                             const std::string &defaultVal );
+
+      //------------------------------------------------------------------------
       //! Address type
       //------------------------------------------------------------------------
       enum AddressType
       {
-        AllAddresses  = 0,
+        IPAll         = 0,
         IPv6          = 1,
         IPv4          = 2,
+        IPv4Mapped6   = 3
       };
+
+      //------------------------------------------------------------------------
+      //! Interpret a string as address type, default to IPAll
+      //------------------------------------------------------------------------
+      static AddressType String2AddressType( const std::string &addressType );
 
       //------------------------------------------------------------------------
       //! Resolve IP addresses

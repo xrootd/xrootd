@@ -156,6 +156,7 @@ namespace XrdCl
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
+    PutString( "NetworkStack",       DefaultNetworkStack         );
 
     ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
     ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
@@ -171,6 +172,7 @@ namespace XrdCl
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
+    ImportString( "NetworkStack",         "XRD_NETWORKSTACK"         );
   }
 
   //----------------------------------------------------------------------------

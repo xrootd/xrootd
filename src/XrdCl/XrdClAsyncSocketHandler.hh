@@ -116,6 +116,14 @@ namespace XrdCl
         return pStreamName;
       }
 
+      //------------------------------------------------------------------------
+      //! Set socket domain
+      //------------------------------------------------------------------------
+      void SetSocketDomain( int domain )
+      {
+        pSocketDomain = domain;
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -202,6 +210,7 @@ namespace XrdCl
       OutgoingMsgHandler            *pOutHandler;
       uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
+      int                            pSocketDomain;
   };
 }
 

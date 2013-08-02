@@ -26,6 +26,27 @@
 
 #include <algorithm>
 
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Ordering function for sorting IP addresses
+  //----------------------------------------------------------------------------
+  struct PreferIPv6
+  {
+    bool operator() ( const XrdNetAddr &l, const XrdNetAddr &r )
+    {
+      bool rIsIPv4 = false;
+      if( r.isIPType( XrdNetAddrInfo::IPv4 ) ||
+          (r.isIPType( XrdNetAddrInfo::IPv6 ) && r.isMapped()) )
+        rIsIPv4 = true;
+
+      if( l.isIPType( XrdNetAddrInfo::IPv6 ) && rIsIPv4 )
+        return true;
+      return false;
+    }
+  };
+}
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -52,6 +73,41 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get a parameter either from the environment or URL
+  //----------------------------------------------------------------------------
+  std::string Utils::GetStringParameter( const URL         &url,
+                                         const std::string &name,
+                                         const std::string &defaultVal )
+  {
+    Env                            *env = DefaultEnv::GetEnv();
+    std::string                     value = defaultVal;
+    char                           *endPtr;
+    URL::ParamsMap::const_iterator  it;
+
+    env->GetString( name, value );
+    it = url.GetParams().find( std::string("XrdCl.") + name );
+    if( it != url.GetParams().end() )
+      value = it->second;
+
+    return value;
+  }
+
+  //----------------------------------------------------------------------------
+  // Interpret a string as address type, default to IPAll
+  //----------------------------------------------------------------------------
+  Utils::AddressType Utils::String2AddressType( const std::string &addressType )
+  {
+    if( addressType == "IPv6" )
+      return IPv6;
+    else if( addressType == "IPv4" )
+      return IPv4;
+    else if( addressType == "IPv4Mapped6" )
+      return IPv4Mapped6;
+    else
+      return IPAll;
+  }
+
+  //----------------------------------------------------------------------------
   // Resolve IP addresses
   //----------------------------------------------------------------------------
   Status Utils::GetHostAddresses( std::vector<XrdNetAddr> &addresses,
@@ -63,9 +119,18 @@ namespace XrdCl
     int         nAddrs = 0;
     const char *err    = 0;
 
+    //--------------------------------------------------------------------------
+    // Resolve all the addresses
+    //--------------------------------------------------------------------------
     std::ostringstream o; o << url.GetHostName() << ":" << url.GetPort();
+    XrdNetUtils::AddrOpts opts;
 
-    err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs );
+    if( type == IPv6 ) opts = XrdNetUtils::onlyIPv6;
+    else if( type == IPv4 ) opts = XrdNetUtils::onlyIPv4;
+    else if( type == IPv4Mapped6 ) opts = XrdNetUtils::allV4Map;
+    else opts = XrdNetUtils::allIPMap;
+
+    err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs, opts );
 
     if( err )
     {
@@ -86,7 +151,11 @@ namespace XrdCl
       addresses.push_back( addrs[i] );
     delete [] addrs;
 
+    //--------------------------------------------------------------------------
+    // Sort and shuffle them
+    //--------------------------------------------------------------------------
     std::random_shuffle( addresses.begin(), addresses.end() );
+    std::sort( addresses.begin(), addresses.end(), PreferIPv6() );
     return Status();
   }
 
@@ -103,8 +172,7 @@ namespace XrdCl
     for( it = addresses.begin(); it != addresses.end(); ++it )
     {
       char nameBuff[256];
-      it->Format( nameBuff, 256, XrdNetAddrInfo::fmtAdv6,
-                  XrdNetAddrInfo::noPort );
+      it->Format( nameBuff, 256, XrdNetAddrInfo::fmtAdv6 );
       addrStr += nameBuff;
       addrStr += ", ";
     }

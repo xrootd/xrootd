@@ -48,7 +48,8 @@ namespace XrdCl
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
-    pOutMsgSize( 0 )
+    pOutMsgSize( 0 ),
+    pSocketDomain( AF_INET6 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -81,7 +82,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initialize the socket
     //--------------------------------------------------------------------------
-    Status st = pSocket->Initialize();
+    Status st = pSocket->Initialize( pSocketDomain );
     if( !st.IsOK() )
     {
       log->Error( AsyncSockMsg, "[%s] Unable to initialize socket: %s",

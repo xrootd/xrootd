@@ -54,6 +54,7 @@ namespace XrdCl
   const int DefaultCPParallelChunks     = 4;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
+  const char * const DefaultNetworkStack       = "IPAll";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
 }

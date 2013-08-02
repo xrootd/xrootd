@@ -30,6 +30,7 @@
 #include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
+#include <algorithm>
 #include <sys/socket.h>
 #include <sys/time.h>
 
@@ -110,6 +111,7 @@ namespace XrdCl
     pLastStreamError( 0 ),
     pConnectionCount( 0 ),
     pConnectionInitTime( 0 ),
+    pAddressType( Utils::IPAll ),
     pSessionId( 0 ),
     pQueueIncMsgJob(0),
     pBytesSent( 0 ),
@@ -129,11 +131,16 @@ namespace XrdCl
     pStreamErrorWindow = Utils::GetIntParameter( *url, "StreamErrorWindow",
                                                  DefaultStreamErrorWindow );
 
+    std::string netStack = Utils::GetStringParameter( *url, "NetworkStack",
+                                                      DefaultNetworkStack );
+
+    pAddressType = Utils::String2AddressType( netStack );
+
     Log *log = DefaultEnv::GetLog();
-    log->Debug( PostMasterMsg, "[%s] Stream parameters: Connection Window: %d, "
-                "ConnectionRetry: %d, Stream Error Widnow: %d",
-                pStreamName.c_str(), pConnectionWindow, pConnectionRetry,
-                pStreamErrorWindow );
+    log->Debug( PostMasterMsg, "[%s] Stream parameters: Network Stack: %s, "
+                "Connection Window: %d, ConnectionRetry: %d, Stream Error "
+                "Widnow: %d", pStreamName.c_str(), netStack.c_str(),
+                pConnectionWindow, pConnectionRetry, pStreamErrorWindow );
   }
 
   //----------------------------------------------------------------------------
@@ -169,6 +176,12 @@ namespace XrdCl
                                                     pChannelData,
                                                     0 );
     s->SetStream( this );
+
+    if( pAddressType == Utils::IPv4 )
+      s->SetSocketDomain( AF_INET );
+    else
+      s->SetSocketDomain( AF_INET6 );
+
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
     return Status();
@@ -230,8 +243,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Resolve all the addresses of the host we're supposed to connect to
     //--------------------------------------------------------------------------
-    Status st = Utils::GetHostAddresses( pAddresses, *pUrl,
-                                         Utils::AllAddresses );
+    Status st = Utils::GetHostAddresses( pAddresses, *pUrl, pAddressType );
     if( !st.IsOK() )
     {
       log->Error( PostMasterMsg, "[%s] Unable to resolve IP address for "
@@ -246,8 +258,11 @@ namespace XrdCl
                              pAddresses );
 
     //--------------------------------------------------------------------------
-    // Initiate the connection process to the first one on the list
+    // Initiate the connection process to the first one on the list.
+    // It's more efficient to remove addresses from the back of a vector
+    // so we reverse the it.
     //--------------------------------------------------------------------------
+    std::reverse( pAddresses.begin(), pAddresses.end() );
     pSubStreams[0]->socket->SetAddress( pAddresses.back() );
     pAddresses.pop_back();
     st = pSubStreams[0]->socket->Connect( pConnectionWindow );
@@ -600,6 +615,7 @@ namespace XrdCl
       if( !pAddresses.empty() )
       {
         pSubStreams[0]->socket->SetAddress( pAddresses.back() );
+        pAddresses.pop_back();
 
         Status st = pSubStreams[0]->socket->Connect( pConnectionWindow-elapsed );
         if( !st.IsOK() )

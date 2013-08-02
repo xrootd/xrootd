@@ -150,10 +150,13 @@ namespace XrdCl
                           uint16_t           port,
                           uint16_t           timeout )
   {
+    if( pSocket == -1 || pStatus == Connected || pStatus == Connecting )
+      return Status( stError, errInvalidOp );
+
     std::vector<XrdNetAddr> addrs;
     std::ostringstream o; o << host << ":" << port;
     Status st;
-    st = Utils::GetHostAddresses( addrs, URL( o.str() ), Utils::AllAddresses );
+    st = Utils::GetHostAddresses( addrs, URL( o.str() ), Utils::IPAll );
     if( !st.IsOK() )
       return st;
 

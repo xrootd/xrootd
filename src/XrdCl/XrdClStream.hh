@@ -26,6 +26,7 @@
 #include "XrdCl/XrdClChannelHandlerList.hh"
 #include "XrdCl/XrdClJobManager.hh"
 #include "XrdCl/XrdClInQueue.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdNet/XrdNetAddr.hh"
@@ -318,6 +319,7 @@ namespace XrdCl
       uint16_t                       pConnectionWindow;
       SubStreamList                  pSubStreams;
       std::vector<XrdNetAddr>        pAddresses;
+      Utils::AddressType             pAddressType;
       ChannelHandlerList             pChannelEvHandlers;
       uint64_t                       pSessionId;
 
