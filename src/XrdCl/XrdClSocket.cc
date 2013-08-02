@@ -37,12 +37,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Status Socket::Initialize()
+  Status Socket::Initialize( int family )
   {
     if( pSocket != -1 )
       return Status( stError, errInvalidOp );
 
-    pSocket = ::socket( PF_INET6, SOCK_STREAM, 0 );
+    pSocket = ::socket( family, SOCK_STREAM, 0 );
     if( pSocket < 0 )
     {
       pSocket = -1;
