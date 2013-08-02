@@ -146,14 +146,15 @@ const char *Set(int sockFD);
 //! Set our address via and addrinfo structure and initialize the port.
 //!
 //! @param  rP       pointer to an addrinfo structure.
-//! @param  Port     the port number to set.
+//! @param  port     the port number to set.
+//! @param  mapit    when true maps IPv4 addresses to IPv6. Otherwise, does not.
 //!
 //! @return Success: Returns 0.
 //!         Failure: Returns the error message text describing the error. The
 //!                  message is in persistent storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-const char *Set(struct addrinfo *rP, int Port);
+const char *Set(struct addrinfo *rP, int port, bool mapit=false);
 
 //------------------------------------------------------------------------------
 //! Set the cache time for address to name resolutions. This method should only

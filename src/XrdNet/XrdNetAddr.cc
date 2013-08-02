@@ -397,14 +397,27 @@ const char *XrdNetAddr::Set(int sockFD)
 
 /******************************************************************************/
   
-const char *XrdNetAddr::Set(struct addrinfo *rP, int Port)
+const char *XrdNetAddr::Set(struct addrinfo *rP, int Port, bool mapit)
 {
+   static const int   map46ID = htonl(0x0000ffff);
 
-// Simply copy over the information we have
+// See if we need to convert this address otherwise just copy it
 //
-   memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
-   addrSize = rP->ai_addrlen;
-   protType = rP->ai_protocol;
+   if (mapit && rP->ai_family == AF_INET)
+      {memset(&IP.Addr, 0, sizeof(IP.Addr));
+       IP.v6.sin6_family = AF_INET6;
+       memcpy(&IP.v6.sin6_addr.s6_addr32[3], (rP->ai_addr->sa_data)+2, 4);
+       IP.v6.sin6_addr.s6_addr32[2] = map46ID;
+       addrSize = sizeof(IP.v6);
+       protType = PF_INET6;
+      } else {
+       memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
+       addrSize = rP->ai_addrlen;
+       protType = rP->ai_protocol;
+      }
+
+// Cleanup pre-existing information
+//
    if (hostName) free(hostName);
    hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
    if (sockAddr != &IP.Addr) {delete unixPipe; sockAddr = &IP.Addr;}

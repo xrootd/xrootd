@@ -154,7 +154,7 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
            char ipAdr[MAXHOSTNAMELEN+15];
          } aBuff;
    const char *ipAddr, *hnBeg, *hnEnd, *pnBeg, *pnEnd;
-   int   n;
+   int   n, map426 = 0;
 
 // Prep the returned fields
 //
@@ -196,6 +196,9 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
                          hints.ai_flags  = AI_V4MAPPED | AI_ALL;
                          break;
           case allIPv64: hints.ai_family = AF_UNSPEC;
+                         break;
+          case allV4Map: hints.ai_family = AF_INET;
+                         map426 = 1;
                          break;
           case onlyIPv6: hints.ai_family = AF_INET6;
                          break;
@@ -239,7 +242,7 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
 //
    n = 0; nP = rP;
    do {if (nP->ai_family == AF_INET6 || nP->ai_family == AF_INET)
-          {aVec[n].Set(nP, pNum); n++;}
+          {aVec[n].Set(nP, pNum, map426); n++;}
        nP = nP->ai_next;
       } while(nP);
 

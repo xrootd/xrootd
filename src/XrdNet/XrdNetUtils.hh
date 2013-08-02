@@ -90,10 +90,11 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //! @param  opts     Options on what to return. Choose one of:
 //!                  allIPMap - all  IPv6 and   mapped IPv4 addrs (default)
 //!                  allIPv64 - all  IPv6 and unmapped IPv4 addrs
+//!                  allV4Map - all    mapped IPV4 addrs.
 //!                  onlyIPv6 - only          IPv6 addrs
 //!                  onlyIPv4 - only unmapped IPv4 addrs
 //!                  prefIPv6 - only IPv6 addrs; if none, mapped IPv4 addrs
-//!                  The above may be or'd with one of the following:
+//!                  The above may be or'd with one or more of the following:
 //!                  onlyUDP  - only addrs valid for UDP connections else TCP
 //! @param  pNum     >= 0 uses the value as the port number regardless of what
 //!                       is in hSpec, should it be supplied. However, if is
@@ -113,7 +114,8 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //!                  storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-enum AddrOpts {allIPMap=  0, allIPv64=  1, onlyIPv6= 2, onlyIPv4=4, prefIPv6=8,
+enum AddrOpts {allIPMap=  0, allIPv64=  1, allV4Map=  2,
+               onlyIPv6=  3, onlyIPv4=  4, prefIPv6=  8,
                onlyUDP =128
               };
 
