@@ -1527,8 +1527,8 @@ int XrdOfs::fsctl(const int               cmd,
                                'w'};
    static const int PrivNum = sizeof(PrivLet);
 
-   int retc, find_flag = SFS_O_LOCATE | (cmd & (SFS_O_NOWAIT | SFS_O_RESET));
-   int i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
+   int find_flag = SFS_O_LOCATE | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET));
+   int retc, i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
    char *bP, *cP;
    XTRACE(fsctl, args, "");

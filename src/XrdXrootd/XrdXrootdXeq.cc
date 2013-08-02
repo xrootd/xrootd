@@ -713,6 +713,7 @@ int XrdXrootdProtocol::do_Locate()
 //
    if (opts & kXR_nowait)  {fsctl_cmd |= SFS_O_NOWAIT; *op++ = 'i';}
    if (opts & kXR_refresh) {fsctl_cmd |= SFS_O_RESET;  *op++ = 's';}
+   if (opts & kXR_force  ) {fsctl_cmd |= SFS_O_FORCE;  *op++ = 'f';}
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 
