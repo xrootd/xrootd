@@ -216,6 +216,7 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
            iP[0].Format(buff,sizeof(buff),XrdNetAddr::fmtAdv6,fmtOpts);
            strlcpy(IPV4, buff, sizeof(IPV4));
            IPV4Len = strlen(IPV6);
+           delete [] iP;
           }
       } else {
        strlcpy(IPV4, IPV6, sizeof(IPV4));
