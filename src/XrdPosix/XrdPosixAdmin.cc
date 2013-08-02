@@ -30,9 +30,60 @@
 
 #include <errno.h>
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdPosix/XrdPosixMap.hh"
+  
+/******************************************************************************/
+/*                                F a n O u t                                 */
+/******************************************************************************/
+  
+XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
+{
+   XrdCl::XRootDStatus            xStatus;
+   XrdCl::LocationInfo           *info;
+   XrdCl::LocationInfo::Iterator  it;
+   XrdCl::URL                    *uVec;
+   XrdNetAddr netLoc;
+   const char *hName;
+   int i;
 
+// Make sure admin is ok
+//
+   if (!isOK()) return false;
+
+// Issue the deep locate and verify that all went well
+//
+   xStatus = Xrd.DeepLocate(Url.GetPathWithParams(),XrdCl::OpenFlags::None,info);
+   if (!xStatus.IsOK())
+      {num = XrdPosixMap::Result(xStatus);
+       return 0;
+      }
+
+// Allocate an array large enough to hold this information
+//
+   if(!(i = info->GetSize())) return 0;
+   uVec = new XrdCl::URL[i];
+
+// Now start filling out the array
+//
+   num = 0;
+   for( it = info->Begin(); it != info->End(); ++it )
+      {if (!netLoc.Set(it->GetAddress().c_str()) && (hName = netLoc.Name()))
+          {std::string hString(hName);
+           uVec[num] = Url;
+           uVec[num].SetHostName(hString);
+           uVec[num].SetPort(netLoc.Port());
+           num++;
+          }
+      }
+
+// Make sure we can return something;
+//
+   if (!num) {delete [] uVec; return 0;}
+   return uVec;
+}
+  
 /******************************************************************************/
 /*                                 Q u e r y                                  */
 /******************************************************************************/

@@ -34,21 +34,17 @@
 #include <iostream>
 #include <libgen.h>
 #include <unistd.h>
-#include <netdb.h>
+//#include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
 #include <pthread.h>
+#include <stdio.h>
 #include <syslog.h>
 
-#include "XrdClient/XrdClientUrlInfo.hh"
-#include "XrdClient/XrdClientEnv.hh"
-#include "XrdClient/XrdClientConst.hh"
-#include "XrdClient/XrdClient.hh"
-#include "XrdClient/XrdClientAdmin.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
-#include "XrdOuc/XrdOucString.hh"
+#include "XrdPosix/XrdPosixAdmin.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSecsss/XrdSecsssID.hh"
 #include "XrdFfs/XrdFfsDent.hh"
@@ -67,9 +63,6 @@ pthread_mutex_t url_mlock;
 
 char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl) 
 {
-    bool stat;
-    long id, flags, modtime;
-    long long size;
     struct stat stbuf;
 
 /* if it is a directory, return oldurl */
@@ -79,107 +72,42 @@ char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl)
         return 1;
     }
 
-    const char* tmp = &oldurl[7];
-    const char* p = index(tmp,'/');
-    tmp = p+1;
-    XrdOucString path = tmp;
-
-    XrdOucString url(oldurl);
-    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
-    if (adm->Connect()) 
+    XrdPosixAdmin adm(oldurl);
+    if (adm.isOK() && adm.Stat())
     {
-        stat = adm->Stat((char *)path.c_str(), id, size, flags, modtime);
 // We might have been redirected to a destination server. Better 
 // to remember it and use only this one as output.
-        if (stat && adm->GetCurrentUrl().IsValid()) 
-        {
-            strcpy(newurl, adm->GetCurrentUrl().GetUrl().c_str());
-            delete adm;
+//      if (stat && adm->GetCurrentUrl().IsValid())
+//      {
+//          strcpy(newurl, adm->GetCurrentUrl().GetUrl().c_str());
+//          delete adm;
+            strcpy(newurl, oldurl); // This needs to change!!!
             return 1;
         }
-    }
-    delete adm;
     return 0;
-}
-
-uint32_t XrdFfsMisc_ip2nl(char *ip)
-{
-    uint32_t ipn = 0;
-    char *n, tmp[16];
-
-    strcpy(tmp, ip);
-    ip = tmp;
-
-    n = strchr(ip, '.');
-    n[0] = '\0';
-    ipn += atoi(ip) * 256 * 256 * 256;
-    ip = n + 1;
-
-    n = strchr(ip, '.');
-    n[0] = '\0';
-    ipn += atoi(ip) * 256 * 256;
-    ip = n + 1;
-
-    n = strchr(ip, '.');
-    n[0] = '\0';
-    ipn += atoi(ip) * 256;
-    ip = n + 1;
-
-    ipn += atoi(ip);
-
-    return htonl(ipn);
 }
 
 char* XrdFfsMisc_getNameByAddr(char* ipaddr)
 {
-    char *ipname;
-    struct hostent *host;
-    uint32_t ip;
-    ip = XrdFfsMisc_ip2nl(ipaddr);
-    host = gethostbyaddr(&ip, 4, AF_INET);
-    ipname = (char*)malloc(256);
-    strcpy(ipname, host->h_name);
-    return ipname;
+    XrdNetAddr netAddr;
+    const char *theName;
+    if (netAddr.Set(ipaddr,0) || !(theName = netAddr.Name())) theName = ipaddr;
+    return strdup(theName);
 }
 
 int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int nnodes)
 {
-    int rval = 0;
+    XrdPosixAdmin adm(oldurl);
+    XrdCl::URL *uVec;
+    int i, rval = 0;
 
-    const char* tmp = &oldurl[7];
-    const char* p = index(tmp,'/');
-    tmp = p+1;
-    XrdOucString path = tmp;
+    if (!adm.isOK() || !(uVec = adm.FanOut(rval))) return -1;
 
-    XrdOucString url = oldurl;
-    XrdClientAdmin *adm = new XrdClientAdmin(url.c_str());
+    if (rval > nnodes) rval = -1;
+       else for (i = 0; i < rval; i++)
+                {strcpy(newurls[i], uVec[i].GetPathWithParams().c_str());}
 
-    XrdClientVector<XrdClientLocate_Info> allhosts;
-    XrdClientLocate_Info host;
-
-    if (adm->Connect())
-    {
-        adm->Locate((kXR_char *)path.c_str(), allhosts);
-        if (allhosts.GetSize() > nnodes) 
-        {
-            rval = -1; /* array newurls doesn't have enough elements */
-        }
-        else 
-            while (allhosts.GetSize())
-            {
-                host = allhosts.Pop_front();
-                strcpy(newurls[rval],"root://");
-                strcat(newurls[rval],(char*)host.Location);
-                strcat(newurls[rval],"/");
-                strcat(newurls[rval],(char*)path.c_str());
-                if (host.Infotype == XrdClientLocate_Info::kXrdcLocManager ||
-                    host.Infotype == XrdClientLocate_Info::kXrdcLocManagerPending)
-                    rval = rval + XrdFfsMisc_get_all_urls(newurls[rval], &newurls[rval], nnodes - rval);
-                else
-                    rval++;
-            }
-    }
-    delete adm;
+    delete [] uVec;
     return rval;
 }
 
@@ -367,12 +295,12 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
    if (OneTimeInitDone) return;
    OneTimeInitDone = 1;
 
-    EnvPutInt(NAME_FIRSTCONNECTMAXCNT,2);
+//    EnvPutInt(NAME_FIRSTCONNECTMAXCNT,2);
 //    EnvPutInt(NAME_DATASERVERCONN_TTL, 99999999);
 //    EnvPutInt(NAME_LBSERVERCONN_TTL, 99999999);
-    EnvPutInt(NAME_READAHEADSIZE,0);
-    EnvPutInt(NAME_READCACHESIZE,0);
-    EnvPutInt(NAME_REQUESTTIMEOUT, 30);
+//    EnvPutInt(NAME_READAHEADSIZE,0);
+//    EnvPutInt(NAME_READCACHESIZE,0);
+//    EnvPutInt(NAME_REQUESTTIMEOUT, 30);
 
     if (getenv("XROOTDFS_SECMOD") != NULL && !strcmp(getenv("XROOTDFS_SECMOD"), "sss"))
         XrdFfsMisc_xrd_secsss_init();

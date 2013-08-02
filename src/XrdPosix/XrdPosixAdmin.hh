@@ -52,6 +52,8 @@ bool           isOK() {if (Url.IsValid()) return true;
                        errno = EINVAL;    return false;
                       }
 
+XrdCl::URL    *FanOut(int &num);
+
 int            Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz);
 
 bool           Stat(mode_t *flags=0, time_t *mtime=0,
