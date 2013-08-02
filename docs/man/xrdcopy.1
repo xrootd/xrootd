@@ -312,6 +312,26 @@ XRD_CPCHUNKSIZE
 Size of a single data chunk handled by xrdcopy.
 .RE
 
+XRD_NETWORKSTACK
+.RS 5
+The network stack that the client should use to connect to the server. Possible
+values are:
+
+.B IPAll
+- use IPv6 stack (AF_INET6 sockets) and both IPv6 and IPv4 (mapped to IPv6)
+addresses
+
+.B IPv6
+- use only IPv6 stack and addresses
+
+.B IPv4
+- use only IPv4 stack (AF_INET sockets) and addresses
+
+.B IPv4Mapped6
+- use IPv6 stack and mapped IPv4 addresses
+
+.RE
+
 .SH NOTES
 Documentation for all components associated with \fBxrdcopy\fR can be found at
 http://xrootd.org/docs.html
