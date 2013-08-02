@@ -61,7 +61,7 @@ public:
 //!         Failure: Returns 0, address is not valid.
 //------------------------------------------------------------------------------
 
-inline int  Family() {return static_cast<int>(IP.Addr.sa_family);}
+inline int  Family() const {return static_cast<int>(IP.Addr.sa_family);}
 
 //------------------------------------------------------------------------------
 //! Format our address into a supplied buffer with one of the following layouts
@@ -118,7 +118,7 @@ bool        isLoopback();
 
 enum IPType {IPv4 = 0, IPv6 = 1};
 
-bool        isIPType(IPType ipType);
+bool        isIPType(IPType ipType) const;
 
 //------------------------------------------------------------------------------
 //! Indicate whether or not our address is an IPv4 mapped to IPv6 address.
@@ -127,7 +127,7 @@ bool        isIPType(IPType ipType);
 //!         False: The address is not a mapped IPv4 address.
 //------------------------------------------------------------------------------
 
-inline bool isMapped() {return IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);}
+inline bool isMapped() const {return IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);}
 
 //------------------------------------------------------------------------------
 //! Indicate whether or not our address is registered in the DNS.

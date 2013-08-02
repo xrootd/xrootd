@@ -156,7 +156,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
 /*                              i s I P T y p e                               */
 /******************************************************************************/
   
-bool XrdNetAddrInfo::isIPType(IPType ipType)
+bool XrdNetAddrInfo::isIPType(IPType ipType) const
 {
    return (ipType ? IP.Addr.sa_family == AF_INET6
                   : IP.Addr.sa_family == AF_INET
