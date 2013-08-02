@@ -81,7 +81,6 @@ namespace XrdCl
   {
     Env                            *env = DefaultEnv::GetEnv();
     std::string                     value = defaultVal;
-    char                           *endPtr;
     URL::ParamsMap::const_iterator  it;
 
     env->GetString( name, value );
