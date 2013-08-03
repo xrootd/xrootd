@@ -95,7 +95,7 @@ static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
                                return currOffset;
                               }
 
-       bool          Stat(XrdCl::XRootDStatus Status, bool force=false);
+       bool          Stat(XrdCl::XRootDStatus &Status, bool force=false);
 
        int           Sync() {return XrdPosixMap::Result(clFile.Sync());}
 

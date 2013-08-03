@@ -221,7 +221,7 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 /*                                  S t a t                                   */
 /******************************************************************************/
 
-bool XrdPosixFile::Stat(XrdCl::XRootDStatus Status, bool force)
+bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 {
    XrdCl::StatInfo *sInfo = 0;
 
