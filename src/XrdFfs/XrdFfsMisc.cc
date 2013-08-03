@@ -105,7 +105,7 @@ int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int n
 
     if (rval > nnodes) rval = -1;
        else for (i = 0; i < rval; i++)
-                {strcpy(newurls[i], uVec[i].GetPathWithParams().c_str());}
+                {strcpy(newurls[i], uVec[i].GetURL().c_str());}
 
     delete [] uVec;
     return rval;
