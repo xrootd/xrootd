@@ -249,8 +249,10 @@ XRootDStatus DoLS( FileSystem                      *fs,
   }
 
   if( st.code == suPartial )
-    log->Info( AppMsg, "Some of the requests failed. The result may be "
-                       "incomplete" );
+  {
+    std::cerr << "[!] Some of the requests failed. The result may be ";
+    std::cerr << "incomplete" << std::endl;
+  }
 
   //----------------------------------------------------------------------------
   // Print the results
