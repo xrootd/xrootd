@@ -841,8 +841,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       flags &= ~DirListFlags::Locate;
       FileSystem    *fs;
-      DirectoryList *currentResp = 0;
-      bool           errors = false;
+      DirectoryList *currentResp  = 0;
+      uint32_t       errors       = 0;
+      uint32_t       numLocations = locations->GetSize();
+      bool           partial      = false;
 
       response = new DirectoryList( "", path, 0 );
 
@@ -852,13 +854,13 @@ namespace XrdCl
         st = fs->DirList( path, flags, currentResp, timeout );
         if( !st.IsOK() )
         {
-          errors = true;
+          ++errors;
           delete fs;
           continue;
         }
 
         if( st.code == suPartial )
-          errors = true;
+          partial = true;
 
         DirectoryList::Iterator it;
 
@@ -875,8 +877,12 @@ namespace XrdCl
       }
       delete locations;
 
-      if( errors )
+      if( errors || partial )
+      {
+        if( errors == numLocations )
+          return st;
         return XRootDStatus( stOK, suPartial );
+      }
       return XRootDStatus();
     };
 
