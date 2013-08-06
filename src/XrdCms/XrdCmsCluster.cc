@@ -427,7 +427,7 @@ SMask_t XrdCmsCluster::getMask(const char *Cid)
 /*                                  L i s t                                   */
 /******************************************************************************/
   
-XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
+XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, int &nsel)
 {
     int i, lsall = opts & LS_All, retIP = opts & LS_IPO;
     int retIP4 = opts & LS_IP4, onlyIP4 = (opts & LS_IP4) && !(opts & LS_IP6);
@@ -436,11 +436,13 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts)
 
 // If only one wanted, the select appropriately
 //
+   nsel = 0;
    STMutex.Lock();
    for (i = 0; i <= STHi; i++)
         if ((nP=NodeTab[i]) && (lsall ||  (nP->NodeMask & mask)))
-           {if (onlyIP4 && !(nP->IPV4Len)) continue;
-            sip = new XrdCmsSelected((opts & LS_IPO) ? 0 : nP->Name(), sipp);
+           {nsel++;
+            if (onlyIP4 && !(nP->IPV4Len)) continue;
+            sip = new XrdCmsSelected(retIP ? 0 : nP->Name(), sipp);
             if (retIP)
                {if (retIP4 && nP->IPV4Len)
                    {sip->IPV6Len = nP->IPV4Len; strcpy(sip->IPV6, nP->IPV4);
@@ -1053,7 +1055,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
    XrdCmsRRQ::Info Frq;
    XrdCmsSelected *sp;
    long long SelRnum, SelWnum;
-   int mlen, tlen, n = 0;
+   int mlen, tlen, nsel, n = 0;
    char shrBuff[80], stat[6], *stp;
 
    class spmngr {
@@ -1079,7 +1081,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
 // Get the statistics
 //
    if (AddFrq) RRQ.Statistics(Frq);
-   mngrsp.sp = sp = List(FULLMASK, LS_All);
+   mngrsp.sp = sp = List(FULLMASK, LS_All, nsel);
 
 // Count number of nodes we have
 //

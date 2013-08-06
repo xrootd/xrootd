@@ -139,7 +139,7 @@ SMask_t         getMask(const char *Cid);
 //
 enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3, LS_All=8};
 
-XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts);
+XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts, int &nsel);
 
 // Returns the location of a file
 //

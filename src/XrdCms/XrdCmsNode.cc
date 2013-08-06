@@ -211,11 +211,11 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
    if (netID.isIPType(XrdNetAddrInfo::IPv6) && !netID.isMapped())
       {XrdNetAddr *iP;
        int iN;
-       if (!XrdNetUtils::GetAddrs(hname,&iP,iN,XrdNetUtils::onlyIPv4) && iN)
+       if (!XrdNetUtils::GetAddrs(hname,&iP,iN,XrdNetUtils::onlyIPv4,0) && iN)
           {iP[0].Port(Port);
            iP[0].Format(buff,sizeof(buff),XrdNetAddr::fmtAdv6,fmtOpts);
            strlcpy(IPV4, buff, sizeof(IPV4));
-           IPV4Len = strlen(IPV6);
+           IPV4Len = strlen(IPV4);
            delete [] iP;
           }
       } else {
@@ -520,7 +520,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    const char *Why;
    char theopts[8], *toP = theopts;
    XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
-   int rc, bytes;
+   int rc, bytes, nsel;
    bool lsall = (*Arg.Path == '*');
 
 // Do a callout to the external manager if we have one
@@ -568,10 +568,17 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf, lsopts)))
-          {Arg.Request.rrCode = kYR_error;
-           rc = kYR_ENOENT; Why = "none ";
-           bytes = strlcpy(Resp.outbuff, "No servers have the file",
+      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf, lsopts, nsel)))
+          {const char *eTxt;
+           Arg.Request.rrCode = kYR_error;
+           if (nsel)
+              {rc = kYR_ENETUNREACH; Why = "unreachable ";
+               eTxt = "No servers are reachable via ipv4";
+              } else {
+               rc = kYR_ENOENT; Why = "none ";
+               eTxt = "No servers have the file";
+              }
+           bytes = strlcpy(Resp.outbuff, eTxt,
                           sizeof(Resp.outbuff)) + sizeof(Resp.Val) + 1;
           } else rc = 0;
       }
