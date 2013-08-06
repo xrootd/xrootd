@@ -344,6 +344,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
           Data.Opts |= CmsLocateRequest::kYR_retipv4;
        if (flags & SFS_O_FORCE)
           Data.Opts |= CmsLocateRequest::kYR_retipv6;
+       if (flags & SFS_O_HNAME)
+          Data.Opts |= CmsLocateRequest::kYR_retname;
       } else
   {     Data.Request.rrCode = kYR_select;
         if (flags & SFS_O_TRUNC) Data.Opts = CmsSelectRequest::kYR_trunc;

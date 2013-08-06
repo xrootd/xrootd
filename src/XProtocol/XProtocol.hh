@@ -185,13 +185,14 @@ enum XOpenRequestOption {
    kXR_open_read= 16,
    kXR_open_updt= 32,
    kXR_async    = 64,
-   kXR_refresh  = 128,
+   kXR_refresh  = 128,   // also locate
    kXR_mkpath   = 256,
+   kXR_prefname = 256,   // only locate
    kXR_open_apnd= 512,
    kXR_retstat  = 1024,
    kXR_replica  = 2048,
    kXR_posc     = 4096,
-   kXR_nowait   = 8192,
+   kXR_nowait   = 8192,  // also locate
    kXR_seqio    =16384
 };
 

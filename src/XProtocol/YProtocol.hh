@@ -218,6 +218,7 @@ struct CmsLocateRequest
 enum  {kYR_refresh = 0x01,
        kYR_retipv4 = 0x02,
        kYR_retipv6 = 0x04,
+       kYR_retname = 0x08,
        kYR_asap    = 0x80
       };
 //     kXR_string    Path;
