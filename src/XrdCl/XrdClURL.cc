@@ -202,7 +202,8 @@ namespace XrdCl
         // Check if we're IPv6 encoded IPv4
         //----------------------------------------------------------------------
         pos = pHostName.find( "." );
-        if( pos != std::string::npos )
+        size_t pos2 = pHostName.find( "[::ffff" );
+        if( pos != std::string::npos && pos2 == std::string::npos )
         {
           pHostName.erase( 0, 3 );
           pHostName.erase( pHostName.length()-1, 1 );
