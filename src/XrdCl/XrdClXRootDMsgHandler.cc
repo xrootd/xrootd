@@ -1116,7 +1116,15 @@ namespace XrdCl
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                    "LocateInfo: %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str(), buffer );
-        LocationInfo *data = new LocationInfo( buffer );
+        LocationInfo *data = new LocationInfo();
+
+        if( data->ParseServerResponse( buffer ) == false )
+        {
+          delete obj;
+          delete data;
+          return Status( stError, errInvalidResponse );
+        }
+
         obj->Set( data );
         response = obj;
         return Status();
@@ -1138,7 +1146,15 @@ namespace XrdCl
                      "StatInfoVFS", pUrl.GetHostId().c_str(),
                      pRequest->GetDescription().c_str() );
 
-          StatInfoVFS *data = new StatInfoVFS( buffer );
+          StatInfoVFS *data = new StatInfoVFS();
+
+          if( data->ParseServerResponse( buffer ) == false )
+          {
+              delete obj;
+              delete data;
+              return Status( stError, errInvalidResponse );
+          }
+
           obj->Set( data );
         }
         //----------------------------------------------------------------------
@@ -1150,7 +1166,15 @@ namespace XrdCl
                      pUrl.GetHostId().c_str(),
                      pRequest->GetDescription().c_str() );
 
-          StatInfo *data = new StatInfo( buffer );
+          StatInfo *data = new StatInfo();
+
+          if( data->ParseServerResponse( buffer ) == false )
+          {
+              delete obj;
+              delete data;
+              return Status( stError, errInvalidResponse );
+          }
+
           obj->Set( data );
         }
 
@@ -1195,9 +1219,19 @@ namespace XrdCl
         char *path = new char[req->dirlist.dlen+1];
         path[req->dirlist.dlen] = 0;
         memcpy( path, pRequest->GetBuffer(24), req->dirlist.dlen );
-        DirectoryList *data = new DirectoryList( pUrl.GetHostId(), path,
-                                                 length ? buffer : 0 );
+
+        DirectoryList *data = new DirectoryList();
+        data->SetParentName( path );
         delete [] path;
+
+        if( data->ParseServerResponse( pUrl.GetHostId(),
+                                       length ? buffer : 0 ) == false )
+        {
+          delete data;
+          delete obj;
+          return Status( stError, errInvalidResponse );
+        }
+
         obj->Set( data );
         response = obj;
         return Status();
@@ -1222,13 +1256,33 @@ namespace XrdCl
         AnyObject *obj      = new AnyObject();
         StatInfo  *statInfo = 0;
 
+        //----------------------------------------------------------------------
+        // Handle StatInfo if requested
+        //----------------------------------------------------------------------
         if( req->open.options & kXR_retstat )
         {
-          log->Dump( XRootDMsg, "[%s] Found StatInfo in response to %s",
+          log->Dump( XRootDMsg, "[%s] Parsing StatInfo in response to %s",
                      pUrl.GetHostId().c_str(),
                      pRequest->GetDescription().c_str() );
+
           if( rsp->hdr.dlen >= 12 )
-            statInfo = new StatInfo( buffer+12 );
+          {
+            statInfo = new StatInfo();
+            if( statInfo->ParseServerResponse( buffer+12 ) == false )
+            {
+              delete statInfo;
+              statInfo = 0;
+            }
+          }
+
+          if( rsp->hdr.dlen < 12 || !statInfo )
+          {
+            log->Error( XRootDMsg, "[%s] Unable to parse StatInfo in response ",
+                        "to %s", pUrl.GetHostId().c_str(),
+                        pRequest->GetDescription().c_str() );
+            delete obj;
+            return Status( stError, errInvalidResponse );
+          }
         }
 
         OpenInfo *data = new OpenInfo( (uint8_t*)buffer,

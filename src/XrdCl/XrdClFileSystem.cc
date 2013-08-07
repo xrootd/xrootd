@@ -846,7 +846,8 @@ namespace XrdCl
       uint32_t       numLocations = locations->GetSize();
       bool           partial      = false;
 
-      response = new DirectoryList( "", path, 0 );
+      response = new DirectoryList();
+      response->SetParentName( path );
 
       for( uint32_t i = 0; i < locations->GetSize(); ++i )
       {

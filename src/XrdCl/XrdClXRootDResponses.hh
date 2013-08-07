@@ -138,7 +138,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocationInfo( const char *data = 0 );
+      LocationInfo();
 
       //------------------------------------------------------------------------
       //! Get number of locations
@@ -196,9 +196,13 @@ namespace XrdCl
         pLocations.push_back( location );
       }
 
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
+
     private:
-      void ParseServerResponse( const char *data );
-      void ProcessLocation( std::string &location );
+      bool ProcessLocation( std::string &location );
       LocationList pLocations;
   };
 
@@ -344,7 +348,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StatInfo( const char *data );
+      StatInfo();
 
       //------------------------------------------------------------------------
       //! Get id
@@ -398,13 +402,12 @@ namespace XrdCl
         return ts;
       }
 
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
 
     private:
-
-      //------------------------------------------------------------------------
-      // Parse the stat info returned by the server
-      //------------------------------------------------------------------------
-      void ParseServerResponse( const char *data  );
 
       //------------------------------------------------------------------------
       // Normal stat
@@ -424,7 +427,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StatInfoVFS( const char *data );
+      StatInfoVFS();
 
       //------------------------------------------------------------------------
       //! Get number of nodes that can provide read/write space
@@ -474,12 +477,12 @@ namespace XrdCl
         return pUtilizationStaging;
       }
 
-    private:
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const char *data );
 
-      //------------------------------------------------------------------------
-      // Parse the stat info returned by the server
-      //------------------------------------------------------------------------
-      void ParseServerResponse( const char *data  );
+    private:
 
       //------------------------------------------------------------------------
       // kXR_vfs stat
@@ -572,9 +575,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      DirectoryList( const std::string &hostID,
-                     const std::string &parent,
-                     const char        *data );
+      DirectoryList();
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -660,8 +661,23 @@ namespace XrdCl
         return pParent;
       }
 
+      //------------------------------------------------------------------------
+      //! Set name of the parent directory
+      //------------------------------------------------------------------------
+      void SetParentName( const std::string &parent )
+      {
+        pParent = parent;
+        if( !pParent.empty() && pParent[pParent.length()-1] != '/' )
+          pParent += "/";
+      }
+
+      //------------------------------------------------------------------------
+      //! Parse server response and fill up the object
+      //------------------------------------------------------------------------
+      bool ParseServerResponse( const std::string &hostId,
+                                const char *data );
+
     private:
-      void ParseServerResponse( const std::string &hostId, const char *data );
       DirList     pDirList;
       std::string pParent;
   };
