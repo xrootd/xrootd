@@ -118,4 +118,8 @@ check_cxx_source_runs(
   }
 "
 HAVE_ATOMICS )
-compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
+option(EnableAtomicsIfPresent "EnableAtomicsIfPresent" ON)
+if ( EnableAtomicsIfPresent )
+  compiler_define_if_found( HAVE_ATOMICS HAVE_ATOMICS )
+endif ()
+
