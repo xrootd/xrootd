@@ -362,8 +362,12 @@ char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
-char             *locResp;        //    ->Locate Response
-int               locRlen;        //      Length of locResp;
+char             *locRespHP;      //    ->Locate Response    host:port
+int               locRlenHP;      //      Length of locResp  host:port
+char             *locResp;        //    ->Locate Response    IPv6
+int               locRlen;        //      Length of locResp  IPv6
+int               locRlenV4;      //      Length of locResp  IPv4
+char             *locRespV4;      //    ->Locate Response    IPv4
 
 XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log

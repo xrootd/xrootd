@@ -47,6 +47,7 @@
 #include "XrdCks/XrdCksData.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdOfs/XrdOfs.hh"
 #include "XrdOfs/XrdOfsEvs.hh"
@@ -124,6 +125,7 @@ XrdOss *XrdOfsOss;
 
 XrdOfs::XrdOfs()
 {
+   static const int fmtopts = XrdNetAddr::old6Map4;
    XrdNetAddr myAddr(0);
    char buff[256], *bp;
    int i;
@@ -158,12 +160,29 @@ XrdOfs::XrdOfs()
 //
    myAddr.Port(myPort);
    HostName = strdup(myAddr.Name("*unknown*"));
-   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, XrdNetAddr::old6Map4);
-   locResp = strdup(buff); locRlen = strlen(buff);
+   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtName);
+   locRespHP = strdup(buff); locRlenHP = strlen(buff);
+
+   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtopts);
+   locRespV4 = locResp = strdup(buff); locRlenV4 = locRlen = strlen(buff);
+
    for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
    HostName[i] = '\0';
    HostPref = strdup(HostName);
    HostName[i] = '.';
+
+// If we are truly IPv6 then see if we also have an IPv4 address
+//
+   if (myAddr.isIPType(XrdNetAddrInfo::IPv6) && !myAddr.isMapped())
+      {XrdNetAddr *iP;
+       int iN;
+       if (!XrdNetUtils::GetAddrs(HostName,&iP,iN,XrdNetUtils::onlyIPv4,0) && iN)
+          {iP[0].Port(myPort);
+           iP[0].Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtopts);
+           locRespV4 = strdup(buff); locRlenV4 = strlen(buff);
+           delete [] iP;
+          }
+       }
 
 // Set the configuration file name and dummy handle
 //
@@ -1527,7 +1546,6 @@ int XrdOfs::fsctl(const int               cmd,
                                'w'};
    static const int PrivNum = sizeof(PrivLet);
 
-   int find_flag = SFS_O_LOCATE | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET));
    int retc, i, blen, privs, opcode = cmd & SFS_FSCTL_CMD;
    const char *tident = einfo.getErrUser();
    char *bP, *cP;
@@ -1537,8 +1555,12 @@ int XrdOfs::fsctl(const int               cmd,
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {struct stat fstat;
-       char pbuff[1024], rType[3], *Resp[] = {rType, locResp};
+       char pbuff[1024], rType[3], *Resp[2] = {rType, 0};
        const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
+       int Resp1Len;
+       int find_flag = SFS_O_LOCATE
+                     | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|SFS_O_HNAME));
+
             if (*Path == '*')      {locArg = Path; Path++;}
        else if (cmd & SFS_O_TRUNC) {locArg = (char *)"*";}
        else                         locArg = Path;
@@ -1547,12 +1569,20 @@ int XrdOfs::fsctl(const int               cmd,
        if (Finder && Finder->isRemote()
        &&  (retc = Finder->Locate(einfo, locArg, find_flag, &loc_Env)))
           return fsError(einfo, retc);
+
        if ((retc = XrdOfsOss->Stat(Path, &fstat, 0, &loc_Env)))
           return XrdOfsFS->Emsg(epname, einfo, retc, "locate", Path);
        rType[0] = ((fstat.st_mode & S_IFBLK) == S_IFBLK ? 's' : 'S');
        rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
        rType[2] = '\0';
-       einfo.setErrInfo(locRlen+3, (const char **)Resp, 2);
+
+            if (cmd & SFS_O_HNAME)
+               {Resp[1] = locRespHP; Resp1Len = locRlenHP;}
+       else if (einfo.getUCap() & XrdOucEI::uIPv4)
+               {Resp[1] = locRespV4; Resp1Len = locRlenV4;}
+       else    {Resp[1] = locResp;   Resp1Len = locRlen;  }
+
+       einfo.setErrInfo(Resp1Len+3, (const char **)Resp, 2);
        return SFS_DATA;
       }
 

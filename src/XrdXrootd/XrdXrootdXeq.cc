@@ -147,8 +147,9 @@ int XrdXrootdProtocol::do_Auth()
 // Now try to authenticate the client using the current protocol
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
-      {const char *msg = (Status & XRD_ADMINUSER ? "admin login as"
-                                                 : "login as");
+      {const char *msg = (Status & XRD_ADMINUSER ? "IPv4 admin login as"
+                                                 : "IPv4 login as");
+       if (!(clientPV & XrdOucEI::uIPv4)) msg += 5;
        rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
@@ -870,8 +871,9 @@ int XrdXrootdProtocol::do_Login()
 // Document this login
 //
    if (!(Status & XRD_NEED_AUTH))
-      eDest.Log(SYS_LOG_01, "Xeq", Link->ID, (Status & XRD_ADMINUSER
-                            ? "admin login" : "login"));
+      eDest.Log(SYS_LOG_01, "Xeq", Link->ID,
+               (clientPV & XrdOucEI::uIPv4 ? "IPv4" : 0),
+               (Status   & XRD_ADMINUSER   ? "admin login" : "login"));
 
    return rc;
 }
