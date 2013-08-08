@@ -262,8 +262,8 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
    static const int hMax = 8;
    XrdNetAddr   myAddr(0), aList[hMax];
    XrdOucTList *tList = 0;
-   const char  *etext;
-   int numIP, i;
+   const char  *etext, *hName;
+   int numIP, i, k;
 
 // Check if the port must be in the spec and set maximum
 //
@@ -278,12 +278,15 @@ XrdOucTList *XrdNetUtils::Hosts(const char  *hSpec, int hPort, int  hWant,
        return 0;
       }
 
-// Create the tlist object
+// Create the tlist object list without duplicates. We may have duplicates as
+// this may be a multi-homed node and we don't want to show that here.
 //
    for (i = 0; i < numIP; i++)
        {if (sPort && myAddr.Same(&aList[i]))
            {*sPort = aList[i].Port(); sPort = 0;}
-        tList = new XrdOucTList(aList[i].Name(""), aList[i].Port(), tList);
+        hName = aList[i].Name("");
+        for (k = 0; k < i; k++) {if (!strcmp(hName, aList[k].Name(""))) break;}
+        if (k >= i) tList = new XrdOucTList(hName, aList[i].Port(), tList);
        }
 
 // All done, return the result
@@ -455,7 +458,9 @@ int XrdNetUtils::Port(int fd, char **eText)
 /*                               P r o t o I D                                */
 /******************************************************************************/
 
-#define NET_IPPROTO_TCP 6
+#ifndef IPPROTO_TCP
+#define IPPROTO_TCP 6
+#endif
 
 int XrdNetUtils::ProtoID(const char *pname)
 {
@@ -473,18 +478,18 @@ int XrdNetUtils::ProtoID(const char *pname)
 //
 #ifdef __solaris__
     if (!getprotobyname_r(pname, &pp, buff, sizeof(buff))) 
-       return NET_IPPROTO_TCP;
+       return IPPROTO_TCP;
     return pp.p_proto;
 #elif !defined(HAVE_PROTOR)
     protomutex.Lock();
-    if (!(pp = getprotobyname(pname))) protoid = NET_IPPROTO_TCP;
+    if (!(pp = getprotobyname(pname))) protoid = IPPROTO_TCP;
        else protoid = pp->p_proto;
     protomutex.UnLock();
     return protoid;
 #else
     struct protoent *ppp;
     if (getprotobyname_r(pname, &pp, buff, sizeof(buff), &ppp))
-       return NET_IPPROTO_TCP;
+       return IPPROTO_TCP;
     return pp.p_proto;
 #endif
 }
