@@ -161,6 +161,17 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      // Set host and port
+      //------------------------------------------------------------------------
+      void SetHostPort( const std::string &hostName, int port )
+      {
+        pHostName = hostName;
+        pPort     = port;
+        ComputeHostId();
+        ComputeURL();
+      }
+
+      //------------------------------------------------------------------------
       //! Get the path
       //------------------------------------------------------------------------
       const std::string &GetPath() const
