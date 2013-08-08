@@ -561,9 +561,10 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // Get the right options
 //
    if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
-      lsopts |= XrdCmsCluster::LS_IP4;
-   if (Arg.Opts & CmsLocateRequest::kYR_retipv6)
-      lsopts |= XrdCmsCluster::LS_IP6;
+      {lsopts |= XrdCmsCluster::LS_IP4;
+       if (Arg.Opts & CmsLocateRequest::kYR_retipv6)
+          lsopts |= XrdCmsCluster::LS_IP6;
+      } else lsopts |= XrdCmsCluster::LS_IP6;
 
 // List the servers
 //

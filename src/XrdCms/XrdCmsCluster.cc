@@ -230,6 +230,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
    DEBUG(act <<nP->Ident <<" to cluster " <<nP->myCNUM <<" slot "
          <<Slot <<'.' <<nP->Instance <<" (n=" <<NodeCnt <<" m="
          <<Config.SUPCount <<") ID=" <<nP->myNID);
+   DEBUG(act <<nP->Ident <<" addrs: " <<nP->IPV6 <<' ' <<nP->IPV4);
 
 // Compute new state of all nodes if we are a reporting manager.
 //
