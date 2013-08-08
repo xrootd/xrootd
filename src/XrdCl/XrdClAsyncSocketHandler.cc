@@ -21,7 +21,6 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
-#include "XrdSys/XrdSysDNS.hh"
 
 namespace XrdCl
 {

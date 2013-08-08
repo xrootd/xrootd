@@ -27,7 +27,6 @@
 #include "XrdCl/XrdClOutQueue.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
-#include "XrdSys/XrdSysDNS.hh"
 
 #include <sys/types.h>
 #include <algorithm>

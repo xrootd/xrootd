@@ -18,7 +18,6 @@
 
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdNet/XrdNetConnect.hh"
 
 #include <arpa/inet.h>

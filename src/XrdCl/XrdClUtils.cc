@@ -17,7 +17,6 @@
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClUtils.hh"
-#include "XrdSys/XrdSysDNS.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
