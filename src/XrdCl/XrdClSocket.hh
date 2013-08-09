@@ -217,6 +217,7 @@ namespace XrdCl
       mutable std::string  pSockName;     // mutable because it's for caching
       mutable std::string  pPeerName;
       mutable std::string  pName;
+      int                  pProtocolFamily;
   };
 }
 
