@@ -224,7 +224,7 @@ void PollerTest::FunctionTest( XrdCl::Poller *poller )
   //----------------------------------------------------------------------------
   // Initialize
   //----------------------------------------------------------------------------
-  Server server;
+  Server server( Server::Both );
   Socket s[3];
   CPPUNIT_ASSERT( server.Setup( 9999, 3, new RandomPumpHandlerFactory() ) );
   CPPUNIT_ASSERT( server.Start() );
