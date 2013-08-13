@@ -156,6 +156,8 @@ XrdNetSocket *XrdNetSocket::Create(XrdSysError *Say, const char *path,
          {eMsg = "create fifo"; rc = errno;}
          else if ((ASock->SockFD = open(fnbuff, O_RDWR, myMode)) < 0)
                  {eMsg = "open fifo"; rc = ASock->LastError();}
+                 else if (!(opts & XRDNET_NOCLOSEX))
+                         fcntl(ASock->SockFD, F_SETFD, FD_CLOEXEC);
       } else if (ASock->Open(fnbuff, -1, sflags) < 0) 
                 {eMsg = "create socket"; rc = ASock->LastError();}
 #else

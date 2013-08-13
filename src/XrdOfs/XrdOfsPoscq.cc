@@ -187,6 +187,7 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::Init(int &Ok)
       {eDest->Emsg("Init",errno,"open",pocFN);
        return 0;
       }
+   fcntl(pocFD, F_SETFD, FD_CLOEXEC);
 
 // Get file status
 //
@@ -238,6 +239,7 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::List(XrdSysError *Say, const char *theFN)
       {Say->Emsg("Init",errno,"open",theFN);
        return 0;
       }
+   fcntl(theFD, F_SETFD, FD_CLOEXEC);
 
 // Get file status
 //
@@ -305,6 +307,7 @@ int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
    strcpy(newFN, pocFN); strcat(newFN, ".new");
    if ((newFD = open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
       {eDest->Emsg("ReWrite",errno,"open",newFN); return 0;}
+   fcntl(newFD, F_SETFD, FD_CLOEXEC);
 
 // Setup to write/swap the file
 //
