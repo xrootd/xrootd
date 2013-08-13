@@ -57,6 +57,7 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 #include "XrdCns/XrdCnsConfig.hh"
 #include "XrdCns/XrdCnsDaemon.hh"
@@ -128,12 +129,11 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
    const char *TraceID = "Config";
    XrdOucArgs Spec(&MLog,(argt ? "Cns_Config: ":"XrdCnsd: "),
-                          "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:");
+                          "a:b:B:c:dD:e:i:I:k:l:L:N:p:q:R:z");
    XrdNetAddr netHost;
    const char *dnsEtxt = 0;
    char buff[2048], *dP, *tP, *n2n = 0, *lroot = 0, *xpl = 0;
    char theOpt, *theArg;
-   long long llval;
    int n, bPort = 0, haveArk = 0, NoGo = 0;
 
 // Setup the logger
@@ -163,18 +163,14 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
        case 'e': if (*ePath == '/') ePath = Spec.argval;
                     else NoGo = NAPath("'-e'", Spec.argval);
                  break;
-       case 'k': n = strlen(Spec.argval)-1;
-                 NoGo |= (isalpha(Spec.argval[n])
-                      ? XrdOuca2x::a2sz(MLog,"keep size", Spec.argval,&llval)
-                      : XrdOuca2x::a2ll(MLog,"keep count",Spec.argval,&llval));
-                 if (!isalpha(Spec.argval[n])) llval = -llval;
-                 logKeep = static_cast<int>(llval);
+       case 'k': if (!(bindArg = MLog.logger()->ParseKeep(optarg))) NoGo = 1;
                  break;
        case 'i': NoGo |= XrdOuca2x::a2tm(MLog,"-i value",Spec.argval,&cInt,1);
                  break;
        case 'I': NoGo |= XrdOuca2x::a2tm(MLog,"-I value",Spec.argval,&mInt,1);
                  break;
        case 'l': logfn = Spec.argval;
+                 if (*logfn == '=') logfn++;
                  break;
        case 'L': lroot = Spec.argval;
                  break;
@@ -187,6 +183,8 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
                  break;
        case 'R': Opts |= optRecr;
                  xpl   = Spec.argval;
+                 break;
+       case 'z': MLog.logger()->setHiRes();
                  break;
        default:  NoGo = 1;
        }

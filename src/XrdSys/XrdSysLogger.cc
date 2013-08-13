@@ -29,6 +29,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -45,15 +46,32 @@
 #endif // WIN32
 
 #include "XrdSys/XrdSysLogger.hh"
+#include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
- 
-/******************************************************************************/
-/*                               S t a t i c s                                */
-/******************************************************************************/
+#include "XrdSys/XrdSysUtils.hh"
   
-int XrdSysLogger::extLFD[4] = {-1, -1, -1, -1};
+/******************************************************************************/
+/*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
+/******************************************************************************/
+
+struct XrdSysLoggerRP
+      {XrdSysLogger   *logger;
+       XrdSysSemaphore active;
+
+                       XrdSysLoggerRP(XrdSysLogger *lp) : logger(lp), active(0)
+                                        {}
+                      ~XrdSysLoggerRP() {}
+      };
+  
+void  *XrdSysLoggerRT(void *carg)
+      {XrdSysLoggerRP *rP = (XrdSysLoggerRP *)carg;
+       XrdSysLogger   *lp = rP->logger;
+       rP->active.Post();
+       lp->zHandler();
+       return (void *)0;
+      }
 
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -64,12 +82,15 @@ XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
    char * logFN;
 
    ePath = 0;
-   eNTC  = 0;
    eInt  = 0;
-   eNow  = 0;
    eFD   = ErrFD;
    eKeep = 0;
-   doLFR = dorotate;
+   doLFR = (dorotate != 0);
+   msgList = 0;
+   lfhTID  = 0;
+   hiRes   = false;
+   fifoFN  = 0;
+   reserved1 = 0;
 
 // Establish default log file name
 //
@@ -80,35 +101,126 @@ XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
    if (ErrFD != STDERR_FILENO) baseFD = ErrFD;
       else {baseFD = dup(ErrFD);
             fcntl(baseFD, F_SETFD, FD_CLOEXEC);
-            Bind(logFN, 86400);
+            Bind(logFN, 1);
            }
+}
+  
+/******************************************************************************/
+/*                                A d d M s g                                 */
+/******************************************************************************/
+
+void XrdSysLogger::AddMsg(const char *msg)
+{
+   mmMsg *tP, *nP = new mmMsg;
+
+// Fill out new message
+//
+   nP->next = 0;
+   nP->msg  = strdup(msg);
+   nP->mlen = strlen(msg);
+
+// Add new line character if one is missing (we steal the null byte for this)
+//
+   if (nP->mlen > 1 && nP->msg[nP->mlen-1] != '\n')
+      {nP->msg[nP->mlen] = '\n'; nP->mlen += 1;}
+
+// Add this message to the end of the list
+//
+   Logger_Mutex.Lock();
+   if (!(tP = msgList)) msgList = nP;
+      else {while(tP->next) tP = tP->next;
+            tP->next = nP;
+           }
+   Logger_Mutex.UnLock();
 }
   
 /******************************************************************************/
 /*                                  B i n d                                   */
 /******************************************************************************/
   
-int XrdSysLogger::Bind(const char *path, int isec)
+int XrdSysLogger::Bind(const char *path, int lfh)
 {
+   XrdSysLoggerRP rtParms(this);
+   int rc;
 
-// Compute time at midnight
+// Kill logfile handler thread if parameters will be changing
 //
-   eNow = time(0);
-   eNTC = XrdSysTimer::Midnight(1);
-
-// Bind to the logfile as needed
-//
-   if (path) 
-      {eInt  = isec;
-       if (ePath) free(ePath);
-       ePath = strdup(path);
-       return ReBind(0);
+   if (lfh > 0) lfh = 1;
+   if (lfhTID && (eInt != lfh || !path))
+      {XrdSysThread::Kill(lfhTID);
+       lfhTID = 0;
       }
-   eInt = 0;
-   ePath = 0;
-   return 0;
+
+// Bind to stderr if no path specified
+//
+   if (ePath) free(ePath);
+   eInt   = 0;
+   ePath  = 0;
+   if (fifoFN) free(fifoFN);
+   fifoFN = 0;
+   if (!path) return 0;
+
+// Bind to a log file
+//
+   eInt  = lfh;
+   ePath = strdup(path);
+   doLFR = (lfh > 0);
+   if ((rc = ReBind(0))) return rc;
+
+// Handle specifics of lofile rotation
+//
+   if (eInt == onFifo) {if ((rc = FifoMake())) return -rc;}
+      else if (eInt < 0 && !XrdSysUtils::SigBlock(-eInt))
+              {rc = errno;
+               cerr <<"!!! Unable to block logfile signal " <<-eInt <<"; "
+                    <<strerror(rc) <<"!!!" <<endl;
+               eInt = 0;
+               return -rc;
+              }
+
+// Start a log rotation thread
+//
+   rc = XrdSysThread::Run(&lfhTID, XrdSysLoggerRT, (void *)&rtParms, 0,
+                          "Logfile handler");
+   if (!rc) rtParms.active.Wait();
+   return (rc > 0 ? -rc : rc);
 }
 
+/******************************************************************************/
+/*                             P a r s e K e e p                              */
+/******************************************************************************/
+
+int XrdSysLogger::ParseKeep(const char *arg)
+{
+   char *eP;
+
+// First check to see if this is a sig type
+//
+   eKeep = 0;
+   if (isalpha(*arg))
+      {if (!strcmp(arg, "fifo")) return onFifo;
+       return -XrdSysUtils::GetSigNum(arg);
+      }
+
+// Process an actual keep count
+//
+   eKeep = strtoll(arg, &eP, 10);
+   if (!(*eP) || eKeep < 0) {eKeep = -eKeep; return 1;}
+
+// Process an actual keep size
+//
+   if (*(eP+1)) return 0;
+         if (*eP == 'k' || *eP == 'K') eKeep *= 1024LL;
+    else if (*eP == 'm' || *eP == 'M') eKeep *= 1024LL*1024LL;
+    else if (*eP == 'g' || *eP == 'G') eKeep *= 1024LL*1024LL*1024LL;
+    else if (*eP == 't' || *eP == 'T') eKeep *= 1024LL*1024LL*1024LL*1024LL;
+    else return 0;
+
+// All done
+//
+   return 1;
+}
+  
 /******************************************************************************/
 /*                                   P u t                                    */
 /******************************************************************************/
@@ -116,22 +228,18 @@ int XrdSysLogger::Bind(const char *path, int isec)
 void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 {
     int retc;
-    char tbuff[24];
+    char tbuff[32];
 
 // Prefix message with time if calle wants it so
 //
-   if (iov[0].iov_base) eNow = time(0);
-      else {iov[0].iov_base = tbuff;
-            iov[0].iov_len  = (int)Time(tbuff);
-           }
+   if (!iov[0].iov_base)
+      {iov[0].iov_base = tbuff;
+       iov[0].iov_len  = (int)Time(tbuff);
+      }
 
 // Obtain the serailization mutex if need be
 //
    Logger_Mutex.Lock();
-
-// Check if we should close and reopen the output
-//
-   if (eInt && eNow >= eNTC) ReBind();
 
 // In theory, writev may write out a partial list. This rarely happens in
 // practice and so we ignore that possibility (recovery is pretty tough).
@@ -143,38 +251,115 @@ void XrdSysLogger::Put(int iovcnt, struct iovec *iov)
 //
    Logger_Mutex.UnLock();
 }
-
+  
 /******************************************************************************/
 /*                                  T i m e                                   */
 /******************************************************************************/
   
 int XrdSysLogger::Time(char *tbuff)
 {
-    const int minblen = 24;
-    eNow = time(0);
+    struct timeval tVal;
+    const int minblen = 32;
     struct tm tNow;
     int i;
 
-// Format the header
+// Get the current time
 //
-   tbuff[minblen-1] = '\0'; // tbuff must be at least 24 bytes long
-   localtime_r((const time_t *) &eNow, &tNow);
-   i =    snprintf(tbuff, minblen, "%02d%02d%02d %02d:%02d:%02d %03ld ",
-                  tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
-                  tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
-                  XrdSysThread::Num());
+   gettimeofday(&tVal, 0);
+
+// Format the time in human terms
+//
+   tbuff[minblen-1] = '\0'; // tbuff must be at least 32 bytes long
+   localtime_r((const time_t *) &tVal.tv_sec, &tNow);
+
+// Choose appropriate output
+//
+   if (hiRes)
+      {i = snprintf(tbuff, minblen, "%02d%02d%02d %02d:%02d:%02d.%06d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
+                    static_cast<int>(tVal.tv_usec), XrdSysThread::Num());
+      } else {
+       i = snprintf(tbuff, minblen, "%02d%02d%02d %02d:%02d:%02d %03ld ",
+                    tNow.tm_year-100, tNow.tm_mon+1, tNow.tm_mday,
+                    tNow.tm_hour,     tNow.tm_min,   tNow.tm_sec,
+                    XrdSysThread::Num());
+      }
    return (i >= minblen ? minblen-1 : i);
 }
 
 /******************************************************************************/
-/*                                x l o g F D                                 */
-/******************************************************************************/
-  
-int XrdSysLogger::xlogFD() {return -1;}
-
-/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
+/******************************************************************************/
+/*                              F i f o M a k e                               */
+/******************************************************************************/
+  
+int XrdSysLogger::FifoMake()
+{
+   char buff[2048], *slash;
+   int n, rc;
+
+// Construct the fifo name
+//
+   if (!(slash = rindex(ePath, '/')))
+      {*buff = '.';
+       strcpy(buff+1, ePath);
+      } else {
+       n = slash - ePath + 1;
+       strncpy(buff, ePath, n);
+       buff[n] = '.';
+       strcpy(&buff[n+1], slash+1);
+      }
+
+// Now create a fifo (delete the existing one)
+//
+   unlink(buff);
+   if (mkfifo(buff, S_IRUSR|S_IWUSR))
+      {rc = errno;
+       cerr <<"!!! Unable to create logfile fifo " <<buff <<"; "
+            <<strerror(rc) <<"!!!" <<endl;
+       eInt = 0;
+       return rc;
+      }
+
+// Save the fifo path
+//
+   fifoFN = strdup(buff);
+   return 0;
+}
+
+/******************************************************************************/
+/*                              F i f o W a i t                               */
+/******************************************************************************/
+  
+void XrdSysLogger::FifoWait()
+{
+   char buff[64];
+   int pipeFD, rc;
+
+// Open the fifo. We can't have this block as we need to make sure it is
+// closed on EXEC as fast as possible (Linux has a non-portable solution).
+//
+   if ((pipeFD = open(fifoFN, O_RDONLY)) < 0)
+      {rc = errno;
+       cerr <<"!!! Unable to open logfile fifo " <<fifoFN <<"; "
+            <<strerror(rc) <<"!!!" <<endl;
+       eInt = 0;
+       free(fifoFN); fifoFN = 0;
+       return;
+      }
+
+// Make sure we don't leak this descriptor
+//
+   fcntl(pipeFD, F_SETFD, FD_CLOEXEC);
+
+// Wait for read, this will block
+//
+   rc = read(pipeFD, buff, sizeof(buff));
+   close(pipeFD);
+}
+
 /******************************************************************************/
 /*                               p u t E m s g                                */
 /******************************************************************************/
@@ -229,16 +414,15 @@ int XrdSysLogger::ReBind(int dorename)
        if (i < sizeof(seq)) rename(ePath, buff);
       }
 
-// Compute the new suffix
+// Compute the suffix for the file
 //
-   localtime_r((const time_t *) &eNow, &nowtime);
-   sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
-                                nowtime.tm_mday);
-   strncpy(Filesfx, buff, 8);
-
-// Set new close interval
-//
-   if (eInt > 0) eNTC = XrdSysTimer::Midnight(1);
+   if (doLFR)
+      {time_t eNow = time(0);
+       localtime_r((const time_t *) &eNow, &nowtime);
+       sprintf(buff, "%4d%02d%02d", nowtime.tm_year+1900, nowtime.tm_mon+1,
+                                    nowtime.tm_mday);
+       strncpy(Filesfx, buff, 8);
+      }
 
 // Open the file for output. Note that we can still leak a file descriptor
 // if a thread forks a process before we are able to do the fcntl(), sigh.
@@ -375,3 +559,52 @@ void XrdSysLogger::Trim()
 {
 }
 #endif
+
+/******************************************************************************/
+/*                              z H a n d l e r                               */
+/******************************************************************************/
+#include <poll.h>
+
+void XrdSysLogger::zHandler()
+{
+   mmMsg   *mP;
+   sigset_t sigset;
+   int      signo, rc;
+
+// If we will be handling via signals, set it up now
+//
+   if (eInt < 0 && !fifoFN)
+      {signo = -eInt;
+       if ((sigemptyset(&sigset) == -1)
+       ||  (sigaddset(&sigset,signo) == -1))
+          {rc = errno;
+           cerr <<"!!! Unable to use logfile signal " <<signo <<"; "
+                <<strerror(rc) <<"!!!" <<endl;
+           eInt = 0;
+          }
+      }
+
+// This is a perpetual loop to handle the log file
+//
+   while(1)
+        {     if (fifoFN)    FifoWait();
+         else if (eInt >= 0) XrdSysTimer::Wait4Midnight();
+         else if ((sigwait(&sigset, &signo) == -1))
+                 {rc = errno;
+                  cerr <<"!!! Unable to wait on logfile signal " <<signo
+                       <<"; " <<strerror(rc) <<"!!!" <<endl;
+                  eInt = 0;
+                  continue;
+                 }
+
+         Logger_Mutex.Lock();
+         ReBind();
+
+         mP = msgList;
+         while(mP)
+              {putEmsg(mP->msg, mP->mlen);
+               mP = mP->next;
+              }
+         Logger_Mutex.UnLock();
+        }
+}

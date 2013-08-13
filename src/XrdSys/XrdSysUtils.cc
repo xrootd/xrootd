@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -105,4 +106,87 @@ const char *XrdSysUtils::ExecName()
 // If got here then we don't have a valid program name. Return a null string.
 //
    return "";
+}
+
+/******************************************************************************/
+/*                             G e t S i g N u m                              */
+/******************************************************************************/
+
+namespace
+{
+   static struct SigTab {const char *sname; int snum;} sigtab[] =
+                        {{"hup",     SIGHUP},     {"HUP",     SIGHUP},
+#ifdef SIGRTMIN
+                         {"rtmin",   SIGRTMIN},   {"RTMIN",   SIGRTMIN},
+                         {"rtmin+1", SIGRTMIN+1}, {"RTMIN+1", SIGRTMIN+1},
+                         {"rtmin+2", SIGRTMIN+2}, {"RTMIN+2", SIGRTMIN+2},
+#endif
+                         {"ttou",    SIGTTOU},    {"TTOU",    SIGTTOU},
+//                       {"usr1",    SIGUSR1},    {"USR1",    SIGUSR1},
+//                       {"usr2",    SIGUSR2},    {"USR2",    SIGUSR2},
+                         {"winch",   SIGWINCH},   {"WINCH",   SIGWINCH},
+                         {"xfsz",    SIGXFSZ},    {"XFSZ",    SIGXFSZ}
+                        };
+   static int snum = sizeof(sigtab)/sizeof(struct SigTab);
+};
+  
+int XrdSysUtils::GetSigNum(const char *sname)
+{
+   int i;
+
+// Trim off the "sig" in sname
+//
+   if (!strncmp(sname, "sig", 3) || !strncmp(sname, "SIG", 3)) sname += 3;
+
+// Convert to signal number
+//
+   for (i = 0; i < snum; i++)
+       {if (!strcmp(sname, sigtab[i].sname)) return sigtab[i].snum;}
+   return 0;
+}
+
+/******************************************************************************/
+/*                              S i g B l o c k                               */
+/******************************************************************************/
+  
+bool XrdSysUtils::SigBlock()
+{
+   sigset_t  myset;
+
+// Ignore pipe signals and prepare to blocks others
+//
+   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
+
+// Add the standard signals we normally always block
+//
+   sigemptyset(&myset);
+   sigaddset(&myset, SIGPIPE);
+   sigaddset(&myset, SIGCHLD);
+
+// Block a couple of real-time signals if they are supported (async I/O)
+//
+#ifdef SIGRTMAX
+   sigaddset(&myset, SIGRTMAX);
+   sigaddset(&myset, SIGRTMAX-1);
+#endif
+
+// Now turn off these signals
+//
+   return pthread_sigmask(SIG_BLOCK, &myset, NULL) == 0;
+}
+
+/******************************************************************************/
+  
+bool XrdSysUtils::SigBlock(int numsig)
+{
+   sigset_t  myset;
+
+// Ignore pipe signals and prepare to blocks others
+//
+   if (sigemptyset(&myset) == -1 || sigaddset(&myset, numsig) == -1)
+      return false;
+
+// Now turn off these signals
+//
+   return pthread_sigmask(SIG_BLOCK, &myset, NULL) == 0;
 }

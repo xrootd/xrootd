@@ -64,6 +64,7 @@
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 #ifdef __linux__
 #include <netinet/tcp.h>
@@ -115,30 +116,6 @@ int             wanopt;
                      if (libpath) free(libpath);
                      if (parms)   free(parms);
                     }
-};
-
-/******************************************************************************/
-/*                          X r d L o g W o r k e r                           */
-/******************************************************************************/
-  
-class XrdLogWorker : XrdJob
-{
-public:
-
-     void DoIt() {theLog->Say(0, XrdBANNER);
-                  theLog->Say(0, mememe, " running.");
-                  theSched->Schedule((XrdJob *)this,XrdSysTimer::Midnight(1));
-                 }
-
-          XrdLogWorker(XrdSysError *eP, XrdScheduler *sP, char *who)
-                      : XrdJob("midnight runner"), theLog(eP), theSched(sP),
-                        mememe(strdup(who))
-             {theSched->Schedule((XrdJob *)this, XrdSysTimer::Midnight(1));}
-         ~XrdLogWorker() {}
-private:
-XrdSysError  *theLog;
-XrdScheduler *theSched;
-const char   *mememe;
 };
 
 /******************************************************************************/
@@ -216,10 +193,9 @@ int XrdConfig::Configure(int argc, char **argv)
    const char *xrdInst="XRDINSTANCE=";
 
    static XrdNetAddr myIPAddr(0);
-   int n, retc, NoGo = 0, clPort = -1, optbg = 0;
+   int retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
-   long long logkeep = 0;
    uid_t myUid = 0;
    gid_t myGid = 0;
    extern char *optarg;
@@ -229,8 +205,8 @@ int XrdConfig::Configure(int argc, char **argv)
    static const int myMaxc = 80;
    char *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
-   int   myArgc = 1;
-   bool ipV4 = false;
+   int   myArgc = 1, bindArg = -1;
+   bool ipV4 = false, pureLFN = false;
 
 // Obtain the protocol name we will be using
 //
@@ -255,7 +231,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":bc:dhHI:k:l:n:p:P:R:s:S:v"))
+      while ((c = getopt(argc,argv,":bc:dhHI:k:l:n:p:P:R:s:S:vz"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -278,14 +254,17 @@ int XrdConfig::Configure(int argc, char **argv)
                        Usage(1);
                       }
                  break;
-       case 'k': n = strlen(optarg)-1;
-                 retc = (isalpha(optarg[n])
-                        ? XrdOuca2x::a2sz(Log,"keep size", optarg,&logkeep)
-                        : XrdOuca2x::a2ll(Log,"keep count",optarg,&logkeep));
-                 if (retc) Usage(1);
-                 if (!isalpha(optarg[n])) logkeep = -logkeep;
+       case 'k': if (!(bindArg = Log.logger()->ParseKeep(optarg)))
+                    {Log.Emsg("Config","Invalid -k argument -",optarg);
+                     Usage(1);
+                    }
                  break;
-       case 'l': if (logfn) free(logfn);
+       case 'l': if ((pureLFN = *optarg == '=')) optarg++;
+                 if (!*optarg)
+                    {Log.Emsg("Config", "Logfile name not specified.");
+                     Usage(1);
+                    }
+                 if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
@@ -307,6 +286,8 @@ int XrdConfig::Configure(int argc, char **argv)
                  break;
        case 'v': cerr <<XrdVSTRING <<endl;
                  _exit(0);
+                 break;
+       case 'z': Log.logger()->setHiRes();
                  break;
 
        default: if (optopt == '-' && *(argv[optind]+1) == '-')
@@ -365,13 +346,13 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (logfn)
       {char *lP;
-       if (!(logfn = XrdOucUtils::subLogfn(Log,myInsName,logfn))) _exit(16);
-       if (logkeep) Log.logger()->setKeep(logkeep);
-       Log.logger()->Bind(logfn, 24*60*60);
+       if (!pureLFN && !(logfn = XrdOucUtils::subLogfn(Log,myInsName,logfn)))
+          _exit(16);
+       Log.logger()->AddMsg(XrdBANNER);
+       Log.logger()->Bind(logfn, bindArg);
        if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
           else lP = (char *)"./";
        XrdOucEnv::Export("XRDLOGDIR", lP);
-       free(logfn);
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
@@ -468,8 +449,11 @@ int XrdConfig::Configure(int argc, char **argv)
    temp = (NoGo ? " initialization failed." : " initialization completed.");
    sprintf(buff, "%s:%d", myInstance, PortTCP);
    Log.Say("------ ", buff, temp);
-   if (logfn) new XrdLogWorker(&Log, &Sched, buff);
-
+   if (logfn)
+      {strcat(buff, " running.");
+       Log.logger()->AddMsg(buff);
+       free(logfn);
+      }
    return NoGo;
 }
 
@@ -919,8 +903,8 @@ void XrdConfig::Usage(int rc)
   if (rc < 0) cerr <<XrdLicense;
      else
      cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
-            "[-k {n|sz}] [-l <fn>] [-n name] [-p <port>] [-P <prot>] [-R]\n"
-            "[-s pidfile] [-S site] [-v] [<prot_options>]" <<endl;
+            "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>]\n"
+            "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
 

@@ -69,6 +69,7 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 using namespace XrdFrc;
 using namespace XrdFrm;
@@ -125,18 +126,6 @@ void *XrdFrmConfigMum(void *parg)
 // All done
 //
    theSE->mySem.Post();
-   return (void *)0;
-}
-
-void *XrdLogWorker(void *parg)
-{
-   char *mememe = strdup((char *)parg);
-
-   while(1)
-        {XrdSysTimer::Wait4Midnight();
-         Say.Say(0, XrdBANNER);
-         Say.Say(0, mememe, " running.");
-        }
    return (void *)0;
 }
 
@@ -249,13 +238,12 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    extern int *XrdOssRunMode;
    static XrdNetAddr myAddr(0);
    XrdFrmConfigSE theSE;
-   int n, retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
+   int retc, isMum = 0, myXfrMax = -1, NoGo = 0, optBG = 0;
    const char *temp;
    char c, buff[1024], *logfn = 0;
-   long long logkeep = 0;
    extern char *optarg;
    extern int opterr, optopt;
-   int pipeFD[2] = {-1, -1};
+   int pipeFD[2] = {-1, -1}, bindArg = -1, pureLFN = 0;
    const char *pidFN = 0;
 
 // Obtain the program name (used for logging)
@@ -283,14 +271,17 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 'f': Fix = 1;
                  break;
        case 'h': Usage(0);
-       case 'k': n = strlen(optarg)-1;
-                 retc = (isalpha(optarg[n])
-                        ? XrdOuca2x::a2sz(Say,"keep size", optarg,&logkeep)
-                        : XrdOuca2x::a2ll(Say,"keep count",optarg,&logkeep));
-                 if (retc) Usage(1);
-                 if (!isalpha(optarg[n])) logkeep = -logkeep;
+       case 'k': if (!(bindArg = Say.logger()->ParseKeep(optarg)))
+                    {Say.Emsg("Config","Invalid -k argument -",optarg);
+                     Usage(1);
+                    }
                  break;
-       case 'l': if (logfn) free(logfn);
+       case 'l': if ((pureLFN = *optarg == '=')) optarg++;
+                 if (!*optarg)
+                    {Say.Emsg("Config", "Logfile name not specified.");
+                     Usage(1);
+                    }
+                 if (logfn) free(logfn);
                  logfn = strdup(optarg);
                  break;
        case 'm': if (XrdOuca2x::a2i(Say,"max number",optarg,&myXfrMax))
@@ -312,6 +303,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        case 's': pidFN = optarg;
                  break;
        case 'S': mySite= optarg;
+                 break;
+       case 'z': Say.logger()->setHiRes();
                  break;
        default:  sprintf(buff,"'%c'", optopt);
                  if (c == ':') Say.Emsg("Config", buff, "value not specified.");
@@ -335,7 +328,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
                                            (isAgent ? 'a' : 'd'));
                logfn = strdup(buff);
               }
-          } else if (!(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
+          } else if (!pureLFN
+                 && !(logfn=XrdOucUtils::subLogfn(Say,myInst,logfn))) _exit(16);
 
    // If undercover desired and we are not an agent, do so
    //
@@ -353,8 +347,8 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    // Bind the log file if we have one
    //
        if (logfn)
-          {if (logkeep) Say.logger()->setKeep(logkeep);
-           Say.logger()->Bind(logfn, 24*60*60);
+          {Say.logger()->AddMsg(XrdBANNER);
+           Say.logger()->Bind(logfn, bindArg);
           }
       }
 
@@ -380,6 +374,14 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 //
    if (!logfn && (ssID == ssAdmin || isOTO) && !Trace.What)
       isMum = ConfigMum(theSE);
+
+// Add final message to the logger
+//
+   if (logfn)
+      {char msgBuff[2048];
+       strcpy(msgBuff, myInstance); strcat(msgBuff, " running.");
+       Say.logger()->AddMsg(msgBuff);
+      }
 
 // Put out the herald
 //
@@ -435,15 +437,6 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 // If we have a post-processing routine, invoke it
 //
    if (!NoGo && ppf) NoGo = ppf();
-
-// Start the log turn-over thread
-//
-   if (!NoGo && logfn)
-      {pthread_t tid;
-       if ((retc = XrdSysThread::Run(&tid, XrdLogWorker, (void *)myInstance,
-                                     XRDSYSTHREAD_BIND, "midnight runner")))
-          {Say.Emsg("Config", retc, "create logger thread"); NoGo = 1;}
-      }
 
    // if we call this it means that the daemon has forked and we are
    // in the child process

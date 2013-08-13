@@ -77,6 +77,7 @@ Where:
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -144,24 +145,13 @@ void *mainAdmin(void *parg)
 int main(int argc, char *argv[])
 {
    XrdMain   Main;
-   sigset_t  myset;
    pthread_t tid;
    char      buff[128];
    int       i, retc;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
-   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
-   sigemptyset(&myset);
-   sigaddset(&myset, SIGPIPE);
-   sigaddset(&myset, SIGUSR1);
-   sigaddset(&myset, SIGUSR2);
-#ifdef SIGRTMAX
-   sigaddset(&myset, SIGRTMAX);
-   sigaddset(&myset, SIGRTMAX-1);
-#endif
-   sigaddset(&myset, SIGCHLD);
-   pthread_sigmask(SIG_BLOCK, &myset, NULL);
+   XrdSysUtils::SigBlock();
 
 // Set the default stack size here
 //

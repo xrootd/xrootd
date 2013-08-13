@@ -30,11 +30,11 @@
 
 /* This is the "main" part of the frm_purge command. Syntax is:
 */
-static const char *XrdFrmOpts  = ":bc:dfhk:l:n:O:s:S:Tv";
+static const char *XrdFrmOpts  = ":bc:dfhk:l:n:O:s:S:Tvz";
 static const char *XrdFrmUsage =
 
-  " [-b] [-c <cfgfile>] [-d] [-f] [-k {num | sz{k|m|g}] [-l <lfile>] [-n name]"
-  " [-O free[,hold]] [-s pidfile] [-S site] [-T] [-v] [<spaces>] [<paths>]\n";
+  " [-b] [-c <cfgfile>] [-d] [-f] [-k {num|sz{k|m|g}|sig] [-l [=]<fn>] [-n name]"
+  " [-O free[,hold]] [-s pidfile] [-S site] [-T] [-v] [-z] [<spaces>] [<paths>]\n";
 /*
 Where:
 
@@ -78,7 +78,6 @@ Where:
 #include <unistd.h>
 #include <ctype.h>
 #include <errno.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -96,6 +95,7 @@ Where:
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysUtils.hh"
 
 using namespace XrdFrc;
 using namespace XrdFrm;
@@ -132,15 +132,10 @@ int main(int argc, char *argv[])
 {
    XrdSysLogger Logger;
    extern int mainConfig();
-   sigset_t myset;
 
 // Turn off sigpipe and host a variety of others before we start any threads
 //
-   signal(SIGPIPE, SIG_IGN);  // Solaris optimization
-   sigemptyset(&myset);
-   sigaddset(&myset, SIGPIPE);
-   sigaddset(&myset, SIGCHLD);
-   pthread_sigmask(SIG_BLOCK, &myset, NULL);
+   XrdSysUtils::SigBlock();
 
 // Set the default stack size here
 //
