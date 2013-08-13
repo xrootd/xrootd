@@ -6,6 +6,9 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide a mechanism to manually control log file rotation via -k.
+   * Add -z option to enable high recision log file timestamps.
+     This update requires plug-in writer to recompile.
    * Serialize client initialization to prevent race conditions
      resulting in aborts when using sss authentication protocol.
    * Provide a mechanism to allow the client to indicate additional
@@ -102,6 +105,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Fix file descriptor leaks.
    * Correct option parsing to prevent possible SEGV.
    * Strip off opaque information from dest filename when copying to local
      filesystem. This only affects xrdcp.
@@ -126,6 +130,7 @@ Prerelease Notes
    * Fix a post 3.1.1 regression that dropped "refresh" from kXR_locate.
    * Allow extended host specification as input to TPC.
    * Add missing instance of XrdPosixXrootd to allow local calculation
+r
      of checksum for a remote file and increase read size to 1MB. This
      completes fix for problem 99711.
    * Do not reflect an error if we actually ended a successful checksum.
