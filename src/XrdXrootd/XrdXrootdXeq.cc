@@ -1489,6 +1489,11 @@ int XrdXrootdProtocol::do_Qconf()
            {n = sprintf(bp, "%d\n", maxStreams-1);
             bp += n; bleft -= n;
            }
+   else if (!strcmp("chksum", val))
+           {n = (JobCKT ? sprintf(bp, "0:%s\n", JobCKT)
+                        : sprintf(bp, "chksum\n"));
+            bp += n; bleft -= n;
+           }
    else if (!strcmp("pio_max", val))
            {n = sprintf(bp, "%d\n", maxPio+1);
             bp += n; bleft -= n;
