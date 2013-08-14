@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement query config chksum to return supported chksum name.
    * Provide a mechanism to manually control log file rotation via -k.
    * Add -z option to enable high recision log file timestamps.
      This update requires plug-in writer to recompile.
