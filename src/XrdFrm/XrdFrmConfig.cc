@@ -348,7 +348,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
    //
        if (logfn)
           {Say.logger()->AddMsg(XrdBANNER);
-           Say.logger()->Bind(logfn, bindArg);
+           if (Say.logger()->Bind(logfn, bindArg)) _exit(19);
           }
       }
 

@@ -53,6 +53,12 @@
 #include "XrdSys/XrdSysUtils.hh"
   
 /******************************************************************************/
+/*                         L o c a l   D e f i n e s                          */
+/******************************************************************************/
+
+#define BLAB(x) cerr <<"Logger " <<x <<"!!!" <<endl
+
+/******************************************************************************/
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
 
@@ -172,8 +178,8 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    if (eInt == onFifo) {if ((rc = FifoMake())) return -rc;}
       else if (eInt < 0 && !XrdSysUtils::SigBlock(-eInt))
               {rc = errno;
-               cerr <<"!!! Unable to block logfile signal " <<-eInt <<"; "
-                    <<strerror(rc) <<"!!!" <<endl;
+               BLAB("Unable to block logfile signal " <<-eInt <<"; "
+                    <<strerror(rc));
                eInt = 0;
                return -rc;
               }
@@ -297,8 +303,13 @@ int XrdSysLogger::Time(char *tbuff)
   
 int XrdSysLogger::FifoMake()
 {
+   struct stat Stat;
    char buff[2048], *slash;
-   int n, rc;
+   int n, rc, saveInt = eInt;
+
+// Assume failure (just to keep down the code)
+//
+   eInt = 0;
 
 // Construct the fifo name
 //
@@ -312,20 +323,34 @@ int XrdSysLogger::FifoMake()
        strcpy(&buff[n+1], slash+1);
       }
 
-// Now create a fifo (delete the existing one)
+// Check if the fifo exists and is usable or that we can create it
 //
-   unlink(buff);
-   if (mkfifo(buff, S_IRUSR|S_IWUSR))
-      {rc = errno;
-       cerr <<"!!! Unable to create logfile fifo " <<buff <<"; "
-            <<strerror(rc) <<"!!!" <<endl;
-       eInt = 0;
-       return rc;
-      }
+   if (!stat(buff, &Stat))
+      {if (!S_ISFIFO(Stat.st_mode))
+          {BLAB("Logfile fifo " <<buff <<" exists but is not a fifo");
+           return EEXIST;
+          }
+       if (access(buff, R_OK))
+          {BLAB("Unable to access " <<buff);
+           return EACCES;
+          }
+       } else {
+       if (errno != ENOENT)
+          {rc = errno;
+           BLAB("Unable to stat " <<buff <<"; " <<strerror(rc));
+           return rc;
+          }
+       if (mkfifo(buff, S_IRUSR|S_IWUSR))
+          {rc = errno;
+           BLAB("Unable to create logfile fifo " <<buff <<"; " <<strerror(rc));
+           return rc;
+          }
+       }
 
-// Save the fifo path
+// Save the fifo path restore eInt
 //
    fifoFN = strdup(buff);
+   eInt = saveInt;
    return 0;
 }
 
@@ -343,8 +368,7 @@ void XrdSysLogger::FifoWait()
 //
    if ((pipeFD = open(fifoFN, O_RDONLY)) < 0)
       {rc = errno;
-       cerr <<"!!! Unable to open logfile fifo " <<fifoFN <<"; "
-            <<strerror(rc) <<"!!!" <<endl;
+       BLAB("Unable to open logfile fifo " <<fifoFN <<"; " <<strerror(rc));
        eInt = 0;
        free(fifoFN); fifoFN = 0;
        return;
@@ -354,9 +378,12 @@ void XrdSysLogger::FifoWait()
 //
    fcntl(pipeFD, F_SETFD, FD_CLOEXEC);
 
-// Wait for read, this will block
+// Wait for read, this will block. If we got an EOF then something went wrong!
 //
-   rc = read(pipeFD, buff, sizeof(buff));
+   if (!read(pipeFD, buff, sizeof(buff)))
+      {BLAB("Unexpected EOF on logfile fifo " <<fifoFN);
+       eInt = 0;
+      }
    close(pipeFD);
 }
 
@@ -578,8 +605,7 @@ void XrdSysLogger::zHandler()
        if ((sigemptyset(&sigset) == -1)
        ||  (sigaddset(&sigset,signo) == -1))
           {rc = errno;
-           cerr <<"!!! Unable to use logfile signal " <<signo <<"; "
-                <<strerror(rc) <<"!!!" <<endl;
+           BLAB("Unable to use logfile signal " <<signo <<"; " <<strerror(rc));
            eInt = 0;
           }
       }
@@ -591,8 +617,8 @@ void XrdSysLogger::zHandler()
          else if (eInt >= 0) XrdSysTimer::Wait4Midnight();
          else if ((sigwait(&sigset, &signo) == -1))
                  {rc = errno;
-                  cerr <<"!!! Unable to wait on logfile signal " <<signo
-                       <<"; " <<strerror(rc) <<"!!!" <<endl;
+                  BLAB("Unable to wait on logfile signal " <<signo
+                       <<"; " <<strerror(rc));
                   eInt = 0;
                   continue;
                  }

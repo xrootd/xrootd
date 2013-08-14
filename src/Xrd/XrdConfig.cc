@@ -349,7 +349,7 @@ int XrdConfig::Configure(int argc, char **argv)
        if (!pureLFN && !(logfn = XrdOucUtils::subLogfn(Log,myInsName,logfn)))
           _exit(16);
        Log.logger()->AddMsg(XrdBANNER);
-       Log.logger()->Bind(logfn, bindArg);
+       if (Log.logger()->Bind(logfn, bindArg)) exit(19);
        if ((lP = rindex(logfn,'/'))) {*(lP+1) = '\0'; lP = logfn;}
           else lP = (char *)"./";
        XrdOucEnv::Export("XRDLOGDIR", lP);
