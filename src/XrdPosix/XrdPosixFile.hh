@@ -42,7 +42,7 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
 
-#include "XrdOuc/XrdOucCacheDram.hh"
+#include "XrdOuc/XrdOucCache.hh"
 
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"

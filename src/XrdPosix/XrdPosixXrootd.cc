@@ -136,11 +136,14 @@ int XrdPosixXrootd::Close(int fildes)
 {
    XrdCl::XRootDStatus Status;
    XrdPosixFile *fP;
+   int ret;
 
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
       {errno = EBADF; return -1;}
 
-   return (fP->Close(Status) ? 0 : XrdPosixMap::Result(Status));
+   ret = fP->Close(Status);
+   delete fP;
+   return (ret ? 0 : XrdPosixMap::Result(Status));
 }
 
 /******************************************************************************/
