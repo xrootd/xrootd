@@ -37,8 +37,8 @@
 #include "XrdCms/XrdCmsResp.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdNet/XrdNetBuffer.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
 
@@ -135,7 +135,7 @@ void XrdCmsResp::Recycle()
 
 // This version of reply simply queues the object for reply
 
-void XrdCmsResp::Reply(const char *manp, CmsRRHdr &rrhdr, XrdNetBuffer *netbuff)
+void XrdCmsResp::Reply(const char *manp, CmsRRHdr &rrhdr, XrdOucBuffer *netbuff)
 {
 
 // Copy the data we need to have
@@ -200,8 +200,7 @@ void XrdCmsResp::ReplyXeq()
 
 // Get the values for the callback.
 //
-   Result = XrdCmsParser::Decode(theMan, myRRHdr, myBuff->data, myBuff->dlen,
-                                 (XrdOucErrInfo *)this);
+   Result = XrdCmsParser::Decode(theMan,myRRHdr,myBuff,(XrdOucErrInfo *)this);
 
 // Translate the return code to what the caller's caller wanst to see. We
 // should only receive the indicated codes at this point.

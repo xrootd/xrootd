@@ -50,6 +50,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdOuc/XrdOuca2x.cc           XrdOuc/XrdOuca2x.hh
   XrdOuc/XrdOucArgs.cc          XrdOuc/XrdOucArgs.hh
+  XrdOuc/XrdOucBuffer.cc        XrdOuc/XrdOucBuffer.hh
                                 XrdOuc/XrdOucCache.hh
   XrdOuc/XrdOucCacheData.cc     XrdOuc/XrdOucCacheData.hh
   XrdOuc/XrdOucCacheDram.cc     XrdOuc/XrdOucCacheDram.hh
@@ -61,7 +62,7 @@ add_library(
                                 XrdOuc/XrdOucHash.hh
                                 XrdOuc/XrdOucHash.icc
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
-  XrdOuc/XrdOucErrInfo.cc       XrdOuc/XrdOucErrInfo.hh
+                                XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucHashVal.cc
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh

@@ -35,7 +35,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 class  XrdOucErrInfo;
-class  XrdNetBuffer;
+class  XrdOucBuffer;
 
 class XrdCmsClientMsg
 {
@@ -55,7 +55,7 @@ static int       inQ() {return numinQ;}
 
        void      Recycle();
 
-static int       Reply(const char *Man,XrdCms::CmsRRHdr &hdr,XrdNetBuffer *buff);
+static int       Reply(const char *Man,XrdCms::CmsRRHdr &hdr,XrdOucBuffer *buff);
 
        void      UnLock() {Hold.UnLock();}
 

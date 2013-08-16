@@ -123,7 +123,8 @@ int XrdXrootdResponse::Send(XResponseType rcode, void *data, int dlen)
 
 /******************************************************************************/
 
-int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
+int XrdXrootdResponse::Send(XResponseType rcode, int info,
+                            const char   *data,  int dsz)
 {
     kXR_int32 xbuf = static_cast<kXR_int32>(htonl(info));
     int dlen;
@@ -131,7 +132,7 @@ int XrdXrootdResponse::Send(XResponseType rcode, int info, const char *data)
     RespIO[1].iov_base = (caddr_t)(&xbuf);
     RespIO[1].iov_len  = sizeof(xbuf);
     RespIO[2].iov_base = (caddr_t)data;
-    RespIO[2].iov_len  = dlen = strlen(data);
+    RespIO[2].iov_len  = dlen = (dsz < 0 ? strlen(data) : dsz);
 
     TRACES(RSP,"sending " <<(sizeof(xbuf)+dlen) <<" data bytes; status=" <<rcode);
 

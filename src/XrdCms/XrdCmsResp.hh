@@ -64,7 +64,7 @@ XrdSysSemaphore     respSync;
 /*                            X r d C m s R e s p                             */
 /******************************************************************************/
 
-class XrdNetBuffer;
+class XrdOucBuffer;
   
 class XrdCmsResp : public XrdOucEICB, public XrdOucErrInfo
 {
@@ -79,7 +79,7 @@ static XrdCmsResp *Alloc(XrdOucErrInfo *erp, int msgid);
 inline int         ID() {return myID;}
 
        void        Reply(const char   *Man, XrdCms::CmsRRHdr &rrhdr,
-                         XrdNetBuffer *netbuff);
+                         XrdOucBuffer *netbuff);
 
 static void        Reply();
 
@@ -107,7 +107,7 @@ static const int              maxFree = 300;
 static int                    RepDelay;
 
 XrdCms::CmsRRHdr    myRRHdr;
-XrdNetBuffer       *myBuff;
+XrdOucBuffer       *myBuff;
 char                theMan[128];
 
 XrdCmsRespCB        SyncCB;

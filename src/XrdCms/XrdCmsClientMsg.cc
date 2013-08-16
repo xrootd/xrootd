@@ -34,8 +34,8 @@
 #include "XrdCms/XrdCmsClientMsg.hh"
 #include "XrdCms/XrdCmsParser.hh"
 #include "XrdCms/XrdCmsTrace.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
-#include "XrdNet/XrdNetBuffer.hh"
 
 using namespace XrdCms;
  
@@ -139,7 +139,7 @@ void XrdCmsClientMsg::Recycle()
 /*                                 R e p l y                                  */
 /******************************************************************************/
   
-int XrdCmsClientMsg::Reply(const char *Man, CmsRRHdr &hdr, XrdNetBuffer *buff)
+int XrdCmsClientMsg::Reply(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *buff)
 {
    EPNAME("Reply")
    XrdCmsClientMsg *mp;
@@ -153,8 +153,7 @@ int XrdCmsClientMsg::Reply(const char *Man, CmsRRHdr &hdr, XrdNetBuffer *buff)
 
 // Decode the response
 //
-   mp->Result = XrdCmsParser::Decode(Man, hdr, buff->data, buff->dlen,
-                                     (XrdOucErrInfo *)(mp->Resp));
+   mp->Result = XrdCmsParser::Decode(Man,hdr,buff,(XrdOucErrInfo *)(mp->Resp));
 
 // Signal a reply and return
 //

@@ -33,46 +33,6 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 
 /******************************************************************************/
-/*                               c p y D a t a                                */
-/******************************************************************************/
-  
-bool XrdOucErrInfo::cpyData(const char *dataP, int dlen)
-{
-
-// Get the length of the data if not supplied
-//
-   if (dlen < 0) dlen = strlen(dataP)+1;
-   if (dlen > maxDataLen) return false;
-
-// Check if we can fit this in the current buffer. If it's an appendage then
-// we already know that it's at least Max_Error_Len in size.
-//
-   if (dlen <= (int)XrdOucEI::Max_Error_Len || dlen <= dataBLen)
-      {memcpy(dataBuff, dataP, dlen);
-       dataBLen = dlen;
-       return true;
-      }
-
-// Free the appendage if it exists
-//
-   if (dataBuff != ErrInfo.message) free(dataBuff);
-
-// Allocate the new buffer
-//
-   if (!(dataBuff = (char *)malloc(dlen)))
-      {dataBuff = ErrInfo.message;
-       dataBLen = -1;
-       return false;
-      }
-
-// Copy the data and return
-//
-   memcpy(dataBuff, dataP, dlen);
-   dataBLen = dlen;
-   return true;
-}
-
-/******************************************************************************/
 /*                                 R e s e t                                  */
 /******************************************************************************/
   
@@ -81,12 +41,8 @@ void XrdOucErrInfo::Reset()
 
 // Free the appendage if it exists
 //
-   if (dataBuff != ErrInfo.message) free(dataBuff);
-
-// Reset things to the beginning
-//
+   if (dataBuff != ErrInfo.message) buffData->Recycle();
    dataBuff = ErrInfo.message;
-   dataBLen = -1;
    *ErrInfo.message = 0;
     ErrInfo.code    = 0;
 }
@@ -95,20 +51,14 @@ void XrdOucErrInfo::Reset()
 /*                               s e t D a t a                                */
 /******************************************************************************/
   
-bool XrdOucErrInfo::setData(char *dataP, int dlen)
+void XrdOucErrInfo::setData(XrdOucBuffer *buffP)
 {
-
-// Validate the length
-//
-   if (dlen < 0 || dlen > maxDataLen) return false;
 
 // Free the appendage if it exists
 //
-   if (dataBuff != ErrInfo.message) free(dataBuff);
+   if (dataBuff != ErrInfo.message) buffData->Recycle();
 
 // Set the reference
 //
-   dataBuff = dataP;
-   dataBLen = dlen;
-   return true;
+   buffData = buffP;
 }

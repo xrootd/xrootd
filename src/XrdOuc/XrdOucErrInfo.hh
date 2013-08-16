@@ -33,6 +33,7 @@
 #include <string.h>      // For strlcpy()
 #include <sys/types.h>
 
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -139,6 +140,7 @@ inline int   setErrCode(int code) {return ErrInfo.code = code;}
 
 inline int   setErrInfo(int code, const char *emsg)
                 {strlcpy(ErrInfo.message, emsg, sizeof(ErrInfo.message));
+                 if (dataBuff) {dataBuff->Recycle(); dataBuff = 0;}
                  return ErrInfo.code = code;
                 }
 
@@ -158,6 +160,23 @@ inline int   setErrInfo(int code, const char *txtlist[], int n)
                      {l = strlcpy(&ErrInfo.message[j], txtlist[i], k);
                       j += l; k -= l;
                      }
+                 if (dataBuff) {dataBuff->Recycle(); dataBuff = 0;}
+                 return ErrInfo.code = code;
+                }
+
+//-----------------------------------------------------------------------------
+//! Set error code and error text.
+//!
+//! @param  code    - The error number describing the error.
+//! @param  buffP   - Pointer to the data buffer holding the error text, This
+//!                   object takes ownership of the buffer and recycles it.
+//!
+//! @return code    - The error number.
+//-----------------------------------------------------------------------------
+
+inline int   setErrInfo(int code, XrdOucBuffer *buffP)
+                {if (dataBuff) dataBuff->Recycle();
+                 dataBuff = buffP;
                  return ErrInfo.code = code;
                 }
 
@@ -178,7 +197,7 @@ inline void  setErrUser(const char *user) {ErrInfo.user = (user ? user : "?");}
 inline unsigned long long  getErrArg() {return ErrCBarg;}
 
 //-----------------------------------------------------------------------------
-//! Get the pointer to the message buffer along with its size.
+//! Get the pointer to the internal message buffer along with its size.
 //!
 //! @param mblen    - Reference to where the size it to be returned.
 //!
@@ -186,9 +205,9 @@ inline unsigned long long  getErrArg() {return ErrCBarg;}
 //-----------------------------------------------------------------------------
 
 inline char        *getMsgBuff(int &mblen)
-                              {mblen = sizeof(ErrInfo.message);
-                               return ErrInfo.message;
-                              }
+                       {mblen = sizeof(ErrInfo.message);
+                        return ErrInfo.message;
+                       }
 
 //-----------------------------------------------------------------------------
 //! Get the callback object.
@@ -224,17 +243,20 @@ inline int         getErrInfo() {return ErrInfo.code;}
 //!
 //! @return The error code that was previously set.
 //-----------------------------------------------------------------------------
-
+/*
 inline int          getErrInfo(XrdOucEI &errParm)
                               {errParm = ErrInfo; return ErrInfo.code;}
-
+*/
 //-----------------------------------------------------------------------------
 //! Get a pointer to the error text.
 //!
 //! @return The pointer to the internal error text.
 //-----------------------------------------------------------------------------
 
-inline const char  *getErrText() {return (const char *)ErrInfo.message;}
+inline const char  *getErrText()
+                       {if (dataBuff) return dataBuff->Data();
+                        return (const char *)ErrInfo.message;
+                       }
 
 //-----------------------------------------------------------------------------
 //! Get a pointer to the error text and the error code.
@@ -244,8 +266,21 @@ inline const char  *getErrText() {return (const char *)ErrInfo.message;}
 //-----------------------------------------------------------------------------
 
 inline const char  *getErrText(int &ecode)
-                              {ecode = ErrInfo.code;
-                               return (const char *)ErrInfo.message;}
+                       {ecode = ErrInfo.code;
+                        if (dataBuff) return dataBuff->Data();
+                        return (const char *)ErrInfo.message;
+                       }
+
+//-----------------------------------------------------------------------------
+//! Get the error text length (optimized for external buffers).
+//!
+//! @return The mesage length.
+//-----------------------------------------------------------------------------
+
+inline int          getErrTextLen()
+                       {if (dataBuff) return dataBuff->Length();
+                        return strlen(ErrInfo.message);
+                       }
 
 //-----------------------------------------------------------------------------
 //! Get a pointer to user information.
@@ -292,7 +327,7 @@ inline XrdOucEnv   *setEnv(XrdOucEnv *newEnv)
 inline const char  *getErrData() {return (dOff < 0 ? 0 : ErrInfo.message+dOff);}
 
 //-----------------------------------------------------------------------------
-//! Set the error tracing data.
+//! Set the error tracing data (this is always placed in the internal buffer)
 //!
 //! @param  Data    - Pointer to the error tracing data.
 //! @param  Offs    - Ofset into the message buffer where the data is to be set.
@@ -323,60 +358,23 @@ inline int          getErrMid() {return mID;}
 inline void         setErrMid(int  mid) {mID = mid;}
 
 //-----------------------------------------------------------------------------
-//! Maximum data length allowed for cpyData() and setData().
-//-----------------------------------------------------------------------------
-
-static const int    maxDataLen = 32767;
-
-//-----------------------------------------------------------------------------
-//! Copy response data and obtain an external buffer if it is too large.
+//! Check if this object will return extended data (can optimize Reset() calls).
 //!
-//! @param  dataP   - Pointer to the data.
-//! @param  dlen    - The length of the data to copy using memcpy(). If dlen
-//!                   is negative, then memcpy(buff, dataP, strlen(dataP)+1)
-//!                   is effectively used to copy the data. The data length
-//!                   must be less than maxDataLen (see above).
-//!
-//! @return true    - data copied.
-//! @return false   - insufficient memory to obtain new buffer or dlen too big.
+//! @return true    - there is    extended data.
+//!         false   - there is no extended data.
 //-----------------------------------------------------------------------------
 
-       bool         cpyData(const char *dataP, int dlen=-1);
-
-//-----------------------------------------------------------------------------
-//! Set response data buffer pointer and data length.
-//!
-//! @param  dataP   - Pointer to the data buffer. It must be capable of being
-//!                   freed using free() (this object takes ownership of it).
-//! @param  dlen    - The length of the data in the buffer. It must be positive
-//!                   and less than maxDataLen (see above).
-//!
-//! @return true    - data reference set.
-//! @return false   - data reference not set, dlen is invalid.
-//-----------------------------------------------------------------------------
-
-       bool         setData(char *dataP, int dlen);
-
-//-----------------------------------------------------------------------------
-//! Get response data pointer and associated length.
-//!
-//! @param  dlen    - Where the data length is to be returned.
-//!
-//! @return Pointer to the data buffer. It's valid until this object is deleted
-//!         or until Clear(), cpyData(), Reset(), or setData() is called.
-//-----------------------------------------------------------------------------
-
-inline const char  *getData(int &dlen)
-                           {if (dataBLen < 0) dataBLen = strlen(dataBuff)+1;
-                            dlen = dataBLen;
-                            return dataBuff;
-                           }
+inline bool         extData() {return (dataBuff != 0);}
 
 //-----------------------------------------------------------------------------
 //! Reset object to no message state. Call this method to release appendages.
 //-----------------------------------------------------------------------------
 
-       void         Reset();
+inline void         Reset()
+                         {if (dataBuff) {dataBuff->Recycle(); dataBuff = 0;}
+                          *ErrInfo.message = 0;
+                           ErrInfo.code    = 0;
+                         }
 
 //-----------------------------------------------------------------------------
 //! Get user capabilties.
@@ -402,9 +400,8 @@ inline void         setUCap(int ucval) {ErrInfo.ucap = ucval;}
                          ErrCBarg= rhs.ErrCBarg;
                          mID     = rhs.mID;
                          dOff    = -1;
-                         if (rhs.dataBuff == rhs.ErrInfo.message
-                         ||  !cpyData(rhs.dataBuff, rhs.dataBLen))
-                            {dataBuff = ErrInfo.message; dataBLen = -1;}
+                         if (rhs.dataBuff) dataBuff = rhs.dataBuff->Clone();
+                            else dataBuff = 0;
                          return *this;
                         }
 
@@ -421,7 +418,7 @@ inline void         setUCap(int ucval) {ErrInfo.ucap = ucval;}
          XrdOucErrInfo(const char *user=0,XrdOucEICB *cb=0,
                        unsigned long long ca=0, int mid=0, int uc=0)
                     : ErrInfo(user, uc), ErrCB(cb), ErrCBarg(ca), mID(mid),
-                      dOff(-1), dataBLen(-1), dataBuff(ErrInfo.message) {}
+                      dOff(-1), reserved(0), dataBuff(0) {}
 
 //-----------------------------------------------------------------------------
 //! Constructor
@@ -433,7 +430,7 @@ inline void         setUCap(int ucval) {ErrInfo.ucap = ucval;}
 
          XrdOucErrInfo(const char *user, XrdOucEnv *envp, int uc=0)
                     : ErrInfo(user, uc), ErrCB(0), ErrEnv(envp), mID(0),
-                      dOff(-1), dataBLen(-1), dataBuff(ErrInfo.message) {}
+                      dOff(-1), reserved(0), dataBuff(0) {}
 
 //-----------------------------------------------------------------------------
 //! Constructor
@@ -445,7 +442,7 @@ inline void         setUCap(int ucval) {ErrInfo.ucap = ucval;}
 
          XrdOucErrInfo(const char *user, int MonID, int uc=0)
                     : ErrInfo(user, uc), ErrCB(0), ErrCBarg(0), mID(MonID),
-                      dOff(-1), dataBLen(-1), dataBuff(ErrInfo.message) {}
+                      dOff(-1), reserved(0), dataBuff(0) {}
 
 //-----------------------------------------------------------------------------
 //! Destructor
@@ -463,8 +460,8 @@ XrdOucEnv          *ErrEnv;
       };
 int                 mID;
 short               dOff;
-short               dataBLen;
-char               *dataBuff;
+short               reserved;
+XrdOucBuffer       *dataBuff;
 };
 
 /******************************************************************************/
@@ -474,7 +471,7 @@ char               *dataBuff;
 //-----------------------------------------------------------------------------
 //! The XrdOucEICB is the object that instantiates a callback. This abstract
 //! class is used to define the callback interface. It is normally handled by
-//! classes that know how to deal this this object in a user friendly way
+//! classes that know how to deal with this object in a user friendly way
 //! (e.g. XrdOucCallBack).
 //-----------------------------------------------------------------------------
 

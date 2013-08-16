@@ -43,6 +43,7 @@
 #include "XrdCms/XrdCmsTrace.hh"
 
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucBuffer.hh"
 
 #include "XrdSfs/XrdSfsInterface.hh"
 
@@ -282,16 +283,16 @@ XrdCmsParser::XrdCmsParser()
 
 // Decode responses to the redirector. Very simple lean protocol.
 
-int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
+int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *dBuff,
                          XrdOucErrInfo *eInfo)
 {
    EPNAME("Decode");
    static const int mvsz = static_cast<int>(sizeof(kXR_unt32));
    kXR_unt32    uval;
-   int          Result, msgval, msglen;
+   int          Result, msgval, msglen, dlen = dBuff->BuffSize();
    const char  *Path = eInfo->getErrData(), *User = eInfo->getErrUser();
    const char  *Mgr  = (Man ? Man : "?");
-   char        *msg;
+   char        *msg, *data = dBuff->Buffer();
 
 // Path may be null here, fix it
 //
@@ -322,6 +323,14 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, char *data, int dlen,
              break;
     case kYR_data:      Result = SFS_DATA; msgval = msglen;
              TRACE(Redirect, Mgr <<" sent " <<User <<" '" <<msg <<"' " <<Path);
+             if (msglen > (int)XrdOucEI::Max_Error_Len)
+                {XrdOucBuffer *myBuff=dBuff->Highjack(XrdOucEI::Max_Error_Len);
+                 if (myBuff)
+                    {myBuff->SetLen(msglen, (msglen ? mvsz : 0));
+                     eInfo->setErrInfo(msglen, "");
+                     return Result;
+                    }
+                }
              break;
     case kYR_error:     Result = SFS_ERROR;
              if (msgval) msgval = -mapError(msgval);

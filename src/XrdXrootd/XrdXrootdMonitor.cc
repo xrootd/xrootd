@@ -734,7 +734,8 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 // Take care of the server's name which might actually be a path
 //
    if (*hName == '/') {Path = hName; hName = ""; hLen = 0;}
-      else {hLen = strlen(hName);
+      else {const char *quest = index(hName, '?');
+            hLen = (quest ? quest - hName : strlen(hName));
             if (hLen >  256) hLen =  256;
            }
 
@@ -776,7 +777,7 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
    mtP->arg0.rdr.Port = htons(static_cast<short>(Port));
    mtP->arg1.dictid   = mID;
    dest = (char *)(mtP+1);
-   strcpy(dest, hName); dest += hLen; *dest++ = ':';
+   strncpy(dest, hName,hLen); dest += hLen; *dest++ = ':';
    strncpy(dest, Path, pLen);
 
 // Adjust pointer and return

@@ -2682,7 +2682,7 @@ void XrdXrootdProtocol::SetFD(int fildes)
 int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
                                const char *Path)
 {
-   int ecode, popt;
+   int ecode, popt, rs;
    const char *eMsg = myError.getErrText(ecode);
 
 // Process standard errors
@@ -2695,9 +2695,10 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
           {if (XrdXrootdMonitor::Redirect())
                XrdXrootdMonitor::Redirect(Monitor.Did, Route[popt].Host,
                                Route[popt].Port, opC|XROOTD_MON_REDLOCAL, Path);
-           return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
-          }
-       return Response.Send((XErrorCode)rc, eMsg);
+           rs = Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
+          } else rs = Response.Send((XErrorCode)rc, eMsg);
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the redirection (error msg is host:port)
@@ -2708,7 +2709,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if (XrdXrootdMonitor::Redirect() && Path && opC)
            XrdXrootdMonitor::Redirect(Monitor.Did, eMsg, Port, opC, Path);
        TRACEI(REDIR, Response.ID() <<"redirecting to " << eMsg <<':' <<ecode);
-       return Response.Send(kXR_redirect, ecode, eMsg);
+       rs = Response.Send(kXR_redirect, ecode, eMsg, myError.getErrTextLen());
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the deferal. We also synchronize sending the deferal response with
@@ -2722,14 +2725,17 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        TRACEI(STALL, Response.ID() <<"delaying client up to " <<ecode <<" sec");
        rc = Response.Send(kXR_waitresp, ecode, eMsg);
        if (myError.getErrCB()) myError.getErrCB()->Done(ecode, &myError);
+       if (myError.extData()) myError.Reset();
        return (rc ? rc : 1);
       }
 
 // Process the data response
 //
    if (rc == SFS_DATA)
-      {if (ecode) return Response.Send((void *)eMsg, ecode);
-          else    return Response.Send();
+      {if (ecode) rs = Response.Send((void *)eMsg, ecode);
+          else    rs = Response.Send();
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Process the deferal
@@ -2737,8 +2743,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
    if (rc >= SFS_STALL)
       {SI->stallCnt++;
        TRACEI(STALL, Response.ID() <<"stalling client for " <<rc <<" sec");
-       return Response.Send(kXR_wait, rc, eMsg);
-//?    return (rc = Response.Send(kXR_wait, rc, eMsg)) ? rc : 1;
+       rs = Response.Send(kXR_wait, rc, eMsg);
+       if (myError.extData()) myError.Reset();
+       return rs;
       }
 
 // Unknown conditions, report it
@@ -2747,7 +2754,9 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
     SI->errorCnt++;
     sprintf(buff, "%d", rc);
     eDest.Emsg("Xeq", "Unknown error code", buff, eMsg);
-    return Response.Send(kXR_ServerError, eMsg);
+    rs = Response.Send(kXR_ServerError, eMsg);
+    if (myError.extData()) myError.Reset();
+    return rs;
    }
 }
   
