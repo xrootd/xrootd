@@ -520,7 +520,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    const char *Why;
    char theopts[8], *toP = theopts;
    XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
-   int rc, bytes, nsel;
+   int rc, bytes, nsel = 0;
    bool lsall = (*Arg.Path == '*');
 
 // Do a callout to the external manager if we have one
