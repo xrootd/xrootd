@@ -432,6 +432,7 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, int &nsel)
 {
     int i, lsall = opts & LS_All, retIP = opts & LS_IPO;
     int retIP4 = opts & LS_IP4, onlyIP4 = (opts & LS_IP4) && !(opts & LS_IP6);
+    int retID  = opts & LS_IDNT;
     XrdCmsNode     *nP;
     XrdCmsSelected *sipp = 0, *sip;
 
@@ -443,14 +444,19 @@ XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, int &nsel)
         if ((nP=NodeTab[i]) && (lsall ||  (nP->NodeMask & mask)))
            {nsel++;
             if (onlyIP4 && !(nP->IPV4Len)) continue;
-            sip = new XrdCmsSelected(retIP ? 0 : nP->Name(), sipp);
+            sip = new XrdCmsSelected(sipp);
             if (retIP)
                {if (retIP4 && nP->IPV4Len)
-                   {sip->IPV6Len = nP->IPV4Len; strcpy(sip->IPV6, nP->IPV4);
+                   {sip->IdentLen = nP->IPV4Len; strcpy(sip->Ident, nP->IPV4);
                    } else {
-                    sip->IPV6Len = nP->IPV6Len; strcpy(sip->IPV6, nP->IPV6);
+                    sip->IdentLen = nP->IPV6Len; strcpy(sip->Ident, nP->IPV6);
                    }
-               }
+               } else if (retID)
+                         {strcpy(sip->Ident, nP->locName);
+                          sip->IdentLen = nP->locNLen;
+                         } else {strcpy(sip->Ident, nP->myName);
+                                 sip->IdentLen = nP->myNlen;
+                                }
             sip->Mask    = nP->NodeMask;
             sip->Id      = nP->NodeID;
             sip->Port    = nP->Port;
@@ -1115,7 +1121,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
          *stp = 0;
          if (AddShr) snprintf(shrBuff, sizeof(shrBuff), statfmt3,
                              (sp->Share ? sp->Share : 100), sp->Shrin);
-         mlen = snprintf(bfr, bln, statfmt2, n, sp->Name,
+         mlen = snprintf(bfr, bln, statfmt2, n, sp->Ident,
                 XrdCmsRole::Type(static_cast<XrdCmsRole::RoleID>(sp->RoleID)),
                 stat, sp->RefTotR, sp->RefTotW, shrBuff);
          bfr += mlen; bln -= mlen; tlen += mlen;

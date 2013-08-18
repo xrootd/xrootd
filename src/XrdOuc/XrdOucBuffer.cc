@@ -53,7 +53,8 @@ int   XrdOucBuffPool::alignit = sysconf(_SC_PAGESIZE);
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOucBuffPool::XrdOucBuffPool(int minsz, int maxsz, int maxh, bool fixh)
+XrdOucBuffPool::XrdOucBuffPool(int minsz, int maxsz,
+                               int minh,  int maxh, int rate)
 {
    int keep, pct, i, n = 0;
 
@@ -65,6 +66,10 @@ XrdOucBuffPool::XrdOucBuffPool(int minsz, int maxsz, int maxh, bool fixh)
    incBsz = 1024*(1<<n);
    shfBsz = 10 + n;
    rndBsz = incBsz - 1;
+   if (maxh < 0) maxh = 0;
+   if (minh < 0) minh = 0;
+   if (maxh < minh) maxh = minh;
+   if (rate < 0) rate = 0;
 
 // Round up the maxsz and make it a multiple of 4k
 //
@@ -81,15 +86,13 @@ XrdOucBuffPool::XrdOucBuffPool(int minsz, int maxsz, int maxh, bool fixh)
    n = incBsz;
    for (i = 0; i < slots; i++)
        {bSlot[i].size = n; n += incBsz;
-        if (fixh) bSlot[i].maxbuff = maxh;
-           else {pct = (slots - i)*100/slots;
-                 if (pct >= 100) keep = maxh;
-                    else {keep = ((maxh * pct) + 55)/100;
-                          if (keep > maxh) keep = maxh;
-                             else if (keep <= 0) keep = 1;
-                         }
-                 bSlot[i].maxbuff = keep;
+        pct = (slots - i + 1)*100/slots;
+        if (pct >= 100) keep = maxh;
+           else {keep = ((maxh * pct) + 55)/100 - i*rate;
+                 if (keep > maxh) keep = maxh;
+                    else if (keep < minh) keep = minh;
                 }
+        bSlot[i].maxbuff = keep;
        }
 }
 
@@ -117,7 +120,7 @@ XrdOucBuffer *XrdOucBuffPool::Alloc(int bsz)
 //
    if ((bP = sP->buffFree))
       {sP->buffFree = bP->buffNext;
-       bP->Init(this, snum);
+       bP->buffPool = this;
        sP->numbuff--;
       } else {
        if ((bP = new XrdOucBuffer(this, snum)))
@@ -161,6 +164,7 @@ void XrdOucBuffPool::BuffSlot::Recycle(XrdOucBuffer *bP)
 //
    if (numbuff >= maxbuff) {delete bP; return;}
    bP->dlen = 0;
+   bP->doff = 0;
 
 // Add the buffer to the recycle list
 //
@@ -175,6 +179,24 @@ void XrdOucBuffPool::BuffSlot::Recycle(XrdOucBuffer *bP)
 /******************************************************************************/
 /*                  X r d O u c B u f f e r   M e t h o d s                   */
 /******************************************************************************/
+/******************************************************************************/
+/*                    P u b l i c   C o n s t r u c t o r                     */
+/******************************************************************************/
+  
+XrdOucBuffer::XrdOucBuffer(char *buff, int blen)
+{
+   static XrdOucBuffPool nullPool(0, 0, 0, 0, 0);
+
+// Initialize the one time buffer
+//
+   data = buff;
+   dlen = blen;
+   doff = 0;
+   size = blen;
+   slot = 0;
+   buffPool = &nullPool;
+};
+
 /******************************************************************************/
 /*                                 C l o n e                                  */
 /******************************************************************************/
@@ -206,7 +228,7 @@ XrdOucBuffer *XrdOucBuffer::Clone(bool trim)
 
 XrdOucBuffer *XrdOucBuffer::Highjack(int xsz)
 {
-   XrdOucBuffer tempBuff(0,0), *newbP;
+   XrdOucBuffer tempBuff, *newbP;
 
 // Adjust the size to revert highjacked buffer
 //
@@ -221,6 +243,7 @@ XrdOucBuffer *XrdOucBuffer::Highjack(int xsz)
    tempBuff = *this;
    *this    = *newbP;
    *newbP   = tempBuff;
+   tempBuff.data = 0;
    return newbP;
 }
   

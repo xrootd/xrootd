@@ -46,7 +46,9 @@ class XrdOucBuffer;
 //! are typically used in conjunction with the XrdOucErrInfo class. The
 //! XrdOucBuffPool class defines a pool of buffers and one such object must
 //! exist for each buffer pool (there can be many such pools). This object
-//! manufactures XrdOucBuffer objects.
+//! manufactures XrdOucBuffer objects. You can also create XrdOucBuffers
+//! without using a buffer pool (i.e. one time buffers). See the XrdOucBuffer
+//! constructor for details on how to do this and the associated caveats.
 //-----------------------------------------------------------------------------
 
 class XrdOucBuffPool
@@ -84,16 +86,20 @@ inline int          MaxSize() const {return maxBsz;}
 //! @param  maxsz - the maximum size a buffer can have and must be >= minsz.
 //!                 If it's >minsz it is rounded up to the next minsz increment.
 //!                 Buffer sizes are always allocated in minsz increments.
+//! @param  minh  - the minimum number of buffers that should be held in
+//!                 reserve when a buffer is recycled.
 //! @param  maxh  - the maximum number of buffers that should be held in
 //!                 reserve when a buffer is recycled. The value applies to the
 //!                 smallest buffer size and is progessively reduced as the
-//!                 buffer size increases unless fixh is true.
-//! @param  fixh  - when true uses maxb for every buffer size. Otherwise, the
-//!                 maxb value is progressivly reduced for increasing buffers.
+//!                 buffer size increases. If maxh < minh it is set to minh.
+//! @param  rate  - specifies how quickly the hold vale is to be reduced as
+//!                 buffer sizes increase. A rate of 0 specifies a purely linear
+//!                 decrease. Higher values logrithmically decrease the hold.
 //-----------------------------------------------------------------------------
 
        XrdOucBuffPool(int minsz=4096, int  maxsz=65536,
-                      int maxh=16,    bool fixh=false);
+                      int minh=1,     int  maxh=16,
+                      int rate=1);
 
 //-----------------------------------------------------------------------------
 //! Destructor - You must not destroy this object prior to recycling all
@@ -185,13 +191,21 @@ inline char         *Data() const {return data+doff;}
 inline char         *Data(int &dataL) const {dataL = dlen; return data+doff;}
 
 //-----------------------------------------------------------------------------
+//! Get the data length.
+//!
+//! @return The data length.
+//-----------------------------------------------------------------------------
+
+inline int           DataLen() {return dlen;}
+
+//-----------------------------------------------------------------------------
 //! Highjack the buffer contents and reinitialize the original buffer.
 //!
 //! @param  xsz   - the desired size to be given to the highjacked buffer. If
 //!                 zero, the current size is used. Same size resictions apply
 //!                 as for buffer pool Alloc(), above.
 //!
-//! @return !0    - pointer to s usable buffer object which is identical to the
+//! @return !0    - pointer to a usable buffer object which is identical to the
 //!                 original buffer. The original buffer was reallocated with
 //!                 the specified size.
 //! @return =0    - insufficient memory to allocate a buffer.
@@ -200,18 +214,10 @@ inline char         *Data(int &dataL) const {dataL = dlen; return data+doff;}
        XrdOucBuffer *Highjack(int bPsz=0);
 
 //-----------------------------------------------------------------------------
-//! Get the data length.
-//!
-//! @return The data length.
-//-----------------------------------------------------------------------------
-
-inline int          Length() {return dlen;}
-
-//-----------------------------------------------------------------------------
 //! Recycle the buffer. The buffer may be reused in the future.
 //-----------------------------------------------------------------------------
 
-       void         Recycle()  {buffPool->bSlot[slot].Recycle(this);}
+inline void         Recycle()  {buffPool->bSlot[slot].Recycle(this);}
 
 //-----------------------------------------------------------------------------
 //! Resize the buffer.
@@ -232,31 +238,33 @@ inline int          Length() {return dlen;}
 //! @param  dataO - the offset of the data in the buffer.
 //-----------------------------------------------------------------------------
 
-inline void          SetLen(int dataL, int dataO=0)
-                           {dlen = dataL; doff = dataO;}
+inline void         SetLen(int dataL, int dataO=0) {dlen = dataL; doff = dataO;}
 
 //-----------------------------------------------------------------------------
-//! Constructor
+//! Public constructor. You can create one-time buffers not associated with a
+//! buffer pool via new to associated your own storage area that will be
+//! freed when the buffer is recycled. This may be handy to pass along such a
+//! buffer to XrdOucErrInfo in a pinch. A one-time buffer is restricted and
+//! the Clone(), Highjack() and Resize() methods will always fail. However,
+//! all the other methods will work in the expected way.
 //!
-//! @param  pP    - pointer to the boffer pool it came from.
-//! @param  snum  - the slot number in the pool where it came from
+//! @param  buff  - pointer to a storage area obtained via malloc and its
+//!                 relatives (e.g. memalign). It will be released via free().
+//! @param  blen  - the size of the buffer as well as the data length.
+//!                 Use SetLen() to set a new data length if it differs.
 //-----------------------------------------------------------------------------
 
-      XrdOucBuffer(XrdOucBuffPool *pP, int snum) {Init(pP, snum);}
-
-//-----------------------------------------------------------------------------
-//! Destructor
-//-----------------------------------------------------------------------------
-
-     ~XrdOucBuffer() {if (data) free(data);}
+      XrdOucBuffer(char *buff, int blen);
 
 private:
+      XrdOucBuffer(XrdOucBuffPool *pP, int snum)
+                  : data(0), dlen(0), doff(0), size(pP->bSlot[snum].size),
+                    slot(snum), buffPool(pP) {}
 
-inline void          Init(XrdOucBuffPool *pP, int snum)
-                         {*data = 0; dlen = 0; doff = 0;
-                          size = pP->bSlot[snum].size;
-                          slot = snum; buffPool = pP;
-                         }
+      XrdOucBuffer()
+                  : data(0), dlen(0), doff(0), size(0), slot(0), buffPool(0) {}
+
+     ~XrdOucBuffer() {if (data) free(data);}
 
       char           *data;
       int             dlen;

@@ -137,7 +137,8 @@ SMask_t         getMask(const char *Cid);
 
 // Extracts out node information. Opts are one or more of CmsLSOpts
 //
-enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3, LS_All=8};
+enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3,
+                           LS_IDNT=4, LS_All=8};
 
 XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts, int &nsel);
 

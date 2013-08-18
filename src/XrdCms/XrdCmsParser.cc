@@ -289,7 +289,7 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *dBuff,
    EPNAME("Decode");
    static const int mvsz = static_cast<int>(sizeof(kXR_unt32));
    kXR_unt32    uval;
-   int          Result, msgval, msglen, dlen = dBuff->Length();
+   int          Result, msgval, msglen, dlen = dBuff->DataLen();
    const char  *Path = eInfo->getErrData(), *User = eInfo->getErrUser();
    const char  *Mgr  = (Man ? Man : "?");
    char        *msg, *data = dBuff->Buffer();
@@ -327,7 +327,7 @@ int XrdCmsParser::Decode(const char *Man, CmsRRHdr &hdr, XrdOucBuffer *dBuff,
                 {XrdOucBuffer *myBuff=dBuff->Highjack(XrdOucEI::Max_Error_Len);
                  if (myBuff)
                     {myBuff->SetLen(msglen, (msglen ? mvsz : 0));
-                     eInfo->setErrInfo(msglen, "");
+                     eInfo->setErrInfo(msglen, myBuff);
                      return Result;
                     }
                 }

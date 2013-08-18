@@ -137,6 +137,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     TZValid  = 0;
     TimeZone = 0;
     IPV6Len = 0; *IPV6 = 0; IPV4Len = 0; *IPV4 = 0;
+    locName = 0;
 
 // setName() will set Ident, netID, IPV6, myName, myNlen, & Port!
 //
@@ -161,6 +162,7 @@ XrdCmsNode::~XrdCmsNode()
    if (Ident) free(Ident);
    if (myNID) free(myNID);
    if (myName)free(myName);
+   if (locName)free(locName);
 }
 
 /******************************************************************************/
@@ -196,13 +198,17 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
    if (Ident) free(Ident);
    Ident = strdup(buff);
 
-   if (!Port) fmtOpts |= XrdNetAddr::noPort;
-      else oldPort = netID.Port(Port);
+// Format locate target name
+//
+   locNLen = sprintf(buff, "%s:%d", myName, (Port ? Port : 1094));
+   if (locName) free(locName);
+   locName = strdup(buff);
 
 // Format out the address in IPv6 format
 //
+   oldPort = netID.Port((Port ? Port : 1094));
    netID.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtOpts);
-   if (oldPort) netID.Port(oldPort);
+   netID.Port(oldPort);
    strlcpy(IPV6, buff, sizeof(IPV6));
    IPV6Len = strlen(IPV6);
 
@@ -514,7 +520,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    XrdCmsSelect    Sel(0, Arg.Path, Arg.PathLen-1);
    XrdCmsSelected *sP = 0;
    struct {kXR_unt32 Val; 
-           char outbuff[CmsLocateRequest::RILen*STMax];} Resp;
+           char outbuff[CmsLocateRequest::RHLen*STMax];} Resp;
    struct iovec ioV[2] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
                           {(char *)&Resp,        0}};
    const char *Why;
@@ -530,12 +536,27 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
        if (Xmi_Select->Select(&Req, XMI_LOCATE, Arg.Path, Arg.Opaque)) return 0;
       }
 
+// Get the right options
+//
+        if (Arg.Opts & CmsLocateRequest::kYR_retname)
+           lsopts  = XrdCmsCluster::LS_IDNT;
+   else if (Arg.Opts & CmsLocateRequest::kYR_retipv6)
+          {lsopts |= XrdCmsCluster::LS_IP6;
+           if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
+              lsopts |= XrdCmsCluster::LS_IP4;
+          }
+   else if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
+           lsopts |= XrdCmsCluster::LS_IP4;
+   else lsopts = XrdCmsCluster::LS_IPO;
+
 // Grab the refresh option (the only one we support)
 //
    if (Arg.Opts & CmsLocateRequest::kYR_refresh) 
       {Sel.Opts  = XrdCmsSelect::Refresh; *toP++='s';}
    if (Arg.Opts & CmsLocateRequest::kYR_asap)
-      {Sel.Opts |= XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;}
+      {Sel.Opts |= XrdCmsSelect::Asap;    *toP++='i'; Sel.InfoP = &reqInfo;
+       reqInfo.lsLU = static_cast<char>(lsopts);
+      }
       else                                            Sel.InfoP = 0;
 
 // Do some debugging
@@ -557,14 +578,6 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
                    sizeof(Resp.outbuff)) + sizeof(Resp.Val) + 1;
           }
       } else {Why = "?"; bytes = 0;}
-
-// Get the right options
-//
-   if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
-      {lsopts |= XrdCmsCluster::LS_IP4;
-       if (Arg.Opts & CmsLocateRequest::kYR_retipv6)
-          lsopts |= XrdCmsCluster::LS_IP6;
-      } else lsopts |= XrdCmsCluster::LS_IP6;
 
 // List the servers
 //
@@ -591,7 +604,7 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
        DEBUGR(Why <<Arg.Path);
       } else {
        bytes = do_LocFmt(Resp.outbuff, sP, Sel.Vec.pf, Sel.Vec.wf, lsall)
-             + sizeof(Resp.Val)+1;
+             + sizeof(Resp.Val) + 1;
        Resp.Val            = 0;
        Arg.Request.rrCode  = kYR_data;
       }
@@ -626,7 +639,7 @@ if (lsall)
         {*oP = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
          if (sP->Status & Hung) *oP = tolower(*oP);
          *(oP+1) = (sP->Mask   & wfVec               ? 'w' : 'r');
-         strcpy(oP+2, sP->IPV6); oP += sP->IPV6Len + 2;
+         strcpy(oP+2, sP->Ident); oP += sP->IdentLen + 2;
          if (sP->next) *oP++ = ' ';
          pP = sP; sP = sP->next; delete pP;
         }
@@ -636,7 +649,7 @@ if (lsall)
             {*oP     = (sP->Status & XrdCmsSelected::isMangr ? 'M' : 'S');
              if (sP->Mask & pfVec) *oP = tolower(*oP);
              *(oP+1) = (sP->Mask   & wfVec                   ? 'w' : 'r');
-             strcpy(oP+2, sP->IPV6); oP += sP->IPV6Len + 2;
+             strcpy(oP+2, sP->Ident); oP += sP->IdentLen + 2;
              if (sP->next) *oP++ = ' ';
             }
          pP = sP; sP = sP->next; delete pP;

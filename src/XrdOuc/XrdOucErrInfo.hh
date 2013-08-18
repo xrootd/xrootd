@@ -278,7 +278,7 @@ inline const char  *getErrText(int &ecode)
 //-----------------------------------------------------------------------------
 
 inline int          getErrTextLen()
-                       {if (dataBuff) return dataBuff->Length();
+                       {if (dataBuff) return dataBuff->DataLen();
                         return strlen(ErrInfo.message);
                        }
 

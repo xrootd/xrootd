@@ -223,7 +223,7 @@ enum  {kYR_refresh = 0x01,
       };
 //     kXR_string    Path;
 
-static const int     RILen = 32;  // Max length of each response item
+static const int     RHLen =266;  // Max length of each host response item
 };
 
 /******************************************************************************/

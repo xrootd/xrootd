@@ -49,7 +49,7 @@ using namespace XrdCms;
 /*                               G l o b a l s                                */
 /******************************************************************************/
   
-XrdOucBuffPool XrdCmsClientMan::BuffPool(XrdOucEI::Max_Error_Len, 65536, 64);
+XrdOucBuffPool XrdCmsClientMan::BuffPool(XrdOucEI::Max_Error_Len, 65536, 1, 16);
 
 XrdInet      *XrdCmsClientMan::Network = 0;
 

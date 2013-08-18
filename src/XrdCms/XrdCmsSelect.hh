@@ -94,13 +94,11 @@ class XrdCmsSelected   // Argument to List() after select or locate
 public:
 
 XrdCmsSelected *next;
-char           *Name;
 SMask_t         Mask;
 int             Id;
-int             Rsvc;
+int             IdentLen;                  // 12345678901234567890123456
+char            Ident[264];                // [::123.123.123.123]:123456
 int             Port;
-int             IPV6Len;                   // 12345678901234567890123456
-char            IPV6[INET6_ADDRSTRLEN+10]; // [::123.123.123.123]:123456
 int             RefTotW;
 int             RefTotR;
 int             Shrin;       // Share intervals used
@@ -117,9 +115,8 @@ enum           {Disable = 0x0001,
                 isMangr = 0x0100
                };
 
-               XrdCmsSelected(const char *sname, XrdCmsSelected *np=0)
-                         {Name = (sname ? strdup(sname) : 0); next=np;}
+               XrdCmsSelected(XrdCmsSelected *np=0) : next(np) {}
 
-              ~XrdCmsSelected() {if (Name) free(Name);}
+              ~XrdCmsSelected() {}
 };
 #endif

@@ -287,6 +287,7 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
    static const int ovhd = sizeof(kXR_unt32);
    XrdCmsSelected *sP;
    XrdCmsNode *nP;
+   XrdCmsCluster::CmsLSOpts lsopts;
    int bytes, nsel;
 
 // Send a delay if we timed out
@@ -300,7 +301,8 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 // client to wait as this should never happen and the long path is called for.
 // ASAP responses always respond in with IPv6 addresses or mapped IPv4 ones.
 //
-   if (!(sP = Cluster.List(lP->Arg1, XrdCmsCluster::LS_IPO, nsel))
+   lsopts = static_cast<XrdCmsCluster::CmsLSOpts>(lP->Info.lsLU);
+   if (!(sP = Cluster.List(lP->Arg1, lsopts, nsel))
    || (!(bytes = XrdCmsNode::do_LocFmt(databuff,sP,lP->Arg2,lP->Info.rwVec))))
       {sendLwtResp(lP);
        return;

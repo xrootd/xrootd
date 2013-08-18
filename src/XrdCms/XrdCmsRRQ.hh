@@ -54,13 +54,14 @@ char      isRW;    // True if r/w access wanted
 char      isLU;    // True if locate response wanted
 char      minR;    // Minimum number of responses for fast redispatch
 char      actR;    // Actual  number of responses
-short     Rsvd;
+char      lsLU;    // Lookup options
+char      Rsvd;
 SMask_t   rwVec;   // R/W servers for corresponding path (if isLU is true)
 
         XrdCmsRRQInfo() : isLU(0) {}
         XrdCmsRRQInfo(int rinst, short rnum, kXR_unt32 id, int minQ=0)
                         : Key(0), ID(id), Rinst(rinst), Rnum(rnum),
-                          isRW(0), isLU(0), minR(minQ), actR(0), Rsvd(0),
+                          isRW(0), isLU(0), minR(minQ), actR(0), lsLU(0), Rsvd(0),
                           rwVec(0) {}
        ~XrdCmsRRQInfo() {}
 };
@@ -157,7 +158,7 @@ static   const int                     iov_cnt = 2;
          XrdCms::CmsResponse           redrResp;
          XrdCms::CmsResponse           waitResp;
 union   {char                          hostbuff[288];
-         char                          databuff[XrdCms::CmsLocateRequest::RILen
+         char                          databuff[XrdCms::CmsLocateRequest::RHLen
                                                *STMax];
         };
          Info                          Stats;
