@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Enable locate to return host names not just ip addreses.
    * Implement query config chksum to return supported chksum name.
    * Provide a mechanism to manually control log file rotation via -k.
    * Add -z option to enable high recision log file timestamps.
@@ -131,7 +132,6 @@ Prerelease Notes
    * Fix a post 3.1.1 regression that dropped "refresh" from kXR_locate.
    * Allow extended host specification as input to TPC.
    * Add missing instance of XrdPosixXrootd to allow local calculation
-r
      of checksum for a remote file and increase read size to 1MB. This
      completes fix for problem 99711.
    * Do not reflect an error if we actually ended a successful checksum.
@@ -156,6 +156,7 @@ r
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Make it possible to return more than 2K via XrdOucErrInfo object.
    * Squelch casting complaints from C11 in md5 calculation.
    * Add additional methods for IPv6 address handling and change some methods
      to better conform to standard calling conventions.
