@@ -124,8 +124,9 @@ XrdOucBuffer *XrdOucBuffPool::Alloc(int bsz)
        sP->numbuff--;
       } else {
        if ((bP = new XrdOucBuffer(this, snum)))
-          {int n = (sP->size <= alignit ? sP->size : alignit);
-           if (posix_memalign((void **)&(bP->data), n, sP->size))
+          {if (posix_memalign((void **)&(bP->data),
+                              (sP->size <= alignit ? sP->size : alignit),
+                               sP->size))
               {delete bP; bP = 0;}
           }
       }
