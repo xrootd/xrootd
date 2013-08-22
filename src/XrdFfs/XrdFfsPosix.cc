@@ -259,7 +259,7 @@ int XrdFfsPosix_deleteall(const char *rdrurl, const char *path, uid_t user_uid, 
     {
         errno_i[i] = 0;
         strcat(newurls[i],path);
-        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid);
+        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].err = &errno_i[i];
         args[i].res = &res_i[i];
@@ -335,8 +335,8 @@ int XrdFfsPosix_renameall(const char *rdrurl, const char *from, const char *to, 
         strcat(tourl, newurls[i]);
         strcat(tourl, to);
 
-        XrdFfsMisc_xrd_secsss_editurl(fromurl, user_uid);
-        XrdFfsMisc_xrd_secsss_editurl(tourl, user_uid);
+        XrdFfsMisc_xrd_secsss_editurl(fromurl, user_uid, 0);
+        XrdFfsMisc_xrd_secsss_editurl(tourl, user_uid, 0);
         res = (XrdFfsPosix_stat(fromurl, &stbuf));
         if (res == 0)
         {
@@ -379,7 +379,7 @@ int XrdFfsPosix_truncateall(const char *rdrurl, const char *path, off_t size, ui
     {
         errno = 0;
         strcat(newurls[i],path);
-        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid);
+        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         res = (XrdFfsPosix_stat(newurls[i], &stbuf));
         if (res == 0)
         {
@@ -487,7 +487,7 @@ int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direnta
     {
         errno_i[i] = 0;
         strcat(newurls[i], path);
-        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid);
+        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].err = &errno_i[i];
         args[i].res = &res_i[i];
@@ -759,7 +759,7 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
 // if task queue is too long, or if the stat() is from an ls -l command, the stat() against redirector
     if ( XrdFfsQueue_count_tasks()/XrdFfsMisc_get_number_of_data_servers() > 20 || XrdFfsDent_cache_search(dir, file))
     {
-         XrdFfsMisc_xrd_secsss_editurl(rootpath, user_uid);
+         XrdFfsMisc_xrd_secsss_editurl(rootpath, user_uid, 0);
          res = XrdFfsPosix_stat(rootpath, stbuf);
 // maybe a data server is down since the last _readdir()? in that case, continue 
 // we also saw a case where redirectors report the file exist but meta redirector report
@@ -779,7 +779,7 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
     for (i = 0; i < nurls; i++)
     {
         strcat(newurls[i], path);
-        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid);
+        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].res = &res_i[i];
         args[i].err = &errno_i[i];

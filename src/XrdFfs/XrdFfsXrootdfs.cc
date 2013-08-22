@@ -160,7 +160,7 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
 //    user_gid = fuse_get_context()->gid;
 //    gid = getgid();
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
 
     rootpath[0]='\0';
 /*
@@ -180,7 +180,7 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
     {
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_stat(rootpath, stbuf);
     }
     else
@@ -213,7 +213,7 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
                 rootpath[0]='\0';
                 strcat(rootpath,xrootdfs.rdr);
                 strcat(rootpath,path);
-                XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+                XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
                 XrdFfsPosix_stat(rootpath, stbuf);
 //                stbuf->st_uid = user_uid;
 //                stbuf->st_gid = user_gid;
@@ -241,7 +241,7 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
         rootpath[0]='\0';
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_stat(rootpath, stbuf);
 //        stbuf->st_uid = user_uid;
 //        stbuf->st_gid = user_gid;
@@ -299,7 +299,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
     char rootpath[1024];
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
 /* 
    if CNS server is not defined, there is no way to list files in a directory
    because we don't know the data nodes
@@ -310,7 +310,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         dp = XrdFfsPosix_opendir(rootpath);
         if (dp == NULL)
             return -errno;
@@ -359,14 +359,14 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
        is more portable */
     char rootpath[1024];
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (S_ISREG(mode))
     {
         rootpath[0]='\0';
         strcat(rootpath,xrootdfs.rdr);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
 /* 
    Around May 2008, the O_EXCL was added to the _open(). No reason was given. It is removed again 
    due to the following reason (the situation that redirector thinks a file exist while it doesn't):
@@ -393,7 +393,7 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
         XrdFfsPosix_close(res);
 /* We actually don't need to care about error by this XrdFfsPosix_open() */
@@ -421,8 +421,8 @@ static int xrootdfs_mkdir(const char *path, mode_t mode)
 
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
 
     res = XrdFfsPosix_mkdir(rootpath, mode);
     if (res == 0) return 0;
@@ -448,10 +448,10 @@ static int xrootdfs_unlink(const char *path)
     strcat(rootpath,xrootdfs.rdr);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
     {
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_unlink(rootpath);
     }
     else
@@ -466,7 +466,7 @@ static int xrootdfs_unlink(const char *path)
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_unlink(rootpath);
         if (res == -1)
             return -errno;
@@ -484,10 +484,10 @@ static int xrootdfs_rmdir(const char *path)
     strcat(rootpath,xrootdfs.rdr);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
     { 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_rmdir(rootpath);
     }
     else
@@ -502,7 +502,7 @@ static int xrootdfs_rmdir(const char *path)
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_rmdir(rootpath);
         if (res == -1)
             return -errno;
@@ -554,8 +554,8 @@ static int xrootdfs_rename(const char *from, const char *to)
      are renamed individually (in order for the .pfn pointing back correctly).
  */
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-    XrdFfsMisc_xrd_secsss_editurl(from_path, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
+    XrdFfsMisc_xrd_secsss_editurl(from_path, fuse_get_context()->uid, 0);
 
     XrdFfsPosix_stat(from_path, &stbuf);
     if (S_ISDIR(stbuf.st_mode)) /* && xrootdfs.cns == NULL && xrootdfs.ofsfwd == false) */
@@ -667,10 +667,10 @@ static int xrootdfs_truncate(const char *path, off_t size)
     strcat(rootpath,xrootdfs.rdr);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
     {
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_truncate(rootpath, size);
     }
     else
@@ -685,7 +685,7 @@ static int xrootdfs_truncate(const char *path, off_t size)
         strcat(rootpath,xrootdfs.cns);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_truncate(rootpath, size);
         if (res == -1)
             return -errno;
@@ -713,13 +713,13 @@ static int xrootdfs_utimens(const char *path, const struct timespec ts[2])
 
 static int xrootdfs_open(const char *path, struct fuse_file_info *fi)
 {
-    int res;
+    int res, lid = 1;
     char rootpath[1024]="";
     strcat(rootpath,xrootdfs.rdr);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, &lid);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, &lid);
     res = XrdFfsPosix_open(rootpath, fi->flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     if (res == -1)
         return -errno;
@@ -864,8 +864,8 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
 /*
  * Get xrootd token info from data nodes. And set the token info on CNS
  */
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
     xrdtoken[0]='\0';
     res = XrdFfsPosix_getxattr(rootpath, "xroot.xattr", xattr, 256);
     if (res != -1)
@@ -895,7 +895,7 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
     strcat(rootpath,xrootdfs.cns);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
     if (xrdtoken[0] != '\0' && strstr(path,"?oss.cgroup=") == NULL)
     {
         strcat(rootpath,"?oss.cgroup=");
@@ -1067,8 +1067,8 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
         strcat(rootpath,xrootdfs.rdr);
         strcat(rootpath,path);
 
-        XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+        XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
+        XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
 
         xattrlen = XrdFfsPosix_getxattr(rootpath, "xroot.xattr.ofs.ap", xattr, 255);
         if (size == 0) 
@@ -1088,8 +1088,8 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
         strcat(rootpath,xrootdfs.rdr);
     strcat(rootpath,path);
 
-    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid);
+    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
+    XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
     xattrlen = XrdFfsPosix_getxattr(rootpath, name, value, size);
     if (xattrlen == -1)
         return -errno;

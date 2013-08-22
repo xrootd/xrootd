@@ -43,8 +43,8 @@ void XrdFfsMisc_logging_url_cache(const char* url);
 void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int startQueue);
 
 void XrdFfsMisc_xrd_secsss_init();
-void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid);
-void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid);
+void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id);
+void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid, int *id);
 
 #ifdef __cplusplus
   }

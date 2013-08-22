@@ -154,6 +154,7 @@ Prerelease Notes
      should be removed at the next release boundary as this will
      change a public user interface.
    * Properly recognize a loaded checksum as a native checksum.
+   * In xrootdfs, allow users to use multiple physical connections.
 
 + **Miscellaneous**
    * Make it possible to return more than 2K via XrdOucErrInfo object.

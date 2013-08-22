@@ -61,6 +61,10 @@
   extern "C" {
 #endif
 
+#define nXrdConnPerUsr 8;
+short iXrdConnPerUsr = 0;
+pthread_mutex_t url_mlock;
+
 char XrdFfsMisc_get_current_url(const char *oldurl, char *newurl) 
 {
     bool stat;
@@ -391,9 +395,37 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
    }
 #endif
 
+    pthread_mutex_init(&url_mlock, NULL);
+    
     XrdFfsDent_cache_init();
 }
 
+// convert an unsigned decimal int to its base24 string
+ 
+void toChar(unsigned int r, char *d24)
+{
+    const char alpha[] = "0123456789abcdefghijklmn"; 
+    char tmp[8];
+    memcpy(tmp, d24, 8);
+    memcpy(d24+1, tmp, 8);
+    d24[0] = alpha[r];
+    return;
+}
+
+void decTo24(unsigned int d, char *d24)
+{
+    unsigned int r = d % 24; 
+    toChar(r, d24);
+    if ((d - r) != 0) decTo24((d-r)/24, d24);
+    return;
+}
+
+char* ntoa24(unsigned int d) {  // caller is repsonsible to free the memory
+    char *d24 = (char*) malloc(9);
+    memset(d24, 0, 9);
+    decTo24(d, d24);
+    return d24;
+}
 
 /*  SSS security module */
 
@@ -409,11 +441,11 @@ void XrdFfsMisc_xrd_secsss_init()
     setenv("XrdSecPROTOCOL", "sss", 1);
 }
 
-void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
+void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid, int *id)
 {
     struct passwd pw, *pwp;
     struct group gr, *grp;
-    char user_num[9], *pwbuf, *grbuf;
+    char user_num[9], *pwbuf, *grbuf, *tmp;
     static size_t pwbuflen = 0;
     static size_t grbuflen = 0;
 
@@ -422,10 +454,22 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
 
     XrdSecEntity XrdFfsMiscUent("");
 
+    tmp = ntoa24((unsigned int)user_uid);
+    strncpy(user_num, tmp, 9);
+    free(tmp);
+
+    if (id != NULL) {
+        pthread_mutex_lock(&url_mlock);
+        *id = iXrdConnPerUsr +1;  // id = 1 to nXrdConnPerUsr+1 (8)
+        iXrdConnPerUsr = (iXrdConnPerUsr +1) % nXrdConnPerUsr;
+        pthread_mutex_unlock(&url_mlock);
+        user_num[strlen(user_num)] = *id + 48; // this require that *id stay as single digit.
+    }
+    else
+        user_num[strlen(user_num)] = 48;  // id = NULL
+
     if (XrdFfsMiscSecsss)
     {
-        sprintf(user_num, "%x", user_uid);
-
         pwbuf = (char*) malloc(pwbuflen);
         getpwuid_r(user_uid, &pw, pwbuf, pwbuflen, &pwp);
         grbuf = (char*) malloc(grbuflen);
@@ -439,14 +483,20 @@ void XrdFfsMisc_xrd_secsss_register(uid_t user_uid, gid_t user_gid)
     }
 }
 
-void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid)
+void XrdFfsMisc_xrd_secsss_editurl(char *url, uid_t user_uid, int *id)
 {
-    char user_num[9], nurl[1024];
+    char user_num[9], nurl[1024], *tmp;
 
-    if (XrdFfsMiscSecsss)
+// Xrootd proxy also use some of the stat()/unlink(), etc funcitons here, without user "sss". It use the default 
+// connection login name. Don't change this behavior. (so for proxy, use no "sss", and always have *id = 0
+    if (id != NULL || XrdFfsMiscSecsss)
     {
-        sprintf(user_num, "%x", user_uid);
-     
+        tmp = ntoa24(user_uid);
+        strncpy(user_num, tmp, 9);
+        free(tmp);
+        if (id == NULL) user_num[strlen(user_num)] = 48;
+        else user_num[strlen(user_num)] = *id + 48;
+
         nurl[0] = '\0';
         strcat(nurl, "root://");
         strcat(nurl, user_num);
