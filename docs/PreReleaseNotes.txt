@@ -73,6 +73,7 @@ Prerelease Notes
    * Add new object to format and route error messages to multiple
      destinations.
    * Allow clients to easily load checksum objects via XrdCksLoader object.
+   * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
    * Correct assignment operator and copy constructor in XrdNetAddr.
@@ -154,7 +155,6 @@ Prerelease Notes
      should be removed at the next release boundary as this will
      change a public user interface.
    * Properly recognize a loaded checksum as a native checksum.
-   * In xrootdfs, allow users to use multiple physical connections.
 
 + **Miscellaneous**
    * Make it possible to return more than 2K via XrdOucErrInfo object.
