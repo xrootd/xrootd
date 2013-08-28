@@ -106,6 +106,7 @@ void *TestThreadFunc( void *arg )
   Message m;
   m.Allocate( sizeof( ClientPingRequest ) );
   m.Zero();
+  m.SetDescription( "kXR_ping ()" );
   ClientPingRequest *request = (ClientPingRequest *)m.GetBuffer();
   request->streamid[0] = a->index;
   request->requestid   = kXR_ping;
