@@ -339,10 +339,9 @@ namespace XrdCl
 
       if( pOutHandler && pOutHandler->IsRaw() )
       {
-        log->Dump( AsyncSockMsg,
-                   "[%s] Will call raw handler to write payload for message: "
-                   "%s.", pStreamName.c_str(),
-                   pOutgoing->GetDescription().c_str() );
+        log->Dump( AsyncSockMsg, "[%s] Will call raw handler to write payload "
+                   "for message: %s (0x%x).", pStreamName.c_str(),
+                   pOutgoing->GetDescription().c_str(), pOutgoing );
       }
 
       pOutMsgDone = true;
@@ -367,9 +366,9 @@ namespace XrdCl
     }
 
     Log *log = DefaultEnv::GetLog();
-    log->Dump( AsyncSockMsg,
-               "[%s] successfully sent message: %s.", pStreamName.c_str(),
-               pOutgoing->GetDescription().c_str() );
+    log->Dump( AsyncSockMsg, "[%s] Successfully sent message: %s (0x%x).",
+               pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
+               pOutgoing );
 
     pStream->OnMessageSent( pSubStreamNum, pOutgoing, pOutMsgSize );
     pOutgoing = 0;
@@ -442,9 +441,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have written the message successfully
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s, %d bytes",
+    log->Dump( AsyncSockMsg, "[%s] Wrote a message: %s (0x%x), %d bytes",
                pStreamName.c_str(), pOutgoing->GetDescription().c_str(),
-               pOutgoing->GetSize() );
+               pOutgoing, pOutgoing->GetSize() );
     return Status();
   }
 
@@ -483,9 +482,8 @@ namespace XrdCl
       if( st.code == suRetry )
         return;
 
-      log->Dump( AsyncSockMsg,
-                "[%s] Received message header, size: %d",
-                pStreamName.c_str(), pIncoming->GetCursor() );
+      log->Dump( AsyncSockMsg, "[%s] Received message header for 0x%x size: %d",
+                pStreamName.c_str(), pIncoming, pIncoming->GetCursor() );
       pIncMsgSize = pIncoming->GetCursor();
       pHeaderDone = true;
       std::pair<IncomingMsgHandler *, bool> raw;
@@ -493,9 +491,8 @@ namespace XrdCl
 
       if( pIncHandler.first )
       {
-        log->Dump( AsyncSockMsg,
-                   "[%s] Will use the raw handler to read message body.",
-                   pStreamName.c_str() );
+        log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
+                   "of message 0x%x", pIncoming, pStreamName.c_str() );
       }
     }
 
@@ -506,7 +503,7 @@ namespace XrdCl
     {
       uint32_t bytesRead = 0;
       st = pIncHandler.first->ReadMessageBody( pIncoming, pSocket->GetFD(),
-                                                  bytesRead );
+                                               bytesRead );
       if( !st.IsOK() )
       {
         OnFault( st );
@@ -538,8 +535,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Report the incoming message
     //--------------------------------------------------------------------------
-    log->Dump( AsyncSockMsg, "[%s] Received a message of %d bytes",
-               pStreamName.c_str(), pIncMsgSize );
+    log->Dump( AsyncSockMsg, "[%s] Received message 0x%x of %d bytes",
+               pStreamName.c_str(), pIncoming, pIncMsgSize );
 
     pStream->OnIncoming( pSubStreamNum, pIncoming, pIncMsgSize );
     pIncoming = 0;

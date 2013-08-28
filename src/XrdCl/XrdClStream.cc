@@ -301,9 +301,9 @@ namespace XrdCl
       path.up = 0;
     }
 
-    log->Dump( PostMasterMsg, "[%s] Sending message %s through substream %d "
-               "expecting answer at %d", pStreamName.c_str(),
-               msg->GetDescription().c_str(), path.up, path.down );
+    log->Dump( PostMasterMsg, "[%s] Sending message %s (0x%x) through "
+               "substream %d expecting answer at %d", pStreamName.c_str(),
+               msg->GetDescription().c_str(), msg, path.up, path.down );
 
     //--------------------------------------------------------------------------
     // Enable *a* path and insert the message to the right queue
@@ -410,8 +410,8 @@ namespace XrdCl
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
     if( !mh.handler )
     {
-      log->Dump( PostMasterMsg, "[%s] Queuing received message: %s.",
-                 pStreamName.c_str(), msg->GetDescription().c_str() );
+      log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
+                 pStreamName.c_str(), msg );
 
       uint32_t streamAction = pTransport->StreamAction( msg, *pChannelData );
 
@@ -424,15 +424,15 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // We have a handler, so we call the callback
     //--------------------------------------------------------------------------
-    log->Dump( PostMasterMsg, "[%s] Handling received message: %s.",
-               pStreamName.c_str(), msg->GetDescription().c_str() );
+    log->Dump( PostMasterMsg, "[%s] Handling received message: 0x%x.",
+               pStreamName.c_str(), msg );
 
     if( !(mh.action & IncomingMsgHandler::RemoveHandler) )
       pIncomingQueue->ReAddMessageHandler( mh.handler, mh.expires );
 
     if( mh.action & IncomingMsgHandler::NoProcess )
     {
-      log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: %s.",
+      log->Dump( PostMasterMsg, "[%s] Ignoring the processing handler for: 0x%x.",
                  pStreamName.c_str(), msg->GetDescription().c_str() );
       mh.Reset();
       return;
