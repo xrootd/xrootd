@@ -20,7 +20,7 @@
 #define __XRD_CL_SYNC_QUEUE_HH__
 
 #include <queue>
-#include <cassert>
+
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdCl
@@ -65,7 +65,11 @@ namespace XrdCl
       {
         pSem->Wait();
         XrdSysMutexHelper scopedLock( pMutex );
-        assert( !pQueue.empty() );
+
+        // this is not possible, so when it happens we commit a suicide
+        if( pQueue.empty() )
+          abort();
+
         Item i = pQueue.front();
         pQueue.pop();
         return i;
