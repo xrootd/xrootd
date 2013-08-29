@@ -115,9 +115,22 @@ namespace XrdCl
     Log *log = DefaultEnv::GetLog();
     for( uint32_t i = 0; i <= n; ++i )
     {
+      void *threadRet;
       log->Dump( JobMgrMsg, "Stopping worker #%d...", i );
-      assert( ::pthread_cancel( pWorkers[i] ) == 0 );
-      assert( ::pthread_join( pWorkers[i], 0 ) == 0 );
+      if( pthread_cancel( pWorkers[i] ) != 0 )
+      {
+        log->Error( TaskMgrMsg, "Unable to cancel worker #%d: %s", i,
+                    strerror( errno ) );
+        abort();
+      }
+      
+      if( pthread_join( pWorkers[i], (void**)&threadRet ) != 0 )
+      {
+        log->Error( TaskMgrMsg, "Unable to join worker #%d: %s", i,
+                    strerror( errno ) );
+        abort();
+      }
+
       log->Dump( JobMgrMsg, "Worker #%d stopped", i );
     }
   }
