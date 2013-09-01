@@ -419,10 +419,11 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 //
    if (Police)
       {if (!Police->Authorize(hAddr))
-          {char ipbuff[64];
+          {char ipbuff[512];
            hAddr.Format(ipbuff, sizeof(ipbuff),
                         (opts & XRDNET_NORLKUP ? XrdNetAddr::fmtAuto
-                                               : XrdNetAddr::fmtName), false);
+                                               : XrdNetAddr::fmtName),
+                                                 XrdNetAddrInfo::noPort);
            eDest->Emsg("Accept",EACCES,"accept TCP connection from",ipbuff);
            close(newfd);
            return 0;
@@ -505,8 +506,8 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
        return 0;
       } else uAddr.Format(hBuff, sizeof(hBuff),
                          (opts & XRDNET_NORLKUP ? XrdNetAddr::fmtAuto
-                                                : XrdNetAddr::fmtName), false);
-
+                                                : XrdNetAddr::fmtName),
+                                                  XrdNetAddrInfo::noPort);
 // Get a new FD if so requested. We use our base FD for outgoing messages.
 //
    if (opts & XRDNET_NEWFD)
