@@ -44,6 +44,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetOpts.hh"
+#include "XrdNet/XrdNetSecurity.hh"
   
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -55,16 +56,43 @@
 /*                                A c c e p t                                 */
 /******************************************************************************/
 
-XrdLink *XrdInet::Accept(int opts, int timeout)
+XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 {
    static const char *unk = "unkown.endpoint";
    XrdNetAddr myAddr;
    XrdLink   *lp;
-   int        lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
+   int        anum=0, lnkopts = (opts & XRDNET_MULTREAD ? XRDLINK_RDLOCK : 0);
 
-// Perform regular accept. This will be a unique TCP socket.
+// Perform regular accept. This will be a unique TCP socket. We loop here
+// until the accept succeeds as it should never fail at this stage.
 //
-   if (!XrdNet::Accept(myAddr, opts, timeout)) return (XrdLink *)0;
+   while(!XrdNet::Accept(myAddr, opts, timeout))
+        {if (timeout >= 0)
+            {if (theSem) theSem->Post();
+             return (XrdLink *)0;
+            }
+         sleep(1); anum++;
+         if (!(anum%60)) eDest->Emsg("Accept", "Unable to accept connections!");
+        }
+
+// If authorization was defered, tell call we accepted the connection but
+// will be doing a background check on this connection.
+//
+   if (theSem) theSem->Post();
+
+// Authorize by ip address or full (slow) hostname format. We defer the check
+// so that the next accept can occur before we do any DNS resolution.
+//
+   if (Patrol)
+      {if (!Patrol->Authorize(myAddr))
+          {char ipbuff[512];
+           myAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAuto,
+                                                 XrdNetAddrInfo::noPort);
+           eDest->Emsg("Accept",EACCES,"accept TCP connection from",ipbuff);
+           close(myAddr.SockFD());
+           return (XrdLink *)0;
+          }
+      }
 
 // Allocate a new network object
 //
@@ -108,4 +136,18 @@ XrdLink *XrdInet::Connect(const char *host, int port, int opts, int tmo)
 // All done, return whatever object we have
 //
    return lp;
+}
+  
+/******************************************************************************/
+/*                                S e c u r e                                 */
+/******************************************************************************/
+  
+void XrdInet::Secure(XrdNetSecurity *secp)
+{
+
+// If we don't have a Patrol object then use the one supplied. Otherwise
+// merge the supplied object into the existing object.
+//
+   if (Patrol) Patrol->Merge(secp);
+      else     Patrol = secp;
 }

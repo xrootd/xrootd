@@ -208,7 +208,7 @@ int             Relay(const char *dest);  // Optional destination
 //!                  object assumes its ownership and may delete it at any time.
 //------------------------------------------------------------------------------
 
-void            Secure(XrdNetSecurity *secp);
+virtual void    Secure(XrdNetSecurity *secp);
 
 //------------------------------------------------------------------------------
 //! Set network defaults.
