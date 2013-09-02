@@ -1972,7 +1972,7 @@ XrdClientConn::HandleServerError(XReqErrorType &errorType, XrdClientMessage *xms
 		    if (fUrl.Host.length()) newhost = fUrl.Host;
 		    else
 			newhost = fUrl.HostAddr;
-	       
+        fRedirOpaque = fRedirCGI;
 		    newport = fUrl.Port;
 		}
 	 
