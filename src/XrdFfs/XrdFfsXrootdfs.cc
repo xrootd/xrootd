@@ -119,8 +119,10 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
             }
         }
         if (i == len) getpwuid_r(atoi(xrootdfs.daemon_user), &pw, pwbuf, pwbuflen, &pwp);
-        setgid((gid_t)pw.pw_gid);
-        setuid((uid_t)pw.pw_uid);
+        if( setgid((gid_t)pw.pw_gid) != 0 )
+            syslog( LOG_ERR, "ERROR: Unable to set gid to %d", pw.pw_gid );
+        if( setuid((uid_t)pw.pw_uid) != 0 )
+            syslog( LOG_ERR, "ERROR: Unable to set uid to %d", pw.pw_uid );
         prctl(PR_SET_DUMPABLE, 1); // enable core dump after setuid/setgid
     }
     free(pwbuf);
