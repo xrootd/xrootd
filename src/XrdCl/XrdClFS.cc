@@ -832,13 +832,13 @@ XRootDStatus DoStatVFS( FileSystem                      *fs,
   std::cout << "Size of RW space (MB):            ";
   std::cout << info->GetFreeRW() << std::endl;
   std::cout << "Utilization of RW space (%):      ";
-  std::cout << info->GetUtilizationRW() << std::endl;
+  std::cout << (uint16_t)info->GetUtilizationRW() << std::endl;
   std::cout << "Nodes with staging space:         ";
   std::cout << info->GetNodesStaging() << std::endl;
   std::cout << "Size of staging space (MB):       ";
   std::cout << info->GetFreeStaging() << std::endl;
   std::cout << "Utilization of staging space (%): ";
-  std::cout << info->GetUtilizationStaging() << std::endl;
+  std::cout << (uint16_t)info->GetUtilizationStaging() << std::endl;
 
   delete info;
   return XRootDStatus();
