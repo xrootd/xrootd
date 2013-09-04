@@ -76,6 +76,7 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Correct timeout code in old client intrudced by patch 0f86c164.
    * Correct assignment operator and copy constructor in XrdNetAddr.
    * Use the original version of the cmsd port discovery algorithm to
      keep compatability with previous versions.
