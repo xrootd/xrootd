@@ -102,8 +102,8 @@ unsigned long XrdSysTimer::Report(double &Total_Time)
 
 // Add up the time as a double
 //
-    Total_Time += (double)LastReport.tv_sec +
-                 ((double)(LastReport.tv_usec/1000))/1000.0;
+    Total_Time += static_cast<double>(LastReport.tv_sec) +
+                  static_cast<double>(LastReport.tv_usec/1000)/1000.0;
 
 // Return time
 //
@@ -116,7 +116,7 @@ unsigned long XrdSysTimer::Report(unsigned long &Total_Time)
 {
     unsigned long report_time = Report();
 
-// Add up the time as a 32-bit value to nearest microsecond (max = 24 days)
+// Add up the time as a 32-bit value to nearest milliseconds (max = 24 days)
 //
     Total_Time += (unsigned long)LastReport.tv_sec*1000 +
                   (unsigned long)(LastReport.tv_usec/1000);
@@ -132,7 +132,7 @@ unsigned long XrdSysTimer::Report(unsigned long long &Total_Time)
 {
     unsigned long report_time = Report();
 
-// Add up the time as a 64-bit value to nearest microsecond
+// Add up the time as a 64-bit value to nearest milliseconds
 //
     Total_Time += (unsigned long long)LastReport.tv_sec*1000 +
                   (unsigned long long)(LastReport.tv_usec/1000);
