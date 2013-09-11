@@ -154,6 +154,7 @@ namespace XrdCl
   {
     enum Flags
     {
+      None        = 0,            //!< no flags
       Colocate    = kXR_coloc,    //!< co-locate staged files, if possible
       Fresh       = kXR_fresh,    //!< refresh file access time even if
                                   //!< the location is known
