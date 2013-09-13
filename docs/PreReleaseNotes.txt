@@ -76,6 +76,7 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Prevent SEGV in NetAddrInfo copy constructor (via Serge Monkewitz).
    * Prevent invalid mutex operations in auto-termination routine.
      Fix provided by Serge Monkewitz.
    * Correct timeout code in old client intrudced by patch 0f86c164.
