@@ -287,7 +287,7 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                             sockAddr = &IP.Addr;
                            }
 
-            XrdNetAddrInfo(const XrdNetAddrInfo *addr) {*this = *addr;}
+            XrdNetAddrInfo(const XrdNetAddrInfo *addr) : hostName(0) {*this = *addr;}
 
 //------------------------------------------------------------------------------
 //! Destructor
