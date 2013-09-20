@@ -184,8 +184,8 @@ namespace XrdCl
     if( message->GetCursor() == 8 )
     {
       Log *log = DefaultEnv::GetLog();
-      log->Error( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
-                  "body", message, bodySize );
+      log->Dump( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
+                 "body", message, bodySize );
       message->ReAllocate( bodySize + 8 );
     }
 
@@ -1652,7 +1652,12 @@ namespace XrdCl
           size += dataChunk[i].rlen;
           ++numChunks;
         }
-        o << "handle: " << FileHandleToStr( fhandle ) << ", ";
+        o << "handle: ";
+        if( fhandle )
+          o << FileHandleToStr( fhandle );
+        else
+          o << "unknown";
+        o << ", ";
         o << std::setbase(10);
         o << "chunks: " << numChunks << ", ";
         o << "total size: " << size << ")";

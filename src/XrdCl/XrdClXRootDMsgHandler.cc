@@ -1277,7 +1277,7 @@ namespace XrdCl
 
           if( rsp->hdr.dlen < 12 || !statInfo )
           {
-            log->Error( XRootDMsg, "[%s] Unable to parse StatInfo in response ",
+            log->Error( XRootDMsg, "[%s] Unable to parse StatInfo in response "
                         "to %s", pUrl.GetHostId().c_str(),
                         pRequest->GetDescription().c_str() );
             delete obj;
