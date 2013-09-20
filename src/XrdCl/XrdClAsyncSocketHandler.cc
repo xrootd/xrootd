@@ -492,7 +492,7 @@ namespace XrdCl
       if( pIncHandler.first )
       {
         log->Dump( AsyncSockMsg, "[%s] Will use the raw handler to read body "
-                   "of message 0x%x", pIncoming, pStreamName.c_str() );
+                   "of message 0x%x", pStreamName.c_str(), pIncoming );
       }
     }
 

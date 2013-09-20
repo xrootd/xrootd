@@ -182,7 +182,12 @@ namespace XrdCl
     uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
 
     if( message->GetCursor() == 8 )
+    {
+      Log *log = DefaultEnv::GetLog();
+      log->Error( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
+                  "body", message, bodySize );
       message->ReAllocate( bodySize + 8 );
+    }
 
     leftToBeRead = bodySize-(message->GetCursor()-8);
     while( leftToBeRead )
