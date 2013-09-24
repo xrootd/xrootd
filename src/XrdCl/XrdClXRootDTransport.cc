@@ -165,6 +165,12 @@ namespace XrdCl
         message->AdvanceCursor( status );
       }
       UnMarshallHeader( message );
+
+      uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
+      Log *log = DefaultEnv::GetLog();
+      log->Dump( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
+                 "body", message, bodySize );
+
       return Status( stOK, suDone );
     }
     return Status( stError, errInternal );
@@ -182,12 +188,7 @@ namespace XrdCl
     uint32_t bodySize = *(uint32_t*)(message->GetBuffer(4));
 
     if( message->GetCursor() == 8 )
-    {
-      Log *log = DefaultEnv::GetLog();
-      log->Dump( XRootDTransportMsg, "[msg: 0x%x] Expecting %d bytes of message "
-                 "body", message, bodySize );
       message->ReAllocate( bodySize + 8 );
-    }
 
     leftToBeRead = bodySize-(message->GetCursor()-8);
     while( leftToBeRead )
