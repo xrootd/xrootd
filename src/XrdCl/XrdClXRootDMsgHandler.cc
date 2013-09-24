@@ -638,15 +638,18 @@ namespace XrdCl
 
       if( st.IsOK() && st.code == suDone )
       {
-        log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes.",
-                   pUrl.GetHostId().c_str(), pAsyncMsgSize );
-
-        pReadVRawMsgOffset          += pAsyncMsgSize;
+        pReadVRawMsgOffset          += pAsyncReadSize;
         pReadVRawChunkHeaderDone    = false;
         pReadVRawChunkHeaderStarted = false;
         pReadVRawMsgDiscard         = false;
         delete [] pAsyncReadBuffer;
-        st.code = suRetry;
+
+        if( pReadVRawMsgOffset != pAsyncMsgSize )
+          st.code = suRetry;
+
+        log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarded %d bytes, "
+                   "current offset: %d/%d", pUrl.GetHostId().c_str(),
+                   pAsyncReadSize, pReadVRawMsgOffset, pAsyncMsgSize );
       }
       return st;
     }
@@ -672,7 +675,7 @@ namespace XrdCl
           uint32_t discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
           log->Error( XRootDMsg, "[%s] ReadRawReadV: No enough data to read "
                       "another chunk header. Discarding %d bytes.",
-                     pUrl.GetHostId().c_str(), discardSize );
+                      pUrl.GetHostId().c_str(), discardSize );
 
           pReadVRawMsgDiscard = true;
           pAsyncOffset        = 0;
@@ -708,7 +711,6 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Find the buffer corresponding to the chunk
         //----------------------------------------------------------------------
-        ++pReadVRawChunkIndex;
         bool chunkFound = false;
         for( int i = pReadVRawChunkIndex; i < (int)pChunkList->size(); ++i )
         {
@@ -727,16 +729,20 @@ namespace XrdCl
         if( !chunkFound )
         {
           log->Error( XRootDMsg, "[%s] ReadRawReadV: Impossible to find chunk "
-                      "buffer corresponding to %d bytes at %ld.",
+                      "buffer corresponding to %d bytes at %ld",
                       pUrl.GetHostId().c_str(), pReadVRawChunkHeader.rlen,
                       pReadVRawChunkHeader.offset );
 
           uint32_t discardSize = pReadVRawChunkHeader.rlen;
           if( pReadVRawMsgOffset + discardSize > pAsyncMsgSize )
             discardSize = pAsyncMsgSize - pReadVRawMsgOffset;
-          pAsyncOffset     = 0;
-          pAsyncReadSize   = discardSize;
-          pAsyncReadBuffer = new char[discardSize];
+          pReadVRawMsgDiscard = true;
+          pAsyncOffset        = 0;
+          pAsyncReadSize      = discardSize;
+          pAsyncReadBuffer    = new char[discardSize];
+
+          log->Dump( XRootDMsg, "[%s] ReadRawReadV: Discarding %d bytes",
+                     pUrl.GetHostId().c_str(), discardSize );
           return Status( stOK, suRetry );
         }
 
@@ -753,9 +759,10 @@ namespace XrdCl
                       "boundary, discarding %d bytes.", pUrl.GetHostId().c_str(),
                       pReadVRawChunkHeader.rlen, discardSize );
 
-          pAsyncOffset     = 0;
-          pAsyncReadSize   = discardSize;
-          pAsyncReadBuffer = new char[discardSize];
+          pReadVRawMsgDiscard = true;
+          pAsyncOffset        = 0;
+          pAsyncReadSize      = discardSize;
+          pAsyncReadBuffer    = new char[discardSize];
           pChunkStatus[pReadVRawChunkIndex].sizeError = true;
           return Status( stOK, suRetry );
         }
@@ -763,9 +770,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // We're good
         //----------------------------------------------------------------------
-         pAsyncOffset     = 0;
-         pAsyncReadSize   = pReadVRawChunkHeader.rlen;
-         pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
+        pAsyncOffset     = 0;
+        pAsyncReadSize   = pReadVRawChunkHeader.rlen;
+        pAsyncReadBuffer = (char*)(*pChunkList)[pReadVRawChunkIndex].buffer;
       }
 
       //------------------------------------------------------------------------
