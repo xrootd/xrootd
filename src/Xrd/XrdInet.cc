@@ -66,7 +66,7 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 // Perform regular accept. This will be a unique TCP socket. We loop here
 // until the accept succeeds as it should never fail at this stage.
 //
-   while(!XrdNet::Accept(myAddr, opts, timeout))
+   while(!XrdNet::Accept(myAddr, opts | XRDNET_NORLKUP, timeout))
         {if (timeout >= 0)
             {if (theSem) theSem->Post();
              return (XrdLink *)0;
@@ -79,6 +79,7 @@ XrdLink *XrdInet::Accept(int opts, int timeout, XrdSysSemaphore *theSem)
 // will be doing a background check on this connection.
 //
    if (theSem) theSem->Post();
+   if (!(netOpts & XRDNET_NORLKUP)) myAddr.Name();
 
 // Authorize by ip address or full (slow) hostname format. We defer the check
 // so that the next accept can occur before we do any DNS resolution.
