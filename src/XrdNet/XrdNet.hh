@@ -104,7 +104,7 @@ int             Port() {return Portnum;}
 //          constraints. The supplied object is ultimately deleted in the
 //          process and cannot be referenced.
 //
-virtual void    Secure(XrdNetSecurity *secp);
+void            Secure(XrdNetSecurity *secp);
 
 // setDefaults() sets the default socket options, and buffer size for UDP
 //               sockets (default is 32k) or window size for TCP sockets
