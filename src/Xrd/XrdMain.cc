@@ -82,16 +82,27 @@ Where:
 /*                         L o c a l   C l a s s e s                          */
 /******************************************************************************/
   
-class XrdMain
+class XrdMain : XrdJob
 {
 public:
 
-XrdInet             *theNet;
-int                  thePort;
-static XrdConfig     Config;
+XrdSysSemaphore  *theSem;
+XrdProtocol      *theProt;
+XrdInet          *theNet;
+int               thePort;
+static XrdConfig  Config;
 
-           XrdMain() : theNet(0), thePort(0) {}
-           XrdMain(XrdInet *nP) : theNet(nP), thePort(nP->Port()) {}
+void              DoIt() {XrdLink *newlink;
+                          if ((newlink = theNet->Accept(0, -1, theSem)))
+                             {newlink->setProtocol(theProt);
+                              newlink->DoIt();
+                             }
+                         }
+
+           XrdMain() : XrdJob("main accept"), theSem(0), theProt(0),
+                                              theNet(0), thePort(0) {}
+           XrdMain(XrdInet *nP) : XrdJob("main accept"), theSem(0),
+                                  theProt(0), theNet(nP), thePort(nP->Port()) {}
           ~XrdMain() {}
 };
 
@@ -102,16 +113,21 @@ XrdConfig XrdMain::Config;
 /******************************************************************************/
   
 void *mainAccept(void *parg)
-{  XrdMain      *Parms   = (XrdMain *)parg;
-   XrdInet      *myNet   =  Parms->theNet;
-   XrdScheduler *mySched =  Parms->Config.ProtInfo.Sched;
-   XrdProtLoad   ProtSelect(Parms->thePort);
-   XrdLink      *newlink;
+{  XrdMain        *Parms   = (XrdMain *)parg;
+   XrdScheduler   *mySched =  Parms->Config.ProtInfo.Sched;
+   XrdProtLoad     ProtSelect(Parms->thePort);
+   XrdSysSemaphore accepted(0);
 
-   while(1) if ((newlink = myNet->Accept(XRDNET_NODNTRIM)))
-               {newlink->setProtocol((XrdProtocol *)&ProtSelect);
-                mySched->Schedule((XrdJob *)newlink);
-               }
+// Complete the parms
+//
+   Parms->theSem  = &accepted;
+   Parms->theProt = (XrdProtocol *)&ProtSelect;
+
+// Simply schedule new accepts
+//
+   while(1) {mySched->Schedule((XrdJob *)Parms);
+             accepted.Wait();
+            }
 
    return (void *)0;
 }

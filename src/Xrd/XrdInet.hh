@@ -40,6 +40,7 @@
 //
 class XrdOucTrace;
 class XrdSysError;
+class XrdSysSemaphore;
 class XrdNetSecurity;
 class XrdLink;
 
@@ -47,15 +48,18 @@ class XrdInet : public XrdNet
 {
 public:
 
-XrdLink    *Accept(int opts=0, int timeout=-1);
+XrdLink    *Accept(int opts=0, int timeout=-1, XrdSysSemaphore *theSem=0);
 
 XrdLink    *Connect(const char *host, int port, int opts=0, int timeout=-1);
 
+void        Secure(XrdNetSecurity *secp);
+
             XrdInet(XrdSysError *erp, XrdOucTrace *tP, XrdNetSecurity *secp=0)
-                      : XrdNet(erp, secp), XrdTrace(tP) {}
+                      : XrdNet(erp,0), Patrol(secp), XrdTrace(tP) {}
            ~XrdInet() {}
 private:
 
+XrdNetSecurity    *Patrol;
 XrdOucTrace       *XrdTrace;
 static const char *TraceID;
 };
