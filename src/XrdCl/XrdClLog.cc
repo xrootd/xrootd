@@ -138,7 +138,7 @@ namespace XrdCl
 
     strftime( ts, 32, "%Y-%m-%d %H:%M:%S", &tsNow );
     strftime( tz, 8, "%z", &tsNow );
-    snprintf( now, 48, "%s.%06ld %s", ts, ttNow.tv_usec, tz );
+    snprintf( now, 48, "%s.%06ld %s", ts, (long int)ttNow.tv_usec, tz );
 
     XrdOucTokenizer tok( buffer );
     char *line = 0;
