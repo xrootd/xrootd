@@ -487,11 +487,10 @@ namespace XrdCl
     Message           *msg;
     ClientStatRequest *req;
     std::string        path = pFileUrl->GetPath();
-    MessageUtils::CreateRequest( msg, req, path.length() );
+    MessageUtils::CreateRequest( msg, req );
 
     req->requestid = kXR_stat;
-    req->dlen = path.length();
-    msg->Append( path.c_str(), req->dlen, 24 );
+    memcpy( req->fhandle, pFileHandle, 4 );
 
     MessageSendParams params;
     params.timeout         = timeout;
