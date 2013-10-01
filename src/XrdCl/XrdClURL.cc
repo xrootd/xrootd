@@ -203,7 +203,9 @@ namespace XrdCl
         //----------------------------------------------------------------------
         pos = pHostName.find( "." );
         size_t pos2 = pHostName.find( "[::ffff" );
-        if( pos != std::string::npos && pos2 == std::string::npos )
+        size_t pos3 = pHostName.find( "[::" );
+        if( pos != std::string::npos && pos3 != std::string::npos &&
+            pos2 == std::string::npos )
         {
           pHostName.erase( 0, 3 );
           pHostName.erase( pHostName.length()-1, 1 );
