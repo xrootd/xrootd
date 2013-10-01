@@ -1120,17 +1120,24 @@ namespace XrdCl
       case kXR_locate:
       {
         AnyObject *obj = new AnyObject();
+
+        char *nullBuffer = new char[length+1];
+        nullBuffer[length] = 0;
+        memcpy( nullBuffer, buffer, length );
+
         log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
                    "LocateInfo: %s", pUrl.GetHostId().c_str(),
-                   pRequest->GetDescription().c_str(), buffer );
+                   pRequest->GetDescription().c_str(), nullBuffer );
         LocationInfo *data = new LocationInfo();
 
-        if( data->ParseServerResponse( buffer ) == false )
+        if( data->ParseServerResponse( nullBuffer ) == false )
         {
           delete obj;
           delete data;
+          delete [] nullBuffer;
           return Status( stError, errInvalidResponse );
         }
+        delete [] nullBuffer;
 
         obj->Set( data );
         response = obj;
@@ -1149,18 +1156,24 @@ namespace XrdCl
         //----------------------------------------------------------------------
         if( req->stat.options & kXR_vfs )
         {
-          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
-                     "StatInfoVFS", pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str() );
-
           StatInfoVFS *data = new StatInfoVFS();
 
-          if( data->ParseServerResponse( buffer ) == false )
+          char *nullBuffer = new char[length+1];
+          nullBuffer[length] = 0;
+          memcpy( nullBuffer, buffer, length );
+
+          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as "
+                     "StatInfoVFS: %s", pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str(), nullBuffer );
+
+          if( data->ParseServerResponse( nullBuffer ) == false )
           {
               delete obj;
               delete data;
+              delete [] nullBuffer;
               return Status( stError, errInvalidResponse );
           }
+          delete [] nullBuffer;
 
           obj->Set( data );
         }
@@ -1169,19 +1182,24 @@ namespace XrdCl
         //----------------------------------------------------------------------
         else
         {
-          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as StatInfo",
-                     pUrl.GetHostId().c_str(),
-                     pRequest->GetDescription().c_str() );
-
           StatInfo *data = new StatInfo();
 
-          if( data->ParseServerResponse( buffer ) == false )
+          char *nullBuffer = new char[length+1];
+          nullBuffer[length] = 0;
+          memcpy( nullBuffer, buffer, length );
+
+          log->Dump( XRootDMsg, "[%s] Parsing the response to %s as StatInfo: "
+                     "%s", pUrl.GetHostId().c_str(),
+                     pRequest->GetDescription().c_str(), nullBuffer );
+
+          if( data->ParseServerResponse( nullBuffer ) == false )
           {
               delete obj;
               delete data;
+              delete [] nullBuffer;
               return Status( stError, errInvalidResponse );
           }
-
+          delete [] nullBuffer;
           obj->Set( data );
         }
 
@@ -1231,14 +1249,20 @@ namespace XrdCl
         data->SetParentName( path );
         delete [] path;
 
+        char *nullBuffer = new char[length+1];
+        nullBuffer[length] = 0;
+        memcpy( nullBuffer, buffer, length );
+
         if( data->ParseServerResponse( pUrl.GetHostId(),
-                                       length ? buffer : 0 ) == false )
+                                       length ? nullBuffer : 0 ) == false )
         {
           delete data;
           delete obj;
+          delete [] nullBuffer;
           return Status( stError, errInvalidResponse );
         }
 
+        delete [] nullBuffer;
         obj->Set( data );
         response = obj;
         return Status();
@@ -1274,12 +1298,18 @@ namespace XrdCl
 
           if( rsp->hdr.dlen >= 12 )
           {
+            char *nullBuffer = new char[rsp->hdr.dlen-11];
+            nullBuffer[rsp->hdr.dlen-12] = 0;
+            memcpy( nullBuffer, buffer+12, rsp->hdr.dlen-12 );
+
             statInfo = new StatInfo();
-            if( statInfo->ParseServerResponse( buffer+12 ) == false )
+            if( statInfo->ParseServerResponse( nullBuffer ) == false )
             {
               delete statInfo;
+              delete [] nullBuffer;
               statInfo = 0;
             }
+            delete [] nullBuffer;
           }
 
           if( rsp->hdr.dlen < 12 || !statInfo )
