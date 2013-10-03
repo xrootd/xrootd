@@ -302,7 +302,7 @@ namespace XrdCl
   XRootDStatus Utils::CheckTPC( const std::string &server )
   {
     Log *log = DefaultEnv::GetLog();
-    log->Error( UtilityMsg, "Checking if the data server %s supports tpc",
+    log->Debug( UtilityMsg, "Checking if the data server %s supports tpc",
                 server.c_str() );
 
     FileSystem    sourceDSFS( server );
