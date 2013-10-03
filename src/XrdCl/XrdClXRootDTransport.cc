@@ -1465,7 +1465,7 @@ namespace XrdCl
   void XRootDTransport::SetDescription( Message *msg )
   {
     Log *log = DefaultEnv::GetLog();
-    if( log->GetLevel() < Log::DumpMsg )
+    if( log->GetLevel() < Log::ErrorMsg )
       return;
 
     ClientRequestHdr *req = (ClientRequestHdr *)msg->GetBuffer();
