@@ -6,11 +6,13 @@ xrdcopy - copy files
 
 \fBxrdcopy\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
 
-\fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR] [\fB--coerce\fR] [\fB--force\fR]
-[\fB--help\fR] [\fB--license\fR] [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
-[\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR] [\fB--silent\fR]
-[\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR] [\fB--tpc first|only\fR] [\fB--verbose\fR]
-[\fB--version\fR] [\fB--xrate\fR \fIrate\fR]
+\fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR]
+[\fB--coerce\fR] [\fB--force\fR] [\fB--help\fR] [\fB--license\fR]
+[\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
+[\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR]
+[\fB--silent\fR] [\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR]
+[\fB--tpc\fR \fIfirst\fR|\fIonly\fR] [\fB--verbose\fR] [\fB--version\fR]
+[\fB--xrate\fR \fIrate\fR]
 
 \fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
 [\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
@@ -24,58 +26,60 @@ another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
 .SH OPTIONS
-{\fB-C | --cksum\fR} \fItype\fR[\fB:\fR{\fIvalue\fR|\fBprint\fR}]
+\fB-C\fR | \fB--cksum\fR \fItype\fR[\fB:\fR\fIvalue\fR|\fIprint\fR]
 .RS 5
 obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
 computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
-is specified, it is used as the source checksum. When \fBprint\fR
+is specified, it is used as the source checksum. When \fIprint\fR
 is specified, the checksum at the destination is printed but is \fInot\fR verified.
 
 .RE
-{\fB-d\fR | \fB--debug\fR} \fIlvl\fR
+\fB-d\fR | \fB--debug\fR \fIlvl\fR
 .RS 5
 debug level: 1 (low), 2 (medium), 3 (high)
 
 .RE
-{\fB-F\fR | --coerce}
+\fB-F\fR | \fB--coerce\fR
 .RS 5
 ignores locking semantics on the destination file. This option may lead to
 file corruption if not properly used.
 
 .RE
-{\fB-f\fR | \fB--force\fR}
+\fB-f\fR | \fB--force\fR
 .RS 5
 re-creates a file if it is already present.
 
 .RE
-{\fB-h\fR | --help}
+\fB-h\fR | \fB--help\fR
 .RS 5
 displays usage information.
 
 .RE
-{\fB-H\fR | --license}
+\fB-H\fR | \fB--license\fR
 .RS 5
 displays license terms and conditions.
 
 .RE
-{\fB-N\fR | \fB--nopbar\fR}
+\fB-N\fR | \fB--nopbar\fR
 .RS 5
 does not display the progress bar.
 
 .RE
-{\fB-P\fR | \fB--posc\fR}
+\fB-P\fR | \fB--posc\fR
 .RS 5
 requests POSC (persist-on-successful-close) processing
 to create a new file. Files are automatically deleted should they not be
 successfully closed.
 
 .RE
-{\fB-D\fR | \fB--proxy\fR} \fIproxyaddr\fB:\fIproxyport\fR
+\fB-D\fR | \fB--proxy\fR \fIproxyaddr\fB:\fIproxyport\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 use \fIproxyaddr\fB:\fIproxyport\fR as a SOCKS4 proxy. Only numerical addresses are supported.
 
 .RE
-{\fB-r\fR | \fB--recursive\fR}
+\fB-r\fR | \fB--recursive\fR
 .RS 5
 recursively copy all files starting at the given source directory. This option is
 \fIonly\fR supported for local files.
@@ -87,17 +91,19 @@ runs as if in a server environment. Used only for server-side
 third party copy support.
 
 .RE
-{\fB-s\fR | \fB--silent\fR}
+\fB-s\fR | \fB--silent\fR
 .RS 5
 neither produces summary information nor displays the progress bar.
 
 .RE
-{\fB-y\fR | \fB--sources\fR} \fInum\fR
+\fB-y\fR | \fB--sources\fR \fInum\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 uses up to \fInum\fR sources to copy the file.
 
 .RE
-{\fB-S\fR | \fB--streams\fR} \fInum\fR
+\fB-S\fR | \fB--streams\fR \fInum\fR
 .RS 5
 uses \fInum\fR additional parallel streams to do the transfer.
 The maximum value is 15. The default is 0 (i.e., use only the main stream).
@@ -113,18 +119,20 @@ Argument \fI'first'\fR tries tpc and if it fails, does a normal copy;
 while \fI'only'\fR fails the copy unless tpc succeeds.
 
 .RE
-{\fB-v\fR | \fB--verbose\fR}
+\fB-v\fR | \fB--verbose\fR
 .RS 5
 displays summary output.
 
 .RE
-{\fB-V\fR | \fB-version\fR}
+\fB-V\fR | \fB-version\fR
 .RS 5
 displays version information and immediately exits.
 
 .RE
-{\fB-X\fR | \fB--xrate\fR} \fIrate\fR
+\fB-X\fR | \fB--xrate\fR \fIrate\fR
 .RS 5
+[NOT YET IMPLEMENTED]
+
 limits the copy speed to the specified \fIrate\fB. The rate may be qualified
 with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
 bytes, respectively. The option only applies when the source or destination is
