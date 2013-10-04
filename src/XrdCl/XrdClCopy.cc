@@ -55,6 +55,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         std::cerr << "Target: " << destination->GetURL() << std::endl;
       }
       pPrevious = 0;
+      pStarted  = time(0);
     }
 
     //--------------------------------------------------------------------------
@@ -83,6 +84,10 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         return;
       pPrevious = now;
 
+      uint64_t speed = 0;
+      if( now-pStarted )
+        speed = bytesProcessed/(now-pStarted);
+
       std::string bar;
       int prog = (int)((double)bytesProcessed/bytesTotal*50);
       int proc = (int)((double)bytesProcessed/bytesTotal*100);
@@ -102,18 +107,20 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         bar += ">";
 
       std::cerr << "\r";
+      std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "B/";
+      std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "B]";
       std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
       std::cerr << "[" << std::setw(50) << std::left;
       std::cerr << bar;
-      std::cerr << "] ";
-      std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "/";
-      std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "]   ";
+      std::cerr << "]";
+      std::cerr << "[" << XrdCl::Utils::BytesToString(speed) << "B/s]  ";
       std::cerr << std::flush;
     }
   private:
     uint64_t pBytesProcessed;
     uint64_t pBytesTotal;
     time_t   pPrevious;
+    time_t   pStarted;
 };
 
 //------------------------------------------------------------------------------
