@@ -27,6 +27,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <limits>
 
 //------------------------------------------------------------------------------
 // Progress notifier
@@ -415,6 +416,15 @@ int main( int argc, char **argv )
 
   int parallelChunks = DefaultCPParallelChunks;
   env->GetInt( "CPParallelChunks", parallelChunks );
+  if( parallelChunks < 1 ||
+      parallelChunks > std::numeric_limits<uint8_t>::max() )
+  {
+    std::cerr << "Can only handle between 1 and ";
+    std::cerr << (int)std::numeric_limits<uint8_t>::max();
+    std::cerr << " chunks in parallel. You asked for " << parallelChunks;
+    std::cerr << "." << std::endl;
+    return 254;
+  }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
              config.nStrm, chunkSize, parallelChunks );
