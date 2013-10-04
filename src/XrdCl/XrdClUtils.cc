@@ -24,6 +24,8 @@
 #include "XrdNet/XrdNetAddr.hh"
 
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 namespace
 {
@@ -286,12 +288,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   std::string Utils::BytesToString( uint64_t bytes )
   {
-    uint64_t final = bytes;
-    int      i     = 0;
-    char suf[3] = { 'k', 'M', 'G' };
+    double  final  = bytes;
+    int     i      = 0;
+    char    suf[3] = { 'k', 'M', 'G' };
     for( i = 0; i < 3 && final > 1024; ++i, final /= 1024 ) {};
     std::ostringstream o;
-    o << final;
+    o << std::setprecision(4) << final;
     if( i > 0 ) o << suf[i-1];
     return o.str();
   }
