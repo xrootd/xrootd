@@ -769,34 +769,50 @@ namespace
         using namespace XrdCl;
         Log   *log = DefaultEnv::GetLog();
         struct stat st;
+        std::vector<std::string> pathElements;
+        std::vector<std::string>::iterator it;
+        std::string fullPath;
 
-        for( std::string::iterator iter = path.begin(); iter != path.end(); )
+        if( path.empty() )
+          return XRootDStatus();
+
+        log->Dump( UtilityMsg, "Attempting to create %s", path.c_str() );
+
+        if( path[0] == '/' )
+          fullPath = "/";
+
+        XrdCl::Utils::splitString( pathElements, path, "/" );
+
+        for( it = pathElements.begin(); it != pathElements.end(); ++it )
         {
-          std::string::iterator newIter = std::find( iter, path.end(), '/' );
-          std::string           newPath = std::string( path.begin(), newIter );
-
-          if( stat( newPath.c_str(), &st ) != 0 )
+          fullPath += *it;
+          fullPath += "/";
+          if( stat( fullPath.c_str(), &st ) != 0 )
           {
-            if( mkdir( newPath.c_str(), 0755 ) != 0 && errno != EEXIST )
+            if( errno == ENOENT )
             {
-              log->Debug( UtilityMsg, "Cannot create directory %s: %s",
-                                      newPath.c_str(), strerror( errno ) );
+              if( mkdir( fullPath.c_str(), 0755 ) != 0 )
+              {
+                log->Error( UtilityMsg, "Cannot create directory %s: %s",
+                            fullPath.c_str(), strerror( errno ) );
+                return XRootDStatus( stError, errOSError, errno );
+              }
+            }
+            else
+            {
+              log->Error( UtilityMsg, "Unable to stat %s: %s",
+                          fullPath.c_str(), strerror( errno ) );
               return XRootDStatus( stError, errOSError, errno );
             }
           }
           else if( !S_ISDIR( st.st_mode ) )
           {
-            errno = ENOTDIR;
-            log->Debug( UtilityMsg, "Path %s not a directory: %s",
-                                    newPath.c_str(), strerror( errno ) );
-            return XRootDStatus( stError, errOSError, errno );
+            log->Error( UtilityMsg, "Path %s not a directory: %s",
+                        fullPath.c_str(), strerror( ENOTDIR ) );
+            return XRootDStatus( stError, errOSError, ENOTDIR );
           }
           else
-            log->Dump( UtilityMsg, "Path %s already exists", newPath.c_str() );
-
-          iter = newIter;
-          if( newIter != path.end() )
-            ++iter;
+            log->Dump( UtilityMsg, "Path %s already exists", fullPath.c_str() );
         }
         return XRootDStatus();
       }
