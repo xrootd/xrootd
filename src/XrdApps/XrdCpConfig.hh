@@ -174,7 +174,7 @@ private:
              int    a2x(const char *Val, char *Buff, int Vlen);
              int    a2z(const char *item, long long *val,
                                           long long minv, long long maxv=-1);
-             int    defCks(const char *opval);
+             int    defCks(const char *opval, int ckOpt=DoCksum);
              int    defOpq(const char *theOp);
              int    defOpt(const char *theOp, const char *theArg);
              void   defPxy(const char *opval);

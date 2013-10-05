@@ -513,7 +513,7 @@ int XrdCpConfig::a2z(const char *item, long long *val,
 /* Private:                       d e f C k s                                 */
 /******************************************************************************/
   
-int XrdCpConfig::defCks(const char *opval)
+int XrdCpConfig::defCks(const char *opval, int ckOpt)
 {
    static XrdVERSIONINFODEF(myVer, xrdcp, XrdVNUMBER, XrdVERSION);
    const char *Colon = index(opval, ':');
@@ -547,8 +547,8 @@ int XrdCpConfig::defCks(const char *opval)
 // Reset checksum information
 //
    CksData.Length = 0;
-   OpSpec &= ~DoCkprt;
-   OpSpec |=  DoCksum;
+   OpSpec &= ~(DoCkprt | DoAdler | DoMD5);
+   OpSpec |=  ckOpt;
 
 // Check for any additional arguments
 //
@@ -708,7 +708,7 @@ int XrdCpConfig::Legacy(int oIndex)
   
 int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 {
-   if (!strcmp(theOp, "-adler")) return defCks("adler32:print");
+   if (!strcmp(theOp, "-adler")) return defCks("adler32:print", DoAdler);
 
    if (!strncmp(theOp, "-DI", 3) || !strncmp(theOp, "-DS", 3))
       return defOpt(theOp, theArg);
@@ -720,7 +720,7 @@ int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 
    if (!strcmp(theOp, "-np")) {OpSpec |= DoNoPbar; return 1;}
 
-   if (!strcmp(theOp, "-md5")) return defCks("md5:print");
+   if (!strcmp(theOp, "-md5")) return defCks("md5:print", DoMD5);
 
    if (!strncmp(theOp,"-OD",3) || !strncmp(theOp,"-OS",3)) return defOpq(theOp);
 

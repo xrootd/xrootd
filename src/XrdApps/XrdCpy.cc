@@ -101,6 +101,7 @@ int          prtCks;
 int          setCks;
 int          verCks;
 int          xeqCks;
+int          lclCks;
 static const int rwMode = kXR_ur | kXR_uw | kXR_gw | kXR_gr | kXR_or;
 }
 
@@ -247,11 +248,22 @@ void print_progbar(unsigned long long bytesread, unsigned long long size) {
   
 void print_chksum(const char* src, unsigned long long bytesread)
 {
+   const char *csName;
    char Buff[64];
-   dstCksum.Get(Buff, sizeof(Buff));
+   int csLen;
    XrdOucString xsrc(src);
    xsrc.erase(xsrc.rfind('?'));
-   cout <<dstCksum.Name <<": " <<Buff <<' ' <<xsrc <<' ' <<bytesread <<endl;
+
+   if (lclCks && csObj)
+      {const void *csVal  = csObj->Final();
+       csName = csObj->Type(csLen);
+       srcCksum.Set(csVal, csLen);
+       srcCksum.Get(Buff, sizeof(Buff));
+      } else {
+       dstCksum.Get(Buff, sizeof(Buff));
+       csName = dstCksum.Name;
+      }
+   cout <<csName <<": " <<Buff <<' ' <<xsrc <<' ' <<bytesread <<endl;
 }
 
 /******************************************************************************/
@@ -887,7 +899,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
 // If we need to verify checksums then we will need to get the checksum
 // from the source unless a specific checksum has been specified.
 //
-   if (verCks && getCks && !getCksum(srcCksum, src)) return -ENOTSUP;
+   if (lclCks) csObj = Config.CksObj;
+      else if (verCks && getCks && !getCksum(srcCksum, src)) return -ENOTSUP;
 
    gettimeofday(&abs_start_time,&tz);
 
@@ -983,6 +996,8 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
                gettimeofday(&abs_stop_time,&tz);
                print_progbar(bytesread,size);
             }
+
+            if (csObj) csObj->Update((const char *)buf,len);
 
             if (!(*xrddest)->Write(buf, offs, len)) {
                cpFatal("write", 0, *xrddest);
@@ -1101,8 +1116,8 @@ int doCp_xrd2loc(const char *src, const char *dst) {
           cpnfo.XrdCli = 0;
           return -1;
          }
+      if (verCks || lclCks) csObj = Config.CksObj;
      } else {
-      if (verCks) csObj = Config.CksObj;
       f = STDOUT_FILENO;  // Copy to stdout
      }
 
@@ -1306,7 +1321,7 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
 // If we need to verify checksums then we will need to get the checksum
 // from the source unless a specific checksum has been specified.
 //
-   if (xeqCks && verCks && getCks) csObj = Config.CksObj;
+   if ((xeqCks && verCks && getCks) || lclCks) csObj = Config.CksObj;
 
    // Loop to write until ended or timeout err
    while(len > 0)
@@ -1541,8 +1556,9 @@ int main(int argc, char**argv)
 // Establish checksum processing
 //
    setCks = 0;
+   lclCks = Config.Want(XrdCpConfig::DoAdler)||Config.Want(XrdCpConfig::DoMD5);
    xeqCks = Config.Want(XrdCpConfig::DoCksum);
-   prtCks = xeqCks &&  Config.Want(XrdCpConfig::DoCkprt);
+   prtCks =(xeqCks || lclCks) &&  Config.Want(XrdCpConfig::DoCkprt);
    getCks = xeqCks && (Config.CksData.Length == 0);
    verCks = xeqCks && !prtCks;
 
