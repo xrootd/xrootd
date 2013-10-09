@@ -1554,7 +1554,7 @@ int main(int argc, char**argv)
 // Establish checksum processing
 //
    setCks = 0;
-   lclCks = Config.Want(XrdCpConfig::DoAdler)||Config.Want(XrdCpConfig::DoMD5);
+   lclCks = Config.Want(XrdCpConfig::DoCksrc);
    xeqCks = Config.Want(XrdCpConfig::DoCksum);
    prtCks =(xeqCks || lclCks) &&  Config.Want(XrdCpConfig::DoCkprt);
    getCks = xeqCks && (Config.CksData.Length == 0);

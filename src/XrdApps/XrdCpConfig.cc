@@ -513,7 +513,7 @@ int XrdCpConfig::a2z(const char *item, long long *val,
 /* Private:                       d e f C k s                                 */
 /******************************************************************************/
   
-int XrdCpConfig::defCks(const char *opval, int ckOpt)
+int XrdCpConfig::defCks(const char *opval)
 {
    static XrdVERSIONINFODEF(myVer, xrdcp, XrdVNUMBER, XrdVERSION);
    const char *Colon = index(opval, ':');
@@ -547,20 +547,21 @@ int XrdCpConfig::defCks(const char *opval, int ckOpt)
 // Reset checksum information
 //
    CksData.Length = 0;
-   OpSpec &= ~(DoCkprt | DoAdler | DoMD5);
-   OpSpec |=  ckOpt;
+   OpSpec &= ~(DoCkprt | DoCksrc | DoCksum);
 
 // Check for any additional arguments
 //
    if (Colon)
       {Colon++;
        if (!(*Colon)) UMSG(CksData.Name <<" argument missing after ':'.");
-       if (!strcmp(Colon, "print")) OpSpec |= DoCkprt;
+       if (!strcmp(Colon, "print")) OpSpec |= (DoCkprt | DoCksum);
+          else if (!strcmp(Colon, "source")) OpSpec |= (DoCkprt | DoCksrc);
           else {n = strlen(Colon);
                 if (n != CksLen*2 || !CksData.Set(Colon, n))
                    UMSG("Invalid " <<CksData.Name <<" value '" <<Colon <<"'.");
+                OpSpec |= DoCksum;
                }
-      }
+      } else OpSpec |= DoCksum;
 
 // All done
 //
@@ -708,7 +709,7 @@ int XrdCpConfig::Legacy(int oIndex)
   
 int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 {
-   if (!strcmp(theOp, "-adler")) return defCks("adler32:print", DoAdler);
+   if (!strcmp(theOp, "-adler")) return defCks("adler32:source");
 
    if (!strncmp(theOp, "-DI", 3) || !strncmp(theOp, "-DS", 3))
       return defOpt(theOp, theArg);
@@ -720,7 +721,7 @@ int XrdCpConfig::Legacy(const char *theOp, const char *theArg)
 
    if (!strcmp(theOp, "-np")) {OpSpec |= DoNoPbar; return 1;}
 
-   if (!strcmp(theOp, "-md5")) return defCks("md5:print", DoMD5);
+   if (!strcmp(theOp, "-md5")) return defCks("md5:source");
 
    if (!strncmp(theOp,"-OD",3) || !strncmp(theOp,"-OS",3)) return defOpq(theOp);
 
@@ -835,7 +836,7 @@ void XrdCpConfig::Usage(int rc)
    static const char *Detail = "\n"
    "-C | --cksum <args> verifies the checksum at the destination as provided\n"
    "                    by the source server or locally computed. The args are\n"
-   "                    {adler32 | crc32 | md5}[:{<value>|print}]\n"
+   "                    {adler32 | crc32 | md5}[:{<value>|print|source}]\n"
    "                    If the hex value of the checksum is given, it is used.\n"
    "                    Otherwise, the server's checksum is used for remote files\n"
    "                    and computed for local files. Specifying print merely\n"

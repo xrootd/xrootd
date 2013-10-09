@@ -83,9 +83,8 @@ XrdCpFile          *dstFile;       // The destination for the copy
 
 static XrdSysError *Log;           // -> Error message object
 
-static const int    DoAdler    =  0x00000001; //  -adler {legacy}
-
-static const int    OpCksum    =  'C';
+static const int    OpCksum    =  'C';        // -adler -MD5 legacy -> DoCksrc
+static const int    DoCksrc    =  0x00000001; // --cksum <type>:source
 static const int    DoCksum    =  0x00000002; // --cksum <type>
 static const int    DoCkprt    =  0x00000004; // --cksum <type>:print
 
@@ -106,7 +105,7 @@ static const int    DoIfile    =  0x00100000; // -I | --infiles
 
 static const int    OpLicense  =  'H';        // -H | --license
 
-static const int    DoMD5      =  0x00000080; // -md5 {legacy}
+//atic const int    DoXyzzy    =  0x00000080; // Reserved
 
 static const int    OpNoPbar   =  'N';
 static const int    DoNoPbar   =  0x00000100; // -N | --nopbar | -np {legacy}
@@ -174,7 +173,7 @@ private:
              int    a2x(const char *Val, char *Buff, int Vlen);
              int    a2z(const char *item, long long *val,
                                           long long minv, long long maxv=-1);
-             int    defCks(const char *opval, int ckOpt=DoCksum);
+             int    defCks(const char *opval);
              int    defOpq(const char *theOp);
              int    defOpt(const char *theOp, const char *theArg);
              void   defPxy(const char *opval);
