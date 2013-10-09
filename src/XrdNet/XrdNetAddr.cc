@@ -115,7 +115,7 @@ bool XrdNetAddr::Map64()
 //
    IP.v4.sin_addr.s_addr = IP.v6.sin6_addr.s6_addr32[3];
    IP.v4.sin_family      = AF_INET;
-   protType              = PF_INET6;
+   protType              = PF_INET;
    addrSize              = sizeof(sockaddr_in);
    return true;
 }
