@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide a non-deprecated way of specifying source checksums
+     via xrdcp et. al.
    * Enable locate to return host names not just ip addreses.
    * Implement query config chksum to return supported chksum name.
    * Provide a mechanism to manually control log file rotation via -k.
@@ -76,6 +78,9 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Accept old-style as well as new-style IPV6 addresses in the sss
+     protocol. This allows the new client to use this protocol after
+     it implemented IPV6 support.
    * Prevent SEGV in NetAddrInfo copy constructor (via Serge Monkewitz).
    * Prevent invalid mutex operations in auto-termination routine.
      Fix provided by Serge Monkewitz.
