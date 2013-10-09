@@ -78,6 +78,11 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Correct XrdNetAddr::Map64() to set correct protocol in converted address.
+     Without this fix it is almost impossible for an IPV4 client to use only
+     IPV6-to-IPV4 mapped methods.
+   * Make sure that the old client runs only in IPV4 mode as mixing modes does
+     not work for a variety of reasons. This fixes the sss problem.
    * Accept old-style as well as new-style IPV6 addresses in the sss
      protocol. This allows the new client to use this protocol after
      it implemented IPV6 support.
