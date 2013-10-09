@@ -163,7 +163,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
    CLDBG(urName <<' ' <<urIP << " must match " <<(theHost ? theHost : "?")
          <<' ' <<(theIP ? theIP : "[?]"));
    if (theIP)
-      {if (strcmp(theIP, urIP))
+      {if (strcmp(theIP, urIP) && strcmp(theIP, urIQ))
           {Fatal(einfo, "Authenticate", EINVAL, "IP address mismatch.");
            return -1;
           }
@@ -858,8 +858,9 @@ char *XrdSecProtocolsss::setID(char *id, char **idP)
   
 void XrdSecProtocolsss::setIP(XrdNetAddrInfo &endPoint)
 {
-   if (!endPoint.Format(urIP, sizeof(urIP), XrdNetAddrInfo::fmtAdv6,
-                                            XrdNetAddrInfo::old6Map4)) *urIP=0;
+   if (!endPoint.Format(urIP, sizeof(urIP), XrdNetAddrInfo::fmtAdv6))  *urIP=0;
+   if (!endPoint.Format(urIQ, sizeof(urIQ), XrdNetAddrInfo::fmtAdv6,
+                                            XrdNetAddrInfo::old6Map4)) *urIQ=0;
    epAddr = endPoint;
    Entity.addrInfo = &epAddr;
 }

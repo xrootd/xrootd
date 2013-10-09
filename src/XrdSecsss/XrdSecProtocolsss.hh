@@ -102,7 +102,8 @@ static struct Crypto  CryptoTab[];
 static const char    *myName;
 static int            myNLen;
        char          *urName;
-       char           urIP[64];
+       char           urIP[48];  // New format
+       char           urIQ[48];  // Old format
 static int            options;
 static int            isMutual;
 static int            deltaTime;
