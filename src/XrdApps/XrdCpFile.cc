@@ -69,11 +69,11 @@ XrdCpFile::XrdCpFile(const char *FSpec, int &badURL)
    badURL= 0;
    memset(ProtName, 0, sizeof(ProtName));
 
-// Copy out the path and remove trailing slashes
+// Copy out the path and remove trailing slashes (except the last one)
 //
    Path = strdup(FSpec);
    i = strlen(Path);
-   while(i) if (Path[i-1] != '/') break;
+   while(i) if (Path[i-1] != '/' || (i > 1 && Path[i-2] != '/')) break;
                else Path[--i] = 0;
 
 // Check for stdin stdout spec
