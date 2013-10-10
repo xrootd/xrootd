@@ -122,6 +122,8 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Do not remove the last trailing slash from file paths. This prevents
+     copying into a auto-created directory.
    * Restore original meaning of -adler and -md5 to xrdcp. These are legacy
      options that always locally computed the checksum and printed it.
    * Fix file descriptor leaks.
