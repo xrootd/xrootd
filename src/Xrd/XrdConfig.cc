@@ -309,7 +309,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Set the site name if we have one
 //
-   if (mySitName) mySitName = XrdOucSiteName::Set(mySitName);
+   if (mySitName) mySitName = XrdOucSiteName::Set(mySitName, 63);
 
 // Drop into non-privileged state if so requested
 //
@@ -1472,7 +1472,7 @@ int XrdConfig::xsit(XrdSysError *eDest, XrdOucStream &Config)
 
     if (mySitName) eDest->Emsg("Config", "sitename already specified, using '",
                                mySitName, "'.");
-       else mySitName = XrdOucSiteName::Set(val);
+       else mySitName = XrdOucSiteName::Set(val, 63);
     return 0;
 }
 
