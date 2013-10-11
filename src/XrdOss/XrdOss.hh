@@ -103,7 +103,7 @@ virtual ssize_t ReadV(XrdOucIOVec *readV, int n)
 virtual ssize_t WriteV(XrdOucIOVec *writeV, int n)
                       {ssize_t nbytes = 0, curCount = 0;
                        for (int i=0; i<n; i++)
-                           {curCount = Read((void *)writeV[i].data,
+                           {curCount =Write((void *)writeV[i].data,
                                              (off_t)writeV[i].offset,
                                             (size_t)writeV[i].size);
                             if (curCount != writeV[i].size)
