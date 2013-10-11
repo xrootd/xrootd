@@ -176,6 +176,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Allow up to 63 characters for a site name.
    * [Accept] Decouple accept() loop from any DNS-related activities.
    * Make it possible to return more than 2K via XrdOucErrInfo object.
    * Squelch casting complaints from C11 in md5 calculation.
