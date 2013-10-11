@@ -6,6 +6,32 @@ Release Notes
 =============
 
 -------------
+Version 3.3.4
+-------------
+
++ **Major bug fixes**
+   * Serialize sss authentication client initialization to prevent race
+     conditions
+   * Actually cancel the JobManager threads while stopping it - this affected
+     client side fork handling (new client)
+   * Restore original meaning of -adler and -md5 to xrdcp (issue #44)
+
++ **Minor bug fixes**
+   * Append CGI info when retrying at a server that handshaked but never
+     respnded to the request (xrdcp)
+   * Do socket accepts asynchronously to prevent DNS resolution from blocking
+     accepts (issue #33)
+   * Warn about incomplete dirlist responses (xrdfs)
+   * Cast the utilization statistics to uint16_t before printing to
+     print actual numbers instead of letters corresponding to ASCII codes
+     (xrdfs)
+
++ **Miscellaneous**
+   * When calling File::Stat use file handle instead of path
+   * Improve handling of malformed kXR_readv responses (new client)
+   * Explain parameters of xrdcopy --tpc (documentation, issue #46)
+
+-------------
 Version 3.3.3
 -------------
 
