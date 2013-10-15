@@ -298,7 +298,7 @@ rm -rf $RPM_BUILD_ROOT
 getent group xrootd >/dev/null || groupadd -r xrootd
 getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
-       -s /sbin/nologin -d %{_localstatedir}/spool/%{name}
+       -s /sbin/nologin -d %{_localstatedir}/spool/%{name} xrootd
 exit 0
 
 %post
