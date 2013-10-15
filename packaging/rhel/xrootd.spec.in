@@ -209,7 +209,7 @@ This package contains the API documentation of the xrootd libraries.
 %package tests
 Summary: CPPUnit tests
 Group:   Development/Tools
-Requires: %{name}-cl = %{epoch}:%{version}-%{release}
+Requires: %{name}-client = %{epoch}:%{version}-%{release}
 %description tests
 This package contains a set of CPPUnit tests for xrootd.
 %endif
