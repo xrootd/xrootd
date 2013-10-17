@@ -52,6 +52,31 @@ class PostMasterTest: public CppUnit::TestCase
 CPPUNIT_TEST_SUITE_REGISTRATION( PostMasterTest );
 
 //------------------------------------------------------------------------------
+// Tear down the post master
+//------------------------------------------------------------------------------
+namespace
+{
+  class PostMasterFinalizer
+  {
+    public:
+      PostMasterFinalizer( XrdCl::PostMaster *pm = 0 ): pPostMaster(pm) {}
+      ~PostMasterFinalizer()
+      {
+        if( pPostMaster )
+        {
+          pPostMaster->Stop();
+          pPostMaster->Finalize();
+        }
+      }
+      void Set( XrdCl::PostMaster *pm ) { pPostMaster = pm; }
+      XrdCl::PostMaster *Get() { return pPostMaster; }
+
+    private:
+      XrdCl::PostMaster *pPostMaster;
+  };
+}
+
+//------------------------------------------------------------------------------
 // Message filter
 //------------------------------------------------------------------------------
 class XrdFilter: public XrdCl::MessageFilter
@@ -143,6 +168,7 @@ void PostMasterTest::ThreadingTest()
 {
   using namespace XrdCl;
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -158,9 +184,6 @@ void PostMasterTest::ThreadingTest()
 
   for( int i = 0; i < 100; ++i )
     pthread_join( thread[i], 0 );
-
-  postMaster.Stop();
-  postMaster.Finalize();
 }
 
 //------------------------------------------------------------------------------
@@ -179,6 +202,7 @@ void PostMasterTest::FunctionalTest()
   env->PutInt( "ConnectionWindow", 15 );
 
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -279,10 +303,6 @@ void PostMasterTest::FunctionalTest()
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
-
-  postMaster.Stop();
-  postMaster.Finalize();
-
 }
 
 
@@ -392,6 +412,7 @@ void PostMasterTest::MultiIPConnectionTest()
   env->PutInt( "ConnectionWindow",  5 );
 
   PostMaster postMaster;
+  PostMasterFinalizer finalizer( &postMaster );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -430,10 +451,4 @@ void PostMasterTest::MultiIPConnectionTest()
   CPPUNIT_ASSERT( resp != 0 );
   CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
   CPPUNIT_ASSERT( m2->GetSize() == 8 );
-
-  //----------------------------------------------------------------------------
-  // Clean up
-  //----------------------------------------------------------------------------
-  postMaster.Stop();
-  postMaster.Finalize();
 }
