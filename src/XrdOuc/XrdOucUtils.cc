@@ -254,11 +254,12 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
    struct group  *gEnt, gStruct;
    char gBuff[1024], *gBp = gBuff;
    int glen, gBsz = sizeof(gBuff), aOK = 1;
+   int retVal = 0;
 
 // Get the the group struct. If we don't have a large enough buffer, get a
 // larger one and try again up to the maximum buffer we will tolerate.
 //
-   while((getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) != 0) && errno == ERANGE)
+   while(( retVal = getgrgid_r(gID, &gStruct, gBp, gBsz, &gEnt) ) == ERANGE)
         {if (gBsz >= maxgBsz) {aOK = 0; break;}
          if (gBsz >  addGsz) free(gBp);
          gBsz += addGsz;
@@ -267,7 +268,7 @@ int XrdOucUtils::GroupName(gid_t gID, char *gName, int gNsz)
 
 // Return a group name if all went well
 //
-   if (aOK)
+   if (aOK && retVal == 0 && gEnt != NULL)
       {glen = strlen(gEnt->gr_name);
        if (glen >= gNsz) glen = 0;
           else strcpy(gName, gEnt->gr_name);
