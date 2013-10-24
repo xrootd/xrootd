@@ -78,6 +78,8 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Make sure protocol sss sets hostname. Fully reconstruct hostname
+     to prevent sss auth failure when nodnr is in effect.
    * Correct default implementation of writev to use write.
    * Correct XrdNetAddr::Map64() to set correct protocol in converted address.
      Without this fix it is almost impossible for an IPV4 client to use only
