@@ -190,6 +190,7 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 //
    if (idBuff) free(idBuff);
    idBuff = idP = (char *)malloc(idTLen);
+   Entity.host         = urName;
    Entity.name         = setID(myID.name,         &idP);
    Entity.vorg         = setID(myID.vorg,         &idP);
    Entity.role         = setID(myID.role,         &idP);
@@ -906,7 +907,7 @@ XrdSecProtocol *XrdSecProtocolsssObject(const char              mode,
 
 // Get a new protocol object
 //
-   if (!(prot = new XrdSecProtocolsss(hostname, endPoint)))
+   if (!(prot = new XrdSecProtocolsss(endPoint.Name(hostname), endPoint)))
       XrdSecProtocolsss::Fatal(erp, "sss_Object", ENOMEM,
                          "Secsss: Insufficient memory for protocol.");
       else {Ok = (mode == 'c' ? prot->Init_Client(erp, parms)
