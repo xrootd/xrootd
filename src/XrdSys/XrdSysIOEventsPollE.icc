@@ -101,7 +101,12 @@ XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
 
 // Open the /dev/poll driver
 //
+#ifndef EPOLL_CLOEXEC
+   if ((pfd = epoll_create(allocFD)) >= 0) fcntl(pfd, F_SETFD, FD_CLOEXEC);
+      else
+#else
    if ((pfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
+#endif
       {eNum = errno;
        if (eTxt) *eTxt = "creating epoll device";
        return 0;
