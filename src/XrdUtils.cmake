@@ -23,6 +23,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdSys/XrdSysDNS.cc           XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysDir.cc           XrdSys/XrdSysDir.hh
+                                XrdSys/XrdSysFD.hh
   XrdSys/XrdSysPlugin.cc        XrdSys/XrdSysPlugin.hh
   XrdSys/XrdSysPriv.cc          XrdSys/XrdSysPriv.hh
   XrdSys/XrdSysPlatform.cc      XrdSys/XrdSysPlatform.hh

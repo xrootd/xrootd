@@ -101,12 +101,11 @@ XrdSys::IOEvents::Poller::newPoller(int          pipeFD[2],
 
 // Open the /dev/poll driver
 //
-   if ((pfd = epoll_create(allocFD)) < 0)
+   if ((pfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
       {eNum = errno;
        if (eTxt) *eTxt = "creating epoll device";
        return 0;
       }
-   fcntl(pfd, F_SETFD, FD_CLOEXEC);
 
 // Add the request side of the pipe fd to the poll set (always fd[0])
 //

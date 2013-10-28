@@ -51,6 +51,7 @@
 
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 #include "Xrd/XrdBuffer.hh"
@@ -130,7 +131,7 @@ static const char *TraceID;
        XrdSysMutex     XrdLink::statsMutex;
 
        const char     *XrdLinkScan::TraceID = "LinkScan";
-       int             XrdLink::devNull = open("/dev/null", O_RDONLY);
+       int             XrdLink::devNull = XrdSysFD_Open("/dev/null", O_RDONLY);
        short           XrdLink::killWait= 3;  // Kill then wait
        short           XrdLink::waitKill= 4;  // Wait then kill
 
@@ -937,10 +938,6 @@ void XrdLink::setID(const char *userid, int procid)
 int XrdLink::Setup(int maxfds, int idlewait)
 {
    int numalloc, iticks, ichk;
-
-// Make sure our static /dev/null fd is closed whn we exec
-//
-   fcntl(devNull, F_SETFD, FD_CLOEXEC);
 
 // Compute the number of link objects we should allocate at a time. Generally,
 // we like to allocate 8k of them at a time but always as a power of two.

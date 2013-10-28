@@ -44,6 +44,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdFrc;
@@ -273,11 +274,10 @@ int XrdFrcCID::Update()
 
 // Open the temp file first in r/w mode
 //
-   if ((cidFD = open(cidFN2, O_RDWR|O_CREAT, Mode)) < 0)
+   if ((cidFD = XrdSysFD_Open(cidFN2, O_RDWR|O_CREAT, Mode)) < 0)
       {Say.Emsg("Init",errno,"open",cidFN2);
        return 0;
       }
-   fcntl(cidFD, F_SETFD, FD_CLOEXEC);
 
 // Lock the file
 //

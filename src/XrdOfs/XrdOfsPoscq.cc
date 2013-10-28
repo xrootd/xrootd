@@ -42,6 +42,7 @@
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -183,11 +184,10 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::Init(int &Ok)
 
 // Open the file first in r/w mode
 //
-   if ((pocFD = open(pocFN, O_RDWR|O_CREAT, Mode)) < 0)
+   if ((pocFD = XrdSysFD_Open(pocFN, O_RDWR|O_CREAT, Mode)) < 0)
       {eDest->Emsg("Init",errno,"open",pocFN);
        return 0;
       }
-   fcntl(pocFD, F_SETFD, FD_CLOEXEC);
 
 // Get file status
 //
@@ -235,11 +235,10 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::List(XrdSysError *Say, const char *theFN)
 
 // Open the file first in r/o mode
 //
-   if ((theFD = open(theFN, O_RDONLY)) < 0)
+   if ((theFD = XrdSysFD_Open(theFN, O_RDONLY)) < 0)
       {Say->Emsg("Init",errno,"open",theFN);
        return 0;
       }
-   fcntl(theFD, F_SETFD, FD_CLOEXEC);
 
 // Get file status
 //
@@ -305,9 +304,8 @@ int XrdOfsPoscq::ReWrite(XrdOfsPoscq::recEnt *rP)
 // Construct new file and open it
 //
    strcpy(newFN, pocFN); strcat(newFN, ".new");
-   if ((newFD = open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
+   if ((newFD = XrdSysFD_Open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
       {eDest->Emsg("ReWrite",errno,"open",newFN); return 0;}
-   fcntl(newFD, F_SETFD, FD_CLOEXEC);
 
 // Setup to write/swap the file
 //

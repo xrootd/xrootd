@@ -45,6 +45,7 @@
 #include <sys/uio.h>
 #endif // WIN32
 
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -105,8 +106,7 @@ XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
 // Establish message routing
 //
    if (ErrFD != STDERR_FILENO) baseFD = ErrFD;
-      else {baseFD = dup(ErrFD);
-            fcntl(baseFD, F_SETFD, FD_CLOEXEC);
+      else {baseFD = XrdSysFD_Dup(ErrFD);
             Bind(logFN, 1);
            }
 }
@@ -366,17 +366,13 @@ void XrdSysLogger::FifoWait()
 // Open the fifo. We can't have this block as we need to make sure it is
 // closed on EXEC as fast as possible (Linux has a non-portable solution).
 //
-   if ((pipeFD = open(fifoFN, O_RDONLY)) < 0)
+   if ((pipeFD = XrdSysFD_Open(fifoFN, O_RDONLY)) < 0)
       {rc = errno;
        BLAB("Unable to open logfile fifo " <<fifoFN <<"; " <<strerror(rc));
        eInt = 0;
        free(fifoFN); fifoFN = 0;
        return;
       }
-
-// Make sure we don't leak this descriptor
-//
-   fcntl(pipeFD, F_SETFD, FD_CLOEXEC);
 
 // Wait for read, this will block. If we got an EOF then something went wrong!
 //
@@ -454,8 +450,8 @@ int XrdSysLogger::ReBind(int dorename)
 // Open the file for output. Note that we can still leak a file descriptor
 // if a thread forks a process before we are able to do the fcntl(), sigh.
 //
-   if ((newfd = open(ePath,O_WRONLY|O_APPEND|O_CREAT,0644)) < 0) return -errno;
-   fcntl(newfd, F_SETFD, FD_CLOEXEC);
+   if ((newfd = XrdSysFD_Open(ePath,O_WRONLY|O_APPEND|O_CREAT,0644)) < 0)
+      return -errno;
 
 // Now set the file descriptor to be the same as the error FD. This will
 // close the previously opened file, if any.

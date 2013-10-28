@@ -78,6 +78,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysAtomics.hh
   XrdSys/XrdSysDNS.hh
   XrdSys/XrdSysError.hh
+  XrdSys/XrdSysFD.hh
   XrdSys/XrdSysHeaders.hh
   XrdSys/XrdSysIOEvents.hh
   XrdSys/XrdSysLogger.hh

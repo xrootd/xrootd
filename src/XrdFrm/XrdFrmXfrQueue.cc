@@ -47,6 +47,7 @@
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -401,9 +402,8 @@ void XrdFrmXfrQueue::Send2File(char *Dest, char *Msg, int Mln)
 
 // Open the file
 //
-   if ((FD = open(Dest, O_WRONLY)) < 0)
+   if ((FD = XrdSysFD_Open(Dest, O_WRONLY)) < 0)
       {Say.Emsg("Notify", errno, "send notification via", Dest); return;}
-   fcntl(FD, F_SETFD, FD_CLOEXEC);
 
 // Write the message
 //

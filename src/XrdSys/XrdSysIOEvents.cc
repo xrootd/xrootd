@@ -29,11 +29,10 @@
 /******************************************************************************/
 
 #include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
   
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysIOEvents.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -732,13 +731,11 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
 
 // Create a pipe used to break the poll wait loop
 //
-   if (pipe(fildes))
+   if (XrdSysFD_Pipe(fildes))
       {eNum = errno;
        if (eTxt) *eTxt = "creating poll pipe";
        return 0;
       }
-   fcntl(fildes[0], F_SETFD, FD_CLOEXEC);
-   fcntl(fildes[1], F_SETFD, FD_CLOEXEC);
 
 // Create an actual implementation of a poller
 //

@@ -59,6 +59,7 @@
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -1141,7 +1142,7 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 
 // Now open the actual data file in the appropriate mode.
 //
-    do { myfd = open(path, Oflag|O_LARGEFILE, Mode);}
+    do { myfd = XrdSysFD_Open(path, Oflag|O_LARGEFILE, Mode);}
        while( myfd < 0 && errno == EINTR);
 
 // If the file is marked purgeable or migratable and we may modify this file,
@@ -1170,11 +1171,10 @@ int XrdOssFile::Open_ufs(const char *path, int Oflag, int Mode,
 //
     if (myfd >= 0)
        {if (myfd < XrdOssSS->FDFence)
-           {if ((newfd = fcntl(myfd, F_DUPFD, XrdOssSS->FDFence)) < 0)
+           {if ((newfd = XrdSysFD_Dup1(myfd, XrdOssSS->FDFence)) < 0)
                OssEroute.Emsg("Open_ufs",errno,"reloc FD",path);
                else {close(myfd); myfd = newfd;}
            }
-        fcntl(myfd, F_SETFD, FD_CLOEXEC);
 #ifdef XRDOSSCX
         // If the file is compressed get a CXFile object and attach the FD to it
         //

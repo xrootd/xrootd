@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdFrc;
@@ -795,8 +796,8 @@ const char *XrdFrmTransfer::ThrowOK(XrdFrmTranChk *cP)
 
 // Check if the file is in use by checking if we got an exclusive lock
 //
-   if ((fnFD.Num = open(xfrP->PFN, O_RDWR)) < 0) return "unable to open file";
-   fcntl(fnFD.Num, F_SETFD, FD_CLOEXEC);
+   if ((fnFD.Num = XrdSysFD_Open(xfrP->PFN, O_RDWR)) < 0)
+      return "unable to open file";
    if (XrdOucSxeq::Serialize(fnFD.Num,XrdOucSxeq::noWait)) return "file in use";
 
 // Get the info on the lock file (enabled if old mode is in effect

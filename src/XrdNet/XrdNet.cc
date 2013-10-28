@@ -51,6 +51,7 @@
 
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -398,7 +399,7 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
 
 // Accept a connection
 //
-   do {newfd = accept(iofd, &IP.Addr, &addrlen);}
+   do {newfd = XrdSysFD_Accept(iofd, &IP.Addr, &addrlen);}
       while(newfd < 0 && errno == EINTR);
 
    if (newfd < 0)
@@ -511,8 +512,8 @@ int XrdNet::do_Accept_UDP(XrdNetPeer &myPeer, int opts)
 // Get a new FD if so requested. We use our base FD for outgoing messages.
 //
    if (opts & XRDNET_NEWFD)
-      {myPeer.fd = dup(iofd);
-       if (!(opts & XRDNET_NOCLOSEX)) fcntl(myPeer.fd, F_SETFD, FD_CLOEXEC);
+      {myPeer.fd = XrdSysFD_Dup(iofd);
+       if (opts & XRDNET_NOCLOSEX) XrdSysFD_Yield(myPeer.fd);
       } else myPeer.fd = iofd;
 
 // Fill in the peer structure.

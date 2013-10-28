@@ -42,6 +42,7 @@
 #include "XrdFrc/XrdFrcReqFile.hh"
 #include "XrdFrc/XrdFrcTrace.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 using namespace XrdFrc;
@@ -223,9 +224,8 @@ int XrdFrcReqFile::Init()
 
 // Open the lock file first in r/w mode
 //
-   if ((lokFD = open(lokFN, O_RDWR|O_CREAT, Mode)) < 0)
+   if ((lokFD = XrdSysFD_Open(lokFN, O_RDWR|O_CREAT, Mode)) < 0)
       {Say.Emsg("Init",errno,"open",lokFN); return 0;}
-   fcntl(lokFD, F_SETFD, FD_CLOEXEC);
 
 // Obtain a lock
 //
@@ -233,12 +233,11 @@ int XrdFrcReqFile::Init()
 
 // Open the file first in r/w mode
 //
-   if ((reqFD = open(reqFN, O_RDWR|O_CREAT, Mode)) < 0)
+   if ((reqFD = XrdSysFD_Open(reqFN, O_RDWR|O_CREAT, Mode)) < 0)
       {FileLock(lkNone);
        Say.Emsg("Init",errno,"open",reqFN); 
        return 0;
       }
-   fcntl(reqFD, F_SETFD, FD_CLOEXEC);
 
 // Check for a new file here
 //
@@ -508,12 +507,11 @@ int XrdFrcReqFile::FileLock(LockType lktype)
 // Refresh the header
 //
    if (lktype == lkExcl || lktype == lkShare)
-      {if (reqFD < 0 && (reqFD = open(reqFN, O_RDWR)) < 0)
+      {if (reqFD < 0 && (reqFD = XrdSysFD_Open(reqFN, O_RDWR)) < 0)
           {Say.Emsg("FileLock",errno,"open",reqFN);
            FileLock(lkNone);
            return 0;
           }
-       fcntl(reqFD, F_SETFD, FD_CLOEXEC);
        do {rc = pread(reqFD, (void *)&HdrData, sizeof(HdrData), 0);}
            while(rc < 0 && errno == EINTR);
        if (rc < 0) {Say.Emsg("reqRead",errno,"refresh hdr from", reqFN);
@@ -570,9 +568,8 @@ int XrdFrcReqFile::ReWrite(XrdFrcReqFile::recEnt *rP)
 // Construct new file and open it
 //
    strcpy(newFN, reqFN); strcat(newFN, ".new");
-   if ((newFD = open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
+   if ((newFD = XrdSysFD_Open(newFN, O_RDWR|O_CREAT|O_TRUNC, Mode)) < 0)
       {Say.Emsg("ReWrite",errno,"open",newFN); FileLock(lkNone); return 0;}
-   fcntl(newFD, F_SETFD, FD_CLOEXEC);
 
 // Setup to write/swap the file
 //

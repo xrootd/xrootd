@@ -54,9 +54,8 @@ XrdPoll *XrdPoll::newPoller(int pollid, int maxfd)
 
 // Open the /dev/poll driver
 //
-   if ((pfd = epoll_create(maxfd)) < 0)
+   if ((pfd = epoll_create1(EPOLL_CLOEXEC)) < 0)
       {XrdLog->Emsg("Poll", errno, "create epoll device"); return 0;}
-   fcntl(pfd, F_SETFD, FD_CLOEXEC);
 
 // Calculate the size of the poll table and allocate it
 //

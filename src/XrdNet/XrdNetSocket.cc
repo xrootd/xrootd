@@ -59,6 +59,7 @@
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
@@ -102,7 +103,7 @@ int XrdNetSocket::Accept(int timeout)
        if (!sfd.revents) return -1;
       }
 
-   do {ClientSock = accept(SockFD, (struct sockaddr *)0, 0);}
+   do {ClientSock = XrdSysFD_Accept(SockFD, (struct sockaddr *)0, 0);}
       while(ClientSock < 0 && errno == EINTR);
 
    if (ClientSock < 0 && eroute) eroute->Emsg("Accept",errno,"accept connection");
@@ -154,10 +155,9 @@ XrdNetSocket *XrdNetSocket::Create(XrdSysError *Say, const char *path,
    if (opts & XRDNET_FIFO)
       {if ((ASock->SockFD = mkfifo(fnbuff, mode)) < 0 && errno != EEXIST)
          {eMsg = "create fifo"; rc = errno;}
-         else if ((ASock->SockFD = open(fnbuff, O_RDWR, myMode)) < 0)
-                 {eMsg = "open fifo"; rc = ASock->LastError();}
-                 else if (!(opts & XRDNET_NOCLOSEX))
-                         fcntl(ASock->SockFD, F_SETFD, FD_CLOEXEC);
+         else if ((ASock->SockFD = XrdSysFD_Open(fnbuff, O_RDWR, myMode)) < 0)
+                 {eMsg = "open fifo"; rc = errno;}
+                 else if (opts & XRDNET_NOCLOSEX) XrdSysFD_Yield(ASock->SockFD);
       } else if (ASock->Open(fnbuff, -1, sflags) < 0) 
                 {eMsg = "create socket"; rc = ASock->LastError();}
 #else
@@ -241,7 +241,7 @@ int XrdNetSocket::Open(const char *inpath, int port, int flags, int windowsz)
 // Allocate a socket descriptor of the right type
 //
    SockProt = SockInfo.Protocol();
-   if ((SockFD = socket(SockProt, SockType, 0)) < 0)
+   if ((SockFD = XrdSysFD_Socket(SockProt, SockType, 0)) < 0)
       return Err(Open, errno, "create socket for", epath);
 
 // Based on the type socket, set appropriate options. For server-side Unix
@@ -343,7 +343,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
    static struct linger liopts = {1, XRDNETSOCKET_LINGER};
    const SOCKLEN_t szlio = (SOCKLEN_t)sizeof(liopts);
 
-   if (!(opts & XRDNET_NOCLOSEX) && fcntl(xfd, F_SETFD, FD_CLOEXEC))
+   if (opts & XRDNET_NOCLOSEX && !XrdSysFD_Yield(xfd))
       {rc = 1;
        if (eDest) eDest->Emsg("setOpts", errno, "set fd close on exec");
       }
