@@ -45,7 +45,7 @@
 
 namespace
 {
-#ifdef __linux__
+#if defined(__linux__) && defined(SOCK_CLOEXEC) && defined(O_CLOEXEC)
 inline int  XrdSysFD_Accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
                  {return accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);}
 
