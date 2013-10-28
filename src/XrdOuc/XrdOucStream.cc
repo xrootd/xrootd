@@ -58,6 +58,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 /******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
@@ -74,6 +75,11 @@
 // The following is used by child processes prior to exec() to avoid deadlocks
 //
 #define Erx(p, a, b) cerr <<#p <<": " <<strerror(a) <<' ' <<b <<endl;
+
+// The following mutex is used to allow only one fork at a time so that
+// we do not leak file descriptors. It is a short-lived lock.
+//
+namespace {XrdSysMutex forkMutex;}
 
 /******************************************************************************/
 /*               o o u c _ S t r e a m   C o n s t r u c t o r                */
@@ -304,14 +310,19 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
        else if (efd > 0) Child_log = efd;
 
     // Fork a process first so we can pick up the next request. We also
-    // set the process group in case the chi;d hasn't been able to do so.
+    // set the process group in case the child hasn't been able to do so.
+    // Make sure only one fork occurs at any one time (we are the only one).
     //
+    forkMutex.Lock();
     if ((child = fork()))
-       {          close(Child_out);
+       {if (child < 0)
+           {close(Child_in); close(Child_out); forkMutex.UnLock();
+            return Err(Exec, errno, "fork request process for", parm[0]);
+           }
+                  close(Child_out);
         if (inrd) close(Child_in );
         if (!efd && Child_log >= 0) close(Child_log);
-        if (child < 0)
-           return Err(Exec, errno, "fork request process for", parm[0]);
+        forkMutex.UnLock();
         setpgid(child, child);
         return 0;
        }
