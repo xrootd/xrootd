@@ -773,6 +773,41 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Get access token to a file - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Visa( ResponseHandler *handler,
+                                       uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a visa command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientQueryRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_query;
+    req->infotype  = kXR_Qvisa;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsOpen() const

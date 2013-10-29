@@ -295,6 +295,29 @@ namespace XrdCl
     return MessageUtils::WaitForResponse( &handler, response );
   }
 
+  //------------------------------------------------------------------------
+  //! Get access token to a file - async
+  //------------------------------------------------------------------------
+  XRootDStatus File::Visa( ResponseHandler *handler,
+                           uint16_t         timeout )
+  {
+    return pStateHandler->Visa( handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Get access token to a file - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Visa( Buffer   *&visa,
+                           uint16_t   timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Visa( &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, visa );
+  }
+
   //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------

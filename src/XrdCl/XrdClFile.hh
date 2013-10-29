@@ -322,6 +322,30 @@ namespace XrdCl
                           uint16_t          timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Get access token to a file - async
+      //!
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Visa( ResponseHandler *handler,
+                         uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Get access token to a file - sync
+      //!
+      //! @param visa      the access token (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Visa( Buffer   *&visa,
+                         uint16_t   timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Check if the file is open
       //------------------------------------------------------------------------
       bool IsOpen() const;
