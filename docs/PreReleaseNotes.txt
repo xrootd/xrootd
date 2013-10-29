@@ -178,6 +178,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Provide a poller pause/resume method to ease forking without spurious
+     errors.
    * Make sure only one fork occurrs at a time to prevent FD leaks.
    * Use atomic FD_CLOEXEC where available to prevent FD leaks.
    * Allow up to 63 characters for a site name.
