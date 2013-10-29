@@ -1907,7 +1907,10 @@ namespace XrdCl
     std::ostringstream o;
     o << "0x";
     for( uint8_t i = 0; i < 4; ++i )
-      o << std::setbase(16) << (int)handle[i];
+    {
+      o << std::setbase(16) << std::setfill('0') << std::setw(2);
+      o << (int)handle[i];
+    }
     return o.str();
   }
 }
