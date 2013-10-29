@@ -269,6 +269,33 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( const Buffer    &arg,
+                            ResponseHandler *handler,
+                            uint16_t         timeout )
+  {
+    return pStateHandler->Fcntl( arg, handler, timeout );
+  }
+
+  //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - sync
+  //----------------------------------------------------------------------------
+  XRootDStatus File::Fcntl( const Buffer     &arg,
+                            Buffer          *&response,
+                            uint16_t          timeout )
+  {
+    SyncResponseHandler handler;
+    Status st = Fcntl( arg, &handler, timeout );
+    if( !st.IsOK() )
+      return st;
+
+    return MessageUtils::WaitForResponse( &handler, response );
+  }
+
+  //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
   bool File::IsOpen() const

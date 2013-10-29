@@ -292,6 +292,36 @@ namespace XrdCl
                                uint16_t          timeout = 0 );
 
       //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file, server implementation
+      //! dependent - async
+      //!
+      //! @param arg       query argument
+      //! @param handler   handler to be notified when the response arrives,
+      //!                  the response parameter will hold a Buffer object
+      //!                  if the procedure is successful
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( const Buffer    &arg,
+                          ResponseHandler *handler,
+                          uint16_t         timeout = 0 );
+
+      //------------------------------------------------------------------------
+      //! Performs a custom operation on an open file, server implementation
+      //! dependent - sync
+      //!
+      //! @param arg       query argument
+      //! @param response  the response (to be deleted by the user)
+      //! @param timeout   timeout value, if 0 the environment default will
+      //!                  be used
+      //! @return          status of the operation
+      //------------------------------------------------------------------------
+      XRootDStatus Fcntl( const Buffer     &arg,
+                          Buffer          *&response,
+                          uint16_t          timeout = 0 );
+
+      //------------------------------------------------------------------------
       //! Check if the file is open
       //------------------------------------------------------------------------
       bool IsOpen() const;

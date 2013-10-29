@@ -734,6 +734,45 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Performs a custom operation on an open file, server implementation
+  // dependent - async
+  //----------------------------------------------------------------------------
+  XRootDStatus FileStateHandler::Fcntl( const Buffer    &arg,
+                                        ResponseHandler *handler,
+                                        uint16_t         timeout )
+  {
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    if( pFileState != Opened && pFileState != Recovering )
+      return XRootDStatus( stError, errInvalidOp );
+
+    Log *log = DefaultEnv::GetLog();
+    log->Debug( FileMsg, "[0x%x@%s] Sending a fcntl command for handle 0x%x to "
+                "%s", this, pFileUrl->GetURL().c_str(),
+                *((uint32_t*)pFileHandle), pDataServer->GetHostId().c_str() );
+
+    Message            *msg;
+    ClientQueryRequest *req;
+    MessageUtils::CreateRequest( msg, req, arg.GetSize() );
+
+    req->requestid = kXR_query;
+    req->infotype  = kXR_Qopaqug;
+    req->dlen      = arg.GetSize();
+    memcpy( req->fhandle, pFileHandle, 4 );
+    msg->Append( arg.GetBuffer(), arg.GetSize(), 24 );
+
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+    MessageUtils::ProcessSendParams( params );
+
+    XRootDTransport::SetDescription( msg );
+    StatefulHandler *stHandler = new StatefulHandler( this, handler, msg, params );
+    return SendOrQueue( *pDataServer, msg, stHandler, params );
+  }
+
+  //----------------------------------------------------------------------------
   // Check if the file is open
   //----------------------------------------------------------------------------
   bool FileStateHandler::IsOpen() const
