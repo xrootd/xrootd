@@ -816,7 +816,7 @@ void XrdSys::IOEvents::Poller::Detach(XrdSys::IOEvents::Channel *cP,
 // Warning: This method runs unlocked. The caller must have exclusive use of
 //          the reqBuff otherwise unpredictable results will occur.
 
-int XrdSys::IOEvents::Poller::GetRequest()
+int XrdSys::IOEvents::Poller::GetRequest(int tmo)
 {
    ssize_t rlen;
    int rc;
@@ -829,7 +829,7 @@ int XrdSys::IOEvents::Poller::GetRequest()
 // Wait for the next request. Some OS's (like Linux) don't support non-blocking
 // pipes. So, we must front the read with a poll.
 //
-   do {rc = poll(&pipePoll, 1, 0);}
+   do {rc = poll(&pipePoll, 1, tmo);}
       while(rc < 0 && (errno == EAGAIN || errno == EINTR));
    if (rc < 1) return 0;
 

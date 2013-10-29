@@ -354,7 +354,7 @@ bool XrdSys::IOEvents::PollE::Modify(XrdSys::IOEvents::Channel *cP,
 
 bool XrdSys::IOEvents::PollE::Process()
 {
-   bool paused = false;
+   int tmo = 0;
 
 // Get the pipe request and check out actions of interest.
 //
@@ -362,14 +362,14 @@ bool XrdSys::IOEvents::PollE::Process()
 do{if (GetRequest())
       {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
        else if (reqBuff.req == PipeData::Wait){reqBuff.theSem->Post();
-                                               paused = true;
+                                               tmo = -1;
                                               }
        else if (reqBuff.req == PipeData::Cont) break;
        else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
                                                return false;
                                               }
       }
-  } while(paused);
+  } while(tmo);
 
 // Return true
 //

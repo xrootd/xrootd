@@ -474,9 +474,11 @@ bool XrdSys::IOEvents::PollPoll::Modify(XrdSys::IOEvents::Channel *cP,
 
 bool XrdSys::IOEvents::PollPoll::Process()
 {
+   int tmo = 0;
+
 // Get the pipe request and check out actions of interest.
 //
-  while(GetRequest())
+  while(GetRequest(tmo))
        {switch(reqBuff.req)
               {case PipeData::MdFD: FDMod(reqBuff.ent, reqBuff.fd, reqBuff.evt);
                                     break;
@@ -488,6 +490,11 @@ bool XrdSys::IOEvents::PollPoll::Process()
                                     break;
                case PipeData::NoOp: break;
                case PipeData::Post: reqBuff.theSem->Post();
+                                    break;
+               case PipeData::Wait: reqBuff.theSem->Post();
+                                    tmo = -1;
+                                    break;
+               case PipeData::Cont: tmo = 0;
                                     break;
                case PipeData::Stop: reqBuff.theSem->Post();
                                     return false;
