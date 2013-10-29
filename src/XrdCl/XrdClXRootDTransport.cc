@@ -1726,6 +1726,7 @@ namespace XrdCl
           case kXR_Qcksum:  o << "kXR_Qcksum"; break;
           case kXR_Qopaque: o << "kXR_Qopaque"; break;
           case kXR_Qopaquf: o << "kXR_Qopaquf"; break;
+          case kXR_Qopaqug: o << "kXR_Qopaqug"; break;
           case kXR_QPrep:   o << "kXR_QPrep"; break;
           case kXR_Qspace:  o << "kXR_Qspace"; break;
           case kXR_QStats:  o << "kXR_QStats"; break;
@@ -1733,7 +1734,14 @@ namespace XrdCl
           case kXR_Qxattr:  o << "kXR_Qxattr"; break;
           default: o << sreq->infotype; break;
         }
-        o << ", ";
+        o << ", ";          
+
+        if( sreq->infotype == kXR_Qopaqug || sreq->infotype == kXR_Qvisa )
+        {
+          o << "handle: " << FileHandleToStr( sreq->fhandle );
+          o << ", ";
+        }
+
         o << "arg length: " << sreq->dlen << ")";
         break;
       }
