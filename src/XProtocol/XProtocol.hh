@@ -193,7 +193,8 @@ enum XOpenRequestOption {
    kXR_replica  = 2048,
    kXR_posc     = 4096,
    kXR_nowait   = 8192,  // also locate
-   kXR_seqio    =16384
+   kXR_seqio    =16384,
+   kXR_open_wrto=32768
 };
 
 enum XQueryType {

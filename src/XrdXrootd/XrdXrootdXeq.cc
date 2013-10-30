@@ -1120,7 +1120,10 @@ int XrdXrootdProtocol::do_Open()
            {openopts  = SFS_O_RDONLY;  *op++ = 'r'; opC = XROOTD_MON_OPENR;}
    else if (opts & kXR_open_updt)   
            {openopts  = SFS_O_RDWR;    *op++ = 'u'; usage = 'w';
-                                                    opC = XROOTD_MON_OPENR;}
+                                                    opC = XROOTD_MON_OPENW;}
+   else if (opts & kXR_open_wrto)
+           {openopts  = SFS_O_WRONLY;  *op++ = 'o'; usage = 'w';
+                                                    opC = XROOTD_MON_OPENW;}
    else    {openopts  = SFS_O_RDONLY;  *op++ = 'r'; opC = XROOTD_MON_OPENR;}
 
         if (opts & kXR_new)
