@@ -84,6 +84,7 @@ namespace XrdCl
       Append   = kXR_open_apnd,  //!< Open only for appending
       Read     = kXR_open_read,  //!< Open only for reading
       Update   = kXR_open_updt,  //!< Open for reading and writing
+      Write    = kXR_open_wrto,  //!< Open only for writing
       POSC     = kXR_posc,       //!< Enable Persist On Successful Close
                                  //!< processing
       Refresh  = kXR_refresh,    //!< Refresh the cached information on file's
