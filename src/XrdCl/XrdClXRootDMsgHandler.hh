@@ -77,7 +77,7 @@ namespace XrdCl
         pReadVRawChunkHeaderDone( false ),
         pReadVRawChunkHeaderStarted( false ),
         pReadVRawSizeError( false ),
-        pReadVRawChunkIndex( -1 ),
+        pReadVRawChunkIndex( 0 ),
         pReadVRawMsgDiscard( false ),
 
         pOtherRawStarted( false )
