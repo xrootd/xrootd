@@ -488,6 +488,8 @@ struct          PipeData {char req; char evt; short ent; int fd;
                           XrdSysSemaphore *theSem;
                           enum cmd {NoOp = 0, MdFD = 1, Cont = 2, Post = 3,
                                     MiFD = 4, RmFD = 5, Wait = 6, Stop = 7};
+                          inline void Init(cmd cval)
+                                 {req=cval; evt=0; ent=0; fd=0; theSem=0;}
                          };
 PipeData        reqBuff;    // Buffer used by poller thread to recv data
 char           *pipeBuff;   // Read resumption point in buffer
