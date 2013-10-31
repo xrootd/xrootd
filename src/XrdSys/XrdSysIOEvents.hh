@@ -427,7 +427,7 @@ struct  PipeData;
         bool  CbkXeq(Channel *cP, int events, int eNum, const char *eTxt);
 inline  int   GetFault(Channel *cP)   {return cP->chFault;}
 inline  int   GetPollEnt(Channel *cP) {return cP->pollEnt;}
-        int   GetRequest(int tmo=0);
+        int   GetRequest();
         bool  Init(Channel *cP, int &eNum, const char **eTxt, bool &isLockd);
 inline  void  LockChannel(Channel *cP) {cP->chMutex.Lock();}
         int   Poll2Enum(short events);

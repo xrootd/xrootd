@@ -173,7 +173,6 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
    int i, rc;
    timespec_t toVal;
    Channel *cP;
-   bool doProcess;
 
 // Indicate to the starting thread that all went well
 //
@@ -196,14 +195,12 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
                          abort();
                         }
                }
-       doProcess = false;
        for (i = 0; i < (int)numpolled; i++)
            if (pollTab[i].portev_source == PORT_SOURCE_FD)
               {if ((cP = (Channel *)pollTab[i].portev_user))
                   Dispatch(cP, pollTab[i].portev_events);
-                  else doProcess = true;
-              }
-       if (doProcess && !Process()) return;
+                  else if (!Process()) return;
+           }
       } while(1);
 }
 
@@ -331,22 +328,14 @@ bool XrdSys::IOEvents::PollPort::Modify(XrdSys::IOEvents::Channel *cP,
 
 bool XrdSys::IOEvents::PollPort::Process()
 {
-   int tmo = 0;
-
 // Get the pipe request and check out actions of interest.
 //
-
-do{if (GetRequest())
-      {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
-       else if (reqBuff.req == PipeData::Wait){reqBuff.theSem->Post();
-                                               tmo = -1;
-                                              }
-       else if (reqBuff.req == PipeData::Cont) break;
-       else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
-                                               return false;
-                                              }
-      }
-  } while(tmo);
+  if (GetRequest())
+      if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
+     {if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                         return false;
+                                        }
+     }
 
 // Associate the pipe again and return true
 //
