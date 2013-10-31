@@ -189,7 +189,6 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
 {
    int i, numpolled;
    Channel *cP;
-   bool   doProcess;
 
 // Indicate to the starting thread that all went well
 //
@@ -209,14 +208,11 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
                 cerr <<"EPoll: " <<strerror(rc) <<" polling for events" <<endl;
                 abort();
                }
-       else {doProcess = false;
-             for (i = 0; i < numpolled; i++)
-                 {if ((cP = (Channel *)pollTab[i].data.ptr))
-                     Dispatch(cP, pollTab[i].events);
-                     else doProcess = true;
-                 }
-             if (doProcess && !Process()) return;
-            }
+       else for (i = 0; i < numpolled; i++)
+                {if ((cP = (Channel *)pollTab[i].data.ptr))
+                    Dispatch(cP, pollTab[i].events);
+                    else if (!Process()) return;
+                }
 
        if (pollMax < pollNum) AllocPT(pollNum);
 
@@ -354,22 +350,14 @@ bool XrdSys::IOEvents::PollE::Modify(XrdSys::IOEvents::Channel *cP,
 
 bool XrdSys::IOEvents::PollE::Process()
 {
-   bool paused = false;
-
 // Get the pipe request and check out actions of interest.
 //
-
-do{if (GetRequest())
-      {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
-       else if (reqBuff.req == PipeData::Wait){reqBuff.theSem->Post();
-                                               paused = true;
-                                              }
-       else if (reqBuff.req == PipeData::Cont) break;
-       else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
-                                               return false;
-                                              }
-      }
-  } while(paused);
+  if (GetRequest())
+     {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
+     }
 
 // Return true
 //

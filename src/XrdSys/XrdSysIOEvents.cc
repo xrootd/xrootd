@@ -921,29 +921,6 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 }
 
 /******************************************************************************/
-/*                                 P a u s e                                  */
-/******************************************************************************/
-
-void XrdSys::IOEvents::Poller::Pause(bool yes)
-{
-   PipeData  cmdbuff;
-
-// Initialize the pipdata structure
-//
-   memset(&cmdbuff, 0, sizeof(cmdbuff));
-   cmdbuff.req = (yes ? PipeData::Wait : PipeData::Cont);
-
-// Lock all of this
-//
-   adMutex.Lock();
-
-// If we are still active then issue the pause/resume (SendCmd unlocks us)
-//
-   if (cmdFD != -1) SendCmd(cmdbuff, true);
-      else adMutex.UnLock();
-}
-  
-/******************************************************************************/
 /*                             P o l l 2 E n u m                              */
 /******************************************************************************/
   
@@ -962,7 +939,7 @@ int XrdSys::IOEvents::Poller::Poll2Enum(short events)
 /*                               S e n d C m d                                */
 /******************************************************************************/
   
-int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd, bool unlock)
+int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd)
 {
    int wlen;
 
@@ -975,12 +952,10 @@ int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd, bool unlock)
        cmd.theSem = &mySem;
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
-       if (unlock) adMutex.UnLock();
        if (wlen > 0) mySem.Wait();
       } else {
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
-       if (unlock) adMutex.UnLock();
       }
 
 // All done

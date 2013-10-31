@@ -378,25 +378,12 @@ public:
 static Poller     *Create(int &eNum, const char **eTxt=0);
 
 //-----------------------------------------------------------------------------
-//! Pause or resume a poller object. This method is usefule to prevent file
-//! descriptor activity when doing a fork(). Beware, Pause() blocks until the
-//! poller thread is paused. However, no internal locks are held.
-//!
-//! @param  true   Pause the poller object. Active and pending callbacks are
-//!                completed. After which the poller event thread pauses
-//!                until Pause(false) is called.
-//! @param  false  Resume a paused poller object. This is a noop if the poller
-//!                is not paused.
-//-----------------------------------------------------------------------------
-
-       void        Pause(bool resume=false);
-
-//-----------------------------------------------------------------------------
-//! Stop a poller object. Active and pending callbacks are completed. After
-//! which the poller event thread exits. Subsequently, each associated channel
-//! is disabled and removed from the poller object. If the channel is enabled
-//! for a StopEvent, the stop callback is invoked. However, any attempt to use
-//! the channel methods that require an active poller will return an error.
+//! Stop a poller object. Active callbacks are completed. Pending callbacks are
+//! discarded. After which the poller event thread exits. Subsequently, each
+//! associated channel is disabled and removed from the poller object. If the
+//! channel is enabled for a StopEvent, the stop callback is invoked. However,
+//! any attempt to use the channel methods that require an active poller will
+//! return an error.
 //!
 //! Since a stopped poller cannot be restarted; the only thing left is to delete
 //! it. This also applies to all the associated channels since they no longer
@@ -431,7 +418,7 @@ inline  int   GetPollEnt(Channel *cP) {return cP->pollEnt;}
         bool  Init(Channel *cP, int &eNum, const char **eTxt, bool &isLockd);
 inline  void  LockChannel(Channel *cP) {cP->chMutex.Lock();}
         int   Poll2Enum(short events);
-        int   SendCmd(PipeData &cmd, bool unlock=false);
+        int   SendCmd(PipeData &cmd);
         void  SetPollEnt(Channel *cP, int ptEnt);
         bool  TmoAdd(Channel *cP);
         void  TmoDel(Channel *cP);
@@ -486,8 +473,8 @@ int             cmdFD;      // FD to send PipeData commands
 int             reqFD;      // FD to recv PipeData requests
 struct          PipeData {char req; char evt; short ent; int fd;
                           XrdSysSemaphore *theSem;
-                          enum cmd {NoOp = 0, MdFD = 1, Cont = 2, Post = 3,
-                                    MiFD = 4, RmFD = 5, Wait = 6, Stop = 7};
+                          enum cmd {NoOp = 0, MdFD = 1, Post = 2,
+                                    MiFD = 3, RmFD = 4, Stop = 5};
                          };
 PipeData        reqBuff;    // Buffer used by poller thread to recv data
 char           *pipeBuff;   // Read resumption point in buffer
