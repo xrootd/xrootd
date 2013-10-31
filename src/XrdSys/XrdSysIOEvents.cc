@@ -924,14 +924,14 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 /*                                 P a u s e                                  */
 /******************************************************************************/
 
-void XrdSys::IOEvents::Poller::Pause(bool really)
+void XrdSys::IOEvents::Poller::Pause(bool yes)
 {
    PipeData  cmdbuff;
 
 // Initialize the pipdata structure
 //
    memset(&cmdbuff, 0, sizeof(cmdbuff));
-   cmdbuff.req = (really ? PipeData::Wait : PipeData::Cont);
+   cmdbuff.req = (yes ? PipeData::Wait : PipeData::Cont);
 
 // Lock all of this
 //

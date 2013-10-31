@@ -389,7 +389,7 @@ static Poller     *Create(int &eNum, const char **eTxt=0);
 //!                is not paused.
 //-----------------------------------------------------------------------------
 
-       void        Pause(bool really=true);
+       void        Pause(bool resume=false);
 
 //-----------------------------------------------------------------------------
 //! Stop a poller object. Active and pending callbacks are completed. After
