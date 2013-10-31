@@ -259,7 +259,7 @@ void XrdSys::IOEvents::PollPort::Exclude(XrdSys::IOEvents::Channel *cP,
           {isLocked = false;
            UnLockChannel(cP);
           }
-       cmdbuff.Init(PipeData::Post);
+       cmdbuff.req = PipeData::Post;
        SendCmd(cmdbuff);
       }
 }
