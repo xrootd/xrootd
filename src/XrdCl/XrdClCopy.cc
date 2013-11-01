@@ -38,7 +38,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0) {}
+    ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0),
+      pStarted(0) {}
 
     //--------------------------------------------------------------------------
     //! Begin job

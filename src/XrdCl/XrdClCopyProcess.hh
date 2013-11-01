@@ -70,8 +70,8 @@ namespace XrdCl
   struct JobDescriptor
   {
     JobDescriptor(): sourceLimit(1), force(false), posc(false), coerce(false),
-      makedir(false), thirdParty(false), checkSumPrint(false),
-      chunkSize( 4194304 ), parallelChunks(8)
+      makedir(false), thirdParty(false), thirdPartyFallBack(true),
+      checkSumPrint(false), chunkSize( 4194304 ), parallelChunks(8)
     {}
 
     URL              source;               //!< [in] original source URL

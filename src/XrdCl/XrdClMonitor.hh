@@ -145,7 +145,7 @@ namespace XrdCl
           ErrUnc        //!< Unclassified operation
         };
 
-        ErrorInfo(): file(0), opCode( ErrUnc ) {}
+        ErrorInfo(): file(0), status(0), opCode( ErrUnc ) {}
         const URL          *file;    //!< The file in question
         const XRootDStatus *status;  //!< Status code
         Operation           opCode;  //!< The associated operation

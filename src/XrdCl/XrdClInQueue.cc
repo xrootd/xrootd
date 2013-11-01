@@ -140,9 +140,11 @@ namespace XrdCl
   {
     XrdSysMutexHelper scopedLock( pMutex );
     HandlerList::iterator it;
-    for( it = pHandlers.begin(); it != pHandlers.end(); ++it )
+    for( it = pHandlers.begin(); it != pHandlers.end(); )
       if( it->first == handler )
-        pHandlers.erase( it );
+        it = pHandlers.erase( it );
+      else
+        ++it;
   }
 
   //----------------------------------------------------------------------------
