@@ -178,6 +178,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Scale XrdSysCondVar::Wait(int sec) to a millisecond wait to avoid
+     clock tick error.
    * Provide a poller pause/resume method to ease forking without spurious
      errors.
    * Make sure only one fork occurrs at a time to prevent FD leaks.
