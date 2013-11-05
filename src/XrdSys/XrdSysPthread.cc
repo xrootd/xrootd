@@ -110,28 +110,7 @@ int XrdSysCondVar::Wait()
 
 /******************************************************************************/
   
-int XrdSysCondVar::Wait(int sec)
-{
- struct timespec tval;
- int retc;
-
-// Get the mutex before calculating the time
-//
-   if (relMutex) Lock();
-
-// Simply adjust the time in seconds
-//
-   tval.tv_sec  = time(0) + sec;
-   tval.tv_nsec = 0;
-
-// Wait for the condition or timeout
-//
-   do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
-   while (retc && (retc != ETIMEDOUT));
-
-   if (relMutex) UnLock();
-   return retc == ETIMEDOUT;
-}
+int XrdSysCondVar::Wait(int sec) {return WaitMS(sec*1000);}
 
 /******************************************************************************/
 /*                                W a i t M S                                 */
