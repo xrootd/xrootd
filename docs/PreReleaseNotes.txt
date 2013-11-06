@@ -179,6 +179,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Allow SendData() to send less than the amount of bytes requested.
    * Set reasonable linux thread limit and warn it we cannot do so.
    * Scale XrdSysCondVar::Wait(int sec) to a millisecond wait to avoid
      Clock tick error.
