@@ -2654,14 +2654,15 @@ int XrdXrootdProtocol::SendFile(XrdOucSFVec *sfvec, int sfvnum)
 //
    if (!myIOLen) return 1;
 
-// Verify the length
+// Verify the length, it can't be greater than what the client wants
 //
    for (i = 1; i < sfvnum; i++) xframt += sfvec[i].sendsz;
-   if (xframt != myIOLen) return 1;
+   if (xframt > myIOLen) return 1;
 
 // Send off the data
 //
-   myIOLen = Response.Send(sfvec, sfvnum, xframt);
+   if (xframt) myIOLen = Response.Send(sfvec, sfvnum, xframt);
+      else {myIOLen = 0; Response.Send();}
    return myIOLen;
 }
 

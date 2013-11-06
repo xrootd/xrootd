@@ -76,7 +76,7 @@ virtual int SendFile(int fildes) = 0;
 //!                  that the vector may have; defined inside XrdOucSFVec.
 //!
 //! @return >0     - either data has been sent in a previous call or the total
-//!                  amount of data in sfvec does not correspond to the original
+//!                  amount of data in sfvec is greater than the original
 //!                  request. This is indicative of a SendData() logic error.
 //! @return =0     - data has been sent.
 //! @return <0     - A fatal transmission error occurred. SendData() should
