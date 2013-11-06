@@ -78,6 +78,7 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Avoid SEGV and double free introduced by patch 30ad01b9 (set host).
    * Make sure protocol sss sets hostname. Fully reconstruct hostname
      to prevent sss auth failure when nodnr is in effect.
    * Correct default implementation of writev to use write.
@@ -179,7 +180,7 @@ Prerelease Notes
 
 + **Miscellaneous**
    * Scale XrdSysCondVar::Wait(int sec) to a millisecond wait to avoid
-     clock tick error.
+     Clock tick error.
    * Provide a poller pause/resume method to ease forking without spurious
      errors.
    * Make sure only one fork occurrs at a time to prevent FD leaks.
