@@ -211,8 +211,7 @@ void XrdSecProtocolsss::Delete()
 // Delete things that get re-allocated every time. The staticID is allocated
 // only once so it must stick around for every instance of this object.
 //
-     if (Entity.host)         free(Entity.host);
-     if (urName)              free(urName);
+     if (urName)              free(urName); // Same pointer as Entity.host
      if (idBuff)              free(idBuff);
      if (keyTab && keyTab != ktObject) delete keyTab;
 
