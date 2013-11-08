@@ -64,7 +64,7 @@ dirent64 *XrdPosixDir::nextEntry(dirent64 *dp)
 #ifndef __solaris__
    dp->d_type   = DT_DIR;
 #endif
-#if defined(__macos__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__)
    dp->d_fileno = nxtEnt;
    dp->d_namlen = d_nlen;
 #else
