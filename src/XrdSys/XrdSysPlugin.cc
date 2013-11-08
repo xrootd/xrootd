@@ -41,7 +41,7 @@
 
 #ifndef WIN32
 #include <dlfcn.h>
-#if !defined(__macos__) && !defined(__CYGWIN__)
+#if !defined(__APPLE__) && !defined(__CYGWIN__)
 #include <link.h>
 #endif
 #include <stdio.h>
@@ -204,7 +204,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
   
 int XrdSysPlugin::DLflags()
 {
-#if    defined(__macos__)
+#if    defined(__APPLE__)
        return RTLD_FIRST;
 #elif  defined(__linux__)
        return RTLD_NOW;

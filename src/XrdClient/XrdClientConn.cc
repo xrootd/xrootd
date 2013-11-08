@@ -71,7 +71,7 @@
 
 #ifndef WIN32
 #include <dlfcn.h>
-#ifndef __macos__
+#ifndef __APPLE__
 #include <link.h>
 #endif
 #endif

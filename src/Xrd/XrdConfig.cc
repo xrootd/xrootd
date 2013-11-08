@@ -69,7 +69,7 @@
 #ifdef __linux__
 #include <netinet/tcp.h>
 #endif
-#ifdef __macos__
+#ifdef __APPLE__
 #include <AvailabilityMacros.h>
 #endif
 
@@ -722,7 +722,7 @@ int XrdConfig::setFDL()
 // Set the limit to the maximum allowed
 //
    rlim.rlim_cur = rlim.rlim_max;
-#if (defined(__macos__) && defined(MAC_OS_X_VERSION_10_5))
+#if (defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_5))
    if (rlim.rlim_cur == RLIM_INFINITY || rlim.rlim_cur > OPEN_MAX)
      rlim.rlim_cur = OPEN_MAX;
 #endif

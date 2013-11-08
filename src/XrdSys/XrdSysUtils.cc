@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <sys/param.h>
 
-#ifdef __macos__
+#ifdef __APPLE__
 #include <mach-o/dyld.h>
 #endif
 
@@ -78,7 +78,7 @@ const char *XrdSysUtils::ExecName()
        return myEname;
       }
   }
-#elif defined(__macos__)
+#elif defined(__APPLE__)
   {char epBuff[2048];
    uint32_t epLen = sizeof(epBuff)-1;
    if (!_NSGetExecutablePath(epBuff, &epLen))

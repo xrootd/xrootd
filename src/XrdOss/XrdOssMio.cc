@@ -60,7 +60,7 @@ char           XrdOssMio::MM_chk      = 0;
 char           XrdOssMio::MM_okmlock  = 1;
 char           XrdOssMio::MM_preld    = 0;
 long long      XrdOssMio::MM_pagsz    = (long long)sysconf(_SC_PAGESIZE);
-#ifdef __macos__
+#ifdef __APPLE__
 long long      XrdOssMio::MM_pages    = 1024*1024*1024;
 #else
 long long      XrdOssMio::MM_pages    = (long long)sysconf(_SC_PHYS_PAGES);

@@ -38,7 +38,7 @@
 #if defined(_LITTLE_ENDIAN) || defined(__LITTLE_ENDIAN__) || \
     defined(__IEEE_LITTLE_ENDIAN) || \
    (defined(__BYTE_ORDER) && __BYTE_ORDER == __LITTLE_ENDIAN)
-#if !defined(__GNUC__) || defined(__macos__)
+#if !defined(__GNUC__) || defined(__APPLE__)
 extern "C"
 {
 unsigned long long Swap_n2hll(unsigned long long x)

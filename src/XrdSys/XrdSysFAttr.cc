@@ -57,7 +57,7 @@ XrdSysError *XrdSysFAttr::Say = 0;
 #include "XrdSys/XrdSysFAttrBsd.icc"
 #elif defined(__linux__)
 #include "XrdSys/XrdSysFAttrLnx.icc"
-#elif defined(__macos__)
+#elif defined(__APPLE__)
 #include "XrdSys/XrdSysFAttrMac.icc"
 #elif defined(__solaris__)
 #include "XrdSys/XrdSysFAttrSun.icc"

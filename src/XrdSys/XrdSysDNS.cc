@@ -117,8 +117,8 @@ int XrdSysDNS::getHostAddr(const  char     *InetName,
 // default /etc/hosts on some platforms, e.g. MacOsX)
 //
 // if (!strncmp(InetName,"localhost",9)) myhints.ai_family = AF_INET;
-// pcal: force ipv4  (was only for MacOS: ifdef __macos____)
-//#ifdef __macos__
+// pcal: force ipv4  (was only for MacOS: ifdef __APPLE__)
+//#ifdef __APPLE__
 // Disable IPv6 for MacOS X altogether for the time being
 //
    myhints.ai_family = AF_INET;
@@ -279,7 +279,7 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
 // Some platforms have nameinfo but getnameinfo() is broken. If so, we revert
 // to using the gethostbyaddr().
 //
-#if defined(HAVE_NAMEINFO) && !defined(__macos__)
+#if defined(HAVE_NAMEINFO) && !defined(__APPLE__)
     struct addrinfo   *rp, *np;
     struct addrinfo    myhints;
     memset(&myhints, 0, sizeof(myhints));
@@ -307,7 +307,7 @@ int XrdSysDNS::getHostName(struct sockaddr &InetAddr,
   if (InetAddr.sa_family == AF_UNIX) 
      {InetName[0] = strdup("localhost"); return 1;}
 
-#if !defined(HAVE_NAMEINFO) || defined(__macos__)
+#if !defined(HAVE_NAMEINFO) || defined(__APPLE__)
 
 // Convert it to a host name
 //

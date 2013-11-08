@@ -43,7 +43,7 @@
 
 #ifdef HAVE_SENDFILE
 
-#ifndef __macos__
+#ifndef __APPLE__
 #include <sys/sendfile.h>
 #endif
 
@@ -746,7 +746,7 @@ int XrdLink::Send(const struct iovec *iov, int iocnt, int bytes)
 /******************************************************************************/
 int XrdLink::Send(const sfVec *sfP, int sfN)
 {
-#if !defined(HAVE_SENDFILE) || defined(__macos__)
+#if !defined(HAVE_SENDFILE) || defined(__APPLE__)
    return -1;
 #else
 // Make sure we have valid vector count

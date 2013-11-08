@@ -28,7 +28,7 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#ifndef __macos__
+#ifndef __APPLE__
 #include <malloc.h>
 #endif
 #include <sys/types.h>

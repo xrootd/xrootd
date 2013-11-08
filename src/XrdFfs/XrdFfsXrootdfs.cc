@@ -774,7 +774,7 @@ static int xrootdfs_statfs(const char *path, struct statvfs *stbuf)
 //  long long size;
 
 //    XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid);
-#ifndef __macos__
+#ifndef __APPLE__
     stbuf->f_bsize = 1024;
 #else
     stbuf->f_bsize = 1024 * 128; // work around 32 bit fsblkcnt_t in struct statvfs on Mac OSX

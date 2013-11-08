@@ -293,7 +293,7 @@ int XrdOssSys::MSS_Stat(const char *path, struct stat *buff)
     buff->st_mtime = static_cast<time_t>(mtime);
     buff->st_size  = static_cast<off_t>(xt_size);
     buff->st_blksize=static_cast<long>(xt_blksize);
-#ifdef __macos__
+#ifdef __APPLE__
     buff->st_blocks =                      xt_blocks;
 #else
     buff->st_blocks =static_cast<blkcnt_t>(xt_blocks);

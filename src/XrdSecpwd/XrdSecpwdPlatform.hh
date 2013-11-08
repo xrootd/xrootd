@@ -34,7 +34,7 @@
 #if defined(__solaris__)
 #include <crypt.h>
 #endif
-#if defined(__osf__) || defined(__sgi) || defined(__macos__)
+#if defined(__osf__) || defined(__sgi) || defined(__APPLE__)
 extern "C" char *crypt(const char *, const char *);
 #endif
 

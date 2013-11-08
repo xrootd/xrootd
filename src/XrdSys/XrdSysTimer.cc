@@ -236,7 +236,7 @@ void XrdSysTimer::Wait4Midnight()
 
 // Wait until midnight arrives
 //
-#ifndef __macos__
+#ifndef __APPLE__
    timespec Midnite = {Midnight(1), 0};
    while(clock_nanosleep(CLOCK_REALTIME,TIMER_ABSTIME,&Midnite,0) == EINTR) {}
 #else
