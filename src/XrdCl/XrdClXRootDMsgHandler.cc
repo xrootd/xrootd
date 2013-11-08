@@ -1306,7 +1306,6 @@ namespace XrdCl
             if( statInfo->ParseServerResponse( nullBuffer ) == false )
             {
               delete statInfo;
-              delete [] nullBuffer;
               statInfo = 0;
             }
             delete [] nullBuffer;
