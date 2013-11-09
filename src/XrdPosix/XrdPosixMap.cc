@@ -39,7 +39,7 @@
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
   
-int XrdPosixMap::Debug = -2;
+bool XrdPosixMap::Debug = false;
 
 /******************************************************************************/
 /*                            F l a g s 2 M o d e                             */
@@ -163,7 +163,7 @@ int XrdPosixMap::Result(const XrdCl::XRootDStatus &Status)
 
 // Trace this if need be
 //
-   if (eNum != ENOENT && eText && *eText && Debug > -2)
+   if (eNum != ENOENT && eText && *eText && Debug)
       cerr <<"XrdPosix: " <<eText <<endl;
 
 // Return

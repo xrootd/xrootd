@@ -337,15 +337,11 @@ static bool    isXrootdDir(DIR *dirp);
 
 static bool    myFD(int fd);
 
-static void    setDebug(int val);
-
-static void    setEnv(const char *var, const char *val);
-
-static void    setEnv(const char *var, long val);
-
 static void    setCache(XrdOucCache *cP);
 
-static int     Debug;
+static void    setDebug(int val, bool doDebug=false);
+
+static void    setEnv(const char *kword, int kval);
 
 /* There must be one instance of this object per executable image. Typically,
    this object is declared in main() or at file level. This is necessary to

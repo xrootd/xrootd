@@ -35,6 +35,7 @@
 #include <sys/resource.h>
 #include <sys/uio.h>
 
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClURL.hh"
@@ -59,7 +60,6 @@
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
 int            XrdPosixXrootd::initDone  = 0;
-int            XrdPosixXrootd::Debug    = -2;
   
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
@@ -81,7 +81,6 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 // before any library routines are called.
 //
    initEnv();
-   XrdPosixMap::SetDebug(Debug);
 
 // Initialize file tracking
 //
@@ -1018,44 +1017,12 @@ ssize_t XrdPosixXrootd::Writev(int fildes, const struct iovec *iov, int iovcnt)
   
 void XrdPosixXrootd::initEnv()
 {
-   struct XrdPosix_Env {const char *eName; const char *xName; int *vDest;}
-          Posix_Env[] =
-          {{"", 0, 0}};
-/*        {"XRDPOSIX_DEBUG",       NAME_DEBUG,                &Debug},
-          {"XRDPOSIX_RTO",         "RequestTimeout",          0},
-          {"XRDPSOIX_PSPC",        "SubStreamsPerChannel",    0},
-          {"XRDPOSIX_CTO",         "ConnectionWindow",        0},
-          {"XRDPOSIX_CRETRY",      "ConnectionRetry",         0},
-          };
-*/
-   int    Posix_Num = sizeof(Posix_Env)/sizeof(XrdPosix_Env);
-   char *cvar, *evar;
-   int i, doEcho;
-   long nval;
+   char *evar;
 
-// Establish wether we need to echo any envars
+// Establish our internal debug value (rather modest)
 //
-   if ((cvar = getenv("XRDPOSIX_ECHO"))) doEcho = strcmp(cvar, "0");
-      else doEcho = 0;
-
-// Establish the default debugging level (none)
-//
-// setEnv(NAME_DEBUG, Debug); ???
-
-// Run through all of the numeric envars that may be set
-//
-   for (i = 0; i < Posix_Num; i++)
-       if ((cvar = getenv(Posix_Env[i].eName)) && *cvar)
-          {nval = strtol(cvar, &evar, 10);
-           if (*evar) cerr <<"XrdPosix: Invalid " <<Posix_Env[i].eName
-                           <<" value - " <<cvar <<endl;
-              else {if (Posix_Env[i].xName[0]) setEnv(Posix_Env[i].xName, nval);
-                    if (Posix_Env[i].vDest)
-                       *Posix_Env[i].vDest = static_cast<int>(nval);
-                    if (doEcho) cerr <<"XrdPosix: " <<Posix_Env[i].eName <<" = "
-                                <<nval <<'(' <<Posix_Env[i].xName <<')' <<endl;
-                   }
-          }
+   if ((evar = getenv("XRDPOSIX_CACHE")) && *evar > '0')
+      XrdPosixMap::SetDebug(true);
 
 // Now we must check if we have a new cache over-ride
 //
@@ -1148,10 +1115,7 @@ void XrdPosixXrootd::initEnv(char *eData)
    myParms.Options |= XrdOucCache::Serialized;
    if (!(XrdPosixFile::CacheR = myCache->Create(myParms, &apParms)))
       cerr <<"XrdPosix: " <<strerror(errno) <<" creating cache." <<endl;
-      else {//???setEnv(NAME_READAHEADSIZE, (long)0);
-            //???setEnv(NAME_READCACHESIZE, (long)0);
-            if (isRW) XrdPosixFile::CacheW = XrdPosixFile::CacheR;
-           }
+      else {if (isRW) XrdPosixFile::CacheW = XrdPosixFile::CacheR;}
 }
 
 /******************************************************************************/
@@ -1259,24 +1223,34 @@ void XrdPosixXrootd::setCache(XrdOucCache *cP)
 /*                              s e t D e b u g                               */
 /******************************************************************************/
 
-void XrdPosixXrootd::setDebug(int val)
+void XrdPosixXrootd::setDebug(int val, bool doDebug)
 {
-     Debug = static_cast<long>(val);
-     setEnv("DebugLevel", val);
+   const std::string dbgType[] = {"Info", "Warning", "Error", "Debug", "Dump"};
+
+// The default is none but once set it cannot be unset in the client
+//
+   if (val > 0)
+      {if (doDebug) val = 4;
+          else if (val > 5) val = 5;
+       XrdCl::DefaultEnv::SetLogLevel(dbgType[val-1]);
+      }
+
+// Now set the internal one which can be toggled
+//
+   XrdPosixMap::SetDebug(val > 0);
 }
   
 /******************************************************************************/
 /*                                s e t E n v                                 */
 /******************************************************************************/
-  
-void XrdPosixXrootd::setEnv(const char *var, const char *val)
-{
-//???EnvPutString(var, val);
-}
 
-void XrdPosixXrootd::setEnv(const char *var, long val)
+void XrdPosixXrootd::setEnv(const char *kword, int kval)
 {
-//???EnvPutInt(var, val);
+   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+// Set the env value
+//
+   env->PutInt((std::string)kword, kval);
 }
   
 /******************************************************************************/

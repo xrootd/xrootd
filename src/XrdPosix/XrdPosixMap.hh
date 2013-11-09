@@ -46,14 +46,14 @@ static XrdCl::Access::Mode Mode2Access(mode_t mode);
 
 static int                 Result(const XrdCl::XRootDStatus &Status);
 
-static void                SetDebug(int dbg) {Debug = dbg;}
+static void                SetDebug(bool dbg) {Debug = dbg;}
 
        XrdPosixMap() {}
       ~XrdPosixMap() {}
 
 private:
-static int mapCode(int rc);
-static int mapError(int rc);
-static int Debug;
+static int  mapCode(int rc);
+static int  mapError(int rc);
+static bool Debug;
 };
 #endif
