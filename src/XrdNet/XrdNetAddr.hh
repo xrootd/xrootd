@@ -43,6 +43,15 @@ class XrdNetAddr : public XrdNetAddrInfo
 public:
 
 //------------------------------------------------------------------------------
+//! Determine if IPV4 mode has been set.
+//!
+//! @return True     IPV4 mode has     been set.
+//!         False    IPV4 mode has not been set.
+//------------------------------------------------------------------------------
+
+static bool IPV4Set() {return useIPV4;}
+
+//------------------------------------------------------------------------------
 //! Optionally set and also returns the port number for our address.
 //!
 //! @param pNum      when negative it only returns the current port. Otherwise,
