@@ -1254,6 +1254,20 @@ void XrdPosixXrootd::setEnv(const char *kword, int kval)
 }
   
 /******************************************************************************/
+/*                               s e t I P V 4                                */
+/******************************************************************************/
+
+void XrdPosixXrootd::setIPV4(bool usev4)
+{
+   const char *ipmode = (usev4 ? "IPv4" : "IPAll");
+   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
+// Set the env value
+//
+   env->PutString((std::string)"NetworkStack", (const std::string)ipmode);
+}
+  
+/******************************************************************************/
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/

@@ -343,6 +343,8 @@ static void    setDebug(int val, bool doDebug=false);
 
 static void    setEnv(const char *kword, int kval);
 
+static void    setIPV4(bool userv4);
+
 /* There must be one instance of this object per executable image. Typically,
    this object is declared in main() or at file level. This is necessary to
    properly do one-time initialization of the static members. When declaring

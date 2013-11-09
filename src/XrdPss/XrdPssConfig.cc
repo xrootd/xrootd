@@ -45,6 +45,7 @@
 #include "XrdFfs/XrdFfsWcache.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
 #include "XrdPss/XrdPss.hh"
@@ -176,7 +177,11 @@ int XrdPssSys::Configure(const char *cfn)
 // Set debug level if so wanted and the default number of worker threads
 //
    if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1, true);
-   XrdPosixXrootd::setEnv((std::string)"WorkerThreads", 64);
+   XrdPosixXrootd::setEnv("WorkerThreads", 64);
+
+// Set client IP mode based on what the server is set to
+//
+   if (XrdNetAddr::IPV4Set()) XrdPosixXrootd::setIPV4(true);
 
 // Process the configuration file
 //
@@ -369,6 +374,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("cache",         xcach);
    TS_Xeq("cachelib",      xcacl);
    TS_Xeq("config",        xconf);
+   TS_Xeq("inetmode",      xinet);
    TS_Xeq("origin",        xorig);
    TS_Xeq("setopt",        xsopt);
    TS_Xeq("trace",         xtrac);
@@ -699,6 +705,42 @@ int XrdPssSys::xexp(XrdSysError *Eroute, XrdOucStream &Config)
 // Parse the arguments
 //
    return (XrdOucExport::ParsePath(Config, *Eroute, XPList, DirFlags) ? 0 : 1);
+}
+  
+/******************************************************************************/
+/*                                 x i n e t                                  */
+/******************************************************************************/
+
+/* Function: xinet
+
+   Purpose:  To parse the directive: inetmode v4 | v6
+
+             v4        use only IPV4 addresses to connect to servers.
+             v6        use IPV4 mapped addresses or IPV6 addresses, as needed.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xinet(XrdSysError *Eroute, XrdOucStream &Config)
+{
+   char *val;
+   bool  usev4;
+
+// Get the mode
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute->Emsg("Config", "inetmode value not specified"); return 1;}
+
+// Validate the value
+//
+        if (!strcmp(val, "v4")) usev4 = true;
+   else if (!strcmp(val, "v6")) usev4 = false;
+   else {Eroute->Emsg("Config", "invalid inetmode value -", val); return 1;}
+
+// Set the mode
+//
+   XrdPosixXrootd::setIPV4(usev4);
+   return 0;
 }
   
 /******************************************************************************/
