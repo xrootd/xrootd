@@ -167,21 +167,16 @@ int XrdPssSys::Configure(const char *cfn)
    char *eP, theRdr[maxHLen+1024];
    int i, hpLen, NoGo = 0;
 
-// Preset tracing options
+// Get environmental values
 //
-   if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1);
    myHost = getenv("XRDHOST");
    myName = XrdOucUtils::InstName(1);
    ConfigFN = cfn;
 
-// Set the default values for the client
+// Set debug level if so wanted and the default number of worker threads
 //
-   XrdPosixXrootd::setEnv("ReadAheadSize",           1024*1024);
-   XrdPosixXrootd::setEnv("ReadCacheSize",       512*1024*1024);
-   XrdPosixXrootd::setEnv("ParStreamsPerPhyConn",      long(0)); // Temp!
-   XrdPosixXrootd::setEnv("PurgeWrittenBlocks",              1);
-   XrdPosixXrootd::setEnv("DataServerConn_ttl",          20*60);
-   XrdPosixXrootd::setEnv("LBServerConn_ttl",            60*60);
+   if (getenv("XRDDEBUG")) XrdPosixXrootd::setDebug(1, true);
+   XrdPosixXrootd::setEnv((std::string)"WorkerThreads", 64);
 
 // Process the configuration file
 //
@@ -823,25 +818,26 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
 {
     char  kword[256], *val, *kvp;
     long  kval;
-    static const char *Sopts[] =
+    static struct {const char *Sopt; const char *Copt;} Sopts[]  =
        {
-         "ConnectTimeout",
-         "DataServerConn_ttl",
-         "DebugLevel",
-         "DfltTcpWindowSize",
-         "LBServerConn_ttl",
-         "ParStreamsPerPhyConn",
-         "ParStreamsPerPhyConn",
-         "RedirCntTimeout",
-         "ReadAheadSize",
-         "ReadAheadStrategy",
-         "ReadCacheBlkRemPolicy",
-         "ReadCacheSize",
-         "ReadTrimBlockSize",
-         "ReconnectWait",
-         "RemoveUsedCacheBlocks",
-         "RequestTimeout",
-         "TransactionTimeout"
+         {"ConnectTimeout",             "ConnectionWindow"},    // Default  120
+         {"DataServerConn_ttl",         ""},
+         {"DebugLevel",                 "*"},                   // Default   -1
+         {"DfltTcpWindowSize",          0},
+         {"LBServerConn_ttl",           ""},
+         {"ParStreamsPerPhyConn",       "SubStreamsPerChannel"},// Default    1
+         {"ReadAheadSize",              0},
+         {"ReadAheadStrategy",          0},
+         {"ReadCacheBlkRemPolicy",      0},
+         {"ReadCacheSize",              0},
+         {"ReadTrimBlockSize",          0},
+         {"ReconnectWait",              "StreamErrorWindow"},   // Default 1800
+         {"RedirCntTimeout",            "!use RedirectLimit instead."},
+         {"RedirectLimit",              "RedirectLimit"},       // Default   16
+         {"RemoveUsedCacheBlocks",      0},
+         {"RequestTimeout",             "RequestTimeout"},      // Default  300
+         {"TransactionTimeout",         ""},
+         {"WorkerThreads",              "WorkerThreads"}        // Set To    32
        };
     int i, numopts = sizeof(Sopts)/sizeof(const char *);
 
@@ -860,8 +856,15 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
        }
 
     for (i = 0; i < numopts; i++)
-        if (!strcmp(Sopts[i], kword))
-           {XrdPosixXrootd::setEnv(kword, kval);
+        if (!strcmp(Sopts[i].Sopt, kword))
+           {if (!Sopts[i].Copt || *(Sopts[i].Copt) == '!')
+               {Eroute->Emsg("Config", kword, "not supported;",
+                             (Sopts[i].Copt ? Sopts[i].Copt+1 : 0));
+               } else if (*(Sopts[i].Copt))
+                         {if (*(Sopts[i].Copt) == '*')
+                               XrdPosixXrootd::setDebug(kval);
+                          else XrdPosixXrootd::setEnv(Sopts[i].Copt, kval);
+                         }
             return 0;
            }
 
