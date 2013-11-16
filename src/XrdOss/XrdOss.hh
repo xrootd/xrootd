@@ -118,6 +118,8 @@ virtual ssize_t WriteV(XrdOucIOVec *writeV, int n)
                 // Methods common to both
 virtual int     Close(long long *retsz=0)=0;
 inline  int     Handle() {return fd;}
+virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0)
+                    {return -ENOTSUP;}
 
                 XrdOssDF() {fd = -1;}
 virtual        ~XrdOssDF() {}
@@ -208,6 +210,9 @@ virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
 virtual
 const char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
                        {rc = 0; return Path;}
+
+virtual int     FSctl(int cmd, int alen, const char *args, char **resp=0)
+                     {return -ENOTSUP;}
 
                 XrdOss() {}
 virtual        ~XrdOss() {}
