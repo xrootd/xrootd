@@ -876,6 +876,7 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
          {"ReconnectWait",              "StreamErrorWindow"},   // Default 1800
          {"RedirCntTimeout",            "!use RedirectLimit instead."},
          {"RedirectLimit",              "RedirectLimit"},       // Default   16
+         {"RedirectorConn_ttl",         ""},
          {"RemoveUsedCacheBlocks",      0},
          {"RequestTimeout",             "RequestTimeout"},      // Default  300
          {"TransactionTimeout",         ""},
@@ -900,8 +901,8 @@ int XrdPssSys::xsopt(XrdSysError *Eroute, XrdOucStream &Config)
     for (i = 0; i < numopts; i++)
         if (!strcmp(Sopts[i].Sopt, kword))
            {if (!Sopts[i].Copt || *(Sopts[i].Copt) == '!')
-               {Eroute->Emsg("Config", kword, "not supported;",
-                             (Sopts[i].Copt ? Sopts[i].Copt+1 : 0));
+               {Eroute->Emsg("Config", kword, "no longer supported;",
+                             (Sopts[i].Copt ? Sopts[i].Copt+1 : "ignored"));
                } else if (*(Sopts[i].Copt))
                          {if (*(Sopts[i].Copt) == '*')
                                XrdPosixXrootd::setDebug(kval);
