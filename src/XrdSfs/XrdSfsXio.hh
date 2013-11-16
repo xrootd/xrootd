@@ -60,7 +60,7 @@ public:
 //! @return Pointer to the buffer.
 //-----------------------------------------------------------------------------
 
-virtial char *Buffer(int **blen=0) = 0;
+virtual char *Buffer(int **blen=0) = 0;
 
 //-----------------------------------------------------------------------------
 //! Recycle a buffer that was previously given to the caller via
