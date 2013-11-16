@@ -179,6 +179,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Add a generic control method to the file/dir and system classes. OSS
+     plugin writers need only to recompile as a default is provided.
    * Allow SendData() to send less than the amount of bytes requested.
    * Set reasonable linux thread limit and warn it we cannot do so.
    * Scale XrdSysCondVar::Wait(int sec) to a millisecond wait to avoid
