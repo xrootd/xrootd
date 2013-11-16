@@ -28,7 +28,6 @@ add_library(
 target_link_libraries(
   XrdPosix
   XrdCl
-  XrdClient
   XrdUtils
   pthread )
 
