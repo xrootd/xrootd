@@ -33,63 +33,85 @@
 //! XrdSfsXio.hh
 //!
 //! This class is used to allow file I/O interfaces to perform exchange buffer
-//! I/O in order to minimize data copying. To enable the use of this feature,
-//! this object must be passed newFile() when creating a file object. This
-//! object is associated with a file. When the file is closed, all outstanding
-//! buffers should be released prior to returning from Close(). It is possible
-//! to return buffers associated with one file via another file when SetXio()
-//! is called. Buffer swapping is only supported for write operations.
+//! I/O in order to minimize data copying. When this feature is enabled, the
+//! XrdSfsInterface::setXio() method is called on a newly created XrdSfsFile
+//! object. Ideally, all oustanding buffers should be be released when the file
+//! is closed. Alternatively, the XrdSfsXioHandle::Recycle() method may be used
+//! at any time when it is convenient to do so. For best performance, use
+//! XrdSfsXio::Swap() as it provides memory locality and is kind to the cache.
+//! Buffer swapping is only supported for file write operations.
 //-----------------------------------------------------------------------------
 
+//-----------------------------------------------------------------------------
+//! The XrdSfsXioHandle class describes a handle to a buffer returned by
+//! XrdSfsXio::Swap().
+//-----------------------------------------------------------------------------
+
+class XrdSfsXioHandle
+{
+public:
+
+//-----------------------------------------------------------------------------
+//! Obtain te address and, optionally, the length of the associated buffer.
+//!
+//! @param  blen  When not null will hold the length of the buffer. This is
+//!               not to be confused with the length of data in the buffer!
+//!
+//! @return Pointer to the buffer.
+//-----------------------------------------------------------------------------
+
+virtial char *Buffer(int **blen=0) = 0;
+
+//-----------------------------------------------------------------------------
+//! Recycle a buffer that was previously given to the caller via
+//! XrdSfsXio::Swap(). Use it when future swaps will no longer be requested.
+//-----------------------------------------------------------------------------
+
+virtual void  Recycle() = 0;
+
+              XrdSfsXioHandle() {}
+virtual      ~XrdSfsXioHandle() {}
+};
+
+/******************************************************************************/
+/*                       C l a s s   X r d S f s X i o                        */
+/******************************************************************************/
+  
 class XrdSfsXio
 {
 public:
 
 //-----------------------------------------------------------------------------
-//! Values return by Release() and Swap().
+//! Values return by Swap().
 //-----------------------------------------------------------------------------
 
 enum XioStatus {allOK = 0,   //!< Successful completion
-                BadBuff,     //!<      Failed, curBuff is bad.
-                BadHandle,   //!<      Failed, oHandle is bad
+                BadBuff,     //!< Swap failed, curBuff is bad.
+                BadHandle,   //!< Swap failed, oHandle is bad
                 NotWrite,    //!< Swap failed, not from a write() call
                 TooMany      //!< Swap failed, too many buffs outstanding
                };
-
-//-----------------------------------------------------------------------------
-//! Release a buffer that was previously given to the caller via Swap().
-//!
-//! @param  buff    - The address of the buffer associated with bHandle.
-//! @param  bHandle - The buffer handle returned by a previous Swap() call.
-//-----------------------------------------------------------------------------
-
-virtual XioStatus Release(const char *buff, const void *bHandle) = 0;
 
 //-----------------------------------------------------------------------------
 //! Swap the current I/O buffer
 //!
 //! @param  curBuff - The address of the current buffer. It must match the
 //!                   the buffer that was most recently passed to the caller.
-//! @param  cHandle - Where the handle associated with curBuff is to be placed.
-//! @param  oldBuff - The buffer that is to replace the current buffer and is
-//!                   associated with oHandle returned by a previous Swap().
-//!                   This is ignored if oHandle is set to NoHandle (see below).
-//! @param  oHandle - The handle associated with oldBuff as returned by a
+//! @param  curHand - Where the handle associated with curBuff is to be placed.
+//! @param  oldHand - The handle associated with a buffer returned by a
 //!                   previous call to Swap(). A value of zero indicates that
 //!                   the caller is taking control of the buffer but has no
-//!                   replacement buffer. In this case, oldBuff is immaterial.
+//!                   replacement buffer.
 //! @return !allOK    One or more arguments or context is invalid. Nothing was
 //!                   swapped. The returned value describes the problem. The
-//!                   cHandle has been set to zero.
+//!                   curHand has been set to zero.
 //! @return =allOK    The handle associated with curBuff has been placed in
-//!                   cHandle. This handle along with curBuff must be used in
-//!                   a future Release() or Swap() call.
+//!                   curHand. This handle must be used in a future Swap() call.
 //-----------------------------------------------------------------------------
 
-virtual XioStatus Swap(const char * curBuff,
-                       const void *&cHandle,
-                       const char * oldBuff=0,
-                       const void * oHandle=0
+virtual XioStatus Swap(const char            * curBuff,
+                       const XrdSfsXioHandle *&curHand,
+                       const XrdSfsXioHandle * oldHand=0
                       ) = 0;
 
 //-----------------------------------------------------------------------------
