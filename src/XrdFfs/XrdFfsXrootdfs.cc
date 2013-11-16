@@ -77,12 +77,13 @@ struct XROOTDFS {
     char *urlcachelife;
     bool ofsfwd;
     int  nworkers;
+    int  maxfd;
 };
 
 int cwdfd; // File descript of the initial working dir
 
 struct XROOTDFS xrootdfs;
-static struct fuse_opt xrootdfs_opts[13];
+static struct fuse_opt xrootdfs_opts[14];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
@@ -1161,6 +1162,7 @@ static void xrootdfs_usage(const char *progname)
 "    -o sss[=keytab]          use Xrootd seciruty module \"sss\", specifying a keytab file is optional\n"
 "    -o refreshdslist=NNNs/m/h/d  refresh internal list of data servers in NNN sec/min/hour/day, default unit is second\n"
 "                                 Absents of this option will disable automatically refreshing\n"
+"    -o maxfd=N               number of virtual file descriptors for posix requests, default 8192 (min 2048)\n"
 "    -o nworkers=N            number of workers to handle parallel requests to data servers, default 4\n"
 "    -o fastls=RDR            set to RDR when CNS is presented will cause stat() to go to redirector\n"
 "\n", progname);
@@ -1193,7 +1195,7 @@ static int xrootdfs_opt_proc(void* data, const char* arg, int key, struct fuse_a
 
 int main(int argc, char *argv[])
 {
-    static XrdPosixXrootd abc; // Do one time init for posix interface
+    static XrdPosixXrootd *abc; // We will do one time init for posix interface
 
     xrootdfs_oper.init		= xrootdfs_init;
     xrootdfs_oper.getattr	= xrootdfs_getattr;
@@ -1290,7 +1292,12 @@ int main(int argc, char *argv[])
     xrootdfs_opts[11].offset = offsetof(struct XROOTDFS, nworkers);
     xrootdfs_opts[11].value = 0;
 
-    xrootdfs_opts[12].templ = NULL;
+/* number of virtual file descriptors */
+    xrootdfs_opts[12].templ = "maxfd=%d";
+    xrootdfs_opts[12].offset = offsetof(struct XROOTDFS, maxfd);
+    xrootdfs_opts[12].value = 0;
+
+    xrootdfs_opts[13].templ = NULL;
 
 /* initialize struct xrootdfs */
 //    memset(&xrootdfs, 0, sizeof(xrootdfs));
@@ -1302,6 +1309,7 @@ int main(int argc, char *argv[])
     xrootdfs.ssskeytab = NULL;
     xrootdfs.urlcachelife = strdup("3650d"); /* 10 years */
     xrootdfs.nworkers = 4;
+    xrootdfs.maxfd = 8192;
 
 /* Get options from environment variables first */
     xrootdfs.rdr = getenv("XROOTDFS_RDRURL");
@@ -1311,6 +1319,7 @@ int main(int argc, char *argv[])
     xrootdfs.daemon_user = getenv("XROOTDFS_USER");
     if (getenv("XROOTDFS_OFSFWD") != NULL && ! strcmp(getenv("XROOTDFS_OFSFWD"),"1")) xrootdfs.ofsfwd = true;
     if (getenv("XROOTDFS_NWORKERS") != NULL) sscanf(getenv("XROOTDFS_NWORKERS"), "%d", &xrootdfs.nworkers);
+    if (getenv("XROOTDFS_MAXFD") != NULL) sscanf(getenv("XROOTDFS_MAXFD"), "%d", &xrootdfs.maxfd);
 
 /* Parse XrootdFS options, will overwrite those defined in environment variables */
     fuse_opt_parse(&args, &xrootdfs, xrootdfs_opts, xrootdfs_opt_proc);
@@ -1350,6 +1359,13 @@ int main(int argc, char *argv[])
     cwdfd = open(".",O_RDONLY);
 
     umask(0);
+
+/* Now we can allocate the XRootD posix interface as we need to set the maximum
+   number of virtual file descriptors and we don't know that until now.
+*/
+   if (xrootdfs.maxfd < 2048) xrootdfs.maxfd = 2048;
+   abc = new XrdPosixXrootd(-xrootdfs.maxfd);
+
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
 }
 #else
