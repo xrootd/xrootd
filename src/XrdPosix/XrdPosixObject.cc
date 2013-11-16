@@ -257,6 +257,7 @@ void XrdPosixObject::Shutdown()
            if ((oP = myFiles[i]))
               {myFiles[i] = 0;
                if (oP->fdNum >= 0) close(oP->fdNum);
+               oP->fdNum = -1;
                delete oP;
               };
        free(myFiles); myFiles = 0;
