@@ -109,9 +109,9 @@ enum XioStatus {allOK = 0,   //!< Successful completion
 //!                   curHand. This handle must be used in a future Swap() call.
 //-----------------------------------------------------------------------------
 
-virtual XioStatus Swap(const char            * curBuff,
-                       const XrdSfsXioHandle *&curHand,
-                       const XrdSfsXioHandle * oldHand=0
+virtual XioStatus Swap(const char      * curBuff,
+                       XrdSfsXioHandle *&curHand,
+                       XrdSfsXioHandle * oldHand=0
                       ) = 0;
 
 //-----------------------------------------------------------------------------
