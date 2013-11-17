@@ -32,6 +32,13 @@
 /******************************************************************************/
 
 #include <dirent.h>
+
+#if  defined(__APPLE__)
+#if !defined(dirent64)
+#define dirent64 dirent
+#endif
+#endif
+
 #include <unistd.h>
 #include <sys/types.h>
 
