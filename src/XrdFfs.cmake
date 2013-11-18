@@ -22,6 +22,7 @@ add_library(
 
 target_link_libraries(
   XrdFfs
+  XrdCl
   XrdPosix
   XrdSecsss
   XrdUtils
