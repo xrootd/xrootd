@@ -816,7 +816,7 @@ void XrdSys::IOEvents::Poller::Detach(XrdSys::IOEvents::Channel *cP,
 // Warning: This method runs unlocked. The caller must have exclusive use of
 //          the reqBuff otherwise unpredictable results will occur.
 
-int XrdSys::IOEvents::Poller::GetRequest(int tmo)
+int XrdSys::IOEvents::Poller::GetRequest()
 {
    ssize_t rlen;
    int rc;
@@ -829,7 +829,7 @@ int XrdSys::IOEvents::Poller::GetRequest(int tmo)
 // Wait for the next request. Some OS's (like Linux) don't support non-blocking
 // pipes. So, we must front the read with a poll.
 //
-   do {rc = poll(&pipePoll, 1, tmo);}
+   do {rc = poll(&pipePoll, 1, 0);}
       while(rc < 0 && (errno == EAGAIN || errno == EINTR));
    if (rc < 1) return 0;
 
@@ -921,29 +921,6 @@ bool XrdSys::IOEvents::Poller::Init(XrdSys::IOEvents::Channel *cP, int &eNum,
 }
 
 /******************************************************************************/
-/*                                 P a u s e                                  */
-/******************************************************************************/
-
-void XrdSys::IOEvents::Poller::Pause(bool really)
-{
-   PipeData  cmdbuff;
-
-// Initialize the pipdata structure
-//
-   memset(&cmdbuff, 0, sizeof(cmdbuff));
-   cmdbuff.req = (really ? PipeData::Wait : PipeData::Cont);
-
-// Lock all of this
-//
-   adMutex.Lock();
-
-// If we are still active then issue the pause/resume (SendCmd unlocks us)
-//
-   if (cmdFD != -1) SendCmd(cmdbuff, true);
-      else adMutex.UnLock();
-}
-  
-/******************************************************************************/
 /*                             P o l l 2 E n u m                              */
 /******************************************************************************/
   
@@ -962,7 +939,7 @@ int XrdSys::IOEvents::Poller::Poll2Enum(short events)
 /*                               S e n d C m d                                */
 /******************************************************************************/
   
-int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd, bool unlock)
+int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd)
 {
    int wlen;
 
@@ -975,12 +952,10 @@ int XrdSys::IOEvents::Poller::SendCmd(PipeData &cmd, bool unlock)
        cmd.theSem = &mySem;
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
-       if (unlock) adMutex.UnLock();
        if (wlen > 0) mySem.Wait();
       } else {
        do {wlen = write(cmdFD, (char *)&cmd, sizeof(PipeData));}
           while (wlen < 0 && errno == EINTR);
-       if (unlock) adMutex.UnLock();
       }
 
 // All done

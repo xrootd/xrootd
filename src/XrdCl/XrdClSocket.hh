@@ -51,7 +51,8 @@ namespace XrdCl
       //! @param status status of a socket if available
       //------------------------------------------------------------------------
       Socket( int socket = -1, SocketStatus status = Disconnected ):
-        pSocket(socket), pStatus( status ), pServerAddr( 0 )
+        pSocket(socket), pStatus( status ), pServerAddr( 0 ),
+        pProtocolFamily( AF_INET )
       {
       };
 
