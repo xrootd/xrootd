@@ -1195,8 +1195,6 @@ static int xrootdfs_opt_proc(void* data, const char* arg, int key, struct fuse_a
 
 int main(int argc, char *argv[])
 {
-    static XrdPosixXrootd *abc; // We will do one time init for posix interface
-
     xrootdfs_oper.init		= xrootdfs_init;
     xrootdfs_oper.getattr	= xrootdfs_getattr;
     xrootdfs_oper.access	= xrootdfs_access;
@@ -1364,7 +1362,7 @@ int main(int argc, char *argv[])
    number of virtual file descriptors and we don't know that until now.
 */
    if (xrootdfs.maxfd < 2048) xrootdfs.maxfd = 2048;
-   abc = new XrdPosixXrootd(-xrootdfs.maxfd);
+   XrdPosixXrootd abc(-xrootdfs.maxfd);
 
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
 }
