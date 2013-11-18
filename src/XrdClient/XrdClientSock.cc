@@ -150,7 +150,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
       // but we will not wait forever
       int timeleft = fRequestTimeout * 1000; // milliseconds
      {XrdSysTimer toClock;
-      long long unsigned timesofar = 0;
+      long long unsigned timesofar;
       do {
          // Wait for some event from the socket
          pollRet = poll(&fds_r, 1, timeleft);
@@ -159,7 +159,7 @@ int XrdClientSock::RecvRaw(void* buffer, int length, int substreamid,
             return TXSOCK_ERR;
          if (timeleft > 0)
             {toClock.Report(timesofar);
-             if ((timeleft -= timesofar) < 0) timeleft = 0;
+             if ((timeleft -= (timesofar/1000)) < 0) timeleft = 0;
             }
          } while(timeleft && pollRet <= 0);
       }
