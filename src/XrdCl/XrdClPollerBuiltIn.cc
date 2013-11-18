@@ -126,6 +126,7 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Creating and starting the built-in poller..." );
+    XrdSysMutexHelper scopedLock( pMutex );
     int         errNum = 0;
     const char *errMsg = 0;
     pPoller = IOEvents::Poller::Create( errNum, &errMsg );
@@ -145,7 +146,6 @@ namespace XrdCl
     {
       PollerHelper *helper = (PollerHelper*)it->second;
       Socket       *socket = it->first;
-      delete helper->channel;
       helper->channel = new IOEvents::Channel( pPoller, socket->GetFD(),
                                                helper->callBack );
       if( helper->readEnabled )
@@ -182,8 +182,29 @@ namespace XrdCl
   //------------------------------------------------------------------------
   bool PollerBuiltIn::Stop()
   {
+    using namespace XrdSys::IOEvents;
+
     Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Stopping the poller..." );
+    XrdSysMutexHelper scopedLock( pMutex );
+
+    SocketMap::iterator  it;
+    const char          *errMsg = 0;
+
+    for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
+    {
+      PollerHelper *helper = (PollerHelper*)it->second;
+      Socket       *socket = it->first;
+      bool status = helper->channel->Disable( Channel::allEvents, &errMsg );
+      if( !status )
+      {
+        log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
+                    socket->GetName().c_str(), errMsg );
+      }
+      delete helper->channel;
+      helper->channel = 0;
+    }
+
     if( !pPoller )
     {
       log->Debug( PollerMsg, "Stopping a poller that has not been started" );
@@ -193,7 +214,6 @@ namespace XrdCl
     pPoller->Stop();
     delete pPoller;
     pPoller = 0;
-
 
     return true;
   }
@@ -238,9 +258,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     PollerHelper *helper = new PollerHelper();
     helper->callBack = new ::SocketCallBack( socket, handler );
-    helper->channel  = new XrdSys::IOEvents::Channel( pPoller,
-                                                      socket->GetFD(),
-                                                      helper->callBack );
+
+    if( pPoller )
+    {
+      helper->channel  = new XrdSys::IOEvents::Channel( pPoller,
+                                                        socket->GetFD(),
+                                                        helper->callBack );
+    }
+
     handler->Initialize( this );
     pSocketMap[socket] = helper;
     return true;
@@ -269,15 +294,18 @@ namespace XrdCl
     // Remove the socket
     //--------------------------------------------------------------------------
     PollerHelper *helper = (PollerHelper*)it->second;
-    const char *errMsg;
-    bool status = helper->channel->Disable( Channel::allEvents, &errMsg );
-    if( !status )
+    if( pPoller )
     {
-      log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
-                             socket->GetName().c_str(), errMsg );
-      return false;
+      const char *errMsg;
+      bool status = helper->channel->Disable( Channel::allEvents, &errMsg );
+      if( !status )
+      {
+        log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
+                    socket->GetName().c_str(), errMsg );
+        return false;
+      }
+      delete helper->channel;
     }
-    delete helper->channel;
     delete helper->callBack;
     delete helper;
     pSocketMap.erase( it );
@@ -325,16 +353,19 @@ namespace XrdCl
 
       log->Dump( PollerMsg, "%s Enable read notifications, timeout: %d",
                             socket->GetName().c_str(), timeout );
-      const char *errMsg;
-      bool status = helper->channel->Enable( Channel::readEvents, timeout,
-                                             &errMsg );
-      if( !status )
-      {
-        log->Error( PollerMsg, "%s Unable to enable read notifications: %s",
-                               socket->GetName().c_str(), errMsg );
-        return false;
-      }
 
+      if( pPoller )
+      {
+        const char *errMsg;
+        bool status = helper->channel->Enable( Channel::readEvents, timeout,
+                                               &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "%s Unable to enable read notifications: %s",
+                      socket->GetName().c_str(), errMsg );
+          return false;
+        }
+      }
       helper->readEnabled = true;
     }
 
@@ -348,13 +379,17 @@ namespace XrdCl
 
       log->Dump( PollerMsg, "%s Disable read notifications",
                             socket->GetName().c_str() );
-      const char *errMsg;
-      bool status = helper->channel->Disable( Channel::readEvents, &errMsg );
-      if( !status )
+
+      if( pPoller )
       {
-        log->Error( PollerMsg, "%s Unable to disable read notifications: %s",
-                               socket->GetName().c_str(), errMsg );
-        return false;
+        const char *errMsg;
+        bool status = helper->channel->Disable( Channel::readEvents, &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "%s Unable to disable read notifications: %s",
+                      socket->GetName().c_str(), errMsg );
+          return false;
+        }
       }
       helper->readEnabled = false;
     }
@@ -404,14 +439,17 @@ namespace XrdCl
       log->Dump( PollerMsg, "%s Enable write notifications, timeout: %d",
                             socket->GetName().c_str(), timeout );
 
-      const char *errMsg;
-      bool status = helper->channel->Enable( Channel::writeEvents, timeout,
-                                             &errMsg );
-      if( !status )
+      if( pPoller )
       {
-        log->Error( PollerMsg, "%s Unable to enable write notifications: %s",
-                               socket->GetName().c_str(), errMsg );
-        return false;
+        const char *errMsg;
+        bool status = helper->channel->Enable( Channel::writeEvents, timeout,
+                                               &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "%s Unable to enable write notifications: %s",
+                      socket->GetName().c_str(), errMsg );
+          return false;
+        }
       }
       helper->writeEnabled = true;
     }
@@ -426,13 +464,16 @@ namespace XrdCl
 
       log->Dump( PollerMsg, "%s Disable write notifications",
                             socket->GetName().c_str() );
-      const char *errMsg;
-      bool status = helper->channel->Disable( Channel::writeEvents, &errMsg );
-      if( !status )
+      if( pPoller )
       {
-        log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
-                               socket->GetName().c_str(), errMsg );
-        return false;
+        const char *errMsg;
+        bool status = helper->channel->Disable( Channel::writeEvents, &errMsg );
+        if( !status )
+        {
+          log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
+                      socket->GetName().c_str(), errMsg );
+          return false;
+        }
       }
       helper->writeEnabled = false;
     }
