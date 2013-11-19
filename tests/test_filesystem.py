@@ -64,6 +64,18 @@ def async(func, args, hasReturnObject):
   if hasReturnObject:
     assert response
 
+def test_copy_sync():
+  c = client.FileSystem(SERVER_URL)
+  f = client.File()
+  status, response = f.open(smallfile, OpenFlags.NEW)
+  assert status.ok
+  
+  status, response = c.copy(smallfile, '/tmp/eggs', force=True)
+  assert status.ok
+  
+  status, response = c.copy('/tmp/nonexistent', '/tmp/eggs')
+  assert not status.ok
+
 def test_locate_sync():
   c = client.FileSystem(SERVER_URL)
   status, response = c.locate('/tmp', OpenFlags.REFRESH)
