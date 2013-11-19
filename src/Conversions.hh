@@ -34,7 +34,7 @@ namespace PyXRootD
   template<typename T>
   PyObject* ConvertType( T *response )
   {
-    if ( response ) {
+    if ( response != NULL ) {
       return PyDict<T>::Convert( response );
     } else {
       Py_RETURN_NONE;

@@ -195,7 +195,7 @@ namespace PyXRootD
     }
 
     else {
-      XrdCl::Buffer *response;
+      XrdCl::Buffer *response = 0;
       status = self->filesystem->Query( queryCode, argbuffer, response, timeout );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
       delete response;
@@ -536,7 +536,7 @@ namespace PyXRootD
     }
 
     else {
-      XrdCl::DirectoryList *list;
+      XrdCl::DirectoryList *list = 0;
       status = self->filesystem->DirList( path, flags, list, timeout );
       pyresponse = ConvertType<XrdCl::DirectoryList>( list );
       delete list;
@@ -630,7 +630,7 @@ namespace PyXRootD
     }
 
     else {
-      XrdCl::Buffer *response;
+      XrdCl::Buffer *response = 0;
       status = self->filesystem->Prepare( files, flags, priority, response,
                                           timeout );
       pyresponse = ConvertType<XrdCl::Buffer>( response );
