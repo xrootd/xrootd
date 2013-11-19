@@ -52,7 +52,7 @@ namespace PyXRootD
     if ( !pystatus ) return NULL;
     if ( PyDict_GetItemString( pystatus, "ok" ) == Py_False ) return pystatus;
 
-    pystatus = copyprocess->Run( copyprocess, NULL, NULL );
+    pystatus = copyprocess->Run( copyprocess, PyTuple_New(0), PyDict_New() );
     if ( !pystatus ) return NULL;
 
     Py_DECREF( copyprocess );

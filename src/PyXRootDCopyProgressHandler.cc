@@ -48,10 +48,12 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     //! Invoke the method
     //--------------------------------------------------------------------------
-    PyObject_CallMethod( handler, const_cast<char*>( "begin" ),
-                         (char *) "(HHOO)", jobNum, jobTotal,
-                         pysource, pytarget );
-    if( PyErr_Occurred() ) PyErr_Print();
+    if (handler != NULL)
+    {
+      PyObject_CallMethod( handler, const_cast<char*>( "begin" ),
+                           (char *) "(HHOO)", jobNum, jobTotal,
+                           pysource, pytarget );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -64,9 +66,11 @@ namespace PyXRootD
     //--------------------------------------------------------------------------
     //! Invoke the method
     //--------------------------------------------------------------------------
-    PyObject_CallMethod( handler, const_cast<char*>( "end" ),
-                         (char *) "O", pystatus );
-    if( PyErr_Occurred() ) PyErr_Print();
+    if (handler != NULL)
+    {
+      PyObject_CallMethod( handler, const_cast<char*>( "end" ),
+                           (char *) "O", pystatus );
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -75,8 +79,10 @@ namespace PyXRootD
   void CopyProgressHandler::JobProgress( uint64_t bytesProcessed,
                                          uint64_t bytesTotal )
   {
-    PyObject_CallMethod( handler, const_cast<char*>( "update" ),
-                         (char *) "kk", bytesProcessed, bytesTotal );
-    if( PyErr_Occurred() ) PyErr_Print();
+    if (handler != NULL)
+    {
+      PyObject_CallMethod( handler, const_cast<char*>( "update" ),
+                           (char *) "kk", bytesProcessed, bytesTotal );
+    }
   }
 }
