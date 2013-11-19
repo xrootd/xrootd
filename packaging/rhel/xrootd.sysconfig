@@ -36,3 +36,21 @@ XROOTD_INSTANCES="default"
 CMSD_INSTANCES="default"
 PURD_INSTANCES="default"
 XFRD_INSTANCES="default"
+
+#-------------------------------------------------------------------------------
+# Use a custom memory allocator when the one provided with the Standard C
+# Library (glibc) is eating up too much system memory. This is almost always the
+# case for RHEL >= 6, so you may consider installing jemalloc or tcmalloc and
+# using one of them instead.
+#
+# In order to do that, install either one of the packages:
+#
+#    yum install jemalloc         # for jemalloc
+# or
+#    yum install gperftools-libs  # for tcmalloc
+#
+# and uncomment one of the following lines. You may need to adjust the library
+# paths depending on the type of your system.
+#-------------------------------------------------------------------------------
+#export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+#export LD_PRELOAD=/usr/lib64/libtcmalloc.so.4
