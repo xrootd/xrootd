@@ -124,6 +124,9 @@ def test_dirlist_sync():
     print item.statinfo
     assert item.statinfo
     assert item.hostaddr
+    
+  status, response = c.dirlist('invalid', DirListFlags.STAT)
+  assert not status.ok
 
 def test_dirlist_async():
   c = client.FileSystem(SERVER_URL)
