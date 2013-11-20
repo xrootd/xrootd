@@ -67,14 +67,7 @@ namespace
         //----------------------------------------------------------------------
         OpenInfo *openInfo = 0;
         if( status->IsOK() )
-        {
-          if( !response )
-          {
-            XRootDStatus st( stError, errInternal );
-            pStateHandler->OnOpen( &st, 0, hostList );
-          }
           response->Get( openInfo );
-        }
 
         //----------------------------------------------------------------------
         // Notify the state handler and the client and say bye bye
@@ -810,6 +803,7 @@ namespace XrdCl
       pDataServer = new URL( hostList->back().url );
       pDataServer->SetParams( pFileUrl->GetParams() );
       pDataServer->SetPath( pFileUrl->GetPath() );
+      lastServer = pDataServer->GetHostId();
       HostList::const_iterator itC;
       URL::ParamsMap params = pDataServer->GetParams();
       for( itC = hostList->begin(); itC != hostList->end(); ++itC )
@@ -828,9 +822,6 @@ namespace XrdCl
           break;
         }
     }
-
-    if( pDataServer )
-      lastServer = pDataServer->GetHostId();
 
     log->Debug( FileMsg, "[0x%x@%s] Open has returned with status %s",
                 this, pFileUrl->GetURL().c_str(), status->ToStr().c_str() );

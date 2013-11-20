@@ -138,6 +138,7 @@ namespace XrdCl
         log->Error( UtilityMsg, "Unable read from %s: %s", filePath.c_str(),
                     strerror( errno ) );
         close( fd );
+        delete [] buffer;
         return false;
       }
       calc->Update( buffer, bytesRead );
@@ -150,6 +151,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------
+    delete [] buffer;
     close( fd );
     return true;
   }

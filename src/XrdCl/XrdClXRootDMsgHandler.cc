@@ -973,6 +973,7 @@ namespace XrdCl
       if( !st.IsOK() )
       {
         delete status;
+        delete response;
         status   = new XRootDStatus( st );
         response = 0;
       }
