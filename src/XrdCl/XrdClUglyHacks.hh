@@ -25,6 +25,19 @@
 #ifndef __XRD_CL_UGLY_HACKS_HH__
 #define __XRD_CL_UGLY_HACKS_HH__
 
+#include "XrdSys/XrdSysLinuxSemaphore.hh"
+#include "XrdSys/XrdSysPthread.hh"
+
+namespace XrdCl
+{
+#if defined(__linux__) && defined(HAVE_ATOMICS)
+  typedef XrdSys::LinuxSemaphore Semaphore;
+#else
+  typedef XrdSysSemaphore Semaphore;
+#endif
+
+}
+
 #if __cplusplus >= 201103L
 #define XRDCL_SMART_PTR_T std::unique_ptr
 #else

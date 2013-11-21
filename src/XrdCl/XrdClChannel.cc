@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClSocket.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <ctime>
 
@@ -37,7 +38,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       FilterHandler( XrdCl::MessageFilter *filter ):
-        pSem( new XrdSysSemaphore(0) ), pFilter( filter ), pMsg( 0 )
+        pSem( new XrdCl::Semaphore(0) ), pFilter( filter ), pMsg( 0 )
       {
       }
 
@@ -98,7 +99,7 @@ namespace
       }
 
     private:
-      XrdSysSemaphore      *pSem;
+      XrdCl::Semaphore     *pSem;
       XrdCl::MessageFilter *pFilter;
       XrdCl::Message       *pMsg;
       XrdCl::Status         pStatus;
@@ -114,7 +115,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       StatusHandler( XrdCl::Message *msg ):
-        pSem( new XrdSysSemaphore(0) ),
+        pSem( new XrdCl::Semaphore(0) ),
         pMsg( msg ) {}
 
       //------------------------------------------------------------------------
@@ -146,9 +147,9 @@ namespace
       }
       
     private:
-      XrdSysSemaphore *pSem;
-      XrdCl::Status    pStatus;
-      XrdCl::Message  *pMsg;
+      XrdCl::Semaphore *pSem;
+      XrdCl::Status     pStatus;
+      XrdCl::Message   *pMsg;
   };
 
   class TickGeneratorTask: public XrdCl::Task
