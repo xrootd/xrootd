@@ -58,6 +58,8 @@ XrdCmsClientMan     *nextManager() {return Next;}
 char                *Name() {return Host;}
 char                *NPfx() {return HPfx;}
 
+int                  manPort() {return Port;}
+
 int                  Send(char *msg, int mlen=0);
 int                  Send(const struct iovec *iov, int iovcnt, int iotot=0);
 

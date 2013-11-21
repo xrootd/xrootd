@@ -139,8 +139,17 @@ XrdOssStatInfo_t XrdOssStatInfoInit(XrdOss        *native_oss,
    const char *xWhat  = " only online ";
    XrdSysError Say(Logger, "");
    XrdOucEnv   myEnv(parms);
-   char  vChk[512], *val;
+   char  zRole[16], vChk[512], *val;
    int   offLine = 0;
+
+// Readjust the role to be backwards compatible
+//
+   if (myRole)
+      {     if (!strncmp("proxy", myRole, 5))
+               {strcpy(zRole, "proxy");   myRole = zRole;}
+       else if (!strncmp("meta",  myRole, 4))
+               {strcpy(zRole, "manager"); myRole = zRole;}
+      }
 
 // Check for global parms first
 //

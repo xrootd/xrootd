@@ -1523,6 +1523,7 @@ int XrdOfs::fsctl(const int               cmd,
 
   Input:    cmd       - Operation command (currently supported):
                         SFS_FSCTL_LOCATE - locate file
+                        SFS_FSCTL_STATCC - return cluster config status
                         SFS_FSCTL_STATFS - return file system info (physical)
                         SFS_FSCTL_STATLS - return file system info (logical)
                         SFS_FSCTL_STATXA - return file extended attributes
@@ -1644,6 +1645,18 @@ int XrdOfs::fsctl(const int               cmd,
        *cP++ = '\0';
        einfo.setErrCode(cP-bP+1);
        return SFS_DATA;
+      }
+
+// Process the STATCC request (this should always succeed)
+//
+   if (opcode == SFS_FSCTL_STATCC)
+      {static const int lcc_flag = SFS_O_LOCATE | SFS_O_LOCAL;
+       XrdOucEnv lcc_Env(0,0,client);
+            if (Finder)   retc = Finder  ->Locate(einfo,".",lcc_flag,&lcc_Env);
+       else if (Balancer) retc = Balancer->Locate(einfo,".",lcc_flag,&lcc_Env);
+       else retc = SFS_ERROR;
+       if (retc != SFS_DATA) einfo.setErrInfo(5, "none|");
+       return fsError(einfo, SFS_DATA);
       }
 
 // Operation is not supported

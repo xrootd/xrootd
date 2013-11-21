@@ -50,6 +50,7 @@
 #define SFS_O_POSC     0x0100000         // persist on successful close
 #define SFS_O_FORCE    0x0200000         // used for locate only
 #define SFS_O_HNAME    0x0400000         // used for locate only
+#define SFS_O_LOCAL    0x0800000         // used for locate only (local cmd)
 #define SFS_O_NOWAIT  0x01000000         // do not impose operational delays
 #define SFS_O_RAWIO   0x02000000         // allow client-side decompression
 #define SFS_O_RESET   0x04000000         // Reset any cached information
@@ -87,6 +88,7 @@
 #define SFS_FSCTL_STATFS  2 // Return FS data
 #define SFS_FSCTL_STATLS  3 // Return LS data
 #define SFS_FSCTL_STATXA  4 // Return XA data
+#define SFS_FSCTL_STATCC  5 // Return Cluster Config status
 #define SFS_FSCTL_PLUGIN  8 // Return Implementation Dependent Data
 #define SFS_FSCTL_PLUGIO 16 // Return Implementation Dependent Data
 
@@ -277,6 +279,7 @@ virtual int            chmod(const char             *path,
 //!
 //! @param  cmd    - The operation to be performed:
 //!                  SFS_FSCTL_LOCATE  Locate a file or file servers
+//!                  SFS_FSCTL_STATCC  Return cluster config status
 //!                  SFS_FSCTL_STATFS  Return physical filesystem information
 //!                  SFS_FSCTL_STATLS  Return logical  filesystem information
 //!                  SFS_FSCTL_STATXA  Return extended attributes

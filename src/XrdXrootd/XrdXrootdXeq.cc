@@ -750,7 +750,7 @@ int XrdXrootdProtocol::do_Locate()
   
 /******************************************************************************/
 /*                              d o _ L o g i n                               */
-/******************************************************************************/
+/*.x***************************************************************************/
   
 int XrdXrootdProtocol::do_Login()
 {
@@ -1472,8 +1472,9 @@ int XrdXrootdProtocol::do_Putfile()
   
 int XrdXrootdProtocol::do_Qconf()
 {
+   static const int fsctl_cmd = SFS_FSCTL_STATCC|SFS_O_LOCAL;
    XrdOucTokenizer qcargs(argp->buff);
-   char *val, buff[1024], *bp=buff;
+   char *val, buff[4096], *bp=buff;
    int n, bleft = sizeof(buff);
 
 // Get the first argument
@@ -1484,55 +1485,66 @@ int XrdXrootdProtocol::do_Qconf()
 // Trace this query variable
 //
    do {TRACEP(DEBUG, "query config " <<val);
-       if (bleft < 32) break;
 
    // Now determine what the user wants to query
    //
         if (!strcmp("bind_max", val))
-           {n = sprintf(bp, "%d\n", maxStreams-1);
+           {n = snprintf(bp, bleft, "%d\n", maxStreams-1);
             bp += n; bleft -= n;
            }
    else if (!strcmp("chksum", val))
-           {n = (JobCKT ? sprintf(bp, "0:%s\n", JobCKT)
-                        : sprintf(bp, "chksum\n"));
+           {n = (JobCKT ? snprintf(bp, bleft, "0:%s\n", JobCKT)
+                        : snprintf(bp, bleft, "chksum\n"));
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("cms", val))
+           {XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
+            if (osFS->fsctl(fsctl_cmd, ".", myError, CRED) == SFS_DATA)
+               n = snprintf(bp, bleft, "%s\n", myError.getErrText());
+               else {strcpy(bp, "cms\n"); n = 4;}
             bp += n; bleft -= n;
            }
    else if (!strcmp("pio_max", val))
-           {n = sprintf(bp, "%d\n", maxPio+1);
+           {n = snprintf(bp, bleft, "%d\n", maxPio+1);
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_ior_max", val))
-           {n = sprintf(bp, "%d\n", maxTransz - (int)sizeof(readahead_list));
+           {n = snprintf(bp,bleft,"%d\n",maxTransz-(int)sizeof(readahead_list));
             bp += n; bleft -= n;
            }
    else if (!strcmp("readv_iov_max", val)) 
-           {n = sprintf(bp, "%d\n", maxRvecsz);
+           {n = snprintf(bp, bleft, "%d\n", maxRvecsz);
+            bp += n; bleft -= n;
+           }
+   else if (!strcmp("role", val))
+           {const char *myRole = getenv("XRDROLE");
+            n = snprintf(bp, bleft, "%s\n", (myRole ? myRole : "none"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("sitename", val))
            {const char *siteName = getenv("XRDSITE");
-            n = sprintf(bp, "%s\n", (siteName ? siteName : "sitename"));
+            n = snprintf(bp, bleft, "%s\n", (siteName ? siteName : "sitename"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("tpc", val))
            {char *tpcval = getenv("XRDTPC");
-            n = sprintf(bp, "%s\n", (tpcval ? tpcval : "tpc"));
+            n = snprintf(bp, bleft, "%s\n", (tpcval ? tpcval : "tpc"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_port", val) && WANPort)
-           {n = sprintf(bp, "%d\n", WANPort);
+           {n = snprintf(bp, bleft, "%d\n", WANPort);
             bp += n; bleft -= n;
            }
    else if (!strcmp("wan_window", val) && WANPort)
-           {n = sprintf(bp, "%d\n", WANWindow);
+           {n = snprintf(bp, bleft, "%d\n", WANWindow);
             bp += n; bleft -= n;
            }
    else if (!strcmp("window", val) && Window)
-           {n = sprintf(bp, "%d\n", Window);
+           {n = snprintf(bp, bleft, "%d\n", Window);
             bp += n; bleft -= n;
            }
    else if (!strcmp("version", val))
-           {n = sprintf(bp, "%s\n", XrdVSTRING);
+           {n = snprintf(bp, bleft, "%s\n", XrdVSTRING);
             bp += n; bleft -= n;
            }
    else {n = strlen(val);
@@ -1540,7 +1552,7 @@ int XrdXrootdProtocol::do_Qconf()
          strcpy(bp, val); bp +=n; *bp = '\n'; bp++;
          bleft -= (n+1);
         }
-   } while((val = qcargs.GetToken()));
+   } while(bleft > 0 && (val = qcargs.GetToken()));
 
 // Make sure all ended well
 //
