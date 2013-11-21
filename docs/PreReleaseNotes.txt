@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow query of current role and dynamic cms state via kXR_query.
    * Provide a non-deprecated way of specifying source checksums
      via xrdcp et. al.
    * Enable locate to return host names not just ip addreses.
