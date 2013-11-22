@@ -164,6 +164,11 @@ def test_query_async():
   assert status.ok
   assert response
   print response
+  
+def test_mkdir_flags():
+  c = client.FileSystem(SERVER_URL)
+  status, response = c.mkdir('/tmp/dir1/dir2', MkDirFlags.MAKEPATH)
+  assert status.ok
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
