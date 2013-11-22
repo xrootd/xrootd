@@ -1500,8 +1500,8 @@ int XrdXrootdProtocol::do_Qconf()
    else if (!strcmp("cms", val))
            {XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
             if (osFS->fsctl(fsctl_cmd, ".", myError, CRED) == SFS_DATA)
-               n = snprintf(bp, bleft, "%s\n", myError.getErrText());
-               else {strcpy(bp, "cms\n"); n = 4;}
+                    n = snprintf(bp, bleft, "%s\n", myError.getErrText());
+               else n = snprintf(bp, bleft, "%s\n", "cms\n");
             bp += n; bleft -= n;
            }
    else if (!strcmp("pio_max", val))
