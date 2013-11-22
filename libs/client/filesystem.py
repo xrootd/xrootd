@@ -20,6 +20,7 @@ from pyxrootd import client
 from XRootD.client.responses import XRootDStatus, StatInfo, StatInfoVFS
 from XRootD.client.responses import LocationInfo, DirectoryList, ProtocolInfo
 from XRootD.client.utils import CallbackWrapper
+from XRootD.client.flags import AccessMode
 
 class FileSystem(object):
   """Interact with an ``xrootd`` server to perform filesystem-based operations
@@ -174,10 +175,14 @@ class FileSystem(object):
                   where the default is `MkDirFlags.NONE`
     :param  mode: the initial file access mode, an `ORed` combination of
                   :mod:`XRootD.client.flags.AccessMode` where the default is
-                  `AccessMode.NONE`
+                  `rwxr-x---`
     :returns:     tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                   object and None
     """
+    if mode == 0:
+      mode = AccessMode.UR | AccessMode.UW | AccessMode.UX | \
+             AccessMode.GR | AccessMode.GX
+
     if callback:
       callback = CallbackWrapper(callback, None)
       return XRootDStatus(self.__fs.mkdir(path, flags, mode, timeout, callback))
