@@ -205,13 +205,12 @@ class FileSystem(object):
     status, response = self.__fs.rmdir(path, timeout)
     return XRootDStatus(status), None
 
-  def chmod(self, path, mode=0, timeout=0, callback=None):
+  def chmod(self, path, mode, timeout=0, callback=None):
     """Change access mode on a directory or a file.
 
     :param path: path to the file/directory to change access mode
     :type  path: string
     :param mode: An `OR`ed` combination of :mod:`XRootD.client.flags.AccessMode`
-                 where the default is `AccessMode.NONE`
     :returns:    tuple containing :mod:`XRootD.client.responses.XRootDStatus`
                  object and None
     """
