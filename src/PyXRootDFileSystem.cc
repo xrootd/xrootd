@@ -289,7 +289,7 @@ namespace PyXRootD
     PyObject                *callback = NULL, *pystatus = NULL;
     XrdCl::XRootDStatus      status;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|bkHO:mkdir", (char**) kwlist,
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s|HHHO:mkdir", (char**) kwlist,
         &path, &flags, &mode, &timeout, &callback ) ) return NULL;
 
     if ( callback && callback != Py_None ) {
