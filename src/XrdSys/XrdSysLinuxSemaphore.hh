@@ -35,49 +35,6 @@
 #include <exception>
 #include <string>
 
-namespace
-{
-  //----------------------------------------------------------------------------
-  // Unpack the semaphore value
-  //----------------------------------------------------------------------------
-  inline void XrdSysLinuxSemaphoreUnpack( int *sourcePtr,
-                                          int &source,
-                                          int &value,
-                                          int &nwaiters )
-  {
-    source   = __sync_fetch_and_add( sourcePtr, 0 );
-    value    = source & 0x000fffff;
-    nwaiters = (source >> 20) & 0x00000fff;
-  }
-
-  //----------------------------------------------------------------------------
-  // Pack the semaphore value
-  //----------------------------------------------------------------------------
-  inline int XrdSysLinuxSemaphorePack( int value, int nwaiters )
-  {
-    return nwaiters << 20 | value;
-  }
-
-  //----------------------------------------------------------------------------
-  // Cancellation cleaner
-  //----------------------------------------------------------------------------
-  void XrdSysLinuxSemaphoreCleanup( void *param )
-  {
-    int *iParam = (int*)param;
-    int value   = 0;
-    int val     = 0;
-    int waiters = 0;
-    int newVal  = 0;
-
-    do
-    {
-      XrdSysLinuxSemaphoreUnpack( iParam, value, val, waiters );
-      newVal = XrdSysLinuxSemaphorePack( val, --waiters );
-    }
-    while( !__sync_bool_compare_and_swap( iParam, value, newVal ) );
-  }
-}
-
 namespace XrdSys
 {
   //----------------------------------------------------------------------------
@@ -138,10 +95,10 @@ namespace XrdSys
         //----------------------------------------------------------------------
         while( 1 )
         {
-          XrdSysLinuxSemaphoreUnpack( pValue, value, val, waiters );
+          Unpack( pValue, value, val, waiters );
           if( val == 0 )
             return 1;
-          newVal = XrdSysLinuxSemaphorePack( --val, waiters );
+          newVal = Pack( --val, waiters );
           if( __sync_bool_compare_and_swap( pValue, value, newVal ) )
             return 0;
         }
@@ -167,12 +124,12 @@ namespace XrdSys
           int waiters = 0;
           int cancelType = 0;
 
-          XrdSysLinuxSemaphoreUnpack( pValue, value, val, waiters );
+          Unpack( pValue, value, val, waiters );
 
-          if( waiters == 0x00000fff )
+          if( waiters == WaitersMask )
             throw LinuxSemaphoreError( "Reached maximum number of waiters" );
 
-          int newVal = XrdSysLinuxSemaphorePack( val, ++waiters );
+          int newVal = Pack( val, ++waiters );
 
           //--------------------------------------------------------------------
           // We have bumped the number of waiters successfuly if neither the
@@ -189,7 +146,7 @@ namespace XrdSys
             {
               int r = 0;
 
-              pthread_cleanup_push( XrdSysLinuxSemaphoreCleanup, pValue );
+              pthread_cleanup_push( Cleanup, pValue );
               pthread_setcanceltype( PTHREAD_CANCEL_ASYNCHRONOUS, 0 );
 
               r = syscall( SYS_futex, pValue, FUTEX_WAIT, newVal, 0, 0, 0 );
@@ -215,8 +172,8 @@ namespace XrdSys
             //------------------------------------------------------------------
             do
             {
-              XrdSysLinuxSemaphoreUnpack( pValue, value, val, waiters );
-              newVal = XrdSysLinuxSemaphorePack( val, --waiters );
+              Unpack( pValue, value, val, waiters );
+              newVal = Pack( val, --waiters );
             }
             while( !__sync_bool_compare_and_swap( pValue, value, newVal ) );
           }
@@ -255,12 +212,12 @@ namespace XrdSys
         //----------------------------------------------------------------------
         while( 1 )
         {
-          XrdSysLinuxSemaphoreUnpack( pValue, value, val, waiters );
+          Unpack( pValue, value, val, waiters );
 
-          if( val == 0x000fffff )
+          if( val == ValueMask )
             throw LinuxSemaphoreError( "Reached maximum value" );
 
-          newVal = XrdSysLinuxSemaphorePack( ++val, waiters );
+          newVal = Pack( ++val, waiters );
           if( __sync_bool_compare_and_swap( pValue, value, newVal ) )
           {
             if( waiters )
@@ -276,7 +233,7 @@ namespace XrdSys
       int GetValue() const
       {
         int value = __sync_fetch_and_add( pValue, 0 );
-        return value & 0x000fffff;
+        return value & ValueMask;
       }
 
       //------------------------------------------------------------------------
@@ -287,7 +244,7 @@ namespace XrdSys
       LinuxSemaphore( int value )
       {
         pValue = (int *)malloc(sizeof(int));
-        *pValue = (value & 0x000fffff);
+        *pValue = (value & ValueMask);
       }
 
       //------------------------------------------------------------------------
@@ -299,6 +256,50 @@ namespace XrdSys
       }
 
     private:
+      static const int ValueMask     = 0x000fffff;
+      static const int WaitersOffset = 20;
+      static const int WaitersMask   = 0x00000fff;
+
+      //------------------------------------------------------------------------
+      // Unpack the semaphore value
+      //------------------------------------------------------------------------
+      static inline void Unpack( int *sourcePtr,
+                                 int &source,
+                                 int &value,
+                                 int &nwaiters )
+      {
+        source   = __sync_fetch_and_add( sourcePtr, 0 );
+        value    = source & ValueMask;
+        nwaiters = (source >> WaitersOffset) & WaitersMask;
+      }
+
+      //------------------------------------------------------------------------
+      // Pack the semaphore value
+      //------------------------------------------------------------------------
+      static inline int Pack( int value, int nwaiters )
+      {
+        return (nwaiters << WaitersOffset) | (value & ValueMask);
+      }
+
+      //------------------------------------------------------------------------
+      // Cancellation cleaner
+      //------------------------------------------------------------------------
+      static void Cleanup( void *param )
+      {
+        int *iParam = (int*)param;
+        int value   = 0;
+        int val     = 0;
+        int waiters = 0;
+        int newVal  = 0;
+
+        do
+        {
+          Unpack( iParam, value, val, waiters );
+          newVal = Pack( val, --waiters );
+        }
+        while( !__sync_bool_compare_and_swap( iParam, value, newVal ) );
+      }
+
       int *pValue;
   };
 };
