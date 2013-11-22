@@ -169,6 +169,9 @@ def test_mkdir_flags():
   c = client.FileSystem(SERVER_URL)
   status, response = c.mkdir('/tmp/dir1/dir2', MkDirFlags.MAKEPATH)
   assert status.ok
+  c.rm('/tmp/dir1/dir2')
+  c.rm('/tmp/dir1')
+  
 
 def test_args():
   c = client.FileSystem(url=SERVER_URL)
