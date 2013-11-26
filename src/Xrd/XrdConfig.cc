@@ -192,7 +192,6 @@ int XrdConfig::Configure(int argc, char **argv)
 */
    const char *xrdInst="XRDINSTANCE=";
 
-   static XrdNetAddr myIPAddr(0);
    int retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
    char c, buff[512], *dfltProt, *logfn = 0;
@@ -356,7 +355,10 @@ int XrdConfig::Configure(int argc, char **argv)
       }
 
 // Get the full host name. In theory, we should always get some kind of name.
+// We must define myIPAddr here because we may need to run in v4 mode and
+// that doesn't get set until after the options are scanned.
 //
+   static XrdNetAddr myIPAddr(0);
    if (!(myName = myIPAddr.Name(0, &temp)))
       {Log.Emsg("Config", "Unable to determine host name; ",
                            (temp ? temp : "reason unknown"),
@@ -399,7 +401,10 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Put out the herald
 //
-   Log.Say(0, "Scalla is starting. . .");
+   strcpy(buff, "Starting on ");
+   retc = strlen(buff);
+   XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
+   Log.Say(0, buff);
    Log.Say(XrdBANNER);
 
 // Setup the initial required protocol.
@@ -450,7 +455,9 @@ int XrdConfig::Configure(int argc, char **argv)
    sprintf(buff, "%s:%d", myInstance, PortTCP);
    Log.Say("------ ", buff, temp);
    if (logfn)
-      {strcat(buff, " running.");
+      {strcat(buff, " running ");
+       retc = strlen(buff);
+       XrdSysUtils::FmtUname(buff+retc, sizeof(buff)-retc);
        Log.logger()->AddMsg(buff);
        free(logfn);
       }
