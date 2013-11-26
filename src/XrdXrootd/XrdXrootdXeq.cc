@@ -1517,8 +1517,8 @@ int XrdXrootdProtocol::do_Qconf()
             bp += n; bleft -= n;
            }
    else if (!strcmp("role", val))
-           {const char *myRole = getenv("XRDROLE");
-            n = snprintf(bp, bleft, "%s\n", (myRole ? myRole : "none"));
+           {const char *theRole = getenv("XRDROLE");
+            n = snprintf(bp, bleft, "%s\n", (theRole ? theRole : "none"));
             bp += n; bleft -= n;
            }
    else if (!strcmp("sitename", val))
