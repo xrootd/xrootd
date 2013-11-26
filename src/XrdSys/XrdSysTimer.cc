@@ -203,6 +203,25 @@ char *XrdSysTimer::s2hms(int sec, char *buff, int blen)
 }
 
 /******************************************************************************/
+/*                              T i m e Z o n e                               */
+/******************************************************************************/
+
+int XrdSysTimer::TimeZone()
+{
+   time_t currtime = time(NULL);
+   struct tm *ptm;
+   int uthr, lthr;
+
+// Calculate the timezone offset and return it
+
+   ptm = gmtime(&currtime);
+   uthr = ptm->tm_hour;
+   ptm = localtime(&currtime);
+   lthr = ptm->tm_hour;
+   return (uthr>lthr ? uthr-lthr : lthr-uthr-24);
+}
+  
+/******************************************************************************/
 /*                                  W a i t                                   */
 /******************************************************************************/
   
