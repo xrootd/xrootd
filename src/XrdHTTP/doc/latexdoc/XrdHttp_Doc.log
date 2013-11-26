@@ -1,0 +1,427 @@
+This is pdfTeX, Version 3.1415926-2.4-1.40.13 (TeX Live 2012/Debian) (format=latex 2013.5.3)  22 OCT 2013 15:34
+entering extended mode
+ restricted \write18 enabled.
+ %&-line parsing enabled.
+**XrdHttp_Doc.tex
+(./XrdHttp_Doc.tex
+LaTeX2e <2011/06/27>
+Babel <v3.8m> and hyphenation patterns for english, dumylang, nohyphenation, lo
+aded.
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2007/10/19 v1.4h Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size12.clo
+File: size12.clo 2007/10/19 v1.4h Standard LaTeX file (size option)
+)
+\c@part=\count79
+\c@section=\count80
+\c@subsection=\count81
+\c@subsubsection=\count82
+\c@paragraph=\count83
+\c@subparagraph=\count84
+\c@figure=\count85
+\c@table=\count86
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+)
+(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
+Package: geometry 2010/09/12 v5.6 Page Geometry
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty
+Package: keyval 1999/03/16 v1.13 key=value parser (DPC)
+\KV@toks@=\toks14
+)
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/ifpdf.sty
+Package: ifpdf 2011/01/30 v2.3 Provides the ifpdf switch (HO)
+Package ifpdf Info: pdfTeX in PDF mode is not detected.
+)
+(/usr/share/texlive/texmf-dist/tex/generic/oberdiek/ifvtex.sty
+Package: ifvtex 2010/03/01 v1.5 Detect VTeX and its facilities (HO)
+Package ifvtex Info: VTeX not detected.
+)
+(/usr/share/texlive/texmf-dist/tex/generic/ifxetex/ifxetex.sty
+Package: ifxetex 2010/09/12 v0.6 Provides ifxetex conditional
+)
+\Gm@cnth=\count87
+\Gm@cntv=\count88
+\c@Gm@tempcnt=\count89
+\Gm@bindingoffset=\dimen103
+\Gm@wd@mp=\dimen104
+\Gm@odd@mp=\dimen105
+\Gm@even@mp=\dimen106
+\Gm@layoutwidth=\dimen107
+\Gm@layoutheight=\dimen108
+\Gm@layouthoffset=\dimen109
+\Gm@layoutvoffset=\dimen110
+\Gm@dimlist=\toks15
+)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+Package: graphicx 1999/02/16 v1.0f Enhanced LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphics.sty
+Package: graphics 2009/02/05 v1.0o Standard LaTeX Graphics (DPC,SPQR)
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/trig.sty
+Package: trig 1999/03/16 v1.09 sin cos tan (DPC)
+)
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/graphics.cfg
+File: graphics.cfg 2010/04/23 v1.9 graphics configuration of TeX Live
+)
+Package graphics Info: Driver file: dvips.def on input line 91.
+
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/dvips.def
+File: dvips.def 1999/02/16 v3.0i Driver-dependant file (DPC,SPQR)
+))
+\Gin@req@height=\dimen111
+\Gin@req@width=\dimen112
+)
+(/usr/share/texlive/texmf-dist/tex/latex/float/float.sty
+Package: float 2001/11/08 v1.3d Float enhancements (AL)
+\c@float@type=\count90
+\float@exts=\toks16
+\float@box=\box26
+\@float@everytoks=\toks17
+\@floatcapt=\box27
+)
+(/usr/share/texlive/texmf-dist/tex/latex/wrapfig/wrapfig.sty
+\wrapoverhang=\dimen113
+\WF@size=\dimen114
+\c@WF@wrappedlines=\count91
+\WF@box=\box28
+\WF@everypar=\toks18
+Package: wrapfig 2003/01/31  v 3.6
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.sty
+\lst@mode=\count92
+\lst@gtempboxa=\box29
+\lst@token=\toks19
+\lst@length=\count93
+\lst@currlwidth=\dimen115
+\lst@column=\count94
+\lst@pos=\count95
+\lst@lostspace=\dimen116
+\lst@width=\dimen117
+\lst@newlines=\count96
+\lst@lineno=\count97
+\lst@maxwidth=\dimen118
+
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2007/02/22 1.4 (Carsten Heinz)
+\c@lstnumber=\count98
+\lst@skipnumbers=\count99
+\lst@framebox=\box30
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.cfg
+File: listings.cfg 2007/02/22 1.4 listings configuration
+))
+Package: listings 2007/02/22 1.4 (Carsten Heinz)
+
+(/usr/share/texlive/texmf-dist/tex/latex/tabulary/tabulary.sty
+Package: tabulary 2008/12/01 v0.9 tabulary package (DPC)
+
+(/usr/share/texlive/texmf-dist/tex/latex/tools/array.sty
+Package: array 2008/09/09 v2.4c Tabular extension package (FMi)
+\col@sep=\dimen119
+\extrarowheight=\dimen120
+\NC@list=\toks20
+\extratabsurround=\skip43
+\backup@length=\skip44
+)
+\TY@count=\count100
+\TY@linewidth=\dimen121
+\tymin=\dimen122
+\tymax=\dimen123
+\TY@tablewidth=\dimen124
+) (./XrdHttp_Doc.aux)
+\openout1 = `XrdHttp_Doc.aux'.
+
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 40.
+LaTeX Font Info:    ... okay on input line 40.
+
+*geometry* driver: auto-detecting
+*geometry* detected driver: dvips
+*geometry* verbose mode - [ preamble ] result:
+* driver: dvips
+* paper: a4paper
+* layout: <same size as paper>
+* layoutoffset:(h,v)=(0.0pt,0.0pt)
+* modes: 
+* h-part:(L,W,R)=(89.62709pt, 418.25368pt, 89.6271pt)
+* v-part:(T,H,B)=(101.40665pt, 591.5302pt, 152.11pt)
+* \paperwidth=597.50787pt
+* \paperheight=845.04684pt
+* \textwidth=418.25368pt
+* \textheight=591.5302pt
+* \oddsidemargin=17.3571pt
+* \evensidemargin=17.3571pt
+* \topmargin=-7.86334pt
+* \headheight=12.0pt
+* \headsep=25.0pt
+* \topskip=12.0pt
+* \footskip=30.0pt
+* \marginparwidth=44.0pt
+* \marginparsep=10.0pt
+* \columnsep=10.0pt
+* \skip\footins=10.8pt plus 4.0pt minus 2.0pt
+* \hoffset=0.0pt
+* \voffset=0.0pt
+* \mag=1000
+* \@twocolumnfalse
+* \@twosidefalse
+* \@mparswitchfalse
+* \@reversemarginfalse
+* (1in=72.27pt=25.4mm, 1cm=28.453pt)
+
+\c@lstlisting=\count101
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <12> on input line 69.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <8> on input line 69.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <6> on input line 69.
+[1
+
+] (./XrdHttp_Doc.toc)
+\tf@toc=\write3
+\openout3 = `XrdHttp_Doc.toc'.
+
+ [1]
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 115.
+
+
+(/usr/share/texlive/texmf-dist/tex/latex/base/omscmr.fd
+File: omscmr.fd 1999/05/25 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 115.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <7> on input line 115.
+LaTeX Font Info:    External font `cmex10' loaded for size
+(Font)              <5> on input line 115.
+Missing character: There is no â in font cmr10!
+Missing character: There is no € in font cmr10!
+Missing character: There is no ™ in font cmr10!
+
+Overfull \hbox (44.01248pt too wide) in paragraph at lines 121--122
+\OT1/cmr/m/n/12 for HEP data man-age-ment https://svnweb.cern.ch/trac/lcgdm/wik
+i/Dpm/WebDAV.
+ []
+
+[2]
+File: ./Pictures/diagram-principle.eps Graphic file (type eps)
+ <./Pictures/diagram-principle.eps> [3]
+Underfull \hbox (badness 10000) in paragraph at lines 153--155
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 156--158
+
+ []
+
+[4]
+Underfull \hbox (badness 10000) in paragraph at lines 159--160
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 173--174
+
+ []
+
+[5]
+Runaway argument?
+{itemize) \item regular HTTPS clients, like browsers \item X509 certi\ETC.
+! Paragraph ended before \begin was complete.
+<to be read again> 
+                   \par 
+l.193 
+      
+I suspect you've forgotten a `}', causing me to apply this
+control sequence to too much text. How can we recover?
+My plan is to forget the whole thing and hope for the best.
+
+[6] [7]
+Underfull \hbox (badness 10000) in paragraph at lines 230--231
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 232--234
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 235--236
+
+ []
+
+[8]
+Underfull \hbox (badness 10000) in paragraph at lines 237--238
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 239--240
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 241--242
+
+ []
+
+[9] [10]
+Underfull \hbox (badness 10000) in paragraph at lines 282--283
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 284--286
+
+ []
+
+[11]
+Overfull \hbox (3.70638pt too wide) in paragraph at lines 325--325
+[]\OT1/cmr/m/n/6 HTTPS|  
+ []
+
+
+Overfull \hbox (3.70638pt too wide) in paragraph at lines 325--325
+[]\OT1/cmr/m/n/6 HTTPS|  
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 338--340
+
+ []
+
+[12]
+Underfull \hbox (badness 10000) in paragraph at lines 341--342
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 343--345
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 351--353
+
+ []
+
+[13]
+Underfull \hbox (badness 10000) in paragraph at lines 372--373
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 374--375
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 388--388
+[]\OT1/cmtt/m/n/12 </DAV:collection>
+ []
+
+
+Underfull \hbox (badness 1953) in paragraph at lines 389--389
+[]|\OT1/cmr/m/n/12 The con-tent size in
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 390--391
+[]|\OT1/cmr/m/n/12 Wed, 31
+ []
+
+
+Underfull \hbox (badness 7540) in paragraph at lines 390--391
+\OT1/cmr/m/n/12 Aug 2011
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 390--391
+\OT1/cmr/m/n/12 14:51:35
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 391--391
+[]|\OT1/cmr/m/n/12 Not stan-dard, but
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 391--391
+\OT1/cmr/m/n/12 used by Win-dows
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 391--391
+\OT1/cmr/m/n/12 Ex-plorer. 'T' is
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 392--392
+[]|\OT1/cmr/m/n/12 Not stan-dard, but
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 392--392
+\OT1/cmr/m/n/12 used by Win-dows
+ []
+
+
+Overfull \hbox (4.55394pt too wide) in paragraph at lines 384--397
+[][] 
+ []
+
+[14] [15] [16]
+Overfull \hbox (43.90085pt too wide) in paragraph at lines 441--445
+[]\OT1/cmr/m/n/12 Syntax: []\OT1/cmtt/m/n/12 http.desthttps <yes|no|true|false|
+0|1> \OT1/cmr/m/n/12 Ex-am-ple: []\OT1/cmtt/m/n/12 http.desthttps yes 
+ []
+
+
+Overfull \hbox (105.65088pt too wide) in paragraph at lines 452--456
+[]\OT1/cmr/m/n/12 Syntax: []\OT1/cmtt/m/n/12 http.selfhttps2http <yes|no|true|f
+alse|0|1> \OT1/cmr/m/n/12 Ex-am-ple: []\OT1/cmtt/m/n/12 http.selfhttps2http yes
+ 
+ []
+
+
+Overfull \hbox (105.65088pt too wide) in paragraph at lines 465--469
+[]\OT1/cmr/m/n/12 Syntax: []\OT1/cmtt/m/n/12 http.embeddedstatic <yes|no|true|f
+alse|0|1> \OT1/cmr/m/n/12 Ex-am-ple: []\OT1/cmtt/m/n/12 http.embeddedstatic yes
+ 
+ []
+
+[17]
+
+LaTeX Warning: Empty `thebibliography' environment on input line 493.
+
+[18] (./XrdHttp_Doc.aux)
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+ ) 
+Here is how much of TeX's memory you used:
+ 2496 strings out of 495060
+ 34794 string characters out of 3182054
+ 97573 words of memory out of 3000000
+ 5682 multiletter control sequences out of 15000+200000
+ 11487 words of font info for 40 fonts, out of 3000000 for 9000
+ 14 hyphenation exceptions out of 8191
+ 26i,10n,32p,844b,321s stack positions out of 5000i,500n,10000p,200000b,50000s
+
+Output written on XrdHttp_Doc.dvi (19 pages, 49368 bytes).

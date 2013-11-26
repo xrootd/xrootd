@@ -1,0 +1,32 @@
+/** @file  XrdHttpConfig.h.in
+ * @brief  Parameter passing from the CMake environment
+ * @author Fabrizio Furano
+ * @date   Oct 2012
+ * 
+ * 
+ * 
+ */
+
+
+
+
+
+
+#ifndef XRDHTTPCONFIG_H
+#define XRDHTTPCONFIG_H
+/* XrdHttpConfig.h.in
+ * 
+ * File that contains the settings that come from the build system (cmake)
+ * This is parsed in order to become Config.h
+ *
+ * by Fabrizio Furano, CERN, Oct 2012
+ */
+
+
+// the configured options and settings
+#define XRDHTTP_VERSION_MAJOR "@XRDHTTP_VERSION_MAJOR@"
+#define XRDHTTP_VERSION_MINOR "@XRDHTTP_VERSION_MINOR@"
+#define XRDHTTP_VERSION_PATCH "@XRDHTTP_VERSION_PATCH@"
+
+
+#endif
