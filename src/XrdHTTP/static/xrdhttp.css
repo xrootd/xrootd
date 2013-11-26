@@ -1,0 +1,114 @@
+/* HTML elements */
+html {
+  font-size: 12pt;
+}
+
+body {
+  padding-bottom: 5em;
+}
+
+a {
+  color: blue;
+}
+
+/* Header */
+#header h1 {
+  font-size: 200%;
+}
+
+#header h1 a {
+  color: black;
+  text-decoration: none;
+}
+
+#header h1 a:hover {
+  color: blue;
+  text-decoration: underline;
+}
+
+/* File table */
+#ft {
+  font-family: monospace;
+  font-size: 100%;
+}
+
+#ft td {
+  padding: 0.2em 1em 0.2em 1em;
+}
+
+#ft td:nth-child(4) {
+  text-align: right;
+}
+
+#ft .mode {
+  width: 10em;
+}
+
+#ft .uid {
+  width: 4em;
+}
+
+#ft .gid {
+  width: 4em;
+}
+
+#ft .size {
+  width: 6em;
+}
+
+#ft .datetime {
+  width: 20em;
+}
+
+#ft .name {
+  text-align: left;
+}
+
+#ft .file {
+  background: url(/icons/generic.gif) left center no-repeat;
+  padding-left: 28px;
+}
+
+#ft .folder {
+  background: url(/icons/folder.gif) left center no-repeat;
+  padding-left: 28px;
+}
+
+#ft .M777 a{
+  background-color: #00FF66;
+}
+
+#ft .M1777 a{
+  background-color: #00FF66;
+  color: black;
+}
+
+#ft .link {
+  color: #0066CC;
+}
+
+#ft .link a {
+}
+
+#ft .metalink {
+  padding: 0;
+  margin: 0;
+  width: 22px;
+  text-align: left;
+}
+
+/* Footer */
+#footer {
+  border-top: groove 2px;
+  position: fixed;
+  bottom: 0;
+  left: 5pt;
+  right: 5pt;
+  padding: 0 1em 0 1em;
+  font-style: italic;
+  background: white;
+}
+
+#requestby {
+  font-weight: bold;
+}

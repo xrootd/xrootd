@@ -1,0 +1,214 @@
+
+
+
+
+
+
+
+
+-------------- request
+
+PROPFIND /dpm/cern.ch/home/ HTTP/1.1
+User-Agent: cadaver/0.23.3 neon/0.29.6
+Connection: TE
+TE: trailers
+Host: cvitbdpm1.cern.ch
+Depth: 1
+Content-Length: 288
+Content-Type: application/xml
+
+
+------------- req body
+
+<?xml version="1.0" encoding="utf-8"?>
+<propfind xmlns="DAV:">
+  <prop>
+    <getcontentlength xmlns="DAV:"/>
+    <getlastmodified xmlns="DAV:"/>
+    <executable xmlns="http://apache.org/dav/props/"/>
+    <resourcetype xmlns="DAV:"/>
+    <checked-in xmlns="DAV:"/>
+    <checked-out xmlns="DAV:"/>
+  </prop>
+</propfind>
+
+
+
+-------------------------- response
+
+
+<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:" xmlns:ns1="http://apache.org/dav/props/" xmlns:ns0="DAV:">
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>8</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 16 Apr 2012 11:45:44 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/alice/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 31 Oct 2011 14:08:41 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/atlas/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 31 Oct 2011 14:08:40 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/cms/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 31 Oct 2011 14:08:46 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/dteam/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>100</lp1:getcontentlength>
+        <lp1:getlastmodified>Fri, 01 Mar 2013 06:41:42 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/lhcb/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 31 Oct 2011 14:08:43 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/ops/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Mon, 31 Oct 2011 14:08:50 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/testers.eu-emi.eu/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>210</lp1:getcontentlength>
+        <lp1:getlastmodified>Thu, 18 Apr 2013 09:54:57 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/dpm/cern.ch/home/testers2.eu-emi.eu/</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>1</lp1:getcontentlength>
+        <lp1:getlastmodified>Tue, 01 May 2012 02:42:13 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+------------------test
+<?xml version="1.0" encoding="utf-8"?>
+<D:multistatus xmlns:D="DAV:" xmlns:ns1="http://apache.org/dav/props/" xmlns:ns0="DAV:">
+  <D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+    <D:href>/tmp/yum.repos.d/?xrd.dirstat=1emi-dpm_mysql0.repo</D:href>
+    <D:propstat>
+      <D:prop>
+        <lp1:getcontentlength>12345</lp1:getcontentlength>
+        <lp1:getlastmodified>Sat, 18 Oct 1969 02:42:13 GMT</lp1:getlastmodified>
+        <lp1:resourcetype>
+          <D:collection/>
+        </lp1:resourcetype>
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>
+
+
+
+
+
+<D:multistatus xmlns:D="DAV:" xmlns:ns1="http://apache.org/dav/props/" xmlns:ns0="DAV:">
+<D:response xmlns:lp1="DAV:" xmlns:lp2="http://apache.org/dav/props/" xmlns:lp3="LCGDM:">
+<D:href>/tmp//tmp/</D:href>
+<D:propstat>
+<D:prop>
+<lp1:getcontentlength>61440</lp1:getcontentlength>
+<lp1:getlastmodified>Mon, 22 Apr 2013 15:34:37 GMT</lp1:getlastmodified>
+<lp1:resourcetype><D:collection/></lp1:resourcetype>
+</D:prop>
+<D:status>HTTP/1.1 200 OK</D:status>
+</D:propstat>
+</D:response>
+</D:multistatus>
