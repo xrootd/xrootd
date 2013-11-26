@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 3.3.5
+-------------
+
++ **Minor bug fixes**
+   * Fix minor Coverity issues in XrdCl
+   * Fix a rarely occuring segfault when forking XrdCl under heavy load
+
++ **Miscellaneous**
+   * Make XrdSys/XrdSysIOEvents.hh private - could not have been used anyways
+   * Add a sysconfig template to preload custom allocators in order to fix
+     memory issues on RHEL6
+   * Allow up to 63 characters for a site name
+
+
+-------------
 Version 3.3.4
 -------------
 
