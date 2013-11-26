@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add XrdSysUtils::FmtUname() to get platform readable uname.
+   * Print uname on start-up and at midnight.
    * Allow query of current role and dynamic cms state via kXR_query.
    * Provide a non-deprecated way of specifying source checksums
      via xrdcp et. al.
@@ -127,6 +129,7 @@ Prerelease Notes
      in Linux.
 
 + **Minor bug fixes**
+   * Avoid initilialization failure on strictly ipv4 kernels.
    * Do not remove the last trailing slash from file paths. This prevents
      Copying into a auto-created directory.
    * Restore original meaning of -adler and -md5 to xrdcp. These are legacy
