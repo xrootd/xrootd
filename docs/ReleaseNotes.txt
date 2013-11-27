@@ -12,6 +12,7 @@ Version 3.3.5
 + **Minor bug fixes**
    * Fix minor Coverity issues in XrdCl
    * Fix a rarely occuring segfault when forking XrdCl under heavy load
+   * Fix various issues related to group name retrieval (issues #51, #52, #53)
 
 + **Miscellaneous**
    * Make XrdSys/XrdSysIOEvents.hh private - could not have been used anyways
