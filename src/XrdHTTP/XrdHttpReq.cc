@@ -478,6 +478,7 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
   TRACE(REQ, " XrdHttpReq::Done");
 
   xrdresp = kXR_ok;
+  this->iovN = 0;
 
   if (PostProcessHTTPReq(true)) reset();
 
@@ -1342,7 +1343,19 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
             stringresp += prot->SecEntity.name;
           else
             stringresp += prot->Link->ID;
-          
+         
+          if (prot->SecEntity.vorg) {
+            stringresp += " (VO: ";
+            stringresp += prot->SecEntity.vorg;
+
+          }
+
+          if (prot->SecEntity.role) {
+            stringresp += " Role: ";
+            stringresp += prot->SecEntity.role;
+            stringresp += " )";
+          }
+ 
           if (prot->SecEntity.host) {
             stringresp += " ( ";
             stringresp += prot->SecEntity.host;
@@ -1543,7 +1556,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
 
         if (xrdresp != kXR_ok) {
 
-          prot->SendSimpleResp(500, NULL, NULL, (char *) "Error man!", 0);
+          prot->SendSimpleResp(409, NULL, NULL, (char *) "Error man!", 0);
           return -1;
         }
 
@@ -1604,7 +1617,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
     {
 
       if (xrdresp != kXR_ok) {
-        prot->SendSimpleResp(500, NULL, NULL, (char *) etext.c_str(), 0);
+        prot->SendSimpleResp(404, NULL, NULL, (char *) etext.c_str(), 0);
         return -1;
       }
 
