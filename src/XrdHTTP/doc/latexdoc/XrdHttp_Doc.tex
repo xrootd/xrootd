@@ -52,13 +52,13 @@
 
 \center % Center everything on the page
 
-\textsc{\LARGE CERN IT-GT}\\[1.5cm] % Name of your university/college
+\textsc{\LARGE CERN IT-SDC}\\[1.5cm] % Name of your university/college
 %\textsc{\Large Major Heading}\\[0.5cm] % Major heading such as course name
 %\textsc{\large Minor Heading}\\[0.5cm] % Minor heading such as course title
 
 \HRule \\[0.4cm]
 { \huge \bfseries XrdHTTP}\\[0.4cm] % Title of your document
-\textsc{\Large An HTTP/DAV plugin for the Xrootd framework\\compatible with the LCGDM HTTP/DAV data access features.}\\[0.5cm]
+\textsc{\Large An HTTP/WebDAV plugin for the Xrootd framework}\\[0.5cm]
 \HRule \\[1.5cm]
 
 \begin{minipage}{0.4\textwidth}
@@ -133,7 +133,7 @@ The objective of the project is to make an xrootd-based storage endpoint able to
 
 \section{Rationale}
 
-Easing the wider adoption of the HTTP protocol in HEP data access. There is substantial consensus in the HEP community about using the HTTP protocol for certain tasks that are related to analyzing data.\\
+Easing the wider adoption of the HTTP protocol in HEP data access. There is substantial consensus in the HEP community about exploring the usage of the HTTP protocol for certain tasks that are related to analyzing or managing data.\\
 At the same time the storage systems that are set up often need to support a matching set of access protocols, to allow simpler and more performant access from the client applications. This XrdHTTP effort is aimed at making it possible for a storage site that is based on the xrootd technology to join a growing ecosystem of applications that is based on HTTP. One way we foster the HTTP ecosystem is by contributing the components that fill the gaps between the functionalities that are needed by the World Wide Web browsing and the functionalities that are needed by data analysis applications.\\
 HTTP is a very flexible protocol, and, whenever possible we want to help other development teams in harmonizing their data access solutions based on the HTTP protocol, following the conventions and extensions proposed by the EMI storage elements like DPM.
 
@@ -170,7 +170,7 @@ Instances of the \textit{XrdProtocol} plugins must implement:
 \item the actions that are associated to the various requests of the protocol.
 \end{itemize}
 
-The XrdHTTP plugin is only one plugin, in the form of a shared library. No instrumentations of the server machine, scripts or cronjobs are foreseen. In order for it to be effective, it has to be loaded by redirectors and data servers of an xrootd cluster to be enabled to serving HTTP. What follows is a list of the dependencies of the XrdHTTP plugin towards external packages. One of the goals of this design is to minimize the effort starting from minimizing this set of dependencies.\\
+The XrdHTTP plugin is only one plugin, in the form of a shared library. No instrumentations of the server machine, scripts or cronjobs are needed to make it work. In order for it to be effective, it has to be loaded by redirectors and data servers of an xrootd cluster to be enabled to serving HTTP. What follows is a list of the dependencies of the XrdHTTP plugin towards external packages. One of the goals of this design is to minimize the effort starting from minimizing this set of dependencies.\\
 
 \begin{itemize}
  \item VOMS libraries $>=$ v2.0.8
@@ -184,30 +184,35 @@ The XrdHTTP plugin is only one plugin, in the form of a shared library. No instr
 
 XrdHTTP natively supports the following authentication methods:
 
-\begin{itemize)
+\begin{itemize}
 \item regular HTTPS clients, like browsers
 \item X509 certificates as method of authentication
 \subitem X509 RFC proxy certificates
 \subitem X509 Globus proxy certificates, with VOMS extensions
 \end{itemize}
 
-The features that are related to VOMS and proxy certificates are supported through the usage of the \textit{libvoms2} library. For further technical details about how \textit{libvoms2} works, we refer to the \textit{libvoms2} documentation.
+The features that are related to VOMS and proxy certificates are supported through the usage of the \textit{libvoms2} library, through a security extractor plugin called XrdHttpVOMS, whose source code is part of the XrdHTTP. For these features to be available, this plugin has to be loaded by XrdHTTP.
+
+For further technical details about how \textit{libvoms2} works, we refer to the \textit{libvoms2} documentation.
 
 \subsection{Notes on mainstream clients}
 
-To the best of our knowledge, all the mainstream HTTP and WebDAV clients that are available in the Linux distributions work and are supposed to work. At the same time, the standard misses a specification of the minimum feature set for a product to be declared standard. This
-X509 authentication
-Grid proxy authentication
-redirection on requests different than GET
+To the best of our knowledge, all the mainstream HTTP and WebDAV clients that are available in the Linux distributions work and are supposed to work. At the same time, the standard misses a specification of the minimum feature set for a product to be declared standard. This uneven features support in the mainstream clients is more often affecting areas like:
+\begin{itemize}
+\item X509 authentication
+\item Grid proxy authentication
+\item Redirection on requests different than GET
+\end{itemize}
+When looking for an HTTP/WebDAV client that supports the whole feature set that is supported by XrdHTTP, we advice the reader to use the \textit{Davix} client from the Fedora and EPEL repositories.
 
 \subsection{Runtime transparency}
 
-One of the main technical features of XrdHTTP is the possibility of running the HTTP protocol on the same port that is assigned to the Xrootd protocol. Both protocols will work, and the clients will be automatically detected and properly handled. System administrators always can choose a different one, for example to make it easier to discriminate the traffic from systems like Lemon or Nagios.
+One of the main technical features of XrdHTTP is the possibility of running the HTTP protocol on the same port that is assigned to the Xrootd protocol. Both protocols will work, and the clients will be automatically detected and properly handled. System administrators always can choose a different port for HTTP/HTTPS, for example to make it easier to discriminate the traffic from systems like Lemon or Nagios.
 
-When the framework detects an incoming connection, it can ask to all the protocol plugins that were assigned to that port if they think that they want that connection for them (generally by peeking the first bytes sent by the client, which contain recognizable sequences of bytes). Depending on the answers, the framework then assigns the connection to one of them.
+Internally, such detection works as follows. When the framework detects an incoming connection, it can ask to all the protocol plugins that were assigned to that port if they think that they want that connection for them (generally by peeking the first bytes sent by the client, which contain recognizable sequences of bytes). Depending on the answers, the framework then assigns the connection to one of them.
  
 The goal of this is to allow the installation of the HTTP service without modifying any TCP-related rule or tunings that sites may have.
-Although the feature is simple, its implementation details and the last answer about its feasibility depend also on the recognizability of the first bytes of an HTTPS handshake. Another assumption that probably could have to be made is that an SSL connection to that port is an HTTPS connection. This level of detail goes beyond the purpose of this document, as it would have little impact on the development time. Our point of view is that, should the above assumptions be false, the sysadmin will always be able to configure the HTTP[S] plugin to run on a different port.
+Although the feature is simple, its implementation details and the last answer about its feasibility depend also on the recognizability of the first bytes of an HTTPS handshake. Another assumption that probably could have to be made is that an SSL connection to that port is an HTTPS connection. This level of detail goes beyond the purpose of this document, as it would have little impact on the installation effort. Our point of view is that, should the above assumptions be false, the sysadmin will always be able to configure the HTTP[S] plugin to run on a different port.
 
 \subsection{Coherent monitoring}
 
@@ -219,7 +224,7 @@ The technical implementation of this inside the xrootd framework comes with the 
 
 One of the most difficult challenges that are linked to the HTTP protocol is finding an efficient way to read an HTTP request header from a socket. The main issue is that headers are variable-length and do not specify their length, which must be computed on the fly when reading them. Hence, the stream of incoming data must be searched for the double <CR><LF> that closes the header.\\
 The current implementation of XrdHTTP does this by implementing a circular buffer that is filled by reading everything that comes from the socket in blocks of up ti 1MB. The header processing functions consume this data one line at a time, without needing the buffer to contain a full header. This allows XrdHTTP to process, in principle, HTTP headers of any size. This feature is very important because of the quite large HTTP header sizes that an analysis application can send in the case it requests for multiple content ranges (vectored reads).\\
-It the circular buffer has read data that is past the end of the current header, these bytes will be properly interpreted as either:
+If the circular buffer, after the header has been consumed, has read data that is past the end of the current header, these bytes will be properly interpreted as either:
 \begin{itemize}
  \item the beginning of the data part of the request
  \item the header of a subsequent request.
@@ -256,7 +261,7 @@ What follows is a simplification of the generic internal workflow of a simple re
 
 \end{itemize}
 
- During phases 5 and 6, the instance of XrdHttpReq is used to keep track of the state of the request processing, in order to determinate the operation to be performed at the subsequent step, and to collect the information that will be used to send the response to the client.
+ During phases 5 and 6, an instance of XrdHttpReq is used to keep track of the state of the request processing, in order to determinate the operation to be performed at the subsequent step, and to collect the information that will be used to send the response to the client.
 
 
 \subsection{Security implementation: HTTP and HTTPS}
@@ -267,7 +272,9 @@ A client can connect to the redirector using either HTTP or HTTPS. The request w
 A server instrumented with XrdHTTP can use HTTPS to communicate with the client, following the listed steps:
 
 \begin{itemize}
- \item In the case of HTTPS, the XrdHTTP plugin extracts the security information from the provided certificate or proxy certificate.
+ \item In the case of HTTPS, the XrdHTTP plugin extracts the security information from the connection.
+ \item In the case XrdHTTP has loaded a security extractor plugin like XrdHttpVOMS, this plugin is invoked, giving to it the possibility of
+extracting additional information from the connection. This is the case of the VOMS extensions of a proxy.
  \item The identification information is passed to the Protocol Bridge when initializing a new instance.
  \item The Protocol Bridge will use the identification information to trigger the regular, preexisting xrootd authorization mechanism (if any)
  \item If the client is allowed, an encrypted redirection token can be computed and appended to the URL of the final data server. The token will be used to authorize the client in the destination data server in the case it uses plain HTTP. The token is computed using an encryption algorithm based on a ``simple shared secret''.
@@ -279,13 +286,13 @@ A client that connects to a data server using HTTPS can also be redirected to th
 
 \subsection{HTTP and HTTPS in a deployment}
 
-When a server or redirector is configured to use HTTPS, each server is able to gather autonomously the clients credentials from the connection. On the other hand, HTTPS is very demanding in terms of resource consumption due to the fact that it encrypts/decrypts all the tcp traffic, and needs some network roundtrips to establish the connection.\\
+When a server or redirector is configured to use HTTPS, each server is able to gather autonomously the clients credentials from the connection. On the other hand, HTTPS is quite demanding in terms of resource consumption due to the fact that it encrypts/decrypts all the TCP traffic, and needs some network roundtrips to establish the connection.\\
 
-HTTP instead is fast and misses a way to know the identity of the client (in the case the sysadmin wants the data server to be able to authorize the client).
+HTTP instead is fast and misses a way to know the identity of the client in a secure way (in the case the sysadmin wants the data server to be able to authorize the client).
 With XrdHTTP the authentication can be simulated in a relatively secure way with a mechanism based on an encrypted authentication token. If an XrdHTTP server is configured in order to expect a token, it will immediately reject any connection from a client that does not provide a valid one.\\
 
 
-With respect to this, XrdHTTP support the following configuration choices, whose parameters are described in Chapter XYSXASC!!!!!!!!!!!!!!!!!!!!
+With respect to this, XrdHTTP support the following configuration choices, whose parameters are described in Chapter \ref{configref}
 
 \begin{itemize}
  \item Configure HTTPS or not. If HTTPS is configured, then the server will accept only connections through HTTPS or that provide a valid authentication token (in the case a token secret key is configured)
@@ -341,7 +348,7 @@ The corresponding library will be loaded by the Xrootd daemon during the startup
 An xrootd redirector (despite the protocols that are loaded) does not have resources on its own, it just redirect clients to the appropriate data server, in a way that is replica-oriented. The framework takes autonomously decisions on the destination server to consider, and XrdHTTP will just be a protocol interface.\\
 
 PRO: it is a very scalable and efficient architecture and framework.\\
-CON: Not all the WebDAV primitives can be implemented in an xrdHTTP redirector. File listing, for example cannot be implemented easily. \textbf{This first version of XrdHTTP, described in this project document does not implement file listings at the redirector level.} An idea to give file listing functionalities could be to create a local Dynamic Federation aggregating the data servers of a site. An XrdHTTP redirector can be configured in order to redirect to another system (e.g. a Dynamic Federations system) in the case a file listing is requested by a client.\\
+CON: Not all the WebDAV primitives can be implemented in an xrdHTTP redirector. File listing, for example cannot be implemented easily. \textbf{This first version of XrdHTTP, described in this project document does not implement file listings at the redirector level.} A possibility to give file listing functionalities is to create a local Dynamic Federation aggregating the data servers of a site. \textbf{An XrdHTTP redirector can be configured in order to redirect to another system (e.g. a Dynamic Federations system) in the case a file listing is requested by a client}.\\
 
 
 
@@ -367,9 +374,9 @@ A data server supports direct data access to the data files it contains. XrdHTTP
 These functionalities are compliant with the HTTP and WebDAV standard at the minimum level that allows file server operations. 
 
 
-\subsection{HTTP browsing support and redirector operations}
+\subsection{HTML browsing support and redirector operations}
 
- By HTTP browsing we intend the feature for which a GET operation on a directory returns an HTML page that contains a simple rendering of the directory content. In this HTML rendering the items are clickable and point to URLs that refer to the individual items. This has not to be confused with HTTP data access or DAV browsing. XrdHTTP supports HTTP browsing in data servers only, due to the impossibility of getting a full and coherent directory listing from an xrootd redirector. This is a limitation that is unrelated to XrdHTTP, being it linked to the absence of a full-cluster dirlist primitive in the xrootd clustering framework at the redirector level.\\
+ By HTML browsing we intend the feature for which a GET operation on a directory returns an HTML page that contains a simple rendering of the directory content. In this HTML rendering the items are clickable and point to URLs that refer to the individual items. This has not to be confused with HTTP data access or DAV browsing. XrdHTTP supports HTML browsing in data servers only, due to the impossibility of getting a full and coherent directory listing from an xrootd redirector. This is a limitation that is unrelated to XrdHTTP, being it linked to the absence of a server-side, full-cluster dirlist primitive in the xrootd clustering framework at the redirector level.\\
 
  If a system administrator wants to setup a client-browsable cluster of XrdHTTP data servers, the simplest way to do it is to aggregate the servers through an instance of UGR, i.e. creating a ``Dynamic HTTP Federation'' that aggregates the XrdHTTP servers, in parallel to the xrootd clustering. The two systems can be linked through the \verb'listingredir' option of XrdHTTP.\\
 
@@ -398,7 +405,7 @@ LCGDM: & mode & No & Unix mode &100664 \\
 \end{table}
 
 
-\section{Configuration parameters}
+\section{\label{configref}Configuration parameters}
 
 \subsection{http.cert}
 The file containing the X509 certificate that the server must use. The certificate must be in PEM format.
@@ -433,6 +440,13 @@ In other words, a data server with the secret key set will only accept requests 
 
 Example:
 \verb'http.secretkey THISISMYKEY18947832823789234234'
+
+\subsection{http.secxtractor}
+The path to the security extr4actor plugin, like the furnished XrdHttpVOMS, which uses libvomsapi in order to
+extract the VOMS information from an HTTPS connection. Please note that XrdHttpVOMS may not be compiled for all the platforms.
+
+Example:
+\verb'http.secxtractor /home/furano/Park/xrootd/xrootd_trunk2/xrootd/build/src/XrdHTTP/libXrdHttpVOMS.so'
 
 \subsection{http.desthttps}
 This parameter makes sense only for redirectors.

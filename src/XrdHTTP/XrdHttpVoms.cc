@@ -12,8 +12,10 @@
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdHttpTrace.hh"
+#include "XrdOuc/XrdOucTrace.hh"
 #include "Xrd/XrdLink.hh"
+
+
 
 extern "C" {
   extern int proxy_app_verify_callback(X509_STORE_CTX *ctx, void *empty);
@@ -28,7 +30,7 @@ public:
     virtual int GetSecData(XrdLink *, XrdSecEntity &, SSL *);
 
     // Initializes an ssl ctx
-    virtual int InitSSLCtx(SSL_CTX *);
+    virtual int Init(SSL_CTX *, int);
 
     XrdHttpVOMS(XrdSysError *);
 
@@ -45,6 +47,29 @@ private:
 
 #define TRACELINK lp
 
+
+// Trace flags
+//
+#define TRACE_ALL       0x0fff
+#define TRACE_DEBUG     0x0001
+#define TRACE_EMSG      0x0002
+#define TRACE_FS        0x0004
+#define TRACE_LOGIN     0x0008
+#define TRACE_MEM       0x0010
+#define TRACE_REQ       0x0020
+#define TRACE_REDIR     0x0040
+#define TRACE_RSP       0x0080
+#define TRACE_SCHED     0x0100
+#define TRACE_STALL     0x0200
+
+XrdOucTrace *XrdVomsTrace;
+const char *XrdVomsTraceID;
+
+#define TRACEI(act, x) \
+   if (XrdVomsTrace->What & TRACE_ ## act) \
+      {XrdVomsTrace->Beg(XrdVomsTraceID,TRACELINK->ID); cerr <<x; XrdVomsTrace->End();}
+
+
 /******************************************************************************/
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
@@ -53,8 +78,8 @@ XrdHttpVOMS::XrdHttpVOMS(XrdSysError *erp): XrdHttpSecXtractor()
 {
     //eDest = erp;
     //eDest->logger(erp->logger());
-    XrdHttpTrace = new XrdOucTrace(eDest);
-    XrdHttpTrace->What = TRACE_ALL;
+    XrdVomsTrace = new XrdOucTrace(eDest);
+    XrdVomsTrace->What = TRACE_ALL;
 }
 
 int XrdHttpVOMS::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl) {
@@ -91,13 +116,15 @@ int XrdHttpVOMS::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl) {
         /*  Questo ti da la lista di tutti gli fqan della VO primaria
             (la prima in voms-proxy-init --voms <vo> per intenderci. */
 
+
         if (vmd.DefaultData(vm)) {
           fqans = vm.fqan;
+          sec.vorg = strdup(vm.voname.c_str());
           for (unsigned int i = 0; i < fqans.size(); i++) {
             TRACEI(DEBUG, " fqan :" << fqans[i]);
           }
-          sec.vorg = strdup(fqans[0].c_str());
-          TRACEI(DEBUG, " Setting main vorg :" << sec.vorg);
+          sec.role = strdup(fqans[0].c_str());
+          TRACEI(DEBUG, " Setting VO: " << sec.vorg << " roles :" << sec.role);
 
         }
 
@@ -111,7 +138,7 @@ int XrdHttpVOMS::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl) {
         //            fqans.insert(i->fqan.begin(), i->fqan.end());
         //        }
       } else
-        TRACE(DEBUG, " voms info retrieval failed: " << vmd.ErrorMessage());
+        TRACEI(DEBUG, " voms info retrieval failed: " << vmd.ErrorMessage());
     }
 
     if (peer_cert) X509_free(peer_cert);
@@ -122,8 +149,12 @@ int XrdHttpVOMS::GetSecData(XrdLink *lp, XrdSecEntity &sec, SSL *ssl) {
     return 0;
 }
 
-int XrdHttpVOMS::InitSSLCtx(SSL_CTX *sslctx) {
+int XrdHttpVOMS::Init(SSL_CTX *sslctx, int mydebug) {
     SSL_CTX_set_cert_verify_callback(sslctx, proxy_app_verify_callback, 0);
+
+    XrdVomsTrace->What = mydebug;
+
+
     return 0;
 }
 

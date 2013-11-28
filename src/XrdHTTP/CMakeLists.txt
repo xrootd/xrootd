@@ -1,5 +1,15 @@
 cmake_minimum_required (VERSION 2.6)
 
+
+
+# The version number
+set (XRDHTTP_VERSION_MAJOR 1)
+set (XRDHTTP_VERSION_MINOR 0)
+set (XRDHTTP_VERSION_PATCH 0)
+
+
+
+
 # include the directory itself as a path to include directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
