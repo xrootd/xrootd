@@ -14,12 +14,12 @@
 %{nil}
 
 Name:           xrootd-python
-Version:        0.1.2
+Version:        0.1.3
 Release:        1%{?dist}
 License:        GPL3
 Summary:        Python bindings for XRootD
 Group:          Development/Tools
-Packager:       Justin Salmon <jsalmon@cern.ch>
+Packager:       XRootD Developers <xrootd-dev@slac.stanford.edu>
 URL:            http://github.com/xrootd/python-xrootd
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -46,6 +46,8 @@ env CFLAGS="$RPM_OPT_FLAGS" %{__python} setup.py build
 %defattr(-,root,root)
 
 %changelog
+* Thu Nov 28 2013 Lukasz Janyst <ljanyst@cern.ch>
+- Tag 0.1.3
 * Tue Jul 01 2013 Justin Salmon <jsalmon@cern.ch>
 - Tag version 0.1.2
 * Tue Jul 01 2013 Justin Salmon <jsalmon@cern.ch>
