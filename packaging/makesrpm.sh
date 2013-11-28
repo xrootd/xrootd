@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION=0.1.2
+VERSION=0.1.3
 NAME=xrootd-python-$VERSION
 SOURCES=$NAME.tar.gz
 
