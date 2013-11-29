@@ -331,7 +331,7 @@ char *XrdHttpProtocol::GetClientIPStr() {
 
 int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 {
-  int rc;
+  int rc = 0;
 
   TRACEI(DEBUG, " Process. lp:" << lp << " reqstate: " << CurrentReq.reqstate);
 
