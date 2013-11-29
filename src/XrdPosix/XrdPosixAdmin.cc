@@ -50,7 +50,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 
 // Make sure admin is ok
 //
-   if (!isOK()) return false;
+   if (!isOK()) return 0;
 
 // Issue the deep locate and verify that all went well
 //
