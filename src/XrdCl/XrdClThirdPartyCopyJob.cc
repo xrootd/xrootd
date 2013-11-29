@@ -24,8 +24,8 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdOuc/XrdOucTPC.hh"
-#include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include <iostream>
 #include <cctype>
@@ -48,7 +48,7 @@ namespace
       // Constructor
       //------------------------------------------------------------------------
       TPCStatusHandler():
-        pSem( new XrdSysSemaphore(0) ), pStatus(0)
+        pSem( new XrdCl::Semaphore(0) ), pStatus(0)
       {
       }
 
@@ -75,7 +75,7 @@ namespace
       //------------------------------------------------------------------------
       // Get Mutex
       //------------------------------------------------------------------------
-      XrdSysSemaphore *GetSemaphore()
+      XrdCl::Semaphore *GetSemaphore()
       {
         return pSem;
       }
@@ -89,7 +89,7 @@ namespace
       }
 
     private:
-      XrdSysSemaphore     *pSem;
+      XrdCl::Semaphore    *pSem;
       XrdCl::XRootDStatus *pStatus;
   };
 
@@ -227,7 +227,7 @@ namespace XrdCl
     // Do the copy and follow progress
     //--------------------------------------------------------------------------
     TPCStatusHandler  statusHandler;
-    XrdSysSemaphore  *sem  = statusHandler.GetSemaphore();
+    Semaphore        *sem  = statusHandler.GetSemaphore();
     StatInfo         *info   = 0;
     FileSystem        fs( pJob->target.GetHostId() );
 

@@ -84,6 +84,7 @@ static const int MaxMan = 15;
 private:
 int              Decode(char **resp);
 void             Inform(XrdCmsClientMan *xman, struct iovec xmsg[], int xnum);
+int              LocLocal(XrdOucErrInfo &Resp, XrdOucEnv *Env);
 XrdCmsClientMan *SelectManager(XrdOucErrInfo &Resp, const char *path);
 void             SelectManFail(XrdOucErrInfo &Resp);
 int              send2Man(XrdOucErrInfo &, const char *, struct iovec *, int);
@@ -124,7 +125,7 @@ public:
         int    Configure(const char *cfn, char *Args, XrdOucEnv *EnvInfo);
 
         int    Locate(XrdOucErrInfo &Resp, const char *path, int flags,
-                      XrdOucEnv *Info=0) {return 0;}
+                      XrdOucEnv *Info=0);
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
                        XrdOucEnv *Info=0) {return 0;}

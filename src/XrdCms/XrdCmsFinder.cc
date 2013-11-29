@@ -61,6 +61,7 @@
 
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdOuc/XrdOucBuffer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucReqID.hh"
@@ -337,7 +338,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 // Set options and command
 //
    if (flags & SFS_O_LOCATE)
-      {Data.Request.rrCode = kYR_locate;
+      {if (flags & SFS_O_LOCAL) return LocLocal(Resp, Env);
+       Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
                  | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
        if (Resp.getUCap() & XrdOucEI::uIPv4)
@@ -385,6 +387,79 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 // Send the 2way message
 //
    return send2Man(Resp, path, xmsg, iovcnt+1);
+}
+  
+/******************************************************************************/
+/*                              L o c L o c a l                               */
+/******************************************************************************/
+
+int XrdCmsFinderRMT::LocLocal(XrdOucErrInfo &Resp, XrdOucEnv *Env)
+{
+   XrdCmsClientMan *Womp, *Manp;
+   XrdOucBuffer *xBuff = 0;
+   char *mBeg, *mBuff, mStat;
+   int   mBlen, n;
+
+// If we have no managers or no role, we are not clustered
+//
+   if (!myManagers)
+      {Resp.setErrInfo(0, "");
+       return SFS_DATA;
+      }
+
+// Get where to start and where to put the information
+//
+   Womp = Manp  = myManagers;
+   mBeg = mBuff = Resp.getMsgBuff(mBlen);
+
+// Check if we can use the internal buffer or need to get an external buffer
+//
+   n = 8 + (myManCount * (256+6+2));
+   if (n > mBlen)
+      {mBeg = mBuff = (char *)malloc(n);
+       if (!mBeg)
+          {Resp.setErrInfo(ENOMEM, "Insufficient memory.");
+           return SFS_ERROR;
+          }
+       xBuff = new XrdOucBuffer(mBeg, n);
+       mBlen = n;
+      }
+
+// Make sure we have enough space to continue
+//
+   if (mBlen < 1024)
+      {Resp.setErrInfo(EINVAL, "Invalid role.");
+       return SFS_ERROR;
+      }
+
+// List the status of each manager
+//
+   do {if (Manp->isActive()) mStat = (Manp->Suspended() ? 's' : 'c');
+          else mStat = 'd';
+       n = snprintf(mBuff, mBlen, "%s:%d/%c ",
+                           Manp->Name(), Manp->manPort(), mStat);
+       mBuff += n; mBlen -= n;
+      } while((Manp = Manp->nextManager()) != Womp && mBlen > 0);
+
+// We should not have overrun the buffer; if we did declare failure
+//
+   if (mBlen < 0)
+      {Resp.setErrInfo(EINVAL, "Internal processing error.");
+       if (xBuff) xBuff->Recycle();
+       return SFS_ERROR;
+      }
+
+// Set the final result
+//
+   n = mBuff - mBeg;
+   if (!xBuff) Resp.setErrCode(n);
+      else {xBuff->SetLen(n);
+            Resp.setErrInfo(n, xBuff);
+           }
+
+// All done
+//
+   return SFS_DATA;
 }
   
 /******************************************************************************/
@@ -826,6 +901,34 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 //
    if (config.Configure(cfn, What, XrdCmsClientConfig::configNorm)) return 0;
    return RunAdmin(config.CMSPath);
+}
+  
+/******************************************************************************/
+/*                                L o c a t e                                 */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
+                            XrdOucEnv *Env)
+{
+   char *mBuff;
+   int mBlen, n;
+
+// We only support locate on the local configuration
+//
+   if (!(flags & SFS_O_LOCATE) || !(flags & SFS_O_LOCAL))
+      {Resp.setErrInfo(EINVAL, "Invalid locate option for target config.");
+       return SFS_ERROR;
+      }
+
+// Get the buffer for the result
+//
+   mBuff = Resp.getMsgBuff(mBlen);
+
+// Return information
+//
+   n = snprintf(mBuff, mBlen, "localhost:0/%c", (Active ? 'a' : 'd'));
+   Resp.setErrCode(n);
+   return SFS_DATA;
 }
   
 /******************************************************************************/

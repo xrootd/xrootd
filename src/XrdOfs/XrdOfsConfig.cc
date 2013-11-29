@@ -64,6 +64,7 @@
 
 #include "XrdCms/XrdCmsClient.hh"
 #include "XrdCms/XrdCmsFinder.hh"
+#include "XrdCms/XrdCmsRole.hh"
 
 #include "XrdAcc/XrdAccAuthorize.hh"
 
@@ -185,7 +186,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
       {if ((j = Options & haveRole) && (i ^ j))
           {free(myRole); myRole = strdup(theRole(i));
            Eroute.Say("Config warning: command line role options override "
-                       "config file; 'ofs.role", myRole, "' in effect.");
+                       "config file; 'all.role", myRole, "' in effect.");
           }
        Options &= ~(haveRole);
        Options |= i;
@@ -1161,38 +1162,28 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 
 /* Function: xrole
 
-   Purpose:  Parse: role { {[meta] | [peer] [proxy]} manager
-                           | peer | proxy | [proxy]  server
-                           |                [proxy]  supervisor
+   Purpose:  Parse: role { {[meta] | [proxy]} manager
+                           |         [proxy]  server
+                           |         [proxy]  supervisor
                          } [if ...]
 
              manager    xrootd: act as a manager (redirecting server). Prefixes:
                                 meta  - connect only to manager meta's
-                                peer  - ignored
                                 proxy - ignored
                         cmsd:   accept server subscribes and redirectors. Prefix
                                 modifiers do the following:
                                 meta  - No other managers apply
-                                peer  - subscribe to other managers as a peer
                                 proxy - manage a cluster of proxy servers
-
-             peer       xrootd: same as "peer manager"
-                        olbd:   same as "peer manager" but no server subscribers
-                                are required to function (i.e., run stand-alone).
-
-             proxy      xrootd: act as a server but supply data from another 
-                                server. No local olbd is present or required.
-                        olbd:   Generates an error as this makes no sense.
 
              server     xrootd: act as a server (supply local data). Prefix
                                 modifications do the following:
                                 proxy - server is part of a cluster. A local
-                                        olbd is required.
-                        olbd:   subscribe to a manager, possibly as a proxy.
+                                        cmsd is required.
+                        cmsd:   subscribe to a manager, possibly as a proxy.
 
              supervisor xrootd: equivalent to manager. The prefix modification
                                 is ignored.
-                        olbd:   equivalent to manager but also subscribe to a
+                        cmsd:   equivalent to manager but also subscribe to a
                                 manager. When proxy is specified, then subscribe
                                 as a proxy and only accept proxies.
 
@@ -1209,68 +1200,64 @@ int XrdOfs::xpers(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
 {
    const int resetit = ~haveRole;
-   char role[64];
-   char *val;
-   int rc, mopt = 0, qopt = 0, ropt = 0, sopt = 0;
+    XrdCmsRole::RoleID roleID;
+    char *val, *Tok1, *Tok2;
+    int rc, ropt = 0;
 
-   *role = '\0';
-   if (!(val = Config.GetWord()))
+// Get the first token
+//
+   if (!(val = Config.GetWord()) || !strcmp(val, "if"))
       {Eroute.Emsg("Config", "role not specified"); return 1;}
+   Tok1 = strdup(val);
 
-
-// Scan for "meta" o/w "peer" or "proxy"
+// Get second token which might be an "if"
 //
-   if (!strcmp("meta", val))
-      {mopt = isMeta; strcpy(role, val); val = Config.GetWord();}
-      else {if (!strcmp("peer", val))
-               {qopt = isPeer; strcpy(role, val);
-                val = Config.GetWord();
-               }
-            if (val && !strcmp("proxy", val))
-               {ropt = isProxy;
-                if (qopt) strcat(role, " ");
-                strcat(role, val);
-                val = Config.GetWord();
-               }
-           }
-
-// Scan for other possible alternatives
-//
-   if (val && strcmp("if", val))
-      {     if (!strcmp("manager",    val)) sopt = isManager;
-       else if (!strcmp("server",     val)) sopt = isServer;
-       else if (!strcmp("supervisor", val)) sopt = isSuper;
-       else    {Eroute.Emsg("Config", "invalid role -", val); return 1;}
-
-       if (mopt || qopt || ropt) strcat(role, " ");
-       strcat(role, val);
+   if ((val = Config.GetWord()) && strcmp(val, "if"))
+      {Tok2 = strdup(val);
        val = Config.GetWord();
-      }
+      } else Tok2 = 0;
 
-// Scan for invalid roles: peer proxy | peer server | {peer} supervisor
+// Process the if at this point
 //
-   if (((mopt || (qopt && ropt)) && !sopt)
-   ||  ((mopt || qopt) && sopt == isServer)
-   ||  ((mopt || qopt) && sopt == isSuper))
-      {Eroute.Emsg("Config", "invalid role -", role); return 1;}
-
-// Make sure a role was specified
-//
-    if (!(ropt = mopt | qopt | ropt | sopt))
-       {Eroute.Emsg("Config", "role not specified"); return 1;}
-
-// Pick up optional "if"
-//
-    if (val && !strcmp("if", val))
-       if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
+   if (val && !strcmp("if", val))
+      {if ((rc = XrdOucUtils::doIf(&Eroute,Config,"role directive",
                                    getenv("XRDHOST"), XrdOucUtils::InstName(1),
                                    getenv("XRDPROG"))) <= 0)
-          {if (!rc) Config.noEcho(); return (rc < 0);}
+          {free(Tok1); if (Tok2) free(Tok2);
+           if (!rc) Config.noEcho();
+           return (rc < 0);
+          }
+      }
+
+// Convert the role names to a role ID, if possible
+//
+   roleID = XrdCmsRole::Convert(Tok1, Tok2);
+
+// Set markers based on the role we have
+//
+   rc = 0;
+   switch(roleID)
+         {case XrdCmsRole::MetaManager:  ropt = isManager | isMeta ; break;
+          case XrdCmsRole::Manager:      ropt = isManager          ; break;
+          case XrdCmsRole::Supervisor:   ropt = isSuper            ; break;
+          case XrdCmsRole::Server:       ropt = isServer           ; break;
+          case XrdCmsRole::ProxyManager: ropt = isManager | isProxy; break;
+          case XrdCmsRole::ProxySuper:   ropt = isSuper   | isProxy; break;
+          case XrdCmsRole::ProxyServer:  ropt = isServer  | isProxy; break;
+          default: Eroute.Emsg("Config", "invalid role -", Tok1, Tok2); rc = 1;
+         }
+
+// Release storage and return if an error occured
+//
+   free(Tok1);
+   if (Tok2) free(Tok2);
+   if (rc) return rc;
 
 // Set values
 //
     free(myRole);
-    myRole = strdup(role);
+    myRole = strdup(XrdCmsRole::Name(roleID));
+    strcpy(myRType, XrdCmsRole::Type(roleID));
     Options &= resetit;
     Options |= ropt;
     return 0;

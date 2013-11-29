@@ -22,6 +22,7 @@
 #include <queue>
 
 #include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 namespace XrdCl
 {
@@ -37,7 +38,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       SyncQueue()
       {
-        pSem = new XrdSysSemaphore(0);
+        pSem = new Semaphore(0);
       };
 
       //------------------------------------------------------------------------
@@ -84,13 +85,13 @@ namespace XrdCl
         while( !pQueue.empty() )
           pQueue.pop();
         delete pSem;
-        pSem = new XrdSysSemaphore(0);
+        pSem = new Semaphore(0);
       }
 
     private:
       std::queue<Item>  pQueue;
       XrdSysMutex       pMutex;
-      XrdSysSemaphore  *pSem;
+      Semaphore        *pSem;
   };
 }
 

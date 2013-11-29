@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <memory>
 #include <iostream>
@@ -629,7 +630,7 @@ namespace
       class ChunkHandler: public XrdCl::ResponseHandler
       {
         public:
-          ChunkHandler(): sem( new XrdSysSemaphore(0) ) {}
+          ChunkHandler(): sem( new XrdCl::Semaphore(0) ) {}
           virtual ~ChunkHandler() { delete sem; }
           virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
                                        XrdCl::AnyObject    *response )
@@ -647,7 +648,7 @@ namespace
             sem->Post();
           }
 
-        XrdSysSemaphore     *sem;
+        XrdCl::Semaphore    *sem;
         XrdCl::ChunkInfo     chunk;
         XrdCl::XRootDStatus  status;
       };

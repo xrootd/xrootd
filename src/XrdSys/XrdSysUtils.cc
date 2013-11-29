@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,6 +49,7 @@
 #include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #endif
 #include "XrdSysUtils.hh"
   
@@ -108,6 +110,36 @@ const char *XrdSysUtils::ExecName()
    return "";
 }
 
+/******************************************************************************/
+/*                              F m t U n a m e                               */
+/******************************************************************************/
+  
+int XrdSysUtils::FmtUname(char *buff, int blen)
+{
+#if defined(WINDOWS)
+    return snprintf(buff, blen, "%s", "windows");
+#else
+   struct utsname uInfo;
+
+// Obtain the uname inofmormation
+//
+   if (uname(&uInfo) < 0) return snprintf(buff, blen, "%s", "unknown OS");
+
+// Format appropriate for certain platforms
+// Linux and MacOs do not add usefull version information
+//
+#if   defined(__linux__)
+   return snprintf(buff, blen, "%s %s",       uInfo.sysname, uInfo.release);
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+   return snprintf(buff, blen, "%s %s %s",    uInfo.sysname, uInfo.release,
+                               uInfo.machine);
+#else
+   return snprintf(buff, blen, "%s %s %s %s", uInfo.sysname, uInfo.release,
+                              uInfo.version, uInfo.machine);
+#endif
+#endif
+}
+  
 /******************************************************************************/
 /*                             G e t S i g N u m                              */
 /******************************************************************************/

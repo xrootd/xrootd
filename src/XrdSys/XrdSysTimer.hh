@@ -71,6 +71,8 @@ static void Snooze(int seconds);
 
 static char *s2hms(int sec, char *buff, int blen);
 
+static int  TimeZone();
+
 static void Wait(int milliseconds);
 
 static void Wait4Midnight();

@@ -378,6 +378,8 @@ XrdCksConfig     *CksConfig;      // Checksum configurator
 XrdCks           *Cks;            // Checksum manager
 int               CksRdsz;        // Checksum read size
 
+char              myRType[4];     // Role type for consistency with the cms
+
 XrdVersionInfo   *myVersion;      // Version number compiled against
 
 static XrdOfsHandle     *dummyHandle;

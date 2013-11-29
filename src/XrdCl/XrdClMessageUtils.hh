@@ -22,7 +22,7 @@
 #include "XrdCl/XrdClXRootDResponses.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
-#include "XrdSys/XrdSysPthread.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 #include <memory>
 
 namespace XrdCl
@@ -39,7 +39,7 @@ namespace XrdCl
       SyncResponseHandler():
         pStatus(0),
         pResponse(0),
-        pSem( new XrdSysSemaphore(0) ) {}
+        pSem( new Semaphore(0) ) {}
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -88,7 +88,7 @@ namespace XrdCl
     private:
       XRootDStatus    *pStatus;
       AnyObject       *pResponse;
-      XrdSysSemaphore *pSem;
+      Semaphore       *pSem;
   };
 
   //----------------------------------------------------------------------------

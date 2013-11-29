@@ -46,6 +46,18 @@ public:
 static const char *ExecName();
 
 //-----------------------------------------------------------------------------
+//! Format the uname information
+//!
+//! @param  buff   - pointer to the buffer to hold the uname as:
+//!                  <sysname> <release> [<version>] [<machine>]
+//! @param  blen   - length of the buffer.
+//!
+//! @return the output of snprintf(buff, blen, ...);
+//-----------------------------------------------------------------------------
+
+static int         FmtUname(char *buff, int blen);
+
+//-----------------------------------------------------------------------------
 //! Get common signal number.
 //!
 //! @param  sname  - the signal name as in sigxxx or just xxx (see kill).

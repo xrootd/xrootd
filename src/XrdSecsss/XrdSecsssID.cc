@@ -200,7 +200,7 @@ XrdSecsssID::sssID *XrdSecsssID::genID(int Secure)
 //
    myID.name = (Secure || XrdOucUtils:: UserName(geteuid(), pBuff, pgSz))
              ? (char *)"nobody"  : pBuff;
-   myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz))
+   myID.grps = (Secure || XrdOucUtils::GroupName(getegid(), gBuff, pgSz) == 0)
              ? (char *)"nogroup" : gBuff;
 
 // Just return the sssID

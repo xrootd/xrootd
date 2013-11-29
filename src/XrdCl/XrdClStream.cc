@@ -105,6 +105,7 @@ namespace XrdCl
     pTransport( 0 ),
     pPoller( 0 ),
     pTaskManager( 0 ),
+    pJobManager( 0 ),
     pIncomingQueue( 0 ),
     pChannelData( 0 ),
     pLastStreamError( 0 ),
