@@ -147,6 +147,9 @@ static const int    OpVersion  =  'V';        // -V | --version
 static const int    OpXrate    =  'X';
 static const int    DoXrate    =  0x00080000; // -X | --xrate
 
+static const int    OpNoSzChk  =  'Z';
+static const int    DoNoSzChk  =  0x00200000; //      --noszchk
+
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.
 // The following options may be passed (largely to support legacy stuff):

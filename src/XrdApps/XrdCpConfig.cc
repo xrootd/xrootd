@@ -81,7 +81,7 @@ static XrdSysError  eDest(&Logger, "");
 
 XrdSysError  *XrdCpConfig::Log = &XrdCpConfiguration::eDest;
   
-const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:";
+const char   *XrdCpConfig::opLetters = ":C:d:D:fFhHI:NPrRsS:t:T:vVX:y:Z";
 
 struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
@@ -93,6 +93,7 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
       {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
+      {OPT_TYPE "noszchk",   0, 0, XrdCpConfig::OpNoSzChk},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
@@ -224,6 +225,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpLicense:  License();
                            break;
           case OpNoPbar:   OpSpec |= DoNoPbar;
+                           break;
+          case OpNoSzChk:  OpSpec |= DoNoSzChk;
                            break;
           case OpPosc:     OpSpec |= DoPosc;
                            break;
@@ -819,7 +822,7 @@ void XrdCpConfig::Usage(int rc)
 
    static const char *Options= "\n"
    "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--force] [--help]\n"
-   "         [--infiles <fn>] [--license] [--nopbar] [--posc]\n"
+   "         [--infiles <fn>] [--license] [--nopbar] [--noszchk] [--posc]\n"
    "         [--proxy <host>:<port] [--recursive] [--retry <n>] [--server]\n"
    "         [--silent] [--sources <n>] [--streams <n>] [--tpc {first|only}]\n"
    "         [--verbose] [--version] [--xrate <rate>]";
@@ -848,6 +851,7 @@ void XrdCpConfig::Usage(int rc)
    "-H | --license      prints license terms and conditions\n"
    "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
+   "     --noszchk      neither verifies nor post-checks the size of the file\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive    recursively copies all source files\n"
