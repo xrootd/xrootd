@@ -1254,8 +1254,7 @@ namespace XrdCl
         nullBuffer[length] = 0;
         memcpy( nullBuffer, buffer, length );
 
-        if( data->ParseServerResponse( pUrl.GetHostId(),
-                                       length ? nullBuffer : 0 ) == false )
+        if( data->ParseServerResponse( pUrl.GetHostId(), nullBuffer ) == false )
         {
           delete data;
           delete obj;

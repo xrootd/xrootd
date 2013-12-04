@@ -249,7 +249,7 @@ namespace XrdCl
   bool DirectoryList::ParseServerResponse( const std::string &hostId,
                                            const char *data )
   {
-    if( !data || strlen(data) == 0 )
+    if( !data )
       return false;
 
     std::vector<std::string>           entries;
