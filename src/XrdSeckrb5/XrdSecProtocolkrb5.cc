@@ -61,7 +61,6 @@ extern "C" {
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSys/XrdSysPriv.hh"
   
 /******************************************************************************/
 /*                               D e f i n e s                                */
@@ -152,8 +151,6 @@ static krb5_context       krb_client_context;   // Client
 static krb5_ccache        krb_client_ccache;    // Client 
 static krb5_ccache        krb_ccache;    // Server
 static krb5_keytab        krb_keytab;    // Server
-static uid_t              krb_kt_uid;// Server
-static gid_t              krb_kt_gid;// Server
 static krb5_principal     krb_principal; // Server
 
 static char              *Principal;     // Server's principal name
@@ -188,8 +185,6 @@ krb5_context        XrdSecProtocolkrb5::krb_client_context;       // Client
 krb5_ccache         XrdSecProtocolkrb5::krb_client_ccache; // Client
 krb5_ccache         XrdSecProtocolkrb5::krb_ccache;        // Server
 krb5_keytab         XrdSecProtocolkrb5::krb_keytab = NULL; // Server
-uid_t               XrdSecProtocolkrb5::krb_kt_uid = 0;    // Server
-gid_t               XrdSecProtocolkrb5::krb_kt_gid = 0;    // Server
 krb5_principal      XrdSecProtocolkrb5::krb_principal;     // Server
 
 char               *XrdSecProtocolkrb5::Principal = 0;     // Server
@@ -483,21 +478,17 @@ int XrdSecProtocolkrb5::Authenticate(XrdSecCredentials *cred,
 
 // Decode the credentials and extract client's name
 //
-   {  XrdSysPrivGuard pGuard(krb_kt_uid, krb_kt_gid);
-      if (pGuard.Valid())
-         {if (!rc)
-             {if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
-                                  (krb5_const_principal)krb_principal,
-                                   krb_keytab, NULL, &Ticket)))
-                 iferror = (char *)"Unable to authenticate credentials;";
-              else if ((rc = krb5_aname_to_localname(krb_context,
-                                          Ticket->enc_part2->client,
-                                          sizeof(CName)-1, CName)))
-                     iferror = (char *)"Unable to extract client name;";
-             }
-      } else
-         iferror = (char *)"Unable to acquire privileges to read the keytab;";
-   }
+   if (!rc)
+      {if ((rc = krb5_rd_req(krb_context, &AuthContext, &inbuf,
+                            (krb5_const_principal)krb_principal,
+                             krb_keytab, NULL, &Ticket)))
+           iferror = (char *)"Unable to authenticate credentials;";
+       else if ((rc = krb5_aname_to_localname(krb_context,
+                                  Ticket->enc_part2->client,
+                                  sizeof(CName)-1, CName)))
+             iferror = (char *)"Unable to extract client name;";
+      }
+
 // Make sure the name is null-terminated
 //
    CName[sizeof(CName)-1] = '\0';
@@ -585,23 +576,16 @@ int XrdSecProtocolkrb5::Init(XrdOucErrInfo *erp, char *KP, char *kfn)
        return Fatal(erp, ESRCH, buff, Principal, rc);
       }
 
-// Find out if need to acquire privileges to open and read the keytab file and
-// set the required uid,gid accordingly
+// Check if we can read access the keytab file
 //
-   krb_kt_uid = geteuid();
-   krb_kt_gid = getegid();
-   char *pf = 0;
-   if ((pf = (char *) strstr(krb_kt_name, "FILE:")))
-      {pf += strlen("FILE:");
-       if (strlen(pf) > 0)
-          {struct stat st;
-           if (!stat(pf, &st))
-              {if (st.st_uid != krb_kt_uid || st.st_gid != krb_kt_gid)
-                  {krb_kt_uid = st.st_uid;
-                   krb_kt_gid = st.st_gid;
-                  }
-              }
-          }
+   krb5_kt_cursor ktc;
+   if ((rc = krb5_kt_start_seq_get(krb_context, krb_keytab, &ktc)))
+      {snprintf(buff, sizeof(buff), "Unable to start sequence on the keytab file %s", krb_kt_name);
+       return Fatal(erp, EPERM, buff, Principal, rc);
+      }
+   if ((rc = krb5_kt_end_seq_get(krb_context, krb_keytab, &ktc)))
+      {snprintf(buff, sizeof(buff), "WARNING: unable to end sequence on the keytab file %s", krb_kt_name);
+       CLPRT(buff);
       }
 
 // Now, extract the "principal/instance@realm" from the stream
@@ -829,12 +813,6 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
     krb5_ccache cache = 0;
     if ((rc = krb5_cc_resolve(krb_context, ccfile, &cache)))
        return rc;
-
-// Need privileges from now on
-//
-    XrdSysPrivGuard pGuard((uid_t)0, (gid_t)0);
-    if (!pGuard.Valid())
-       return Fatal(erp, EINVAL, "Unable to acquire privileges;", ccfile, 0);
 
 // Init cache
 //
