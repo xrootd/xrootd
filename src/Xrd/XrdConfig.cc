@@ -636,7 +636,7 @@ int XrdConfig::getUG(char *parm, uid_t &newUid, gid_t &newGid)
 void XrdConfig::Manifest(const char *pidfn)
 {
    const char *Slash;
-   char envBuff[8192], pwdBuff[1024], manBuff[1024], *pidP;
+   char envBuff[8192], pwdBuff[1024], manBuff[1024], *pidP, *sP, *xP;
    int envFD, envLen;
 
 // Get the current working directory
@@ -645,6 +645,41 @@ void XrdConfig::Manifest(const char *pidfn)
       {Log.Emsg("Config", "Unable to get current working directory!");
        return;
       }
+
+// Prepare for symlinks
+//
+   strcpy(envBuff, ProtInfo.AdmPath);
+   envLen = strlen(envBuff);
+   if (envBuff[envLen-1] != '/') {envBuff[envLen] = '/'; envLen++;}
+   strcpy(envBuff+envLen, ".xrd/");
+   xP = envBuff+envLen+5;
+
+// Create a symlink to the configuration file
+//
+   if ((sP = getenv("XRDCONFIGFN")))
+      {sprintf(xP, "=/conf/%s.cf", myProg);
+       XrdOucUtils::ReLink(envBuff, sP);
+      }
+
+// Create a symlink to where core files will be found
+//
+   sprintf(xP, "=/core/%s", myProg);
+   XrdOucUtils::ReLink(envBuff, pwdBuff);
+
+// Create a symlink to where log files will be found
+//
+   if ((sP = getenv("XRDLOGDIR")))
+      {sprintf(xP, "=/logs/%s", myProg);
+       XrdOucUtils::ReLink(envBuff, sP);
+      }
+
+// Create a symlink to out proc information (Linux only)
+//
+#ifdef __linux__
+   sprintf(xP, "=/proc/%s", myProg);
+   sprintf(manBuff, "/proc/%d", getpid());
+   XrdOucUtils::ReLink(envBuff, manBuff);
+#endif
 
 // Create environment string
 //

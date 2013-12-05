@@ -473,20 +473,30 @@ int XrdXrootdProtocol::do_Dirlist()
    char *buff, ebuff[4096];
    const char *opaque, *dname;
    XrdSfsDirectory *dp;
+   bool doDig;
+
+// Check if we are digging for data
+//
+   doDig = (digFS && SFS_LCLPATH(argp->buff));
 
 // Check for static routing
 //
-   if (Route[RD_dirlist].Port) 
+   if (!doDig && Route[RD_dirlist].Port)
       return Response.Send(kXR_redirect,Route[RD_dirlist].Port,Route[RD_dirlist].Host);
 
 // Prescreen the path
 //
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Listing", argp->buff);
-   if (!Squash(argp->buff))          return vpEmsg("Listing", argp->buff);
+   if (!doDig && !Squash(argp->buff))return vpEmsg("Listing", argp->buff);
 
 // Get a directory object
 //
-   if (!(dp = osFS->newDir(Link->ID, Monitor.Did)))
+   if (doDig) dp = digFS->newDir(Link->ID, Monitor.Did);
+      else    dp =  osFS->newDir(Link->ID, Monitor.Did);
+
+// Make sure we have the object
+//
+   if (!dp)
       {snprintf(ebuff,sizeof(ebuff)-1,"Insufficient memory to open %s",argp->buff);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -705,6 +715,7 @@ int XrdXrootdProtocol::do_Locate()
    const char *opaque;
    char *Path, *fn = argp->buff, opt[8], *op=opt;
    XrdOucErrInfo myError(Link->ID,&locCB,ReqID.getID(),Monitor.Did,clientPV);
+   bool doDig = false;
 
 // Unmarshall the data
 //
@@ -719,33 +730,38 @@ int XrdXrootdProtocol::do_Locate()
    *op = '\0';
    TRACEP(FS, "locate " <<opt <<' ' <<fn);
 
-// Check for static routing
-//
-   if (Route[RD_locate].Port)
-      return Response.Send(kXR_redirect, Route[RD_locate].Port,
-                                         Route[RD_locate].Host);
-
 // Check if this is a non-specific locate
 //
-        if (*fn != '*') Path = fn;
-   else if (*(fn+1))    Path = fn+1;
+        if (*fn != '*'){Path = fn;
+                        doDig = (digFS && SFS_LCLPATH(Path));
+                       }
+   else if (*(fn+1))   {Path = fn+1;
+                        doDig = (digFS && SFS_LCLPATH(Path));
+                       }
    else                {Path = 0; 
                         fn = XPList.Next()->Path();
                         fsctl_cmd |= SFS_O_TRUNC;
                        }
 
+// Check for static routing
+//
+   if (!doDig && Route[RD_locate].Port)
+      return Response.Send(kXR_redirect, Route[RD_locate].Port,
+                                         Route[RD_locate].Host);
+
 // Prescreen the path
 //
    if (Path)
       {if (rpCheck(Path, &opaque)) return rpEmsg("Locating", Path);
-       if (!Squash(Path))          return vpEmsg("Locating", Path);
+       if (!doDig && !Squash(Path))return vpEmsg("Locating", Path);
       }
 
 // Preform the actual function
 //
-   rc = osFS->fsctl(fsctl_cmd, fn, myError, CRED);
+   if (doDig) rc = digFS->fsctl(fsctl_cmd, fn, myError, CRED);
+      else    rc =  osFS->fsctl(fsctl_cmd, fn, myError, CRED);
    TRACEP(FS, "rc=" <<rc <<" locate " <<fn);
-   return fsError(rc, XROOTD_MON_LOCATE, myError, Path);
+   return fsError(rc, (doDig ? 0 : XROOTD_MON_LOCATE), myError, Path);
 }
   
 /******************************************************************************/
@@ -1096,6 +1112,7 @@ int XrdXrootdProtocol::do_Open()
    int popt, retStat = 0;
    const char *opaque;
    char usage, ebuff[2048], opC;
+   bool doDig;
    char *fn = argp->buff, opt[16], *op=opt, isAsync = '\0';
    XrdSfsFile *fp;
    XrdXrootdFile *xp;
@@ -1158,18 +1175,28 @@ int XrdXrootdProtocol::do_Open()
 //
    if (rpCheck(fn, &opaque)) return rpEmsg("Opening", fn);
 
+// Check if this is a local dig type file
+//
+   doDig = (digFS && SFS_LCLPATH(fn));
+
 // Check if static redirection applies
 //
-   if (Route[RD_open1].Host && (popt = RPList.Validate(fn)))
+   if (!doDig && Route[RD_open1].Host && (popt = RPList.Validate(fn)))
       return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
 
 // Validate the path
 //
-   if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
+   if (doDig) {popt = XROOTDXP_NOLK; opC = 0;}
+      else if (!(popt = Squash(fn))) return vpEmsg("Opening", fn);
 
 // Get a file object
 //
-   if (!(fp = osFS->newFile(Link->ID, Monitor.Did)))
+   if (doDig) fp = digFS->newFile(Link->ID, Monitor.Did);
+      else    fp =  osFS->newFile(Link->ID, Monitor.Did);
+
+// Make sure we got one
+//
+   if (!fp)
       {snprintf(ebuff, sizeof(ebuff)-1,"Insufficient memory to open %s",fn);
        eDest.Emsg("Xeq", ebuff);
        return Response.Send(kXR_NoMemory, ebuff);
@@ -2242,6 +2269,7 @@ int XrdXrootdProtocol::do_Stat()
 {
    static XrdXrootdCallBack statCB("stat", XROOTD_MON_STAT);
    static const int fsctl_cmd = SFS_FSCTL_STATFS;
+   bool doDig;
    int rc;
    const char *opaque;
    char xxBuff[256];
@@ -2270,15 +2298,19 @@ int XrdXrootdProtocol::do_Stat()
        return fsError(rc, 0, myFile->XrdSfsp->error, 0);
       }
 
+// Check if we are handling a dig type path
+//
+   doDig = (digFS && SFS_LCLPATH(argp->buff));
+
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
+   if (!doDig && Route[RD_stat].Port)
       return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
 
 // Prescreen the path
 //
    if (rpCheck(argp->buff, &opaque)) return rpEmsg("Stating", argp->buff);
-   if (!Squash(argp->buff))          return vpEmsg("Stating", argp->buff);
+   if (!doDig && !Squash(argp->buff))return vpEmsg("Stating", argp->buff);
 
 // Preform the actual function
 //
@@ -2287,11 +2319,12 @@ int XrdXrootdProtocol::do_Stat()
        TRACEP(FS, "rc=" <<rc <<" statfs " <<argp->buff);
        if (rc == SFS_OK) Response.Send("");
       } else {
-       rc = osFS->stat(argp->buff, &buf, myError, CRED, opaque);
+       if (doDig) rc = digFS->stat(argp->buff, &buf, myError, CRED, opaque);
+          else    rc =  osFS->stat(argp->buff, &buf, myError, CRED, opaque);
        TRACEP(FS, "rc=" <<rc <<" stat " <<argp->buff);
        if (rc == SFS_OK) return Response.Send(xxBuff, StatGen(buf, xxBuff));
       }
-   return fsError(rc, XROOTD_MON_STAT, myError, argp->buff);
+   return fsError(rc, (doDig ? 0 : XROOTD_MON_STAT), myError, argp->buff);
 }
 
 /******************************************************************************/

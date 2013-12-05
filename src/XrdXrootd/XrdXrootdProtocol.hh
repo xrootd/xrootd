@@ -196,6 +196,7 @@ static int   Squash(char *);
 static int   xapath(XrdOucStream &Config);
 static int   xasync(XrdOucStream &Config);
 static int   xcksum(XrdOucStream &Config);
+static int   xdig(XrdOucStream &Config);
 static int   xexp(XrdOucStream &Config);
 static int   xexpdo(char *path, int popt=0);
 static int   xfsl(XrdOucStream &Config);
@@ -221,6 +222,7 @@ static XrdXrootdXPath        RPList;    // Redirected paths
 static XrdXrootdXPath        RQList;    // Redirected paths for ENOENT
 static XrdXrootdXPath        XPList;    // Exported   paths
 static XrdSfsFileSystem     *osFS;      // The filesystem
+static XrdSfsFileSystem     *digFS;     // The filesystem (digFS)
 static XrdSecService        *CIA;       // Authentication Server
 static XrdXrootdFileLock    *Locker;    // File lock handler
 static XrdScheduler         *Sched;     // System scheduler
@@ -248,6 +250,8 @@ static int                 WANPort;
 static int                 WANWindow;
 static char               *SecLib;
 static char               *FSLib[2];
+static char               *digLib;    // Normally zero for now
+static char               *digParm;
 static char               *Notify;
 static char                isRedir;
 static char                JobLCL;

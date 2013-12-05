@@ -403,6 +403,30 @@ int XrdOucUtils::makePath(char *path, mode_t mode)
 }
  
 /******************************************************************************/
+/*                                R e L i n k                                 */
+/******************************************************************************/
+
+int XrdOucUtils::ReLink(const char *path, const char *target, mode_t mode)
+{
+   const mode_t AMode = S_IRWXU|S_IRWXG; // 770
+   char pbuff[MAXPATHLEN+64];
+   int n;
+
+// Copy the path
+//
+   n = strlen(path);
+   if (n >= (int)sizeof(pbuff)) return ENAMETOOLONG;
+   strcpy(pbuff, path);
+
+// Unlink the target, make the path, and create the symlink
+//
+   unlink(path);
+   makePath(pbuff, (mode ? mode : AMode));
+   if (symlink(target, path)) return errno;
+   return 0;
+}
+
+/******************************************************************************/
 /*                              s u b L o g f n                               */
 /******************************************************************************/
   

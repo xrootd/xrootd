@@ -1,13 +1,13 @@
-#ifndef __XRDOUCUTILS_HH__
-#define __XRDOUCUTILS_HH__
+#ifndef __XRDDIGAUTH_HH__
+#define __XRDDIGAUTH_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c U t i l s . h h                         */
+/*                         X r d D i g A u t h . h h                          */
 /*                                                                            */
-/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (C) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*               DE-AC02-76-SFO0515 with the Deprtment of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -30,59 +30,65 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-  
-class XrdSysError;
-class XrdOucStream;
+#include "XrdSec/XrdSecEntity.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
-class XrdOucUtils
+class XrdOucStream;
+class XrdSysError;
+
+/******************************************************************************/
+/*                         X r d D i g A u t h E n t                          */
+/******************************************************************************/
+  
+class XrdDigAuthEnt
+{
+public:
+XrdDigAuthEnt *next;
+char          *rec;
+char           prot[XrdSecPROTOIDSIZE];
+
+enum           eType {eName=0, eHost=1, eVorg=2, eRole=3, eGrp=4, eNum=5};
+char          *eChk[eNum];
+
+enum           aType {aConf = 0, aCore = 1, aLogs = 2, aProc = 3, aNum = 4};
+bool           accOK[aNum];
+
+               XrdDigAuthEnt() : rec(0) {}
+              ~XrdDigAuthEnt() {if (rec) free(rec);}
+};
+
+/******************************************************************************/
+/*                            X r d D i g A u t h                             */
+/******************************************************************************/
+  
+class XrdDigAuth
 {
 public:
 
-static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
+bool  Authorize(const XrdSecEntity   *client,
+                XrdDigAuthEnt::aType  aType,
+                bool                  aVec[XrdDigAuthEnt::aNum]=0
+               );
 
-static bool  endsWith(const char *text, const char *ending, int endlen);
+bool  Configure(const char *aFN);
 
-static char *eText(int rc, char *eBuff, int eBlen, int AsIs=0);
+      XrdDigAuth() : authFN(0), authTOD(0), authCHK(0), authList(0) {}
+     ~XrdDigAuth() {}
 
-static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
-                  const char *what, const char *hname, 
-                                    const char *nname, const char *pname);
- 
-static int   fmtBytes(long long val, char *buff, int bsz);
+private:
 
-static char *genPath(const char *path, const char *inst, const char *psfx=0);
+bool Failure(int lNum, const char *txt1, const char *txt2=0);
+bool OkGrp(const char *glist, const char *gname);
+bool Parse(XrdOucStream &aFile, int lNum);
+bool Refresh();
+bool SetupAuth();
+void Squash(char *bP);
 
-static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
-
-static int   GroupName(gid_t gID, char *gName, int gNsz);
-
-static char *Ident(long long  &mySID, char *iBuff, int iBlen,
-                   const char *iHost, const char *iProg, const char *iName,
-                   int Port);
-
-static const char *InstName(int TranOpt=0);
-
-static const char *InstName(const char *name, int Fillit=1);
-
-static int   is1of(char *val, const char **clist);
-
-static void  makeHome(XrdSysError &eDest, const char *inst);
-
-static int   makePath(char *path, mode_t mode);
-
-static int   ReLink(const char *path, const char *target, mode_t mode=0);
- 
-static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
-
-static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
-
-static int   UserName(uid_t uID, char *uName, int uNsz);
-
-static bool PidFile(XrdSysError &eDest, const char *path);
-
-       XrdOucUtils() {}
-      ~XrdOucUtils() {}
+XrdSysMutex    authMutex;
+const char    *authFN;
+time_t         authTOD;
+time_t         authCHK;
+XrdDigAuthEnt *authList;
+bool           accOK[XrdDigAuthEnt::aNum];
 };
 #endif

@@ -1,13 +1,13 @@
-#ifndef __XRDOUCUTILS_HH__
-#define __XRDOUCUTILS_HH__
+#ifndef __XRDDIGCONFIG_HH__
+#define __XRDDIGCONFIG_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d O u c U t i l s . h h                         */
+/*                       X r d D i g C o n f i g . h h                        */
 /*                                                                            */
-/* (c) 2005 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (C) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*               DE-AC02-76-SFO0515 with the Deprtment of Energy              */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -30,59 +30,53 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-  
-class XrdSysError;
 class XrdOucStream;
+class XrdOucErrInfo;
+class XrdSecEntity;
 
-class XrdOucUtils
+class XrdDigConfig
 {
 public:
 
-static const mode_t pathMode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 
-static bool  endsWith(const char *text, const char *ending, int endlen);
+bool  Configure(const char *cFN, const char *parms);
 
-static char *eText(int rc, char *eBuff, int eBlen, int AsIs=0);
+enum  pType {isAny = 0, isDir, isFile};
 
-static int   doIf(XrdSysError *eDest, XrdOucStream &Config,
-                  const char *what, const char *hname, 
-                                    const char *nname, const char *pname);
- 
-static int   fmtBytes(long long val, char *buff, int bsz);
+int   GenAccess(const XrdSecEntity *client,
+                const char         *aList[],
+                int                 aMax);
 
-static char *genPath(const char *path, const char *inst, const char *psfx=0);
+char *GenPath(int &rc, const XrdSecEntity *client, const char *opname,
+                       const char         *lfn,    pType lfnType=isAny);
 
-static int   genPath(char *buff, int blen, const char *path, const char *psfx=0);
+void  GetLocResp(XrdOucErrInfo &eInfo, bool nameok);
 
-static int   GroupName(gid_t gID, char *gName, int gNsz);
+      XrdDigConfig() : fnTmplt(0), logAcc(true), logRej(true) {}
+     ~XrdDigConfig()   {}
 
-static char *Ident(long long  &mySID, char *iBuff, int iBlen,
-                   const char *iHost, const char *iProg, const char *iName,
-                   int Port);
+private:
 
-static const char *InstName(int TranOpt=0);
+const char *AddPath(XrdDigConfig::pType sType, const char *src,
+                              const char *tpd, const char *tfn);
+void        Audit(const XrdSecEntity *client, const char *what,
+                  const char         *opn,    const char *trg);
+bool        ConfigProc(const char *ConfigFN);
+bool        ConfigXeq(char *var, XrdOucStream &cFile);
+void        Empty(const char *path);
+void        SetLocResp();
+int         ValProc(const char *ppath);
+bool        xacf(XrdOucStream &cFile);
+bool        xlog(XrdOucStream &cFile);
 
-static const char *InstName(const char *name, int Fillit=1);
-
-static int   is1of(char *val, const char **clist);
-
-static void  makeHome(XrdSysError &eDest, const char *inst);
-
-static int   makePath(char *path, mode_t mode);
-
-static int   ReLink(const char *path, const char *target, mode_t mode=0);
- 
-static char *subLogfn(XrdSysError &eDest, const char *inst, char *logfn);
-
-static void  Undercover(XrdSysError &eDest, int noLog, int *pipeFD = 0);
-
-static int   UserName(uid_t uID, char *uName, int uNsz);
-
-static bool PidFile(XrdSysError &eDest, const char *path);
-
-       XrdOucUtils() {}
-      ~XrdOucUtils() {}
+char       *fnTmplt;
+char       *locRespHP;
+char       *locRespV6;
+char       *locRespV4;
+short       locRlenHP;
+short       locRlenV6;
+short       locRlenV4;
+bool        logAcc;
+bool        logRej;
 };
 #endif

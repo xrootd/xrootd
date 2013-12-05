@@ -27,7 +27,15 @@ add_library(
   XrdOfs/XrdOfsTPCAuth.cc       XrdOfs/XrdOfsTPCAuth.hh
   XrdOfs/XrdOfsTPCJob.cc        XrdOfs/XrdOfsTPCJob.hh
   XrdOfs/XrdOfsTPCInfo.cc       XrdOfs/XrdOfsTPCInfo.hh
-  XrdOfs/XrdOfsTPCProg.cc       XrdOfs/XrdOfsTPCProg.hh )
+  XrdOfs/XrdOfsTPCProg.cc       XrdOfs/XrdOfsTPCProg.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdDig
+  #-----------------------------------------------------------------------------
+
+  XrdDig/XrdDigAuth.cc          XrdDig/XrdDigAuth.hh
+  XrdDig/XrdDigConfig.cc        XrdDig/XrdDigConfig.hh
+  XrdDig/XrdDigFS.cc            XrdDig/XrdDigFS.hh )
 
 target_link_libraries(
   XrdOfs

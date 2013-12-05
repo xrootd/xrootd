@@ -136,6 +136,11 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
                                                     XrdSfsFileSystem *,
                                                     char *, const char *);
+   extern XrdSfsFileSystem *XrdDigGetFS
+                            (XrdSfsFileSystem *nativeFS,
+                             XrdSysLogger     *Logger,
+                             const char       *configFn,
+                             const char       *theParms);
    extern int optind, opterr;
 
    XrdXrootdXPath *xp;
@@ -271,6 +276,16 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           {eDest.Emsg("Config", "Unable to load file system wrapper.");
            return 0;
           }
+      }
+
+// Check if the diglib should be loaded. We only support the builtin one. In
+// the future we will have to change this code to be like the above.
+//
+   if (digParm)
+      {TRACE(DEBUG, "Loading dig filesystem builtin");
+       digFS = XrdDigGetFS(osFS, eDest.logger(), pi->ConfigFN, digParm);
+       if (!digFS) eDest.Emsg("Config","Unable to load digFS; "
+                                       "remote debugging disabled!");
       }
 
 // Check if we are going to be processing checksums locally
@@ -414,6 +429,7 @@ int XrdXrootdProtocol::Config(const char *ConfigFN)
          if (ismine)
             {     if TS_Xeq("async",         xasync);
              else if TS_Xeq("chksum",        xcksum);
+             else if TS_Xeq("diglib",        xdig);
              else if TS_Xeq("export",        xexp);
              else if TS_Xeq("fslib",         xfsl);
              else if TS_Xeq("log",           xlog);
@@ -637,6 +653,46 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
    if (JobCKS) delete JobCKS;
    if (jmax) JobCKS = new XrdXrootdJob(Sched, theProg, "chksum", jmax);
       else   JobCKS = 0;
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                  x d i g                                   */
+/******************************************************************************/
+
+/* Function: xdig
+
+   Purpose:  To parse the directive: diglib * <parms>
+
+             *         use builtin digfs library (only one supported now).
+             parms     parameters for digfs.
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdXrootdProtocol::xdig(XrdOucStream &Config)
+{
+    char parms[4096], *val;
+
+// Get the path
+//
+   if (!(val = Config.GetWord()))
+      {eDest.Emsg("Config", "digfslib not specified"); return 1;}
+
+// Make sure it refers to an internal one
+//
+   if (strcmp(val, "*"))
+      {eDest.Emsg("Config", "builtin diglib not specified"); return 1;}
+
+// Grab the parameters
+//
+    if (!Config.GetRest(parms, sizeof(parms)))
+       {eDest.Emsg("Config", "diglib parameters too long"); return 1;}
+    if (digParm) free(digParm);
+    digParm = strdup(parms);
+
+// All done
+//
    return 0;
 }
   

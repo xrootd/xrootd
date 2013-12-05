@@ -101,6 +101,12 @@
 #define SFS_STARTED    -512 // ErrInfo code -> Estimated seconds to completion
 #define SFS_DATA      -1024 // ErrInfo code -> Length of data
 
+// The following macros are used for dealing with special local paths
+//
+#define SFS_LCLPRFX    "/=/"
+#define SFS_LCLPLEN    3
+#define SFS_LCLPATH(x) !strncmp(x, SFS_LCLPRFX, SFS_LCLPLEN)
+
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */
 /******************************************************************************/
