@@ -145,6 +145,11 @@ namespace XrdCl
       //! Check if peer supports tpc
       //------------------------------------------------------------------------
       static XRootDStatus CheckTPC( const std::string &server );
+
+      //------------------------------------------------------------------------
+      //! Convert the fully qualified host name to country code
+      //------------------------------------------------------------------------
+      static std::string FQDNToCC( const std::string &fqdn );
   };
 
   //----------------------------------------------------------------------------

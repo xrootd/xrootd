@@ -23,10 +23,14 @@
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClSIDManager.hh"
+#include "XrdCl/XrdClUtils.hh"
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetUtils.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSys/XrdSysTimer.hh"
+
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -1053,14 +1057,27 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
 
-    Message *msg = new Message( sizeof( ClientLoginRequest ) );
+    //--------------------------------------------------------------------------
+    // Compute the login cgi
+    //--------------------------------------------------------------------------
+    int timeZone = XrdSysTimer::TimeZone();
+    std::string countryCode = Utils::FQDNToCC( XrdNetUtils::MyHostName() );
+    char *cgiBuffer = new char[1024];
+    snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d", countryCode.c_str(),
+              timeZone );
+    uint16_t cgiLen = strlen( cgiBuffer );
+
+    //--------------------------------------------------------------------------
+    // Generate the message
+    //--------------------------------------------------------------------------
+    Message *msg = new Message( sizeof(ClientLoginRequest) + cgiLen );
     ClientLoginRequest *loginReq = (ClientLoginRequest *)msg->GetBuffer();
 
     loginReq->requestid = kXR_login;
     loginReq->pid       = ::getpid();
     loginReq->capver[0] = kXR_asyncap | kXR_ver003;
     loginReq->role[0]   = kXR_useruser;
-    loginReq->dlen      = 0;
+    loginReq->dlen      = cgiLen;
 
     if( hsData->url->GetUserName().length() )
     {
@@ -1077,10 +1094,13 @@ namespace XrdCl
       delete [] name;
     }
 
-    log->Debug( XRootDTransportMsg,
-                "[%s] Sending out kXR_login request, username: %s",
-                hsData->streamName.c_str(), loginReq->username );
+    msg->Append( cgiBuffer, cgiLen, 24 );
 
+    log->Debug( XRootDTransportMsg, "[%s] Sending out kXR_login request, "
+                "username: %s, cgi: %s", hsData->streamName.c_str(),
+                loginReq->username, cgiBuffer );
+
+    delete [] cgiBuffer;
     MarshallRequest( msg );
     return msg;
   }

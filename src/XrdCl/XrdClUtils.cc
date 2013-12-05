@@ -333,4 +333,20 @@ namespace XrdCl
 
     return XRootDStatus();
   }
+
+  //----------------------------------------------------------------------------
+  // Convert the fully qualified host name to country code
+  //----------------------------------------------------------------------------
+  std::string Utils::FQDNToCC( const std::string &fqdn )
+  {
+    std::vector<std::string> el;
+    Utils::splitString( el, fqdn, "." );
+    if( el.size() < 2 )
+      return "us";
+
+    std::string cc = *el.rbegin();
+    if( cc.length() == 2 )
+      return cc;
+    return "us";
+  }
 }
