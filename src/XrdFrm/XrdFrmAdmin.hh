@@ -63,6 +63,8 @@ int  Mark();
 
 int  Mmap();
 
+int  Mv();
+
 int  Pin();
 
 int  Query();
@@ -189,6 +191,7 @@ static const char *HelpHelp;
 static const char *MakeLFHelp;
 static const char *MarkHelp;
 static const char *MmapHelp;
+static const char *MvHelp;
 static const char *PinHelp;
 static const char *QueryHelp;
 static const char *RelocHelp;
