@@ -229,7 +229,7 @@ char *XrdDigConfig::GenPath(int &rc, const XrdSecEntity *client,
 
 // First we better have a client object
 //
-   if (!client) {rc = EPERM; return false;}
+   if (!client) {rc = EPERM; return 0;}
 
 // Translate the fname to the right file type
 //
