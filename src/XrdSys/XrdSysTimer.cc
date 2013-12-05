@@ -36,6 +36,7 @@
 #include <time.h>
 #include <stdio.h>
 #include "XrdSys/XrdSysTimer.hh"
+#include <iostream>
 
 /******************************************************************************/
 /*                            D e l t a _ T i m e                             */
@@ -208,17 +209,15 @@ char *XrdSysTimer::s2hms(int sec, char *buff, int blen)
 
 int XrdSysTimer::TimeZone()
 {
-   time_t currtime = time(NULL);
-   struct tm *ptm;
-   int uthr, lthr;
+  time_t currTime    = time(0);
+  time_t currTimeGMT = 0;
+  tm ptm;
 
-// Calculate the timezone offset and return it
-
-   ptm = gmtime(&currtime);
-   uthr = ptm->tm_hour;
-   ptm = localtime(&currtime);
-   lthr = ptm->tm_hour;
-   return (uthr>lthr ? uthr-lthr : lthr-uthr-24);
+  gmtime_r( &currTime, &ptm );
+  currTimeGMT = mktime( &ptm );
+  currTime /= 60*60;
+  currTimeGMT /= 60*60;
+  return currTime - currTimeGMT;
 }
   
 /******************************************************************************/
