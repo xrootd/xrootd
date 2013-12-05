@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow remote debugging via the xrootd.diglib directive.
    * Add --noszchk to copy options to allow dynamic file copying.
    * Add timezone offset method to XrdSysTimer.
    * Add XrdSysUtils::FmtUname() to get platform readable uname.
