@@ -45,7 +45,6 @@
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
-#include "XrdSys/XrdSysPriv.hh"
 #include "XrdOuc/XrdOucStream.hh"
 
 #include "XrdSut/XrdSutAux.hh"
@@ -5378,30 +5377,18 @@ XrdSutPFEntry *XrdSecProtocolgsi::GetSrvCertEnt(XrdSutCacheRef &pfeRef,
    //
    // Get the IDs of the file: we need them to acquire the right privileges when opening
    // the certificate
-   bool getpriv = 0;
    uid_t gsi_uid = geteuid();
    gid_t gsi_gid = getegid();
    struct stat st;
    if (!stat(SrvKey.c_str(), &st)) {
       if (st.st_uid != gsi_uid || st.st_gid != gsi_gid) {
-         getpriv = 1;
          gsi_uid = st.st_uid;
          gsi_gid = st.st_gid;
       }
    }
    
    // Check normal certificates
-   XrdCryptoX509 *xsrv = 0;
-   {  XrdSysPrivGuard pGuard(gsi_uid, gsi_gid);
-      if (pGuard.Valid() || !getpriv) {
-         xsrv = cf->X509(SrvCert.c_str(), SrvKey.c_str());
-      } else {
-         PRINT("problems creating guard to load server certificate '"<<
-               SrvCert<<"' (euid:"<<geteuid()<<", egid:"<<getegid()<<
-               ") <-> (st_uid:"<<st.st_uid<<", st_gid:"<<st.st_gid<<")" );
-         return cent;
-      }
-   }
+   XrdCryptoX509 *xsrv = cf->X509(SrvCert.c_str(), SrvKey.c_str());
    if (xsrv) {
       // Must be of EEC type
       if (xsrv->type != XrdCryptoX509::kEEC) {
