@@ -368,12 +368,10 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
           } while(xp);
       }
 
-// Check if monitoring should be enabled
+// Initialize monitoring (it won't do anything if it wasn't enabled)
 //
-   if (!isRedir || XrdXrootdMonitor::Redirect())
-      {if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
-                                   myInst, Port)) return 0;
-      }
+   if (!XrdXrootdMonitor::Init(Sched, &eDest, pi->myName, pi->myProg,
+                               myInst, Port)) return 0;
 
 // Add all jobs that we can run to the admin object
 //
