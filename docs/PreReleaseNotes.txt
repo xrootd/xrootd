@@ -85,6 +85,8 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Make sure monitoring is initialized if it was enabled in any way
+     to avoid SEGV when an odd combination of choices was selected.
    * Avoid SEGV and double free introduced by patch 30ad01b9 (set host).
    * Make sure protocol sss sets hostname. Fully reconstruct hostname
      to prevent sss auth failure when nodnr is in effect.
