@@ -223,7 +223,6 @@ char *XrdDigConfig::GenPath(int &rc, const XrdSecEntity *client,
                                      XrdDigConfig::pType lfnType)
 
 {
-   const char *Slash;
    char path[2048];
    int i, n;
 
@@ -241,10 +240,6 @@ char *XrdDigConfig::GenPath(int &rc, const XrdSecEntity *client,
 // Make sure we found a valid entry
 //
    if (i >= pNum || !pTab[i].isOK) {rc = ENOENT; return 0;}
-
-// Establish whether this is being treated as a directory
-//
-   Slash = (*(fname+pTab[i].pfxlen) == '/' ? fname+pTab[i].pfxlen : 0);
 
 // Authorize this access
 //
