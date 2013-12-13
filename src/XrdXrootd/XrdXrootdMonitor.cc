@@ -743,7 +743,8 @@ int XrdXrootdMonitor::Redirect(kXR_unt32 mID, const char *hName, int Port,
 // Take care of the server's name which might actually be a path
 //
    if (*hName == '/') {Path = hName; hName = ""; hLen = 0;}
-      else {hLen = strlen(hName);
+      else {const char *quest = index(hName, '?');
+            hLen = (quest ? quest - hName : strlen(hName));
             if (hLen >  256) hLen =  256;
            }
 
