@@ -235,9 +235,9 @@ static  const int hpSZ = hsSZ + prSZ;
 static  struct hs_response
                {kXR_unt16 streamid;
                 kXR_unt16 status;
-                kXR_int32 rlen;
-                kXR_int32 pval;
-                kXR_int32 styp;
+                kXR_unt32 rlen;
+                kXR_unt32 pval;
+                kXR_unt32 styp;
                } hsresp={0, 0, htonl(8), // isRedir == 'M' -> MetaManager
                          htonl(kXR_PROTOCOLVERSION),
                          (isRedir ? htonl(kXR_LBalServer)

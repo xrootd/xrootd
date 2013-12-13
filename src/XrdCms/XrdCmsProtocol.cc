@@ -914,7 +914,7 @@ void XrdCmsProtocol::Reissue(XrdCmsRRData &Data)
    XrdCmsPInfo pinfo;
    SMask_t amask;
    struct iovec ioB[2] = {{(char *)&Data.Request, sizeof(Data.Request)},
-                          {         Data.Buff,    Data.Dlen}
+                          {         Data.Buff,    (size_t)Data.Dlen}
                          };
 
 // Check if we can really reissue the command
@@ -981,7 +981,7 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
                               htons(sizeof(kXR_unt32)+n)},
                              htonl(static_cast<unsigned int>(ecode))};
          struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
-                                {(char *)etext, n}};
+                                {(char *)etext, (size_t)n}};
          act = " sent";
          Link->Send(ioV, 2);
         } else act = " skip";

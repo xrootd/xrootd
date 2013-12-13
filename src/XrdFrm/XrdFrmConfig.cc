@@ -1199,7 +1199,7 @@ int XrdFrmConfig::Grab(const char *var, char **Dest, int nosubs)
 XrdOucTList *XrdFrmConfig::InsertPL(XrdOucTList *pL, const char *Path,
                                     int Plen, int isRW)
 {
-   short sval[4] = {isRW, Plen};
+   short sval[4] = {(short)isRW, (short)Plen};
    XrdOucTList *pP = 0, *tP = pL;
 
 // Find insertion point

@@ -310,7 +310,7 @@ SMask_t XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
 SMask_t XrdCmsCluster::Broadcast(SMask_t smask, XrdCms::CmsRRHdr &Hdr,
                                  void *Data,    int Dlen)
 {
-   struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)}, {(char *)Data, Dlen}};
+   struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)}, {(char *)Data, (size_t)Dlen}};
 
 // Send of the data as eveything was constructed properly
 //
@@ -328,7 +328,7 @@ int XrdCmsCluster::Broadsend(SMask_t Who, XrdCms::CmsRRHdr &Hdr,
    EPNAME("Broadsend");
    static int Start = 0;
    XrdCmsNode *nP;
-   struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)}, {(char *)Data, Dlen}};
+   struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)}, {(char *)Data, (size_t)Dlen}};
    int i, Beg, Fin, ioTot = Dlen+sizeof(Hdr);
 
 // Send of the data as eveything was constructed properly
@@ -1640,7 +1640,7 @@ void XrdCmsCluster::sendAList(XrdLink *lp)
    static CmsTryRequest Req = {{0, kYR_try, 0, 0}, 0};
    static int HdrSize = sizeof(Req.Hdr) + sizeof(Req.sLen);
    static char *AltNext = AltMans;
-   static struct iovec iov[4] = {{(caddr_t)&Req, HdrSize},
+   static struct iovec iov[4] = {{(caddr_t)&Req, (size_t)HdrSize},
                                  {0, 0},
                                  {AltMans, 0},
                                  {(caddr_t)"\0", 1}};

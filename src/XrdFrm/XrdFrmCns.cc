@@ -108,7 +108,7 @@ void XrdFrmCns::Add(const char *tID,  const char *Path,
 void XrdFrmCns::Del(const char *Path, int HdrType, int islfn)
 {
    static char NewLine = '\n';
-   struct iovec iov[] = {{cnsHdr[HdrType], cnsHdrLen},{0,0},{&NewLine,1}};
+   struct iovec iov[] = {{cnsHdr[HdrType],(size_t)cnsHdrLen},{0,0},{&NewLine,1}};
    char buff[MAXPATHLEN];
 
 // Check if we should initialize

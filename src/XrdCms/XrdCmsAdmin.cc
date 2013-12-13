@@ -414,9 +414,10 @@ void XrdCmsAdmin::BegAds()
 int XrdCmsAdmin::Con2Ads(const char *pname)
 {
    const char *epname = "Con2Ads";
-   static ClientInitHandShake hsVal = {0, 0, 0, htonl(4), htonl(2012)};
+   static ClientInitHandShake hsVal = {0, 0, 0, (int)htonl(4), (int)htonl(2012)};
    static ClientLoginRequest loginReq = {{0, 0},
-                                         htons(kXR_login), htonl(getpid()),
+                                         (kXR_unt16)htons(kXR_login),
+                                         (kXR_int32)htonl(getpid()),
                                          {'c', 'm', 's', 'd', 0, 0, 0, 0},
                                          {0, 0}, 0, 0, 0};
    struct {kXR_int32 siHS[4];} hsRsp;

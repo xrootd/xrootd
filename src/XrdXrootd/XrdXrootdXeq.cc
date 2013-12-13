@@ -388,7 +388,7 @@ int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
 // Return result if it is actually available
 //
    if (*csData)
-      {struct iovec iov[4] = {{0,0}, {JobCKT, CKTLen}, {&Space, 1},
+      {struct iovec iov[4] = {{0,0}, {JobCKT, (size_t)CKTLen}, {&Space, 1},
                               {(char *)csData, strlen(csData)+1}};
        return Response.Send(iov, 4);
       }
