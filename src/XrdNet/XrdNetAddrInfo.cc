@@ -109,13 +109,14 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
         if (IP.Addr.sa_family == AF_INET6)
            {if (bLen < (INET6_ADDRSTRLEN+2)) return QFill(bAddr, bLen);
             if (fmtOpts & old6Map4 && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr))
-               {if (ipRaw) {strcpy(bAddr,  "::"); bAddr += 2; bLen -= 2;}
-                   else    {strcpy(bAddr, "[::"); bAddr += 3; bLen -= 3; addBrak=1;}
+               {if (ipRaw) {strcpy(bAddr,  "::"); n = 2;}
+                   else    {strcpy(bAddr, "[::"); n = 3; addBrak=1;}
                 if (!inet_ntop(AF_INET, &IP.v6.sin6_addr.s6_addr32[3],
-                               bAddr, bLen)) return QFill(bAddr, bLen);
+                               bAddr+n, bLen-n)) return QFill(bAddr, bLen);
                } else {
-                if (!ipRaw) {*bAddr = '['; addBrak = 1; bAddr++; bLen--;}
-                if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr,bLen))
+                if (!ipRaw) {*bAddr = '['; n = 1; addBrak = 1;}
+                   else n = 0;
+                if (!inet_ntop(AF_INET6,&(IP.v6.sin6_addr),bAddr+n,bLen-n))
                     return QFill(bAddr, bLen);
                }
            }
