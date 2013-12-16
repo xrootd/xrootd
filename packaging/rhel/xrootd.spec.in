@@ -4,7 +4,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
-Release:   __RELEASE__%{?dist}
+Release:   __RELEASE__%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPL
@@ -35,6 +35,10 @@ BuildRequires:	doxygen
 BuildRequires:	graphviz
 %if "%{?rhel}" == "5"
 BuildRequires:	graphviz-gd
+%endif
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+BuildRequires: clang
 %endif
 
 Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
@@ -224,6 +228,15 @@ This package contains a set of CPPUnit tests for xrootd.
 cd %{name}
 mkdir build
 cd build
+
+%if %{?_with_cpp11:1}%{!?_with_cpp11:0}
+export CXXFLAGS=-std=c++11
+%endif
+
+%if %{?_with_clang:1}%{!?_with_clang:0}
+export CC=clang
+export CXX=clang++
+%endif
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
@@ -515,7 +528,7 @@ exit 0
 * Fri Oct 21 2011 Lukasz Janyst <ljanyst@cern.ch> 3.1.0-1
 - bump the version to 3.1.0
 
-* Tue Apr 11 2011 Lukasz Janyst <ljanyst@cern.ch> 3.0.3-1
+* Mon Apr 11 2011 Lukasz Janyst <ljanyst@cern.ch> 3.0.3-1
 - the first RPM release - version 3.0.3
 - the detailed release notes are available at:
   http://xrootd.org/download/ReleaseNotes.html
