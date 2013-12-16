@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCks/XrdCksCalc.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <memory>
 #include <iostream>
@@ -568,7 +569,7 @@ namespace
         if( pChunks.empty() )
           return XRootDStatus( stOK, suDone );
 
-        std::auto_ptr<ChunkHandler> ch( pChunks.front() );
+        XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
         pChunks.pop();
         ch->sem->Wait();
 
@@ -915,7 +916,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initialize the source and the destination
     //--------------------------------------------------------------------------
-    std::auto_ptr<Source> src;
+    XRDCL_SMART_PTR_T<Source> src;
     if( pJob->source.GetProtocol() == "file" )
       src.reset( new LocalSource( &pJob->source ) );
     else if( pJob->source.GetProtocol() == "stdio" )
@@ -928,7 +929,7 @@ namespace XrdCl
     XRootDStatus st = src->Initialize();
     if( !st.IsOK() ) return st;
 
-    std::auto_ptr<Destination> dest;
+    XRDCL_SMART_PTR_T<Destination> dest;
     URL newDestUrl( pJob->target );
 
     if( pJob->target.GetProtocol() == "file" )

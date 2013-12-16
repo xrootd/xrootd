@@ -27,6 +27,7 @@
 #include "XrdCl/XrdClTaskManager.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <arpa/inet.h>              // for network unmarshalling stuff
 #include "XrdSys/XrdSysPlatform.hh" // same as above
@@ -313,7 +314,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_redirect:
       {
-        std::auto_ptr<Message> msgPtr( pResponse );
+        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
         pResponse = 0;
 
         if( rsp->hdr.dlen < 4 )
@@ -443,7 +444,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_wait:
       {
-        std::auto_ptr<Message> msgPtr( pResponse );
+        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
         pResponse = 0;
         uint32_t waitSeconds = 0;
 
@@ -467,6 +468,7 @@ namespace XrdCl
         }
 
         //----------------------------------------------------------------------
+
         // Some messages require rewriting before they can be sent again
         // after wait
         //----------------------------------------------------------------------
@@ -493,7 +495,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_waitresp:
       {
-        std::auto_ptr<Message> msgPtr( pResponse );
+        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
         pResponse = 0;
 
         if( rsp->hdr.dlen < 4 )
@@ -517,7 +519,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       default:
       {
-        std::auto_ptr<Message> msgPtr( pResponse );
+        XRDCL_SMART_PTR_T<Message> msgPtr( pResponse );
         pResponse = 0;
         log->Dump( XRootDMsg, "[%s] Got unrecognized response %d to "
                    "message %s", pUrl.GetHostId().c_str(),
