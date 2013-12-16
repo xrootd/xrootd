@@ -30,8 +30,10 @@
 #include "XrdCl/XrdClFileTimer.hh"
 #include "XrdCl/XrdClResponseJob.hh"
 #include "XrdCl/XrdClJobManager.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 
 #include <sstream>
+#include <memory>
 #include <sys/time.h>
 
 namespace
@@ -179,8 +181,8 @@ namespace
                                             XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
-        std::auto_ptr<XRootDStatus>    statusPtr( status );
-        std::auto_ptr<AnyObject>       responsePtr( response );
+        XRDCL_SMART_PTR_T<XRootDStatus>    statusPtr( status );
+        XRDCL_SMART_PTR_T<AnyObject>       responsePtr( response );
         pSendParams.hostList = hostList;
 
         //----------------------------------------------------------------------

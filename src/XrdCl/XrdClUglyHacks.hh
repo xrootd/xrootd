@@ -36,6 +36,12 @@ namespace XrdCl
   typedef XrdSysSemaphore Semaphore;
 #endif
 
+#if __cplusplus >= 201103L
+#define XRDCL_SMART_PTR_T std::unique_ptr
+#else
+#define XRDCL_SMART_PTR_T std::auto_ptr
+#endif
+
 }
 
 #endif // __XRD_CL_UGLY_HACKS_HH__

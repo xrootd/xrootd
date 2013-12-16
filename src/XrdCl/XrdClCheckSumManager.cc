@@ -21,6 +21,8 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
+#include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksCalc.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
@@ -108,7 +110,7 @@ namespace XrdCl
                   algName.c_str() );
       return false;
     }
-    std::auto_ptr<XrdCksCalc> calcPtr( calc );
+    XRDCL_SMART_PTR_T<XrdCksCalc> calcPtr( calc );
 
     //--------------------------------------------------------------------------
     // Open the file
