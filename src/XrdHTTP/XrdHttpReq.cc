@@ -36,7 +36,7 @@
  * 
  * 
  */
-#include "XrdHttpConfig.h"
+#include "XrdVersion.hh"
 #include "XrdHttpReq.hh"
 #include "XrdHttpTrace.hh"
 #include <string.h>
@@ -1393,7 +1393,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
           }
 
           stringresp += "</span></p>\n";
-          stringresp += "<p>Powered by XrdHTTP "XRDHTTP_VERSION_MAJOR"."XRDHTTP_VERSION_MINOR"."XRDHTTP_VERSION_PATCH;
+          stringresp += "<p>Powered by XrdHTTP ";
+          stringresp += XrdVSTRING;
           stringresp += " (CERN IT-SDC)</p>\n";
 
           prot->SendSimpleResp(200, NULL, NULL, (char *) stringresp.c_str(), 0);
