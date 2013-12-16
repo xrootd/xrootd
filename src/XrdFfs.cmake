@@ -33,6 +33,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_FFS_VERSION}
   SOVERSION ${XRD_FFS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

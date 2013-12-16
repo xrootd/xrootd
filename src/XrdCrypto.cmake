@@ -45,6 +45,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_CRYPTO_VERSION}
   SOVERSION ${XRD_CRYPTO_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -72,6 +73,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_CRYPTO_LITE_VERSION}
   SOVERSION ${XRD_CRYPTO_LITE_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -107,6 +109,7 @@ if( BUILD_CRYPTO )
     PROPERTIES
     VERSION   ${XRD_CRYPTO_SSL_VERSION}
     SOVERSION ${XRD_CRYPTO_SSL_SOVERSION}
+    INTERFACE_LINK_LIBRARIES ""
     LINK_INTERFACE_LIBRARIES "" )
 endif()
 
