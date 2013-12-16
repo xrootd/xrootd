@@ -5,8 +5,7 @@
 
 
 if exec xrootd
-   xrd.protocol XrdHttp /home/furano/Park/xrootd/xrootd-http_SVN/trunk/build/src/libXrdHttp.so 
-   #xrd.protocol XrdHttp:8080 /home/furano/Park/xrootd/xrootd-http_SVN/trunk/build/test/libmyprotocol.so
+   xrd.protocol XrdHttp /usr/lib64/libXrdHttp.so.1
 fi
 
 # Regular SSL stuff ... adjust as needed
