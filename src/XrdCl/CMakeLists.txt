@@ -79,6 +79,8 @@ target_link_libraries(
 set_target_properties(
   XrdCl
   PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES ""
   VERSION   ${XRD_CL_VERSION}
   SOVERSION ${XRD_CL_SOVERSION} )
 

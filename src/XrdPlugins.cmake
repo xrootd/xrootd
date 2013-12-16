@@ -31,6 +31,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_PSS_VERSION}
   SOVERSION ${XRD_PSS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -58,6 +59,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_BWM_VERSION}
   SOVERSION ${XRD_BWM_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

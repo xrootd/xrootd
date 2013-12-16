@@ -177,6 +177,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_UTILS_VERSION}
   SOVERSION ${XRD_UTILS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -197,6 +198,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_ZCRC32_VERSION}
   SOVERSION ${XRD_ZCRC32_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

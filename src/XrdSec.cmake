@@ -40,6 +40,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_VERSION}
   SOVERSION ${XRD_SEC_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 # FIXME: test
@@ -67,6 +68,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_PWD_VERSION}
   SOVERSION ${XRD_SEC_PWD_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -102,6 +104,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_SSS_VERSION}
   SOVERSION ${XRD_SEC_SSS_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -133,6 +136,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_UNIX_VERSION}
   SOVERSION ${XRD_SEC_UNIX_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
