@@ -87,6 +87,7 @@ int         RefReset;     // Min seconds    before a global ref count reset
 int         RefTurn;      // Min references before a global ref count reset
 int         AskPerf;      // Seconds between perf queries
 int         AskPing;      // Number of ping requests per AskPerf window
+int         PingTick;     // Ping clock value
 int         LogPerf;      // AskPerf intervals before logging perf
 
 int         PortTCP;      // TCP Port to  listen on

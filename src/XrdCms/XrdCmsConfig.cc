@@ -165,6 +165,29 @@ void *XrdCmsStartSupervising(void *carg)
       }
 
 /******************************************************************************/
+/*                    P i n g   C l o c k   H a n d l e r                     */
+/******************************************************************************/
+  
+namespace XrdCms
+{
+  
+class PingClock : XrdJob
+{
+public:
+
+       void DoIt() {Config.PingTick++;
+                    Sched->Schedule((XrdJob *)this,time(0)+Config.AskPing);
+                   }
+
+static void Start() {static PingClock selfie;}
+
+          PingClock() : XrdJob("ping clock") {DoIt();}
+         ~PingClock() {}
+private:
+};
+};
+
+/******************************************************************************/
 /*                               d e f i n e s                                */
 /******************************************************************************/
 
@@ -547,6 +570,10 @@ void XrdCmsConfig::DoIt()
           }
       }
 
+// Start the ping clock if we are a manager of any kind
+//
+   if (isManager) PingClock::Start();
+
 // Start the admin thread if we need to, we will not continue until told
 // to do so by the admin interface.
 //
@@ -660,6 +687,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    P_pag    = 0;
    AskPerf  = 10;         // Every 10 pings
    AskPing  = 60;         // Every  1 minute
+   PingTick = 0;
    MaxDelay = -1;
    LogPerf  = 10;         // Every 10 usage requests
    DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
@@ -2073,7 +2101,7 @@ int XrdCmsConfig::xping(XrdSysError *eDest, XrdOucStream &CFile)
     if (!(val = CFile.GetWord()))
        {eDest->Emsg("Config", "ping value not specified"); return 1;}
     if (XrdOuca2x::a2tm(*eDest, "ping interval",val,&ping,0)) return 1;
-
+    if (ping < 3) ping = 3;
 
     while((val = CFile.GetWord()))
         {     if (!strcmp("log", val))

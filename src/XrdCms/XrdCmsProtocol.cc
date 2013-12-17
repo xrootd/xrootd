@@ -790,7 +790,7 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
                                     : "server not responding");
    const char *myArgs, *myArgt;
    char        buff[8];
-   int         rc, toLeft = maxTries;
+   int         rc, toLeft = maxTries, lastPing = Config.PingTick;
 
 // Dispatch runs with the current thread bound to the link.
 //
@@ -801,9 +801,20 @@ const char *XrdCmsProtocol::Dispatch(Bearing cDir, int maxWait, int maxTries)
 do{if ((rc = Link->RecvAll((char *)&Data->Request, ReqSize, maxWait)) < 0)
       {if (rc != -ETIMEDOUT) return "request read failed";
        if (!toLeft--) return toRC;
-       if (cDir == isDown && Link->Send((char *)&Ping, sizeof(Ping)) < 0)
-          return "server unreachable";
+       if (cDir == isDown)
+          {if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
+              return "server unreachable";
+           lastPing = Config.PingTick;
+          }
        continue;
+      }
+
+// Check if we need to ping as non-response activity may cause ping misses
+//
+   if (cDir == isDown && lastPing != Config.PingTick)
+      {if (Link->Send((char *)&Ping, sizeof(Ping)) < 0)
+          return "server unreachable";
+       lastPing = Config.PingTick;
       }
 
 // Decode the length and get the rest of the data
