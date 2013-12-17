@@ -189,6 +189,8 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Prevent constant server disc/recon events when a manager is busy
+     doing non-response activity on behalf of the server.
    * Add a generic control method to the file/dir and system classes. OSS
      plugin writers need only to recompile as a default is provided.
    * Allow SendData() to send less than the amount of bytes requested.
