@@ -271,7 +271,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TES
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo  -DPERL_LIBRARY=$PERLPATH/libperl.so -DPERL_INCLUDE_PATH=$PERLPATH ..
 %endif
 
-make VERBOSE=1 %{?_smp_mflags}
+make -i VERBOSE=1 %{?_smp_mflags}
 cd ..
 doxygen Doxyfile
 
