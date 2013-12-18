@@ -140,7 +140,7 @@ namespace XrdCl
 
         if( ret.IsOK() )
         {
-          if( resp )
+          if( !resp )
             return XRootDStatus( stError, errInternal );
           resp->Get( response );
           resp->Set( (int *)0 );
