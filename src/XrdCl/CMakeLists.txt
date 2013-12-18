@@ -94,6 +94,7 @@ add_executable(
 
 target_link_libraries(
   xrdfs
+  pthread
   XrdCl
   ${READLINE_LIBRARY}
   ${NCURSES_LIBRARY} )
