@@ -30,7 +30,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
-
+#include "XrdSys/XrdSysUtils.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -1065,8 +1065,8 @@ namespace XrdCl
     std::string countryCode = Utils::FQDNToCC( hostName );
     free( hostName );
     char *cgiBuffer = new char[1024];
-    snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d", countryCode.c_str(),
-              timeZone );
+    snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s",
+              countryCode.c_str(), timeZone, XrdSysUtils::ExecName() );
     uint16_t cgiLen = strlen( cgiBuffer );
 
     //--------------------------------------------------------------------------
