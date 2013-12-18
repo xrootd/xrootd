@@ -1061,7 +1061,9 @@ namespace XrdCl
     // Compute the login cgi
     //--------------------------------------------------------------------------
     int timeZone = XrdSysTimer::TimeZone();
-    std::string countryCode = Utils::FQDNToCC( XrdNetUtils::MyHostName() );
+    char *hostName = XrdNetUtils::MyHostName();
+    std::string countryCode = Utils::FQDNToCC( hostName );
+    free( hostName );
     char *cgiBuffer = new char[1024];
     snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d", countryCode.c_str(),
               timeZone );
