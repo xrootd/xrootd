@@ -11,6 +11,7 @@ Version 3.3.6
 
 + **Minor bug fixes**
    * Prevent SEGV in redirect monitoring (issue #61)
+   * Set reasonable linux thread limit and warn it we cannot do so.
 
 + **Miscellaneous**
    * Support for C++11 (narrowing fixes, unique_ptr vs. auto_ptr)
