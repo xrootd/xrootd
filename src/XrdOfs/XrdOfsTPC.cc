@@ -96,7 +96,7 @@ int             Match(const XrdSecEntity *Who, const char *Host);
   
 int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 {
-   if (theHN &&  !Host        || !(theHN->NameOK(Host   ))) return 0;
+   if (theHN && (!Host        || !(theHN->NameOK(Host  )))) return 0;
    if (theDN && (!(Who->name) || strcmp(theDN, Who->name))) return 0;
    if (theVO && (!(Who->vorg) || strcmp(theDN, Who->vorg))) return 0;
    if (!theGN) return 1;

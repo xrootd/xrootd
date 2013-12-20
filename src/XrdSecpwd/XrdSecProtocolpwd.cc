@@ -1657,7 +1657,7 @@ void pwdOptions::Print(XrdOucTrace *t)
    POPTS(t, " Mode: "<< ((mode == 'c') ? "client" : "server"));
    POPTS(t, " Debug: "<< debug);
    if (mode == 'c') {
-      POPTS(t, " Check user's autologin info: " << (alog != 0) ? "yes" : "no");
+      POPTS(t, " Check user's autologin info: " << (alog != 0 ? "yes" : "no"));
       POPTS(t, " Verification level of server ownership on public key: " << verisrv);
       POPTS(t, " Max number of empty prompts:" << maxprompts);
       if (alogfile)
@@ -1666,7 +1666,7 @@ void pwdOptions::Print(XrdOucTrace *t)
          POPTS(t, " File with known servers public keys:" << srvpuk);
       POPTS(t, " Update auto-login info option:" << areg);
    } else {
-      POPTS(t, " Check pwd file in user's home: " << (upwd != 0) ? "yes" : "no");
+      POPTS(t, " Check pwd file in user's home: " << (upwd != 0 ? "yes" : "no"));
       POPTS(t, " Verification level of client ownership on public key: " << vericlnt);
       POPTS(t, " Autoregistration option:" << areg);
       POPTS(t, " Check system pwd file option: " << syspwd);
@@ -1680,7 +1680,7 @@ void pwdOptions::Print(XrdOucTrace *t)
          POPTS(t, " User's sub-directory with pwd files: " << udir);
       if (cpass)
          POPTS(t, " User's crypt hash pwd file: " << cpass);
-      POPTS(t, " Keep client credentials in memory: " << (keepcreds != 0) ? "yes" : "no");
+      POPTS(t, " Keep client credentials in memory: " << (keepcreds != 0 ? "yes" : "no"));
       if (expcreds) {
          POPTS(t, " File for exported client credentials: " << expcreds);
          POPTS(t, " Format for exported client credentials: " << expfmt);
@@ -1741,11 +1741,10 @@ char *XrdSecProtocolpwdInit(const char mode,
       // debug
       cenv = getenv("XrdSecDEBUG");
       if (cenv)
-         if (cenv[0] >= 49 && cenv[0] <= 51) {
-            opts.debug = atoi(cenv);
-         } else {
-            PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
-            opts.debug = 1;
+         {if (cenv[0] >= 49 && cenv[0] <= 51) opts.debug = atoi(cenv);
+             else {PRINT("unsupported debug value from env XrdSecDEBUG: "<<cenv<<" - setting to 1");
+                   opts.debug = 1;
+                  }
          }
 
       // server verification

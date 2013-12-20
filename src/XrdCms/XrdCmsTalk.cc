@@ -119,7 +119,7 @@ const char *XrdCmsTalk::Respond(XrdLink *Link, XrdCms::CmsRspCode rcode,
                                 char    *buff, int                blen)
 {
    static const unsigned short ovhd = sizeof(kXR_unt32);
-   CmsResponse Resp = {{0, rcode, 0,
+   CmsResponse Resp = {{0, (kXR_char)rcode, 0,
                         htons(static_cast<unsigned short>(blen+ovhd))}, 0};
    struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
                           {         buff, (size_t)blen}};

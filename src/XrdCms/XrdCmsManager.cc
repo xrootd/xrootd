@@ -167,7 +167,7 @@ void XrdCmsManager::Inform(const char *What, struct iovec *vP, int vN, int vT)
 void XrdCmsManager::Inform(XrdCms::CmsReqCode rCode, int rMod,
                                   const char *Arg,  int Alen)
 {
-    CmsRRHdr Hdr = {0, rCode, (kXR_char)rMod,
+    CmsRRHdr Hdr = {0, (kXR_char)rCode, (kXR_char)rMod,
                     htons(static_cast<unsigned short>(Alen))};
     struct iovec ioV[2] = {{(char *)&Hdr, sizeof(Hdr)},{(char *)Arg, (size_t)Alen}};
 
