@@ -1015,7 +1015,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Handle stateful response
   //----------------------------------------------------------------------------
-  void FileStateHandler::OnStateResponse( XRootDStatus *status,
+  void FileStateHandler::OnStateResponse( XRootDStatus */*status*/,
                                           Message      *message,
                                           AnyObject    *response,
                                           HostList     */*urlList*/ )
@@ -1152,7 +1152,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message to a host or put it in the recovery queue
   //----------------------------------------------------------------------------
-  Status FileStateHandler::SendOrQueue( const URL         &url,
+  Status FileStateHandler::SendOrQueue( const URL         &/*url*/,
                                         Message           *msg,
                                         ResponseHandler   *handler,
                                         MessageSendParams &sendParams )

@@ -72,6 +72,7 @@ namespace
                                      uint16_t      streamNum,
                                      XrdCl::Status status )
       {
+        (void)streamNum;
         if( event == Ready )
           return 0;
         pStatus = status;

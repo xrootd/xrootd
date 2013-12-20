@@ -57,6 +57,8 @@ namespace
                           void                      *cbArg,
                           int                        evFlags )
       {
+        (void)chP;
+        (void)cbArg;
         using namespace XrdCl;
         uint8_t ev      = 0;
 

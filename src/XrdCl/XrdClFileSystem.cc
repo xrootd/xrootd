@@ -793,6 +793,7 @@ namespace XrdCl
                                     ResponseHandler     *handler,
                                     uint16_t             timeout )
   {
+    (void)flags;
     Message           *msg;
     ClientStatRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );

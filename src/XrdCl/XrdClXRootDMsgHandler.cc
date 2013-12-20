@@ -626,6 +626,7 @@ namespace XrdCl
                                          int       socket,
                                          uint32_t &bytesRead )
   {
+    (void)msg;
     if( pReadVRawMsgOffset == pAsyncMsgSize )
       return Status( stOK, suDone );
 
@@ -815,6 +816,7 @@ namespace XrdCl
                                          int       socket,
                                          uint32_t &bytesRead )
   {
+    (void)msg;
     if( !pOtherRawStarted )
     {
       pAsyncOffset     = 0;
@@ -1564,6 +1566,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void XRootDMsgHandler::HandleError( Status status, Message *msg )
   {
+    (void)msg;
+
     //--------------------------------------------------------------------------
     // If there was no error then do nothing
     //--------------------------------------------------------------------------

@@ -212,10 +212,10 @@ namespace XrdCl
       //! Constructor
       //------------------------------------------------------------------------
       XRootDStatus( uint16_t           st      = 0,
-                    uint16_t           code    = 0,
+                    uint16_t           cod     = 0,
                     uint32_t           errN    = 0,
                     const std::string &message = "" ):
-        Status( st, code, errN ),
+        Status( st, cod, errN ),
         pMessage( message ) {}
 
       //------------------------------------------------------------------------
@@ -861,7 +861,11 @@ namespace XrdCl
       //!                 (request dependent)
       //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response ) {}
+                                   AnyObject    *response )
+      {
+        (void)status;
+        (void)response;
+      }
   };
 }
 
