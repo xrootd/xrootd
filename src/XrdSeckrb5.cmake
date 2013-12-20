@@ -25,6 +25,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_KRB5_VERSION}
   SOVERSION ${XRD_SEC_KRB5_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

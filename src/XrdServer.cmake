@@ -107,6 +107,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SERVER_VERSION}
   SOVERSION ${XRD_SERVER_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -156,6 +157,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_XROOTD_VERSION}
   SOVERSION ${XRD_XROOTD_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

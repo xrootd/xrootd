@@ -37,6 +37,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_GSI_VERSION}
   SOVERSION ${XRD_SEC_GSI_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -56,6 +57,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_GSI_GMAPLDAP_VERSION}
   SOVERSION ${XRD_SEC_GSI_GMAPLDAP_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -75,6 +77,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_GSI_AUTHZVO_VERSION}
   SOVERSION ${XRD_SEC_GSI_AUTHZVO_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
@@ -95,6 +98,7 @@ set_target_properties(
   PROPERTIES
   VERSION   ${XRD_SEC_GSI_GMAPDN_VERSION}
   SOVERSION ${XRD_SEC_GSI_GMAPDN_SOVERSION}
+  INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------

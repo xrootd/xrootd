@@ -23,7 +23,6 @@
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include <memory>
 
 namespace XrdCl
 {
@@ -134,19 +133,22 @@ namespace XrdCl
       {
         handler->WaitForResponse();
 
-        std::auto_ptr<AnyObject> resp( handler->GetResponse() );
+        AnyObject    *resp   = handler->GetResponse();
         XRootDStatus *status = handler->GetStatus();
         XRootDStatus ret( *status );
         delete status;
 
         if( ret.IsOK() )
         {
-          if( !resp.get() )
+          if( !resp )
             return XRootDStatus( stError, errInternal );
           resp->Get( response );
           resp->Set( (int *)0 );
           if( !response )
+          {
+            delete resp;
             return XRootDStatus( stError, errInternal );
+          }
         }
 
         return ret;

@@ -26,6 +26,7 @@
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdCks/XrdCksCalccrc32.hh"
 #include "XrdCks/XrdCksCalcadler32.hh"
+#include "XrdCl/XrdClUglyHacks.hh"
 #include "XrdVersion.hh"
 
 #include <sys/types.h>
@@ -108,7 +109,7 @@ namespace XrdCl
                   algName.c_str() );
       return false;
     }
-    std::auto_ptr<XrdCksCalc> calcPtr( calc );
+    XRDCL_SMART_PTR_T<XrdCksCalc> calcPtr( calc );
 
     //--------------------------------------------------------------------------
     // Open the file

@@ -6,6 +6,17 @@ Release Notes
 =============
 
 -------------
+Version 3.3.6
+-------------
+
++ **Minor bug fixes**
+   * Prevent SEGV in redirect monitoring (issue #61)
+
++ **Miscellaneous**
+   * Support for C++11 (narrowing fixes, unique_ptr vs. auto_ptr)
+   * Support for CMake 2.8.12 (interface link libraries)
+
+-------------
 Version 3.3.5
 -------------
 
@@ -19,7 +30,6 @@ Version 3.3.5
    * Add a sysconfig template to preload custom allocators in order to fix
      memory issues on RHEL6
    * Allow up to 63 characters for a site name
-
 
 -------------
 Version 3.3.4
