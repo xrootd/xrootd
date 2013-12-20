@@ -13,6 +13,7 @@ add_library(
 target_link_libraries(
   XrdClTestsHelper
   pthread
+  XrdUtils
   ${CPPUNIT_LIBRARIES}
   ${ZLIB_LIBRARY}
   XrdCl )
