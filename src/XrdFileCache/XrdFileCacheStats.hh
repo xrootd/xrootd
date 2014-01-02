@@ -5,7 +5,7 @@
 
 namespace XrdFileCache
 {
-class CacheStats : public XrdOucCacheStats
+class Stats : public XrdOucCacheStats
 {
 public:
     long long    BytesCachedPrefetch;
@@ -15,7 +15,7 @@ public:
     int          HitsDisk;
     time_t       AppendTime;
 
-    inline void AddStat(CacheStats &Src)
+    inline void AddStat(Stats &Src)
     {
         XrdOucCacheStats::Add(Src);
 
@@ -30,7 +30,7 @@ public:
         // sMutex1.UnLock();
     }
 
-    CacheStats() :
+    Stats() :
         BytesCachedPrefetch(0), 
         BytesPrefetch(0),
         BytesDisk(0),

@@ -11,7 +11,7 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class CacheStats;
+class Stats;
 
 class Info
 {
@@ -25,7 +25,7 @@ public:
 
    int Read(XrdOssDF* fp);
    void  WriteHeader(XrdOssDF* fp);
-   void AppendIOStat(const CacheStats* stat, XrdOssDF* fp);
+   void AppendIOStat(const Stats* stat, XrdOssDF* fp);
 
    bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 

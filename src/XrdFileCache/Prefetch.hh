@@ -13,7 +13,7 @@
 #include <XrdOuc/XrdOucCache.hh>
 
 #include "XrdFileCacheInfo.hh"
-#include "CacheStats.hh"
+#include "XrdFileCacheStats.hh"
 
 class XrdClient;
 namespace XrdFileCache
@@ -49,7 +49,7 @@ public:
 
     bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
 
-    CacheStats& GetStats() { return m_stats; }
+    Stats& GetStats() { return m_stats; }
 
 protected:
     ssize_t Read(char * buff, off_t offset, size_t size);
@@ -91,7 +91,7 @@ private:
     XrdSysMutex   m_downloadStatusMutex;
     XrdSysMutex   m_quequeMutex;
 
-    CacheStats m_stats;
+    Stats m_stats;
 };
 
 }

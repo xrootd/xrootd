@@ -1,7 +1,7 @@
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
 #include "Log.hh"
-#include "CacheStats.hh"
+#include "XrdFileCacheStats.hh"
 #include <sys/file.h>
 
 
@@ -97,7 +97,7 @@ void  Info::WriteHeader(XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-void  Info::AppendIOStat(const CacheStats* caches, XrdOssDF* fp)
+void  Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
    // m_writeMutex.Lock();
 

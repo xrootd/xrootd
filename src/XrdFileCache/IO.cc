@@ -1,7 +1,7 @@
 #include "IO.hh"
 #include "Log.hh"
 #include "Factory.hh"
-#include "CacheStats.hh"
+#include "XrdFileCacheStats.hh"
 
 #include <stdio.h>
 #include <fcntl.h>

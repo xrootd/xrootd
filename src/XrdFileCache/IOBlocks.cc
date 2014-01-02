@@ -1,7 +1,7 @@
 #include "IOBlocks.hh"
 #include "XrdFileCache.hh"
 #include "Log.hh"
-#include "CacheStats.hh"
+#include "XrdFileCacheStats.hh"
 #include "Factory.hh"
 
 #include <math.h>
@@ -105,7 +105,7 @@ IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, 
 int
 IOBlocks::Read (char *buff, long long off, int size)
 {
-    CacheStats stat_tmp; // AMT todo ...
+    Stats stat_tmp; // AMT todo ...
 
     long long off0 = off;
     int idx_first = off0/m_blockSize;
