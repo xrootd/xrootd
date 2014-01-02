@@ -2,7 +2,7 @@
 #include "XrdFileCache.hh"
 #include "Log.hh"
 #include "XrdFileCacheStats.hh"
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 
 #include <math.h>
 #include <sstream>

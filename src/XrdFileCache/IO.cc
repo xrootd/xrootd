@@ -1,6 +1,6 @@
 #include "IO.hh"
 #include "Log.hh"
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheStats.hh"
 
 #include <stdio.h>

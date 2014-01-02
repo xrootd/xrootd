@@ -20,7 +20,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 
 #include "XrdFileCache.hh"
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 #include "Prefetch.hh"
 #include "Decision.hh"
 #include "Log.hh"

@@ -5,7 +5,7 @@
 #include <fcntl.h>
 
 #include "Prefetch.hh"
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
 #include "Log.hh"
 

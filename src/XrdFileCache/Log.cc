@@ -11,7 +11,7 @@
 #include "XrdVersion.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 
 namespace XrdFileCache
 {

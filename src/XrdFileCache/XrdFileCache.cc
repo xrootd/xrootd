@@ -10,7 +10,7 @@
 
 #include "IO.hh"
 #include "IOBlocks.hh"
-#include "Factory.hh"
+#include "XrdFileCacheFactory.hh"
 #include "Prefetch.hh"
 #include "Log.hh"
 
