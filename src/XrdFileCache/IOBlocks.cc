@@ -1,9 +1,8 @@
 #include "IOBlocks.hh"
 #include "Cache.hh"
-#include "Prefetch.hh"
 #include "Context.hh"
-#include "FileBlock.hh"
 #include "CacheStats.hh"
+#include "Factory.hh"
 
 #include <math.h>
 #include <sstream>
@@ -13,10 +12,20 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 int s_blocksize = 1048576*128; // 128M 
 
 using namespace XrdFileCache;
+
+void *
+PrefetchRunnerBl(void * prefetch_void)
+{
+    Prefetch *prefetch = static_cast<Prefetch*>(prefetch_void);
+    prefetch->Run();
+    return NULL;
+}
+
 
 IOBlocks::IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
     : m_io(io),
@@ -37,7 +46,7 @@ IOBlocks::Detach()
     for (BlockMap_t::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
     {
         m_statsGlobal.Add(it->second->m_prefetch->GetStats());
-        delete it->second;
+        delete it->second->m_prefetch;
     }
 
     m_cache.Detach(this); // This will delete us!
@@ -62,13 +71,36 @@ void IOBlocks::GetBlockSizeFromPath()
             m_blockSize = atoi(bs.c_str());
         }
 	else {
-	  m_blockSize = atoi(path.substr(pos1).c_str());
+            m_blockSize = atoi(path.substr(pos1).c_str());
 	}
 
         aMsg(kDebug, "IOBlocks::READ ===> BLOCKSIZE [%d].", m_blockSize);
     }
-    }
+}
 
+#include "IO.hh" // AMT !!
+IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
+{
+    FileBlock* fb = new FileBlock(off, io);
+
+
+    XrdOucEnv myEnv;
+    std::string fname;
+    IO::getFilePathFromURL(io->Path(), fname);
+    std::stringstream ss;
+    ss << Factory::GetInstance().GetTempDirectory() << fname;
+    char offExt[64];
+    sprintf(&offExt[0],"_%lld", off );
+    ss << &offExt[0];
+    fname = ss.str();
+
+    aMsgIO(kDebug, io, "FileBlock::FileBlock(), create Prefetch.");
+    fb->m_prefetch = new Prefetch(*io, fname, off, blocksize);
+    pthread_t tid;
+    XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "XrdHdfsCache Prefetcher");
+
+    return fb;
+}
 
 int
 IOBlocks::Read (char *buff, long long off, int size)
@@ -101,7 +133,8 @@ IOBlocks::Read (char *buff, long long off, int size)
                 pbs =  m_io.FSize() - blockIdx*m_blockSize;
                 aMsgIO(kDebug, &m_io , "IOBlocks::Read() last block, change output file size to %lld \n", pbs);
             }
-            fb = new FileBlock(blockIdx*m_blockSize, pbs, &m_io);
+            //            fb = new FileBlock(blockIdx*m_blockSize, pbs, &m_io);
+            fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
             m_blocks.insert(std::pair<int,FileBlock*>(blockIdx, (FileBlock*) fb));
         }
         m_mutex.UnLock();
@@ -136,7 +169,7 @@ IOBlocks::Read (char *buff, long long off, int size)
         long long max = min + m_blockSize;
         assert ( off >= min);
         assert(off+readBlockSize <= max);
-        int retvalBlock = fb->Read(buff, off, readBlockSize);
+        int retvalBlock = fb->m_prefetch->Read(buff , off - fb->m_offset0, size);
 
         aMsgIO(kDebug, &m_io,  "IOBlocks::Read()  Block read returned %d", retvalBlock );
         if (retvalBlock >=0 )

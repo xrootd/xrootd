@@ -14,9 +14,8 @@
 #include <XrdOuc/XrdOucCache.hh>
 #include "XrdSys/XrdSysPthread.hh"
 
-// #include "XrdHdfsCacheFwd.hh"
-#include "FileBlock.hh"
 #include "Cache.hh"
+#include "Prefetch.hh"
 
 #include <map>
 #include <string>
@@ -30,6 +29,17 @@ namespace XrdFileCache
 
 class IOBlocks : public XrdOucCacheIO
 {
+private:
+    struct FileBlock {
+
+        FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
+
+        // XrdOssDF* m_diskDF;
+        Prefetch* m_prefetch;
+        long long m_offset0;
+        //   XrdOucCacheIO* m_io;
+    };
+
 public:
     IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
     ~IOBlocks() {}
@@ -60,13 +70,15 @@ public:
     int Read (XrdOucCacheStats &Now, char *Buffer, long long Offs, int Length);
 
 private:
+    FileBlock* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
+
     XrdOucCacheIO & m_io;
     XrdOucCacheStats & m_statsGlobal;
     Cache& m_cache;
 
    long long  m_blockSize;
 
-   typedef  std::map<int, XrdFileCache::FileBlock*> BlockMap_t;
+   typedef  std::map<int, FileBlock*> BlockMap_t;
     BlockMap_t m_blocks;
 
     void  GetBlockSizeFromPath();
