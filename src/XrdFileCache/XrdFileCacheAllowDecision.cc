@@ -1,5 +1,5 @@
 
-#include "Decision.hh"
+#include "XrdFileCacheDecision.hh"
 
 #include "XrdSys/XrdSysError.hh"
 
