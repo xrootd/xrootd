@@ -1,0 +1,10 @@
+CMakeCache.txt
+CMakeFiles
+Makefile
+src/Makefile
+src/*.so
+cmake_install.cmake
+src/cmake_install.cmake
+test/xrdfragcp/Makefile
+test/xrdfragcp/xrdfragcp
+test/xrdfragcp/xrdreadv

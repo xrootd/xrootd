@@ -1,0 +1,25 @@
+
+xrd.port 1094
+all.role server
+
+all.export /store
+
+# Comment this out once you are ready to allow others to connect
+# to your proxy.
+xrootd.allow localhost
+
+xrootd.trace emsg login stall redirect
+xrd.trace debug
+ofs.trace debug
+
+#oss.defaults forcero
+
+xrootd.seclib @LIBDIR@/libXrdSec.so
+xrootd.fslib @LIBDIR@/libXrdOfs.so
+all.adminpath /var/run/xrootd
+
+ofs.osslib libXrdPss.so
+pss.origin xrootd.unl.edu:1094
+pss.setopt DebugLevel 0
+pss.cachelib @LIBDIR@/libXrdFileCache.so
+
