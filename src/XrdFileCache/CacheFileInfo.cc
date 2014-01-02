@@ -1,5 +1,5 @@
 #include "CacheFileInfo.hh"
-#include "Cache.hh"
+#include "XrdFileCache.hh"
 #include "Log.hh"
 #include "CacheStats.hh"
 #include <sys/file.h>

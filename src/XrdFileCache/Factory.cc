@@ -19,7 +19,7 @@
 #include "XrdPosix/XrdPosixXrootd.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
-#include "Cache.hh"
+#include "XrdFileCache.hh"
 #include "Factory.hh"
 #include "Prefetch.hh"
 #include "Decision.hh"

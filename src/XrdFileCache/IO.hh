@@ -16,7 +16,7 @@
 #include <string>
 
 #include "Prefetch.hh"
-#include "Cache.hh"
+#include "XrdFileCache.hh"
 
 class XrdSysError;
 class XrdOssDF;

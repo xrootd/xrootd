@@ -1,4 +1,4 @@
-#include "Cache.hh"
+#include "XrdFileCache.hh"
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
@@ -10,7 +10,6 @@
 
 #include "IO.hh"
 #include "IOBlocks.hh"
-#include "Cache.hh"
 #include "Factory.hh"
 #include "Prefetch.hh"
 #include "Log.hh"

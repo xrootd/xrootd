@@ -12,7 +12,7 @@ set( XRD_FILE_CACHE_SOVERSION 1 )
 add_library(
   XrdFileCache
   SHARED
-  XrdFileCache/Cache.cc              XrdFileCache/Cache.hh
+  XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
   XrdFileCache/Factory.cc            XrdFileCache/Factory.hh
   XrdFileCache/CacheStats.cc         XrdFileCache/CacheStats.hh
   XrdFileCache/CacheFileInfo.cc      XrdFileCache/CacheFileInfo.hh
