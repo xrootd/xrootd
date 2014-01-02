@@ -20,6 +20,12 @@ XrdFileCache::Cache *XrdFileCache::Cache::m_cache = NULL;
 XrdSysMutex XrdFileCache::Cache::m_cache_mutex;
 
 
+const char* InfoExt = ".cinfo";
+const int InfoExtLen = int(strlen(InfoExt));
+const bool IODisablePrefetch = false;
+const long long PrefetchDefaultBufferSize = 1024*1024;
+
+
 using namespace XrdFileCache;
 
 Cache::Cache(XrdOucCacheStats & stats)

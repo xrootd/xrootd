@@ -15,6 +15,11 @@
 namespace XrdFileCache
 {
 
+extern const char* InfoExt;
+extern const int InfoExtLen;
+extern const bool IODisablePrefetch;
+extern const long long PrefetchDefaultBufferSize;
+
 class Cache : public XrdOucCache
 {
 

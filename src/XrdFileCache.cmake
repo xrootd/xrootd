@@ -18,7 +18,7 @@ add_library(
   XrdFileCache/CacheFileInfo.cc      XrdFileCache/CacheFileInfo.hh
   XrdFileCache/IO.cc                 XrdFileCache/IO.hh
   XrdFileCache/IOBlocks.cc           XrdFileCache/IOBlocks.hh
-  XrdFileCache/Context.cc            XrdFileCache/Context.hh )
+  XrdFileCache/Log.cc                XrdFileCache/Log.hh )
 
 target_link_libraries(
   XrdFileCache

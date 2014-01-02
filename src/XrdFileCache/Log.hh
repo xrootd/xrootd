@@ -13,8 +13,6 @@ class XrdOucCacheIO;
 #define aMsgIO(level, io, format, ...) \
    if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ##__VA_ARGS__)
 
-
-
 namespace  XrdFileCache
 { 
 enum LogLevel {
@@ -26,10 +24,6 @@ enum LogLevel {
 };
 
 extern LogLevel Dbg;
-extern const char* InfoExt;
-extern const int InfoExtLen;
-extern const bool IODisablePrefetch;
-extern const long long PrefetchDefaultBufferSize;
 
 const char* levelName(LogLevel);
 void strprintf(LogLevel level, const char* fmt, ...);
