@@ -78,7 +78,7 @@ void IOBlocks::GetBlockSizeFromPath()
     }
 }
 
-#include "IO.hh" // AMT !!
+#include "XrdFileCacheIOEntire.hh" // AMT !!
 IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 {
     FileBlock* fb = new FileBlock(off, io);
@@ -86,7 +86,7 @@ IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, 
 
     XrdOucEnv myEnv;
     std::string fname;
-    IO::getFilePathFromURL(io->Path(), fname);
+    IOEntire::getFilePathFromURL(io->Path(), fname);
     std::stringstream ss;
     ss << Factory::GetInstance().GetTempDirectory() << fname;
     char offExt[64];

@@ -23,7 +23,7 @@ extern const long long PrefetchDefaultBufferSize;
 class Cache : public XrdOucCache
 {
 
-    friend class IO;
+    friend class IOEntire;
     friend class IOBlocks;
     friend class Factory;
 

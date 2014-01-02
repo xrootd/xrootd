@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHEIO_HH__
-#define __XRDFILECACHEIO_HH__
+#ifndef __XRDFILECACHEIOEntire_HH__
+#define __XRDFILECACHEIOEntire_HH__
 /******************************************************************************/
 /*                                                                            */
 /* (c) 2012 University of Nebraska-Lincoln                                    */
@@ -8,7 +8,7 @@
 /******************************************************************************/
 
 /*
- * The XrdFileCacheIO object is used as a proxy for the original source
+ * The XrdFileCacheIOEntire object is used as a proxy for the original source
  */
 
 #include <XrdOuc/XrdOucCache.hh>
@@ -27,7 +27,7 @@ namespace XrdFileCache
 {
 
 
-class IO : public XrdOucCacheIO
+class IOEntire : public XrdOucCacheIO
 {
     friend class Cache;
 
@@ -47,7 +47,7 @@ public:
     int Read (char  *Buffer, long long Offset, int Length);
 
 #if defined(HAVE_READV)
-    virtual int  ReadV (const XrdOucIOVec *readV, int n);
+    virtual int  ReadV (const XrdOucIOEntireVec *readV, int n);
 
 #endif
 
@@ -62,10 +62,10 @@ public:
   static bool getFilePathFromURL(const char* url, std::string& res);
 
 protected:
-    IO(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+    IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
 
 private:
-   ~IO();
+   ~IOEntire();
  
     XrdOucCacheIO & m_io;
     XrdOucCacheStats & m_statsGlobal;

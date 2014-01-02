@@ -1,4 +1,4 @@
-#include "IO.hh"
+#include "XrdFileCacheIOEntire.hh"
 #include "Log.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheStats.hh"
@@ -29,7 +29,7 @@ PrefetchRunner(void * prefetch_void)
 //______________________________________________________________________________
 
 
-IO::IO(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
     : m_io(io),
       m_statsGlobal(stats),
       m_cache(cache)
@@ -46,12 +46,12 @@ IO::IO(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
     
 }
 
-IO::~IO() 
+IOEntire::~IOEntire() 
 {
 }
 
 XrdOucCacheIO *
-IO::Detach()
+IOEntire::Detach()
 {
     m_statsGlobal.Add(m_prefetch->GetStats());
     //  aMsgIO(kInfo, &m_io, "IO::Detach() [%p] bPrefCh[%lld] bPref[%lld] bDisk[%lld] bMiss[%lld]", this,
@@ -71,7 +71,7 @@ IO::Detach()
  * Read from the cache; prefer to read from the Prefetch object, if possible.
  */
 int
-IO::Read (char *buff, long long off, int size)
+IOEntire::Read (char *buff, long long off, int size)
 {
    aMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
 
@@ -114,13 +114,13 @@ IO::Read (char *buff, long long off, int size)
  */
 #if defined(HAVE_READV)
 int
-IO::ReadV (const XrdOucIOVec *readV, int n)
+IOEntire::ReadV (const XrdOucIOVec *readV, int n)
 {
    aMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
    /*
    ssize_t bytes_read = 0;
    size_t missing = 0;
-   XrdOucIOVec missingReadV[READV_MAXCHUNKS];
+   XrdOucIOEntireVec missingReadV[READV_MAXCHUNKS];
    for (size_t i=0; i<n; i++)
    {
       XrdSfsXferSize size = readV[i].size;
@@ -156,7 +156,7 @@ IO::ReadV (const XrdOucIOVec *readV, int n)
 
 
 bool
-IO::getFilePathFromURL(const char* url, std::string &result)
+IOEntire::getFilePathFromURL(const char* url, std::string &result)
 {
     std::string path = url;
     size_t split_loc = path.rfind("//");

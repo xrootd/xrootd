@@ -26,7 +26,6 @@ class Cache;
 
 class Factory : public XrdOucCache
 {
-    friend class IO;
 
 public:
     Factory();

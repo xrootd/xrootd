@@ -20,7 +20,7 @@ namespace XrdFileCache
 {
 class Prefetch {
 
-    friend class IO;
+    friend class IOEntire;
     friend class IOBlocks;
 
     struct Task {

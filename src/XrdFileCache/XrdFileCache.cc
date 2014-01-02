@@ -8,7 +8,7 @@
 #include <sstream>
 
 
-#include "IO.hh"
+#include "XrdFileCacheIOEntire.hh"
 #include "IOBlocks.hh"
 #include "XrdFileCacheFactory.hh"
 #include "Prefetch.hh"
@@ -44,7 +44,7 @@ Cache::Attach(XrdOucCacheIO *io, int Options)
         if (Factory::GetInstance().PrefetchFileBlocks())
             return new IOBlocks(*io, m_stats, *this);
         else 
-            return new IO(*io, m_stats, *this);
+            return new IOEntire(*io, m_stats, *this);
     }
     else
     {
