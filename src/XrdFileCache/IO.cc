@@ -1,5 +1,5 @@
 #include "IO.hh"
-#include "Context.hh"
+#include "Log.hh"
 #include "Factory.hh"
 #include "CacheStats.hh"
 

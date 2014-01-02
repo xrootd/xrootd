@@ -13,7 +13,7 @@
 #include "Cache.hh"
 #include "Factory.hh"
 #include "Prefetch.hh"
-#include "Context.hh"
+#include "Log.hh"
 
 
 XrdFileCache::Cache *XrdFileCache::Cache::m_cache = NULL;

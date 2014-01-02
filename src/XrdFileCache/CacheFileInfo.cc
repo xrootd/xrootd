@@ -1,5 +1,6 @@
 #include "CacheFileInfo.hh"
-#include "Context.hh"
+#include "Cache.hh"
+#include "Log.hh"
 #include "CacheStats.hh"
 #include <sys/file.h>
 

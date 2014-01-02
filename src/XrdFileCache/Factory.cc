@@ -23,7 +23,7 @@
 #include "Factory.hh"
 #include "Prefetch.hh"
 #include "Decision.hh"
-#include "Context.hh"
+#include "Log.hh"
 
 
 using namespace XrdFileCache;

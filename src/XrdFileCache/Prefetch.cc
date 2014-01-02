@@ -7,7 +7,7 @@
 #include "Prefetch.hh"
 #include "Factory.hh"
 #include "Cache.hh"
-#include "Context.hh"
+#include "Log.hh"
 
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>

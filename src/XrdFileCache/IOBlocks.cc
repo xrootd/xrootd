@@ -1,6 +1,6 @@
 #include "IOBlocks.hh"
 #include "Cache.hh"
-#include "Context.hh"
+#include "Log.hh"
 #include "CacheStats.hh"
 #include "Factory.hh"
 
