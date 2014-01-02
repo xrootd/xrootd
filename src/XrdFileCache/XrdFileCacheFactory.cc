@@ -21,7 +21,7 @@
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheFactory.hh"
-#include "Prefetch.hh"
+#include "XrdFileCachePrefetch.hh"
 #include "Decision.hh"
 #include "XrdFileCacheLog.hh"
 

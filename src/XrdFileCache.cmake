@@ -14,6 +14,7 @@ add_library(
   SHARED
   XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
   XrdFileCache/XrdFileCacheFactory.cc            XrdFileCache/XrdFileCacheFactory.hh
+  XrdFileCache/XrdFileCachePrefetch.cc            XrdFileCache/XrdFileCachePrefetch.hh
   XrdFileCache/XrdFileCacheStats.cc         XrdFileCache/XrdFileCacheStats.hh
   XrdFileCache/XrdFileCacheInfo.cc      XrdFileCache/XrdFileCacheInfo.hh
   XrdFileCache/XrdFileCacheIOEntire.cc                 XrdFileCache/XrdFileCacheIOEntire.hh

@@ -94,7 +94,7 @@ IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, 
     ss << &offExt[0];
     fname = ss.str();
 
-    aMsgIO(kDebug, io, "FileBlock::FileBlock(), create Prefetch.");
+    aMsgIO(kDebug, io, "FileBlock::FileBlock(), create XrdFileCachePrefetch.");
     fb->m_prefetch = new Prefetch(*io, fname, off, blocksize);
     pthread_t tid;
     XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "XrdHdfsCache Prefetcher");

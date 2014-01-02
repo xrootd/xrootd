@@ -15,7 +15,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCache.hh"
-#include "Prefetch.hh"
+#include "XrdFileCachePrefetch.hh"
 
 #include <map>
 #include <string>

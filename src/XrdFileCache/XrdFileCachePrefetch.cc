@@ -4,7 +4,7 @@
 #include <sstream>
 #include <fcntl.h>
 
-#include "Prefetch.hh"
+#include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheLog.hh"

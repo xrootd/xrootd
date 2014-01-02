@@ -15,7 +15,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include <string>
 
-#include "Prefetch.hh"
+#include "XrdFileCachePrefetch.hh"
 #include "XrdFileCache.hh"
 
 class XrdSysError;

@@ -11,7 +11,7 @@
 #include "XrdFileCacheIOEntire.hh"
 #include "XrdFileCacheIOBlock.hh"
 #include "XrdFileCacheFactory.hh"
-#include "Prefetch.hh"
+#include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheLog.hh"
 
 
