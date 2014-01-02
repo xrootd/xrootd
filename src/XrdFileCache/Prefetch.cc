@@ -7,7 +7,7 @@
 #include "Prefetch.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCache.hh"
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClXRootDResponses.hh>

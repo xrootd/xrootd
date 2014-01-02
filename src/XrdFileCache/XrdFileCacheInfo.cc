@@ -1,6 +1,6 @@
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"
 #include <sys/file.h>
 

@@ -1,5 +1,5 @@
 #include "XrdFileCacheStats.hh"
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 
 using namespace XrdFileCache;
 

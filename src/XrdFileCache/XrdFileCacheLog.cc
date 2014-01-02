@@ -1,4 +1,4 @@
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 #include <stdarg.h>
 #include "XrdSys/XrdSysError.hh"
 #include "XrdOuc/XrdOucCache.hh"

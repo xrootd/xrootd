@@ -1,5 +1,5 @@
 #include "XrdFileCacheIOEntire.hh"
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheStats.hh"
 

@@ -12,7 +12,7 @@
 #include "XrdFileCacheIOBlock.hh"
 #include "XrdFileCacheFactory.hh"
 #include "Prefetch.hh"
-#include "Log.hh"
+#include "XrdFileCacheLog.hh"
 
 
 XrdFileCache::Cache *XrdFileCache::Cache::m_cache = NULL;
