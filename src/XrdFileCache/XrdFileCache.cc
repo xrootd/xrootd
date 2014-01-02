@@ -9,7 +9,7 @@
 
 
 #include "XrdFileCacheIOEntire.hh"
-#include "IOBlocks.hh"
+#include "XrdFileCacheIOBlock.hh"
 #include "XrdFileCacheFactory.hh"
 #include "Prefetch.hh"
 #include "Log.hh"

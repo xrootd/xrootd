@@ -1,4 +1,4 @@
-#include "IOBlocks.hh"
+#include "XrdFileCacheIOBlock.hh"
 #include "XrdFileCache.hh"
 #include "Log.hh"
 #include "XrdFileCacheStats.hh"
