@@ -13,11 +13,11 @@ namespace XrdFileCache
 {
 class CacheStats;
 
-class CacheFileInfo
+class Info
 {
 public:
-   CacheFileInfo();
-   ~CacheFileInfo();
+   Info();
+   ~Info();
 
    void setBit(int i);
    void resizeBits(int s);
@@ -67,7 +67,7 @@ private:
   XrdSysMutex  m_writeMutex;
 };
 
-inline bool  CacheFileInfo::testBit(int i) const
+inline bool  Info::testBit(int i) const
 {
    int cn = i/8;
    assert(cn < getSizeInBytes());
@@ -76,22 +76,22 @@ inline bool  CacheFileInfo::testBit(int i) const
    return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
 }
 
-inline int CacheFileInfo::getSizeInBytes() const
+inline int Info::getSizeInBytes() const
 {
    return ((m_sizeInBits -1)/8 + 1);
 }
 
-inline int CacheFileInfo::getSizeInBits() const
+inline int Info::getSizeInBits() const
 {
    return m_sizeInBits;
 }
 
-inline bool CacheFileInfo::isComplete() const
+inline bool Info::isComplete() const
 {
    return m_complete;
 }
 
-inline bool CacheFileInfo::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
+inline bool Info::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
 {
    for (int i = firstIdx; i <= lastIdx; ++i)
       if(! testBit(i)) return true;
@@ -99,12 +99,12 @@ inline bool CacheFileInfo::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
    return false;
 }
 
-inline void CacheFileInfo::checkComplete()
+inline void Info::checkComplete()
 {
    m_complete = !isAnythingEmptyInRng(0, m_sizeInBits-1);
 }
 
-inline void CacheFileInfo::setBit(int i)
+inline void Info::setBit(int i)
 {
    int cn = i/8;
    assert(cn < getSizeInBytes());
@@ -113,7 +113,7 @@ inline void CacheFileInfo::setBit(int i)
    m_buff[cn] |= cfiBIT(off);
 }
 
-inline long long CacheFileInfo::getBufferSize() const
+inline long long Info::getBufferSize() const
 {
    return m_bufferSize;
 }

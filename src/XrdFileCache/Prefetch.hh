@@ -12,7 +12,7 @@
 #include <XrdOss/XrdOss.hh>
 #include <XrdOuc/XrdOucCache.hh>
 
-#include "CacheFileInfo.hh"
+#include "XrdFileCacheInfo.hh"
 #include "CacheStats.hh"
 
 class XrdClient;
@@ -73,7 +73,7 @@ private:
    //   XrdOss  &m_output_fs;
     XrdOssDF *m_output;
     XrdOssDF *m_infoFile;
-    CacheFileInfo m_cfi;
+    Info m_cfi;
     XrdOucCacheIO & m_input;
     std::string     m_temp_filename;
     long long m_offset;

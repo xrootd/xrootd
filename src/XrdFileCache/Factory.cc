@@ -422,7 +422,7 @@ FillFileMapRecurse( XrdOssDF* df, std::string& path, std::map<std::string, time_
          if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], InfoExt , InfoExtLen) == 0)
          {
             fh->Open((np).c_str(),O_RDONLY, 0600, env);
-            CacheFileInfo cinfo;
+            Info cinfo;
             time_t accessTime;
             cinfo.Read(fh.get());
             if (cinfo.getLatestAttachTime(accessTime, fh.get()))

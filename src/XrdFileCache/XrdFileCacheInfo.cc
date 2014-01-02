@@ -1,4 +1,4 @@
-#include "CacheFileInfo.hh"
+#include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
 #include "Log.hh"
 #include "CacheStats.hh"
@@ -18,7 +18,7 @@
 using namespace XrdFileCache;
 
 
-CacheFileInfo::CacheFileInfo():
+Info::Info():
    m_bufferSize(PrefetchDefaultBufferSize),
    m_sizeInBits(0), m_buff(0), 
    m_accessCnt(0), 
@@ -26,14 +26,14 @@ CacheFileInfo::CacheFileInfo():
 {
 }
 
-CacheFileInfo::~CacheFileInfo() {
+Info::~Info() {
    if (m_buff) delete [] m_buff;
 }
 
 //______________________________________________________________________________
 
 
-void  CacheFileInfo::resizeBits(int s)
+void  Info::resizeBits(int s)
 {
    m_sizeInBits = s;
    m_buff = (char*)malloc(getSizeInBytes());
@@ -43,7 +43,7 @@ void  CacheFileInfo::resizeBits(int s)
 //______________________________________________________________________________
 
 
-int CacheFileInfo::Read(XrdOssDF* fp)
+int Info::Read(XrdOssDF* fp)
 {
     // does not need lock, called only in Prefetch::Open
     // before Prefetch::Run() starts
@@ -69,13 +69,13 @@ int CacheFileInfo::Read(XrdOssDF* fp)
 //______________________________________________________________________________
 
 
-int CacheFileInfo::getHeaderSize() const
+int Info::getHeaderSize() const
 {
    return  sizeof(long long) + sizeof(int) + getSizeInBytes();
 }
 
 //______________________________________________________________________________
-void  CacheFileInfo::WriteHeader(XrdOssDF* fp)
+void  Info::WriteHeader(XrdOssDF* fp)
 {
    // m_writeMutex.Lock();
    int fl = flock(fp->getFD(),  LOCK_EX);
@@ -97,7 +97,7 @@ void  CacheFileInfo::WriteHeader(XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-void  CacheFileInfo::AppendIOStat(const CacheStats* caches, XrdOssDF* fp)
+void  Info::AppendIOStat(const CacheStats* caches, XrdOssDF* fp)
 {
    // m_writeMutex.Lock();
 
@@ -130,11 +130,11 @@ void  CacheFileInfo::AppendIOStat(const CacheStats* caches, XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-bool  CacheFileInfo::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
+bool  Info::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
 {
    bool res = false;
    int fl = flock(fp->getFD(),  LOCK_SH);
-   if (fl) aMsg(kError,"CacheFileInfo::getLatestAttachTime() lock failed \n");
+   if (fl) aMsg(kError,"Info::getLatestAttachTime() lock failed \n");
    if (m_accessCnt) {
       AStat stat;
       long long off = getHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
@@ -146,19 +146,19 @@ bool  CacheFileInfo::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
       }
       else
       {
-         aMsg(kError, " CacheFileInfo::getLatestAttachTime() can't get latest access stat. read bytes = %d", res);
+         aMsg(kError, " Info::getLatestAttachTime() can't get latest access stat. read bytes = %d", res);
       }
    }
 
    int fu = flock(fp->getFD(),  LOCK_UN);
-   if (fu) aMsg(kError,"CacheFileInfo::getLatestAttachTime() lock failed \n");
+   if (fu) aMsg(kError,"Info::getLatestAttachTime() lock failed \n");
    return res;
 }
 
 //______________________________________________________________________________
 
 
-void  CacheFileInfo::print() const
+void  Info::print() const
 {
    printf("blocksSize %lld \n",m_bufferSize );
    printf("printing [%d] blocks \n", m_sizeInBits);

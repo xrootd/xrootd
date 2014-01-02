@@ -15,7 +15,7 @@ add_library(
   XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
   XrdFileCache/Factory.cc            XrdFileCache/Factory.hh
   XrdFileCache/CacheStats.cc         XrdFileCache/CacheStats.hh
-  XrdFileCache/CacheFileInfo.cc      XrdFileCache/CacheFileInfo.hh
+  XrdFileCache/XrdFileCacheInfo.cc      XrdFileCache/XrdFileCacheInfo.hh
   XrdFileCache/IO.cc                 XrdFileCache/IO.hh
   XrdFileCache/IOBlocks.cc           XrdFileCache/IOBlocks.hh
   XrdFileCache/Log.cc                XrdFileCache/Log.hh )
