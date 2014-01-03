@@ -457,6 +457,7 @@ exit 0
 %{_libdir}/libXrdBwm.so
 %{_libdir}/libXrdPss.so
 %{_libdir}/libXrdXrootd.so
+%{_libdir}/libXrdFileCache.so
 
 %files server-devel
 %defattr(-,root,root,-)
