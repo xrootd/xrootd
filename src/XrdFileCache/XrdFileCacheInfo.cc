@@ -125,7 +125,7 @@ void  Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    if (flu) aMsg(kError,"AppendStat() un-lock failed \n");
 
    long long ws = fp->Write(&as, off, sizeof(AStat));
-   assert(ws == sizeof(AStat));
+   if ( ws != sizeof(AStat)) { assert(0); }
    //  m_writeMutex.UnLock();
 }
 

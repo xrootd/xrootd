@@ -166,9 +166,8 @@ IOBlocks::Read (char *buff, long long off, int size)
         // pass offset unmodified
 
         long long min  = blockIdx*m_blockSize;
-        long long max = min + m_blockSize;
-        assert ( off >= min);
-        assert(off+readBlockSize <= max);
+        if ( off >= min) { assert(0);} 
+        assert(off+readBlockSize <= (min + m_blockSize));
         int retvalBlock = fb->m_prefetch->Read(buff , off - fb->m_offset0, size);
 
         aMsgIO(kDebug, &m_io,  "IOBlocks::Read()  Block read returned %d", retvalBlock );
