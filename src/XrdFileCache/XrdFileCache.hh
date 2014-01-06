@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-
+#include <string>
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
 
@@ -37,14 +37,12 @@ public:
     Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
     Cache(XrdOucCacheStats&);
 
-
-
     void TempDirCleanup();
-   static Cache *m_cache; // this is needed ony for IO::Detach, could be a member instead;
 
 private:
 
     void Detach(XrdOucCacheIO *);
+    bool getFilePathFromURL(const char* url, std::string& res) const;
 
     XrdSysMutex m_io_mutex;
     unsigned int m_attached;

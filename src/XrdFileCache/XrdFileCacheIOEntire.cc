@@ -54,7 +54,7 @@ IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
    aMsgIO(kInfo, &m_io, "IO::IO() [%p]", this);
 
     std::string fname;
-    getFilePathFromURL(io.Path(), fname);
+    m_cache.getFilePathFromURL(io.Path(), fname);
     fname = Factory::GetInstance().RefConfiguration().m_temp_directory + fname;
 
     m_prefetch = new Prefetch(io, fname, 0, io.FSize());
@@ -166,21 +166,3 @@ IOEntire::ReadV (const XrdOucIOVec *readV, int n)
 
 #endif
 
-
-bool
-IOEntire::getFilePathFromURL(const char* url, std::string &result)
-{
-    std::string path = url;
-    size_t split_loc = path.rfind("//");
-
-    if (split_loc == path.npos)
-        return false;
-
-    size_t kloc = path.rfind("?");
-    result = path.substr(split_loc+1,kloc-split_loc-1);
-
-    if (kloc == path.npos)
-        return false;
-
-    return true;
-}

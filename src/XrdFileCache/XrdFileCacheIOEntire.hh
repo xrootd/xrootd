@@ -66,8 +66,7 @@ public:
     int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
     int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
-    static bool getFilePathFromURL(const char* url, std::string& res);
-
+ 
 protected:
     IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
 

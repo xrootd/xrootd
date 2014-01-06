@@ -35,13 +35,9 @@ class IOBlocks : public XrdOucCacheIO
 {
 private:
     struct FileBlock {
-
         FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
-
-        // XrdOssDF* m_diskDF;
         Prefetch* m_prefetch;
         long long m_offset0;
-        //   XrdOucCacheIO* m_io;
     };
 
 public:
@@ -74,7 +70,7 @@ public:
     int Read (XrdOucCacheStats &Now, char *Buffer, long long Offs, int Length);
 
 private:
-    FileBlock* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
+    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
 
     XrdOucCacheIO & m_io;
     XrdOucCacheStats & m_statsGlobal;

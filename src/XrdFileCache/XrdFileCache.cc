@@ -32,13 +32,13 @@
 #include "XrdFileCacheLog.hh"
 
 
-XrdFileCache::Cache *XrdFileCache::Cache::m_cache = NULL;
 using namespace XrdFileCache;
 
 void*
-TempDirCleanupThread(void*)
+TempDirCleanupThread(void* cache_void)
 {
-    XrdFileCache::Cache::m_cache->TempDirCleanup();
+    XrdFileCache::Cache *c = static_cast<XrdFileCache::Cache *>(cache_void);
+    c->TempDirCleanup();
     return NULL;
 }
 
@@ -47,8 +47,6 @@ Cache::Cache(XrdOucCacheStats & stats)
       m_stats(stats),
       m_disablePrefetch(false)
 {
-    m_cache = this;
-
     pthread_t tid;
     XrdSysThread::Run(&tid, TempDirCleanupThread, NULL, 0, "XrdFileCache TempDirCleanup");
 }
@@ -223,4 +221,23 @@ Cache::TempDirCleanup()
         sleep(sleept);
     }
     dh->Close();
+}
+   
+
+bool
+Cache::getFilePathFromURL(const char* url, std::string &result) const
+{ 
+    std::string path = url;
+    size_t split_loc = path.rfind("//");
+
+    if (split_loc == path.npos)
+        return false;
+
+    size_t kloc = path.rfind("?");
+    result = path.substr(split_loc+1,kloc-split_loc-1);
+
+    if (kloc == path.npos)
+        return false;
+
+    return true;
 }
