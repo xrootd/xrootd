@@ -42,6 +42,7 @@
 #include "XrdFileCacheLog.hh"
 
 
+
 using namespace XrdFileCache;
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(Config);
@@ -107,6 +108,12 @@ XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 }
 
 
+void*
+TempDirCleanupThread(void* cache_void)
+{    Factory::GetInstance().TempDirCleanup();
+    return NULL;
+}
+
 
 Factory::Factory()
     : m_log(0, "XFC_")
@@ -120,7 +127,7 @@ XrdOucCache *
 XrdOucGetCache(XrdSysLogger *logger,
                const char   *config_filename,
                const char   *parameters)
-{
+{   
     XrdSysError err(0, "");
     err.logger(logger);
     err.Emsg("Retrieve", "Retrieving a caching proxy factory.");
@@ -132,6 +139,9 @@ XrdOucGetCache(XrdSysLogger *logger,
     }
     err.Emsg("Retrieve", "Success - returning a factory.");
 
+
+    pthread_t tid;
+    XrdSysThread::Run(&tid, TempDirCleanupThread, NULL, 0, "XrdFileCache TempDirCleanup");
     return &factory;
 }
 }
@@ -319,7 +329,7 @@ Factory::xdlib(XrdOucStream &Config)
     if (params)
         d->ConfigDecision(params);
 
-    m_decisionpoints.push_back(d);
+    // AMT  m_decisionpoints.push_back(d);
     return true;
 }
 
@@ -377,7 +387,7 @@ Factory::ConfigParameters(const char * parameters)
 
 bool
 Factory::Decide(std::string &filename)
-{
+{/*
    if(! m_decisionpoints.empty()) 
    {
       std::vector<Decision*>::const_iterator it;
@@ -391,6 +401,133 @@ Factory::Decide(std::string &filename)
          }
       }
    }
-
+ */
    return true;
 }
+
+
+//______________________________________________________________________________
+
+
+void
+FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string, time_t>& fcmap)
+{
+   char buff[256];
+   XrdOucEnv env;
+   int rdr;
+   const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension);// cached var
+
+   Factory& factory = Factory::GetInstance();
+   while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
+   {
+      // printf("readdir [%s]\n", buff);
+      std::string np = path + "/" + std::string(buff);
+      size_t fname_len = strlen(&buff[0]);
+      if (fname_len == 0  )
+      {
+         // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
+         break;
+      }
+
+      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
+      {
+         XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());   
+         XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());   
+
+         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension , InfoExtLen) == 0)
+         {
+            fh->Open((np).c_str(),O_RDONLY, 0600, env);
+            Info cinfo;
+            time_t accessTime;
+            cinfo.Read(fh);
+            if (cinfo.getLatestAttachTime(accessTime, fh))
+            {
+               aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
+               fcmap[np] = accessTime;
+            }
+            else
+            {
+               aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+            }
+         }
+         else if ( dh->Opendir(np.c_str(), env)  >= 0 )
+         {
+            FillFileMapRecurse(dh, np, fcmap);
+         }
+
+         delete dh; dh = 0;
+         delete df; df = 0;
+      }
+   }
+}
+
+
+void
+Factory::TempDirCleanup()
+{
+    // check state every sleepts seconds
+    const static int sleept = 180;
+
+    struct stat fstat;
+    XrdOucEnv env;
+
+    XrdOss* oss =  Factory::GetInstance().GetOss();
+    XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
+    while (1)
+    {     
+        // get amout of space to erase
+        long long bytesToRemove = 0;
+        struct statvfs fsstat;
+        if(statvfs(m_configuration.m_temp_directory.c_str(), &fsstat) < 0 ) {
+            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_temp_directory.c_str());
+            exit(1);
+        }
+        else
+        {
+            float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
+            aMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
+            if (oc > m_configuration.m_hwm) {
+                bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);
+                aMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
+            }
+        }
+
+        if (bytesToRemove > 0)
+        {
+            typedef std::map<std::string, time_t> fcmap_t;
+            fcmap_t fcmap;
+            // make a sorted map of file patch by access time
+            if (dh->Opendir(m_configuration.m_temp_directory.c_str(), env) >= 0) {
+                FillFileMapRecurse(dh, m_configuration.m_temp_directory, fcmap);
+
+                // loop over map and remove files with highest value of access time
+                for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
+                {  
+                    std::string path = i->first;
+                    // remove info file
+                    if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+                    {
+                        bytesToRemove -= fstat.st_size;
+                        oss->Unlink(path.c_str());
+                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                    }
+
+                    // remove data file
+                    path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
+                    if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
+                    {
+                        bytesToRemove -= fstat.st_size;
+                        oss->Unlink(path.c_str());
+                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                    }
+                    if (bytesToRemove <= 0) 
+                        break;
+                }
+            }
+        }
+        sleep(sleept);
+    }
+    dh->Close();
+    delete dh; dh =0;
+}
+   

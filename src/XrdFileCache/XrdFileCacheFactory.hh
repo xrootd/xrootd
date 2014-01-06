@@ -77,6 +77,7 @@ public:
 
     const Configuration& RefConfiguration() const { return m_configuration; };
 
+    void TempDirCleanup();
 
 private:
     bool ConfigParameters(const char *);

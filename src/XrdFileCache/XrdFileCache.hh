@@ -37,7 +37,6 @@ public:
     Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
     Cache(XrdOucCacheStats&);
 
-    void TempDirCleanup();
 
 private:
 

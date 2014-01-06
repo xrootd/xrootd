@@ -34,21 +34,11 @@
 
 using namespace XrdFileCache;
 
-void*
-TempDirCleanupThread(void* cache_void)
-{
-    XrdFileCache::Cache *c = static_cast<XrdFileCache::Cache *>(cache_void);
-    c->TempDirCleanup();
-    return NULL;
-}
-
 Cache::Cache(XrdOucCacheStats & stats)
     :m_attached(0),
       m_stats(stats),
       m_disablePrefetch(false)
 {
-    pthread_t tid;
-    XrdSysThread::Run(&tid, TempDirCleanupThread, NULL, 0, "XrdFileCache TempDirCleanup");
 }
 
 XrdOucCacheIO *
@@ -97,132 +87,6 @@ Cache::Detach(XrdOucCacheIO* io)
     delete io;
 }
 
-
-//______________________________________________________________________________
-
-
-void
-FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string, time_t>& fcmap)
-{
-   char buff[256];
-   XrdOucEnv env;
-   int rdr;
-   const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension);// cached var
-
-   Factory& factory = Factory::GetInstance();
-   while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
-   {
-      // printf("readdir [%s]\n", buff);
-      std::string np = path + "/" + std::string(buff);
-      size_t fname_len = strlen(&buff[0]);
-      if (fname_len == 0  )
-      {
-         // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
-         break;
-      }
-
-      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
-      {
-         XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());   
-         XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());   
-
-         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension , InfoExtLen) == 0)
-         {
-            fh->Open((np).c_str(),O_RDONLY, 0600, env);
-            Info cinfo;
-            time_t accessTime;
-            cinfo.Read(fh);
-            if (cinfo.getLatestAttachTime(accessTime, fh))
-            {
-               aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
-               fcmap[np] = accessTime;
-            }
-            else
-            {
-               aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
-            }
-         }
-         else if ( dh->Opendir(np.c_str(), env)  >= 0 )
-         {
-            FillFileMapRecurse(dh, np, fcmap);
-         }
-
-         delete dh; dh = 0;
-         delete df; df = 0;
-      }
-   }
-}
-
-
-void
-Cache::TempDirCleanup()
-{
-    // check state every sleepts seconds
-    const static int sleept = 180;
-
-    struct stat fstat;
-    XrdOucEnv env;
-
-    const Configuration& c = Factory::GetInstance().RefConfiguration();
-    XrdOss* oss =  Factory::GetInstance().GetOss();
-    std::auto_ptr<XrdOssDF> dh(oss->newDir(c.m_username.c_str()));
-    while (1)
-    {     
-        // get amout of space to erase
-        long long bytesToRemove = 0;
-        struct statvfs fsstat;
-        if(statvfs(c.m_temp_directory.c_str(), &fsstat) < 0 ) {
-            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", c.m_temp_directory.c_str());
-            exit(1);
-        }
-        else
-        {
-            float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-            aMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
-            if (oc > c.m_hwm) {
-                bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - c.m_lwm);
-                aMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
-            }
-        }
-
-        if (bytesToRemove > 0)
-        {
-            typedef std::map<std::string, time_t> fcmap_t;
-            fcmap_t fcmap;
-            // make a sorted map of file patch by access time
-            if (dh->Opendir(c.m_temp_directory.c_str(), env) >= 0) {
-                FillFileMapRecurse(dh.get(), c.m_temp_directory, fcmap);
-
-                // loop over map and remove files with highest value of access time
-                for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
-                {  
-                    std::string path = i->first;
-                    // remove info file
-                    if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
-                    {
-                        bytesToRemove -= fstat.st_size;
-                        oss->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                    }
-
-                    // remove data file
-                    path = path.substr(0, path.size() - strlen(XrdFileCache::Info::m_infoExtension));
-                    if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
-                    {
-                        bytesToRemove -= fstat.st_size;
-                        oss->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                    }
-                    if (bytesToRemove <= 0) 
-                        break;
-                }
-            }
-        }
-        sleep(sleept);
-    }
-    dh->Close();
-}
-   
 
 bool
 Cache::getFilePathFromURL(const char* url, std::string &result) const
