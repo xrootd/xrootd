@@ -291,7 +291,7 @@ Factory::xdlib(XrdOucStream &Config)
     if (!(val = Config.GetWord()) || !val[0])
     {
         aMsg(kInfo, " Factory:;Config() decisionlib not specified; always caching files");
-        libp = "XrdFileCacheAllowAlways";
+        return true;
     }
     else
     {
@@ -319,7 +319,7 @@ Factory::xdlib(XrdOucStream &Config)
     if (params)
         d->ConfigDecision(params);
 
-    //    m_decisionpoints.push_back(d);
+    m_decisionpoints.push_back(d);
     return true;
 }
 
@@ -378,16 +378,19 @@ Factory::ConfigParameters(const char * parameters)
 bool
 Factory::Decide(std::string &filename)
 {
-   /* AMT ... check logic temporay commented  Factory::Decide
-   std::vector<Decision*>::const_iterator it;
-    for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
-    {
-        Decision *d = *it;
-        if (!d) continue;
-        if (!d->Decide(filename, *m_output_fs))
-        {
+   if(! m_decisionpoints.empty()) 
+   {
+      std::vector<Decision*>::const_iterator it;
+      for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
+      {
+         Decision *d = *it;
+         if (!d) continue;
+         if (!d->Decide(filename, *m_output_fs))
+         {
             return false;
-        }
-    }
- */ return true;
+         }
+      }
+   }
+
+   return true;
 }
