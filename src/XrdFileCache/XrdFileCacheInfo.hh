@@ -60,6 +60,8 @@ public:
 
    void print() const;
 
+    const static char* m_infoExtension;
+    const static long long m_prefetchDefaultBufferSize;
 
 private:
    struct AStat {

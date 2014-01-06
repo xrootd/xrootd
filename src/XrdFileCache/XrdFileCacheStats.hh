@@ -1,5 +1,5 @@
-#ifndef __XRDOUCCACHESTATS_HH__
-#define __XRDOUCCACHESTATS_HH__
+#ifndef __XRDFILECACHE_STATS_HH__
+#define __XRDFILECACHE_STATS_HH__
 
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  

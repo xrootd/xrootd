@@ -27,10 +27,10 @@
 #define aMsgIO(level, io, format, ...) \
    if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ##__VA_ARGS__)
 
-namespace  XrdFileCache
-{ 
 class XrdOucCacheIO;
 
+namespace  XrdFileCache
+{ 
 enum LogLevel {
    kDump,
    kDebug,

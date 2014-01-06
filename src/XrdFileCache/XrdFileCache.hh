@@ -23,41 +23,35 @@
 
 namespace XrdFileCache
 {
-extern const char* InfoExt;
-extern const int InfoExtLen;
-extern const bool IODisablePrefetch;
-extern const long long PrefetchDefaultBufferSize;
-
 class Cache : public XrdOucCache
 {
-
     friend class IOEntire;
     friend class IOBlocks;
-    friend class Factory;
 
 public:
-
     XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
     int isAttached();
 
     virtual XrdOucCache*
     Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
-
-
     Cache(XrdOucCacheStats&);
+
+
+
+    void TempDirCleanup();
+   static Cache *m_cache; // this is needed ony for IO::Detach, could be a member instead;
 
 private:
 
     void Detach(XrdOucCacheIO *);
 
-    static Cache *m_cache;
-    static XrdSysMutex m_cache_mutex;
-
     XrdSysMutex m_io_mutex;
     unsigned int m_attached;
 
     XrdOucCacheStats & m_stats;
+
+    bool m_disablePrefetch;
 };
 
 }

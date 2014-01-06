@@ -21,8 +21,6 @@
 #include <stdio.h>
 #include <map>
 
-#include <tr1/memory>
-#include <tr1/unordered_map>
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -109,21 +107,9 @@ XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 }
 
 
-void*
-TempDirCleanupThread(void*)
-{
-    Factory::GetInstance().TempDirCleanup();
-    return NULL;
-}
-
 
 Factory::Factory()
-    : m_log(0, "XFC_"),
-      m_prefetchFileBlocks(false),
-      m_temp_directory("/var/tmp/xrootd-file-cache"),
-      m_username("nobody"),
-      m_lwm(0.95),
-      m_hwm(0.9)
+    : m_log(0, "XFC_")
 {
     Dbg = kInfo;
 }
@@ -146,9 +132,6 @@ XrdOucGetCache(XrdSysLogger *logger,
     }
     err.Emsg("Retrieve", "Success - returning a factory.");
 
-
-    pthread_t tid;
-    XrdSysThread::Run(&tid, TempDirCleanupThread, NULL, 0, "XrdFileCache TempDirCleanup");
     return &factory;
 }
 }
@@ -223,18 +206,17 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
 
     Config.Close();
 
-    m_config_filename = config_filename;
 
     if (retval)
         retval = ConfigParameters(parameters);
 
-    aMsg(kInfo,"Factory::Config() Cache user name %s", m_username.c_str());
-    aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_temp_directory.c_str());
+    aMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
+    aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_temp_directory.c_str());
     aMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
            
     if (retval)
     {
-        XrdOss *output_fs = XrdOssGetSS(m_log.logger(), m_config_filename.c_str(), m_osslib_name.c_str(), NULL);
+        XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
         if (!output_fs) {
             aMsg(kError, "Factory::Config() Unable to create a OSS object");
             retval = false;
@@ -285,7 +267,7 @@ Factory::xolib(XrdOucStream &Config)
         return false;
     }
 
-    m_osslib_name = parms;
+    m_configuration.m_osslib_name = parms;
     return true;
 }
 
@@ -356,20 +338,20 @@ Factory::ConfigParameters(const char * parameters)
         // cout << part << endl;
         if ( part == "-prefetchFileBlocks" ) 
         {
-            m_prefetchFileBlocks = true;
+            m_configuration.m_prefetchFileBlocks = true;
             aMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
         }
         else if ( part == "-user" )
         {
             getline(is, part, ' ');
-            m_username = part.c_str();
-            aMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_username.c_str());
+            m_configuration.m_username = part.c_str();
+            aMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
         }
         else if  ( part == "-tmp" )
         {
             getline(is, part, ' ');
-            m_temp_directory = part.c_str();
-            aMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_temp_directory.c_str());
+            m_configuration.m_temp_directory = part.c_str();
+            aMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_temp_directory.c_str());
         }
         else if  ( part == "-debug" )
         {
@@ -379,16 +361,15 @@ Factory::ConfigParameters(const char * parameters)
         else if  ( part == "-lwm" )
         {
             getline(is, part, ' ');
-            m_lwm = ::atof(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() lwm = %f", m_lwm);
+            m_configuration.m_lwm = ::atof(part.c_str());
+            aMsg(kInfo, "Factory::ConfigParameters() lwm = %f", m_configuration.m_lwm);
         }
         else if  ( part == "-hwm" )
         {
             getline(is, part, ' ');
-            m_hwm = ::atof(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_hwm);
+            m_configuration.m_hwm = ::atof(part.c_str());
+            aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
         }
-       
     }
 
     return true;
@@ -396,8 +377,9 @@ Factory::ConfigParameters(const char * parameters)
 
 bool
 Factory::Decide(std::string &filename)
-{/*
-    std::vector<Decision*>::const_iterator it;
+{
+   /* AMT ... check logic temporay commented  Factory::Decide
+   std::vector<Decision*>::const_iterator it;
     for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
     {
         Decision *d = *it;
@@ -408,122 +390,4 @@ Factory::Decide(std::string &filename)
         }
     }
  */ return true;
-}
-
-//______________________________________________________________________________
-
-
-void
-FillFileMapRecurse( XrdOssDF* df, std::string& path, std::map<std::string, time_t>& fcmap)
-{
-   char buff[256];
-   XrdOucEnv env;
-   int rdr;
-
-   Factory& factory = Factory::GetInstance();
-   while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
-   {
-      // printf("readdir [%s]\n", buff);
-      std::string np = path + "/" + std::string(buff);
-      int fname_len = strlen(&buff[0]);
-      if (fname_len == 0  )
-      {
-         // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
-         break;
-      }
-
-      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
-      {
-         std::auto_ptr<XrdOssDF> dh(factory.GetOss()->newDir(factory.GetUsername().c_str()));   
-         std::auto_ptr<XrdOssDF> fh(factory.GetOss()->newFile(factory.GetUsername().c_str()));   
-
-         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], InfoExt , InfoExtLen) == 0)
-         {
-            fh->Open((np).c_str(),O_RDONLY, 0600, env);
-            Info cinfo;
-            time_t accessTime;
-            cinfo.Read(fh.get());
-            if (cinfo.getLatestAttachTime(accessTime, fh.get()))
-            {
-               aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
-               fcmap[np] = accessTime;
-            }
-            else
-            {
-               aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
-            }
-         }
-         else if ( dh->Opendir(np.c_str(), env)  >= 0 )
-         {
-            FillFileMapRecurse(dh.get(), np, fcmap);
-         }
-      }
-   }
-}
-
-
-void
-Factory::TempDirCleanup()
-{
-    // check state every sleepts seconds
-    const static int sleept = 180;
-
-    struct stat fstat;
-    XrdOucEnv env;
-    std::auto_ptr<XrdOssDF> dh(m_output_fs->newDir(m_username.c_str()));
-    while (1)
-    {     
-        // get amout of space to erase
-        long long bytesToRemove = 0;
-        struct statvfs fsstat;
-        if(statvfs(m_temp_directory.c_str(), &fsstat) < 0 ) {
-            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_temp_directory.c_str());
-            exit(1);
-        }
-        else
-        {
-            float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-            aMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
-            if (oc > m_hwm) {
-                bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_lwm);
-                aMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
-            }
-        }
-
-        if (bytesToRemove > 0)
-        {
-            typedef std::map<std::string, time_t> fcmap_t;
-            fcmap_t fcmap;
-            // make a sorted map of file patch by access time
-            if (dh->Opendir(m_temp_directory.c_str(), env) >= 0) {
-                FillFileMapRecurse(dh.get(), m_temp_directory, fcmap);
-
-                // loop over map and remove files with highest value of access time
-                for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
-                {  
-                    std::string path = i->first;
-                    // remove info file
-                    if (m_output_fs->Stat(path.c_str(), &fstat) == XrdOssOK)
-                    {
-                        bytesToRemove -= fstat.st_size;
-                        m_output_fs->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                    }
-
-                    // remove data file
-                    path = path.substr(0, path.size() - strlen(InfoExt));
-                    if (m_output_fs->Stat(path.c_str(), &fstat) == XrdOssOK)
-                    {
-                        bytesToRemove -= fstat.st_size;
-                        m_output_fs->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
-                    }
-                    if (bytesToRemove <= 0) 
-                        break;
-                }
-            }
-        }
-        sleep(sleept);
-    }
-    dh->Close();
 }

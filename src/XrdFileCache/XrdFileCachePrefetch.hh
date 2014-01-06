@@ -72,11 +72,7 @@ protected:
     void CloseCleanly();
 
 private:
-
-// inline off_t GetOffset() {return __sync_fetch_and_or(&m_offset, 0); }
     bool GetNextTask(Task&);
-
-
     bool Open();
     bool Close();
     bool Fail(bool cleanup);
@@ -84,7 +80,6 @@ private:
     int getBytesToRead(Task& task, int block) const;
 
     // file
-   //   XrdOss  &m_output_fs;
     XrdOssDF *m_output;
     XrdOssDF *m_infoFile;
     Info m_cfi;

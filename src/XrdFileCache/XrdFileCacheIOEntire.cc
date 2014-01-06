@@ -55,7 +55,7 @@ IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
 
     std::string fname;
     getFilePathFromURL(io.Path(), fname);
-    fname = Factory::GetInstance().GetTempDirectory() + fname;
+    fname = Factory::GetInstance().RefConfiguration().m_temp_directory + fname;
 
     m_prefetch = new Prefetch(io, fname, 0, io.FSize());
     pthread_t tid;
@@ -91,11 +91,6 @@ int
 IOEntire::Read (char *buff, long long off, int size)
 {
    aMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
-
-    if (IODisablePrefetch) {
-       // for testing purpose only
-       return m_io.Read(buff, off, size);
-    }
 
     ssize_t bytes_read = 0;
     ssize_t retval = 0;

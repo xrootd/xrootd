@@ -274,8 +274,8 @@ Prefetch::Open()
    XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
-   m_output_fs.Create(Factory::GetInstance().GetUsername().c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Factory::GetInstance().GetUsername().c_str());
+   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
+   m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_output) {
       int  res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
       if ( res < 0)
@@ -287,9 +287,9 @@ Prefetch::Open()
       }
    }
    // Create the info file
-   std::string ifn = m_temp_filename + InfoExt;
-   m_output_fs.Create(Factory::GetInstance().GetUsername().c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Factory::GetInstance().GetUsername().c_str());
+   std::string ifn = m_temp_filename + Info::m_infoExtension;
+   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
+   m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
    if (m_infoFile)
    {
 

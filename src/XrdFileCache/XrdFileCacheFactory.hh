@@ -31,7 +31,26 @@ class Decision;
 namespace XrdFileCache
 {
 
-class Cache;
+
+struct Configuration
+{
+   Configuration(): 
+      m_prefetchFileBlocks(false),
+      m_temp_directory("/var/tmp/xrootd-file-cache"),
+      m_username("nobody"),
+      m_lwm(0.95),
+      m_hwm(0.9) {}
+
+ // configuration
+    bool m_prefetchFileBlocks;
+    std::string m_config_filename;
+    std::string m_temp_directory;
+    std::string m_username;
+    std::string m_osslib_name;
+    float m_lwm;
+    float m_hwm;
+};
+
 
 class Factory : public XrdOucCache
 {
@@ -49,20 +68,17 @@ public:
 
     virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP=0);
 
-    bool PrefetchFileBlocks() const {return m_prefetchFileBlocks; }
-    const std::string &GetUsername() const {return m_username; }
-    const std::string GetTempDirectory() const {return m_temp_directory; }
     XrdOss*GetOss() const {return m_output_fs; }
     XrdSysError& GetSysError() {return m_log;}
 
     bool Decide(std::string &);
 
-    void TempDirCleanup();
     static Factory &GetInstance();
 
     static  bool   VCheck(XrdVersionInfo &urVersion) {return true;}
-protected:
-   // PrefetchPtr GetPrefetch(XrdOucCacheIO &, std::string& filePath);
+
+    const Configuration& RefConfiguration() const { return m_configuration; };
+
 
 private:
     bool ConfigParameters(const char *);
@@ -76,19 +92,10 @@ private:
 
     XrdSysError m_log;
     XrdOucCacheStats m_stats;
-   //    PrefetchWeakPtrMap m_file_map;
     XrdOss *m_output_fs;
     std::vector<Decision*> m_decisionpoints;
 
-    // configuration
-    bool m_prefetchFileBlocks;
-    std::string m_osslib_name;
-    std::string m_config_filename;
-    std::string m_temp_directory;
-    std::string m_username;
-    float m_lwm;
-    float m_hwm;
-
+    Configuration m_configuration;   
 };
 
 }

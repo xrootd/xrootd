@@ -60,15 +60,13 @@ public:
 
 #endif
 
-    int
-    Sync() {return 0; }
+   // AMT i guess this are virtuals ...
+    int Sync() {return 0; }
 
-    int
-    Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+    int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
-    int
-    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
-  static bool getFilePathFromURL(const char* url, std::string& res);
+    int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
+    static bool getFilePathFromURL(const char* url, std::string& res);
 
 protected:
     IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
