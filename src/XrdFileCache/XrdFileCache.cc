@@ -125,17 +125,16 @@ FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string,
 
       if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
       {
-          // AMT get rid of smart pointer
-         std::auto_ptr<XrdOssDF> dh(factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str()));   
-         std::auto_ptr<XrdOssDF> fh(factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str()));   
+         XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());   
+         XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());   
 
          if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension , InfoExtLen) == 0)
          {
             fh->Open((np).c_str(),O_RDONLY, 0600, env);
             Info cinfo;
             time_t accessTime;
-            cinfo.Read(fh.get());
-            if (cinfo.getLatestAttachTime(accessTime, fh.get()))
+            cinfo.Read(fh);
+            if (cinfo.getLatestAttachTime(accessTime, fh))
             {
                aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
                fcmap[np] = accessTime;
@@ -147,8 +146,11 @@ FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string,
          }
          else if ( dh->Opendir(np.c_str(), env)  >= 0 )
          {
-            FillFileMapRecurse(dh.get(), np, fcmap);
+            FillFileMapRecurse(dh, np, fcmap);
          }
+
+         delete dh; dh = 0;
+         delete df; df = 0;
       }
    }
 }
