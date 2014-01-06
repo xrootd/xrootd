@@ -38,7 +38,6 @@
 #include "XrdFileCache.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCachePrefetch.hh"
-#include "XrdFileCacheDecision.hh"
 #include "XrdFileCacheLog.hh"
 
 
@@ -387,22 +386,24 @@ Factory::ConfigParameters(const char * parameters)
 
 bool
 Factory::Decide(std::string &filename)
-{/*
-   if(! m_decisionpoints.empty()) 
-   {
-      std::vector<Decision*>::const_iterator it;
-      for (it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
-      {
-         Decision *d = *it;
-         if (!d) continue;
-         if (!d->Decide(filename, *m_output_fs))
-         {
-            return false;
-         }
-      }
-   }
- */
-   return true;
+{  
+    //  decision_vt::iterator it =  m_decisionpoints.begin();
+
+    if(! m_decisionpoints.empty()) 
+    {
+        std::vector<Decision*>::const_iterator it;
+        for ( it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
+        {
+            XrdFileCache::Decision *d = *it;
+            if (!d) continue;
+            if (!d->Decide(filename, *m_output_fs))
+            {
+                return false;
+            }
+        }
+    }
+ 
+    return true;
 }
 
 

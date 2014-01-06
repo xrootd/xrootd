@@ -26,7 +26,8 @@
 #include "XrdVersion.hh" 
 class XrdOucStream;
 class XrdSysError;
-class Decision;
+
+#include "XrdFileCacheDecision.hh"
 
 namespace XrdFileCache
 {
@@ -91,7 +92,8 @@ private:
     XrdSysError m_log;
     XrdOucCacheStats m_stats;
     XrdOss *m_output_fs;
-    std::vector<Decision*> m_decisionpoints;
+
+    std::vector<XrdFileCache::Decision*> m_decisionpoints;
 
     Configuration m_configuration;   
 };
