@@ -85,7 +85,6 @@ private:
     bool ConfigXeq(char *, XrdOucStream &);
     bool xolib(XrdOucStream &);
     bool xdlib(XrdOucStream &);
-    bool xexpire(XrdOucStream &);
 
     static XrdSysMutex m_factory_mutex;
     static Factory * m_factory;
