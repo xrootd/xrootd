@@ -41,7 +41,6 @@ struct Configuration
       m_lwm(0.95),
       m_hwm(0.9) {}
 
- // configuration
     bool m_prefetchFileBlocks;
     std::string m_config_filename;
     std::string m_temp_directory;
@@ -54,7 +53,6 @@ struct Configuration
 
 class Factory : public XrdOucCache
 {
-
 public:
     Factory();
 
