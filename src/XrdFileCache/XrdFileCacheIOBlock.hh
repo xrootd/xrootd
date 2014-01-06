@@ -1,3 +1,5 @@
+#ifndef __XRDFILECACHE_IOBL_HH__
+#define __XRDFILECACHE_IOBL_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
@@ -15,18 +17,8 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#ifndef __XRDFILECACHEIOBL_HH__
-#define __XRDFILECACHEIOBL_HH__
-/******************************************************************************/
-/*                                                                            */
-/* (c) 2012 University of Nebraska-Lincoln                                    */
-/*     by Brian Bockelman                                                     */
-/*                                                                            */
-/******************************************************************************/
-
-/*
- * The XrdHdfsCacheIO object is used as a proxy for the original source
- */
+#include <map>
+#include <string>
 
 #include <XrdOuc/XrdOucCache.hh>
 #include "XrdSys/XrdSysPthread.hh"
@@ -34,16 +26,11 @@
 #include "XrdFileCache.hh"
 #include "XrdFileCachePrefetch.hh"
 
-#include <map>
-#include <string>
-
 class XrdSysError;
 class XrdOssDF;
 
-
 namespace XrdFileCache
 {
-
 class IOBlocks : public XrdOucCacheIO
 {
 private:

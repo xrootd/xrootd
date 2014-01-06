@@ -15,21 +15,19 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#include "XrdFileCacheInfo.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheLog.hh"
-#include "XrdFileCacheStats.hh"
+
 #include <sys/file.h>
-
-
-#include <XrdOss/XrdOss.hh>
 #include <assert.h>
-
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include <XrdOss/XrdOss.hh>
+#include "XrdFileCacheInfo.hh"
+#include "XrdFileCache.hh"
+#include "XrdFileCacheLog.hh"
+#include "XrdFileCacheStats.hh"
 
 #define BIT(n)       (1ULL << (n))
 using namespace XrdFileCache;

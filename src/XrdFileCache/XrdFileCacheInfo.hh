@@ -1,3 +1,5 @@
+#ifndef __XRDFILECACHE_INFO_HH__
+#define __XRDFILECACHE_INFO_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
@@ -15,12 +17,11 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#ifndef __XRDFILECACHE_CFI_HH__
-#define __XRDFILECACHE_CFI_HH__
 
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+
 #include <XrdSys/XrdSysPthread.hh>
 class XrdOssDF;
 

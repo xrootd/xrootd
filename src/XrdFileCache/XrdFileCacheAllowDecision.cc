@@ -17,7 +17,6 @@
 //----------------------------------------------------------------------------------
 
 #include "XrdFileCacheDecision.hh"
-
 #include "XrdSys/XrdSysError.hh"
 
 /*

@@ -1,3 +1,5 @@
+#ifndef __XRDFILECACHE_IO_ENTIRE_HH__
+#define __XRDFILECACHE_IO_ENTIRE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
@@ -15,22 +17,15 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#ifndef __XRDFILECACHEIOEntire_HH__
-#define __XRDFILECACHEIOEntire_HH__
-/******************************************************************************/
-/*                                                                            */
-/* (c) 2012 University of Nebraska-Lincoln                                    */
-/*     by Brian Bockelman                                                     */
-/*                                                                            */
-/******************************************************************************/
 
 /*
  * The XrdFileCacheIOEntire object is used as a proxy for the original source
  */
 
+#include <string>
+
 #include <XrdOuc/XrdOucCache.hh>
 #include "XrdSys/XrdSysPthread.hh"
-#include <string>
 
 #include "XrdFileCachePrefetch.hh"
 #include "XrdFileCache.hh"
@@ -39,11 +34,8 @@ class XrdSysError;
 class XrdOssDF;
 class XfcStats;
 
-
 namespace XrdFileCache
 {
-
-
 class IOEntire : public XrdOucCacheIO
 {
     friend class Cache;

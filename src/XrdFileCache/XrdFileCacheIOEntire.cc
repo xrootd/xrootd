@@ -15,10 +15,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#include "XrdFileCacheIOEntire.hh"
-#include "XrdFileCacheLog.hh"
-#include "XrdFileCacheFactory.hh"
-#include "XrdFileCacheStats.hh"
 
 #include <stdio.h>
 #include <fcntl.h>
@@ -30,8 +26,12 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
- 
 #include <XrdSys/XrdSysPthread.hh>
+
+#include "XrdFileCacheIOEntire.hh"
+#include "XrdFileCacheLog.hh"
+#include "XrdFileCacheFactory.hh"
+#include "XrdFileCacheStats.hh"
 
 using namespace XrdFileCache;
 

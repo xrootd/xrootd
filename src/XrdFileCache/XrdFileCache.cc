@@ -15,16 +15,15 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
-#include "XrdFileCache.hh"
+
+#include <fcntl.h>
+#include <sstream>
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
-#include <fcntl.h>
-#include <sstream>
-
-
+#include "XrdFileCache.hh"
 #include "XrdFileCacheIOEntire.hh"
 #include "XrdFileCacheIOBlock.hh"
 #include "XrdFileCacheFactory.hh"

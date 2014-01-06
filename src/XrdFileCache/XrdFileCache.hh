@@ -1,3 +1,5 @@
+#ifndef __XRDFILECACHE_CACHE_HH__
+#define __XRDFILECACHE_CACHE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
@@ -16,22 +18,11 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#ifndef __XRDFILECACHE_CACHE_HH__
-#define __XRDFILECACHE_CACHE_HH__
-/******************************************************************************/
-/*                                                                            */
-/* (c) 2012 University of Nebraksa-Lincoln                                    */
-/*     by Brian Bockelman                                                     */
-/*                                                                            */
-/******************************************************************************/
-
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
 
-
 namespace XrdFileCache
 {
-
 extern const char* InfoExt;
 extern const int InfoExtLen;
 extern const bool IODisablePrefetch;
