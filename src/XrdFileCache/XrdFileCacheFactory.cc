@@ -328,7 +328,7 @@ Factory::xdlib(XrdOucStream &Config)
     if (params)
         d->ConfigDecision(params);
 
-    // AMT  m_decisionpoints.push_back(d);
+    m_decisionpoints.push_back(d);
     return true;
 }
 
