@@ -46,9 +46,9 @@ public:
 
     virtual XrdOucCacheIO *Detach();
     virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }    
-   //  virtual int Read (XrdOucCacheStats &Now, char *Buffer, long long Offs, int Length);
 
     virtual int Read (char  *Buffer, long long Offset, int Length);
+
 private:
     long long  m_blockSize;
     std::map<int, FileBlock*> m_blocks;
