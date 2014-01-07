@@ -35,7 +35,7 @@ namespace XrdFileCache
 class Prefetch {
 
     friend class IOEntire;
-    friend class IOBlocks;
+    friend class IOBlock;
 
     struct Task {
        int firstBlock;

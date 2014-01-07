@@ -45,7 +45,7 @@ PrefetchRunnerBl(void * prefetch_void)
 }
 
 
-IOBlocks::IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOBlock::IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
     : IO(io, stats, cache)
 {
     m_blockSize = s_blocksize;
@@ -53,9 +53,9 @@ IOBlocks::IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
 }
 
 XrdOucCacheIO *
-IOBlocks::Detach()
+IOBlock::Detach()
 {
-    aMsgIO(kInfo, &m_io,"IOBlocks::Detach()");
+    aMsgIO(kInfo, &m_io,"IOBlock::Detach()");
     XrdOucCacheIO * io = &m_io;
 
 
@@ -71,7 +71,7 @@ IOBlocks::Detach()
 }
 
 
-void IOBlocks::GetBlockSizeFromPath()
+void IOBlock::GetBlockSizeFromPath()
 {
     const static std::string tag = "hdfs_block_size=";
     std::string path= m_io.Path();
@@ -90,11 +90,11 @@ void IOBlocks::GetBlockSizeFromPath()
             m_blockSize = atoi(path.substr(pos1).c_str());
 	}
 
-        aMsg(kDebug, "IOBlocks::READ ===> BLOCKSIZE [%d].", m_blockSize);
+        aMsg(kDebug, "IOBlock::READ ===> BLOCKSIZE [%d].", m_blockSize);
     }
 }
 
-IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
+IOBlock::FileBlock* IOBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 {
     FileBlock* fb = new FileBlock(off, io);
 
@@ -117,7 +117,7 @@ IOBlocks::FileBlock* IOBlocks::newBlockPrefetcher(long long off, int blocksize, 
 }
 
 int
-IOBlocks::Read (char *buff, long long off, int size)
+IOBlock::Read (char *buff, long long off, int size)
 {
     Stats stat_tmp; // AMT todo ...
 
@@ -126,7 +126,7 @@ IOBlocks::Read (char *buff, long long off, int size)
     int idx_last = (off0+size-1)/m_blockSize;
 
     int bytes_read = 0;
-    aMsgIO(kDebug, &m_io, "IOBlocks::Read() %lld@%d block range [%d-%d] \n", off, size, idx_first, idx_last);
+    aMsgIO(kDebug, &m_io, "IOBlock::Read() %lld@%d block range [%d-%d] \n", off, size, idx_first, idx_last);
 
     for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
     {
@@ -145,7 +145,7 @@ IOBlocks::Read (char *buff, long long off, int size)
             int lastIOBlock = (m_io.FSize()-1)/m_blockSize; 
             if (blockIdx == lastIOBlock ) { 
                 pbs =  m_io.FSize() - blockIdx*m_blockSize;
-                aMsgIO(kDebug, &m_io , "IOBlocks::Read() last block, change output file size to %lld \n", pbs);
+                aMsgIO(kDebug, &m_io , "IOBlock::Read() last block, change output file size to %lld \n", pbs);
             }
             //            fb = new FileBlock(blockIdx*m_blockSize, pbs, &m_io);
             fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
@@ -160,12 +160,12 @@ IOBlocks::Read (char *buff, long long off, int size)
             if (blockIdx == idx_first)
             {
                 readBlockSize = (blockIdx + 1) *m_blockSize - off0;
-                aMsgIO(kDebug, &m_io , "IOBlocks::Read() %s", "Read partially till the end of the block");
+                aMsgIO(kDebug, &m_io , "IOBlock::Read() %s", "Read partially till the end of the block");
             }
             else if (blockIdx == idx_last)
             {
                 readBlockSize = (off0+size) - blockIdx*m_blockSize;
-                aMsgIO(kDebug, &m_io , "IOBlocks::Read() s" , "Read partially from beginning of block");
+                aMsgIO(kDebug, &m_io , "IOBlock::Read() s" , "Read partially from beginning of block");
             }
             else
             {
@@ -174,7 +174,7 @@ IOBlocks::Read (char *buff, long long off, int size)
         }
         assert(readBlockSize);
 
-        aMsgIO(kInfo, &m_io, "IOBlocks::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
+        aMsgIO(kInfo, &m_io, "IOBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
 
       
         // pass offset unmodified
@@ -184,7 +184,7 @@ IOBlocks::Read (char *buff, long long off, int size)
         assert(off+readBlockSize <= (min + m_blockSize));
         int retvalBlock = fb->m_prefetch->Read(buff , off - fb->m_offset0, size);
 
-        aMsgIO(kDebug, &m_io,  "IOBlocks::Read()  Block read returned %d", retvalBlock );
+        aMsgIO(kDebug, &m_io,  "IOBlock::Read()  Block read returned %d", retvalBlock );
         if (retvalBlock >=0 )
         {
             bytes_read += retvalBlock;
@@ -195,13 +195,13 @@ IOBlocks::Read (char *buff, long long off, int size)
             // cancel read if not succssful
             if (readBlockSize > 0)
             {
-                aMsgIO( kInfo, &m_io , "IOBlocks::Read() Can't read from prefetch remain = %d", readBlockSize);
+                aMsgIO( kInfo, &m_io , "IOBlock::Read() Can't read from prefetch remain = %d", readBlockSize);
                 return bytes_read;   
             }
         }
         else
         {
-            aMsgIO( kError, &m_io , "IOBlocks::Read() read error, retval %d", retvalBlock);
+            aMsgIO( kError, &m_io , "IOBlock::Read() read error, retval %d", retvalBlock);
             return retvalBlock;
         }
     }

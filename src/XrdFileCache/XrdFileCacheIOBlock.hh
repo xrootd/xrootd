@@ -31,7 +31,7 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class IOBlocks : public IO
+class IOBlock : public IO
 {
 private:
     struct FileBlock {
@@ -41,8 +41,8 @@ private:
     };
 
 public:
-    IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-    ~IOBlocks() {}
+    IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+    ~IOBlock() {}
 
     virtual XrdOucCacheIO *Detach();
     virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }    

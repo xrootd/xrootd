@@ -26,7 +26,7 @@ namespace XrdFileCache
 class Cache : public XrdOucCache
 {
     friend class IOEntire;
-    friend class IOBlocks;
+    friend class IOBlock;
 
 public:
     XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);

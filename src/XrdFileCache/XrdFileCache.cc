@@ -53,7 +53,7 @@ Cache::Attach(XrdOucCacheIO *io, int Options)
         if (io)
         {
             if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
-                return new IOBlocks(*io, m_stats, *this);
+                return new IOBlock(*io, m_stats, *this);
             else 
                 return new IOEntire(*io, m_stats, *this);
         }
