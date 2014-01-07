@@ -24,7 +24,7 @@
 
 #include <string>
 
-#include <XrdOuc/XrdOucCache.hh>
+//#include <XrdOuc/XrdOucCache.hh>
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCachePrefetch.hh"
@@ -33,49 +33,21 @@
 class XrdSysError;
 class XrdOssDF;
 class XfcStats;
+class XrdOucIOVec;
 
 namespace XrdFileCache
 {
-class IOEntire : public XrdOucCacheIO
+class IOEntire : public IO
 {
-    friend class Cache;
-
 public:
+   IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+   ~IOEntire();
 
-    XrdOucCacheIO *
-    Base() {return &m_io; }
-
+    virtual int Read (char  *Buffer, long long Offset, int Length);
+    virtual int  ReadV (const XrdOucIOVec *readV, int n);
     virtual XrdOucCacheIO *Detach();
 
-    long long
-    FSize() {return m_io.FSize(); }
-
-    const char *
-    Path() {return m_io.Path(); }
-
-    int Read (char  *Buffer, long long Offset, int Length);
-
-#if defined(HAVE_READV)
-    virtual int  ReadV (const XrdOucIOEntireVec *readV, int n);
-
-#endif
-
-   // AMT i guess this are virtuals ...
-    int Sync() {return 0; }
-
-    int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
-
-    int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
- 
-protected:
-    IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-
 private:
-   ~IOEntire();
- 
-    XrdOucCacheIO & m_io;
-    XrdOucCacheStats & m_statsGlobal;
-    Cache & m_cache;
     Prefetch* m_prefetch;
 };
 

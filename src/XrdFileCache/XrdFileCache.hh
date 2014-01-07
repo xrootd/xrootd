@@ -50,6 +50,34 @@ private:
 
     bool m_disablePrefetch;
 };
+//______________________________________________________________________________
+
+
+
+class IO: public XrdOucCacheIO
+{
+public:
+    IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache):
+        m_io(io), m_statsGlobal(stats), m_cache(cache) {}
+
+    virtual XrdOucCacheIO *Base() {return &m_io; }
+
+
+    virtual long long FSize() {return m_io.FSize(); }
+
+    virtual const char *Path() {return m_io.Path(); }
+
+    virtual int Sync() {return 0; }
+
+    virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+
+    virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
+
+protected:
+    XrdOucCacheIO & m_io;
+    XrdOucCacheStats & m_statsGlobal;
+    Cache & m_cache;
+};
 
 }
 

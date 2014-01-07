@@ -47,9 +47,8 @@ PrefetchRunner(void * prefetch_void)
 
 
 IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
-    : m_io(io),
-      m_statsGlobal(stats),
-      m_cache(cache)
+   : IO(io, stats, cache),
+     m_prefetch(0)
 {
    aMsgIO(kInfo, &m_io, "IO::IO() [%p]", this);
 
@@ -71,9 +70,7 @@ XrdOucCacheIO *
 IOEntire::Detach()
 {
     m_statsGlobal.Add(m_prefetch->GetStats());
-    //  aMsgIO(kInfo, &m_io, "IO::Detach() [%p] bPrefCh[%lld] bPref[%lld] bDisk[%lld] bMiss[%lld]", this,
-    //       m_stats->BytesCachedPrefetch,  m_stats->BytesPrefetch,m_stats->BytesDisk, m_stats->BytesPass);
-
+  
     XrdOucCacheIO * io = &m_io;
 
     delete m_prefetch;
@@ -124,7 +121,6 @@ IOEntire::Read (char *buff, long long off, int size)
 /*
  * Perform a readv from the cache
  */
-#if defined(HAVE_READV)
 int
 IOEntire::ReadV (const XrdOucIOVec *readV, int n)
 {
@@ -163,6 +159,3 @@ IOEntire::ReadV (const XrdOucIOVec *readV, int n)
    return  bytes_read;*/
    return 0;
 }
-
-#endif
-

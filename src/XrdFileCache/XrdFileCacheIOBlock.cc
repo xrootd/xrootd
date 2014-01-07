@@ -46,9 +46,7 @@ PrefetchRunnerBl(void * prefetch_void)
 
 
 IOBlocks::IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
-    : m_io(io),
-      m_statsGlobal(stats),
-      m_cache(cache)
+    : IO(io, stats, cache)
 {
     m_blockSize = s_blocksize;
     GetBlockSizeFromPath();
@@ -61,7 +59,7 @@ IOBlocks::Detach()
     XrdOucCacheIO * io = &m_io;
 
 
-    for (BlockMap_t::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+    for (std::map<int, FileBlock*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
     {
         m_statsGlobal.Add(it->second->m_prefetch->GetStats());
         delete it->second->m_prefetch;
@@ -135,7 +133,7 @@ IOBlocks::Read (char *buff, long long off, int size)
         // locate block
         FileBlock* fb;
         m_mutex.Lock();
-        BlockMap_t::iterator it = m_blocks.find(blockIdx);
+        std::map<int, FileBlock*>::iterator it = m_blocks.find(blockIdx);
         if ( it != m_blocks.end() )
         {
             fb = it->second;

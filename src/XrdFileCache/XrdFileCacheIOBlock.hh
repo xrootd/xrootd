@@ -31,7 +31,7 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class IOBlocks : public XrdOucCacheIO
+class IOBlocks : public IO
 {
 private:
     struct FileBlock {
@@ -44,46 +44,19 @@ public:
     IOBlocks(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
     ~IOBlocks() {}
 
-    XrdOucCacheIO *
-    Base() {return &m_io; }
-
     virtual XrdOucCacheIO *Detach();
+    virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }    
+   //  virtual int Read (XrdOucCacheStats &Now, char *Buffer, long long Offs, int Length);
 
-    long long
-    FSize() {return m_io.FSize(); }
-
-    const char *
-    Path() {return m_io.Path(); }
-
-    int Read (char  *Buffer, long long Offset, int Length);
-
-    int
-    Sync() {return 0; }
-
-    int
-    Trunc(long long Offset) { errno = ENOTSUP; return -1; }
-
-    int
-    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }    
-
-
-    int Read (XrdOucCacheStats &Now, char *Buffer, long long Offs, int Length);
-
+    virtual int Read (char  *Buffer, long long Offset, int Length);
 private:
-    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
+    long long  m_blockSize;
+    std::map<int, FileBlock*> m_blocks;
 
-    XrdOucCacheIO & m_io;
-    XrdOucCacheStats & m_statsGlobal;
-    Cache& m_cache;
-
-   long long  m_blockSize;
-
-   typedef  std::map<int, FileBlock*> BlockMap_t;
-    BlockMap_t m_blocks;
-
-    void  GetBlockSizeFromPath();
     XrdSysMutex m_mutex;
 
+    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);    
+    void  GetBlockSizeFromPath();
 };
 
 }
