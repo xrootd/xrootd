@@ -45,15 +45,14 @@ PrefetchRunnerBl(void * prefetch_void)
 }
 
 
-IOBlock::IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
-    : IO(io, stats, cache)
+IOBlock::IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
+    : IO(io, statsGlobal, cache)
 {
     m_blockSize = s_blocksize;
     GetBlockSizeFromPath();
 }
 
-XrdOucCacheIO *
-IOBlock::Detach()
+XrdOucCacheIO* IOBlock::Detach()
 {
     aMsgIO(kInfo, &m_io,"IOBlock::Detach()");
     XrdOucCacheIO * io = &m_io;
@@ -119,8 +118,6 @@ IOBlock::FileBlock* IOBlock::newBlockPrefetcher(long long off, int blocksize, Xr
 int
 IOBlock::Read (char *buff, long long off, int size)
 {
-    Stats stat_tmp; // AMT todo ...
-
     long long off0 = off;
     int idx_first = off0/m_blockSize;
     int idx_last = (off0+size-1)/m_blockSize;
