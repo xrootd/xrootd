@@ -124,38 +124,35 @@ IOEntire::Read (char *buff, long long off, int size)
 int
 IOEntire::ReadV (const XrdOucIOVec *readV, int n)
 {
-   aMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
-   /*
-   ssize_t bytes_read = 0;
-   size_t missing = 0;
-   XrdOucIOEntireVec missingReadV[READV_MAXCHUNKS];
-   for (size_t i=0; i<n; i++)
-   {
-      XrdSfsXferSize size = readV[i].size;
-      char * buff = readV[i].data;
-      XrdSfsFileOffset off = readV[i].offset;
-      if (m_prefetch.get())
-      {
-         ssize_t retval = Read(buff, off, size);
-         if ((retval > 0) && (retval == size))
-         {
-            // TODO: could handle partial reads here
-            bytes_read += size;
-            continue;
-         }
-      }
-      missingReadV[missing].size = size;
-      missingReadV[missing].data = buff;
-      missingReadV[missing].offset = off;
-      missing++;
-      if (missing >= READV_MAXCHUNKS)
-      { // Something went wrong in construction of this request;
-         // Should be limited in higher layers to a max of 512 chunks.
-         aMsgIO(kError, &m_io, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d", missing, READV_MAXCHUNKS);
-         return -1;
-      }
-   }
+    aMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
+   
+    ssize_t bytes_read = 0;
+    size_t missing = 0;
+    for (int i=0; i<n; i++)
+    {
+        XrdSfsXferSize size = readV[i].size;
+        char * buff = readV[i].data;
+        XrdSfsFileOffset off = readV[i].offset;
+        if (m_prefetch)
+        {
+            ssize_t retval = Read(buff, off, size);
+            if ((retval > 0) && (retval == size))
+            {
+                // TODO: could handle partial reads here
+                bytes_read += size;
+                continue;
+            }
+        }
+        if (missing >= READV_MAXCHUNKS)
+        { 
+            // Something went wrong in construction of this request;
+            // Should be limited in higher layers to a max of 512 chunks.
+            aMsgIO(kError, &m_io, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d",
+                   missing,  READV_MAXCHUNKS);
+            return -1;
+        }
+        missing++;
+    }
 
-   return  bytes_read;*/
-   return 0;
+    return  bytes_read;
 }
