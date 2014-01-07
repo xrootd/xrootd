@@ -245,8 +245,7 @@ Prefetch::Run()
             aMsgIO(kDebug, &m_input, "Prefetch::Run() %s", "stopping for a clean cause");
             retval = -EINTR;
             m_stateCond.Signal();
-	    //break;
-	    return; // AMT ??? 
+	    return;
         }
 
     } // loop tasks
@@ -399,7 +398,7 @@ Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nblocks)
     {
         XrdSysCondVarHelper monitor(m_stateCond);
 
-        // AMT here should be a wait, temporarily commented out
+        // Alternatively it could wait. Code temporarily commented out.
 
         if (m_failed || !m_started ) return false;
         /*
