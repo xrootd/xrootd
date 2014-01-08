@@ -37,14 +37,14 @@ struct Configuration
 {
    Configuration(): 
       m_prefetchFileBlocks(false),
-      m_temp_directory("/var/tmp/xrootd-file-cache"),
+      m_cache_dir("/var/tmp/xrootd-file-cache"),
       m_username("nobody"),
       m_lwm(0.95),
       m_hwm(0.9) {}
 
     bool m_prefetchFileBlocks;
     std::string m_config_filename;
-    std::string m_temp_directory;
+    std::string m_cache_dir;
     std::string m_username;
     std::string m_osslib_name;
     float m_lwm;

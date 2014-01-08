@@ -220,7 +220,7 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
         retval = ConfigParameters(parameters);
 
     aMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
-    aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_temp_directory.c_str());
+    aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_cache_dir.c_str());
     aMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
            
     if (retval)
@@ -356,11 +356,11 @@ Factory::ConfigParameters(const char * parameters)
             m_configuration.m_username = part.c_str();
             aMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
         }
-        else if  ( part == "-tmp" )
+        else if  ( part == "-cacheDir" )
         {
             getline(is, part, ' ');
-            m_configuration.m_temp_directory = part.c_str();
-            aMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_temp_directory.c_str());
+            m_configuration.m_cache_dir = part.c_str();
+            aMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
         }
         else if  ( part == "-debug" )
         {
@@ -479,8 +479,8 @@ Factory::TempDirCleanup()
         // get amout of space to erase
         long long bytesToRemove = 0;
         struct statvfs fsstat;
-        if(statvfs(m_configuration.m_temp_directory.c_str(), &fsstat) < 0 ) {
-            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_temp_directory.c_str());
+        if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 ) {
+            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
             exit(1);
         }
         else
@@ -498,8 +498,8 @@ Factory::TempDirCleanup()
             typedef std::map<std::string, time_t> fcmap_t;
             fcmap_t fcmap;
             // make a sorted map of file patch by access time
-            if (dh->Opendir(m_configuration.m_temp_directory.c_str(), env) >= 0) {
-                FillFileMapRecurse(dh, m_configuration.m_temp_directory, fcmap);
+            if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0) {
+                FillFileMapRecurse(dh, m_configuration.m_cache_dir, fcmap);
 
                 // loop over map and remove files with highest value of access time
                 for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
