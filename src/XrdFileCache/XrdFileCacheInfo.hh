@@ -61,7 +61,6 @@ public:
    void print() const;
 
     const static char* m_infoExtension;
-    const static long long m_prefetchDefaultBufferSize;
 
 private:
    struct AStat {
@@ -76,6 +75,8 @@ private:
                 (int)DetachTime, BytesRead, Hits, Miss );
       }
    };
+
+   const static long long m_prefetchDefaultBufferSize;
 
    long long    m_bufferSize;
    int    m_sizeInBits; // number of file blocks

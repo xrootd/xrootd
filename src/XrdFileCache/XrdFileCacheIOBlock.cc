@@ -101,7 +101,7 @@ IOBlock::FileBlock* IOBlock::newBlockPrefetcher(long long off, int blocksize, Xr
     std::string fname;
     m_cache.getFilePathFromURL(io->Path(), fname);
     std::stringstream ss;
-    ss << Factory::GetInstance().RefConfiguration().m_temp_directory << fname;
+    ss  << fname;
     char offExt[64];
     sprintf(&offExt[0],"_%lld", off );
     ss << &offExt[0];

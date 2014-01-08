@@ -98,10 +98,12 @@ Cache::getFilePathFromURL(const char* url, std::string &result) const
         return false;
 
     size_t kloc = path.rfind("?");
-    result = path.substr(split_loc+1,kloc-split_loc-1);
 
     if (kloc == path.npos)
         return false;
+
+    result = Factory::GetInstance().RefConfiguration().m_cache_dir;
+    result += path.substr(split_loc+1,kloc-split_loc-1);
 
     return true;
 }

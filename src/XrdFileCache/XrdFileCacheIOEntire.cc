@@ -54,7 +54,6 @@ IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
 
     std::string fname;
     m_cache.getFilePathFromURL(io.Path(), fname);
-    fname = Factory::GetInstance().RefConfiguration().m_temp_directory + fname;
 
     m_prefetch = new Prefetch(io, fname, 0, io.FSize());
     pthread_t tid;
