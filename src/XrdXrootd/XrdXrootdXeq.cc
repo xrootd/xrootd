@@ -2080,7 +2080,7 @@ int XrdXrootdProtocol::do_Stat()
        rc = fp->XrdSfsp->stat(&buf);
        TRACEP(FS, "stat rc=" <<rc <<" fh=" <<fh.handle);
        if (SFS_OK == rc) return Response.Send(xxBuff, StatGen(buf, xxBuff));
-       return fsError(rc, 0, myFile->XrdSfsp->error, 0);
+       return fsError(rc, 0, fp->XrdSfsp->error, 0);
       }
 
 // Check for static routing
