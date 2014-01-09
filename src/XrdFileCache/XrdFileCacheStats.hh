@@ -21,19 +21,6 @@
 
 #include <XrdOuc/XrdOucCache.hh>
 
-/******************************************************************************/
-/*                     C l a s s   Stats                      */
-/******************************************************************************/
-/*
-the class is owned by prefetch
-
-in general XrdOucCacheStats could be used but we need addtional information 
-what is task-wait downloaded and what is already prefecthed
-
-the statistios is later used in IO::Detach , where it is appended to the global XrdFileCache statistics.
-
- */
-
 namespace XrdFileCache
 {
 class Stats : public XrdOucCacheStats
