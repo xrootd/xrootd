@@ -2,8 +2,8 @@
 #define __XRDFILECACHE_STATS_HH__
 
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -26,14 +26,15 @@ namespace XrdFileCache
 class Stats : public XrdOucCacheStats
 {
 public:
-    long long    BytesCachedPrefetch;
-    long long    BytesPrefetch;
-    long long    BytesDisk;
-    int          HitsPrefetch;
-    int          HitsDisk;
-    time_t       AppendTime;
+    long long BytesCachedPrefetch;
+    long long BytesPrefetch;
+    long long BytesDisk;
+    int HitsPrefetch;
+    int HitsDisk;
+    time_t AppendTime;
 
-    inline void AddStat(Stats &Src)
+    inline void
+    AddStat(Stats &Src)
     {
         XrdOucCacheStats::Add(Src);
 
@@ -49,18 +50,18 @@ public:
     }
 
     Stats() :
-        BytesCachedPrefetch(0), 
+        BytesCachedPrefetch(0),
         BytesPrefetch(0),
         BytesDisk(0),
-        HitsPrefetch(0), 
+        HitsPrefetch(0),
         HitsDisk(0) {
         AppendTime = time(0);
     }
 
-   void Dump() const;
+    void Dump() const;
 
-private:    
-   //   XrdSysMutex sMutex1;
+private:
+    //   XrdSysMutex sMutex1;
 
 };
 }

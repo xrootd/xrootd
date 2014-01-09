@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -20,7 +20,8 @@
 
 using namespace XrdFileCache;
 
-void Stats::Dump() const
+void
+Stats::Dump() const
 {
-   printf("CacheStats::Dump() bCachedPrefetch = %lld, bPrefetch = %lld\n", BytesCachedPrefetch, BytesPrefetch);
+    printf("CacheStats::Dump() bCachedPrefetch = %lld, bPrefetch = %lld\n", BytesCachedPrefetch, BytesPrefetch);
 }

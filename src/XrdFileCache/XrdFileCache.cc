@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <sstream>
 #include <tr1/memory>
-#include <sys/statvfs.h> 
+#include <sys/statvfs.h>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -35,11 +35,10 @@
 using namespace XrdFileCache;
 
 Cache::Cache(XrdOucCacheStats & stats)
-    :m_attached(0),
+    : m_attached(0),
       m_stats(stats),
       m_disablePrefetch(false)
-{
-}
+{}
 
 XrdOucCacheIO *
 Cache::Attach(XrdOucCacheIO *io, int Options)
@@ -54,14 +53,14 @@ Cache::Attach(XrdOucCacheIO *io, int Options)
         {
             if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
                 return new IOBlock(*io, m_stats, *this);
-            else 
+            else
                 return new IOEntire(*io, m_stats, *this);
         }
         else
         {
             aMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
         }
-    
+
         m_attached--;
     }
     return io;
@@ -90,7 +89,7 @@ Cache::Detach(XrdOucCacheIO* io)
 
 bool
 Cache::getFilePathFromURL(const char* url, std::string &result) const
-{ 
+{
     std::string path = url;
     size_t split_loc = path.rfind("//");
 

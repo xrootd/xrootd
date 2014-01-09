@@ -1,8 +1,8 @@
 #ifndef  __XRDFILECACHE_LOG_HH
 #define  __XRDFILECACHE_LOG_HH
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -21,22 +21,22 @@
 #include <fstream>
 #include <iostream>
 
-#define aMsg(level, format, ...)\
-   if (level >= Dbg) XrdFileCache::strprintf(level, format, ##__VA_ARGS__)
+#define aMsg(level, format, ...) \
+    if (level >= Dbg) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
 
 #define aMsgIO(level, io, format, ...) \
-   if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ##__VA_ARGS__)
+    if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
 
 class XrdOucCacheIO;
 
 namespace  XrdFileCache
-{ 
+{
 enum LogLevel {
-   kDump,
-   kDebug,
-   kInfo,
-   kWarning,
-   kError
+    kDump,
+    kDebug,
+    kInfo,
+    kWarning,
+    kError
 };
 
 extern LogLevel Dbg;

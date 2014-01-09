@@ -1,8 +1,8 @@
 #ifndef __XRDFILECACHE_IOBL_HH__
 #define __XRDFILECACHE_IOBL_HH__
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -34,7 +34,8 @@ namespace XrdFileCache
 class IOBlock : public IO
 {
 private:
-    struct FileBlock {
+    struct FileBlock
+    {
         FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
         Prefetch* m_prefetch;
         long long m_offset0;
@@ -45,17 +46,18 @@ public:
     ~IOBlock() {}
 
     virtual XrdOucCacheIO *Detach();
-    virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }    
+    virtual int
+    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
 
     virtual int Read (char  *Buffer, long long Offset, int Length);
 
 private:
-    long long  m_blockSize;
+    long long m_blockSize;
     std::map<int, FileBlock*> m_blocks;
 
     XrdSysMutex m_mutex;
 
-    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);    
+    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
 };
 
 }

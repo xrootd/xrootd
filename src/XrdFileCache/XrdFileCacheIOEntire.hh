@@ -1,8 +1,8 @@
 #ifndef __XRDFILECACHE_IO_ENTIRE_HH__
 #define __XRDFILECACHE_IO_ENTIRE_HH__
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -24,7 +24,6 @@
 
 #include <string>
 
-//#include <XrdOuc/XrdOucCache.hh>
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCachePrefetch.hh"
@@ -40,8 +39,8 @@ namespace XrdFileCache
 class IOEntire : public IO
 {
 public:
-   IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-   ~IOEntire();
+    IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+    ~IOEntire();
 
     virtual int Read (char  *Buffer, long long Offset, int Length);
     virtual int  ReadV (const XrdOucIOVec *readV, int n);

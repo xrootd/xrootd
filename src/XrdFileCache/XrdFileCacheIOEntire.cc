@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -38,62 +38,59 @@ using namespace XrdFileCache;
 void *
 PrefetchRunner(void * prefetch_void)
 {
-   XrdFileCache::Prefetch *prefetch = static_cast<XrdFileCache::Prefetch *>(prefetch_void);
-     if (prefetch)
-       prefetch->Run();
+    XrdFileCache::Prefetch *prefetch = static_cast<XrdFileCache::Prefetch *>(prefetch_void);
+    if (prefetch)
+        prefetch->Run();
     return NULL;
 }
 //______________________________________________________________________________
 
 
 IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
-   : IO(io, stats, cache),
-     m_prefetch(0)
+    : IO(io, stats, cache),
+      m_prefetch(0)
 {
-   aMsgIO(kInfo, &m_io, "IO::IO() [%p]", this);
+    aMsgIO(kInfo, &m_io, "IO::IO() [%p]", this);
 
     std::string fname;
     m_cache.getFilePathFromURL(io.Path(), fname);
 
     m_prefetch = new Prefetch(io, fname, 0, io.FSize());
     pthread_t tid;
-          XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
-    
+    XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
+
 }
 
-IOEntire::~IOEntire() 
-{
-}
+IOEntire::~IOEntire()
+{}
 
 XrdOucCacheIO *
 IOEntire::Detach()
 {
     m_statsGlobal.Add(m_prefetch->GetStats());
-  
+
     XrdOucCacheIO * io = &m_io;
 
     delete m_prefetch;
     m_prefetch = 0;
 
     // This will delete us!
-    m_cache.Detach(this); 
+    m_cache.Detach(this);
     return io;
 }
 
-/*
- * Read from the cache; prefer to read from the Prefetch object, if possible.
- */
 int
 IOEntire::Read (char *buff, long long off, int size)
 {
-   aMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
+    aMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
 
     ssize_t bytes_read = 0;
     ssize_t retval = 0;
-    
+
     retval = m_prefetch->Read(buff, off, size);
-        aMsgIO(kInfo, &m_io, "IO::Read() read from prefetch retval =  %d", retval);
-    if (retval > 0) {    
+    aMsgIO(kInfo, &m_io, "IO::Read() read from prefetch retval =  %d", retval);
+    if (retval > 0)
+    {
 
         bytes_read += retval;
         buff += retval;
@@ -124,7 +121,7 @@ int
 IOEntire::ReadV (const XrdOucIOVec *readV, int n)
 {
     aMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
-   
+
     ssize_t bytes_read = 0;
     size_t missing = 0;
     for (int i=0; i<n; i++)
@@ -143,7 +140,7 @@ IOEntire::ReadV (const XrdOucIOVec *readV, int n)
             }
         }
         if (missing >= READV_MAXCHUNKS)
-        { 
+        {
             // Something went wrong in construction of this request;
             // Should be limited in higher layers to a max of 512 chunks.
             aMsgIO(kError, &m_io, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d",
@@ -153,5 +150,5 @@ IOEntire::ReadV (const XrdOucIOVec *readV, int n)
         missing++;
     }
 
-    return  bytes_read;
+    return bytes_read;
 }

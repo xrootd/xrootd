@@ -1,8 +1,8 @@
 #ifndef __XRDFILECACHE_PREFETCH_HH__
 #define __XRDFILECACHE_PREFETCH_HH__
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -37,15 +37,16 @@ class Prefetch {
     friend class IOEntire;
     friend class IOBlock;
 
-    struct Task {
-       int firstBlock;
-       int lastBlock;
-       int cntFetched;
-       XrdSysCondVar* condVar;
+    struct Task
+    {
+        int firstBlock;
+        int lastBlock;
+        int cntFetched;
+        XrdSysCondVar* condVar;
 
-       Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0):
-          firstBlock(fb), lastBlock(lb), cntFetched(0),
-          condVar(iCondVar) {}
+        Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
+            firstBlock(fb), lastBlock(lb), cntFetched(0),
+            condVar(iCondVar) {}
 
         ~Task() {}
 
@@ -54,8 +55,8 @@ class Prefetch {
 
 public:
 
-   Prefetch(XrdOucCacheIO & inputFile, std::string& path, long long offset, long long fileSize);
-   ~Prefetch();
+    Prefetch(XrdOucCacheIO & inputFile, std::string& path, long long offset, long long fileSize);
+    ~Prefetch();
     void Run();
     void Join();
 
@@ -63,7 +64,8 @@ public:
 
     bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
 
-    Stats& GetStats() { return m_stats; }
+    Stats&
+    GetStats() { return m_stats; }
 
 protected:
     ssize_t Read(char * buff, off_t offset, size_t size);
@@ -84,7 +86,7 @@ private:
     XrdOssDF *m_infoFile;
     Info m_cfi;
     XrdOucCacheIO & m_input;
-    std::string     m_temp_filename;
+    std::string m_temp_filename;
     long long m_offset;
     long long m_fileSize;
     std::queue<Task> m_tasks_queue;
@@ -97,8 +99,8 @@ private:
     int m_numHitBlock;
 
     XrdSysCondVar m_stateCond;
-    XrdSysMutex   m_downloadStatusMutex;
-    XrdSysMutex   m_quequeMutex;
+    XrdSysMutex m_downloadStatusMutex;
+    XrdSysMutex m_quequeMutex;
 
     Stats m_stats;
 };

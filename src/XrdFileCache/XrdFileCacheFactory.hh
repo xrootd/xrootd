@@ -1,8 +1,8 @@
 #ifndef __XRDFILECACHE_FACTORY_HH__
 #define __XRDFILECACHE_FACTORY_HH__
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +23,7 @@
 
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
-#include "XrdVersion.hh" 
+#include "XrdVersion.hh"
 class XrdOucStream;
 class XrdSysError;
 
@@ -35,14 +35,14 @@ namespace XrdFileCache
 
 struct Configuration
 {
-   Configuration(): 
-      m_prefetchFileBlocks(false),
-      m_cache_dir("/var/tmp/xrootd-file-cache"),
-      m_username("nobody"),
-      m_lwm(0.95),
-      m_hwm(0.9),
-      m_bufferSize(1024*1024),
-      m_blockSize(128*1024*1024) {}
+    Configuration() :
+        m_prefetchFileBlocks(false),
+        m_cache_dir("/var/tmp/xrootd-file-cache"),
+        m_username("nobody"),
+        m_lwm(0.95),
+        m_hwm(0.9),
+        m_bufferSize(1024*1024),
+        m_blockSize(128*1024*1024) {}
 
     bool m_prefetchFileBlocks;
     std::string m_config_filename;
@@ -72,16 +72,20 @@ public:
 
     virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP=0);
 
-    XrdOss*GetOss() const {return m_output_fs; }
-    XrdSysError& GetSysError() {return m_log;}
+    XrdOss*
+    GetOss() const {return m_output_fs; }
+    XrdSysError&
+    GetSysError() {return m_log; }
 
     bool Decide(std::string &);
 
     static Factory &GetInstance();
 
-    static  bool   VCheck(XrdVersionInfo &urVersion) {return true;}
+    static bool
+    VCheck(XrdVersionInfo &urVersion) {return true; }
 
-    const Configuration& RefConfiguration() const { return m_configuration; };
+    const Configuration&
+    RefConfiguration() const { return m_configuration; };
 
     void TempDirCleanup();
 
@@ -100,7 +104,7 @@ private:
 
     std::vector<XrdFileCache::Decision*> m_decisionpoints;
 
-    Configuration m_configuration;   
+    Configuration m_configuration;
 };
 
 }

@@ -1,8 +1,8 @@
 #ifndef __XRDFILECACHE_CACHE_HH__
 #define __XRDFILECACHE_CACHE_HH__
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -54,24 +54,30 @@ private:
 
 
 
-class IO: public XrdOucCacheIO
+class IO : public XrdOucCacheIO
 {
 public:
-    IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache):
-        m_io(io), m_statsGlobal(stats), m_cache(cache) {}
+    IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
+    m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
-    virtual XrdOucCacheIO *Base() {return &m_io; }
+    virtual XrdOucCacheIO *
+    Base() {return &m_io; }
 
 
-    virtual long long FSize() {return m_io.FSize(); }
+    virtual long long
+    FSize() {return m_io.FSize(); }
 
-    virtual const char *Path() {return m_io.Path(); }
+    virtual const char *
+    Path() {return m_io.Path(); }
 
-    virtual int Sync() {return 0; }
+    virtual int
+    Sync() {return 0; }
 
-    virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+    virtual int
+    Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
-    virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
+    virtual int
+    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
 
 protected:
     XrdOucCacheIO & m_io;

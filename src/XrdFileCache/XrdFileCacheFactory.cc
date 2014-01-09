@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -83,7 +83,7 @@ XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
 // Create a plugin object
 //
-    OssEroute.logger(Logger);
+                 OssEroute.logger(Logger);
     OssEroute.Emsg("XrdOssGetSS", "Initializing OSS lib from ", OssLib);
 #if defined(HAVE_VERSIONS)
     if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib, "osslib",
@@ -109,7 +109,8 @@ XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
 void*
 TempDirCleanupThread(void* cache_void)
-{    Factory::GetInstance().TempDirCleanup();
+{
+    Factory::GetInstance().TempDirCleanup();
     return NULL;
 }
 
@@ -126,7 +127,7 @@ XrdOucCache *
 XrdOucGetCache(XrdSysLogger *logger,
                const char   *config_filename,
                const char   *parameters)
-{   
+{
     XrdSysError err(0, "");
     err.logger(logger);
     err.Emsg("Retrieve", "Retrieving a caching proxy factory.");
@@ -222,11 +223,12 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
     aMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
     aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_cache_dir.c_str());
     aMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
-           
+
     if (retval)
     {
         XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
-        if (!output_fs) {
+        if (!output_fs)
+        {
             aMsg(kError, "Factory::Config() Unable to create a OSS object");
             retval = false;
         }
@@ -345,7 +347,7 @@ Factory::ConfigParameters(const char * parameters)
     while (getline(is, part, ' '))
     {
         // cout << part << endl;
-        if ( part == "-prefetchFileBlocks" ) 
+        if ( part == "-prefetchFileBlocks" )
         {
             m_configuration.m_prefetchFileBlocks = true;
             aMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
@@ -382,8 +384,8 @@ Factory::ConfigParameters(const char * parameters)
         else if  ( part == "-bufferSize" )
         {
             getline(is, part, ' ');
-            // prefetch buffer size is long long becuse of possible problems 
-            // after multiplcation, but in this stepe it is save to use atoi 
+            // prefetch buffer size is long long becuse of possible problems
+            // after multiplcation, but in this stepe it is save to use atoi
             m_configuration.m_bufferSize = ::atoi(part.c_str());
             aMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
         }
@@ -400,10 +402,10 @@ Factory::ConfigParameters(const char * parameters)
 
 bool
 Factory::Decide(std::string &filename)
-{  
+{
     //  decision_vt::iterator it =  m_decisionpoints.begin();
 
-    if(! m_decisionpoints.empty()) 
+    if(!m_decisionpoints.empty())
     {
         std::vector<Decision*>::const_iterator it;
         for ( it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
@@ -416,7 +418,7 @@ Factory::Decide(std::string &filename)
             }
         }
     }
- 
+
     return true;
 }
 
@@ -427,53 +429,53 @@ Factory::Decide(std::string &filename)
 void
 FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string, time_t>& fcmap)
 {
-   char buff[256];
-   XrdOucEnv env;
-   int rdr;
-   const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension);// cached var
+    char buff[256];
+    XrdOucEnv env;
+    int rdr;
+    const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension); // cached var
 
-   Factory& factory = Factory::GetInstance();
-   while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
-   {
-      // printf("readdir [%s]\n", buff);
-      std::string np = path + "/" + std::string(buff);
-      size_t fname_len = strlen(&buff[0]);
-      if (fname_len == 0  )
-      {
-         // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
-         break;
-      }
+    Factory& factory = Factory::GetInstance();
+    while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
+    {
+        // printf("readdir [%s]\n", buff);
+        std::string np = path + "/" + std::string(buff);
+        size_t fname_len = strlen(&buff[0]);
+        if (fname_len == 0  )
+        {
+            // std::cout << "Finish read dir.[" << np <<"] Break loop \n";
+            break;
+        }
 
-      if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
-      {
-         XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());   
-         XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());   
+        if (strncmp("..", &buff[0], 2) && strncmp(".", &buff[0], 1))
+        {
+            XrdOssDF* dh = factory.GetOss()->newDir(factory.RefConfiguration().m_username.c_str());
+            XrdOssDF* fh = factory.GetOss()->newFile(factory.RefConfiguration().m_username.c_str());
 
-         if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension , InfoExtLen) == 0)
-         {
-            fh->Open((np).c_str(),O_RDONLY, 0600, env);
-            Info cinfo;
-            time_t accessTime;
-            cinfo.Read(fh);
-            if (cinfo.getLatestAttachTime(accessTime, fh))
+            if (fname_len > InfoExtLen && strncmp(&buff[fname_len - InfoExtLen ], XrdFileCache::Info::m_infoExtension, InfoExtLen) == 0)
             {
-               aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
-               fcmap[np] = accessTime;
+                fh->Open((np).c_str(),O_RDONLY, 0600, env);
+                Info cinfo;
+                time_t accessTime;
+                cinfo.Read(fh);
+                if (cinfo.getLatestAttachTime(accessTime, fh))
+                {
+                    aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
+                    fcmap[np] = accessTime;
+                }
+                else
+                {
+                    aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+                }
             }
-            else
+            else if ( dh->Opendir(np.c_str(), env)  >= 0 )
             {
-               aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+                FillFileMapRecurse(dh, np, fcmap);
             }
-         }
-         else if ( dh->Opendir(np.c_str(), env)  >= 0 )
-         {
-            FillFileMapRecurse(dh, np, fcmap);
-         }
 
-         delete dh; dh = 0;
-         delete df; df = 0;
-      }
-   }
+            delete dh; dh = 0;
+            delete df; df = 0;
+        }
+    }
 }
 
 
@@ -489,11 +491,12 @@ Factory::TempDirCleanup()
     XrdOss* oss =  Factory::GetInstance().GetOss();
     XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
     while (1)
-    {     
+    {
         // get amout of space to erase
         long long bytesToRemove = 0;
         struct statvfs fsstat;
-        if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 ) {
+        if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
+        {
             aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
             exit(1);
         }
@@ -501,7 +504,8 @@ Factory::TempDirCleanup()
         {
             float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
             aMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
-            if (oc > m_configuration.m_hwm) {
+            if (oc > m_configuration.m_hwm)
+            {
                 bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);
                 aMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
             }
@@ -512,12 +516,13 @@ Factory::TempDirCleanup()
             typedef std::map<std::string, time_t> fcmap_t;
             fcmap_t fcmap;
             // make a sorted map of file patch by access time
-            if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0) {
+            if (dh->Opendir(m_configuration.m_cache_dir.c_str(), env) >= 0)
+            {
                 FillFileMapRecurse(dh, m_configuration.m_cache_dir, fcmap);
 
                 // loop over map and remove files with highest value of access time
                 for (fcmap_t::iterator i = fcmap.begin(); i != fcmap.end(); ++i)
-                {  
+                {
                     std::string path = i->first;
                     // remove info file
                     if (oss->Stat(path.c_str(), &fstat) == XrdOssOK)
@@ -535,7 +540,7 @@ Factory::TempDirCleanup()
                         oss->Unlink(path.c_str());
                         aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                     }
-                    if (bytesToRemove <= 0) 
+                    if (bytesToRemove <= 0)
                         break;
                 }
             }
@@ -545,4 +550,4 @@ Factory::TempDirCleanup()
     dh->Close();
     delete dh; dh =0;
 }
-   
+

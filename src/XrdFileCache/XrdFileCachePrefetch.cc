@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------------
-// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University  
-// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman           
+// Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
+// Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
 //----------------------------------------------------------------------------------
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
@@ -51,7 +51,7 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
 }
 
 Prefetch::~Prefetch()
-{ 
+{
     aMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() hit[%d] miss[%d]",  m_numHitBlock, m_numMissBlock);
 
     // see if we have to shut down
@@ -61,12 +61,13 @@ Prefetch::~Prefetch()
 
     if (m_started == false) return;
 
-    if (m_cfi.isComplete() == false) 
-    { 
+    if (m_cfi.isComplete() == false)
+    {
         aMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() file not complete...");
         fflush(stdout);
         XrdSysCondVarHelper monitor(m_stateCond);
-        if (m_stop == false) {
+        if (m_stop == false)
+        {
             m_stop = true;
             aMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() waiting to stop Run() thread ...");
             m_stateCond.Wait();
@@ -78,12 +79,14 @@ Prefetch::~Prefetch()
 
     aMsgIO(kInfo, &m_input, "Prefetch::~Prefetch close data file");
 
-    if (m_output) {
+    if (m_output)
+    {
         m_output->Close();
         delete m_output;
         m_output = NULL;
     }
-    if (m_infoFile) {
+    if (m_infoFile)
+    {
         RecordDownloadInfo();
         aMsgIO(kInfo, &m_input, "Prefetch::~Prefetch close info file");
 
@@ -96,13 +99,16 @@ Prefetch::~Prefetch()
 //_________________________________________________________________________________________________
 
 
-int  PREFETCH_MAX_ATTEMPTS = 10;
-int Prefetch::getBytesToRead(Task& task, int block) const
+int PREFETCH_MAX_ATTEMPTS = 10;
+int
+Prefetch::getBytesToRead(Task& task, int block) const
 {
-    if (block == (m_cfi.getSizeInBits() -1)) {
+    if (block == (m_cfi.getSizeInBits() -1))
+    {
         return m_fileSize - task.lastBlock * m_cfi.getBufferSize();
     }
-    else {
+    else
+    {
         return m_cfi.getBufferSize();
     }
 }
@@ -118,7 +124,7 @@ Prefetch::Run()
         }
         m_started = true;
 
-        if ( ! Open())
+        if ( !Open())
         {
             m_failed = true;
 
@@ -143,7 +149,7 @@ Prefetch::Run()
             break;
         }
 
-        aMsgIO(kDebug, &m_input, "Prefetch::Run() new task block[%d, %d], condVar [%c]", task.firstBlock, task.lastBlock, task.condVar ? 'x': 'o');
+        aMsgIO(kDebug, &m_input, "Prefetch::Run() new task block[%d, %d], condVar [%c]", task.firstBlock, task.lastBlock, task.condVar ? 'x' : 'o');
         for (int block = task.firstBlock; block <= task.lastBlock; block++)
         {
             bool already;
@@ -151,10 +157,13 @@ Prefetch::Run()
             already = m_cfi.testBit(block);
             //  m_cfi.print();
             m_downloadStatusMutex.UnLock();
-            if (already) {
+            if (already)
+            {
                 aMsgIO(kDump, &m_input, "Prefetch::Run() block [%d] already done, continue ...", block);
                 continue;
-            } else {
+            }
+            else
+            {
                 aMsgIO(kDump, &m_input, "Prefetch::Run() download block [%d]", block);
             }
 
@@ -164,11 +173,13 @@ Prefetch::Run()
                 int missing =  numBytes;
                 long long offset = block * m_cfi.getBufferSize();
                 int cnt = 0;
-                while (missing) {
+                while (missing)
+                {
 
                     retval = m_input.Read(&buff[0], offset + m_offset, missing);
 
-                    if (retval < 0) {
+                    if (retval < 0)
+                    {
                         aMsgIO(kWarning, &m_input, "Prefetch::Run() Failed for negative ret %d block %d", retval, block);
                         XrdSysCondVarHelper monitor(m_stateCond);
                         m_failed = true;
@@ -179,14 +190,16 @@ Prefetch::Run()
                     missing -= retval;
                     offset += retval;
                     cnt++;
-                    if (cnt > PREFETCH_MAX_ATTEMPTS) {
+                    if (cnt > PREFETCH_MAX_ATTEMPTS)
+                    {
                         aMsgIO(kError, &m_input, "Prefetch::Run() too many attempts\n");
                         m_failed = true;
                         retval = -EINTR;
                         break;
                     }
 
-                    if (missing) {
+                    if (missing)
+                    {
                         aMsgIO(kWarning, &m_input, "Prefetch::Run() reattemot writing missing %d for block %d", missing, block);
                     }
                 }
@@ -198,12 +211,13 @@ Prefetch::Run()
                 int buffer_remaining = numBytes;
                 int buffer_offset = 0;
                 while ((buffer_remaining > 0) && // There is more to be written
-                       (((retval = m_output->Write(&buff[buffer_offset], offset + buffer_offset, buffer_remaining)) != -1) 
+                       (((retval = m_output->Write(&buff[buffer_offset], offset + buffer_offset, buffer_remaining)) != -1)
                         || (errno == EINTR)))  // Write occurs without an error
                 {
                     buffer_remaining -= retval;
                     buffer_offset += retval;
-                    if (buffer_remaining) {
+                    if (buffer_remaining)
+                    {
                         aMsgIO(kWarning, &m_input, "Prefetch::Run() reattemot writing missing %d for block %d", buffer_remaining, block);
                     }
                 }
@@ -245,7 +259,7 @@ Prefetch::Run()
             aMsgIO(kDebug, &m_input, "Prefetch::Run() %s", "stopping for a clean cause");
             retval = -EINTR;
             m_stateCond.Signal();
-	    return;
+            return;
         }
 
     } // loop tasks
@@ -269,56 +283,57 @@ Prefetch::Task::Dump()
 bool
 Prefetch::Open()
 {
-   aMsgIO(kDebug, &m_input, "Prefetch::Open() open file for disk cache");
-   XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
-   // Create the data file itself.
-   XrdOucEnv myEnv;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
-   if (m_output) {
-      int  res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
-      if ( res < 0)
-      {
-         aMsgIO(kError, &m_input, "Prefetch::Open() can't get data-FD for %s", m_temp_filename.c_str());
-         delete m_output;
-         m_output = NULL;
-         return false;
-      }
-   }
-   // Create the info file
-   std::string ifn = m_temp_filename + Info::m_infoExtension;
-   m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
-   m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
-   if (m_infoFile)
-   {
+    aMsgIO(kDebug, &m_input, "Prefetch::Open() open file for disk cache");
+    XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
+    // Create the data file itself.
+    XrdOucEnv myEnv;
+    m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), m_temp_filename.c_str(), 0600, myEnv, XRDOSS_mkpath);
+    m_output = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+    if (m_output)
+    {
+        int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
+        if ( res < 0)
+        {
+            aMsgIO(kError, &m_input, "Prefetch::Open() can't get data-FD for %s", m_temp_filename.c_str());
+            delete m_output;
+            m_output = NULL;
+            return false;
+        }
+    }
+    // Create the info file
+    std::string ifn = m_temp_filename + Info::m_infoExtension;
+    m_output_fs.Create(Factory::GetInstance().RefConfiguration().m_username.c_str(), ifn.c_str(), 0600, myEnv, XRDOSS_mkpath);
+    m_infoFile = m_output_fs.newFile(Factory::GetInstance().RefConfiguration().m_username.c_str());
+    if (m_infoFile)
+    {
 
-      int  res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv) ;
-      if ( res < 0 ) 
-      {
-         aMsgIO(kError, &m_input, "Prefetch::Open() can't get info-FD %s ", ifn.c_str());
-         delete m_output;
-         m_output = NULL;
-         delete m_infoFile;
-         m_infoFile = NULL;
+        int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
+        if ( res < 0 )
+        {
+            aMsgIO(kError, &m_input, "Prefetch::Open() can't get info-FD %s ", ifn.c_str());
+            delete m_output;
+            m_output = NULL;
+            delete m_infoFile;
+            m_infoFile = NULL;
 
-         return false;
-      }
-   }
-   if ( m_cfi.Read(m_infoFile) <= 0)
-   {
-      assert(m_fileSize > 0);
-      int ss = (m_fileSize -1)/m_cfi.getBufferSize() + 1;
-      aMsgIO(kInfo, &m_input, "Creating new file info with size %lld. Reserve space for %d blocks", m_fileSize,  ss);
-      m_cfi.resizeBits(ss);
-      RecordDownloadInfo();
-   }
-   else
-   {
-      aMsgIO(kDebug, &m_input, "Info file already exists");
-      // m_cfi.print();
-   }
+            return false;
+        }
+    }
+    if ( m_cfi.Read(m_infoFile) <= 0)
+    {
+        assert(m_fileSize > 0);
+        int ss = (m_fileSize -1)/m_cfi.getBufferSize() + 1;
+        aMsgIO(kInfo, &m_input, "Creating new file info with size %lld. Reserve space for %d blocks", m_fileSize,  ss);
+        m_cfi.resizeBits(ss);
+        RecordDownloadInfo();
+    }
+    else
+    {
+        aMsgIO(kDebug, &m_input, "Info file already exists");
+        // m_cfi.print();
+    }
 
-   return true;
+    return true;
 }
 
 //______________________________________________________________________________
@@ -339,7 +354,7 @@ Prefetch::AddTaskForRng(long long offset, int size, XrdSysCondVar* cond)
     m_downloadStatusMutex.Lock();
     int first_block = offset / m_cfi.getBufferSize();
     int last_block  = (offset + size -1)/ m_cfi.getBufferSize();
-    m_tasks_queue.push(Task(first_block, last_block, cond)); 
+    m_tasks_queue.push(Task(first_block, last_block, cond));
     m_downloadStatusMutex.UnLock();
 }
 //______________________________________________________________________________
@@ -357,7 +372,7 @@ Prefetch::GetNextTask(Task& t )
         m_downloadStatusMutex.Lock();
         for (int i = 0; i < m_cfi.getSizeInBits(); ++i)
         {
-            if (m_cfi.testBit(i) == false) 
+            if (m_cfi.testBit(i) == false)
             {
                 t.firstBlock = i;
                 t.lastBlock = t.firstBlock;
@@ -402,24 +417,25 @@ Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nblocks)
 
         if (m_failed || !m_started ) return false;
         /*
-        if ( ! m_started)
-        {
+           if ( ! m_started)
+           {
             m_stateCond.Wait();
             if (m_failed) return false;
             }*/
     }
- 
+
     pulled = 0;
     m_downloadStatusMutex.Lock();
-    if (m_cfi.isComplete()) 
+    if (m_cfi.isComplete())
     {
         pulled = nblocks;
     }
-    else {
+    else
+    {
         pulled = 0;
         for (int i = first_block; i <= last_block; ++i)
         {
-            pulled += m_cfi.testBit(i);        
+            pulled += m_cfi.testBit(i);
         }
     }
     m_downloadStatusMutex.UnLock();
@@ -443,14 +459,14 @@ Prefetch::AppendIOStatToFileInfo()
 
 ssize_t
 Prefetch::Read(char *buff, off_t off, size_t size)
-{ 
+{
     aMsgIO(kDump, &m_input, "prefetch::Read() prefetch reas off = %lld size = %lld.", off, size);
-    int nbb; // num of blocks needed 
+    int nbb; // num of blocks needed
     int nbp; //  num of blocks pulled
     ssize_t retval = 0;
     if ( GetStatForRng(off, size, nbp, nbb))
     {
-        if (nbp < nbb) 
+        if (nbp < nbb)
         {
             {
                 XrdSysCondVarHelper monitor(m_stateCond);
@@ -471,11 +487,11 @@ Prefetch::Read(char *buff, off_t off, size_t size)
         m_stats.Hits += nbp;
         m_stats.Miss += nbb-nbp;
     }
-    else 
+    else
     {
         if (m_stop || m_failed)
             retval = -1;
-        else 
+        else
             retval = 0;
     }
 
