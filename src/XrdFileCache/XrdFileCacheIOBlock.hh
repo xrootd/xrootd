@@ -46,9 +46,6 @@ public:
     ~IOBlock() {}
 
     virtual XrdOucCacheIO *Detach();
-    virtual int
-    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
-
     virtual int Read (char  *Buffer, long long Offset, int Length);
 
 private:

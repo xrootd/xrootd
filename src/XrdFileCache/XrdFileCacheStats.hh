@@ -20,6 +20,7 @@
 //----------------------------------------------------------------------------------
 
 #include <XrdOuc/XrdOucCache.hh>
+#include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdFileCache
 {
@@ -38,7 +39,7 @@ public:
     {
         XrdOucCacheStats::Add(Src);
 
-        //  sMutex1.Lock();
+        sMutexXfc.Lock();
         BytesCachedPrefetch += Src.BytesCachedPrefetch;
         BytesPrefetch       += Src.BytesPrefetch;
         BytesDisk           += Src.BytesDisk;
@@ -46,7 +47,7 @@ public:
         HitsPrefetch += Src.HitsPrefetch;
         HitsDisk     += Src.HitsDisk;
 
-        // sMutex1.UnLock();
+        sMutexXfc.UnLock();
     }
 
     Stats() :
@@ -58,10 +59,8 @@ public:
         AppendTime = time(0);
     }
 
-    void Dump() const;
-
 private:
-    //   XrdSysMutex sMutex1;
+    XrdSysMutex sMutexXfc;
 
 };
 }

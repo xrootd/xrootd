@@ -243,7 +243,6 @@ Prefetch::Run()
 
 
         aMsgIO(kDebug, &m_input, "Prefetch::Run() task completed ");
-        // task.Dump();
         if (task.condVar)
         {
             aMsgIO(kDebug, &m_input, "Prefetch::Run() task *Signal* begin");
@@ -494,9 +493,6 @@ Prefetch::Read(char *buff, off_t off, size_t size)
         else
             retval = 0;
     }
-
-
-    if (Dbg < kDebug) m_stats.Dump();
 
     return retval;
 }
