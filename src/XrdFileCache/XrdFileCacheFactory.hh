@@ -40,7 +40,9 @@ struct Configuration
       m_cache_dir("/var/tmp/xrootd-file-cache"),
       m_username("nobody"),
       m_lwm(0.95),
-      m_hwm(0.9) {}
+      m_hwm(0.9),
+      m_bufferSize(1024*1024),
+      m_blockSize(128*1024*1024) {}
 
     bool m_prefetchFileBlocks;
     std::string m_config_filename;
@@ -49,6 +51,9 @@ struct Configuration
     std::string m_osslib_name;
     float m_lwm;
     float m_hwm;
+
+    long long m_bufferSize;
+    long long m_blockSize; // used with m_prefetchFileBlocks
 };
 
 

@@ -56,7 +56,6 @@ private:
     XrdSysMutex m_mutex;
 
     FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);    
-    void  GetBlockSizeFromPath();
 };
 
 }

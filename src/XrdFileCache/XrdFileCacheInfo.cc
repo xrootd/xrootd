@@ -26,23 +26,24 @@
 #include <XrdOss/XrdOss.hh>
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
+#include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"
 
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
-long long XrdFileCache::Info::m_prefetchDefaultBufferSize = 1024*1024;
 
 #define BIT(n)       (1ULL << (n))
 using namespace XrdFileCache;
 
 
 Info::Info():
-   m_bufferSize(Info::m_prefetchDefaultBufferSize),
+   m_bufferSize(0),
    m_sizeInBits(0), m_buff(0), 
    m_accessCnt(0), 
    m_complete(false)
 {
+   m_bufferSize = Factory::GetInstance().RefConfiguration().m_bufferSize;
 }
 
 Info::~Info() {

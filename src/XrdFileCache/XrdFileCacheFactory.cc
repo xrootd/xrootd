@@ -384,8 +384,14 @@ Factory::ConfigParameters(const char * parameters)
             getline(is, part, ' ');
             // prefetch buffer size is long long becuse of possible problems 
             // after multiplcation, but in this stepe it is save to use atoi 
-            long long bufferSize = ::atoi(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
+            m_configuration.m_bufferSize = ::atoi(part.c_str());
+            aMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
+        }
+        else if  ( part == "-blockSize" )
+        {
+            getline(is, part, ' ');
+            m_configuration.m_blockSize = ::atoi(part.c_str());
+            aMsg(kInfo, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
         }
     }
 
