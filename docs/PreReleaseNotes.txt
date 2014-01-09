@@ -85,6 +85,8 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Avoid SEGV after an error occurs during a stat() call. This should be
+     bakported for any new 3.3.x release.
    * Make sure monitoring is initialized if it was enabled in any way
      to avoid SEGV when an odd combination of choices was selected.
    * Avoid SEGV and double free introduced by patch 30ad01b9 (set host).
