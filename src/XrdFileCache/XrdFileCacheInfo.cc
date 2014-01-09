@@ -31,7 +31,7 @@
 
 
 const char* XrdFileCache::Info::m_infoExtension = ".cinfo";
-const long long XrdFileCache::Info::m_prefetchDefaultBufferSize = 1024*1024;
+long long XrdFileCache::Info::m_prefetchDefaultBufferSize = 1024*1024;
 
 #define BIT(n)       (1ULL << (n))
 using namespace XrdFileCache;

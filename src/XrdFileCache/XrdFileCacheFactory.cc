@@ -379,6 +379,14 @@ Factory::ConfigParameters(const char * parameters)
             m_configuration.m_hwm = ::atof(part.c_str());
             aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
         }
+        else if  ( part == "-bufferSize" )
+        {
+            getline(is, part, ' ');
+            // prefetch buffer size is long long becuse of possible problems 
+            // after multiplcation, but in this stepe it is save to use atoi 
+            long long bufferSize = ::atoi(part.c_str());
+            aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
+        }
     }
 
     return true;
