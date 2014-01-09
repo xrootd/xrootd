@@ -88,7 +88,7 @@ IOEntire::Read (char *buff, long long off, int size)
     ssize_t retval = 0;
 
     retval = m_prefetch->Read(buff, off, size);
-    xfcMsgIO(kInfo, &m_io, "IO::Read() read from prefetch retval =  %d", retval);
+    xfcMsgIO(kDebug, &m_io, "IO::Read() read from prefetch retval =  %d", retval);
     if (retval > 0)
     {
 
