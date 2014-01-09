@@ -21,10 +21,10 @@
 #include <fstream>
 #include <iostream>
 
-#define aMsg(level, format, ...) \
+#define xfcMsg(level, format, ...) \
     if (level >= Dbg) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
 
-#define aMsgIO(level, io, format, ...) \
+#define xfcMsgIO(level, io, format, ...) \
     if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
 
 class XrdOucCacheIO;

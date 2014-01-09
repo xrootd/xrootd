@@ -103,7 +103,7 @@ void
 Info::WriteHeader(XrdOssDF* fp)
 {
     int fl = flock(fp->getFD(),  LOCK_EX);
-    if (fl) aMsg(kError, "WriteHeader() lock failed %s \n", strerror(errno));
+    if (fl) xfcMsg(kError, "WriteHeader() lock failed %s \n", strerror(errno));
 
     long long off = 0;
     off += fp->Write(&m_bufferSize, off, sizeof(long long));
@@ -113,7 +113,7 @@ Info::WriteHeader(XrdOssDF* fp)
     off += fp->Write(m_buff, off, getSizeInBytes());
 
     int flu = flock(fp->getFD(),  LOCK_UN);
-    if (flu) aMsg(kError,"WriteHeader() un-lock failed \n");
+    if (flu) xfcMsg(kError,"WriteHeader() un-lock failed \n");
 
     assert (off == getHeaderSize());
 }
@@ -123,7 +123,7 @@ void
 Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
     int fl = flock(fp->getFD(),  LOCK_EX);
-    if (fl) aMsg(kError,"AppendIOStat() lock failed \n");
+    if (fl) xfcMsg(kError,"AppendIOStat() lock failed \n");
 
     m_accessCnt++;
 
@@ -143,7 +143,7 @@ Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
     if(Dbg < kInfo) as.Dump();
 
     int flu = flock(fp->getFD(),  LOCK_UN);
-    if (flu) aMsg(kError,"AppendStat() un-lock failed \n");
+    if (flu) xfcMsg(kError,"AppendStat() un-lock failed \n");
 
     long long ws = fp->Write(&as, off, sizeof(AStat));
     if ( ws != sizeof(AStat)) { assert(0); }
@@ -155,7 +155,7 @@ Info::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
 {
     bool res = false;
     int fl = flock(fp->getFD(),  LOCK_SH);
-    if (fl) aMsg(kError,"Info::getLatestAttachTime() lock failed \n");
+    if (fl) xfcMsg(kError,"Info::getLatestAttachTime() lock failed \n");
     if (m_accessCnt)
     {
         AStat stat;
@@ -168,12 +168,12 @@ Info::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
         }
         else
         {
-            aMsg(kError, " Info::getLatestAttachTime() can't get latest access stat. read bytes = %d", res);
+            xfcMsg(kError, " Info::getLatestAttachTime() can't get latest access stat. read bytes = %d", res);
         }
     }
 
     int fu = flock(fp->getFD(),  LOCK_UN);
-    if (fu) aMsg(kError,"Info::getLatestAttachTime() lock failed \n");
+    if (fu) xfcMsg(kError,"Info::getLatestAttachTime() lock failed \n");
     return res;
 }
 

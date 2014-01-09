@@ -48,7 +48,7 @@ Cache::Attach(XrdOucCacheIO *io, int Options)
         XrdSysMutexHelper lock(&m_io_mutex);
         m_attached++;
 
-        aMsgIO(kInfo, io, "Cache::Attach()");
+        xfcMsgIO(kInfo, io, "Cache::Attach()");
         if (io)
         {
             if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
@@ -58,7 +58,7 @@ Cache::Attach(XrdOucCacheIO *io, int Options)
         }
         else
         {
-            aMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
+            xfcMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
         }
 
         m_attached--;
@@ -76,11 +76,11 @@ Cache::isAttached()
 void
 Cache::Detach(XrdOucCacheIO* io)
 {
-    aMsgIO(kInfo, io, "Cache::Detach()");
+    xfcMsgIO(kInfo, io, "Cache::Detach()");
     XrdSysMutexHelper lock(&m_io_mutex);
     m_attached--;
 
-    aMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
+    xfcMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
 
 
     delete io;

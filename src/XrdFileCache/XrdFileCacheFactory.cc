@@ -157,7 +157,7 @@ Factory::GetInstance()
 XrdOucCache *
 Factory::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
 {
-    aMsg(kInfo, "Factory::Create() new cache object");
+    xfcMsg(kInfo, "Factory::Create() new cache object");
     return new Cache(m_stats);
 }
 
@@ -175,14 +175,14 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
 
     if (!config_filename || !*config_filename)
     {
-        aMsg(kWarning, "Factory::Config() configuration file not specified.");
+        xfcMsg(kWarning, "Factory::Config() configuration file not specified.");
         return false;
     }
 
     int fd;
     if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
     {
-        aMsg(kError, "Factory::Config() can't open configuration file %s", config_filename);
+        xfcMsg(kError, "Factory::Config() can't open configuration file %s", config_filename);
         return false;
     }
 
@@ -211,7 +211,7 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
     if ((retc = Config.LastError()))
     {
         retval = false;
-        aMsg(kError, "Factory::Config() error in parsing");
+        xfcMsg(kError, "Factory::Config() error in parsing");
     }
 
     Config.Close();
@@ -220,22 +220,22 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
     if (retval)
         retval = ConfigParameters(parameters);
 
-    aMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
-    aMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_cache_dir.c_str());
-    aMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
+    xfcMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
+    xfcMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_cache_dir.c_str());
+    xfcMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
 
     if (retval)
     {
         XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
         if (!output_fs)
         {
-            aMsg(kError, "Factory::Config() Unable to create a OSS object");
+            xfcMsg(kError, "Factory::Config() Unable to create a OSS object");
             retval = false;
         }
         m_output_fs = output_fs;
     }
 
-    aMsg(kInfo, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
+    xfcMsg(kInfo, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
 
     return retval;
 }
@@ -265,7 +265,7 @@ Factory::xolib(XrdOucStream &Config)
 
     if (!(val = Config.GetWord()) || !val[0])
     {
-        aMsg(kInfo, "Factory::Config() osslib not specified");
+        xfcMsg(kInfo, "Factory::Config() osslib not specified");
         return false;
     }
 
@@ -274,7 +274,7 @@ Factory::xolib(XrdOucStream &Config)
     *(parms+pl) = ' ';
     if (!Config.GetRest(parms+pl+1, sizeof(parms)-pl-1))
     {
-        aMsg(kError, "Factory::Config() osslib parameters too long");
+        xfcMsg(kError, "Factory::Config() osslib parameters too long");
         return false;
     }
 
@@ -301,7 +301,7 @@ Factory::xdlib(XrdOucStream &Config)
     std::string libp;
     if (!(val = Config.GetWord()) || !val[0])
     {
-        aMsg(kInfo, " Factory:;Config() decisionlib not specified; always caching files");
+        xfcMsg(kInfo, " Factory:;Config() decisionlib not specified; always caching files");
         return true;
     }
     else
@@ -324,7 +324,7 @@ Factory::xdlib(XrdOucStream &Config)
     Decision * d = ep(m_log);
     if (!d)
     {
-        aMsg(kError, "Factory::Config() decisionlib was not able to create a decision object");
+        xfcMsg(kError, "Factory::Config() decisionlib was not able to create a decision object");
         return false;
     }
     if (params)
@@ -350,19 +350,19 @@ Factory::ConfigParameters(const char * parameters)
         if ( part == "-prefetchFileBlocks" )
         {
             m_configuration.m_prefetchFileBlocks = true;
-            aMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
+            xfcMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
         }
         else if ( part == "-user" )
         {
             getline(is, part, ' ');
             m_configuration.m_username = part.c_str();
-            aMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
+            xfcMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
         }
         else if  ( part == "-cacheDir" )
         {
             getline(is, part, ' ');
             m_configuration.m_cache_dir = part.c_str();
-            aMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
+            xfcMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
         }
         else if  ( part == "-debug" )
         {
@@ -373,13 +373,13 @@ Factory::ConfigParameters(const char * parameters)
         {
             getline(is, part, ' ');
             m_configuration.m_lwm = ::atof(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() lwm = %f", m_configuration.m_lwm);
+            xfcMsg(kInfo, "Factory::ConfigParameters() lwm = %f", m_configuration.m_lwm);
         }
         else if  ( part == "-hwm" )
         {
             getline(is, part, ' ');
             m_configuration.m_hwm = ::atof(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
+            xfcMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
         }
         else if  ( part == "-bufferSize" )
         {
@@ -387,13 +387,13 @@ Factory::ConfigParameters(const char * parameters)
             // prefetch buffer size is long long becuse of possible problems
             // after multiplcation, but in this stepe it is save to use atoi
             m_configuration.m_bufferSize = ::atoi(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
+            xfcMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
         }
         else if  ( part == "-blockSize" )
         {
             getline(is, part, ' ');
             m_configuration.m_blockSize = ::atoi(part.c_str());
-            aMsg(kInfo, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
+            xfcMsg(kInfo, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
         }
     }
 
@@ -459,12 +459,12 @@ FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string,
                 cinfo.Read(fh);
                 if (cinfo.getLatestAttachTime(accessTime, fh))
                 {
-                    aMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
+                    xfcMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
                     fcmap[np] = accessTime;
                 }
                 else
                 {
-                    aMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+                    xfcMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
                 }
             }
             else if ( dh->Opendir(np.c_str(), env)  >= 0 )
@@ -497,17 +497,17 @@ Factory::TempDirCleanup()
         struct statvfs fsstat;
         if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
         {
-            aMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+            xfcMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
             exit(1);
         }
         else
         {
             float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-            aMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
+            xfcMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
             if (oc > m_configuration.m_hwm)
             {
                 bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);
-                aMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
+                xfcMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
             }
         }
 
@@ -529,7 +529,7 @@ Factory::TempDirCleanup()
                     {
                         bytesToRemove -= fstat.st_size;
                         oss->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                        xfcMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                     }
 
                     // remove data file
@@ -538,7 +538,7 @@ Factory::TempDirCleanup()
                     {
                         bytesToRemove -= fstat.st_size;
                         oss->Unlink(path.c_str());
-                        aMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                        xfcMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                     }
                     if (bytesToRemove <= 0)
                         break;
