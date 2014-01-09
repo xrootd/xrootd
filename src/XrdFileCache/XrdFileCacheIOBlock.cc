@@ -32,7 +32,6 @@
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
-int s_blocksize = 1048576*128; // 128M 
 
 using namespace XrdFileCache;
 
@@ -48,8 +47,7 @@ PrefetchRunnerBl(void * prefetch_void)
 IOBlock::IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
     : IO(io, statsGlobal, cache)
 {
-    m_blockSize = s_blocksize;
-    GetBlockSizeFromPath();
+    m_blockSize = Factory::GetInstance().RefConfiguration().m_blockSize;
 }
 
 XrdOucCacheIO* IOBlock::Detach()
@@ -69,30 +67,6 @@ XrdOucCacheIO* IOBlock::Detach()
     return io;
 }
 
-
-void IOBlock::GetBlockSizeFromPath()
-{
-    const static std::string tag = "hdfs_block_size=";
-    std::string path= m_io.Path();
-    size_t pos1 = path.find(tag);    
-    size_t t = tag.length();
-    if ( pos1 != path.npos)
-    {
-        pos1 += t;
-        size_t pos2 = path.find("&", pos1 );
-        if (pos2 != path.npos )
-        {
-            std::string bs = path.substr(pos1, pos2-pos1);   
-            m_blockSize = atoi(bs.c_str());
-        }
-	else {
-            m_blockSize = atoi(path.substr(pos1).c_str());
-	}
-
-        aMsg(kDebug, "IOBlock::READ ===> BLOCKSIZE [%d].", m_blockSize);
-    }
-}
-
 IOBlock::FileBlock* IOBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 {
     FileBlock* fb = new FileBlock(off, io);
@@ -103,7 +77,8 @@ IOBlock::FileBlock* IOBlock::newBlockPrefetcher(long long off, int blocksize, Xr
     std::stringstream ss;
     ss  << fname;
     char offExt[64];
-    sprintf(&offExt[0],"_%lld", off );
+    // file format blabla_<blockSize>-<offset>
+    sprintf(&offExt[0],".___%lld-%lld", m_blockSize, off );
     ss << &offExt[0];
     fname = ss.str();
 
