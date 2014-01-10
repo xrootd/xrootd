@@ -41,7 +41,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecInterface.hh"
-
+#include "XrdCrypto/XrdCryptoFactory.hh"
 #include "Xrd/XrdObject.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -216,6 +216,8 @@ private:
   /// Flag to tell if the https handshake has finished, in the case of an https
   /// connection being established
   bool ssldone;
+
+  static XrdCryptoFactory *myCryptoFactory;
 protected:
 
 

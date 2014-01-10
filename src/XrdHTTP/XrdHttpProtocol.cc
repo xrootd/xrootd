@@ -82,7 +82,7 @@ char *XrdHttpProtocol::secretkey = 0;
 int XrdHttpProtocol::sslverifydepth = 9;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
-
+XrdCryptoFactory *XrdHttpProtocol::myCryptoFactory = 0;
 XrdHttpSecXtractor *XrdHttpProtocol::secxtractor = 0;
 
 static const unsigned char *s_server_session_id_context = (const unsigned char *) "XrdHTTPSessionCtx";
@@ -1262,6 +1262,18 @@ int verify_callback(int ok, X509_STORE_CTX * store) {
 /// Initialization of the ssl security
 
 int XrdHttpProtocol::InitSecurity() {
+
+#ifdef HAVE_XRDCRYPTO
+#ifndef WIN32
+  // Borrow the initialization of XrdCryptossl, in order to share the
+  // OpenSSL threading bits
+  if (!(myCryptoFactory = XrdCryptoFactory::GetCryptoFactory("ssl"))) {
+          cerr << "Cannot instantiate crypto factory ssl" << endl;
+          exit(1);
+        }
+
+#endif
+#endif
 
   SSL_library_init();
   SSL_load_error_strings();

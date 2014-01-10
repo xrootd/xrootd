@@ -20,7 +20,7 @@ set_target_properties(XrdHttp PROPERTIES
  VERSION "${XRD_HTTP_VERSION}"
  SOVERSION "${XRD_HTTP_SOVERSION}")
 
-target_link_libraries(XrdHttp XrdMain dl ssl )
+target_link_libraries(XrdHttp XrdMain XrdCrypto dl ssl )
 
 # Install directive.
 install(TARGETS XrdHttp
