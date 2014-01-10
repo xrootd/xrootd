@@ -464,7 +464,7 @@ Prefetch::AppendIOStatToFileInfo()
 ssize_t
 Prefetch::Read(char *buff, off_t off, size_t size)
 {
-    xfcMsgIO(kDump, &m_input, "prefetch::Read() prefetch reas off = %lld size = %lld.", off, size);
+    xfcMsgIO(kDump, &m_input, "prefetch::Read()  off = %lld size = %lld.", off, size);
     int nbb; // num of blocks needed
     int nbp; //  num of blocks pulled
     ssize_t retval = 0;
@@ -493,6 +493,7 @@ Prefetch::Read(char *buff, off_t off, size_t size)
     }
     else
     {
+        xfcMsgIO(kWarning, &m_input, "Prefetch::Read() failed to get status for read off = %lld size = %lld.", off, size);
         if (m_stop || m_failed)
             retval = -1;
         else
