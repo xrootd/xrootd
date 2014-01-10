@@ -450,7 +450,12 @@ Prefetch::AppendIOStatToFileInfo()
 {
     // lock in case several IOs want to write in *cinfo file
     m_downloadStatusMutex.Lock();
-    m_cfi.AppendIOStat(&m_stats, (XrdOssDF*)m_infoFile);
+    if (m_infoFile) {
+       m_cfi.AppendIOStat(&m_stats, (XrdOssDF*)m_infoFile);
+    }
+    else {
+       xfcMsgIO(kWarning, &m_input, "Prefetch::AppendIOStatToFileInfo() info file not opened");
+    }
     m_downloadStatusMutex.UnLock();
 }
 
