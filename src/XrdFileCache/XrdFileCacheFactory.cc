@@ -118,7 +118,6 @@ TempDirCleanupThread(void* cache_void)
 Factory::Factory()
     : m_log(0, "XFC_")
 {
-    Dbg = kInfo;
 }
 
 extern "C"
@@ -222,7 +221,7 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
 
     xfcMsg(kInfo,"Factory::Config() user name %s", m_configuration.m_username.c_str());
     xfcMsg(kInfo,"Factory::Config() temporary directory %s", m_configuration.m_cache_dir.c_str());
-    xfcMsg(kInfo,"Factory::Config() debug level %d", Dbg);
+    xfcMsg(kInfo,"Factory::Config() debug level %d", m_configuration.m_logLevel);
     xfcMsg(kInfo,"Factory::Config() pruge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
    
     if (retval)
@@ -368,7 +367,7 @@ Factory::ConfigParameters(const char * parameters)
         else if  ( part == "-debug" )
         {
             getline(is, part, ' ');
-            Dbg = (LogLevel)atoi(part.c_str());
+            m_configuration.m_logLevel = (LogLevel)atoi(part.c_str());
         }
         else if  ( part == "-lwm" )
         {

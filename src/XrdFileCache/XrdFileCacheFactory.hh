@@ -28,6 +28,7 @@ class XrdOucStream;
 class XrdSysError;
 
 #include "XrdFileCacheDecision.hh"
+#include "XrdFileCacheLog.hh"
 
 namespace XrdFileCache
 {
@@ -41,6 +42,7 @@ struct Configuration
         m_username("nobody"),
         m_lwm(0.95),
         m_hwm(0.9),
+        m_logLevel(kError),
         m_bufferSize(1024*1024),
         m_blockSize(128*1024*1024) {}
 
@@ -52,6 +54,7 @@ struct Configuration
     float m_lwm;
     float m_hwm;
 
+    LogLevel  m_logLevel;
     long long m_bufferSize;
     long long m_blockSize; // used with m_prefetchFileBlocks
 };
