@@ -140,7 +140,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 //
    for (Slot = 0; Slot < STMax; Slot++)
        if (NodeTab[Slot])
-          {if (NodeTab[Slot]->isNode(lp, theNID)) break;
+          {if (NodeTab[Slot]->isNode(lp, theNID, port)) break;
 /*Conn*/   if (NodeTab[Slot]->isConn)
               {if (!NodeTab[Slot]->isPerm && Special)
                                              Bump2 = Slot; // Last conn Server

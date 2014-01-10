@@ -125,8 +125,8 @@ inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
 inline int    isNode(const XrdNetAddr *addr)
                     {return netID.Same(addr);}
-inline int    isNode(XrdLink *lp, const char *nid)
-                    {return netID.Same(lp->NetAddr(),true)
+inline int    isNode(XrdLink *lp, const char *nid, int port)
+                    {return netID.Same(lp->NetAddr()) && port == Port
                          && (nid ? !strcmp(myNID, nid) : 1);
                     }
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
