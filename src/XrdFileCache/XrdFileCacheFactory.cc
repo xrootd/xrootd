@@ -220,8 +220,8 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
         retval = ConfigParameters(parameters);
 
     xfcMsg(kInfo,"Factory::Config() user name %s", m_configuration.m_username.c_str());
-    xfcMsg(kInfo,"Factory::Config() temporary directory %s", m_configuration.m_cache_dir.c_str());
-    xfcMsg(kInfo,"Factory::Config() debug level %d", m_configuration.m_logLevel);
+    xfcMsg(kInfo,"Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
+    xfcMsg(kInfo,"Factory::Config() log level %d", m_configuration.m_logLevel);
     xfcMsg(kInfo,"Factory::Config() pruge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
    
     if (retval)
@@ -364,7 +364,7 @@ Factory::ConfigParameters(const char * parameters)
             m_configuration.m_cache_dir = part.c_str();
             // xfcMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
         }
-        else if  ( part == "-debug" )
+        else if  ( part == "-logLevel" )
         {
             getline(is, part, ' ');
             m_configuration.m_logLevel = (LogLevel)atoi(part.c_str());
@@ -480,8 +480,8 @@ FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::string,
 void
 Factory::TempDirCleanup()
 {
-    // check state every sleepts seconds
-    const static int sleept = 180;
+    // check state every sleep seconds
+    const static int sleept = 300;
 
     struct stat fstat;
     XrdOucEnv env;
@@ -501,7 +501,7 @@ Factory::TempDirCleanup()
         else
         {
             float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-            xfcMsg(kInfo, "Factory::TempDirCleanup() occupade disk space == %f", oc);
+            xfcMsg(kInfo, "Factory::TempDirCleanup() occupate disk space == %f", oc);
             if (oc > m_configuration.m_hwm)
             {
                 bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);

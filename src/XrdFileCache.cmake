@@ -12,15 +12,15 @@ set( XRD_FILE_CACHE_SOVERSION 1 )
 add_library(
   XrdFileCache
   SHARED
-  XrdFileCache/XrdFileCache.cc            XrdFileCache/XrdFileCache.hh
-  XrdFileCache/XrdFileCacheFactory.cc     XrdFileCache/XrdFileCacheFactory.hh
-  XrdFileCache/XrdFileCachePrefetch.cc    XrdFileCache/XrdFileCachePrefetch.hh
+  XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
+  XrdFileCache/XrdFileCacheFactory.cc       XrdFileCache/XrdFileCacheFactory.hh
+  XrdFileCache/XrdFileCachePrefetch.cc      XrdFileCache/XrdFileCachePrefetch.hh
   XrdFileCache/XrdFileCacheStats.hh
-  XrdFileCache/XrdFileCacheInfo.cc        XrdFileCache/XrdFileCacheInfo.hh
-  XrdFileCache/XrdFileCacheIOEntire.cc    XrdFileCache/XrdFileCacheIOEntire.hh
-  XrdFileCache/XrdFileCacheIOBlock.cc     XrdFileCache/XrdFileCacheIOBlock.hh
+  XrdFileCache/XrdFileCacheInfo.cc          XrdFileCache/XrdFileCacheInfo.hh
+  XrdFileCache/XrdFileCacheIOEntireFile.cc  XrdFileCache/XrdFileCacheIOEntireFile.hh
+  XrdFileCache/XrdFileCacheIOFileBlock.cc   XrdFileCache/XrdFileCacheIOFileBlock.hh
   XrdFileCache/XrdFileCacheDecision.hh
-  XrdFileCache/XrdFileCacheLog.cc         XrdFileCache/XrdFileCacheLog.hh )
+  XrdFileCache/XrdFileCacheLog.cc           XrdFileCache/XrdFileCacheLog.hh )
 
 target_link_libraries(
   XrdFileCache

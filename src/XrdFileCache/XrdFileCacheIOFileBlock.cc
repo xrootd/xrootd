@@ -16,7 +16,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include "XrdFileCacheIOBlock.hh"
+#include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"

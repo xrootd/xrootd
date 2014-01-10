@@ -28,7 +28,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include <XrdSys/XrdSysPthread.hh>
 
-#include "XrdFileCacheIOEntire.hh"
+#include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheLog.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheStats.hh"

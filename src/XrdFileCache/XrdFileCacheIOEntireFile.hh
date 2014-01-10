@@ -19,7 +19,7 @@
 //----------------------------------------------------------------------------------
 
 /*
- * The XrdFileCacheIOEntire object is used as a proxy for the original source
+ * The XrdFileCacheIOEntireFile object is used as a proxy for the original source
  */
 
 #include <string>

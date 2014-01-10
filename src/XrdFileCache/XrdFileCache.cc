@@ -25,8 +25,8 @@
 #include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdFileCache.hh"
-#include "XrdFileCacheIOEntire.hh"
-#include "XrdFileCacheIOBlock.hh"
+#include "XrdFileCacheIOEntireFile.hh"
+#include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheLog.hh"
