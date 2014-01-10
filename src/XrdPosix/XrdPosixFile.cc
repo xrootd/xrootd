@@ -115,23 +115,23 @@ bool XrdPosixFile::Close(XrdCl::XRootDStatus &Status)
 
 bool XrdPosixFile::Finalize(XrdCl::XRootDStatus &Status)
 {
-    // Complete initialization. If the stat() fails, the caller will unwind the
-    // whole open process (ick).
+   // Complete initialization. If the stat() fails, the caller will unwind the
+   // whole open process (ick).
 
-    if (Stat(Status)) {
-        // Setup the cache if it is to be used
-        //
-        if (cOpt & XrdOucCache::optRW)
-        {    if (CacheW) XCio = CacheW->Attach((XrdOucCacheIO *)this, cOpt);}
-        else if (CacheR) XCio = CacheR->Attach((XrdOucCacheIO *)this, cOpt);
+   if (Stat(Status)) {
+      // Setup the cache if it is to be used
+      //
+      if (cOpt & XrdOucCache::optRW)
+      {    if (CacheW) XCio = CacheW->Attach((XrdOucCacheIO *)this, cOpt);}
+      else if (CacheR) XCio = CacheR->Attach((XrdOucCacheIO *)this, cOpt);
 
-        // Indicate that we are at the start of the file
-        //
-        currOffset = 0;
-        return true;
-    }
-    else
-        return false;
+      // Indicate that we are at the start of the file
+      //
+      currOffset = 0;
+      return true;
+   }
+   else
+      return false;
 }
   
 /******************************************************************************/
