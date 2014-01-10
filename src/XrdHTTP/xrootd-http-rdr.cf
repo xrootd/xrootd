@@ -1,0 +1,66 @@
+
+#
+# Load the HTTP protocol plugin
+#
+
+
+if exec xrootd
+   xrd.protocol XrdHttp /usr/lib64/libXrdHttp.so.1
+fi
+
+# Regular SSL stuff ... adjust as needed
+http.cert /etc/grid-security/hostcert.pem
+http.key /etc/grid-security/hostkey.pem
+http.cadir /etc/grid-security/certificates
+#http.cafile /etc/grid-security/certificates/CERN-TCA.pem
+
+
+# The key that has to be shared between HTTP redirectors and servers in this
+#  cluster. The minimum length is 32 characters, hence the default
+#  one will not work.
+# A data server with the secret key set will only accept
+#  - requests that have been correctly hashed
+#  OR
+#  - requests using https (if https is configured)
+http.secretkey CHANGEME
+
+# If this server needs to redirect, we may want to choose if
+# to redirect with http or https
+http.desthttps no
+
+# Set this if this server will redirect HTTPS clients to itself
+# using HTTP+token.
+# If this is yes in a redirector, then the client will handshake with SSL only
+# once, with the redirector
+# If this is yes in a data server, then the client may also have
+# handshaken with a redirector before
+http.selfhttps2http no
+
+# We may want to deny listings. This can be useful if this is a cluster,
+# as the xrootd clustering does not really provide listings as a functionality.
+# Alternatively, we may want to redirect to some other host that
+# will provide the client with the listing it requires
+# For example we may want to redirect towards an UGR server, which uses the same
+# xrootd servers to set up a Dynamic Federation
+http.listingdeny no
+#http.listingredir http://my_newhost_which_provides_listings_for_thiscluster:80/
+
+
+# Set to yes if this server will serve the embedded css and logo directly from
+# the static resources in memory. This is much faster and makes the
+# setup trivial.
+# If you want to put your CSS and logo, then set this to no and put the relevant files
+# into a directory that is reachable with the path /static/
+http.embeddedstatic yes
+
+
+# Load a SecXtractor library, whose responsibility is to fill the internal XrdSec environment
+# that is associated to a client. The typical usage is to extract additional information
+# from the VOMS extensions of a client proxy certificate. For doing this you have to
+# load the SecXtractor library that knows about VOMS, not included in the xrootd source tree.
+#http.secxtractor /home/furano/Park/xrootd/xrootd_trunk2/xrootd/build/src/XrdHTTP/libXrdHttpVOMS.so
+
+
+all.role manager
+all.manager pcitgt02:1213
+

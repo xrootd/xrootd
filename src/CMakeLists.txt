@@ -33,6 +33,8 @@ include( XrdApps )
 include( XrdCns )
 include( XrdHeaders )
 
+include( XrdHTTP )
+
 #-------------------------------------------------------------------------------
 # Install the utility scripts
 #-------------------------------------------------------------------------------
