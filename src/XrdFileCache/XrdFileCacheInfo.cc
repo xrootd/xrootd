@@ -122,6 +122,8 @@ Info::WriteHeader(XrdOssDF* fp)
 void
 Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
+    xfcMsg(kInfo,"Info:::AppendIOStat()");
+
     int fl = flock(fp->getFD(),  LOCK_EX);
     if (fl) xfcMsg(kError,"AppendIOStat() lock failed \n");
 
@@ -139,8 +141,6 @@ Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
     as.BytesRead = caches->BytesCachedPrefetch + caches->BytesPrefetch;
     as.Hits = caches->Hits; // num blocks
     as.Miss = caches->Miss;
-
-    if(Dbg < kInfo) as.Dump();
 
     int flu = flock(fp->getFD(),  LOCK_UN);
     if (flu) xfcMsg(kError,"AppendStat() un-lock failed \n");
