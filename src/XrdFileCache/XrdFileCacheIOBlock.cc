@@ -79,8 +79,8 @@ IOBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
     std::stringstream ss;
     ss << fname;
     char offExt[64];
-    // file format <orig_path>_<blockSize>-<offset>
-    sprintf(&offExt[0],".___%lld-%lld", m_blockSize, off );
+    // block file format like origpath__size_offset
+    sprintf(&offExt[0],"___%lld_%lld", m_blockSize, off );
     ss << &offExt[0];
     fname = ss.str();
 
@@ -149,13 +149,13 @@ IOBlock::Read (char *buff, long long off, int size)
         }
         assert(readBlockSize);
 
-        xfcMsgIO(kInfo, &m_io, "IOBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
+        xfcMsgIO(kDebug, &m_io, "IOBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
 
 
         // pass offset unmodified
 
         long long min  = blockIdx*m_blockSize;
-        if ( off >= min) { assert(0); }
+        if ( off < min) { assert(0); }
         assert(off+readBlockSize <= (min + m_blockSize));
         int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset0, size);
 
