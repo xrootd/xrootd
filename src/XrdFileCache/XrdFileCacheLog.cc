@@ -33,8 +33,6 @@
 
 namespace XrdFileCache
 {
-LogLevel Dbg;
-
 const char* const s_levelNames[] = { "Dump ", "Debug","Info ", "Warn ", "Err  " };
 
 const char*

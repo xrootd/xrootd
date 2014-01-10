@@ -22,10 +22,10 @@
 #include <iostream>
 
 #define xfcMsg(level, format, ...) \
-    if (level >= Dbg) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
+   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
 
 #define xfcMsgIO(level, io, format, ...) \
-    if (level >= Dbg) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
+    if (level >= Factory::GetInstance().RefConfiguration().m_logLevel ) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
 
 class XrdOucCacheIO;
 
@@ -38,8 +38,6 @@ enum LogLevel {
     kWarning,
     kError
 };
-
-extern LogLevel Dbg;
 
 const char* levelName(LogLevel);
 void strprintf(LogLevel level, const char* fmt, ...);
