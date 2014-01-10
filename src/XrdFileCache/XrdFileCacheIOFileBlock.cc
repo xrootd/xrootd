@@ -122,7 +122,7 @@ IOFileBlock::Read (char *buff, long long off, int size)
                 pbs =  m_io.FSize() - blockIdx*m_blockSize;
                 xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() last block, change output file size to %lld \n", pbs);
             }
-            //            fb = new FileBlock(blockIdx*m_blockSize, pbs, &m_io);
+
             fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
             m_blocks.insert(std::pair<int,FileBlock*>(blockIdx, (FileBlock*) fb));
         }
@@ -149,7 +149,7 @@ IOFileBlock::Read (char *buff, long long off, int size)
         }
         assert(readBlockSize);
 
-        xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
+        xfcMsgIO(kInfo, &m_io, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
 
 
         // pass offset unmodified
@@ -157,20 +157,21 @@ IOFileBlock::Read (char *buff, long long off, int size)
         long long min  = blockIdx*m_blockSize;
         if ( off < min) { assert(0); }
         assert(off+readBlockSize <= (min + m_blockSize));
-        int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset0, size);
+        int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset0, readBlockSize);
 
         xfcMsgIO(kDebug, &m_io,  "IOFileBlock::Read()  Block read returned %d", retvalBlock );
-        if (retvalBlock >=0 )
+        if (retvalBlock > 0 )
         {
             bytes_read += retvalBlock;
             buff += retvalBlock;
             off += retvalBlock;
-            readBlockSize -= retvalBlock;
+            long long  remain = readBlockSize - retvalBlock;
 
             // cancel read if not succssful
-            if (readBlockSize > 0)
+            if (remain > 0)
             {
-                xfcMsgIO( kInfo, &m_io, "IOFileBlock::Read() Can't read from prefetch remain = %d", readBlockSize);
+               xfcMsgIO( kWarning, &m_io, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d", 
+                         blockIdx, readBlockSize, off, remain);
                 return bytes_read;
             }
         }
