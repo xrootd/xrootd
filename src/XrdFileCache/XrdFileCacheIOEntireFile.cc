@@ -46,7 +46,7 @@ PrefetchRunner(void * prefetch_void)
 //______________________________________________________________________________
 
 
-IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
+IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
     : IO(io, stats, cache),
       m_prefetch(0)
 {
@@ -61,11 +61,11 @@ IOEntire::IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & cache)
 
 }
 
-IOEntire::~IOEntire()
+IOEntireFile::~IOEntireFile()
 {}
 
 XrdOucCacheIO *
-IOEntire::Detach()
+IOEntireFile::Detach()
 {
     m_statsGlobal.Add(m_prefetch->GetStats());
 
@@ -80,7 +80,7 @@ IOEntire::Detach()
 }
 
 int
-IOEntire::Read (char *buff, long long off, int size)
+IOEntireFile::Read (char *buff, long long off, int size)
 {
     xfcMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
 
@@ -118,7 +118,7 @@ IOEntire::Read (char *buff, long long off, int size)
  * Perform a readv from the cache
  */
 int
-IOEntire::ReadV (const XrdOucIOVec *readV, int n)
+IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
     xfcMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
 

@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_IO_ENTIRE_HH__
-#define __XRDFILECACHE_IO_ENTIRE_HH__
+#ifndef __XRDFILECACHE_IO_ENTIRE_FILE_HH__
+#define __XRDFILECACHE_IO_ENTIRE_FILE_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -36,11 +36,11 @@ class XrdOucIOVec;
 
 namespace XrdFileCache
 {
-class IOEntire : public IO
+class IOEntireFile : public IO
 {
 public:
-    IOEntire(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-    ~IOEntire();
+    IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+    ~IOEntireFile();
 
     virtual int Read (char  *Buffer, long long Offset, int Length);
     virtual int  ReadV (const XrdOucIOVec *readV, int n);

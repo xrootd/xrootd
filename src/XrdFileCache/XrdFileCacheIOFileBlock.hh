@@ -1,5 +1,5 @@
-#ifndef __XRDFILECACHE_IOBL_HH__
-#define __XRDFILECACHE_IOBL_HH__
+#ifndef __XRDFILECACHE_IO_FILE_BLOCK_HH__
+#define __XRDFILECACHE_IO_FILE_BLOCK_HH__
 //----------------------------------------------------------------------------------
 // Copyright (c) 2014 by Board of Trustees of the Leland Stanford, Jr., University
 // Author: Alja Mrak-Tadel, Matevz Tadel, Brian Bockelman
@@ -31,7 +31,7 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class IOBlock : public IO
+class IOFileBlock : public IO
 {
 private:
     struct FileBlock
@@ -42,8 +42,8 @@ private:
     };
 
 public:
-    IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-    ~IOBlock() {}
+    IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+    ~IOFileBlock() {}
 
     virtual XrdOucCacheIO *Detach();
     virtual int Read (char  *Buffer, long long Offset, int Length);

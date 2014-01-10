@@ -44,16 +44,16 @@ PrefetchRunnerBl(void * prefetch_void)
 }
 
 
-IOBlock::IOBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
+IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
     : IO(io, statsGlobal, cache)
 {
     m_blockSize = Factory::GetInstance().RefConfiguration().m_blockSize;
 }
 
 XrdOucCacheIO*
-IOBlock::Detach()
+IOFileBlock::Detach()
 {
-    xfcMsgIO(kInfo, &m_io,"IOBlock::Detach()");
+    xfcMsgIO(kInfo, &m_io,"IOFileBlock::Detach()");
     XrdOucCacheIO * io = &m_io;
 
 
@@ -68,8 +68,8 @@ IOBlock::Detach()
     return io;
 }
 
-IOBlock::FileBlock*
-IOBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
+IOFileBlock::FileBlock*
+IOFileBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 {
     FileBlock* fb = new FileBlock(off, io);
 
@@ -93,14 +93,14 @@ IOBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 }
 
 int
-IOBlock::Read (char *buff, long long off, int size)
+IOFileBlock::Read (char *buff, long long off, int size)
 {
     long long off0 = off;
     int idx_first = off0/m_blockSize;
     int idx_last = (off0+size-1)/m_blockSize;
 
     int bytes_read = 0;
-    xfcMsgIO(kDebug, &m_io, "IOBlock::Read() %lld@%d block range [%d-%d] \n", off, size, idx_first, idx_last);
+    xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n", off, size, idx_first, idx_last);
 
     for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
     {
@@ -116,11 +116,11 @@ IOBlock::Read (char *buff, long long off, int size)
         {
             size_t pbs = m_blockSize;
             // check if this is last block
-            int lastIOBlock = (m_io.FSize()-1)/m_blockSize;
-            if (blockIdx == lastIOBlock )
+            int lastIOFileBlock = (m_io.FSize()-1)/m_blockSize;
+            if (blockIdx == lastIOFileBlock )
             {
                 pbs =  m_io.FSize() - blockIdx*m_blockSize;
-                xfcMsgIO(kDebug, &m_io, "IOBlock::Read() last block, change output file size to %lld \n", pbs);
+                xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() last block, change output file size to %lld \n", pbs);
             }
             //            fb = new FileBlock(blockIdx*m_blockSize, pbs, &m_io);
             fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
@@ -135,12 +135,12 @@ IOBlock::Read (char *buff, long long off, int size)
             if (blockIdx == idx_first)
             {
                 readBlockSize = (blockIdx + 1) *m_blockSize - off0;
-                xfcMsgIO(kDebug, &m_io, "IOBlock::Read() %s", "Read partially till the end of the block");
+                xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() %s", "Read partially till the end of the block");
             }
             else if (blockIdx == idx_last)
             {
                 readBlockSize = (off0+size) - blockIdx*m_blockSize;
-                xfcMsgIO(kDebug, &m_io, "IOBlock::Read() s", "Read partially from beginning of block");
+                xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() s", "Read partially from beginning of block");
             }
             else
             {
@@ -149,7 +149,7 @@ IOBlock::Read (char *buff, long long off, int size)
         }
         assert(readBlockSize);
 
-        xfcMsgIO(kDebug, &m_io, "IOBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
+        xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
 
 
         // pass offset unmodified
@@ -159,7 +159,7 @@ IOBlock::Read (char *buff, long long off, int size)
         assert(off+readBlockSize <= (min + m_blockSize));
         int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset0, size);
 
-        xfcMsgIO(kDebug, &m_io,  "IOBlock::Read()  Block read returned %d", retvalBlock );
+        xfcMsgIO(kDebug, &m_io,  "IOFileBlock::Read()  Block read returned %d", retvalBlock );
         if (retvalBlock >=0 )
         {
             bytes_read += retvalBlock;
@@ -170,13 +170,13 @@ IOBlock::Read (char *buff, long long off, int size)
             // cancel read if not succssful
             if (readBlockSize > 0)
             {
-                xfcMsgIO( kInfo, &m_io, "IOBlock::Read() Can't read from prefetch remain = %d", readBlockSize);
+                xfcMsgIO( kInfo, &m_io, "IOFileBlock::Read() Can't read from prefetch remain = %d", readBlockSize);
                 return bytes_read;
             }
         }
         else
         {
-            xfcMsgIO( kError, &m_io, "IOBlock::Read() read error, retval %d", retvalBlock);
+            xfcMsgIO( kError, &m_io, "IOFileBlock::Read() read error, retval %d", retvalBlock);
             return retvalBlock;
         }
     }
