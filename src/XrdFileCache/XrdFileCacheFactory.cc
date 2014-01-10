@@ -220,10 +220,11 @@ Factory::Config(XrdSysLogger *logger, const char *config_filename, const char *p
     if (retval)
         retval = ConfigParameters(parameters);
 
-    xfcMsg(kInfo,"Factory::Config() Cache user name %s", m_configuration.m_username.c_str());
-    xfcMsg(kInfo,"Factory::Config() Cache temporary directory %s", m_configuration.m_cache_dir.c_str());
-    xfcMsg(kInfo,"Factory::Config() Cache debug level %d", Dbg);
-
+    xfcMsg(kInfo,"Factory::Config() user name %s", m_configuration.m_username.c_str());
+    xfcMsg(kInfo,"Factory::Config() temporary directory %s", m_configuration.m_cache_dir.c_str());
+    xfcMsg(kInfo,"Factory::Config() debug level %d", Dbg);
+    xfcMsg(kInfo,"Factory::Config() pruge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
+   
     if (retval)
     {
         XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
@@ -347,7 +348,7 @@ Factory::ConfigParameters(const char * parameters)
     while (getline(is, part, ' '))
     {
         // cout << part << endl;
-        if ( part == "-prefetchFileBlocks" )
+        if ( part == "-prefetchFileBlock" )
         {
             m_configuration.m_prefetchFileBlocks = true;
             xfcMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
@@ -356,13 +357,13 @@ Factory::ConfigParameters(const char * parameters)
         {
             getline(is, part, ' ');
             m_configuration.m_username = part.c_str();
-            xfcMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
+            // xfcMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
         }
         else if  ( part == "-cacheDir" )
         {
             getline(is, part, ' ');
             m_configuration.m_cache_dir = part.c_str();
-            xfcMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
+            // xfcMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
         }
         else if  ( part == "-debug" )
         {
@@ -373,13 +374,11 @@ Factory::ConfigParameters(const char * parameters)
         {
             getline(is, part, ' ');
             m_configuration.m_lwm = ::atof(part.c_str());
-            xfcMsg(kInfo, "Factory::ConfigParameters() lwm = %f", m_configuration.m_lwm);
         }
         else if  ( part == "-hwm" )
         {
             getline(is, part, ' ');
             m_configuration.m_hwm = ::atof(part.c_str());
-            xfcMsg(kInfo, "Factory::ConfigParameters() hwm = %f", m_configuration.m_hwm);
         }
         else if  ( part == "-bufferSize" )
         {
