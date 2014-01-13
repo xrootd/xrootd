@@ -125,10 +125,7 @@ XrdOss *XrdOfsOss;
 
 XrdOfs::XrdOfs()
 {
-   static const int fmtopts = XrdNetAddr::old6Map4;
-   XrdNetAddr myAddr(0);
-   char buff[256], *bp;
-   int i;
+   const char *bp;
 
 // Establish defaults
 //
@@ -155,34 +152,6 @@ XrdOfs::XrdOfs()
    poscLog = 0;
    poscHold= 10*60;
    poscAuto= 0;
-
-// Establish our hostname and IPV6 address
-//
-   myAddr.Port(myPort);
-   HostName = strdup(myAddr.Name("*unknown*"));
-   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtName);
-   locRespHP = strdup(buff); locRlenHP = strlen(buff);
-
-   myAddr.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtopts);
-   locRespV4 = locResp = strdup(buff); locRlenV4 = locRlen = strlen(buff);
-
-   for (i = 0; HostName[i] && HostName[i] != '.'; i++) {}
-   HostName[i] = '\0';
-   HostPref = strdup(HostName);
-   HostName[i] = '.';
-
-// If we are truly IPv6 then see if we also have an IPv4 address
-//
-   if (myAddr.isIPType(XrdNetAddrInfo::IPv6) && !myAddr.isMapped())
-      {XrdNetAddr *iP;
-       int iN;
-       if (!XrdNetUtils::GetAddrs(HostName,&iP,iN,XrdNetUtils::onlyIPv4,0) && iN)
-          {iP[0].Port(myPort);
-           iP[0].Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtopts);
-           locRespV4 = strdup(buff); locRlenV4 = strlen(buff);
-           delete [] iP;
-          }
-       }
 
 // Set the configuration file name and dummy handle
 //
@@ -1556,8 +1525,10 @@ int XrdOfs::fsctl(const int               cmd,
 //
    if (opcode == SFS_FSCTL_LOCATE)
       {struct stat fstat;
-       char pbuff[1024], rType[3], *Resp[2] = {rType, 0};
+       char pbuff[1024], rType[3];
+       const char *Resp[2] = {rType, 0};
        const char *locArg, *opq, *Path = Split(args,&opq,pbuff,sizeof(pbuff));
+       XrdNetIF::ifType ifType[2];
        int Resp1Len;
        int find_flag = SFS_O_LOCATE
                      | (cmd&(SFS_O_FORCE|SFS_O_NOWAIT|SFS_O_RESET|SFS_O_HNAME));
@@ -1577,14 +1548,19 @@ int XrdOfs::fsctl(const int               cmd,
        rType[1] =  (fstat.st_mode & S_IWUSR             ? 'w' : 'r');
        rType[2] = '\0';
 
-            if (cmd & SFS_O_HNAME)
-               {Resp[1] = locRespHP; Resp1Len = locRlenHP;}
-       else if (einfo.getUCap() & XrdOucEI::uIPv4)
-               {Resp[1] = locRespV4; Resp1Len = locRlenV4;}
-       else    {Resp[1] = locResp;   Resp1Len = locRlen;  }
-
-       einfo.setErrInfo(Resp1Len+3, (const char **)Resp, 2);
-       return SFS_DATA;
+       bool retHN = (cmd & SFS_O_HNAME) != 0;
+       if (einfo.getUCap() & XrdOucEI::uPrip)
+          {ifType[0] = XrdNetIF::Private; ifType[1] = XrdNetIF::Public;
+          } else {
+           ifType[0] = XrdNetIF::Public;  ifType[1] = XrdNetIF::Private;
+          }
+       for (i = 0; i < 2; i++)
+           {if ((Resp1Len = myIF.GetDest(ifType[i], Resp[1], retHN)))
+               {einfo.setErrInfo(Resp1Len+3, (const char **)Resp, 2);
+                return SFS_DATA;
+               }
+           }
+       return Emsg(epname, einfo, ENETUNREACH, "locate", Path);
       }
 
 // Process the STATFS request

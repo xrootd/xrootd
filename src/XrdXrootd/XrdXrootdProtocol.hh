@@ -206,7 +206,8 @@ static int   xprep(XrdOucStream &Config);
 static int   xlog(XrdOucStream &Config);
 static int   xmon(XrdOucStream &Config);
 static int   xred(XrdOucStream &Config);
-static void  xred_set(RD_func func, const char *rHost, int rPort);
+static void  xred_set(RD_func func, char *rHost[2], int rPort[2]);
+static bool  xred_xok(int     func, char *rHost[2], int rPort[2]);
 static int   xsecl(XrdOucStream &Config);
 static int   xtrace(XrdOucStream &Config);
 
@@ -261,7 +262,7 @@ static XrdOucReqID        *PrepID;
 
 // Static redirection
 //
-static struct RD_Table {char *Host; int Port;} Route[RD_Num];
+static struct RD_Table {char *Host[2]; int Port[2];} Route[RD_Num];
 
 // async configuration values
 //
@@ -304,6 +305,7 @@ XrdBuffer                 *argp;
 XrdXrootdFileTable        *FTab;
 XrdXrootdMonitor::User     Monitor;
 int                        clientPV;
+short                      rdType;
 char                       Status;
 unsigned char              CapVer;
 

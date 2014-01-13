@@ -88,7 +88,7 @@ void       *TickTock();
 
 private:
 
-void          Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *cp, int isrw);
+void          Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *cp, int selOpts);
 void          Dispatch(XrdCmsSelect &Sel, XrdCmsKeyItem *cinfo,
                        short roQ, short rwQ);
 SMask_t       getBVec(unsigned int todA, unsigned int &todB);

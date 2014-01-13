@@ -342,6 +342,8 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
        Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
                  | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
+       if (Resp.getUCap() & XrdOucEI::uPrip)
+          Data.Opts |= CmsLocateRequest::kYR_prvtnet;
        if (Resp.getUCap() & XrdOucEI::uIPv4)
           Data.Opts |= CmsLocateRequest::kYR_retipv4;
        if (flags & SFS_O_FORCE)
@@ -367,6 +369,11 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
    if (flags & SFS_O_NOWAIT)    Data.Opts  |= CmsSelectRequest::kYR_online;
 
    if (flags & SFS_O_RESET)     Data.Opts  |= CmsSelectRequest::kYR_refresh;
+
+   if (Resp.getUCap() & XrdOucEI::uPrip)
+      Data.Opts |= CmsSelectRequest::kYR_prvtnet;
+   if (Resp.getUCap() & XrdOucEI::uIPv4)
+      Data.Opts |= CmsSelectRequest::kYR_ipv4net;
   }
 
 // Pack the arguments

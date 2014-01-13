@@ -93,6 +93,11 @@ struct XrdXrootdSessID
 #define CRED (const XrdSecEntity *)Client
 
 #define TRACELINK Link
+
+#define STATIC_REDIRECT(xfnc) \
+        if (Route[xfnc].Port[rdType]) \
+           return Response.Send(kXR_redirect,Route[xfnc].Port[rdType],\
+                                             Route[xfnc].Host[rdType])
  
 /******************************************************************************/
 /*                              d o _ A d m i n                               */
@@ -301,8 +306,7 @@ int XrdXrootdProtocol::do_Chmod()
 
 // Check for static routing
 //
-   if (Route[RD_chmod].Port) 
-      return Response.Send(kXR_redirect,Route[RD_chmod].Port,Route[RD_chmod].Host);
+   STATIC_REDIRECT(RD_chmod);
 
 // Unmarshall the data
 //
@@ -333,8 +337,7 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 
 // Check for static routing
 //
-   if (Route[RD_chksum].Port)
-      return Response.Send(kXR_redirect,Route[RD_chksum].Port,Route[RD_chksum].Host);
+   STATIC_REDIRECT(RD_chksum);
 
 // Check if we support this operation
 //
@@ -481,8 +484,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // Check for static routing
 //
-   if (!doDig && Route[RD_dirlist].Port)
-      return Response.Send(kXR_redirect,Route[RD_dirlist].Port,Route[RD_dirlist].Host);
+   if (!doDig) {STATIC_REDIRECT(RD_dirlist);}
 
 // Prescreen the path
 //
@@ -745,9 +747,7 @@ int XrdXrootdProtocol::do_Locate()
 
 // Check for static routing
 //
-   if (!doDig && Route[RD_locate].Port)
-      return Response.Send(kXR_redirect, Route[RD_locate].Port,
-                                         Route[RD_locate].Host);
+   if (!doDig) {STATIC_REDIRECT(RD_locate);}
 
 // Prescreen the path
 //
@@ -832,6 +832,11 @@ int XrdXrootdProtocol::do_Login()
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
       clientPV |= XrdOucEI::uIPv4;
 
+// Mark the client as being on a private net if the address is private
+//
+   if (addrP->isPrivate()) {clientPV |= XrdOucEI::uPrip; rdType = 1;}
+      else rdType = 0;
+
 // Check if this is an admin login
 //
    if (*(Request.login.role) & (kXR_char)kXR_useradmin)
@@ -906,8 +911,7 @@ int XrdXrootdProtocol::do_Mkdir()
 
 // Check for static routing
 //
-   if (Route[RD_mkdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mkdir].Port,Route[RD_mkdir].Host);
+   STATIC_REDIRECT(RD_mkdir);
 
 // Unmarshall the data
 //
@@ -941,8 +945,7 @@ int XrdXrootdProtocol::do_Mv()
 
 // Check for static routing
 //
-   if (Route[RD_mv].Port) 
-      return Response.Send(kXR_redirect,Route[RD_mv].Port,Route[RD_mv].Host);
+   STATIC_REDIRECT(RD_mv);
 
 // Find the space separator between the old and new paths
 //
@@ -1181,8 +1184,9 @@ int XrdXrootdProtocol::do_Open()
 
 // Check if static redirection applies
 //
-   if (!doDig && Route[RD_open1].Host && (popt = RPList.Validate(fn)))
-      return Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
+   if (!doDig && Route[RD_open1].Host[rdType] && (popt = RPList.Validate(fn)))
+      return Response.Send(kXR_redirect, Route[popt].Port[rdType],
+                                         Route[popt].Host[rdType]);
 
 // Validate the path
 //
@@ -1355,10 +1359,8 @@ int XrdXrootdProtocol::do_Prepare()
 
 // Check for static routing
 //
-   if (Route[RD_prepstg].Port && ((opts & kXR_stage) || (opts & kXR_cancel)))
-      return Response.Send(kXR_redirect,Route[RD_prepstg].Port,Route[RD_prepstg].Host);
-   if (Route[RD_prepare].Port)
-      return Response.Send(kXR_redirect,Route[RD_prepare].Port,Route[RD_prepare].Host);
+   if ((opts & kXR_stage) || (opts & kXR_cancel)) {STATIC_REDIRECT(RD_prepstg);}
+   STATIC_REDIRECT(RD_prepare);
 
 // Get a request ID for this prepare and check for static routine
 //
@@ -1662,8 +1664,7 @@ int XrdXrootdProtocol::do_Qopaque(short qopt)
       } else {
        // Check for static routing (this falls under stat)
        //
-       if (Route[RD_stat].Port)
-          return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+       STATIC_REDIRECT(RD_stat);
 
        // Prescreen the path
        //
@@ -1701,8 +1702,7 @@ int XrdXrootdProtocol::do_Qspace()
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Prescreen the path
 //
@@ -1768,8 +1768,7 @@ int XrdXrootdProtocol::do_Qxattr()
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Prescreen the path
 //
@@ -2122,8 +2121,7 @@ int XrdXrootdProtocol::do_Rm()
 
 // Check for static routing
 //
-   if (Route[RD_rm].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rm].Port,Route[RD_rm].Host);
+   STATIC_REDIRECT(RD_rm);
 
 // Prescreen the path
 //
@@ -2153,8 +2151,7 @@ int XrdXrootdProtocol::do_Rmdir()
 
 // Check for static routing
 //
-   if (Route[RD_rmdir].Port) 
-      return Response.Send(kXR_redirect,Route[RD_rmdir].Port,Route[RD_rmdir].Host);
+   STATIC_REDIRECT(RD_rmdir);
 
 // Prescreen the path
 //
@@ -2304,8 +2301,7 @@ int XrdXrootdProtocol::do_Stat()
 
 // Check for static routing
 //
-   if (!doDig && Route[RD_stat].Port)
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   if (!doDig) {STATIC_REDIRECT(RD_stat);}
 
 // Prescreen the path
 //
@@ -2343,8 +2339,7 @@ int XrdXrootdProtocol::do_Statx()
 
 // Check for static routing
 //
-   if (Route[RD_stat].Port) 
-      return Response.Send(kXR_redirect,Route[RD_stat].Port,Route[RD_stat].Host);
+   STATIC_REDIRECT(RD_stat);
 
 // Cycle through all of the paths in the list
 //
@@ -2443,8 +2438,7 @@ int XrdXrootdProtocol::do_Truncate()
 
     // Check for static routing
     //
-       if (Route[RD_trunc].Port) return Response.Send(kXR_redirect,
-                                 Route[RD_trunc].Port,Route[RD_trunc].Host);
+       STATIC_REDIRECT(RD_trunc);
 
     // Verify the path and extract out the opaque information
     //
@@ -2742,9 +2736,13 @@ int XrdXrootdProtocol::fsError(int rc, char opC, XrdOucErrInfo &myError,
        if (Path && (rc == kXR_NotFound) && RQLxist && opC
        &&  (popt = RQList.Validate(Path)))
           {if (XrdXrootdMonitor::Redirect())
-               XrdXrootdMonitor::Redirect(Monitor.Did, Route[popt].Host,
-                               Route[popt].Port, opC|XROOTD_MON_REDLOCAL, Path);
-           rs = Response.Send(kXR_redirect,Route[popt].Port,Route[popt].Host);
+               XrdXrootdMonitor::Redirect(Monitor.Did,
+                                          Route[popt].Host[rdType],
+                                          Route[popt].Port[rdType],
+                                          opC|XROOTD_MON_REDLOCAL, Path);
+           rs = Response.Send(kXR_redirect,
+                              Route[popt].Port[rdType],
+                              Route[popt].Host[rdType]);
           } else rs = Response.Send((XErrorCode)rc, eMsg);
        if (myError.extData()) myError.Reset();
        return rs;

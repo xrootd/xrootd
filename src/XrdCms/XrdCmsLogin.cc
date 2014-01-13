@@ -70,7 +70,7 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 
 // Fiddle with the login data structures
 //
-   Data.SID = Data.Paths = 0;
+   Data.SID = Data.Paths = Data.ifList = Data.envCGI = 0;
    memset(&myData, 0, sizeof(myData));
    myData.Mode     = Data.Mode;
    myData.HoldTime = Data.HoldTime;
@@ -165,9 +165,9 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
   
 int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 {
-   static const int xNum   = 16;
+   static const int xNum   = 18;
 
-   int          iovcnt;
+   int          n, iovcnt;
    char         Work[xNum*12];
    struct iovec Liov[xNum];
    CmsRRHdr     Resp={0, kYR_login, 0, 0};
@@ -175,7 +175,7 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Pack the response (ignore the auth token for now)
 //
    if (!(iovcnt=Parser.Pack(kYR_login,&Liov[1],&Liov[xNum],(char *)&Data,Work)))
-      return Emsg(Link, "too much login reply data");
+      return Emsg(Link, "too much login data");
 
 // Complete I/O vector
 //
@@ -183,9 +183,13 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
    Liov[0].iov_base = (char *)&Resp;
    Liov[0].iov_len  = sizeof(Resp);
 
-// Send off the data
+// Send off the data *break it up to IOV_MAX chunks, mostly for Solaris)
 //
-   Link->Send(Liov, iovcnt+1);
+   n = 0; iovcnt++;
+   do {if (iovcnt <= IOV_MAX) {Link->Send(&Liov[n], iovcnt); break;}
+       Link->Send(&Liov[n], iovcnt+1);
+       n += IOV_MAX; iovcnt -= IOV_MAX;
+      } while(1);
 
 // Return success
 //

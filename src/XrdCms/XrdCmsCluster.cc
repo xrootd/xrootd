@@ -121,8 +121,9 @@ XrdCmsCluster::XrdCmsCluster()
 /*                                   A d d                                    */
 /******************************************************************************/
   
-XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
-                               int sport, const char *theNID)
+XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
+                               const char *theNID, const char *theIF)
+
 {
    EPNAME("Add")
    const char *act = "";
@@ -163,7 +164,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
            nP->isOffline = 0;
            nP->isConn    = 1;
            nP->Instance++;
-           nP->setName(lp, port);  // Just in case it changed
+           nP->setName(lp, theIF, port);  // Just in case it changed
            act = "Re-added ";
           }
       }
@@ -192,7 +193,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
                 Remove("redirected", NodeTab[Slot], -1);
                 act = "Shoved ";
                }
-       NodeTab[Slot] = nP = new XrdCmsNode(lp, port, theNID, 0, Slot);
+       NodeTab[Slot] = nP = new XrdCmsNode(lp, theIF, theNID, port, 0, Slot);
       }
 
 // Indicate whether this snode can be redirected
@@ -227,10 +228,15 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status,
 
 // Document login
 //
-   DEBUG(act <<nP->Ident <<" to cluster " <<nP->myCNUM <<" slot "
-         <<Slot <<'.' <<nP->Instance <<" (n=" <<NodeCnt <<" m="
-         <<Config.SUPCount <<") ID=" <<nP->myNID);
-   DEBUG(act <<nP->Ident <<" addrs: " <<nP->IPV6 <<' ' <<nP->IPV4);
+   if (QTRACE(Debug))
+      {const char *ifPub, *ifPrv;
+       DEBUG(act <<nP->Ident <<" to cluster " <<nP->myCNUM <<" slot "
+             <<Slot <<'.' <<nP->Instance <<" (n=" <<NodeCnt <<" m="
+             <<Config.SUPCount <<") ID=" <<nP->myNID);
+       if (!nP->netIF.GetDest(XrdNetIF::Public, ifPub)) ifPub = "n/a";
+       if (!nP->netIF.GetDest(XrdNetIF::Private,ifPrv)) ifPrv = "n/a";
+       DEBUG(act <<nP->Ident <<" i/f public: " <<ifPub <<" private: " <<ifPrv);
+      }
 
 // Compute new state of all nodes if we are a reporting manager.
 //
@@ -428,38 +434,40 @@ SMask_t XrdCmsCluster::getMask(const char *Cid)
 /*                                  L i s t                                   */
 /******************************************************************************/
   
-XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts, int &nsel)
+XrdCmsSelected *XrdCmsCluster::List(SMask_t mask, CmsLSOpts opts,
+                                    bool &oksel, bool &noipv4, bool &nonet)
 {
     int i, lsall = opts & LS_All, retIP = opts & LS_IPO;
-    int retIP4 = opts & LS_IP4, onlyIP4 = (opts & LS_IP4) && !(opts & LS_IP6);
-    int retID  = opts & LS_IDNT;
+    int onlyIP4 = (opts & LS_IP4) && !(opts & LS_IP6);
+    bool retID  = (opts & LS_IDNT) != 0, retDest = retIP || retID;
+    int destLen;
+    XrdNetIF::ifType ifType = (opts & LS_PRV ? XrdNetIF::Private
+                                             : XrdNetIF::Public);
     XrdCmsNode     *nP;
     XrdCmsSelected *sipp = 0, *sip;
+    const char     *destID;
 
 // If only one wanted, the select appropriately
 //
-   nsel = 0;
+   oksel = noipv4 = nonet = false;
    STMutex.Lock();
    for (i = 0; i <= STHi; i++)
         if ((nP=NodeTab[i]) && (lsall ||  (nP->NodeMask & mask)))
-           {nsel++;
-            if (onlyIP4 && !(nP->IPV4Len)) continue;
+           {oksel = true;
+            if (onlyIP4 && nP->netIF.DestIPv6(ifType))
+               {noipv4 = true; continue;}
+            if (retDest)
+               {if (!(destLen=nP->netIF.GetDest(ifType,destID,retID)))
+                   {nonet = true; continue;}
+               } else {
+                destID = nP->myName; destLen = nP->myNlen;
+               }
+            if (destLen >= XrdCmsSelected::IdentSize) continue;
             sip = new XrdCmsSelected(sipp);
-            if (retIP)
-               {if (retIP4 && nP->IPV4Len)
-                   {sip->IdentLen = nP->IPV4Len; strcpy(sip->Ident, nP->IPV4);
-                   } else {
-                    sip->IdentLen = nP->IPV6Len; strcpy(sip->Ident, nP->IPV6);
-                   }
-               } else if (retID)
-                         {strcpy(sip->Ident, nP->locName);
-                          sip->IdentLen = nP->locNLen;
-                         } else {strcpy(sip->Ident, nP->myName);
-                                 sip->IdentLen = nP->myNlen;
-                                }
+            sip->IdentLen = destLen; strcpy(sip->Ident, destID);
             sip->Mask    = nP->NodeMask;
             sip->Id      = nP->NodeID;
-            sip->Port    = nP->Port;
+            sip->Port    = nP->netIF.Port();
             sip->RefTotW = nP->RefTotW;
             sip->RefTotR = nP->RefTotR;
             sip->Shrin   = nP->Shrin;
@@ -795,7 +803,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
        if ((pmask || smask) && (retc = SelNode(Sel, pmask, smask)) >= 0)
           return retc;
        Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                       "No servers are available to %s%s the file.",
+                       "No %sservers are available to %s%s the file.",
+                       (retc == -2 ? "reachable " : ""),
                        Sel.Opts & XrdCmsSelect::Online ? "immediately " : "",
                        (smask ? "stage" : Amode))+1;
        return -1;
@@ -877,7 +886,8 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 //
    if (dowt || (retc = SelNode(Sel, pmask, smask)) < 0)
       {Sel.Resp.DLen = snprintf(Sel.Resp.Data, sizeof(Sel.Resp.Data)-1,
-                       "No servers are available to %s%s the file.",
+                       "No %sservers are available to %s%s the file.",
+                       (retc == -2 ? "reachable " : ""),
                        Sel.Opts & XrdCmsSelect::Online ? "immediately " : "",
                        (smask ? "stage" : Amode))+1;
        return -1;
@@ -890,14 +900,15 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
 
 /******************************************************************************/
   
-int XrdCmsCluster::Select(int isrw, int isMulti, SMask_t pmask,
-                          int &port, char *hbuff, int &hlen)
+int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
+                          int isrw, int isMulti, int isPvt)
 {
    static const SMask_t smLow(255);
    XrdCmsNode *nP = 0;
    SMask_t tmask;
    const char *reason;
    int delay, nump, Snum = 0;
+   XrdNetIF::ifType nType = (isPvt ? XrdNetIF::Private : XrdNetIF::Public);
 
 // If there is nothing to select from, return failure
 //
@@ -914,9 +925,9 @@ int XrdCmsCluster::Select(int isrw, int isMulti, SMask_t pmask,
           : SelbyLoad(pmask, nump, delay, &reason, isrw));
        STMutex.UnLock();
        if (!nP) return 0;
-       strcpy(hbuff, nP->Name(hlen, port));
+       hlen = nP->netIF.GetName(nType, hbuff, port) + 1;
        nP->UnLock();
-       return 1;
+       return hlen != 1;
       }
 
 // In shared-nothing systems the incomming mask will only have a single node.
@@ -945,10 +956,10 @@ int XrdCmsCluster::Select(int isrw, int isMulti, SMask_t pmask,
 // At this point either we have a node or we do not
 //
    if (nP)
-      {strcpy(hbuff, nP->Name(hlen, port));
+      {hlen = nP->netIF.GetName(nType, hbuff, port) + 1;
        nP->RefR++;
        nP->UnLock();
-       return 1;
+       return hlen != 1;
       }
    return 0;
 }
@@ -1062,8 +1073,9 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
    XrdCmsRRQ::Info Frq;
    XrdCmsSelected *sp;
    long long SelRnum, SelWnum;
-   int mlen, tlen, nsel, n = 0;
+   int mlen, tlen, n = 0;
    char shrBuff[80], stat[6], *stp;
+   bool oksel;
 
    class spmngr {
          public: XrdCmsSelected *sp;
@@ -1088,7 +1100,7 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
 // Get the statistics
 //
    if (AddFrq) RRQ.Statistics(Frq);
-   mngrsp.sp = sp = List(FULLMASK, LS_All, nsel);
+   mngrsp.sp = sp = List(FULLMASK, LS_All, oksel, oksel, oksel);
 
 // Count number of nodes we have
 //
@@ -1354,6 +1366,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
     int pspace, needspace, delay = 0, delay2 = 0, nump, isalt = 0, pass = 2;
     SMask_t mask;
     XrdCmsNode *nP = 0;
+    XrdNetIF::ifType nType = (Sel.Opts & XrdCmsSelect::Private
+                           ?  XrdNetIF::Private : XrdNetIF::Public);
 
 // There is a difference bwteen needing space and needing r/w access. The former
 // is needed when we will be writing data the latter for inode modifications.
@@ -1382,7 +1396,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
 // Update info
 //
    if (nP)
-      {strcpy(Sel.Resp.Data, nP->Name(Sel.Resp.DLen, Sel.Resp.Port));
+      {Sel.Resp.DLen = nP->netIF.GetName(nType, Sel.Resp.Data, Sel.Resp.Port);
+       if (!Sel.Resp.DLen) {nP->UnLock(); return -2;}
        Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
        if (isalt || (Sel.Opts & XrdCmsSelect::Create) || Sel.iovN)
           {if (isalt || (Sel.Opts & XrdCmsSelect::Create))
@@ -1417,7 +1432,8 @@ int XrdCmsCluster::SelNode(XrdCmsSelect &Sel, SMask_t pmask, SMask_t amask)
           nP = SelbyCost(mask, nump, delay2, &reason2, pspace);
        STMutex.UnLock();
        if (nP)
-          {strcpy(Sel.Resp.Data, nP->Name(Sel.Resp.DLen, Sel.Resp.Port));
+          {Sel.Resp.DLen = nP->netIF.GetName(nType,Sel.Resp.Data,Sel.Resp.Port);
+           if (!Sel.Resp.DLen) {nP->UnLock(); return -2;}
            Sel.Resp.DLen++; Sel.smask = nP->NodeMask;
            if (Sel.iovN && Sel.iovP) nP->Send(Sel.iovP, Sel.iovN);
            nP->UnLock();

@@ -219,7 +219,8 @@ enum  {kYR_refresh = 0x01,
        kYR_retipv4 = 0x02,
        kYR_retipv6 = 0x04,
        kYR_retname = 0x08,
-       kYR_asap    = 0x80
+       kYR_asap    = 0x80,
+       kYR_prvtnet = 0x20
       };
 //     kXR_string    Path;
 
@@ -249,6 +250,8 @@ struct CmsLoginData
        kXR_unt16  sPort;             // Subs port      (managers/supervisors)
        kXR_char  *SID;               // Server ID      (servers/ supervisors)
        kXR_char  *Paths;             // Exported paths (servers/ supervisors)
+       kXR_char  *ifList;            // Exported interfaces
+       kXR_char  *envCGI;            // Exported environment
 
        enum       LoginMode
                  {kYR_director=   0x00000001,
@@ -453,7 +456,9 @@ enum  {kYR_refresh = 0x0001,
        kYR_write   = 0x0020,
        kYR_stat    = 0x0040, // Exclsuive
        kYR_metaop  = 0x0080,
-       kYR_replica = 0x0100  // Only in combination with create
+       kYR_replica = 0x0100, // Only in combination with create
+       kYR_prvtnet = 0x0200, // Client is using a private net address
+       kYR_ipv4net = 0x0400  // Client is using an ipv4   net address
       };
 //     kXR_string    Path;
 //     kXR_string    Opaque; // Optional

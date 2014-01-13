@@ -653,9 +653,7 @@ int XrdCmsConfig::GenLocalPath(const char *oldp, char *newp)
 
 void XrdCmsConfig::ConfigDefaults(void)
 {
-   extern long timezone;
    static XrdVERSIONINFODEF(myVer, cmsd, XrdVNUMBER, XrdVERSION);
-   time_t myTime = time(0);
    int myTZ, isEast = 0;
 
 // Preset all variables with common defaults
@@ -721,6 +719,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    ManList   =0;
    NanList   =0;
    mySID    = 0;
+   ifList    =0;
    perfint  = 3*60;
    perfpgm  = 0;
    AdminPath= strdup("/tmp/");
@@ -755,8 +754,7 @@ void XrdCmsConfig::ConfigDefaults(void)
 
 // Compute the time zone we are in
 //
-   localtime(&myTime);
-   myTZ = timezone/(60*60);
+   myTZ = XrdSysTimer::TimeZone();
    if (myTZ <= 0) {isEast = 0x10; myTZ = -myTZ;}
    if (myTZ > 12) myTZ = 12;
    TimeZone = (myTZ | isEast);
@@ -1135,6 +1133,11 @@ char *XrdCmsConfig::setupSid()
 {
    XrdOucTList *tp = (NanList ? NanList : ManList);
    char sfx;
+
+// Grab the interfaces. This is normally set as an envar. If present then
+// we will copy it because we must use it permanently.
+//
+   if (getenv("XRDIFADDRS")) ifList = strdup(getenv("XRDIFADDRS"));
 
 // Determine what type of role we are playing
 //

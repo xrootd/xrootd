@@ -62,6 +62,8 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 
+#include "XrdNet/XrdNetAddr.hh"
+
 #include "XrdCms/XrdCmsClient.hh"
 #include "XrdCms/XrdCmsFinder.hh"
 #include "XrdCms/XrdCmsRole.hh"
@@ -168,6 +170,14 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                               ConfigFN);
            Config.Close();
           }
+
+// Configure network routing this is needed for local locates
+//
+   XrdNetAddr myAddr((int)myPort);
+   if (!myIF.SetIF(&myAddr, getenv("XRDIFADDRS")))
+      {Eroute.Emsg("Config", "Unable to set locate interface addresses!");
+       NoGo = 1;
+      }
 
 // Determine whether we should initialize authorization
 //

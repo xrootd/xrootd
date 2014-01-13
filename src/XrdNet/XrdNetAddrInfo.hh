@@ -130,6 +130,15 @@ bool        isIPType(IPType ipType) const;
 inline bool isMapped() const {return IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);}
 
 //------------------------------------------------------------------------------
+//! Indicate whether or not our address is private.
+//!
+//! @return True:    This address is     private.
+//!         False:   This address is not private.
+//------------------------------------------------------------------------------
+
+bool        isPrivate();
+
+//------------------------------------------------------------------------------
 //! Indicate whether or not our address is registered in the DNS.
 //!
 //! @return True:    This address is     registered.

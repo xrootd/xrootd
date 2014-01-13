@@ -155,8 +155,8 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
           unsigned short     *B16;
           char              **B08;} Base;
 
+   Dtype = pP->Dtype;
    do {Base.B08 = (char **)(base + pP->Doffs);
-       Dtype = pP->Dtype;
        //cerr <<"arg " <<pP-pup <<" type " <<Dtype <<' '
        //     <<(Names->NList[pP->Name] ? Names->NList[pP->Name] : "?") <<endl;
        switch(Dtype)
@@ -230,7 +230,8 @@ int XrdOucPup::Pack(struct iovec *iovP, struct iovec *iovE, XrdOucPupArgs *pup,
               default: {}
              }
        pP++;
-      } while(vP < iovE);
+       Dtype = pP->Dtype;
+      } while(vP < iovE || (vP==iovE && Dtype != PT_Skip && (Dtype & PT_MaskD)));
 
 // We over-ran the iovec array
 //
@@ -296,7 +297,9 @@ int XrdOucPup::Unpack(const char    *buff, const char *bend,
              uP++; continue;
             }
          if (bp+2 > bend)
-            return eMsg("buffer overrun unpacking", int(uP-pup), uP);
+            {if (bp == bend && Aok) {Done = 1; uP--;  break;}
+             return eMsg("buffer overrun unpacking", int(uP-pup), uP);
+            }
          if (uP->Dtype == PT_char && !(*bp & PT_short))
             {memcpy(&Temp.b16, bp, sizeof(unsigned short));
              dlen = static_cast<int>(ntohs(Temp.b16));

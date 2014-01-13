@@ -110,7 +110,7 @@ int             NodeCnt;       // Number of active nodes
 // Called to add a new node to the cluster. Status values are defined above.
 //
 XrdCmsNode     *Add(XrdLink *lp, int dport, int Status,
-                    int sport, const char *theNID);
+                    int sport, const char *theNID, const char *theIF);
 
 // Sends a message to all nodes matching smask (three forms for convenience)
 //
@@ -138,9 +138,10 @@ SMask_t         getMask(const char *Cid);
 // Extracts out node information. Opts are one or more of CmsLSOpts
 //
 enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3,
-                           LS_IDNT=4, LS_All=8};
+                           LS_IDNT=4, LS_All=8, LS_PRV=16};
 
-XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts, int &nsel);
+XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts,
+                     bool &oksel, bool &noipv4, bool &nonet);
 
 // Returns the location of a file
 //
@@ -170,8 +171,8 @@ void            ResetRef(SMask_t smask);
 //
 int             Select(XrdCmsSelect &Sel);
 
-int             Select(int isrw, int isMulti, SMask_t pmask, int &port,
-                       char *hbuff, int &hlen);
+int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
+                       int isrw, int isMulti, int isPvt);
 
 // Called to get cluster space (for managers and supervisors only)
 //

@@ -109,6 +109,7 @@ add_library(
   XrdNet/XrdNetCache.cc         XrdNet/XrdNetCache.hh
   XrdNet/XrdNetCmsNotify.cc     XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.cc       XrdNet/XrdNetConnect.hh
+  XrdNet/XrdNetIF.cc            XrdNet/XrdNetIF.hh
   XrdNet/XrdNetMsg.cc           XrdNet/XrdNetMsg.hh
   XrdNet/XrdNetSecurity.cc      XrdNet/XrdNetSecurity.hh
   XrdNet/XrdNetSocket.cc        XrdNet/XrdNetSocket.hh
