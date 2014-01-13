@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide full support for public/private IP networks.
    * Add mv command to frm_admin.
    * Allow remote debugging via the xrootd.diglib directive.
    * Add --noszchk to copy options to allow dynamic file copying.
