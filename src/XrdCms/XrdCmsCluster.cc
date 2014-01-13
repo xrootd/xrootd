@@ -765,7 +765,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
    EPNAME("Select");
    XrdCmsPInfo  pinfo;
    const char  *Amode;
-   int dowt = 0, retc, isRW, fRD, noSel = (Sel.Opts & XrdCmsSelect::Defer);
+   int dowt = 0, retc = 0, isRW, fRD, noSel = (Sel.Opts & XrdCmsSelect::Defer);
    SMask_t amask, smask, pmask;
 
 // Establish some local options
