@@ -192,6 +192,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Provide disconnect notifiation to underlying file system.
    * Prevent constant server disc/recon events when a manager is busy
      doing non-response activity on behalf of the server.
    * Add a generic control method to the file/dir and system classes. OSS
