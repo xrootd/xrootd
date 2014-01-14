@@ -635,6 +635,10 @@ void XrdXrootdProtocol::Cleanup()
 //
    if (argp) {BPool->Release(argp); argp = 0;}
 
+// Notify the filesystem of a disconnect prior to deleting file tables
+//
+   if (Status != XRD_BOUNDPATH) osFS->Disc(Client);
+
 // Delete the FTab if we have it
 //
    if (FTab)
