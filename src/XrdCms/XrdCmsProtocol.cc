@@ -291,6 +291,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
    loginData.HoldTime= static_cast<int>(getpid());
    loginData.Mode    = 0;
    loginData.Size    = 0;
+   loginData.ifList  = (kXR_char *)Config.ifList;
+   loginData.envCGI  = 0;
 
 // Establish request routing based on who we are
 //
@@ -576,7 +578,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // unlock it prior to dispatching.
 //
    if (!(myNode = Cluster.Add(Link, Data.dPort, Status, Data.sPort,
-                              (const char *)Data.SID)))
+                  (const char *)Data.SID, (const char *)Data.ifList)))
       return (XrdCmsRouting *)0;
    myNode->RoleID = static_cast<char>(roleID);
 

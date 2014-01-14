@@ -53,6 +53,7 @@
 #include "Xrd/XrdStats.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetSecurity.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
@@ -204,6 +205,7 @@ int XrdConfig::Configure(int argc, char **argv)
    static const int myMaxc = 80;
    char *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
+   char *ifList;
    int   myArgc = 1, bindArg = -1;
    bool ipV4 = false, pureLFN = false;
 
@@ -358,8 +360,8 @@ int XrdConfig::Configure(int argc, char **argv)
 // We must define myIPAddr here because we may need to run in v4 mode and
 // that doesn't get set until after the options are scanned.
 //
-   static XrdNetAddr myIPAddr(0);
-   if (!(myName = myIPAddr.Name(0, &temp)))
+   static XrdNetAddr *myIPAddr = new XrdNetAddr((int)0);
+   if (!(myName = myIPAddr->Name(0, &temp)))
       {Log.Emsg("Config", "Unable to determine host name; ",
                            (temp ? temp : "reason unknown"),
                            "; execution terminated.");
@@ -370,7 +372,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // bad /etc/hosts files that can cause connection failures if "allow" is used.
 // Otherwise, determine our domain name.
 //
-   if (!myIPAddr.isRegistered())
+   if (!myIPAddr->isRegistered())
       {Log.Emsg("Config",myName,"does not appear to be registered in the DNS.");
        Log.Emsg("Config","Verify that the '/etc/hosts' file is correct and "
                          "this machine is registered in DNS.");
@@ -383,7 +385,7 @@ int XrdConfig::Configure(int argc, char **argv)
 // Get our IP address and FQN
 //
    ProtInfo.myName = myName;
-   ProtInfo.myAddr = myIPAddr.SockAddr();
+   ProtInfo.myAddr = myIPAddr->SockAddr();
    ProtInfo.myInst = XrdOucUtils::InstName(myInsName);
    ProtInfo.myProg = myProg;
 
@@ -411,9 +413,17 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    Firstcp = Lastcp = new XrdConfigProt(strdup(dfltProt), 0, 0);
 
-// Process the configuration file, if one is present
+// Let start it up!
 //
    Log.Say("++++++ ", myInstance, " initialization started.");
+
+// Export the network interface list at this point
+//
+   XrdNetIF::SetMsgs(&Log);
+   if (XrdNetIF::GetIF(ifList, 0, true)) XrdOucEnv::Export("XRDIFADDRS",ifList);
+
+// Process the configuration file, if one is present
+//
    if (ConfigFN && *ConfigFN)
       {Log.Say("Config using configuration file ", ConfigFN);
        ProtInfo.ConfigFN = ConfigFN;
@@ -1109,12 +1119,14 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
    Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
                                          [cache <ct>] [[no]dnr]
+                                         {routes {split | common | local}}
 
              wan       parameters apply only to the wan port
              keepalive sets the socket keepalive option.
              <blen>    is the socket's send/rcv buffer size.
              <ct>      Seconds to cache address to name resolutions.
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
+             routes    specifies the network configuration (see reference)
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -1133,6 +1145,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
         {"cache",      2, 0, &V_ct,     "cache time"},
         {"dnr",        0, 0, &V_nodnr,  "option"},
         {"nodnr",      0, 1, &V_nodnr,  "option"},
+        {"routes",     3, 1, 0,         "routes"},
         {"wan",        0, 1, &V_iswan,  "option"}
        };
     int numopts = sizeof(ntopts)/sizeof(struct netopts);
@@ -1148,6 +1161,18 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                          {eDest->Emsg("Config", "network",
                               ntopts[i].opname, "argument missing");
                           return 1;
+                         }
+                      if (ntopts[i].hasarg == 3)
+                         {     if (!strcmp(val, "split"))
+                                  XrdNetIF::Routing(XrdNetIF::netSplit);
+                          else if (!strcmp(val, "common"))
+                                  XrdNetIF::Routing(XrdNetIF::netCommon);
+                          else if (!strcmp(val, "local"))
+                                  XrdNetIF::Routing(XrdNetIF::netLocal);
+                          else {eDest->Emsg("Config","Invalid routes argument -",val);
+                                return 1;
+                               }
+                          break;
                          }
                       if (ntopts[i].hasarg == 2)
                          {if (XrdOuca2x::a2tm(*eDest,ntopts[i].etxt,val,&n,0))

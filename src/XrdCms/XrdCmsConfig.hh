@@ -143,6 +143,7 @@ const char  *myDomain;
 const char  *myInsName;
 const char  *myInstance;
 const char  *mySID;
+const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
 

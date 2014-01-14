@@ -33,6 +33,8 @@ compiler_define_if_found( HAVE_SHADOWPW HAVE_SHADOWPW )
 #-------------------------------------------------------------------------------
 # Some socket related functions
 #-------------------------------------------------------------------------------
+check_function_exists( getifaddrs HAVE_GETIFADDRS )
+compiler_define_if_found( HAVE_GETIFADDRS HAVE_GETIFADDRS )
 check_function_exists( getnameinfo HAVE_NAMEINFO )
 compiler_define_if_found( HAVE_NAMEINFO HAVE_NAMEINFO )
 if( NOT HAVE_NAMEINFO )

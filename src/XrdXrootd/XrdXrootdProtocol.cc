@@ -111,7 +111,8 @@ int                   XrdXrootdProtocol::myPID = static_cast<int>(getpid());
 int                   XrdXrootdProtocol::myRole = 0;
 int                   XrdXrootdProtocol::myRolf = 0;
 
-struct XrdXrootdProtocol::RD_Table XrdXrootdProtocol::Route[RD_Num] = {{0,0}};
+struct XrdXrootdProtocol::RD_Table
+       XrdXrootdProtocol::Route[RD_Num] = {{{0,0},{0,0}}};
 
 /******************************************************************************/
 /*            P r o t o c o l   M a n a g e m e n t   S t a c k s             */
@@ -633,6 +634,10 @@ void XrdXrootdProtocol::Cleanup()
 // If we have a buffer, release it
 //
    if (argp) {BPool->Release(argp); argp = 0;}
+
+// Notify the filesystem of a disconnect prior to deleting file tables
+//
+   if (Status != XRD_BOUNDPATH) osFS->Disc(Client);
 
 // Delete the FTab if we have it
 //

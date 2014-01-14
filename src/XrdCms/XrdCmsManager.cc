@@ -85,7 +85,7 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl)
 // Obtain a new a new node object
 //
    lp->setID("manager",0);
-   if (!(nP = new XrdCmsNode(lp, 0, 0, Lvl, i)))
+   if (!(nP = new XrdCmsNode(lp, 0, 0, 0, Lvl, i)))
         {Say.Emsg("Manager", "Unable to obtain node object."); return 0;}
 
 // Assign new manager

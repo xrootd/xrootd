@@ -38,6 +38,7 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdCms/XrdCmsTypes.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -125,14 +126,11 @@ inline int    isNode(const char *hn)
                     {return Link && !strcmp(Link->Host(), hn);}
 inline int    isNode(const XrdNetAddr *addr)
                     {return netID.Same(addr);}
-inline int    isNode(XrdLink *lp, const char *nid)
-                    {return netID.Same(lp->NetAddr(),true)
+inline int    isNode(XrdLink *lp, const char *nid, int port)
+                    {return netID.Same(lp->NetAddr()) && port == netIF.Port()
                          && (nid ? !strcmp(myNID, nid) : 1);
                     }
 inline char  *Name()   {return (myName ? myName : (char *)"?");}
-
-inline char  *Name(int &len, int &port)
-                       {len = myNlen; port = Port; return myName;}
 
 inline SMask_t Mask() {return NodeMask;}
 
@@ -146,7 +144,7 @@ inline int   Send(const char *buff, int blen=0)
 inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
                  {return (isOffline ? -1 : Link->Send(iov, iovcnt, iotot));}
 
-       void  setName(XrdLink *lnkp, int port);
+       void  setName(XrdLink *lnkp, const char *theIF, int port);
 
        void  setShare(int shrval)
                      {if (shrval > 99) Shrem = Shrip = Share = 0;
@@ -165,8 +163,8 @@ inline short getSlot() {return RSlot;}
 
        void  SyncSpace();
 
-             XrdCmsNode(XrdLink *lnkp, int port=0,
-                        const char *sid=0, int lvl=0, int id=-1);
+             XrdCmsNode(XrdLink *lnkp, const char *theIF=0, const char *sid=0,
+                        int port=0, int lvl=0, int id=-1);
             ~XrdCmsNode();
 
 private:
@@ -181,21 +179,14 @@ const  char *fsFail(const char *Who, const char *What, const char *Path, int rc)
 XrdSysMutex        myMutex;
 XrdLink           *Link;
 XrdNetAddr         netID;
+XrdNetIF           netIF;
 XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  
-char              *locName;
-short              locNLen;
-short              IPV6Len;                   // 12345678901234567890123456
-char               IPV6[INET6_ADDRSTRLEN+10]; // [full_ipv6_address]:123456
-short              IPV4Len;                   // 12345678901234567890123456
-char               IPV4[INET_ADDRSTRLEN+12];  // [::123.123.123.123]:123456
-char               rsv1[4];
 
 SMask_t            NodeMask;
 int                NodeID;
 int                Instance;
-int                Port;
 int                myLevel;
 int                myCNUM;
 char              *myCID;

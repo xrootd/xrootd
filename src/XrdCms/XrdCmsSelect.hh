@@ -64,6 +64,7 @@ enum {Write   = 0x0001, // File will be open in write mode     (select & cache)
       isMeta  = 0x0200, // Only inode information being changed(select   only)
       Freshen = 0x0400, // Freshen access times                (prep     only)
       Replica = 0x0800, // File will be replicated (w/ Create) (select   only)
+      Private = 0x2000, // Return private interface information(select   only)
       Advisory= 0x4000, // Cache A/D is advisory (no delay)    (have   & cache)
       Pending = 0x8000  // File being staged                   (have   & cache)
      };
@@ -93,11 +94,13 @@ class XrdCmsSelected   // Argument to List() after select or locate
 {
 public:
 
+static const int IdentSize = 264;
+
 XrdCmsSelected *next;
 SMask_t         Mask;
 int             Id;
 int             IdentLen;                  // 12345678901234567890123456
-char            Ident[264];                // [::123.123.123.123]:123456
+char            Ident[IdentSize];          // [::123.123.123.123]:123456
 int             Port;
 int             RefTotW;
 int             RefTotR;

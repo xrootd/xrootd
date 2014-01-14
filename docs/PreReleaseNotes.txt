@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide full support for public/private IP networks.
    * Add mv command to frm_admin.
    * Allow remote debugging via the xrootd.diglib directive.
    * Add --noszchk to copy options to allow dynamic file copying.
@@ -85,6 +86,8 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Avoid SEGV after an error occurs during a stat() call. This should be
+     bakported for any new 3.3.x release.
    * Make sure monitoring is initialized if it was enabled in any way
      to avoid SEGV when an odd combination of choices was selected.
    * Avoid SEGV and double free introduced by patch 30ad01b9 (set host).
@@ -189,6 +192,7 @@ Prerelease Notes
    * Properly recognize a loaded checksum as a native checksum.
 
 + **Miscellaneous**
+   * Provide disconnect notifiation to underlying file system.
    * Prevent constant server disc/recon events when a manager is busy
      doing non-response activity on behalf of the server.
    * Add a generic control method to the file/dir and system classes. OSS

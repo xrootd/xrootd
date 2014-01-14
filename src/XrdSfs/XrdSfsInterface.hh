@@ -281,6 +281,14 @@ virtual int            chmod(const char             *path,
                              const char             *opaque = 0) = 0;
 
 //-----------------------------------------------------------------------------
+//! Notify filesystem that a client has disconnected.
+//!
+//! @param  client - Client's identify (see common description).
+//-----------------------------------------------------------------------------
+
+virtual void           Disc(const XrdSecEntity     *client = 0) {}
+
+//-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 1)
 //!
 //! @param  cmd    - The operation to be performed:

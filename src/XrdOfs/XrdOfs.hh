@@ -33,6 +33,7 @@
 #include <dirent.h>
 #include <sys/types.h>
   
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdSys/XrdSysPthread.hh"
@@ -298,6 +299,10 @@ enum {Authorize = 0x0001,    // Authorization wanted
 int   Options;               // Various options
 int   myPort;                // Port number being used
 
+// Networking
+//
+XrdNetIF myIF;
+
 // Forward options
 //
 struct fwdOpt
@@ -322,8 +327,6 @@ struct fwdOpt fwdTRUNC;
 static int MaxDelay;  //    Max delay imposed during staging
 static int OSSDelay;  //    Delay to impose when oss interface times out
 
-char *HostName;       //    ->Our hostname
-char *HostPref;       //    ->Our hostname with domain removed
 char *ConfigFN;       //    ->Configuration filename
 char *OssLib;         //    ->Oss Library
 char *OssParms;       //    ->Oss Library Parameters
@@ -362,12 +365,6 @@ char             *myRole;
 XrdAccAuthorize  *Authorization;  //    ->Authorization   Service
 XrdCmsClient     *Balancer;       //    ->Cluster Local   Interface
 XrdOfsEvs        *evsObject;      //    ->Event Notifier
-char             *locRespHP;      //    ->Locate Response    host:port
-int               locRlenHP;      //      Length of locResp  host:port
-char             *locResp;        //    ->Locate Response    IPv6
-int               locRlen;        //      Length of locResp  IPv6
-int               locRlenV4;      //      Length of locResp  IPv4
-char             *locRespV4;      //    ->Locate Response    IPv4
 
 XrdOfsPoscq      *poscQ;          //    -> poscQ if  persist on close enabled
 char             *poscLog;        //    -> Directory for posc recovery log

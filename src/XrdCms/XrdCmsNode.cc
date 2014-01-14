@@ -83,8 +83,8 @@ int         XrdCmsNode::LastFree = 0;
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
-                       const char *nid,  int lvl, int id)
+XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
+                       int port, int lvl, int id)
 {
     static XrdSysMutex   iMutex;
     static const SMask_t smask_1(1);
@@ -128,7 +128,6 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     myName   =  0;
     myNlen   =  0;
     Ident    =  0;
-    Port     =  0;
     myNID    = strdup(nid ? nid : "?");
     if ((myCID = index(myNID, ' '))) myCID++;
        else myCID = myNID;
@@ -136,12 +135,10 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, int port,
     ConfigID =  0;
     TZValid  = 0;
     TimeZone = 0;
-    IPV6Len = 0; *IPV6 = 0; IPV4Len = 0; *IPV4 = 0;
-    locName = 0;
 
-// setName() will set Ident, netID, IPV6, myName, myNlen, & Port!
+// setName() will set the node identification information
 //
-   setName(lnkp, (nid ? port : 0));
+   setName(lnkp, theIF, (nid ? port : 0));
 
    iMutex.Lock();
    Instance =  iNum++;
@@ -162,24 +159,24 @@ XrdCmsNode::~XrdCmsNode()
    if (Ident) free(Ident);
    if (myNID) free(myNID);
    if (myName)free(myName);
-   if (locName)free(locName);
 }
 
 /******************************************************************************/
 /*                               s e t N a m e                                */
 /******************************************************************************/
   
-void XrdCmsNode::setName(XrdLink *lnkp, int port)
+void XrdCmsNode::setName(XrdLink *lnkp, const char *theIF, int port)
 {
+   EPNAME("setName");
    char buff[512];
-   const char *hname = lnkp->Host();
-   int oldPort = 0, fmtOpts = XrdNetAddr::old6Map4;
+   const char *hname = lnkp->Host(), *oldIF = theIF;
+   int oldPort;
 
 // Check if this is a duplicate. Note that we check for strict equivalence.
 //
    if (myName)
-      {if (!strcmp(myName,hname) && port == Port && netID.Same(lnkp->NetAddr()))
-          return;
+      {if (!strcmp(myName,hname) && port == netIF.Port()
+       &&  netID.Same(lnkp->NetAddr())) return;
        free(myName);
       }
 
@@ -187,47 +184,24 @@ void XrdCmsNode::setName(XrdLink *lnkp, int port)
 //
    netID = *(lnkp->NetAddr());
 
+// Set the network interface. Note that out of domain nodes are not allowed
+// to specify interface addresses as this does not make global sense.
+//
+   if (theIF && !netIF.InDomain(&netID)) theIF = 0;
+   oldPort = netID.Port(port);
+   netIF.SetIF(&netID, theIF);
+   netID.Port(oldPort);
+   if (oldIF) {DEBUG(hname<<(theIF ? " using" : " scorn")<<" i/f: "<<oldIF);}
+
 // Construct our identification
 //
    myName = strdup(hname);
-   myNlen = strlen(hname)+1;
-   Port = port;
+   myNlen = strlen(hname);
 
    if (!port) strcpy(buff, lnkp->ID);
       else    sprintf(buff, "%s:%d", lnkp->ID, port);
    if (Ident) free(Ident);
    Ident = strdup(buff);
-
-// Format locate target name
-//
-   locNLen = sprintf(buff, "%s:%d", myName, (Port ? Port : 1094));
-   if (locName) free(locName);
-   locName = strdup(buff);
-
-// Format out the address in IPv6 format
-//
-   oldPort = netID.Port((Port ? Port : 1094));
-   netID.Format(buff, sizeof(buff), XrdNetAddr::fmtAdv6, fmtOpts);
-   netID.Port(oldPort);
-   strlcpy(IPV6, buff, sizeof(IPV6));
-   IPV6Len = strlen(IPV6);
-
-// If this is an IPv6 address then try to find it's ipV4 address
-//
-   if (netID.isIPType(XrdNetAddrInfo::IPv6) && !netID.isMapped())
-      {XrdNetAddr *iP;
-       int iN;
-       if (!XrdNetUtils::GetAddrs(hname,&iP,iN,XrdNetUtils::onlyIPv4,0) && iN)
-          {iP[0].Port(Port);
-           iP[0].Format(buff,sizeof(buff),XrdNetAddr::fmtAdv6,fmtOpts);
-           strlcpy(IPV4, buff, sizeof(IPV4));
-           IPV4Len = strlen(IPV4);
-           delete [] iP;
-          }
-      } else {
-       strlcpy(IPV4, IPV6, sizeof(IPV4));
-       IPV4Len = IPV6Len;
-      }
 }
 
 /******************************************************************************/
@@ -523,11 +497,11 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
            char outbuff[CmsLocateRequest::RHLen*STMax];} Resp;
    struct iovec ioV[2] = {{(char *)&Arg.Request, sizeof(Arg.Request)},
                           {(char *)&Resp,        0}};
-   const char *Why;
-   char theopts[8], *toP = theopts;
+   const char *Why, *What = "public ";
+   char eBuff[128], theopts[8], *toP = theopts;
    XrdCmsCluster::CmsLSOpts lsopts = XrdCmsCluster::LS_NULL;
-   int rc, bytes, nsel = 0;
-   bool lsall = (*Arg.Path == '*');
+   int rc, bytes;
+   bool oksel, noipv4, nonet, lsall = (*Arg.Path == '*');
 
 // Do a callout to the external manager if we have one
 //
@@ -548,6 +522,13 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    else if (Arg.Opts & CmsLocateRequest::kYR_retipv4)
            lsopts |= XrdCmsCluster::LS_IP4;
    else lsopts = XrdCmsCluster::LS_IPO;
+
+// Handle private networks here
+//
+   if (Arg.Opts & CmsLocateRequest::kYR_prvtnet)
+      {Sel.Opts |= XrdCmsSelect::Private; What = "private ";
+       lsopts |=  XrdCmsCluster::LS_PRV;  *toP++='P';
+      }
 
 // Grab the refresh option (the only one we support)
 //
@@ -582,12 +563,15 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
 // List the servers
 //
    if (!rc)
-      {if (!Sel.Vec.hf || !(sP=Cluster.List(Sel.Vec.hf, lsopts, nsel)))
+      {if (!Sel.Vec.hf
+       ||  !(sP=Cluster.List(Sel.Vec.hf, lsopts, oksel, noipv4, nonet)))
           {const char *eTxt;
            Arg.Request.rrCode = kYR_error;
-           if (nsel)
+           if (oksel)
               {rc = kYR_ENETUNREACH; Why = "unreachable ";
-               eTxt = "No servers are reachable via ipv4";
+               sprintf(eBuff, "No servers are reachable via %s%snetwork",
+                       (noipv4 ? "ipv4 " : ""), (nonet ? What : ""));
+               eTxt = eBuff;
               } else {
                rc = kYR_ENOENT; Why = "none ";
                eTxt = "No servers have the file";
@@ -1010,6 +994,8 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
 
 // Complete the arguments to select
 //
+         if (Arg.Opts & CmsSelectRequest::kYR_prvtnet)
+           {Sel.Opts |= XrdCmsSelect::Private;                     *toP++='P';}
          if (Arg.Opts & CmsSelectRequest::kYR_refresh) 
            {Sel.Opts |= XrdCmsSelect::Refresh;                     *toP++='s';}
          if (Arg.Opts & CmsSelectRequest::kYR_online)  
@@ -1488,7 +1474,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
    int Resume  = Arg.Request.modifier & CmsStatusRequest::kYR_Resume;
    int Suspend = Arg.Request.modifier & CmsStatusRequest::kYR_Suspend;
    int Reset   = Arg.Request.modifier & CmsStatusRequest::kYR_Reset;
-   int add2Activ, add2Stage;
+   int add2Activ, add2Stage, port;
 
 // Do some debugging
 //
@@ -1520,8 +1506,11 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
           else      {add2Activ =  1; isSuspend = 0;
                      srvMsg="service resumed";
                      stgMsg = (isNoStage ? "(no staging)" : "(staging)");
-                     Port = ntohl(Arg.Request.streamid);
-                     DEBUGR("set data port to " <<Port);
+                     port = ntohl(Arg.Request.streamid);
+                     if (port && port != netIF.Port())
+                        {Lock(); netIF.Port(port); UnLock();
+                         DEBUGR("set data port to " <<port);
+                        }
                     }
        else         {add2Activ =  0; srvMsg = 0;}
 

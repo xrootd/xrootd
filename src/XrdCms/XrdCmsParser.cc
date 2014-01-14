@@ -90,8 +90,10 @@ char           *XrdCmsParseInit::PupNVec[XrdCmsRRData::Arg_Count];
 XrdCmsParseInit XrdCmsParseArgN(XrdCmsRRData::Arg_Null,    "",
                                 XrdCmsRRData::Arg_AToken,  "authtoken",
                                 XrdCmsRRData::Arg_Avoid,   "bad_host",
+                                XrdCmsRRData::Arg_CGI,     "CGI",
                                 XrdCmsRRData::Arg_Datlen,  "datalen",
                                 XrdCmsRRData::Arg_Ident,   "ident",
+                                XrdCmsRRData::Arg_Ilist,   "interfaces",
                                 XrdCmsRRData::Arg_Mode,    "mode",
                                 XrdCmsRRData::Arg_Notify,  "notify",
                                 XrdCmsRRData::Arg_Opaque,  "opaque",
@@ -108,6 +110,7 @@ XrdCmsParseInit XrdCmsParseArgN(XrdCmsRRData::Arg_Null,    "",
                                 XrdCmsRRData::Arg_theLoad, "load",
                                 XrdCmsRRData::Arg_Info,    "info",
                                 XrdCmsRRData::Arg_Port,    "port",
+                                XrdCmsRRData::Arg_SID,     "SID",
                                 0,                         (const char *)0
                                );
 
@@ -239,7 +242,9 @@ XrdOucPupArgs XrdCmsParser::logArgs[] =
 /*0*/         setPUP0(Fence),
 /*1*/         setPUP1(XrdCmsRRData::Arg_SID,     char,    CmsLoginData, SID),
 /*2*/         setPUP1(XrdCmsRRData::Arg_Path,    char,    CmsLoginData, Paths),
-/*3*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
+/*3*/         setPUP1(XrdCmsRRData::Arg_Ilist,   char,    CmsLoginData, ifList),
+/*4*/         setPUP1(XrdCmsRRData::Arg_CGI,     char,    CmsLoginData, envCGI),
+/*5*/         setPUP1(XrdCmsRRData::Arg_Datlen,EndFill,   CmsLoginData, Size)
              };
 
 /******************************************************************************/
