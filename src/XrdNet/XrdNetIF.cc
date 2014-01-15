@@ -458,7 +458,7 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
 {
    XrdNetAddrInfo *netIF[2] = {0,0};
    XrdNetAddr      netAdr[2];
-   const char *ifErr, *ifBeg = ifList, *ifEnd, *ifAdr, *ifBad = 0;
+   const char *ifErr = 0, *ifBeg = ifList, *ifEnd, *ifAdr, *ifBad = 0;
    int i, n, ifNum = 1;
    char abuff[64];
 
