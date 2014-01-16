@@ -10,6 +10,7 @@ Version 3.3.6
 -------------
 
 + **Minor bug fixes**
+   * Prevent SEGV when error occurs during stat (issue #70)
    * Prevent SEGV in redirect monitoring (issue #61)
    * Set reasonable linux thread limit and warn it we cannot do so.
 
