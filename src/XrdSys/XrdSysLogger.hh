@@ -77,6 +77,30 @@ public:
 void  AddMsg(const char *msg);
 
 //-----------------------------------------------------------------------------
+//! Add a task to be run at midnight. Tasks are run sequentially lifo.
+//!
+//! @param  mnTask    Pointer to an instance of the task object below.
+//-----------------------------------------------------------------------------
+
+class Task
+{
+public:
+friend class XrdSysLogger;
+
+virtual void  Ring() = 0; //!< This method gets called at midnight
+
+inline  Task *Next() {return next;}
+
+              Task() : next(0) {}
+virtual      ~Task() {}
+
+private:
+Task *next;
+};
+
+void  AtMidnight(Task *mnTask);
+
+//-----------------------------------------------------------------------------
 //! Bind allows you to bind the file descriptor passed at construction time to
 //! a file with an optional periodic closing and opening of the file.
 //!
@@ -209,6 +233,7 @@ struct mmMsg
        char  *msg;
       };
 mmMsg     *msgList;
+Task      *taskQ;
 XrdSysMutex Logger_Mutex;
 long long  eKeep;
 char       TBuff[32];        // Trace header buffer
