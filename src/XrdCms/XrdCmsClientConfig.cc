@@ -427,11 +427,12 @@ int XrdCmsClientConfig::xmang(XrdOucStream &Config)
 
    Purpose:  To parse the directive: request [repwait <sec1>] [delay <sec2>]
                                              [noresp <cnt>] [prep <ms>]
+                                             [fwd <ms>]
 
-             <sec1>  number of seconds to wait for a locate reply
+             <sec1>  max number of seconds to wait for a cmsd reply
              <sec2>  number of seconds to delay a retry upon failure
              <cnt>   number of no-responses before cms fault declared.
-             <ms>    milliseconds between prepare requests
+             <ms>    milliseconds between prepare/forward requests
 
    Type: Remote server only, dynamic.
 
@@ -445,9 +446,9 @@ int XrdCmsClientConfig::xreqs(XrdOucStream &Config)
            rqopts[] =
        {
         {"delay",    1, &RepDelay},
-        {"fwd",      1, &FwdWait},
+        {"fwd",      0, &FwdWait},
         {"noresp",   0, &RepNone},
-        {"prep",     1, &PrepWait},
+        {"prep",     0, &PrepWait},
         {"repwait",  1, &RepWait}
        };
     int i, ppp, numopts = sizeof(rqopts)/sizeof(struct reqsopts);
