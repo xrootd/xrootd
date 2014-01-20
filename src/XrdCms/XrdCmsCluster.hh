@@ -189,7 +189,7 @@ int             Stats(char *bfr, int bln); // Server
 int             Statt(char *bfr, int bln); // Manager
 
                 XrdCmsCluster();
-               ~XrdCmsCluster() {} // This object should never be deleted
+virtual        ~XrdCmsCluster() {} // This object should never be deleted
 
 private:
 int         Assign(const char *Cid);
