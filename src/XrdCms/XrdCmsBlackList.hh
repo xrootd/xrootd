@@ -1,10 +1,10 @@
-#ifndef __CMS_LOGIN_H__
-#define __CMS_LOGIN_H__
+#ifndef __XRDCMSBLACKLIST_HH__
+#define __XRDCMSBLACKLIST_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                        X r d C m s L o g i n . h h                         */
+/*                    X r d C m s B l a c k L i s t . h h                     */
 /*                                                                            */
-/* (c) 2007 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -29,34 +29,55 @@
 /* be used to endorse or promote products derived from this software without  */
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
+  
+#include "Xrd/XrdJob.hh"
 
-#include <sys/uio.h>
+class XrdCmsCluster;
+class XrdOucTList;
+class XrdScheduler;
 
-#include "XProtocol/XPtypes.hh"
-#include "XProtocol/YProtocol.hh"
-
-class XrdLink;
-
-class XrdCmsLogin
+class XrdCmsBlackList : public XrdJob
 {
 public:
 
-       int  Admit(XrdLink *Link, XrdCms::CmsLoginData &Data);
+//------------------------------------------------------------------------------
+//! Time driven method for checking black list file.
+//------------------------------------------------------------------------------
 
-static int  Login(XrdLink *Link, XrdCms::CmsLoginData &Data, int timeout=-1);
+       void  DoIt();
 
-       XrdCmsLogin(char *Buff = 0, int Blen = 0) {myBuff = Buff; myBlen = Blen;}
+//------------------------------------------------------------------------------
+//! Initialize the black list
+//!
+//! @param  sP     Pointer to the scheduler object.
+//! @param  cP     Pointer to the cluster   object.
+//! @param  blfn   The path to the black list file or null.
+//! @param  chkt   Seconds between checks for blacklist changes.
+//------------------------------------------------------------------------------
 
-      ~XrdCmsLogin() {}
+static void  Init(XrdScheduler *sP,   XrdCmsCluster *cP,
+                  const char   *blfn, int chkt=600);
 
+//------------------------------------------------------------------------------
+//! Check if host is in the black list.
+//!
+//! @param  hName  Pointer to the host name or address.
+//! @param  bList  Optional pointer to a private black list.
+//!
+//! @return true   Host is     in the black list.
+//! @return false  Host is not in the black list.
+//------------------------------------------------------------------------------
+
+static bool Present(const char *hName, XrdOucTList *bList=0);
+
+//------------------------------------------------------------------------------
+//! Constructor and Destructor
+//------------------------------------------------------------------------------
+
+            XrdCmsBlackList() : XrdJob("Black List Check") {}
+           ~XrdCmsBlackList() {}
 private:
-
-static int Authenticate(XrdLink *Link, XrdCms::CmsLoginData &Data);
-static int Emsg(XrdLink *, const char *, int ecode=XrdCms::kYR_EINVAL);
-static int sendData(XrdLink *Link, XrdCms::CmsLoginData &Data);
-static int SendErrorBL(XrdLink *Link);
-
-         char       *myBuff;
-         int         myBlen;
+static void AddBL(XrdOucTList *&bAnchor, char *hSpec);
+static bool GetBL(XrdOucTList *&bAnchor);
 };
 #endif

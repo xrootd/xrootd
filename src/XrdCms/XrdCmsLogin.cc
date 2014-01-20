@@ -34,6 +34,7 @@
 
 #include "Xrd/XrdLink.hh"
 
+#include "XrdCms/XrdCmsBlackList.hh"
 #include "XrdCms/XrdCmsLogin.hh"
 #include "XrdCms/XrdCmsParser.hh"
 #include "XrdCms/XrdCmsTalk.hh"
@@ -62,6 +63,12 @@ int XrdCmsLogin::Admit(XrdLink *Link, CmsLoginData &Data)
 //
    if ((eText = XrdCmsTalk::Attend(Link, myHdr, myBuff, myBlen, myDlen)))
       return Emsg(Link, eText, 0);
+
+// Check if this node is blacklisted
+//
+   if (!(Data.Mode & CmsLoginData::kYR_director)
+   &&  XrdCmsBlackList::Present(Link->AddrInfo()->Name()))
+      return SendErrorBL(Link);
 
 // If we need to do authentication, do so now
 //
@@ -147,9 +154,14 @@ int XrdCmsLogin::Login(XrdLink *Link, CmsLoginData &Data, int timeout)
 // Process error reply
 //
    if (LIHdr.rrCode == kYR_error)
-      return (dataLen < (int)sizeof(kXR_unt32)+8
-             ? Emsg(Link, "invalid error reply")
-             : Emsg(Link, WorkBuff+sizeof(kXR_unt32)));
+      {unsigned int eRC;
+       if (dataLen < (int)sizeof(kXR_unt32)+8)
+          return Emsg(Link, "invalid error reply");
+       Emsg(Link, WorkBuff+sizeof(kXR_unt32));
+       memcpy(&eRC, WorkBuff, sizeof(eRC));
+       eRC = ntohl(eRC);
+       return (eRC == kYR_EPERM ? -1 : kYR_EINVAL);
+      }
 
 // Process normal reply
 //
@@ -194,4 +206,35 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Return success
 //
    return 0;
+}
+
+/******************************************************************************/
+/* Private:                  S e n d E r r o r B L                            */
+/******************************************************************************/
+  
+int XrdCmsLogin::SendErrorBL(XrdLink *Link)
+{
+  struct {CmsResponse rInfo;
+          char        rText[512];
+         }            rData;
+  const char *hName = Link->AddrInfo()->Name("???");
+  int n;
+
+// Format the message
+//
+   n = snprintf(rData.rText, sizeof(rData.rText), "%s is blacklisted.", hName)
+     + sizeof(rData.rInfo.Val) + 1;
+
+// Construct response
+//
+   rData.rInfo.Hdr.streamid = 0;
+   rData.rInfo.Hdr.rrCode   = kYR_error;
+   rData.rInfo.Hdr.modifier = 0;
+   rData.rInfo.Hdr.datalen  = htons(n);
+   rData.rInfo.Val          = htonl(static_cast<unsigned int>(kYR_EPERM));
+
+// Send off the data
+//
+   Link->Send((const char *)&rData, n + sizeof(CmsRRHdr));
+   return Emsg(Link, "blacklisted", 0);
 }

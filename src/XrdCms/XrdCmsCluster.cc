@@ -43,6 +43,7 @@
 #include "Xrd/XrdScheduler.hh"
 
 #include "XrdCms/XrdCmsBaseFS.hh"
+#include "XrdCms/XrdCmsBlackList.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsCluster.hh"
@@ -248,6 +249,43 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
    return nP;
 }
 
+/******************************************************************************/
+/*                             B l a c k L i s t                              */
+/******************************************************************************/
+
+void XrdCmsCluster::BlackList(XrdOucTList *blP)
+{
+   XrdCmsNode *nP;
+   int i;
+   bool inBL;
+
+// Obtain a lock on the table
+//
+   STMutex.Lock();
+
+// Run through the table looking to put or out of the blacklist
+//
+   for (i = 0; i <= STHi; i++)
+       {if ((nP = NodeTab[i]))
+           {inBL = (blP && XrdCmsBlackList::Present(nP->Name(), blP));
+            if ((inBL && nP->isDisable == 2) || (!inBL && nP->isDisable != 2))
+               continue;
+            nP->Lock();
+            STMutex.UnLock();
+            if (inBL)
+               {nP->isDisable = 2;
+                Say.Emsg("Manager", nP->Name(), "blacklisted.");
+               } else {
+                nP->isDisable = 0;
+                Say.Emsg("Manager", nP->Name(), "removed from blacklist.");
+               }
+            nP->UnLock();
+            STMutex.Lock();
+           }
+       }
+   STMutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                             B r o a d c a s t                              */
 /******************************************************************************/
