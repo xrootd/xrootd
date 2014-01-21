@@ -467,6 +467,12 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
    if (!(ifPort = src->Port())) ifPort = dfPort;
    if (!ifList || !(*ifList)) return GenIF(&src, 1);
 
+// Prefrentially use the connect address as the primary interface. This
+// avoids using reported interfaces that may have strange routing.
+//
+   if (src->isPrivate()) {if (!netIF[1]) netIF[1] = src;}
+      else               {if (!netIF[0]) netIF[0] = src;}
+
 // Process the iflist (up to two interfaces)
 //
    if (ifList && *ifList)
@@ -487,13 +493,10 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
            continue;
           }
        i = (netAdr[ifNum].isPrivate() ? 1 : 0);
-       if (!netIF[i]) netIF[i] = &netAdr[ifNum--];
+       if (!netIF[i] || (netAdr[ifNum].isIPType(XrdNetAddrInfo::IPv4)
+                         &&  netIF[i]->isIPType(XrdNetAddrInfo::IPv6)))
+          netIF[i] = &netAdr[ifNum--];
       } while(ifNum >= 0);
-
-// Check if we need to add the reporting interface
-//
-   if (src->isPrivate()) {if (!netIF[1]) netIF[1] = src;}
-      else               {if (!netIF[0]) netIF[0] = src;}
 
 // Set the interface data
 //
