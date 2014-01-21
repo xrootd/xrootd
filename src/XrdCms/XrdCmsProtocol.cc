@@ -588,9 +588,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
       {Share  = (Data.Mode & CmsLoginData::kYR_share)>>CmsLoginData::kYR_shift;
        if (Share <= 0 || Share > 100) Share = Config.P_gsdf;
        if (Share > 0) myNode->setShare(Share);
-       tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
-       tZone = myNode->setTZone(tZone);
       }
+
+// Set the node's timezone
+//
+   tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
+   tZone = myNode->setTZone(tZone);
 
 // Record the status of the server's filesystem
 //
