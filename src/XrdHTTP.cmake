@@ -20,7 +20,7 @@ set_target_properties(XrdHttp PROPERTIES
  VERSION "${XRD_HTTP_VERSION}"
  SOVERSION "${XRD_HTTP_SOVERSION}")
 
-target_link_libraries(XrdHttp XrdServer XrdXrootd XrdUtils XrdCrypto dl pthread ssl )
+target_link_libraries(XrdHttp XrdServer XrdXrootd XrdUtils XrdCrypto dl pthread ssl crypto )
 
 set_target_properties(
   XrdHttp
