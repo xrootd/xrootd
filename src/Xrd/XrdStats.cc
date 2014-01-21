@@ -137,20 +137,44 @@ void XrdStats::Report(char **Dest, int iVal, int Opts)
 
 // Now get the statistics
 //
-   Lock();
-   if ((Data = Stats(theOpts)))
-      {Dlen = strlen(Data);
-       netDest[0]->Send(Data, Dlen);
+   statsMutex.Lock();
+   if ((Data = GenStats(Dlen, theOpts)))
+      {netDest[0]->Send(Data, Dlen);
        if (netDest[1]) netDest[1]->Send(Data, Dlen);
       }
-   UnLock();
+   statsMutex.UnLock();
 }
 
 /******************************************************************************/
 /*                                 S t a t s                                  */
 /******************************************************************************/
+
+void XrdStats::Stats(XrdStats::CallBack *cbP, int opts)
+{
+   const char *info;
+   int sz;
+
+// Lock the buffer,
+//
+   statsMutex.Lock();
+
+// Obtain the stats, if we have some, do the callback
+//
+   if ((info = GenStats(sz, opts))) cbP->Info(info, sz);
+
+// Unlock the buffer
+//
+   statsMutex.UnLock();
+}
+
+/******************************************************************************/
+/*                       P r i v a t e   M e t h o d s                        */
+/******************************************************************************/
+/******************************************************************************/
+/*                              G e n S t a t s                               */
+/******************************************************************************/
   
-const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
+const char *XrdStats::GenStats(int &rsz, int opts) // statsMutex must be locked!
 {
    static const char *sgen = "<stats id=\"sgen\">"
                              "<as>%d</as><et>%lu</et><toe>%ld</toe></stats>";
@@ -158,10 +182,11 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
    static const char *snul = "<statistics tod=\"0\" ver=\"" XrdVSTRING "\">"
                             "</statistics>";
 
+   static const int  snulsz =     strlen(snul);
    static const int  ovrhed = 256+strlen(sgen)+strlen(tail);
    XrdSysTimer myTimer;
    char *bp;
-   int   bl, sz, do_sync = (opts & XRD_STATS_SYNC ? 1 : 0);
+   int   n, bl, sz, do_sync = (opts & XRD_STATS_SYNC ? 1 : 0);
 
 // If buffer is not allocated, do it now. We must defer buffer allocation
 // until all components that can provide statistics have been loaded
@@ -171,7 +196,7 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
             + ProcStats(0,0) + XrdSched->Stats(0,0) + XrdPoll::Stats(0,0)
             + XrdProtLoad::Statistics(0,0) + ovrhed + Hlen;
        buff = (char *)memalign(getpagesize(), blen+256);
-       if (!(bp = buff)) return snul;
+       if (!(bp = buff)) {rsz = snulsz; return snul;}
       }
    bl = blen;
 
@@ -228,13 +253,13 @@ const char *XrdStats::Stats(int opts)   // statsMutex must be locked!
        bp += sz; bl -= sz;
       }
 
-   strlcpy(bp, tail, bl);
+   sz = bp - buff;
+   if (bl > 0) n = strlcpy(bp, tail, bl);
+      else n = 0;
+   rsz = sz + (n >= bl ? bl : n);
    return buff;
 }
- 
-/******************************************************************************/
-/*                       P r i v a t e   M e t h o d s                        */
-/******************************************************************************/
+
 /******************************************************************************/
 /*                             I n f o S t a t s                              */
 /******************************************************************************/
