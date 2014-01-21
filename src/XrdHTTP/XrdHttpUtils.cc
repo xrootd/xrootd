@@ -149,7 +149,15 @@ std::string itos(long i) {
 
 
 
+// Home made implementation of strchrnul
+char *mystrchrnul(const char *s, int c) {
+  char *ptr = strchr((char *)s, c);
 
+  if (!ptr)
+    return strchr((char *)s, '\0');
+
+  return ptr;
+}
 
 
 
