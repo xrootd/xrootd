@@ -49,6 +49,9 @@ int parseURL(char *url, char *host, int &port, char **path);
 // Simple itoa function
 std::string itos(long i);
 
+// Home made implementation of strchrnul
+char *mystrchrnul(const char *s, int c);
+
 void calcHashes(
         char *hash,
 

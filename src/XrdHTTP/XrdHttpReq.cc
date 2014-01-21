@@ -1788,7 +1788,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
 
             while (startp - (char *) iovP[0].iov_base < (unsigned) iovP[0].iov_len - 1) {
               // Find the filename, it comes before the \n
-              if ((endp = (char *) strchrnul((const char*) startp, '\n'))) {
+              if ((endp = (char *) mystrchrnul((const char*) startp, '\n'))) {
                 strncpy(entry, (char *) startp, endp - startp);
                 entry[endp - startp] = 0;
                 e.path = entry;

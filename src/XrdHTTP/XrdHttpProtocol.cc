@@ -967,10 +967,10 @@ int XrdHttpProtocol::BuffgetData(int blen, char **data, bool wait) {
   }
 
   if (myBuffStart < myBuffEnd) {
-    rlen = min((long) blen, myBuffEnd - myBuffStart);
+    rlen = min( (long) blen, (long)(myBuffEnd - myBuffStart) );
 
   } else
-    rlen = min((long) blen, myBuff->buff + myBuff->bsize - myBuffStart);
+    rlen = min( (long) blen, (long)(myBuff->buff + myBuff->bsize - myBuffStart) );
 
   *data = myBuffStart;
   BuffConsume(rlen);
