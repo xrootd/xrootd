@@ -67,7 +67,7 @@ void  Stats(CallBack *InfoBack, int opts);
                const char *hn, int port, const char *in, const char *pn,
                const char *sn);
 
-     ~XrdStats() {if (buff) free(buff);}
+virtual ~XrdStats() {if (buff) free(buff);}
 
 private:
 
