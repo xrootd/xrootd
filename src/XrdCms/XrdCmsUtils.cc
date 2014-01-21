@@ -46,7 +46,7 @@
 bool XrdCmsUtils::ParseMan(XrdSysError *eDest, XrdOucTList **oldMans,
                            char  *hSpec, char *hPort, int *sPort)
 {
-   XrdOucTList *newMans, *newP, *oldP, *appList = *oldMans;
+   XrdOucTList *newMans, *newP, *oldP, *appList = (oldMans ? *oldMans : 0);
    const char *eText;
    char *plus;
    int nPort, maxIP = 1;
