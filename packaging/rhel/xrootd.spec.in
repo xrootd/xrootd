@@ -397,7 +397,6 @@ exit 0
 %{_libdir}/libXrdCrypto.so.*
 %{_libdir}/libXrdCryptoLite.so.*
 %{_libdir}/libXrdCryptossl.so.*
-%{_libdir}/libXrdMain.so.*
 %{_libdir}/libXrdSec*.so.*
 %{_libdir}/libXrdUtils.so.*
 # Some of the libraries are used as plugins - need the .so symlink at runtime
@@ -421,7 +420,6 @@ exit 0
 %{_libdir}/libXrdAppUtils.so
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
-%{_libdir}/libXrdMain.so
 %{_libdir}/libXrdUtils.so
 
 %files client-libs
