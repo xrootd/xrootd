@@ -48,7 +48,6 @@
 #include "Xrd/XrdLink.hh"
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "Xrd/XrdBuffer.hh"
-#include <boost/lexical_cast.hpp>
 
 #include <algorithm> 
 #include <functional> 
@@ -1334,8 +1333,8 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
               else p += "-";
 
               p += "</td>";
-              p += "<td class=\"mode\">" + boost::lexical_cast<string > (e.flags) + "</td>"
-                      "<td class=\"size\">" + boost::lexical_cast<string > (e.size) + "</td>"
+              p += "<td class=\"mode\">" + itos(e.flags) + "</td>"
+                      "<td class=\"size\">" + itos(e.size) + "</td>"
                       "<td class=\"datetime\">" + ISOdatetime(e.modtime) + "</td>"
                       "<td class=\"name\">"
                       "<a href=\"";
@@ -1729,7 +1728,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
 
               // File size
               stringresp += "<lp1:getcontentlength>";
-              stringresp += boost::lexical_cast<std::string > (e.size);
+              stringresp += itos(e.size);
               stringresp += "</lp1:getcontentlength>\n";
 
 
@@ -1840,7 +1839,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
 
                 // File size
                 stringresp += "<lp1:getcontentlength>";
-                stringresp += boost::lexical_cast<std::string > (e.size);
+                stringresp += itos(e.size);
                 stringresp += "</lp1:getcontentlength>\n";
 
                 stringresp += "<lp1:getlastmodified>";
