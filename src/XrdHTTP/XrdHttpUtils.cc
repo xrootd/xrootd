@@ -139,7 +139,13 @@ void Tobase64(const unsigned char *input, int length, char *out) {
 
 
 
+// Simple itoa function
+std::string itos(long i) {
+  char buf[128];
+  sprintf(buf, "%ld", i);
 
+  return buf;
+}
 
 
 

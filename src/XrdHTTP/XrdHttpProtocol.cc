@@ -35,7 +35,7 @@
 #include "XrdHttpTrace.hh"
 #include "XrdHttpProtocol.hh"
 //#include "XrdXrootd/XrdXrootdStats.hh"
-#include <boost/lexical_cast.hpp>
+
 #include <sys/stat.h>
 #include "XrdHttpUtils.hh"
 #include "XrdHttpSecXtractor.hh"
@@ -1283,7 +1283,7 @@ int XrdHttpProtocol::InitSecurity() {
 
   const SSL_METHOD *meth;
   meth = SSLv23_method();
-  sslctx = SSL_CTX_new(meth);
+  sslctx = SSL_CTX_new((SSL_METHOD *)meth);
   SSL_CTX_set_options(sslctx, SSL_OP_NO_SSLv2);
   SSL_CTX_set_session_cache_mode(sslctx, SSL_SESS_CACHE_SERVER);
   SSL_CTX_set_session_id_context(sslctx, s_server_session_id_context,

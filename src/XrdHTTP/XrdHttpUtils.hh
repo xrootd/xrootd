@@ -46,6 +46,8 @@
 // Return 0 if OK
 int parseURL(char *url, char *host, int &port, char **path);
 
+// Simple itoa function
+std::string itos(long i);
 
 void calcHashes(
         char *hash,
