@@ -90,7 +90,7 @@ if( ${CMAKE_SYSTEM_NAME} STREQUAL "SunOS" )
   #-----------------------------------------------------------------------------
   # AMD64 (opteron)
   #-----------------------------------------------------------------------------
-  if( ${SOLARIS_VERSION} STREQUAL "5.10" AND SOLARIS_AMD64 AND NOT FORCE_32BITS )
+  if( ${SOLARIS_VERSION} STREQUAL "10" AND SOLARIS_AMD64 AND NOT FORCE_32BITS )
     set( CMAKE_CXX_FLAGS " -m64 -xtarget=opteron -xs ${CMAKE_CXX_FLAGS} " )
     set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -G" )
     set( CMAKE_LIBRARY_PATH "/lib/64;/usr/lib/64" )
