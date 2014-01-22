@@ -35,74 +35,70 @@
 using namespace XrdFileCache;
 
 Cache::Cache(XrdOucCacheStats & stats)
-    : m_attached(0),
-      m_stats(stats),
-      m_disablePrefetch(false)
+   : m_attached(0),
+     m_stats(stats),
+     m_disablePrefetch(false)
 {}
 
-XrdOucCacheIO *
-Cache::Attach(XrdOucCacheIO *io, int Options)
+XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
-    if (!m_disablePrefetch)
-    {
-        XrdSysMutexHelper lock(&m_io_mutex);
-        m_attached++;
+   if (!m_disablePrefetch)
+   {
+      XrdSysMutexHelper lock(&m_io_mutex);
+      m_attached++;
 
-        xfcMsgIO(kInfo, io, "Cache::Attach()");
-        if (io)
-        {
-            if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
-                return new IOFileBlock(*io, m_stats, *this);
-            else
-                return new IOEntireFile(*io, m_stats, *this);
-        }
-        else
-        {
-            xfcMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
-        }
+      xfcMsgIO(kInfo, io, "Cache::Attach()");
+      if (io)
+      {
+         if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
+            return new IOFileBlock(*io, m_stats, *this);
+         else
+            return new IOEntireFile(*io, m_stats, *this);
+      }
+      else
+      {
+         xfcMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
+      }
 
-        m_attached--;
-    }
-    return io;
+      m_attached--;
+   }
+   return io;
 }
 
-int
-Cache::isAttached()
+int Cache::isAttached()
 {
-    XrdSysMutexHelper lock(&m_io_mutex);
-    return m_attached;
+   XrdSysMutexHelper lock(&m_io_mutex);
+   return m_attached;
 }
 
-void
-Cache::Detach(XrdOucCacheIO* io)
+void Cache::Detach(XrdOucCacheIO* io)
 {
-    xfcMsgIO(kInfo, io, "Cache::Detach()");
-    XrdSysMutexHelper lock(&m_io_mutex);
-    m_attached--;
+   xfcMsgIO(kInfo, io, "Cache::Detach()");
+   XrdSysMutexHelper lock(&m_io_mutex);
+   m_attached--;
 
-    xfcMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
+   xfcMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
 
 
-    delete io;
+   delete io;
 }
 
 
-bool
-Cache::getFilePathFromURL(const char* url, std::string &result) const
+bool Cache::getFilePathFromURL(const char* url, std::string &result) const
 {
-    std::string path = url;
-    size_t split_loc = path.rfind("//");
+   std::string path = url;
+   size_t split_loc = path.rfind("//");
 
-    if (split_loc == path.npos)
-        return false;
+   if (split_loc == path.npos)
+      return false;
 
-    size_t kloc = path.rfind("?");
+   size_t kloc = path.rfind("?");
 
-    if (kloc == path.npos)
-        return false;
+   if (kloc == path.npos)
+      return false;
 
-    result = Factory::GetInstance().RefConfiguration().m_cache_dir;
-    result += path.substr(split_loc+1,kloc-split_loc-1);
+   result = Factory::GetInstance().RefConfiguration().m_cache_dir;
+   result += path.substr(split_loc+1,kloc-split_loc-1);
 
-    return true;
+   return true;
 }

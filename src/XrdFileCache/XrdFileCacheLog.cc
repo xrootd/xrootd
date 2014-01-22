@@ -33,59 +33,56 @@
 
 namespace XrdFileCache
 {
-const char* const s_levelNames[] = { "Dump ", "Debug","Info ", "Warn ", "Err  " };
+   const char* const s_levelNames[] = { "Dump ", "Debug","Info ", "Warn ", "Err  " };
 
-const char*
-levelName(LogLevel iLevel)
-{
-    return s_levelNames[iLevel];
-}
+   const char*levelName(LogLevel iLevel)
+   {
+      return s_levelNames[iLevel];
+   }
 
 
-void
-strprintf(LogLevel level, const char* fmt, ...)
-{
-    int size = 512;
+   void strprintf(LogLevel level, const char* fmt, ...)
+   {
+      int size = 512;
 
-    std::string str;
+      std::string str;
 
-    va_list ap;
-    while (true)
-    {
-        str.resize(size);
-        va_start(ap, fmt);
-        int n = vsnprintf((char *)str.c_str(), size, fmt, ap);
-        va_end(ap);
-        if (n > -1 && n < size)
-        {
+      va_list ap;
+      while (true)
+      {
+         str.resize(size);
+         va_start(ap, fmt);
+         int n = vsnprintf((char *)str.c_str(), size, fmt, ap);
+         va_end(ap);
+         if (n > -1 && n < size)
+         {
             Factory::GetInstance().GetSysError().Emsg(levelName(level), str.c_str());
             return;
-        }
+         }
 
-        if (n > -1)
+         if (n > -1)
             size = n + 1;
-        else
+         else
             size *= 2;
-    }
-}
+      }
+   }
 
 
-void
-strprintfIO(LogLevel level, XrdOucCacheIO* io, const char* fmt, ...)
-{
-    int size = 512;
+   void strprintfIO(LogLevel level, XrdOucCacheIO* io, const char* fmt, ...)
+   {
+      int size = 512;
 
-    std::string str;
+      std::string str;
 
-    va_list ap;
-    while (true)
-    {
-        str.resize(size);
-        va_start(ap, fmt);
-        int n = vsnprintf((char *)str.c_str(), size, fmt, ap);
-        va_end(ap);
-        if (n > -1 && n < size)
-        {
+      va_list ap;
+      while (true)
+      {
+         str.resize(size);
+         va_start(ap, fmt);
+         int n = vsnprintf((char *)str.c_str(), size, fmt, ap);
+         va_end(ap);
+         if (n > -1 && n < size)
+         {
             std::string path = io->Path();
             /*
                size_t kloc = path.rfind("?");
@@ -99,13 +96,13 @@ strprintfIO(LogLevel level, XrdOucCacheIO* io, const char* fmt, ...)
              */
             Factory::GetInstance().GetSysError().Emsg(levelName(level),str.c_str(), path.c_str());
             return;
-        }
+         }
 
-        if (n > -1)
+         if (n > -1)
             size = n + 1;
-        else
+         else
             size *= 2;
-    }
-}
+      }
+   }
 
 }

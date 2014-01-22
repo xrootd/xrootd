@@ -26,11 +26,8 @@
 
 class AllowDecision : public XrdFileCache::Decision
 {
-
-public:
-
-    virtual bool
-    Decide(std::string &, XrdOss &) const {return true; }
+   public:
+      virtual bool Decide(std::string &, XrdOss &) const {return true; }
 
 };
 
@@ -41,10 +38,9 @@ public:
 // Return a decision object to use.
 extern "C"
 {
-XrdFileCache::Decision *
-XrdFileCacheGetDecision(XrdSysError &)
+XrdFileCache::Decision *XrdFileCacheGetDecision(XrdSysError &)
 {
-    return new AllowDecision();
+   return new AllowDecision();
 }
 }
 
