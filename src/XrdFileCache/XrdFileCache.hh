@@ -22,19 +22,39 @@
 #include <XrdOuc/XrdOucCache.hh>
 
 namespace XrdFileCache
-{
+{ 
+   //----------------------------------------------------------------------------
+   //! Creates IO objects for disk based cache.
+   //----------------------------------------------------------------------------
    class Cache : public XrdOucCache
    {
       friend class IOEntireFile;
       friend class IOFileBlock;
 
       public:
+         //------------------------------------------------------------------------
+         //! Constructor
+         //------------------------------------------------------------------------
+         Cache(XrdOucCacheStats&);
+
+         //---------------------------------------------------------------------
+         //! Attache      must be called to obtain a new IO object or that fronts
+         //!              existing XrdPosixFile.
+         //!
+         //! @return      on success return XrdFileCacheIO
+         //---------------------------------------------------------------------     
          XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
-         int isAttached();
+         //---------------------------------------------------------------------
+         //! isAttached  This cache instance can be delete. Need this method to
+         //!             check if there are any associated objects.
+         //!
+         //! @return     number of attached IO objects
+         //---------------------------------------------------------------------
+         virtual int isAttached();
 
+         /* Creation is suppresed. This role is given to Factory class */
          virtual XrdOucCache*Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
-         Cache(XrdOucCacheStats&);
 
 
       private:
@@ -49,10 +69,11 @@ namespace XrdFileCache
 
          bool m_disablePrefetch;
    };
-//______________________________________________________________________________
 
 
-
+   //----------------------------------------------------------------------------
+   //! Base IO class with implemented XrdOucCacheIO abstract methods. 
+   //----------------------------------------------------------------------------
    class IO : public XrdOucCacheIO
    {
       public:
