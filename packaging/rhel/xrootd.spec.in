@@ -450,10 +450,12 @@ exit 0
 %{_libdir}/libXrdOfs.so.*
 %{_libdir}/libXrdServer.so.*
 %{_libdir}/libXrdXrootd.so.*
+%{_libdir}/libXrdHttp.so.*
 # Some of the libraries are used as plugins - need the .so symlink at runtime
 %{_libdir}/libXrdBwm.so
 %{_libdir}/libXrdPss.so
 %{_libdir}/libXrdXrootd.so
+%{_libdir}/libXrdHttp.so
 
 %files server-devel
 %defattr(-,root,root,-)
