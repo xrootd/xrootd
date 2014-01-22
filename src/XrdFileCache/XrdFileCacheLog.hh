@@ -25,23 +25,23 @@
    if (level >= Factory::GetInstance().RefConfiguration().m_logLevel) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
 
 #define xfcMsgIO(level, io, format, ...) \
-    if (level >= Factory::GetInstance().RefConfiguration().m_logLevel ) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
+   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel ) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
 
 class XrdOucCacheIO;
 
 namespace  XrdFileCache
 {
-enum LogLevel {
-    kDump,
-    kDebug,
-    kInfo,
-    kWarning,
-    kError
-};
+   enum LogLevel {
+      kDump,
+      kDebug,
+      kInfo,
+      kWarning,
+      kError
+   };
 
-const char* levelName(LogLevel);
-void strprintf(LogLevel level, const char* fmt, ...);
-void strprintfIO(LogLevel level,  XrdOucCacheIO* io, const char* fmt, ...);
+   const char* levelName(LogLevel);
+   void strprintf(LogLevel level, const char* fmt, ...);
+   void strprintfIO(LogLevel level,  XrdOucCacheIO* io, const char* fmt, ...);
 }
 
 #endif

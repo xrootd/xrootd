@@ -24,45 +24,44 @@
 
 namespace XrdFileCache
 {
-class Stats : public XrdOucCacheStats
-{
-public:
-    long long BytesCachedPrefetch;
-    long long BytesPrefetch;
-    long long BytesDisk;
-    int HitsPrefetch;
-    int HitsDisk;
-    time_t AppendTime;
+   class Stats : public XrdOucCacheStats
+   {
+      public:
+         long long BytesCachedPrefetch;
+         long long BytesPrefetch;
+         long long BytesDisk;
+         int HitsPrefetch;
+         int HitsDisk;
+         time_t AppendTime;
 
-    inline void
-    AddStat(Stats &Src)
-    {
-        XrdOucCacheStats::Add(Src);
+         inline void AddStat(Stats &Src)
+         {
+            XrdOucCacheStats::Add(Src);
 
-        sMutexXfc.Lock();
-        BytesCachedPrefetch += Src.BytesCachedPrefetch;
-        BytesPrefetch       += Src.BytesPrefetch;
-        BytesDisk           += Src.BytesDisk;
+            sMutexXfc.Lock();
+            BytesCachedPrefetch += Src.BytesCachedPrefetch;
+            BytesPrefetch       += Src.BytesPrefetch;
+            BytesDisk           += Src.BytesDisk;
 
-        HitsPrefetch += Src.HitsPrefetch;
-        HitsDisk     += Src.HitsDisk;
+            HitsPrefetch += Src.HitsPrefetch;
+            HitsDisk     += Src.HitsDisk;
 
-        sMutexXfc.UnLock();
-    }
+            sMutexXfc.UnLock();
+         }
 
-    Stats() :
-        BytesCachedPrefetch(0),
-        BytesPrefetch(0),
-        BytesDisk(0),
-        HitsPrefetch(0),
-        HitsDisk(0) {
-        AppendTime = time(0);
-    }
+         Stats() :
+            BytesCachedPrefetch(0),
+            BytesPrefetch(0),
+            BytesDisk(0),
+            HitsPrefetch(0),
+            HitsDisk(0) {
+            AppendTime = time(0);
+         }
 
-private:
-    XrdSysMutex sMutexXfc;
+      private:
+         XrdSysMutex sMutexXfc;
 
-};
+   };
 }
 
 #endif

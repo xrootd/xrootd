@@ -36,19 +36,19 @@ class XrdOucIOVec;
 
 namespace XrdFileCache
 {
-class IOEntireFile : public IO
-{
-public:
-    IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-    ~IOEntireFile();
+   class IOEntireFile : public IO
+   {
+      public:
+         IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+         ~IOEntireFile();
 
-    virtual int Read (char  *Buffer, long long Offset, int Length);
-    virtual int  ReadV (const XrdOucIOVec *readV, int n);
-    virtual XrdOucCacheIO *Detach();
+         virtual int Read (char  *Buffer, long long Offset, int Length);
+         virtual int  ReadV (const XrdOucIOVec *readV, int n);
+         virtual XrdOucCacheIO *Detach();
 
-private:
-    Prefetch* m_prefetch;
-};
+      private:
+         Prefetch* m_prefetch;
+   };
 
 }
 #endif

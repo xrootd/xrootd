@@ -32,83 +32,75 @@ class XrdSysError;
 
 namespace XrdFileCache
 {
+   struct Configuration
+   {
+      Configuration() :
+         m_prefetchFileBlocks(false),
+         m_cache_dir("/var/tmp/xrootd-file-cache"),
+         m_username("nobody"),
+         m_lwm(0.95),
+         m_hwm(0.9),
+         m_logLevel(kError),
+         m_bufferSize(1024*1024),
+         m_blockSize(128*1024*1024) {}
+
+      bool m_prefetchFileBlocks;
+      std::string m_config_filename;
+      std::string m_cache_dir;
+      std::string m_username;
+      std::string m_osslib_name;
+      float m_lwm;
+      float m_hwm;
+
+      LogLevel m_logLevel;
+      long long m_bufferSize;
+      long long m_blockSize; // used with m_prefetchFileBlocks
+   };
 
 
-struct Configuration
-{
-    Configuration() :
-        m_prefetchFileBlocks(false),
-        m_cache_dir("/var/tmp/xrootd-file-cache"),
-        m_username("nobody"),
-        m_lwm(0.95),
-        m_hwm(0.9),
-        m_logLevel(kError),
-        m_bufferSize(1024*1024),
-        m_blockSize(128*1024*1024) {}
+   class Factory : public XrdOucCache
+   {
+      public:
+         Factory();
 
-    bool m_prefetchFileBlocks;
-    std::string m_config_filename;
-    std::string m_cache_dir;
-    std::string m_username;
-    std::string m_osslib_name;
-    float m_lwm;
-    float m_hwm;
+         XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0) {return NULL; }
 
-    LogLevel  m_logLevel;
-    long long m_bufferSize;
-    long long m_blockSize; // used with m_prefetchFileBlocks
-};
+         int isAttached() {return false; }
 
+         bool Config(XrdSysLogger *logger, const char *config_filename, const char *parameters);
 
-class Factory : public XrdOucCache
-{
-public:
-    Factory();
+         virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP=0);
 
-    XrdOucCacheIO *
-    Attach(XrdOucCacheIO *, int Options=0) {return NULL; }
+         XrdOss*GetOss() const {return m_output_fs; }
+         XrdSysError&GetSysError() {return m_log; }
 
-    int
-    isAttached() {return false; }
+         bool Decide(std::string &);
 
-    bool Config(XrdSysLogger *logger, const char *config_filename, const char *parameters);
+         static Factory &GetInstance();
 
-    virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP=0);
+         static bool VCheck(XrdVersionInfo &urVersion) {return true; }
 
-    XrdOss*
-    GetOss() const {return m_output_fs; }
-    XrdSysError&
-    GetSysError() {return m_log; }
+         const Configuration&RefConfiguration() const { return m_configuration; };
 
-    bool Decide(std::string &);
+         void TempDirCleanup();
 
-    static Factory &GetInstance();
+      private:
+         bool ConfigParameters(const char *);
+         bool ConfigXeq(char *, XrdOucStream &);
+         bool xolib(XrdOucStream &);
+         bool xdlib(XrdOucStream &);
 
-    static bool
-    VCheck(XrdVersionInfo &urVersion) {return true; }
+         static XrdSysMutex m_factory_mutex;
+         static Factory * m_factory;
 
-    const Configuration&
-    RefConfiguration() const { return m_configuration; };
+         XrdSysError m_log;
+         XrdOucCacheStats m_stats;
+         XrdOss *m_output_fs;
 
-    void TempDirCleanup();
+         std::vector<XrdFileCache::Decision*> m_decisionpoints;
 
-private:
-    bool ConfigParameters(const char *);
-    bool ConfigXeq(char *, XrdOucStream &);
-    bool xolib(XrdOucStream &);
-    bool xdlib(XrdOucStream &);
-
-    static XrdSysMutex m_factory_mutex;
-    static Factory * m_factory;
-
-    XrdSysError m_log;
-    XrdOucCacheStats m_stats;
-    XrdOss *m_output_fs;
-
-    std::vector<XrdFileCache::Decision*> m_decisionpoints;
-
-    Configuration m_configuration;
-};
+         Configuration m_configuration;
+   };
 
 }
 

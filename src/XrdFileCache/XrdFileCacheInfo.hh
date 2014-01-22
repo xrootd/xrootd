@@ -29,123 +29,114 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class Stats;
+   class Stats;
 
-class Info
-{
-public:
-    Info();
-    ~Info();
+   class Info
+   {
+      public:
+         Info();
+         ~Info();
 
-    void setBit(int i);
-    void resizeBits(int s);
-    void setComplete(int c);
+         void setBit(int i);
+         void resizeBits(int s);
+         void setComplete(int c);
 
-    int Read(XrdOssDF* fp);
-    void  WriteHeader(XrdOssDF* fp);
-    void AppendIOStat(const Stats* stat, XrdOssDF* fp);
+         int Read(XrdOssDF* fp);
+         void  WriteHeader(XrdOssDF* fp);
+         void AppendIOStat(const Stats* stat, XrdOssDF* fp);
 
-    bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
+         bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
-    int getSizeInBytes() const;
-    int getSizeInBits() const;
-    int getHeaderSize() const;
-    bool getLatestAttachTime(time_t& t, XrdOssDF* fp) const;
+         int getSizeInBytes() const;
+         int getSizeInBits() const;
+         int getHeaderSize() const;
+         bool getLatestAttachTime(time_t& t, XrdOssDF* fp) const;
 
-    long long getBufferSize() const;
-    bool testBit(int i) const;
+         long long getBufferSize() const;
+         bool testBit(int i) const;
 
-    bool isComplete() const;
-    void checkComplete();
+         bool isComplete() const;
+         void checkComplete();
 
-    void print() const;
+         void print() const;
 
-    const static char* m_infoExtension;
+         const static char* m_infoExtension;
 
-private:
-    struct AStat
-    {
-        time_t AppendTime;
-        time_t DetachTime;
-        long long BytesRead;
-        int Hits;
-        int Miss;
+      private:
+         struct AStat
+         {
+            time_t AppendTime;
+            time_t DetachTime;
+            long long BytesRead;
+            int Hits;
+            int Miss;
 
-        void
-        Dump() const
-        {
-            printf("AStat value: detach %d, bytesRead = %lld, Hits = %d, Miss = %d \n",
-                   (int)DetachTime, BytesRead, Hits, Miss );
-        }
-    };
+            void Dump() const
+            {
+               printf("AStat value: detach %d, bytesRead = %lld, Hits = %d, Miss = %d \n",
+                      (int)DetachTime, BytesRead, Hits, Miss );
+            }
+         };
 
-    long long m_bufferSize;
-    int m_sizeInBits;   // number of file blocks
-    char*  m_buff;
-    int m_accessCnt;
+         long long m_bufferSize;
+         int m_sizeInBits; // number of file blocks
+         char*  m_buff;
+         int m_accessCnt;
 
-    bool m_complete;  //cached
+         bool m_complete; //cached
 
-    XrdSysMutex m_writeMutex;
-};
+         XrdSysMutex m_writeMutex;
+   };
 
-inline bool
-Info::testBit(int i) const
-{
-    int cn = i/8;
-    assert(cn < getSizeInBytes());
+   inline bool Info::testBit(int i) const
+   {
+      int cn = i/8;
+      assert(cn < getSizeInBytes());
 
-    int off = i - cn*8;
-    return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
-}
+      int off = i - cn*8;
+      return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
+   }
 
-inline int
-Info::getSizeInBytes() const
-{
-    return ((m_sizeInBits -1)/8 + 1);
-}
+   inline int Info::getSizeInBytes() const
+   {
+      return ((m_sizeInBits -1)/8 + 1);
+   }
 
-inline int
-Info::getSizeInBits() const
-{
-    return m_sizeInBits;
-}
+   inline int Info::getSizeInBits() const
+   {
+      return m_sizeInBits;
+   }
 
-inline bool
-Info::isComplete() const
-{
-    return m_complete;
-}
+   inline bool Info::isComplete() const
+   {
+      return m_complete;
+   }
 
-inline bool
-Info::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
-{
-    for (int i = firstIdx; i <= lastIdx; ++i)
-        if(!testBit(i)) return true;
+   inline bool Info::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
+   {
+      for (int i = firstIdx; i <= lastIdx; ++i)
+         if(!testBit(i)) return true;
 
-    return false;
-}
+      return false;
+   }
 
-inline void
-Info::checkComplete()
-{
-    m_complete = !isAnythingEmptyInRng(0, m_sizeInBits-1);
-}
+   inline void Info::checkComplete()
+   {
+      m_complete = !isAnythingEmptyInRng(0, m_sizeInBits-1);
+   }
 
-inline void
-Info::setBit(int i)
-{
-    int cn = i/8;
-    assert(cn < getSizeInBytes());
+   inline void Info::setBit(int i)
+   {
+      int cn = i/8;
+      assert(cn < getSizeInBytes());
 
-    int off = i - cn*8;
-    m_buff[cn] |= cfiBIT(off);
-}
+      int off = i - cn*8;
+      m_buff[cn] |= cfiBIT(off);
+   }
 
-inline long long
-Info::getBufferSize() const
-{
-    return m_bufferSize;
-}
+   inline long long Info::getBufferSize() const
+   {
+      return m_bufferSize;
+   }
 }
 #endif

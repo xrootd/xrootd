@@ -23,67 +23,60 @@
 
 namespace XrdFileCache
 {
-class Cache : public XrdOucCache
-{
-    friend class IOEntireFile;
-    friend class IOFileBlock;
+   class Cache : public XrdOucCache
+   {
+      friend class IOEntireFile;
+      friend class IOFileBlock;
 
-public:
-    XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
+      public:
+         XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
-    int isAttached();
+         int isAttached();
 
-    virtual XrdOucCache*
-    Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
-    Cache(XrdOucCacheStats&);
+         virtual XrdOucCache*Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
+         Cache(XrdOucCacheStats&);
 
 
-private:
+      private:
 
-    void Detach(XrdOucCacheIO *);
-    bool getFilePathFromURL(const char* url, std::string& res) const;
+         void Detach(XrdOucCacheIO *);
+         bool getFilePathFromURL(const char* url, std::string& res) const;
 
-    XrdSysMutex m_io_mutex;
-    unsigned int m_attached;
+         XrdSysMutex m_io_mutex;
+         unsigned int m_attached;
 
-    XrdOucCacheStats & m_stats;
+         XrdOucCacheStats & m_stats;
 
-    bool m_disablePrefetch;
-};
+         bool m_disablePrefetch;
+   };
 //______________________________________________________________________________
 
 
 
-class IO : public XrdOucCacheIO
-{
-public:
-    IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
-    m_io(io), m_statsGlobal(stats), m_cache(cache) {}
+   class IO : public XrdOucCacheIO
+   {
+      public:
+         IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
+         m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
-    virtual XrdOucCacheIO *
-    Base() {return &m_io; }
+         virtual XrdOucCacheIO *Base() {return &m_io; }
 
 
-    virtual long long
-    FSize() {return m_io.FSize(); }
+         virtual long long FSize() {return m_io.FSize(); }
 
-    virtual const char *
-    Path() {return m_io.Path(); }
+         virtual const char *Path() {return m_io.Path(); }
 
-    virtual int
-    Sync() {return 0; }
+         virtual int Sync() {return 0; }
 
-    virtual int
-    Trunc(long long Offset) { errno = ENOTSUP; return -1; }
+         virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
-    virtual int
-    Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
+         virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
 
-protected:
-    XrdOucCacheIO & m_io;
-    XrdOucCacheStats & m_statsGlobal;
-    Cache & m_cache;
-};
+      protected:
+         XrdOucCacheIO & m_io;
+         XrdOucCacheStats & m_statsGlobal;
+         Cache & m_cache;
+   };
 
 }
 

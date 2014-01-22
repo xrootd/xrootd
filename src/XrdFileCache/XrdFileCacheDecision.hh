@@ -28,15 +28,14 @@ class XrdSysError;
 namespace XrdFileCache
 {
 
-class Decision {
+   class Decision {
 
-public:
-    virtual bool Decide(std::string &, XrdOss &) const = 0;
-    virtual ~Decision() {}
+      public:
+         virtual bool Decide(std::string &, XrdOss &) const = 0;
+         virtual ~Decision() {}
 
-    virtual bool
-    ConfigDecision(const char*) { return true; }
-};
+         virtual bool ConfigDecision(const char*) { return true; }
+   };
 
 }
 

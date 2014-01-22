@@ -31,31 +31,31 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
-class IOFileBlock : public IO
-{
-private:
-    struct FileBlock
-    {
-        FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
-        Prefetch* m_prefetch;
-        long long m_offset0;
-    };
+   class IOFileBlock : public IO
+   {
+      private:
+         struct FileBlock
+         {
+            FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
+            Prefetch* m_prefetch;
+            long long m_offset0;
+         };
 
-public:
-    IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-    ~IOFileBlock() {}
+      public:
+         IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+         ~IOFileBlock() {}
 
-    virtual XrdOucCacheIO *Detach();
-    virtual int Read (char  *Buffer, long long Offset, int Length);
+         virtual XrdOucCacheIO *Detach();
+         virtual int Read (char  *Buffer, long long Offset, int Length);
 
-private:
-    long long m_blockSize;
-    std::map<int, FileBlock*> m_blocks;
+      private:
+         long long m_blockSize;
+         std::map<int, FileBlock*> m_blocks;
 
-    XrdSysMutex m_mutex;
+         XrdSysMutex m_mutex;
 
-    FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
-};
+         FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
+   };
 
 }
 #endif
