@@ -572,6 +572,21 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
        Sel.InfoP->isLU  = 1;
       }
 
+// If we are running a shared file system preform an optional restricted
+// pre-selection and then do a standard selection.
+//
+   if (baseFS.isDFS())
+      {SMask_t amask, smask, pmask;
+       amask = pmask = pinfo.rovec;
+       smask = (Sel.Opts & XrdCmsSelect::Online ? 0 : pinfo.ssvec & amask);
+       Sel.Resp.DLen = 0;
+       if (!(retc = SelDFS(Sel, amask, pmask, smask, 1)))
+          return (Sel.Opts & XrdCmsSelect::Asap && Sel.InfoP
+                ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
+       if (retc < 0) return -1;
+       return 0;
+      }
+
 // First check if we have seen this file before. If so, get nodes that have it.
 // A Refresh request kills this because it's as if we hadn't seen it before.
 // If the file was found but either a query is in progress or we have a server
