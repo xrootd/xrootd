@@ -16,12 +16,12 @@ if( BUILD_CRYPTO )
   add_library(
     XrdHttp
     SHARED
-    XrdHTTP/XrdHttpProtocol.cc    XrdHTTP/XrdHttpProtocol.hh
-    XrdHTTP/XrdHttpReq.cc         XrdHTTP/XrdHttpReq.hh
-                                  XrdHTTP/XrdHttpSecXtractor.hh
-                                  XrdHTTP/XrdHttpStatic.hh
-    XrdHTTP/XrdHttpTrace.cc       XrdHTTP/XrdHttpTrace.hh
-    XrdHTTP/XrdHttpUtils.cc       XrdHTTP/XrdHttpUtils.hh )
+    XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
+    XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
+                                  XrdHttp/XrdHttpSecXtractor.hh
+                                  XrdHttp/XrdHttpStatic.hh
+    XrdHttp/XrdHttpTrace.cc       XrdHttp/XrdHttpTrace.hh
+    XrdHttp/XrdHttpUtils.cc       XrdHttp/XrdHttpUtils.hh )
 
   target_link_libraries(
     XrdHttp

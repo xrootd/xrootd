@@ -34,7 +34,7 @@ include( XrdCns )
 include( XrdHeaders )
 
 if( BUILD_HTTP )
-  include( XrdHTTP )
+  include( XrdHttp )
 endif()
 
 #-------------------------------------------------------------------------------
