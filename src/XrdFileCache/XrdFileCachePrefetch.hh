@@ -41,22 +41,7 @@ namespace XrdFileCache
       friend class IOEntireFile;
       friend class IOFileBlock;
 
-      struct Task
-      {
-         int firstBlock;
-         int lastBlock;
-         int cntFetched;
-         XrdSysCondVar* condVar;
-
-         Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
-            firstBlock(fb), lastBlock(lb), cntFetched(0),
-            condVar(iCondVar) {}
-
-         ~Task() {}
-
-         void Dump();
-      };
-
+      struct Task;
       public:
          //------------------------------------------------------------------------
          //! Constructor
@@ -74,12 +59,32 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          void Run();
 
-         //---------------------------------------------------------------------
-         //! Join Called from destructor. Set-up clean close
-         //!
-         //---------------------------------------------------------------------
-         void Join();
+         //----------------------------------------------------------------------
+         //! GetStats Reference prefetch statistics
+         //----------------------------------------------------------------------
+         Stats& GetStats() { return m_stats; }
 
+      protected:
+         ssize_t Read(char * buff, off_t offset, size_t size);
+         void AppendIOStatToFileInfo();
+   
+      private:
+         struct Task
+         {
+            int firstBlock;
+            int lastBlock;
+            int cntFetched;
+            XrdSysCondVar* condVar;
+   
+            Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
+               firstBlock(fb), lastBlock(lb), cntFetched(0),
+               condVar(iCondVar) {}
+   
+            ~Task() {}
+   
+            void Dump();
+         };
+   
          //---------------------------------------------------------------------
          //! AddTaskForRng adds a new task in 
          //!               queue if the requested file range is not downloaded
@@ -102,18 +107,14 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
 
-         //----------------------------------------------------------------------
-         //! GetStats Reference prefetch statistics
-         //----------------------------------------------------------------------
-         Stats& GetStats() { return m_stats; }
-
-      protected:
-         ssize_t Read(char * buff, off_t offset, size_t size);
-         void AppendIOStatToFileInfo();
+         //---------------------------------------------------------------------
+         //! Join Called from destructor. Set-up clean close
+         //!
+         //---------------------------------------------------------------------
+         void Join();
 
          void CloseCleanly();
 
-      private:
          bool GetNextTask(Task&);
          bool Open();
          bool Close();
