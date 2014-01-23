@@ -212,6 +212,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (!(as_miniosz = as_segsize/2)) as_miniosz = as_segsize;
    maxTransz = maxBuffsz = BPool->MaxSize();
+   memset(Route, 0, sizeof(Route));
 
 // Now process and configuration parameters
 //
