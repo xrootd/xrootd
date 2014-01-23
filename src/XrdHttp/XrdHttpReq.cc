@@ -68,32 +68,27 @@
 
 
 
-// trim from start
 
-static inline void ltrim(std::string &s) {
-  s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
-  s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::iscntrl))));
-}
 
-// trim from end
 
-static inline void rtrim(std::string &s) {
-  s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
-  s.erase(std::find_if(s.rbegin(), s.rend(), std::not1(std::ptr_fun<int, int>(std::iscntrl))).base(), s.end());
-}
 
-// trim from both ends
 
-//static inline void trim(std::string &s) {
-//  ltrim(s);
-//  rtrim(s);
-//}
+
+
+
+
+
+
+
+
+
+
 
 
 void trim(std::string &str)
 {
   // Trim leading non-letters
-  while(str.size() && !isalnum(str[0])) str.erase(0);
+  while(str.size() && !isalnum(str[0])) str.erase(str.begin());
 
   // Trim trailing non-letters
   
@@ -471,21 +466,21 @@ std::string XrdHttpReq::buildPartialHdrEnd(char *token) {
 
 bool XrdHttpReq::Data(XrdXrootd::Bridge::Context &info, //!< the result context
         const
-        struct iovec *iovP, //!< pointer to data array
-        int iovN, //!< array count
-        int iovL, //!< byte  count
-        bool final //!< true -> final result
+        struct iovec *iovP_, //!< pointer to data array
+        int iovN_, //!< array count
+        int iovL_, //!< byte  count
+        bool final_ //!< true -> final result
         ) {
 
   TRACE(REQ, " XrdHttpReq::Data! final=" << final);
 
   this->xrdresp = kXR_ok;
-  this->iovP = iovP;
-  this->iovN = iovN;
-  this->iovL = iovL;
-  this->final = final;
+  this->iovP = iovP_;
+  this->iovN = iovN_;
+  this->iovL = iovL_;
+  this->final = final_;
 
-  if (PostProcessHTTPReq(final)) reset();
+  if (PostProcessHTTPReq(final_)) reset();
 
 
   return true;
@@ -516,14 +511,14 @@ bool XrdHttpReq::Done(XrdXrootd::Bridge::Context & info) {
 
 bool XrdHttpReq::Error(XrdXrootd::Bridge::Context &info, //!< the result context
         int ecode, //!< the "kXR" error code
-        const char *etext //!< associated error message
+        const char *etext_ //!< associated error message
         ) {
 
   TRACE(REQ, " XrdHttpReq::Error");
 
   xrdresp = kXR_error;
   xrderrcode = (XErrorCode) ecode;
-  this->etext = etext;
+  this->etext = etext_;
 
 
   if (PostProcessHTTPReq()) reset();
@@ -1195,7 +1190,7 @@ int XrdHttpReq::ProcessHTTPReq() {
 
 // This is invoked by the callbacks, after something has happened in the bridge
 
-int XrdHttpReq::PostProcessHTTPReq(bool final) {
+int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
   TRACEI(REQ, "PostProcessHTTPReq req: " << request << " reqstate: " << reqstate);
 
@@ -1364,7 +1359,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
         }
 
         // If this was the last bunch of entries, send the buffer and empty it immediately
-        if (final) {
+        if (final_) {
           stringresp += "</table></div><br><br><hr size=1>"
                   "<p><span id=\"requestby\">Request by ";
 
@@ -1874,7 +1869,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final) {
 
 
           // If this was the last bunch of entries, send the buffer and empty it immediately
-          if (final) {
+          if (final_) {
             string s = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\" xmlns:ns1=\"http://apache.org/dav/props/\" xmlns:ns0=\"DAV:\">\n";
             stringresp.insert(0, s);
             stringresp += "</D:multistatus>\n";
