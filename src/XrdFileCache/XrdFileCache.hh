@@ -38,12 +38,12 @@ namespace XrdFileCache
          Cache(XrdOucCacheStats&);
 
          //---------------------------------------------------------------------
-         //! Attache      must be called to obtain a new IO object or that fronts
+         //! Attach       must be called to obtain a new IO object or that fronts
          //!              existing XrdPosixFile.
          //!
          //! @return      on success return XrdFileCacheIO
          //---------------------------------------------------------------------     
-         XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
+         virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
          //---------------------------------------------------------------------
          //! isAttached  This cache instance can be delete. Need this method to

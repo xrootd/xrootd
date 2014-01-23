@@ -161,6 +161,15 @@ src/XrdCl/XrdClURL.hh \
 src/XrdCl/XrdClAnyObject.hh \
 src/XrdCl/XrdClXRootDResponses.hh \
 src/XrdCl/XrdClFile.hh \
+src/XrdFileCache/XrdFileCache.hh \
+src/XrdFileCache/XrdFileCacheFactory.hh \
+src/XrdFileCache/XrdFileCachePrefetch.hh \
+src/XrdFileCache/XrdFileCacheInfo.hh \
+src/XrdFileCache/XrdFileCacheStats.hh \
+src/XrdFileCache/XrdFileCacheDecision.hh \
+src/XrdFileCache/XrdFileCacheAllowDecision.hh \
+
+
 
 FILE_PATTERNS          = *.hh
 RECURSIVE              = YES

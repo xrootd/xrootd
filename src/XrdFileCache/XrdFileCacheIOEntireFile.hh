@@ -25,9 +25,9 @@
 #include <string>
 
 #include "XrdSys/XrdSysPthread.hh"
-
-#include "XrdFileCachePrefetch.hh"
 #include "XrdFileCache.hh"
+#include "XrdFileCacheStats.hh"
+#include "XrdFileCachePrefetch.hh"
 
 class XrdSysError;
 class XrdOssDF;

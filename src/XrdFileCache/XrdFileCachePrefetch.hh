@@ -32,6 +32,10 @@
 class XrdClient;
 namespace XrdFileCache
 {
+   //----------------------------------------------------------------------------
+   //! Prefetch Downloads data into file on local disk and handles IO read requests.
+   //----------------------------------------------------------------------------
+ 
    class Prefetch {
 
       friend class IOEntireFile;
@@ -54,16 +58,54 @@ namespace XrdFileCache
       };
 
       public:
+         //------------------------------------------------------------------------
+         //! Constructor
+         //------------------------------------------------------------------------        
          Prefetch(XrdOucCacheIO & inputFile, std::string& path, long long offset, long long fileSize);
+
+         //------------------------------------------------------------------------
+         //! Destructor
+         //------------------------------------------------------------------------    
          ~Prefetch();
+
+         //---------------------------------------------------------------------
+         //! Run Thread which prefetches file from XrdFileCache in tasks
+         //!
+         //---------------------------------------------------------------------
          void Run();
+
+         //---------------------------------------------------------------------
+         //! Join Called from destructor. Set-up clean close
+         //!
+         //---------------------------------------------------------------------
          void Join();
 
+         //---------------------------------------------------------------------
+         //! AddTaskForRng adds a new task in 
+         //!               queue if the requested file range is not downloaded
+         //!
+         //! @param offset file offset
+         //! @param size   file size
+         //! @param cond   condition to signal when download in Run thread is complete
+         //---------------------------------------------------------------------
          void AddTaskForRng(long long offset, int size, XrdSysCondVar* cond);
 
+         //----------------------------------------------------------------------
+         //! GetStatForRng  Checks status of downloaded fragments
+         //!
+         //! @param offset  file offset
+         //! @param size    file size
+         //! @param pulled  number of already downloaded blocks, used in \ref Stats 
+         //! @param nblocks number of blocks in given range, used in \ref Stats
+         //!
+         //! @return        true if status can is succesfully checked
+         //----------------------------------------------------------------------
          bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
 
-         Stats&GetStats() { return m_stats; }
+         //----------------------------------------------------------------------
+         //! GetStats Reference prefetch statistics
+         //----------------------------------------------------------------------
+         Stats& GetStats() { return m_stats; }
 
       protected:
          ssize_t Read(char * buff, off_t offset, size_t size);
@@ -77,7 +119,7 @@ namespace XrdFileCache
          bool Close();
          bool Fail(bool cleanup);
          void RecordDownloadInfo();
-         int getBytesToRead(Task& task, int block) const;
+         int  getBytesToRead(Task& task, int block) const;
 
          // file
          XrdOssDF *m_output;
