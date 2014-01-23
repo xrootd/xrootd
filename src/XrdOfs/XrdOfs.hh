@@ -111,7 +111,9 @@ public:
 
         int            close();
 
-virtual int            fctl(const int               cmd,
+        using          XrdSfsFile::fctl;
+
+        int            fctl(const int               cmd,
                             const char             *args,
                                   XrdOucErrInfo    &out_error);
 
@@ -149,7 +151,7 @@ virtual int            fctl(const int               cmd,
 
                        XrdOfsFile(const char *user, int MonID);
 
-virtual               ~XrdOfsFile() {viaDel = 1; if (oh) close();}
+                      ~XrdOfsFile() {viaDel = 1; if (oh) close();}
 
 protected:
        const char   *tident;

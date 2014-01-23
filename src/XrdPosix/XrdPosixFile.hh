@@ -102,6 +102,8 @@ static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
        int           Trunc(long long Offset)
                           {return XrdPosixMap::Result(clFile.Truncate((uint64_t)Offset));}
 
+       using         XrdPosixObject::Who;
+
        bool          Who(XrdPosixFile **fileP)
                           {*fileP = this; return true;}
 

@@ -459,7 +459,7 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
    XrdNetAddrInfo *netIF[2] = {0,0};
    XrdNetAddr      netAdr[2];
    const char *ifErr = 0, *ifBeg = ifList, *ifEnd, *ifAdr, *ifBad = 0;
-   int i, n, ifNum = 1;
+   int i, n, ifCnt = 1;
    char abuff[64];
 
 // If no list is supplied then fill out based on the source address
@@ -485,18 +485,18 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
                    else {strncpy(abuff, ifBeg, n); abuff[n] = 0; ifAdr = abuff;}
                 ifBeg = ifEnd+1;
                }
-       if (!ifAdr || (ifErr = netAdr[ifNum].Set(ifAdr, ifPort)))
+       if (!ifAdr || (ifErr = netAdr[ifCnt].Set(ifAdr, ifPort)))
           {if (eDest)
               {if (!ifAdr) ifAdr = ifBad;
                eDest->Emsg("SetIF", "Unable to use interface", ifAdr, ifErr);
               }
            continue;
           }
-       i = (netAdr[ifNum].isPrivate() ? 1 : 0);
-       if (!netIF[i] || (netAdr[ifNum].isIPType(XrdNetAddrInfo::IPv4)
+       i = (netAdr[ifCnt].isPrivate() ? 1 : 0);
+       if (!netIF[i] || (netAdr[ifCnt].isIPType(XrdNetAddrInfo::IPv4)
                          &&  netIF[i]->isIPType(XrdNetAddrInfo::IPv6)))
-          netIF[i] = &netAdr[ifNum--];
-      } while(ifNum >= 0);
+          netIF[i] = &netAdr[ifCnt--];
+      } while(ifCnt >= 0);
 
 // Set the interface data
 //

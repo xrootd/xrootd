@@ -900,7 +900,7 @@ int XrdConfig::Setup(char *dfltp)
          XrdOucEnv::Export("XRDPORT", ProtInfo.Port);
          if ((cp->port = XrdProtLoad::Port(cp->libpath, cp->proname,
                                            cp->parms, &ProtInfo)) < 0) return 1;
-         cp = cp->Next; i++;
+         cp = cp->Next;
         }
 
 // Allocate the statistics object. This is akward since we only know part
