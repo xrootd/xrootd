@@ -27,7 +27,7 @@
 #include "XrdFileCacheLog.hh"
 
 #include <XrdCl/XrdClFile.hh>
-#include <XrdCl/XrdClXRootDResponses.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include "XrdOuc/XrdOucEnv.hh"
 
 using namespace XrdFileCache;
