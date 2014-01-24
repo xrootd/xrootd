@@ -54,7 +54,6 @@ XrdVERSIONINFO(XrdOucGetCache, first_cache_imp_alja);
 //
 
 Factory * Factory::m_factory = NULL;
-XrdSysMutex Factory::m_factory_mutex;
 
 XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                     const char *OssLib, const char *OssParms)
@@ -215,7 +214,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    xfcMsg(kInfo,"Factory::Config() user name %s", m_configuration.m_username.c_str());
    xfcMsg(kInfo,"Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
    xfcMsg(kInfo,"Factory::Config() log level %d", m_configuration.m_logLevel);
-   xfcMsg(kInfo,"Factory::Config() pruge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
+   xfcMsg(kInfo,"Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
 
    if (retval)
    {
@@ -371,8 +370,8 @@ bool Factory::ConfigParameters(const char * parameters)
       else if  ( part == "-bufferSize" )
       {
          getline(is, part, ' ');
-         // prefetch buffer size is long long becuse of possible problems
-         // after multiplcation, but in this stepe it is save to use atoi
+         // prefetch buffer size is long long because of possible problems
+         // after multiplication, but in this stepe it is save to use atoi
          m_configuration.m_bufferSize = ::atoi(part.c_str());
          xfcMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
       }
@@ -475,7 +474,7 @@ void Factory::TempDirCleanup()
    XrdOssDF* dh = oss->newDir(m_configuration.m_username.c_str());
    while (1)
    {
-      // get amout of space to erase
+      // get amount of space to erase
       long long bytesToRemove = 0;
       struct statvfs fsstat;
       if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
@@ -486,7 +485,7 @@ void Factory::TempDirCleanup()
       else
       {
          float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-         xfcMsg(kInfo, "Factory::TempDirCleanup() occupate disk space == %f", oc);
+         xfcMsg(kInfo, "Factory::TempDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
             bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);

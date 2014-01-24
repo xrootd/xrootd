@@ -49,7 +49,7 @@ namespace XrdFileCache
 
       bool m_prefetchFileBlocks;      //!< flag to enable file block prefetch 
       std::string m_cache_dir;        //!< directory path to disk cache
-      std::string m_username;         //!< username used for instantiation of oss plugin
+      std::string m_username;         //!< username used to instantiate of oss plugin
       std::string m_osslib_name;      //!< oss library path
       float m_lwm;                    //!< cache purge low water mark 
       float m_hwm;                    //!< cache purge high water mark
@@ -61,7 +61,7 @@ namespace XrdFileCache
 
 
    //----------------------------------------------------------------------------
-   //! Instantiates caching and decision plugin. Parsers configuration file.
+   //! Instantiates caching and decision plugin. Parses configuration file.
    //----------------------------------------------------------------------------
    class Factory : public XrdOucCache
    {
@@ -72,16 +72,13 @@ namespace XrdFileCache
          Factory();
 
          //---------------------------------------------------------------------
-         //! \brief Attached  Do nothing -- this is not a cache object.
-         //!             
-         //! return    Null
+         //! Attached  Do nothing -- this is not a cache object.
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0){ return NULL; }
 
          //---------------------------------------------------------------------
          //! \brief isAttached  This cache instance can be delete. Need this method to
          //!             check if there are any associated objects. 
-         //! return      No object attached.
          //---------------------------------------------------------------------
          virtual int isAttached() { return false; }
     
@@ -107,17 +104,17 @@ namespace XrdFileCache
          bool Decide(const char* path);
        
          //------------------------------------------------------------------------
-         //! Refeference XrdFileCache configuration 
+         //! Reference XrdFileCache configuration 
          //------------------------------------------------------------------------
          const Configuration& RefConfiguration() const { return m_configuration; }
-
+   
          //---------------------------------------------------------------------
          //! Thread for cache purge
          //---------------------------------------------------------------------
          void TempDirCleanup();
 
          //---------------------------------------------------------------------
-         //! Config parse configuration file
+         //! \brief Config parse configuration file
          //!
          //! @param logger             xrootd logger       
          //! @param config_filename    path to configuration file
@@ -143,16 +140,15 @@ namespace XrdFileCache
          bool xolib(XrdOucStream &);
          bool xdlib(XrdOucStream &);
 
-         static XrdSysMutex m_factory_mutex;
-         static Factory * m_factory;
+         static Factory*    m_factory;  //!< this object
 
-         XrdSysError m_log;
-         XrdOucCacheStats m_stats;
-         XrdOss *m_output_fs;
+         XrdSysError       m_log;       //!< XFC namespace logger
+         XrdOucCacheStats  m_stats;     //!< passed to cache, currently no use
+         XrdOss           *m_output_fs; //!< disk cache file system
 
-         std::vector<XrdFileCache::Decision*> m_decisionpoints;
+         std::vector<XrdFileCache::Decision*> m_decisionpoints; //!< decision plugins
 
-         Configuration m_configuration;
+         Configuration     m_configuration; //!< configurable parameters
    };
 
 }

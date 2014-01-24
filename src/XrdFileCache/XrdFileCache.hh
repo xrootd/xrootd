@@ -48,7 +48,7 @@ namespace XrdFileCache
          virtual int isAttached();
 
          //---------------------------------------------------------------------
-         //! Creation is suppresed. This role is given to Factory class.
+         //! Creation is suppressed. This role is given to Factory class.
          //---------------------------------------------------------------------
          virtual XrdOucCache*Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) { return NULL; }
 
@@ -56,8 +56,8 @@ namespace XrdFileCache
          void Detach(XrdOucCacheIO *);
          bool getFilePathFromURL(const char* url, std::string& res) const;
 
-         XrdSysMutex m_io_mutex; //!< lock attach count
-         unsigned int m_attached; //!< number of attached IOs
+         XrdSysMutex m_io_mutex;     //!< lock attach count
+         unsigned int m_attached;    //!< number of attached IOs
          XrdOucCacheStats & m_stats; //!< global statistics 
    };
 
@@ -71,22 +71,25 @@ namespace XrdFileCache
          IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
          m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
-         virtual XrdOucCacheIO *Base() {return &m_io; }
+         //! Original data source
+         virtual XrdOucCacheIO *Base() { return &m_io; }
 
+         //! Original data source URL 
          virtual long long FSize() {return m_io.FSize(); }
 
+         //! Original data source URL 
          virtual const char *Path() {return m_io.Path(); }
 
-         virtual int Sync() {return 0; }
+         virtual int Sync() { return 0; }
 
          virtual int Trunc(long long Offset) { errno = ENOTSUP; return -1; }
 
          virtual int Write(char *Buffer, long long Offset, int Length) { errno = ENOTSUP; return -1; }
 
       protected:
-         XrdOucCacheIO & m_io;
-         XrdOucCacheStats & m_statsGlobal;
-         Cache & m_cache;
+         XrdOucCacheIO& m_io;                //!< original data source
+         XrdOucCacheStats& m_statsGlobal;    //!< reference to Cache statistics 
+         Cache& m_cache;                     //!< reference to Cache needed in detach
    };
 
 }
