@@ -19,13 +19,13 @@
 #include "XrdFileCacheDecision.hh"
 #include "XrdSys/XrdSysError.hh"
 
-/*
-   The simplest example of a decision plugin - always allow the file
-   to be fetched to the cache.
- */
 
 class AllowDecision : public XrdFileCache::Decision
 {
+   //----------------------------------------------------------------------------
+   //! The simplest example of plugin - always allow the file to be prefetched.
+   //----------------------------------------------------------------------------
+   
    public:
       virtual bool Decide(std::string &, XrdOss &) const {return true; }
 

@@ -165,9 +165,11 @@ src/XrdFileCache/XrdFileCache.hh \
 src/XrdFileCache/XrdFileCacheFactory.hh \
 src/XrdFileCache/XrdFileCachePrefetch.hh \
 src/XrdFileCache/XrdFileCacheInfo.hh \
+src/XrdFileCache/XrdFileCacheIOFileBlock.hh \
+src/XrdFileCache/XrdFileCacheIOEntireFile.hh \
 src/XrdFileCache/XrdFileCacheStats.hh \
 src/XrdFileCache/XrdFileCacheDecision.hh \
-src/XrdFileCache/XrdFileCacheAllowDecision.hh \
+src/XrdFileCache/XrdFileCacheAllowDecision.cc \
 
 
 

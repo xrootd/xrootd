@@ -31,8 +31,40 @@ class XrdOssDF;
 
 namespace XrdFileCache
 {
+   //----------------------------------------------------------------------------
+   //! Downloads original data into multiple files. Handles read requests.
+   //----------------------------------------------------------------------------
    class IOFileBlock : public IO
    {
+      public:
+         //------------------------------------------------------------------------
+         //! Constructor
+         //------------------------------------------------------------------------      
+         IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
+
+         //------------------------------------------------------------------------
+         //! Destructor
+         //------------------------------------------------------------------------ 
+         ~IOFileBlock() {}
+
+         //---------------------------------------------------------------------
+         //!\brief Detach itself from Cache. Note this will delete this object.
+         //!
+         //!
+         //! @return original source \ref XrdPosixFile
+         //---------------------------------------------------------------------
+         virtual XrdOucCacheIO *Detach();
+
+         //---------------------------------------------------------------------
+         //!\brief ReadV pass vector reads to corresponding Prefetch blocks.
+         //!
+         //! @param readV
+         //! @param n number of XrdOucIOVecs
+         //!
+         //! @return total bytes read
+         //---------------------------------------------------------------------
+         virtual int Read (char  *Buffer, long long Offset, int Length);
+
       private:
          struct FileBlock
          {
@@ -41,14 +73,6 @@ namespace XrdFileCache
             long long m_offset0;
          };
 
-      public:
-         IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
-         ~IOFileBlock() {}
-
-         virtual XrdOucCacheIO *Detach();
-         virtual int Read (char  *Buffer, long long Offset, int Length);
-
-      private:
          long long m_blockSize;
          std::map<int, FileBlock*> m_blocks;
 

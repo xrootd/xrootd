@@ -72,14 +72,14 @@ namespace XrdFileCache
          Factory();
 
          //---------------------------------------------------------------------
-         //! Attached  Do nothing -- this is not a cache object.
+         //! \brief Attached  Do nothing -- this is not a cache object.
          //!             
          //! return    Null
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0){ return NULL; }
 
          //---------------------------------------------------------------------
-         //! isAttached  This cache instance can be delete. Need this method to
+         //! \brief isAttached  This cache instance can be delete. Need this method to
          //!             check if there are any associated objects. 
          //! return      No object attached.
          //---------------------------------------------------------------------
@@ -98,13 +98,13 @@ namespace XrdFileCache
          XrdSysError&GetSysError() { return m_log; }
 
          //--------------------------------------------------------------------
-         //! Decide checks decision plugins.
+         //! \brief Decide checks decision plugins.
          //!
          //! @param & URL of file
          //!
          //! @return decision if OucIO will cache.
          //--------------------------------------------------------------------
-         bool Decide(std::string &);
+         bool Decide(const char* path);
        
          //------------------------------------------------------------------------
          //! Refeference XrdFileCache configuration 

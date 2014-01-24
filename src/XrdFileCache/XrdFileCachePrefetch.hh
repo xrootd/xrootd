@@ -33,7 +33,7 @@ class XrdClient;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Prefetch Downloads data into file on local disk and handles IO read requests.
+   //! Downloads data into file on local disk and handles IO read requests.
    //----------------------------------------------------------------------------
  
    class Prefetch {
@@ -54,8 +54,7 @@ namespace XrdFileCache
          ~Prefetch();
 
          //---------------------------------------------------------------------
-         //! Run Thread which prefetches file from XrdFileCache in tasks
-         //!
+         //! Run a thread which prefetches file from XrdFileCache in tasks
          //---------------------------------------------------------------------
          void Run();
 
@@ -64,7 +63,7 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          Stats& GetStats() { return m_stats; }
 
-      protected:
+      protected:     
          ssize_t Read(char * buff, off_t offset, size_t size);
          void AppendIOStatToFileInfo();
    
@@ -86,9 +85,7 @@ namespace XrdFileCache
          };
    
          //---------------------------------------------------------------------
-         //! AddTaskForRng adds a new task in 
-         //!               queue if the requested file range is not downloaded
-         //!
+         //! AddTaskForRng adds a new task in queue.
          //! @param offset file offset
          //! @param size   file size
          //! @param cond   condition to signal when download in Run thread is complete
@@ -106,15 +103,8 @@ namespace XrdFileCache
          //! @return        true if status can is succesfully checked
          //----------------------------------------------------------------------
          bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
-
-         //---------------------------------------------------------------------
-         //! Join Called from destructor. Set-up clean close
-         //!
-         //---------------------------------------------------------------------
          void Join();
-
          void CloseCleanly();
-
          bool GetNextTask(Task&);
          bool Open();
          bool Close();
@@ -122,7 +112,6 @@ namespace XrdFileCache
          void RecordDownloadInfo();
          int  getBytesToRead(Task& task, int block) const;
 
-         // file
          XrdOssDF *m_output;
          XrdOssDF *m_infoFile;
          Info m_cfi;
@@ -135,9 +124,6 @@ namespace XrdFileCache
          bool m_started;
          bool m_failed;
          bool m_stop;
-
-         int m_numMissBlock;
-         int m_numHitBlock;
 
          XrdSysCondVar m_stateCond;
          XrdSysMutex m_downloadStatusMutex;

@@ -387,12 +387,11 @@ bool Factory::ConfigParameters(const char * parameters)
    return true;
 }
 
-bool Factory::Decide(std::string &filename)
+bool Factory::Decide(const char* path)
 {
-   //  decision_vt::iterator it =  m_decisionpoints.begin();
-
    if(!m_decisionpoints.empty())
    {
+      std::string filename = path;
       std::vector<Decision*>::const_iterator it;
       for ( it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
       {
@@ -442,7 +441,7 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
             Info cinfo;
             time_t accessTime;
             cinfo.Read(fh);
-            if (cinfo.getLatestAttachTime(accessTime, fh))
+            if (cinfo.getLatestDetachTime(accessTime, fh))
             {
                xfcMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
                fcmap[np] = accessTime;

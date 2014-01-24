@@ -24,15 +24,26 @@
 
 namespace XrdFileCache
 {
+   //----------------------------------------------------------------------------
+   //! Statistics owned by Prefetch.
+   //----------------------------------------------------------------------------
    class Stats : public XrdOucCacheStats
    {
       public:
-         long long BytesCachedPrefetch;
-         long long BytesPrefetch;
-         long long BytesDisk;
-         int HitsPrefetch;
-         int HitsDisk;
-         time_t AppendTime;
+         //------------------------------------------------------------------------
+         //! Constructor
+         //------------------------------------------------------------------------        
+         Stats() :
+            BytesCachedPrefetch(0),
+            BytesPrefetch(0),
+            HitsPrefetch(0),
+            HitsDisk(0) {
+         }
+
+         long long BytesCachedPrefetch; //!< bytes already prefetch
+         long long BytesPrefetch;       //!< bytes waited task to complete
+         int       HitsPrefetch;        //!< blocks already prefetched
+         int       HitsDisk;            //!< blocks waited task to compelte
 
          inline void AddStat(Stats &Src)
          {
@@ -41,21 +52,11 @@ namespace XrdFileCache
             sMutexXfc.Lock();
             BytesCachedPrefetch += Src.BytesCachedPrefetch;
             BytesPrefetch       += Src.BytesPrefetch;
-            BytesDisk           += Src.BytesDisk;
 
             HitsPrefetch += Src.HitsPrefetch;
             HitsDisk     += Src.HitsDisk;
 
             sMutexXfc.UnLock();
-         }
-
-         Stats() :
-            BytesCachedPrefetch(0),
-            BytesPrefetch(0),
-            BytesDisk(0),
-            HitsPrefetch(0),
-            HitsDisk(0) {
-            AppendTime = time(0);
          }
 
       private:

@@ -36,13 +36,12 @@ using namespace XrdFileCache;
 
 Cache::Cache(XrdOucCacheStats & stats)
    : m_attached(0),
-     m_stats(stats),
-     m_disablePrefetch(false)
+     m_stats(stats)
 {}
 
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
-   if (!m_disablePrefetch)
+   if (Factory::GetInstance().Decide(io->Path()))
    {
       XrdSysMutexHelper lock(&m_io_mutex);
       m_attached++;

@@ -31,33 +31,104 @@ namespace XrdFileCache
 {
    class Stats;
 
+   //----------------------------------------------------------------------------
+   //! Status of cached file. Has utility to read and dump to info file.
+   //----------------------------------------------------------------------------  
    class Info
    {
       public:
+         //------------------------------------------------------------------------
+         //! Constructor
+         //------------------------------------------------------------------------        
          Info();
+
+         //------------------------------------------------------------------------
+         //! Destructor
+         //------------------------------------------------------------------------    
          ~Info();
 
+         //---------------------------------------------------------------------
+         //! setBit marks block in the given index as downloaded
+         //!
+         //! @param i
+         //---------------------------------------------------------------------
          void setBit(int i);
-         void resizeBits(int s);
-         void setComplete(int c);
 
+         //---------------------------------------------------------------------
+         //! resizeBits reserve buffer for fileSize/bufferSize blocks
+         //!
+         //! @param n number of file blocks
+         //---------------------------------------------------------------------
+         void resizeBits(int n);
+
+         //---------------------------------------------------------------------
+         //! \brief Read load content from *cinfo file into this object
+         //!
+         //! @param fp file handle
+         //!
+         //! @return number of bytes read
+         //---------------------------------------------------------------------
          int Read(XrdOssDF* fp);
+
+         //---------------------------------------------------------------------
+         //! \brief WriteHeader write buffer size, number of blocks, and buffer
+         //! for download staus at the beginning of a file
+         //---------------------------------------------------------------------
          void  WriteHeader(XrdOssDF* fp);
+
+         //---------------------------------------------------------------------
+         //! AppendIOStat append access time, and statistics on each detach.
+         //---------------------------------------------------------------------
          void AppendIOStat(const Stats* stat, XrdOssDF* fp);
 
+         //---------------------------------------------------------------------
+         //! isAnythingEmptyInRng check download status in the block range.
+         //---------------------------------------------------------------------
          bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
+         //---------------------------------------------------------------------
+         //! getSizeInBytes get compressed size
+         //---------------------------------------------------------------------
          int getSizeInBytes() const;
-         int getSizeInBits() const;
-         int getHeaderSize() const;
-         bool getLatestAttachTime(time_t& t, XrdOssDF* fp) const;
 
+         //---------------------------------------------------------------------
+         //! getSizeInBits get number of blocks
+         //---------------------------------------------------------------------
+         int getSizeInBits() const;
+
+         //----------------------------------------------------------------------
+         //! getHeaderSize get header size of *cinfo file
+         //----------------------------------------------------------------------
+         int getHeaderSize() const;
+
+         //---------------------------------------------------------------------
+         //! getLatestAttachTime get last detach time
+         //---------------------------------------------------------------------
+         bool getLatestDetachTime(time_t& t, XrdOssDF* fp) const;
+
+         //---------------------------------------------------------------------
+         //! getBufferSize get prefetch buffer size
+         //---------------------------------------------------------------------
          long long getBufferSize() const;
+
+         //---------------------------------------------------------------------
+         // Test if block at the given index is downlaoded
+         //---------------------------------------------------------------------
          bool testBit(int i) const;
 
+         //---------------------------------------------------------------------
+         //! isComplete checks file is completely downloaded 
+         //---------------------------------------------------------------------
          bool isComplete() const;
+
+         //---------------------------------------------------------------------
+         //! checkComplete Refresh complete staus
+         //---------------------------------------------------------------------
          void checkComplete();
 
+         //---------------------------------------------------------------------
+         //! print printout content. Need only for debugging
+         //---------------------------------------------------------------------
          void print() const;
 
          const static char* m_infoExtension;
@@ -65,7 +136,6 @@ namespace XrdFileCache
       private:
          struct AStat
          {
-            time_t AppendTime;
             time_t DetachTime;
             long long BytesRead;
             int Hits;

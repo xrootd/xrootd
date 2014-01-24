@@ -42,8 +42,6 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
    m_started(false),
    m_failed(false),
    m_stop(false),
-   m_numMissBlock(0),
-   m_numHitBlock(0),
    m_stateCond(0)    // We will explicitly lock the condition before use.
 {
    xfcMsgIO(kDebug, &m_input, "Prefetch::Prefetch()");
@@ -51,8 +49,6 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
 
 Prefetch::~Prefetch()
 {
-   xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() hit[%d] miss[%d]",  m_numHitBlock, m_numMissBlock);
-
    // see if we have to shut down
    m_downloadStatusMutex.Lock();
    m_cfi.checkComplete();
@@ -139,6 +135,7 @@ void Prefetch::Run()
    int retval = 0;
 
    Task task;
+   int numHitBlock = 0;
    while (GetNextTask(task))
    {
       if ((retval < 0) && (retval != -EINTR))
@@ -226,13 +223,8 @@ void Prefetch::Run()
          m_cfi.setBit(block);
          m_downloadStatusMutex.UnLock();
 
-
-         // statistics
-         if (task.condVar)
-            m_numMissBlock++;
-         else
-            m_numHitBlock++;
-         if (m_numHitBlock % 10)
+         numHitBlock++;
+         if (numHitBlock % 10)
             RecordDownloadInfo();
 
          task.cntFetched++;

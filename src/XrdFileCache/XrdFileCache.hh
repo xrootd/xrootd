@@ -24,7 +24,7 @@
 namespace XrdFileCache
 { 
    //----------------------------------------------------------------------------
-   //! Creates IO objects for disk based cache.
+   //! Creates cache-io objects for disk based cache.
    //----------------------------------------------------------------------------
    class Cache : public XrdOucCache
    {
@@ -38,36 +38,27 @@ namespace XrdFileCache
          Cache(XrdOucCacheStats&);
 
          //---------------------------------------------------------------------
-         //! Attach       must be called to obtain a new IO object or that fronts
-         //!              existing XrdPosixFile.
-         //!
-         //! @return      on success return XrdFileCacheIO
+         //! Attach must be called to obtain a new IO object or that fronts existing IO.
          //---------------------------------------------------------------------     
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
          //---------------------------------------------------------------------
-         //! isAttached  This cache instance can be delete. Need this method to
-         //!             check if there are any associated objects.
-         //!
-         //! @return     number of attached IO objects
+         //! This cache instance can be delete. Check if has any IO attached.
          //---------------------------------------------------------------------
          virtual int isAttached();
 
-         /* Creation is suppresed. This role is given to Factory class */
-         virtual XrdOucCache*Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) {return NULL; }
-
+         //---------------------------------------------------------------------
+         //! Creation is suppresed. This role is given to Factory class.
+         //---------------------------------------------------------------------
+         virtual XrdOucCache*Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*) { return NULL; }
 
       private:
-
          void Detach(XrdOucCacheIO *);
          bool getFilePathFromURL(const char* url, std::string& res) const;
 
-         XrdSysMutex m_io_mutex;
-         unsigned int m_attached;
-
-         XrdOucCacheStats & m_stats;
-
-         bool m_disablePrefetch;
+         XrdSysMutex m_io_mutex; //!< lock attach count
+         unsigned int m_attached; //!< number of attached IOs
+         XrdOucCacheStats & m_stats; //!< global statistics 
    };
 
 
@@ -81,7 +72,6 @@ namespace XrdFileCache
          m_io(io), m_statsGlobal(stats), m_cache(cache) {}
 
          virtual XrdOucCacheIO *Base() {return &m_io; }
-
 
          virtual long long FSize() {return m_io.FSize(); }
 

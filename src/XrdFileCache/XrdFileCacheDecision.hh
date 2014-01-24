@@ -27,16 +27,36 @@ class XrdSysError;
 
 namespace XrdFileCache
 {
-
+   //----------------------------------------------------------------------------
+   //! Base class to handle decision if the original IO source will be cached.
+   //----------------------------------------------------------------------------
    class Decision {
-
       public:
-         virtual bool Decide(std::string &, XrdOss &) const = 0;
+         //--------------------------------------------------------------------------
+         //! Destructor
+         //--------------------------------------------------------------------------
          virtual ~Decision() {}
 
-         virtual bool ConfigDecision(const char*) { return true; }
-   };
+         //---------------------------------------------------------------------
+         //! Decide if original source will be cached.
+         //!
+         //! @param & path
+         //! @param & file system
+         //!
+         //! @return decision
+         //---------------------------------------------------------------------
+         virtual bool Decide(std::string &, XrdOss &) const = 0;
+   
+         //------------------------------------------------------------------------------
+         //! ConfigDecision parse arguments from configuration
+         //!
+         //! @param char* configuration parameters
+         //!
+         //! @return status of configuration
+         //------------------------------------------------------------------------------
+        virtual bool ConfigDecision(const char*) { return true; }
 
+       };
 }
 
 #endif

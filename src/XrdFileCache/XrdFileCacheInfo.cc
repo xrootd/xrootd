@@ -131,7 +131,6 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    off += fp->Write(&m_accessCnt, off, sizeof(int));
    off += (m_accessCnt-1)*sizeof(AStat);
    AStat as;
-   as.AppendTime = caches->AppendTime;
    as.DetachTime = time(0);
    as.BytesRead = caches->BytesCachedPrefetch + caches->BytesPrefetch;
    as.Hits = caches->Hits;  // num blocks
@@ -145,7 +144,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-bool Info::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
+bool Info::getLatestDetachTime(time_t& t, XrdOssDF* fp) const
 {
    bool res = false;
    int fl = flock(fp->getFD(),  LOCK_SH);
@@ -157,7 +156,7 @@ bool Info::getLatestAttachTime(time_t& t, XrdOssDF* fp) const
       int res = fp->Read(&stat, off, sizeof(AStat));
       if (res == sizeof(AStat))
       {
-         t = stat.AppendTime;
+         t = stat.DetachTime;
          res = true;
       }
       else
