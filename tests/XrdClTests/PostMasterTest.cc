@@ -283,6 +283,7 @@ void PostMasterTest::FunctionalTest()
   //----------------------------------------------------------------------------
   // Reinitialize and try to do something
   //----------------------------------------------------------------------------
+  env->PutInt( "LoadBalancerTTL", 5 );
   postMaster.Initialize();
   postMaster.Start();
 
@@ -296,6 +297,19 @@ void PostMasterTest::FunctionalTest()
   request->dlen        = 0;
   XRootDTransport::MarshallRequest( &m1 );
 
+  CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, expires ) );
+
+  CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, expires ) );
+  resp = (ServerResponse *)m2->GetBuffer();
+  CPPUNIT_ASSERT( resp != 0 );
+  CPPUNIT_ASSERT( resp->hdr.status == kXR_ok );
+  CPPUNIT_ASSERT( m2->GetSize() == 8 );
+
+  //----------------------------------------------------------------------------
+  // Sleep 10 secs waiting for iddle connection to be closed and see
+  // whether we can reconnect
+  //----------------------------------------------------------------------------
+  sleep( 10 );
   CPPUNIT_ASSERT_XRDST( postMaster.Send( host, &m1, false, expires ) );
 
   CPPUNIT_ASSERT_XRDST( postMaster.Receive( host, m2, &f1, expires ) );
