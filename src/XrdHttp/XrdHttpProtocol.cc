@@ -1209,7 +1209,7 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 // security stuff
 // --------------
 
-int verify_callback(int ok, X509_STORE_CTX * store) {
+extern "C" int verify_callback(int ok, X509_STORE_CTX * store) {
   char data[256];
 
 
@@ -1963,9 +1963,9 @@ int XrdHttpProtocol::doStat(char *fname) {
 
 
 // Loads the SecXtractor plugin, if available
-int XrdHttpProtocol::LoadSecXtractor(XrdSysError *eDest, const char *libName,
+int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
-    XrdSysPlugin     myLib(eDest, libName, "secxtractorlib");
+    XrdSysPlugin     myLib(myeDest, libName, "secxtractorlib");
     XrdHttpSecXtractor *(*ep)(XrdHttpSecXtractorArgs);
     //static XrdVERSIONINFODEF (myVer, XrdHttpSecXtractor, XrdVNUMBER, XrdVERSION);
 
@@ -1978,7 +1978,7 @@ int XrdHttpProtocol::LoadSecXtractor(XrdSysError *eDest, const char *libName,
 
     // Get the Object now
     //
-    secxtractor = ep(eDest, NULL, libParms);
+    secxtractor = ep(myeDest, NULL, libParms);
 
     return 0;
 }
