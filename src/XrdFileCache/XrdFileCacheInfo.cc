@@ -54,11 +54,11 @@ Info::~Info()
 //______________________________________________________________________________
 
 
-void Info::resizeBits(int s)
+void Info::ResizeBits(int s)
 {
    m_sizeInBits = s;
-   m_buff = (char*)malloc(getSizeInBytes());
-   memset(m_buff, 0, getSizeInBytes());
+   m_buff = (char*)malloc(GetSizeInBytes());
+   memset(m_buff, 0, GetSizeInBytes());
 }
 
 //______________________________________________________________________________
@@ -75,12 +75,12 @@ int Info::Read(XrdOssDF* fp)
 
    int sb;
    off += fp->Read(&sb, off, sizeof(int));
-   resizeBits(sb);
+   ResizeBits(sb);
 
-   off += fp->Read(m_buff, off, getSizeInBytes());
-   m_complete = isAnythingEmptyInRng(0, sb-1) ? false : true;
+   off += fp->Read(m_buff, off, GetSizeInBytes());
+   m_complete = IsAnythingEmptyInRng(0, sb-1) ? false : true;
 
-   assert (off = getHeaderSize());
+   assert (off = GetHeaderSize());
 
    off += fp->Read(&m_accessCnt, off, sizeof(int));
 
@@ -90,9 +90,9 @@ int Info::Read(XrdOssDF* fp)
 //______________________________________________________________________________
 
 
-int Info::getHeaderSize() const
+int Info::GetHeaderSize() const
 {
-   return sizeof(long long) + sizeof(int) + getSizeInBytes();
+   return sizeof(long long) + sizeof(int) + GetSizeInBytes();
 }
 
 //______________________________________________________________________________
@@ -104,14 +104,14 @@ void Info::WriteHeader(XrdOssDF* fp)
    long long off = 0;
    off += fp->Write(&m_bufferSize, off, sizeof(long long));
 
-   int nb = getSizeInBits();
+   int nb = GetSizeInBits();
    off += fp->Write(&nb, off, sizeof(int));
-   off += fp->Write(m_buff, off, getSizeInBytes());
+   off += fp->Write(m_buff, off, GetSizeInBytes());
 
    int flu = flock(fp->getFD(),  LOCK_UN);
    if (flu) xfcMsg(kError,"WriteHeader() un-lock failed \n");
 
-   assert (off == getHeaderSize());
+   assert (off == GetHeaderSize());
 }
 
 //______________________________________________________________________________
@@ -124,7 +124,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 
    m_accessCnt++;
 
-   long long off = getHeaderSize();
+   long long off = GetHeaderSize();
    off += fp->Write(&m_accessCnt, off, sizeof(int));
    off += (m_accessCnt-1)*sizeof(AStat);
    AStat as;
@@ -141,15 +141,15 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 }
 
 //______________________________________________________________________________
-bool Info::getLatestDetachTime(time_t& t, XrdOssDF* fp) const
+bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
 {
    bool res = false;
    int fl = flock(fp->getFD(),  LOCK_SH);
-   if (fl) xfcMsg(kError,"Info::getLatestAttachTime() lock failed \n");
+   if (fl) xfcMsg(kError,"Info::GetLatestAttachTime() lock failed \n");
    if (m_accessCnt)
    {
       AStat stat;
-      long long off = getHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
+      long long off = GetHeaderSize() + sizeof(int) + (m_accessCnt-1)*sizeof(AStat);
       int res = fp->Read(&stat, off, sizeof(AStat));
       if (res == sizeof(AStat))
       {
@@ -158,25 +158,25 @@ bool Info::getLatestDetachTime(time_t& t, XrdOssDF* fp) const
       }
       else
       {
-         xfcMsg(kError, " Info::getLatestAttachTime() can't get latest access stat. read bytes = %d", res);
+         xfcMsg(kError, " Info::GetLatestAttachTime() can't get latest access stat. read bytes = %d", res);
       }
    }
 
    int fu = flock(fp->getFD(),  LOCK_UN);
-   if (fu) xfcMsg(kError,"Info::getLatestAttachTime() lock failed \n");
+   if (fu) xfcMsg(kError,"Info::GetLatestAttachTime() lock failed \n");
    return res;
 }
 
 //______________________________________________________________________________
 
 
-void Info::print() const
+void Info::Print() const
 {
    printf("blocksSize %lld \n",m_bufferSize );
    printf("printing [%d] blocks \n", m_sizeInBits);
    for (int i = 0; i < m_sizeInBits; ++i)
    {
-      printf("%d ", testBit(i));
+      printf("%d ", TestBit(i));
    }
    printf("\n");
    printf("printing complete %d\n", m_complete);

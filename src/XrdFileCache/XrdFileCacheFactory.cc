@@ -440,7 +440,7 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
             Info cinfo;
             time_t accessTime;
             cinfo.Read(fh);
-            if (cinfo.getLatestDetachTime(accessTime, fh))
+            if (cinfo.GetLatestDetachTime(accessTime, fh))
             {
                xfcMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
                fcmap[np] = accessTime;

@@ -51,12 +51,12 @@ Prefetch::~Prefetch()
 {
    // see if we have to shut down
    m_downloadStatusMutex.Lock();
-   m_cfi.checkComplete();
+   m_cfi.CheckComplete();
    m_downloadStatusMutex.UnLock();
 
    if (m_started == false) return;
 
-   if (m_cfi.isComplete() == false)
+   if (m_cfi.IsComplete() == false)
    {
       xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() file not complete...");
       fflush(stdout);
@@ -97,13 +97,13 @@ Prefetch::~Prefetch()
 int PREFETCH_MAX_ATTEMPTS = 10;
 int Prefetch::GetBytesToRead(Task& task, int block) const
 {
-   if (block == (m_cfi.getSizeInBits() -1))
+   if (block == (m_cfi.GetSizeInBits() -1))
    {
-      return m_fileSize - task.lastBlock * m_cfi.getBufferSize();
+      return m_fileSize - task.lastBlock * m_cfi.GetBufferSize();
    }
    else
    {
-      return m_cfi.getBufferSize();
+      return m_cfi.GetBufferSize();
    }
 }
 
@@ -131,7 +131,7 @@ void Prefetch::Run()
    xfcMsgIO(kDebug, &m_input, "Prefetch::Run()");
 
    std::vector<char> buff;
-   buff.reserve(m_cfi.getBufferSize());
+   buff.reserve(m_cfi.GetBufferSize());
    int retval = 0;
 
    Task task;
@@ -148,7 +148,7 @@ void Prefetch::Run()
       {
          bool already;
          m_downloadStatusMutex.Lock();
-         already = m_cfi.testBit(block);
+         already = m_cfi.TestBit(block);
          //  m_cfi.print();
          m_downloadStatusMutex.UnLock();
          if (already)
@@ -165,7 +165,7 @@ void Prefetch::Run()
          // read block into buffer
          {
             int missing =  numBytes;
-            long long offset = block * m_cfi.getBufferSize();
+            long long offset = block * m_cfi.GetBufferSize();
             int cnt = 0;
             while (missing)
             {
@@ -201,7 +201,7 @@ void Prefetch::Run()
 
          // write block buffer into disk file
          {
-            long long offset = block * m_cfi.getBufferSize();
+            long long offset = block * m_cfi.GetBufferSize();
             int buffer_remaining = numBytes;
             int buffer_offset = 0;
             while ((buffer_remaining > 0) &&     // There is more to be written
@@ -220,7 +220,7 @@ void Prefetch::Run()
          // set downloaded bits
          xfcMsgIO(kDump, &m_input, "Prefetch::Run() set bit for block [%d]", block);
          m_downloadStatusMutex.Lock();
-         m_cfi.setBit(block);
+         m_cfi.SetBit(block);
          m_downloadStatusMutex.UnLock();
 
          numHitBlock++;
@@ -250,8 +250,8 @@ void Prefetch::Run()
       }
 
    }  // loop tasks
-   m_cfi.checkComplete();
-   xfcMsgIO(kDebug, &m_input, "Prefetch::Run() exits, download %s  !", m_cfi.isComplete() ? " completed " : "unfinished");
+   m_cfi.CheckComplete();
+   xfcMsgIO(kDebug, &m_input, "Prefetch::Run() exits, download %s  !", m_cfi.IsComplete() ? " completed " : "unfinished");
 
 
    RecordDownloadInfo();
@@ -307,15 +307,15 @@ bool Prefetch::Open()
    if ( m_cfi.Read(m_infoFile) <= 0)
    {
       assert(m_fileSize > 0);
-      int ss = (m_fileSize -1)/m_cfi.getBufferSize() + 1;
+      int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
       xfcMsgIO(kInfo, &m_input, "Creating new file info with size %lld. Reserve space for %d blocks", m_fileSize,  ss);
-      m_cfi.resizeBits(ss);
+      m_cfi.ResizeBits(ss);
       RecordDownloadInfo();
    }
    else
    {
       xfcMsgIO(kDebug, &m_input, "Info file already exists");
-      // m_cfi.print();
+      // m_cfi.Print();
    }
 
    return true;
@@ -327,7 +327,7 @@ void Prefetch::RecordDownloadInfo()
    xfcMsgIO(kDebug, &m_input, "Prefetch record Info file");
    m_cfi.WriteHeader(m_infoFile);
    m_infoFile->Fsync();
-   // m_cfi.print();
+   // m_cfi.Print();
 }
 
 //______________________________________________________________________________
@@ -335,8 +335,8 @@ void Prefetch::AddTaskForRng(long long offset, int size, XrdSysCondVar* cond)
 {
    xfcMsgIO(kDebug, &m_input, "Prefetch::AddTask %lld %d cond= %p", offset, size, (void*)cond);
    m_downloadStatusMutex.Lock();
-   int first_block = offset / m_cfi.getBufferSize();
-   int last_block  = (offset + size -1)/ m_cfi.getBufferSize();
+   int first_block = offset / m_cfi.GetBufferSize();
+   int last_block  = (offset + size -1)/ m_cfi.GetBufferSize();
    m_tasks_queue.push(Task(first_block, last_block, cond));
    m_downloadStatusMutex.UnLock();
 }
@@ -352,9 +352,9 @@ bool Prefetch::GetNextTask(Task& t )
    {
       // give one block-atoms which has not been downloaded from beginning to end
       m_downloadStatusMutex.Lock();
-      for (int i = 0; i < m_cfi.getSizeInBits(); ++i)
+      for (int i = 0; i < m_cfi.GetSizeInBits(); ++i)
       {
-         if (m_cfi.testBit(i) == false)
+         if (m_cfi.TestBit(i) == false)
          {
             t.firstBlock = i;
             t.lastBlock = t.firstBlock;
@@ -386,8 +386,8 @@ bool Prefetch::GetNextTask(Task& t )
 
 bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nblocks)
 {
-   int first_block = offset /m_cfi.getBufferSize();
-   int last_block  = (offset + size -1)/ m_cfi.getBufferSize();
+   int first_block = offset /m_cfi.GetBufferSize();
+   int last_block  = (offset + size -1)/ m_cfi.GetBufferSize();
    nblocks         = last_block - first_block + 1;
 
    // check if prefetch is initialized
@@ -407,7 +407,7 @@ bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nbloc
 
    pulled = 0;
    m_downloadStatusMutex.Lock();
-   if (m_cfi.isComplete())
+   if (m_cfi.IsComplete())
    {
       pulled = nblocks;
    }
@@ -416,7 +416,7 @@ bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nbloc
       pulled = 0;
       for (int i = first_block; i <= last_block; ++i)
       {
-         pulled += m_cfi.testBit(i);
+         pulled += m_cfi.TestBit(i);
       }
    }
    m_downloadStatusMutex.UnLock();
@@ -468,8 +468,8 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
       retval =  m_output->Read(buff, off, size);
 
       m_stats.HitsPrefetch += 1;
-      m_stats.BytesCachedPrefetch += nbp * m_cfi.getBufferSize();
-      m_stats.BytesPrefetch += (nbb - nbp) * m_cfi.getBufferSize();
+      m_stats.BytesCachedPrefetch += nbp * m_cfi.GetBufferSize();
+      m_stats.BytesPrefetch += (nbb - nbp) * m_cfi.GetBufferSize();
       m_stats.Hits += nbp;
       m_stats.Miss += nbb-nbp;
    }

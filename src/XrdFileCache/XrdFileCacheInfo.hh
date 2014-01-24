@@ -32,7 +32,7 @@ namespace XrdFileCache
    class Stats;
 
    //----------------------------------------------------------------------------
-   //! Status of cached file. Has utility to read and dump to info file.
+   //! Status of cached file. Has utility to read and dump to binary info file.
    //----------------------------------------------------------------------------  
    class Info
    {
@@ -48,18 +48,18 @@ namespace XrdFileCache
          ~Info();
 
          //---------------------------------------------------------------------
-         //! SetBit marks block in the given index as downloaded
+         //! \brief SetBit marks block in the given index as downloaded
          //!
-         //! @param i
+         //! @param i block inex
          //---------------------------------------------------------------------
-         void setBit(int i);
+         void SetBit(int i);
 
          //---------------------------------------------------------------------
-         //! Reserve buffer for fileSize/bufferSize blocks
+         //! \brief Reserve buffer for fileSize/bufferSize blocks
          //!
          //! @param n number of file blocks
          //---------------------------------------------------------------------
-         void resizeBits(int n);
+         void ResizeBits(int n);
 
          //---------------------------------------------------------------------
          //! \brief Read load content from *cinfo file into this object
@@ -83,52 +83,52 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Check download status in the block range
          //---------------------------------------------------------------------
-         bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
+         bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
          //---------------------------------------------------------------------
          //! Get compressed size
          //---------------------------------------------------------------------
-         int getSizeInBytes() const;
+         int GetSizeInBytes() const;
 
          //---------------------------------------------------------------------
          //! Get number of blocks
          //---------------------------------------------------------------------
-         int getSizeInBits() const;
+         int GetSizeInBits() const;
 
          //----------------------------------------------------------------------
          //! Get header size
          //----------------------------------------------------------------------
-         int getHeaderSize() const;
+         int GetHeaderSize() const;
 
          //---------------------------------------------------------------------
          //! Get latest detach time
          //---------------------------------------------------------------------
-         bool getLatestDetachTime(time_t& t, XrdOssDF* fp) const;
+         bool GetLatestDetachTime(time_t& t, XrdOssDF* fp) const;
 
          //---------------------------------------------------------------------
          //! getBufferSize get prefetch buffer size
          //---------------------------------------------------------------------
-         long long getBufferSize() const;
+         long long GetBufferSize() const;
 
          //---------------------------------------------------------------------
          // Test if block at the given index is downlaoded
          //---------------------------------------------------------------------
-         bool testBit(int i) const;
+         bool TestBit(int i) const;
 
          //---------------------------------------------------------------------
-         //! isComplete checks file is completely downloaded 
+         //! Get is-complete status
          //---------------------------------------------------------------------
-         bool isComplete() const;
+         bool IsComplete() const;
 
          //---------------------------------------------------------------------
-         //! checkComplete Refresh complete status
+         //! Refresh complete status
          //---------------------------------------------------------------------
-         void checkComplete();
+         void CheckComplete();
 
          //---------------------------------------------------------------------
-         //! print printout content. Need only for debugging
+         //! Printout content
          //---------------------------------------------------------------------
-         void print() const;
+         void Print() const;
 
          const static char* m_infoExtension;
 
@@ -156,7 +156,7 @@ namespace XrdFileCache
          bool        m_complete;   //!< cached
    };
 
-   inline bool Info::testBit(int i) const
+   inline bool Info::TestBit(int i) const
    {
       int cn = i/8;
       assert(cn < getSizeInBytes());
@@ -165,44 +165,44 @@ namespace XrdFileCache
       return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
    }
 
-   inline int Info::getSizeInBytes() const
+   inline int Info::GetSizeInBytes() const
    {
       return ((m_sizeInBits -1)/8 + 1);
    }
 
-   inline int Info::getSizeInBits() const
+   inline int Info::GetSizeInBits() const
    {
       return m_sizeInBits;
    }
 
-   inline bool Info::isComplete() const
+   inline bool Info::IsComplete() const
    {
       return m_complete;
    }
 
-   inline bool Info::isAnythingEmptyInRng(int firstIdx, int lastIdx) const
+   inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
    {
       for (int i = firstIdx; i <= lastIdx; ++i)
-         if(!testBit(i)) return true;
+         if(!TestBit(i)) return true;
 
       return false;
    }
 
-   inline void Info::checkComplete()
+   inline void Info::CheckComplete()
    {
-      m_complete = !isAnythingEmptyInRng(0, m_sizeInBits-1);
+      m_complete = !IsAnythingEmptyInRng(0, m_sizeInBits-1);
    }
 
-   inline void Info::setBit(int i)
+   inline void Info::SetBit(int i)
    {
       int cn = i/8;
-      assert(cn < getSizeInBytes());
+      assert(cn < GetSizeInBytes());
 
       int off = i - cn*8;
       m_buff[cn] |= cfiBIT(off);
    }
 
-   inline long long Info::getBufferSize() const
+   inline long long Info::GetBufferSize() const
    {
       return m_bufferSize;
    }
