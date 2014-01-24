@@ -41,7 +41,7 @@ Cache::Cache(XrdOucCacheStats & stats)
 
 XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
 {
-   if (Factory::GetInstance().Decide(io->Path()))
+   if (Factory::GetInstance().Decide(io))
    {
       XrdSysMutexHelper lock(&m_io_mutex);
       m_attached++;

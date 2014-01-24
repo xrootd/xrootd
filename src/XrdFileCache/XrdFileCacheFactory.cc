@@ -105,9 +105,9 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 }
 
 
-void*TempDirCleanupThread(void* cache_void)
+void *CacheDirCleanupThread(void* cache_void)
 {
-   Factory::GetInstance().TempDirCleanup();
+   Factory::GetInstance().CacheDirCleanup();
    return NULL;
 }
 
@@ -135,7 +135,7 @@ XrdOucCache *XrdOucGetCache(XrdSysLogger *logger,
 
 
    pthread_t tid;
-   XrdSysThread::Run(&tid, TempDirCleanupThread, NULL, 0, "XrdFileCache TempDirCleanup");
+   XrdSysThread::Run(&tid, CacheDirCleanupThread, NULL, 0, "XrdFileCache CacheDirCleanup");
    return &factory;
 }
 }
@@ -386,11 +386,14 @@ bool Factory::ConfigParameters(const char * parameters)
    return true;
 }
 
-bool Factory::Decide(const char* path)
+bool Factory::Decide(XrdOucCacheIO* io)
 {
+   if ( CheckFileForDiskSpace(io->Path(), io->FSize()) == false )
+      return false;
+
    if(!m_decisionpoints.empty())
    {
-      std::string filename = path;
+      std::string filename = io->Path();
       std::vector<Decision*>::const_iterator it;
       for ( it = m_decisionpoints.begin(); it != m_decisionpoints.end(); ++it)
       {
@@ -462,7 +465,7 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
 }
 
 
-void Factory::TempDirCleanup()
+void Factory::CacheDirCleanup()
 {
    // check state every sleep seconds
    const static int sleept = 300;
@@ -479,17 +482,17 @@ void Factory::TempDirCleanup()
       struct statvfs fsstat;
       if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
       {
-         xfcMsg(kError, "Factory::TempDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+         xfcMsg(kError, "Factory::CacheDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
          exit(1);
       }
       else
       {
          float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-         xfcMsg(kInfo, "Factory::TempDirCleanup() occupates disk space == %f", oc);
+         xfcMsg(kInfo, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
             bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);
-            xfcMsg(kInfo, "Factory::TempDirCleanup() need space for  %lld bytes", bytesToRemove);
+            xfcMsg(kInfo, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
          }
       }
 
@@ -511,7 +514,7 @@ void Factory::TempDirCleanup()
                {
                   bytesToRemove -= fstat.st_size;
                   oss->Unlink(path.c_str());
-                  xfcMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  xfcMsg(kInfo, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
 
                // remove data file
@@ -520,7 +523,7 @@ void Factory::TempDirCleanup()
                {
                   bytesToRemove -= fstat.st_size;
                   oss->Unlink(path.c_str());
-                  xfcMsg(kInfo, "Factory::TempDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  xfcMsg(kInfo, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
                if (bytesToRemove <= 0)
                   break;
@@ -533,3 +536,40 @@ void Factory::TempDirCleanup()
    delete dh; dh =0;
 }
 
+
+
+bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
+{
+    XrdSysMutexHelper(m_factory_mutex);
+
+    long long inQueue = 0;
+    for (std::map<std::string, long long>::iterator i = m_filesInQueue.begin(); i!= m_filesInQueue.end(); ++i)
+        inQueue += i->second;
+    
+
+    long long availableSpace = 0;;
+    struct statvfs fsstat;
+
+    if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 ) {
+        xfcMsg(kError, "Factory:::CheckFileForDiskSpace can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+        exit(1);
+    }
+    float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
+    if (oc < m_configuration.m_hwm) {
+        availableSpace = fsstat.f_bsize*fsstat.f_blocks*(m_configuration.m_hwm -oc);
+
+        if (availableSpace > fsize) {
+            m_filesInQueue[path] = fsize;
+            return true;
+        }
+
+    }
+    xfcMsg(kError, "Factory:::CheckFileForDiskSpace not enugh space , availableSpace = %lld \n", availableSpace);
+    return false;
+}
+
+
+void Factory::UnCheckFileForDiskSpace(const char* path)
+{
+    m_filesInQueue.erase(path);
+}

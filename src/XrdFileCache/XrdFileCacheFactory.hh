@@ -20,6 +20,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
@@ -99,20 +100,16 @@ namespace XrdFileCache
          //!
          //! @param & URL of file
          //!
-         //! @return decision if OucIO will cache.
+         //! @return decision if IO object will be cached.
          //--------------------------------------------------------------------
-         bool Decide(const char* path);
+         bool Decide(XrdOucCacheIO*);
 
          //------------------------------------------------------------------------
          //! Reference XrdFileCache configuration
          //------------------------------------------------------------------------
          const Configuration& RefConfiguration() const { return m_configuration; }
 
-         //---------------------------------------------------------------------
-         //! Thread for cache purge
-         //---------------------------------------------------------------------
-         void TempDirCleanup();
-
+       
          //---------------------------------------------------------------------
          //! \brief Config parse configuration file
          //!
@@ -134,7 +131,15 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          static bool VCheck(XrdVersionInfo &urVersion) { return true; }
 
+         //---------------------------------------------------------------------
+         //! Cache purge thread.
+         //---------------------------------------------------------------------
+         void CacheDirCleanup();
+
       private:
+         bool CheckFileForDiskSpace(const char* path, long long fsize);
+         void UnCheckFileForDiskSpace(const char* path);
+
          bool ConfigParameters(const char *);
          bool ConfigXeq(char *, XrdOucStream &);
          bool xolib(XrdOucStream &);
@@ -147,6 +152,8 @@ namespace XrdFileCache
          XrdOss           *m_output_fs; //!< disk cache file system
 
          std::vector<XrdFileCache::Decision*> m_decisionpoints; //!< decision plugins
+
+         std::map<std::string, long long> m_filesInQueue;
 
          Configuration     m_configuration; //!< configurable parameters
    };
