@@ -450,12 +450,12 @@ exit 0
 %{_libdir}/libXrdOfs.so.*
 %{_libdir}/libXrdServer.so.*
 %{_libdir}/libXrdXrootd.so.*
-#%{_libdir}/libXrdHttp.so.*
+%{_libdir}/libXrdHttp.so.*
 # Some of the libraries are used as plugins - need the .so symlink at runtime
 %{_libdir}/libXrdBwm.so
 %{_libdir}/libXrdPss.so
 %{_libdir}/libXrdXrootd.so
-#%{_libdir}/libXrdHttp.so
+%{_libdir}/libXrdHttp.so
 
 %files server-devel
 %defattr(-,root,root,-)
@@ -516,6 +516,9 @@ exit 0
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Fri Jan 24 2014 Lukasz Janyst <ljanyst@cern.ch>
+- Import XrdHttp
+
 * Fri Jun 7 2013 Lukasz Janyst <ljanyst@cern.ch>
 - adopt the EPEL RPM layout by Mattias Ellert
 
