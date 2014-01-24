@@ -22,7 +22,7 @@
 #include <XrdOuc/XrdOucCache.hh>
 
 namespace XrdFileCache
-{ 
+{
    //----------------------------------------------------------------------------
    //! Creates cache-io objects for disk based cache.
    //----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ namespace XrdFileCache
 
          //---------------------------------------------------------------------
          //! Attach must be called to obtain a new IO object or that fronts existing IO.
-         //---------------------------------------------------------------------     
+         //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
          //---------------------------------------------------------------------
@@ -58,12 +58,12 @@ namespace XrdFileCache
 
          XrdSysMutex m_io_mutex;     //!< lock attach count
          unsigned int m_attached;    //!< number of attached IOs
-         XrdOucCacheStats & m_stats; //!< global statistics 
+         XrdOucCacheStats & m_stats; //!< global statistics
    };
 
 
    //----------------------------------------------------------------------------
-   //! Base IO class with implemented XrdOucCacheIO abstract methods. 
+   //! Base IO class with implemented XrdOucCacheIO abstract methods.
    //----------------------------------------------------------------------------
    class IO : public XrdOucCacheIO
    {
@@ -74,10 +74,10 @@ namespace XrdFileCache
          //! Original data source
          virtual XrdOucCacheIO *Base() { return &m_io; }
 
-         //! Original data source URL 
+         //! Original data source URL
          virtual long long FSize() {return m_io.FSize(); }
 
-         //! Original data source URL 
+         //! Original data source URL
          virtual const char *Path() {return m_io.Path(); }
 
          virtual int Sync() { return 0; }
@@ -88,7 +88,7 @@ namespace XrdFileCache
 
       protected:
          XrdOucCacheIO& m_io;                //!< original data source
-         XrdOucCacheStats& m_statsGlobal;    //!< reference to Cache statistics 
+         XrdOucCacheStats& m_statsGlobal;    //!< reference to Cache statistics
          Cache& m_cache;                     //!< reference to Cache needed in detach
    };
 

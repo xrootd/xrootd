@@ -81,7 +81,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 
 // Create a plugin object
 //
-               OssEroute.logger(Logger);
+         OssEroute.logger(Logger);
    OssEroute.Emsg("XrdOssGetSS", "Initializing OSS lib from ", OssLib);
 #if defined(HAVE_VERSIONS)
    if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib, "osslib",
@@ -93,7 +93,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 // Now get the entry point of the object creator
 //
    ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
-           (myLib->getPlugin("XrdOssGetStorageSystem"));
+         (myLib->getPlugin("XrdOssGetStorageSystem"));
    if (!ep) return 0;
 
 // Get the Object now

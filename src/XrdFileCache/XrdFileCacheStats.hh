@@ -32,13 +32,12 @@ namespace XrdFileCache
       public:
          //------------------------------------------------------------------------
          //! Constructor
-         //------------------------------------------------------------------------        
+         //------------------------------------------------------------------------
          Stats() :
-            m_BytesCachedPrefetch(0),
-            m_BytesPrefetch(0),
-            m_HitsPrefetch(0),
-            m_HitsDisk(0) {
-         }
+         m_BytesCachedPrefetch(0),
+         m_BytesPrefetch(0),
+         m_HitsPrefetch(0),
+         m_HitsDisk(0) {}
 
          long long m_BytesCachedPrefetch; //!< bytes already prefetch
          long long m_BytesPrefetch;       //!< bytes waited

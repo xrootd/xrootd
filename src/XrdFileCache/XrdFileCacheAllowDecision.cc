@@ -25,7 +25,7 @@ class AllowDecision : public XrdFileCache::Decision
    //----------------------------------------------------------------------------
    //! The simplest example of plugin - always allow the file to be prefetched.
    //----------------------------------------------------------------------------
-   
+
    public:
       virtual bool Decide(std::string &, XrdOss &) const {return true; }
 

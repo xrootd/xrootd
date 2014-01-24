@@ -47,15 +47,15 @@ namespace XrdFileCache
          m_bufferSize(1024*1024),
          m_blockSize(128*1024*1024) {}
 
-      bool m_prefetchFileBlocks;      //!< flag to enable file block prefetch 
+      bool m_prefetchFileBlocks;      //!< flag to enable file block prefetch
       std::string m_cache_dir;        //!< directory path to disk cache
       std::string m_username;         //!< username used to instantiate of oss plugin
       std::string m_osslib_name;      //!< oss library path
-      float m_lwm;                    //!< cache purge low water mark 
+      float m_lwm;                    //!< cache purge low water mark
       float m_hwm;                    //!< cache purge high water mark
 
       LogLevel  m_logLevel;           //!< file cache log level (0->dump, 1->debug, 2->info ...)
-      long long m_bufferSize;         //!< prefetch buffer size, default 1MB 
+      long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
 
@@ -78,10 +78,10 @@ namespace XrdFileCache
 
          //---------------------------------------------------------------------
          //! \brief isAttached  This cache instance can be delete. Need this method to
-         //!             check if there are any associated objects. 
+         //!             check if there are any associated objects.
          //---------------------------------------------------------------------
          virtual int isAttached() { return false; }
-    
+
          //---------------------------------------------------------------------
          //! Create Creates XrdFileCache::Cache object
          //---------------------------------------------------------------------
@@ -91,7 +91,7 @@ namespace XrdFileCache
 
          //---------------------------------------------------------------------
          //! GetSysError Getter for xrootd logger
-         //---------------------------------------------------------------------        
+         //---------------------------------------------------------------------
          XrdSysError&GetSysError() { return m_log; }
 
          //--------------------------------------------------------------------
@@ -102,12 +102,12 @@ namespace XrdFileCache
          //! @return decision if OucIO will cache.
          //--------------------------------------------------------------------
          bool Decide(const char* path);
-       
+
          //------------------------------------------------------------------------
-         //! Reference XrdFileCache configuration 
+         //! Reference XrdFileCache configuration
          //------------------------------------------------------------------------
          const Configuration& RefConfiguration() const { return m_configuration; }
-   
+
          //---------------------------------------------------------------------
          //! Thread for cache purge
          //---------------------------------------------------------------------
@@ -116,7 +116,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! \brief Config parse configuration file
          //!
-         //! @param logger             xrootd logger       
+         //! @param logger             xrootd logger
          //! @param config_filename    path to configuration file
          //! @param parameters         optional parameters to be passed
          //!

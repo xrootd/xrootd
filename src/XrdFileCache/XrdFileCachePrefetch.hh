@@ -29,7 +29,7 @@ namespace XrdFileCache
    //----------------------------------------------------------------------------
    //! Downloads data into file on local disk and handles IO read requests.
    //----------------------------------------------------------------------------
- 
+
    class Prefetch {
 
       friend class IOEntireFile;
@@ -39,12 +39,12 @@ namespace XrdFileCache
       public:
          //------------------------------------------------------------------------
          //! Constructor
-         //------------------------------------------------------------------------        
+         //------------------------------------------------------------------------
          Prefetch(XrdOucCacheIO & inputFile, std::string& path, long long offset, long long fileSize);
 
          //------------------------------------------------------------------------
          //! Destructor
-         //------------------------------------------------------------------------    
+         //------------------------------------------------------------------------
          ~Prefetch();
 
          //---------------------------------------------------------------------
@@ -57,28 +57,28 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          Stats& GetStats() { return m_stats; }
 
-      protected:     
+      protected:
          //! Read from disk file
          ssize_t Read(char * buff, off_t offset, size_t size);
 
          //! Write cache statistics in *cinfo file
          void AppendIOStatToFileInfo();
-   
+
       private:
          struct Task
          {
             int firstBlock;         //!< begin download firstBlock*bufferSize
             int lastBlock;          //!< end download lastBlock*bufferSize
             XrdSysCondVar* condVar; //!< signal when complete
-   
+
             Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
                firstBlock(fb), lastBlock(lb), condVar(iCondVar) {}
-   
+
             ~Task() {}
-   
+
             void Dump();
          };
-   
+
          //! AddTaskForRng adds a new task in queue.
          void AddTaskForRng(long long offset, int size, XrdSysCondVar* cond);
 
@@ -96,7 +96,7 @@ namespace XrdFileCache
 
          // Write download state in *cinfo file
          void RecordDownloadInfo();
-        
+
          //! Get bytes to read for given block.
          int  GetBytesToRead(Task& task, int block) const;
 
