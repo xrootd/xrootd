@@ -95,7 +95,7 @@ Prefetch::~Prefetch()
 
 
 int PREFETCH_MAX_ATTEMPTS = 10;
-int Prefetch::getBytesToRead(Task& task, int block) const
+int Prefetch::GetBytesToRead(Task& task, int block) const
 {
    if (block == (m_cfi.getSizeInBits() -1))
    {
@@ -161,7 +161,7 @@ void Prefetch::Run()
             xfcMsgIO(kDump, &m_input, "Prefetch::Run() download block [%d]", block);
          }
 
-         int numBytes = getBytesToRead(task, block);
+         int numBytes = GetBytesToRead(task, block);
          // read block into buffer
          {
             int missing =  numBytes;
@@ -194,7 +194,7 @@ void Prefetch::Run()
 
                if (missing)
                {
-                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattemot writing missing %d for block %d", missing, block);
+                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattempt writing missing %d for block %d", missing, block);
                }
             }
          }
@@ -212,7 +212,7 @@ void Prefetch::Run()
                buffer_offset += retval;
                if (buffer_remaining)
                {
-                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattemot writing missing %d for block %d", buffer_remaining, block);
+                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattempt writing missing %d for block %d", buffer_remaining, block);
                }
             }
          }
@@ -227,7 +227,6 @@ void Prefetch::Run()
          if (numHitBlock % 10)
             RecordDownloadInfo();
 
-         task.cntFetched++;
       }   // loop blocks in task
 
 
@@ -241,7 +240,7 @@ void Prefetch::Run()
       }
 
 
-      // after completeing a task, check if IO wants to break
+      // after completing a task, check if IO wants to break
       if (m_stop)
       {
          xfcMsgIO(kDebug, &m_input, "Prefetch::Run() %s", "stopping for a clean cause");
@@ -351,7 +350,7 @@ bool Prefetch::GetNextTask(Task& t )
    m_quequeMutex.Lock();
    if (m_tasks_queue.empty())
    {
-      // give one block-attoms which has not been downloaded from beginning to end
+      // give one block-atoms which has not been downloaded from beginning to end
       m_downloadStatusMutex.Lock();
       for (int i = 0; i < m_cfi.getSizeInBits(); ++i)
       {
@@ -391,7 +390,7 @@ bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nbloc
    int last_block  = (offset + size -1)/ m_cfi.getBufferSize();
    nblocks         = last_block - first_block + 1;
 
-   // check if prefetch is initialised
+   // check if prefetch is initialized
    {
       XrdSysCondVarHelper monitor(m_stateCond);
 
@@ -447,7 +446,7 @@ void Prefetch::AppendIOStatToFileInfo()
 
 ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
 {
-   xfcMsgIO(kDump, &m_input, "prefetch::Read()  off = %lld size = %lld.", off, size);
+   xfcMsgIO(kDump, &m_input, "Prefetch::Read()  off = %lld size = %lld.", off, size);
    int nbb;  // num of blocks needed
    int nbp;  //  num of blocks pulled
    ssize_t retval = 0;
@@ -463,7 +462,7 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
          AddTaskForRng(off, size, &newTaskCond);
          XrdSysCondVarHelper xx(newTaskCond);
          newTaskCond.Wait();
-         xfcMsgIO(kDump, &m_input, "IO::Read() use prefetch, cond.Wait() finsihed.");
+         xfcMsgIO(kDump, &m_input, "Prefetch::Read() cond.Wait() finsihed.");
       }
 
       retval =  m_output->Read(buff, off, size);
