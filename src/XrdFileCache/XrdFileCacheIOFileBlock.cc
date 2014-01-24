@@ -30,8 +30,6 @@
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-
 
 using namespace XrdFileCache;
 
@@ -70,7 +68,6 @@ IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocks
 {
    FileBlock* fb = new FileBlock(off, io);
 
-   XrdOucEnv myEnv;
    std::string fname;
    m_cache.getFilePathFromURL(io->Path(), fname);
    std::stringstream ss;

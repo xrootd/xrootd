@@ -149,7 +149,7 @@ src/XrdCl/XrdClEnv.hh \
 src/XrdCl/XrdClPostMaster.hh \
 src/XrdCl/XrdClFileSystem.hh \
 src/XrdCl/XrdClPostMasterInterfaces.hh \
-src/XrdCl/XrdClBuffer.hh \
+git src/XrdCl/XrdClBuffer.hh \
 src/XrdCl/XrdClConstants.hh \
 src/XrdCl/XrdClCopyProcess.hh \
 src/XrdCl/XrdClDefaultEnv.hh \

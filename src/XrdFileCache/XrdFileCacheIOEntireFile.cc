@@ -17,21 +17,16 @@
 //----------------------------------------------------------------------------------
 
 #include <stdio.h>
-#include <fcntl.h>
-#include <utime.h>
 
 #include "XrdClient/XrdClientConst.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysPthread.hh"
-#include "XrdOss/XrdOss.hh"
-#include "XrdOuc/XrdOucEnv.hh"
-#include <XrdSys/XrdSysPthread.hh>
 
 #include "XrdFileCacheIOEntireFile.hh"
 #include "XrdFileCacheLog.hh"
-#include "XrdFileCacheFactory.hh"
 #include "XrdFileCacheStats.hh"
+#include "XrdFileCacheFactory.hh"
 
 using namespace XrdFileCache;
 

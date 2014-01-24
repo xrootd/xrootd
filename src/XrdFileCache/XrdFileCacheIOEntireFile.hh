@@ -18,10 +18,6 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-/*
- * The XrdFileCacheIOEntireFile object is used as a proxy for the original source
- */
-
 #include <string>
 
 #include "XrdSys/XrdSysPthread.hh"
