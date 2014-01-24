@@ -124,6 +124,14 @@ namespace XrdCl
         pSocketDomain = domain;
       }
 
+      //------------------------------------------------------------------------
+      //! Get timestamp of last registered socket activity
+      //------------------------------------------------------------------------
+      time_t GetLastActivity()
+      {
+        return pLastActivity;
+      }
+
     private:
 
       //------------------------------------------------------------------------
@@ -211,6 +219,7 @@ namespace XrdCl
       uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
       int                            pSocketDomain;
+      time_t                         pLastActivity;
   };
 }
 
