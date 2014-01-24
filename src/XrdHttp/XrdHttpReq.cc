@@ -446,12 +446,12 @@ int XrdHttpReq::ReqReadV() {
   return (j * sizeof (struct readahead_list));
 }
 
-std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, long long filesize, char *token) {
+std::string XrdHttpReq::buildPartialHdr(long long bytestart, long long byteend, long long fsz, char *token) {
   ostringstream s;
 
   s << "\r\n--" << token << "\r\n";
   s << "Content-type: text/plain; charset=UTF-8\r\n";
-  s << "Content-range: bytes " << bytestart << "-" << byteend << "/" << filesize << "\r\n\r\n";
+  s << "Content-range: bytes " << bytestart << "-" << byteend << "/" << fsz << "\r\n\r\n";
 
   return s.str();
 }
@@ -1282,7 +1282,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           char *startp = (char *) iovP[0].iov_base, *endp = 0;
           char entry[1024];
           DirListInfo e;
-          while (startp - (char *) iovP[0].iov_base < (unsigned) iovP[0].iov_len - 1) {
+          while ( (size_t)(startp - (char *) iovP[0].iov_base) < (size_t)( iovP[0].iov_len - 1) ) {
             // Find the filename, it comes before the \n
             if ((endp = (char *) strchr((const char*) startp, '\n'))) {
               strncpy(entry, (char *) startp, endp - startp);
@@ -1781,7 +1781,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
             char entry[1024];
             DirListInfo e;
 
-            while (startp - (char *) iovP[0].iov_base < (unsigned) iovP[0].iov_len - 1) {
+            while ( (size_t)(startp - (char *) iovP[0].iov_base) < (size_t)(iovP[0].iov_len - 1) ) {
               // Find the filename, it comes before the \n
               if ((endp = (char *) mystrchrnul((const char*) startp, '\n'))) {
                 strncpy(entry, (char *) startp, endp - startp);
