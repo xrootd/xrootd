@@ -153,6 +153,8 @@ namespace XrdCl
     PutInt( "WorkerThreads",         DefaultWorkerThreads        );
     PutInt( "CPChunkSize",           DefaultCPChunkSize          );
     PutInt( "CPParallelChunks",      DefaultCPParallelChunks     );
+    PutInt( "DataServerTTL",         DefaultDataServerTTL        );
+    PutInt( "LoadBalancerTTL",       DefaultLoadBalancerTTL      );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
@@ -169,6 +171,8 @@ namespace XrdCl
     ImportInt(    "WorkerThreads",        "XRD_WORKERTHREADS"        );
     ImportInt(    "CPChunkSize",          "XRD_CPCHUNKSIZE"          );
     ImportInt(    "CPParallelChunks",     "XRD_CPPARALLELCHUNKS"     );
+    ImportInt(    "DataServerTTL",        "XRD_DATASERVERTTL"        );
+    ImportInt(    "LoadBalancerTTL",      "XRD_LOADBALANCERTTL"      );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );

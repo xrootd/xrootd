@@ -339,6 +339,13 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Disconnect( bool /*force*/ )
   {
+    XrdSysMutexHelper scopedLock( pMutex );
+    SubStreamList::iterator it;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+    {
+      (*it)->socket->Close();
+      (*it)->status = Socket::Disconnected;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -346,8 +353,45 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void Stream::Tick( time_t now )
   {
-    pMutex.Lock();
+    //--------------------------------------------------------------------------
+    // Check if there is no outgoing messages and if the stream TTL is elapesed.
+    // It is assumed that the underlying transport makes sure that there is no
+    // pending requests that are not answered, ie. all possible virtual streams
+    // are de-allocated
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
     SubStreamList::iterator it;
+    pMutex.Lock();
+    if( pSubStreams[0]->status == Socket::Connected )
+    {
+      uint32_t outgoingMessages = 0;
+      time_t   lastActivity     = 0;
+      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+      {
+        outgoingMessages += (*it)->outQueue->GetSize();
+        time_t sockLastActivity = (*it)->socket->GetLastActivity();
+        if( lastActivity < sockLastActivity )
+          lastActivity = sockLastActivity;
+      }
+
+      if( !outgoingMessages )
+      {
+        bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
+                                                          *pChannelData );
+        if( disconnect )
+        {
+          log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, "
+                      "disconnecting...", pStreamName.c_str() );
+          Disconnect();
+        }
+      }
+    }
+    pMutex.UnLock();
+
+    //--------------------------------------------------------------------------
+    // Check for timed-out requests and incoming handlers
+    //--------------------------------------------------------------------------
+    pMutex.Lock();
     OutQueue q;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabExpired( *(*it)->outQueue, now );

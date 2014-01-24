@@ -420,9 +420,42 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if the stream should be disconnected
   //----------------------------------------------------------------------------
-  bool XRootDTransport::IsStreamTTLElapsed( time_t     /*inactiveTime*/,
-                                            AnyObject &/*channelData*/ )
+  bool XRootDTransport::IsStreamTTLElapsed( time_t     inactiveTime,
+                                            AnyObject &channelData )
   {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    Env *env = DefaultEnv::GetEnv();
+    Log *log = DefaultEnv::GetLog();
+
+    XrdSysMutexHelper scopedLock( info->mutex );
+
+    //--------------------------------------------------------------------------
+    // Check the TTL settings for the current server
+    //--------------------------------------------------------------------------
+    int ttl;
+    if( info->serverFlags & kXR_isServer )
+    {
+      ttl = DefaultDataServerTTL;
+      env->GetInt( "DataServerTTL", ttl );
+    }
+    else
+    {
+      ttl = DefaultLoadBalancerTTL;
+      env->GetInt( "LoadBalancerTTL", ttl );
+    }
+
+    //--------------------------------------------------------------------------
+    // See whether we can give a go-ahead for the disconnection
+    //--------------------------------------------------------------------------
+    uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
+    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
+               "TTL: %d, allocated SIDs: %d", info->streamName.c_str(),
+               inactiveTime, ttl, allocatedSIDs );
+
+    if( !allocatedSIDs && inactiveTime > ttl )
+      return true;
+
     return false;
   }
 
