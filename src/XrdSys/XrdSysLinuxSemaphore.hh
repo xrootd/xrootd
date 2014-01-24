@@ -80,7 +80,7 @@ namespace XrdSys
       //------------------------------------------------------------------------
       //! Try to acquire the semaphore without waiting
       //!
-      //! @return 0 on success, 1 otherwise
+      //! @return 1 on success, 0 otherwise
       //------------------------------------------------------------------------
       inline int CondWait()
       {
@@ -97,10 +97,10 @@ namespace XrdSys
         {
           Unpack( pValue, value, val, waiters );
           if( val == 0 )
-            return 1;
+            return 0;
           newVal = Pack( --val, waiters );
           if( __sync_bool_compare_and_swap( pValue, value, newVal ) )
-            return 0;
+            return 1;
         }
       }
 
@@ -117,7 +117,7 @@ namespace XrdSys
         // possible. If CondWait fails, it means that the semaphore value was 0.
         // In this case we atomically bump the number of waiters and go to sleep
         //----------------------------------------------------------------------
-        while( CondWait() )
+        while( !CondWait() )
         {
           int value   = 0;
           int val     = 0;
