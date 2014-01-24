@@ -41,9 +41,9 @@ namespace XrdFileCache
          }
 
          long long m_BytesCachedPrefetch; //!< bytes already prefetch
-         long long m_BytesPrefetch;       //!< bytes waited task to complete
+         long long m_BytesPrefetch;       //!< bytes waited
          int       m_HitsPrefetch;        //!< blocks already prefetched
-         int       m_HitsDisk;            //!< blocks waited task to compelte
+         int       m_HitsDisk;            //!< blocks waited
 
          inline void AddStat(Stats &Src)
          {
