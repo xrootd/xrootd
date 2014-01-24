@@ -50,7 +50,6 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //!\brief Detach itself from Cache. Note this will delete this object.
          //!
-         //!
          //! @return original source \ref XrdPosixFile
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Detach();
@@ -73,10 +72,9 @@ namespace XrdFileCache
             long long m_offset0;
          };
 
-         long long m_blockSize;
-         std::map<int, FileBlock*> m_blocks;
-
-         XrdSysMutex m_mutex;
+         long long                  m_blockSize; //!< size of file-block
+         std::map<int, FileBlock*>  m_blocks;    //!< map of created blocks
+         XrdSysMutex                m_mutex;     //!< map mutex
 
          FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
    };

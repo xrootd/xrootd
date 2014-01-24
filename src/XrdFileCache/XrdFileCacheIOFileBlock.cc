@@ -76,7 +76,7 @@ IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocks
    std::stringstream ss;
    ss << fname;
    char offExt[64];
-   // block file format like origpath__size_offset
+   // filename like <origpath>___<size>_<offset>
    sprintf(&offExt[0],"___%lld_%lld", m_blockSize, off );
    ss << &offExt[0];
    fname = ss.str();
@@ -84,7 +84,7 @@ IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocks
    xfcMsgIO(kDebug, io, "FileBlock::FileBlock(), create XrdFileCachePrefetch.");
    fb->m_prefetch = new Prefetch(*io, fname, off, blocksize);
    pthread_t tid;
-   XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "XrdHdfsCache Prefetcher");
+   XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "BlockFile Prefetcher");
 
    return fb;
 }
@@ -163,7 +163,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          off += retvalBlock;
          long long remain = readBlockSize - retvalBlock;
 
-         // cancel read if not succssful
+         // cancel read if not successfull
          if (remain > 0)
          {
             xfcMsgIO( kWarning, &m_io, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d",
