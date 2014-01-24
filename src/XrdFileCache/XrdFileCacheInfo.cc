@@ -124,9 +124,6 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 
    m_accessCnt++;
 
-   // get offset to append
-   // not: XrdOssDF FStat doesn not sets stat
-
    long long off = getHeaderSize();
    off += fp->Write(&m_accessCnt, off, sizeof(int));
    off += (m_accessCnt-1)*sizeof(AStat);

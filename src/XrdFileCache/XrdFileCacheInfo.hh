@@ -48,14 +48,14 @@ namespace XrdFileCache
          ~Info();
 
          //---------------------------------------------------------------------
-         //! setBit marks block in the given index as downloaded
+         //! SetBit marks block in the given index as downloaded
          //!
          //! @param i
          //---------------------------------------------------------------------
          void setBit(int i);
 
          //---------------------------------------------------------------------
-         //! resizeBits reserve buffer for fileSize/bufferSize blocks
+         //! Reserve buffer for fileSize/bufferSize blocks
          //!
          //! @param n number of file blocks
          //---------------------------------------------------------------------
@@ -71,38 +71,37 @@ namespace XrdFileCache
          int Read(XrdOssDF* fp);
 
          //---------------------------------------------------------------------
-         //! \brief WriteHeader write buffer size, number of blocks, and buffer
-         //! for download staus at the beginning of a file
+         //! Write number of blocks and prefetch buffer size
          //---------------------------------------------------------------------
          void  WriteHeader(XrdOssDF* fp);
 
          //---------------------------------------------------------------------
-         //! AppendIOStat append access time, and statistics on each detach.
+         //! Append access time, and cache statistics
          //---------------------------------------------------------------------
          void AppendIOStat(const Stats* stat, XrdOssDF* fp);
 
          //---------------------------------------------------------------------
-         //! isAnythingEmptyInRng check download status in the block range.
+         //! Check download status in the block range
          //---------------------------------------------------------------------
          bool isAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
          //---------------------------------------------------------------------
-         //! getSizeInBytes get compressed size
+         //! Get compressed size
          //---------------------------------------------------------------------
          int getSizeInBytes() const;
 
          //---------------------------------------------------------------------
-         //! getSizeInBits get number of blocks
+         //! Get number of blocks
          //---------------------------------------------------------------------
          int getSizeInBits() const;
 
          //----------------------------------------------------------------------
-         //! getHeaderSize get header size of *cinfo file
+         //! Get header size
          //----------------------------------------------------------------------
          int getHeaderSize() const;
 
          //---------------------------------------------------------------------
-         //! getLatestAttachTime get last detach time
+         //! Get latest detach time
          //---------------------------------------------------------------------
          bool getLatestDetachTime(time_t& t, XrdOssDF* fp) const;
 
@@ -122,7 +121,7 @@ namespace XrdFileCache
          bool isComplete() const;
 
          //---------------------------------------------------------------------
-         //! checkComplete Refresh complete staus
+         //! checkComplete Refresh complete status
          //---------------------------------------------------------------------
          void checkComplete();
 
@@ -134,28 +133,27 @@ namespace XrdFileCache
          const static char* m_infoExtension;
 
       private:
+         //---------------------------------------------------------------------
+         //! Written into *cinfo file each time cached data is accessed.
+         //---------------------------------------------------------------------
          struct AStat
          {
-            time_t DetachTime;
+            time_t    DetachTime;
             long long BytesRead;
-            int Hits;
-            int Miss;
+            int       Hits;
+            int       Miss;
 
-            void Dump() const
-            {
+            void Dump() const {
                printf("AStat value: detach %d, bytesRead = %lld, Hits = %d, Miss = %d \n",
                       (int)DetachTime, BytesRead, Hits, Miss );
             }
          };
 
-         long long m_bufferSize;
-         int m_sizeInBits; // number of file blocks
-         char*  m_buff;
-         int m_accessCnt;
-
-         bool m_complete; //cached
-
-         XrdSysMutex m_writeMutex;
+         long long   m_bufferSize; //!< prefetch buffer size
+         int         m_sizeInBits; //!< number of file blocks
+         char*       m_buff;       //!< download state vector
+         int         m_accessCnt;  //!< number of written AStat structs
+         bool        m_complete;   //!< cached
    };
 
    inline bool Info::testBit(int i) const
