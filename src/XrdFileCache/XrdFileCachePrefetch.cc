@@ -16,7 +16,6 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include <vector>
 #include <stdio.h>
 #include <sstream>
 #include <fcntl.h>
@@ -26,6 +25,7 @@
 #include "XrdFileCache.hh"
 #include "XrdFileCacheLog.hh"
 
+#include <XrdOss/XrdOss.hh>
 #include <XrdCl/XrdClFile.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include "XrdOuc/XrdOucEnv.hh"
