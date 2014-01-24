@@ -81,6 +81,11 @@ namespace XrdCl
         return pTimeOutSIDs.size();
       }
 
+      //------------------------------------------------------------------------
+      //! Number of allocated streams
+      //------------------------------------------------------------------------
+      uint16_t GetNumberOfAllocatedSIDs() const;
+
     private:
       std::list<uint16_t>  pFreeSIDs;
       std::set<uint16_t>   pTimeOutSIDs;
