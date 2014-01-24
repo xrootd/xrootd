@@ -34,33 +34,33 @@ namespace XrdFileCache
          //! Constructor
          //------------------------------------------------------------------------        
          Stats() :
-            BytesCachedPrefetch(0),
-            BytesPrefetch(0),
-            HitsPrefetch(0),
-            HitsDisk(0) {
+            m_BytesCachedPrefetch(0),
+            m_BytesPrefetch(0),
+            m_HitsPrefetch(0),
+            m_HitsDisk(0) {
          }
 
-         long long BytesCachedPrefetch; //!< bytes already prefetch
-         long long BytesPrefetch;       //!< bytes waited task to complete
-         int       HitsPrefetch;        //!< blocks already prefetched
-         int       HitsDisk;            //!< blocks waited task to compelte
+         long long m_BytesCachedPrefetch; //!< bytes already prefetch
+         long long m_BytesPrefetch;       //!< bytes waited task to complete
+         int       m_HitsPrefetch;        //!< blocks already prefetched
+         int       m_HitsDisk;            //!< blocks waited task to compelte
 
          inline void AddStat(Stats &Src)
          {
             XrdOucCacheStats::Add(Src);
 
-            sMutexXfc.Lock();
-            BytesCachedPrefetch += Src.BytesCachedPrefetch;
-            BytesPrefetch       += Src.BytesPrefetch;
+            m_MutexXfc.Lock();
+            m_BytesCachedPrefetch += Src.m_BytesCachedPrefetch;
+            m_BytesPrefetch       += Src.m_BytesPrefetch;
 
-            HitsPrefetch += Src.HitsPrefetch;
-            HitsDisk     += Src.HitsDisk;
+            m_HitsPrefetch += Src.m_HitsPrefetch;
+            m_HitsDisk     += Src.m_HitsDisk;
 
-            sMutexXfc.UnLock();
+            m_MutexXfc.UnLock();
          }
 
       private:
-         XrdSysMutex sMutexXfc;
+         XrdSysMutex m_MutexXfc;
 
    };
 }

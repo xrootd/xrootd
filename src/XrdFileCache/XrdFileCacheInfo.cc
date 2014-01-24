@@ -129,7 +129,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    off += (m_accessCnt-1)*sizeof(AStat);
    AStat as;
    as.DetachTime = time(0);
-   as.BytesRead = caches->BytesCachedPrefetch + caches->BytesPrefetch;
+   as.BytesRead = caches->m_BytesCachedPrefetch + caches->m_BytesPrefetch;
    as.Hits = caches->Hits;  // num blocks
    as.Miss = caches->Miss;
 

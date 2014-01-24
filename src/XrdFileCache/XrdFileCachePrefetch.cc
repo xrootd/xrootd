@@ -467,11 +467,11 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
 
       retval =  m_output->Read(buff, off, size);
 
-      m_stats.HitsPrefetch += 1;
-      m_stats.BytesCachedPrefetch += nbp * m_cfi.GetBufferSize();
-      m_stats.BytesPrefetch += (nbb - nbp) * m_cfi.GetBufferSize();
-      m_stats.Hits += nbp;
-      m_stats.Miss += nbb-nbp;
+
+      m_stats.m_BytesCachedPrefetch += nbp * m_cfi.GetBufferSize();
+      m_stats.m_BytesPrefetch       += (nbb - nbp) * m_cfi.GetBufferSize();
+      m_stats.m_HitsPrefetch        += nbp;
+      m_stats.m_HitsDisk            += nbb-nbp;
    }
    else
    {
