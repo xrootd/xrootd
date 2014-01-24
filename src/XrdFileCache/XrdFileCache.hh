@@ -38,12 +38,13 @@ namespace XrdFileCache
          Cache(XrdOucCacheStats&);
 
          //---------------------------------------------------------------------
-         //! Attach must be called to obtain a new IO object or that fronts existing IO.
+         //! \brief Attach must be called to obtain a new IO object or that fronts 
+         //! existing XrdOucCacheIO.
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
          //---------------------------------------------------------------------
-         //! This cache instance can be delete. Check if has any IO attached.
+         //! This cache instance can be deleted. Check if has any IO attached.
          //---------------------------------------------------------------------
          virtual int isAttached();
 

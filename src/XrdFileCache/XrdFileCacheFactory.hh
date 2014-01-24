@@ -73,18 +73,18 @@ namespace XrdFileCache
          Factory();
 
          //---------------------------------------------------------------------
-         //! Attached  Do nothing -- this is not a cache object.
+         //! Disable IO creation.
          //---------------------------------------------------------------------
-         virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0){ return NULL; }
+         virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0) { return NULL; }
 
          //---------------------------------------------------------------------
-         //! \brief isAttached  This cache instance can be delete. Need this method to
-         //!             check if there are any associated objects.
+         //! \brief  This cache instance can be deleted. Need this method to
+         //!          check if there are any associated objects.
          //---------------------------------------------------------------------
          virtual int isAttached() { return false; }
 
          //---------------------------------------------------------------------
-         //! Create Creates XrdFileCache::Cache object
+         //! Creates XrdFileCache::Cache object
          //---------------------------------------------------------------------
          virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP);
 
@@ -96,7 +96,7 @@ namespace XrdFileCache
          XrdSysError&GetSysError() { return m_log; }
 
          //--------------------------------------------------------------------
-         //! \brief Decide checks decision plugins.
+         //! \brief Makes decision if the original XrdOucCacheIO will be cached.
          //!
          //! @param & URL of file
          //!
@@ -111,7 +111,7 @@ namespace XrdFileCache
 
        
          //---------------------------------------------------------------------
-         //! \brief Config parse configuration file
+         //! \brief Parse configuration file
          //!
          //! @param logger             xrootd logger
          //! @param config_filename    path to configuration file
@@ -132,7 +132,7 @@ namespace XrdFileCache
          static bool VCheck(XrdVersionInfo &urVersion) { return true; }
 
          //---------------------------------------------------------------------
-         //! Cache purge thread.
+         //! Disk cache purge thread.
          //---------------------------------------------------------------------
          void CacheDirCleanup();
 

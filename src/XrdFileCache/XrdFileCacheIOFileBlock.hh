@@ -55,12 +55,7 @@ namespace XrdFileCache
          virtual XrdOucCacheIO *Detach();
 
          //---------------------------------------------------------------------
-         //!\brief ReadV pass vector reads to corresponding Prefetch blocks.
-         //!
-         //! @param readV
-         //! @param n number of XrdOucIOVecs
-         //!
-         //! @return total bytes read
+         //! Pass read to corresponding Prefetch objects.
          //---------------------------------------------------------------------
          virtual int Read (char  *Buffer, long long Offset, int Length);
 

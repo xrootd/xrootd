@@ -94,7 +94,7 @@ namespace XrdFileCache
          //! Open file handle for data file and info file on local disk.
          bool Open();
 
-         // Write download state in *cinfo file
+         //! Write download state in *cinfo file
          void RecordDownloadInfo();
 
          //! Get bytes to read for given block.

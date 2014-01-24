@@ -48,14 +48,14 @@ namespace XrdFileCache
          ~Info();
 
          //---------------------------------------------------------------------
-         //! \brief SetBit marks block in the given index as downloaded
+         //! \brief Mark block in the given index as downloaded
          //!
          //! @param i block inex
          //---------------------------------------------------------------------
          void SetBit(int i);
 
          //---------------------------------------------------------------------
-         //! \brief Reserve buffer for fileSize/bufferSize blocks
+         //! \brief Reserve buffer for fileSize/bufferSize bytes
          //!
          //! @param n number of file blocks
          //---------------------------------------------------------------------
@@ -81,7 +81,7 @@ namespace XrdFileCache
          void AppendIOStat(const Stats* stat, XrdOssDF* fp);
 
          //---------------------------------------------------------------------
-         //! Check download status in the block range
+         //! Check download status in given block range
          //---------------------------------------------------------------------
          bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
@@ -106,7 +106,7 @@ namespace XrdFileCache
          bool GetLatestDetachTime(time_t& t, XrdOssDF* fp) const;
 
          //---------------------------------------------------------------------
-         //! getBufferSize get prefetch buffer size
+         //! Get prefetch buffer size
          //---------------------------------------------------------------------
          long long GetBufferSize() const;
 
