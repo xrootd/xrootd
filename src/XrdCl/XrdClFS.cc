@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -710,6 +711,70 @@ XRootDStatus DoLocate( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Process stat query
+//------------------------------------------------------------------------------
+XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
+{
+  Log *log = DefaultEnv::GetLog();
+
+  //----------------------------------------------------------------------------
+  // Process the query
+  //----------------------------------------------------------------------------
+  bool isOrQuery = false;
+  bool status    = true;
+  if( query.find( '|' ) != std::string::npos )
+  {
+    isOrQuery = true;
+    status    = false;
+  }
+  std::vector<std::string> queryFlags;
+  if( isOrQuery )
+    Utils::splitString( queryFlags, query, "|" );
+  else
+    Utils::splitString( queryFlags, query, "&" );
+
+  //----------------------------------------------------------------------------
+  // Initialize flag translation map and check the input flags
+  //----------------------------------------------------------------------------
+  std::map<std::string, StatInfo::Flags> flagMap;
+  flagMap["XBitSet"]     = StatInfo::XBitSet;
+  flagMap["IsDir"]       = StatInfo::IsDir;
+  flagMap["Other"]       = StatInfo::Other;
+  flagMap["Offline"]     = StatInfo::Offline;
+  flagMap["POSCPending"] = StatInfo::POSCPending;
+  flagMap["IsReadable"]  = StatInfo::IsReadable;
+  flagMap["IsWritable"]  = StatInfo::IsWritable;
+
+  std::vector<std::string>::iterator it;
+  for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+    if( flagMap.find( *it ) == flagMap.end() )
+    {
+      log->Error( AppMsg, "Flag '%s' is not recognized.", it->c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+
+  //----------------------------------------------------------------------------
+  // Process the query
+  //----------------------------------------------------------------------------
+  if( isOrQuery )
+  {
+    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+      if( info->TestFlags( flagMap[*it] ) )
+        return XRootDStatus();
+  }
+  else
+  {
+    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+      if( !info->TestFlags( flagMap[*it] ) )
+        return XRootDStatus( stError, errResponseNegative );
+  }
+
+  if( status )
+    return XRootDStatus();
+  return XRootDStatus( stError, errResponseNegative );
+}
+
+//------------------------------------------------------------------------------
 // Stat a path
 //------------------------------------------------------------------------------
 XRootDStatus DoStat( FileSystem                      *fs,
@@ -722,14 +787,36 @@ XRootDStatus DoStat( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 )
+  if( argc != 2 && argc != 4 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  std::string path;
+  std::string query;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-q" )
+    {
+      if( i < args.size()-1 )
+      {
+        query = args[i+1];
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-q' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else
+      path = args[i];
+  }
+
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  if( !BuildPath( fullPath, env, path ).IsOK() )
   {
     log->Error( AppMsg, "Invalid path." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -748,6 +835,10 @@ XRootDStatus DoStat( FileSystem                      *fs,
                         st.ToStr().c_str() );
     return st;
   }
+
+  //----------------------------------------------------------------------------
+  // Process the query
+  //----------------------------------------------------------------------------
 
   //----------------------------------------------------------------------------
   // Print the result
@@ -772,14 +863,19 @@ XRootDStatus DoStat( FileSystem                      *fs,
   if( !flags.empty() )
     flags.erase( flags.length()-1, 1 );
 
-  std::cout << "Path:  " << fullPath << std::endl;
-  std::cout << "Id:    " << info->GetId() << std::endl;
-  std::cout << "Size:  " << info->GetSize() << std::endl;
-  std::cout << "Flags: " << info->GetFlags() << " (" << flags << ")";
+  std::cout << "Path:   " << fullPath << std::endl;
+  std::cout << "Id:     " << info->GetId() << std::endl;
+  std::cout << "Size:   " << info->GetSize() << std::endl;
+  std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
   std::cout << std::endl;
+  if( query.length() != 0 )
+  {
+    st = ProcessStatQuery( info, query );
+    std::cout << "Query:  " << query << " " << std::endl;
+  }
 
   delete info;
-  return XRootDStatus();
+  return st;
 }
 
 //------------------------------------------------------------------------------
