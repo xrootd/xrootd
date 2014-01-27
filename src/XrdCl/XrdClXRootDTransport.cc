@@ -30,7 +30,6 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysUtils.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -1089,6 +1088,7 @@ namespace XrdCl
                                            XRootDChannelInfo * )
   {
     Log *log = DefaultEnv::GetLog();
+    Env *env = DefaultEnv::GetEnv();
 
     //--------------------------------------------------------------------------
     // Compute the login cgi
@@ -1098,8 +1098,10 @@ namespace XrdCl
     std::string countryCode = Utils::FQDNToCC( hostName );
     free( hostName );
     char *cgiBuffer = new char[1024];
+    std::string appName;
+    env->GetString( "AppName", appName );
     snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s",
-              countryCode.c_str(), timeZone, XrdSysUtils::ExecName() );
+              countryCode.c_str(), timeZone, appName.c_str() );
     uint16_t cgiLen = strlen( cgiBuffer );
 
     //--------------------------------------------------------------------------

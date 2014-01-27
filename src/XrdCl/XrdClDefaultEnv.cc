@@ -29,6 +29,8 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
+#include <libgen.h>
+#include <cstring>
 #include <map>
 #include <pthread.h>
 #include <sys/types.h>
@@ -160,6 +162,11 @@ namespace XrdCl
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
     PutString( "NetworkStack",       DefaultNetworkStack         );
 
+    char *tmp = strdup( XrdSysUtils::ExecName() );
+    char *appName = basename( tmp );
+    PutString( "AppName", appName );
+    free( tmp );
+
     ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
     ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
     ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
@@ -177,6 +184,7 @@ namespace XrdCl
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
     ImportString( "NetworkStack",         "XRD_NETWORKSTACK"         );
+    ImportString( "AppName",              "XRD_APPNAME"              );
   }
 
   //----------------------------------------------------------------------------
