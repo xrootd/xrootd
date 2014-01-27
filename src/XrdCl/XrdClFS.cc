@@ -1017,6 +1017,78 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Query the server
+//------------------------------------------------------------------------------
+XRootDStatus DoPrepare( FileSystem                      *fs,
+                        Env                             *env,
+                        const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc < 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  PrepareFlags::Flags      flags    = PrepareFlags::None;
+  std::vector<std::string> files;
+  uint8_t                  priority = 0;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-p" )
+    {
+      if( i < args.size()-1 )
+      {
+        char *result;
+        int32_t param = ::strtol( args[i+1].c_str(), &result, 0 );
+        if( *result != 0 || param > 3 || param < 0 )
+        {
+          log->Error( AppMsg, "Size priotiry needs to be an integer between 0 "
+                      "and 3" );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+        priority = (uint8_t)param;
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-p' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else if( args[i] == "-c" )
+      flags |= PrepareFlags::Colocate;
+    else if( args[i] == "-f" )
+      flags |= PrepareFlags::Fresh;
+    else if( args[i] == "-s" )
+      flags |= PrepareFlags::Stage;
+    else if( args[i] == "-w" )
+      flags |= PrepareFlags::WriteMode;
+    else
+      files.push_back( args[i] );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the command
+  //----------------------------------------------------------------------------
+  Buffer *response = 0;
+  XRootDStatus st = fs->Prepare( files, flags, priority, response );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Prepare request failed: %s", st.ToStr().c_str() );
+    return st;
+  }
+  delete response;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -1089,6 +1161,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
+  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] filenames\n"        );
+  printf( "     Prepare one or more files for access.\n"                    );
+  printf( "     -c co-locate staged files if possible\n"                    );
+  printf( "     -f refresh file access time even if the location is known\n" );
+  printf( "     -s stage the files to disk if they are not online\n"        );
+  printf( "     -w whe files will be accessed for modification\n"           );
+  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
+
   return XRootDStatus();
 }
 
@@ -1113,6 +1193,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "rmdir",       DoRmDir      );
   executor->AddCommand( "query",       DoQuery      );
   executor->AddCommand( "truncate",    DoTruncate   );
+  executor->AddCommand( "prepare",     DoPrepare    );
   return executor;
 }
 
