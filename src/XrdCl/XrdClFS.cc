@@ -1055,8 +1055,15 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   mv <path1> <path2>\n"                                         );
   printf( "     Move path1 to path2 locally on the same server.\n\n"        );
 
-  printf( "   stat <path>\n"                                                );
-  printf( "     Get info about the file or directory.\n\n"                  );
+  printf( "   stat [-q query] <path>\n"                                     );
+  printf( "     Get info about the file or directory.\n"                    );
+  printf( "     -q query optional flag query parameter that makes\n"        );
+  printf( "              xrdfs return error code to the shell if the\n"     );
+  printf( "              requested flag combination is not present;\n"      );
+  printf( "              flags may be combined together using '|' or '&'\n" );
+  printf( "              Available flags:\n"                                );
+  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"    );
+  printf( "              IsReadable, IsWriteable\n\n"                       );
 
   printf( "   statvfs <path>\n"                                             );
   printf( "     Get info about a virtual file system.\n\n"                  );
