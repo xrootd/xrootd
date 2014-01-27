@@ -64,6 +64,7 @@ namespace
     { errInvalidRedirectURL, "Invalid redirect URL" },
     { errInvalidResponse,    "Invalid response"     },
     { errErrorResponse,      "Error response"       },
+    { errResponseNegative,   "Query response negative" },
     { 0, 0 } };
 
   //----------------------------------------------------------------------------

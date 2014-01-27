@@ -98,6 +98,8 @@ namespace XrdCl
 
   const uint16_t errErrorResponse      = 400;
 
+  const uint16_t errResponseNegative   = 500; //!< Query response was negative
+
   //----------------------------------------------------------------------------
   //! Procedure execution status
   //----------------------------------------------------------------------------
