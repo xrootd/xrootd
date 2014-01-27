@@ -62,6 +62,15 @@ Move path1 to path2 locally on the same server.
 \fBstat\fR \fI<path>\fR
 .RS 3
 Get info about the file or directory.
+.br
+\fI-q\fR query optional flag query parameter that makes
+xrdfs return error code to the shell if the
+requested flag combination is not present;
+flags may be combined together using '|' or '&'
+.br
+Available flags:
+\fBXBitSet\fR, \fBIsDir\fR, \fBOther\fR, \fBOffline\fR, \fBPOSCPending\fR,
+\fBIsReadable\fR, \fBIsWriteable\fR
 
 .RE
 \fBstatvfs\fR \fI<path>\fR
