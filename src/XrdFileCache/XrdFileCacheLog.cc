@@ -33,7 +33,7 @@
 
 namespace XrdFileCache
 {
-   const char* const s_levelNames[] = { "Dump ", "Debug","Info ", "Warn ", "Err  " };
+   const char* const s_levelNames[] = { "Dump ", "Debug","Info ", "Warning ", "Error "};
 
    const char*levelName(LogLevel iLevel)
    {
