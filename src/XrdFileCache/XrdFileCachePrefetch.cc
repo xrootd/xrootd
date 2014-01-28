@@ -120,12 +120,12 @@ void Prefetch::Run()
       if ( !Open())
       {
          m_failed = true;
-
-         // Broadcast to possible io-read waiting objects
-         m_stateCond.Broadcast();
-
-         return;
       }
+      // Broadcast to possible io-read waiting objects
+      m_stateCond.Broadcast();
+
+      if (m_failed) return;
+      
    }
    assert(m_infoFile);
    xfcMsgIO(kDebug, &m_input, "Prefetch::Run()");
@@ -394,15 +394,13 @@ bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nbloc
    {
       XrdSysCondVarHelper monitor(m_stateCond);
 
-      // Alternatively it could wait. Code temporarily commented out.
-
-      if (m_failed || !m_started ) return false;
-      /*
-         if ( ! m_started)
-         {
-          m_stateCond.Wait();
-          if (m_failed) return false;
-          }*/
+      if (m_failed) return false;
+      
+      if ( ! m_started)
+      {
+         m_stateCond.Wait();
+         if (m_failed) return false;
+      }
    }
 
    pulled = 0;
