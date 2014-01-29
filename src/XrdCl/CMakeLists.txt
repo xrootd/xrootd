@@ -65,6 +65,8 @@ add_library(
                               XrdClResponseJob.hh
   XrdClFileTimer.cc           XrdClFileTimer.hh
                               XrdClUglyHacks.hh
+                              XrdClPlugInInterface.hh
+  XrdClPlugInManager.cc       XrdClPlugInManager.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -137,6 +139,8 @@ install(
     XrdClStatus.hh
     XrdClURL.hh
     XrdClXRootDResponses.hh
+    XrdClPlugInInterface.hh
+    XrdClPlugInManager.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(

@@ -34,6 +34,7 @@ namespace XrdCl
   class CheckSumManager;
   class TransportManager;
   class FileTimer;
+  class PlugInManager;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -128,6 +129,11 @@ namespace XrdCl
       static TransportManager *GetTransportManager();
 
       //------------------------------------------------------------------------
+      //! Get plug-in manager
+      //------------------------------------------------------------------------
+      static PlugInManager *GetPlugInManager();
+
+      //------------------------------------------------------------------------
       //! Initialize the environment
       //------------------------------------------------------------------------
       static void Initialize();
@@ -156,6 +162,7 @@ namespace XrdCl
       static bool               sMonitorInitialized;
       static CheckSumManager   *sCheckSumManager;
       static TransportManager  *sTransportManager;
+      static PlugInManager     *sPlugInManager;
   };
 }
 

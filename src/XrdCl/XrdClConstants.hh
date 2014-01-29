@@ -60,6 +60,8 @@ namespace XrdCl
   const char * const DefaultNetworkStack       = "IPAll";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
+  const char * const DefaultPlugInConfDir      = "";
+  const char * const DefaultPlugIn             = "";
 }
 
 #endif // __XRD_CL_CONSTANTS_HH__
