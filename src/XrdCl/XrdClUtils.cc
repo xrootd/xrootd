@@ -26,9 +26,23 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include <fstream>
+#include <functional>
+#include <cctype>
+#include <locale>
+#include <map>
+#include <string>
+
+#include <sys/types.h>
+#include <dirent.h>
 
 namespace
 {
+  bool isNotSpace( char c )
+  {
+    return c != ' ';
+  }
+
   //----------------------------------------------------------------------------
   // Ordering function for sorting IP addresses
   //----------------------------------------------------------------------------
@@ -348,5 +362,76 @@ namespace XrdCl
     if( cc.length() == 2 )
       return cc;
     return "us";
+  }
+
+  //----------------------------------------------------------------------------
+  // Get directory entries
+  //----------------------------------------------------------------------------
+  Status Utils::GetDirectoryEntries( std::vector<std::string> &entries,
+                                     const std::string        &path )
+  {
+    DIR *dp = opendir( path.c_str() );
+    if( !dp )
+      return Status( stError, errOSError, errno );
+
+    dirent *dirEntry;
+
+    while( (dirEntry = readdir(dp)) != 0 )
+    {
+      std::string entryName = dirEntry->d_name;
+      if( !entryName.compare( 0, 2, "..") )
+        continue;
+      if( !entryName.compare( 0, 1, ".") )
+        continue;
+
+      entries.push_back( dirEntry->d_name );
+    }
+
+    closedir(dp);
+
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Process a config file and return key-value pairs
+  //----------------------------------------------------------------------------
+  Status Utils::ProcessConfig( std::map<std::string, std::string> &config,
+                               const std::string                  &file )
+  {
+    config.clear();
+    std::ifstream inFile( file.c_str() );
+    if( !inFile.good() )
+      return Status( stError, errOSError, errno );
+
+    errno = 0;
+    std::string line;
+    while( std::getline( inFile, line ) )
+    {
+      if( line.empty() || line[0] == '#' )
+        continue;
+
+      std::vector<std::string> elems;
+      splitString( elems, line, "=" );
+      if( elems.size() != 2 )
+        return Status( stError, errConfig );
+      std::string key   = elems[0]; Trim( key );
+      std::string value = elems[1]; Trim( value );
+      config[key] = value;
+    }
+
+    if( errno )
+      return Status( stError, errOSError, errno );
+    return Status();
+  }
+
+  //----------------------------------------------------------------------------
+  // Trim a string
+  //----------------------------------------------------------------------------
+  void Utils::Trim( std::string &str )
+  {
+    str.erase( str.begin(),
+               std::find_if( str.begin(), str.end(), isNotSpace ) );
+    str.erase( std::find_if( str.rbegin(), str.rend(), isNotSpace ).base(),
+               str.end() );
   }
 }

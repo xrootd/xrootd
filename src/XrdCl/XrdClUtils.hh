@@ -150,6 +150,23 @@ namespace XrdCl
       //! Convert the fully qualified host name to country code
       //------------------------------------------------------------------------
       static std::string FQDNToCC( const std::string &fqdn );
+
+      //------------------------------------------------------------------------
+      //! Get directory entries
+      //------------------------------------------------------------------------
+      static Status GetDirectoryEntries( std::vector<std::string> &entries,
+                                         const std::string        &path );
+
+      //------------------------------------------------------------------------
+      //! Process a config file and return key-value pairs
+      //------------------------------------------------------------------------
+      static Status ProcessConfig( std::map<std::string, std::string> &config,
+                                   const std::string                  &file );
+
+      //------------------------------------------------------------------------
+      //! Trim a string
+      //------------------------------------------------------------------------
+      static void Trim( std::string &str );
   };
 
   //----------------------------------------------------------------------------
