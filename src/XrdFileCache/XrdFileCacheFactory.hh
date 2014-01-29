@@ -34,7 +34,7 @@ class XrdSysError;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Contains all configurable parameters parsed by Factory class.
+   //! Configurable parameters.
    //----------------------------------------------------------------------------
    struct Configuration
    {
@@ -62,7 +62,7 @@ namespace XrdFileCache
 
 
    //----------------------------------------------------------------------------
-   //! Instantiates caching and decision plugin. Parses configuration file.
+   //! Instantiates Cache and Decision plugin. Parses configuration file.
    //----------------------------------------------------------------------------
    class Factory : public XrdOucCache
    {

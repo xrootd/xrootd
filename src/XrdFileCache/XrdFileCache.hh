@@ -38,8 +38,7 @@ namespace XrdFileCache
          Cache(XrdOucCacheStats&);
 
          //---------------------------------------------------------------------
-         //! \brief Attach must be called to obtain a new IO object or that fronts 
-         //! existing XrdOucCacheIO.
+         //! Obtain a new IO object or that fronts existing XrdOucCacheIO.
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0);
 
@@ -64,7 +63,7 @@ namespace XrdFileCache
 
 
    //----------------------------------------------------------------------------
-   //! Base IO class with implemented XrdOucCacheIO abstract methods.
+   //! Base cache-io class with implemented XrdOucCacheIO abstract methods.
    //----------------------------------------------------------------------------
    class IO : public XrdOucCacheIO
    {

@@ -32,7 +32,7 @@ class XrdOssDF;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Downloads original data into multiple files. Handles read requests.
+   //! Downloads original source into multiple files. Handles read requests.
    //----------------------------------------------------------------------------
    class IOFileBlock : public IO
    {

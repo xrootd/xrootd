@@ -25,7 +25,7 @@
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Statistics owned by Prefetch.
+   //! Disk-based cache statistics.
    //----------------------------------------------------------------------------
    class Stats : public XrdOucCacheStats
    {

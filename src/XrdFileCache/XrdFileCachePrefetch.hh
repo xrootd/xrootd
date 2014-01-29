@@ -27,7 +27,7 @@
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Downloads data into file on local disk and handles IO read requests.
+   //! Downloads data into file on a local disk and handles IO read requests.
    //----------------------------------------------------------------------------
 
    class Prefetch {
@@ -79,10 +79,10 @@ namespace XrdFileCache
             void Dump();
          };
 
-         //! AddTaskForRng adds a new task in queue.
+         //! Adds a new task in queue.
          void AddTaskForRng(long long offset, int size, XrdSysCondVar* cond);
 
-         //! GetStatForRng  Checks status of downloaded fragments
+         //! Checks status of downloaded fragments
          bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
 
          //! Stop Run thread.

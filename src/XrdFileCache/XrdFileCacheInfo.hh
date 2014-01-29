@@ -32,7 +32,7 @@ namespace XrdFileCache
    class Stats;
 
    //----------------------------------------------------------------------------
-   //! Status of cached file. Has utility to read and dump to binary info file.
+   //! Status of cached file. Has utility to read and dump content in binary file.
    //----------------------------------------------------------------------------
    class Info
    {
@@ -111,17 +111,17 @@ namespace XrdFileCache
          long long GetBufferSize() const;
 
          //---------------------------------------------------------------------
-         // Test if block at the given index is downlaoded
+         //! Test if block at the given index is downlaoded
          //---------------------------------------------------------------------
          bool TestBit(int i) const;
 
          //---------------------------------------------------------------------
-         //! Get is-complete status
+         //! Get complete status
          //---------------------------------------------------------------------
          bool IsComplete() const;
 
          //---------------------------------------------------------------------
-         //! Refresh complete status
+         //! Update complete status
          //---------------------------------------------------------------------
          void CheckComplete();
 
@@ -134,7 +134,7 @@ namespace XrdFileCache
 
       private:
          //---------------------------------------------------------------------
-         //! Written into *cinfo file each time cached data is accessed.
+         //! Cache statistics and time of access.
          //---------------------------------------------------------------------
          struct AStat
          {
