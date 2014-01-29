@@ -160,7 +160,7 @@ namespace XrdFileCache
    inline bool Info::TestBit(int i) const
    {
       int cn = i/8;
-      assert(cn < getSizeInBytes());
+      assert(cn < GetSizeInBytes());
 
       int off = i - cn*8;
       return (m_buff[cn] & cfiBIT(off)) == cfiBIT(off);
