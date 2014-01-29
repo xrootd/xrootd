@@ -122,7 +122,7 @@ namespace XrdFileCache
          std::queue<Task> m_tasks_queue; //!< download queue
          XrdSysMutex      m_quequeMutex;
 
-         Stats             m_stats;      //!< cache statistics, used in IO detach
+         Stats            m_stats;      //!< cache statistics, used in IO detach
    };
 }
 #endif

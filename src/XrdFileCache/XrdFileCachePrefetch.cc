@@ -446,7 +446,7 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
 {
    xfcMsgIO(kDump, &m_input, "Prefetch::Read()  off = %lld size = %lld.", off, size);
    int nbb;  // num of blocks needed
-   int nbp;  //  num of blocks pulled
+   int nbp;  // num of blocks pulled
    ssize_t retval = 0;
    if ( GetStatForRng(off, size, nbp, nbb))
    {
@@ -465,11 +465,26 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
 
       retval =  m_output->Read(buff, off, size);
 
+      // statistics
+      m_stats.m_BytesCached  += nbp * m_cfi.GetBufferSize();
+      m_stats.m_BytesRemote  += (nbb - nbp) * m_cfi.GetBufferSize();
 
-      m_stats.m_BytesCachedPrefetch += nbp * m_cfi.GetBufferSize();
-      m_stats.m_BytesPrefetch       += (nbb - nbp) * m_cfi.GetBufferSize();
-      m_stats.m_HitsPrefetch        += nbp;
-      m_stats.m_HitsDisk            += nbb-nbp;
+      if (nbp == nbb)
+      {
+         m_stats.m_HitsCached  += 1;
+         m_stats.m_HitsPartial[11] += 1;
+      }
+      else if (nbp == 0)
+      {
+         m_stats.m_HitsRemote  += 1;
+         m_stats.m_HitsPartial[0] += 1;
+      }
+      else
+      {
+         // [0] - 0;   [1] 0-10%, [2] 10-20% .... [10] 90-100%; [11] 100%
+         int idx = (nbb - nbp)*10/nbb;
+         m_stats.m_HitsPartial[idx] += 1;
+      }
    }
    else
    {
