@@ -42,6 +42,7 @@ namespace
     { errOSError,            "OS Error"             },
     { errNotSupported,       "Operation not supported" },
     { errDataError,          "Received corrupted data" },
+    { errNotImplemented,     "Operation is not implemented" },
     { errInvalidAddr,        "Invalid address"      },
     { errSocketError,        "Socket error"         },
     { errSocketTimeout,      "Socket timeout"       },
