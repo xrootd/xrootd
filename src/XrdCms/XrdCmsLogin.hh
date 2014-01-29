@@ -54,6 +54,7 @@ private:
 static int Authenticate(XrdLink *Link, XrdCms::CmsLoginData &Data);
 static int Emsg(XrdLink *, const char *, int ecode=XrdCms::kYR_EINVAL);
 static int sendData(XrdLink *Link, XrdCms::CmsLoginData &Data);
+static int SendErrorBL(XrdLink *Link);
 
          char       *myBuff;
          int         myBlen;

@@ -37,7 +37,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      SIDManager(): pSIDCeiling(0) {}
+      SIDManager(): pSIDCeiling(1) {}
 
       //------------------------------------------------------------------------
       //! Allocate a SID
@@ -80,6 +80,11 @@ namespace XrdCl
         XrdSysMutexHelper scopedLock( pMutex );
         return pTimeOutSIDs.size();
       }
+
+      //------------------------------------------------------------------------
+      //! Number of allocated streams
+      //------------------------------------------------------------------------
+      uint16_t GetNumberOfAllocatedSIDs() const;
 
     private:
       std::list<uint16_t>  pFreeSIDs;

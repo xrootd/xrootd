@@ -48,6 +48,7 @@
 
 #include "XrdCms/XrdCmsAdmin.hh"
 #include "XrdCms/XrdCmsBaseFS.hh"
+#include "XrdCms/XrdCmsBlackList.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
 #include "XrdCms/XrdCmsConfig.hh"
@@ -494,6 +495,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("adminpath",     xapath);  // Any,     non-dynamic
    TS_Xeq("allow",         xallow);  // Manager, non-dynamic
    TS_Xeq("altds",         xaltds);  // Server,  non-dynamic
+   TS_Xeq("blacklist",     xblk);    // Manager, non-dynamic
    TS_Xeq("defaults",      xdefs);   // Server,  non-dynamic
    TS_Xeq("dfs",           xdfs);    // Any,     non-dynamic
    TS_Xeq("export",        xexpo);   // Any,     non-dynamic
@@ -743,6 +745,8 @@ void XrdCmsConfig::ConfigDefaults(void)
    XmiPath     = 0;
    XmiParms    = 0;
    DirFlags    = 0;
+   blkList     = 0;
+   blkChk      = 600;
    SecLib      = 0;
    ossLib      = 0;
    ossParms    = 0;
@@ -1061,6 +1065,10 @@ int XrdCmsConfig::setupManager()
 // Initialize the security interface
 //
    if (SecLib && !XrdCmsSecurity::Configure(SecLib, ConfigFN)) return 1;
+
+// Initialize the black list
+//
+   if (!isServer) XrdCmsBlackList::Init(Sched, &Cluster, blkList, blkChk);
 
 // All done
 //
@@ -1386,6 +1394,56 @@ int XrdCmsConfig::xapath(XrdSysError *eDest, XrdOucStream &CFile)
    return 0;
 }
 
+/******************************************************************************/
+/*                                  x b l k                                   */
+/******************************************************************************/
+
+/* Function: xblk
+
+   Purpose:  To parse the directive: blacklist [check <time> [path]] | <path>
+
+             <time>    how often to check for black list changes.
+             <path>    the path to the blacklist file
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdCmsConfig::xblk(XrdSysError *eDest, XrdOucStream &CFile)
+{
+   char *val = CFile.GetWord();
+
+// We only support this for managers
+//
+   if (!isManager || isServer) return CFile.noEcho();
+
+// See if a time was specified
+//
+   if (val && !strcmp(val, "check"))
+      {if (!(val = CFile.GetWord()) || !val[0])
+          {eDest->Emsg("Config", "blacklist check interval not specified");
+           return 1;
+          }
+       if (XrdOuca2x::a2tm(*eDest, "check value", val, &blkChk, 60)) return 1;
+       if (!(val = CFile.GetWord()))
+          {if (blkList) {free(blkList); blkList = 0;}
+           return 0;
+          }
+      }
+
+// Verify the path it must be absolute
+//
+   if (!val || !val[0])
+      {eDest->Emsg("Config", "blacklist path not specified"); return 1;}
+   if (*val != '/')
+      {eDest->Emsg("Config", "blacklist path not absolute"); return 1;}
+
+// Record the path
+//
+   if (blkList) free(blkList);
+   blkList = strdup(val);
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                x d e l a y                                 */
 /******************************************************************************/

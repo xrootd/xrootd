@@ -62,6 +62,15 @@ Move path1 to path2 locally on the same server.
 \fBstat\fR \fI<path>\fR
 .RS 3
 Get info about the file or directory.
+.br
+\fI-q\fR query optional flag query parameter that makes
+xrdfs return error code to the shell if the
+requested flag combination is not present;
+flags may be combined together using '|' or '&'
+.br
+Available flags:
+\fBXBitSet\fR, \fBIsDir\fR, \fBOther\fR, \fBOffline\fR, \fBPOSCPending\fR,
+\fBIsReadable\fR, \fBIsWriteable\fR
 
 .RE
 \fBstatvfs\fR \fI<path>\fR
@@ -103,6 +112,21 @@ Remove a directory.
 \fBtruncate\fR \fI<filename> <length>\fR
 .RS 3
 Truncate a file.
+
+.RE
+\fBprepare\fR \fI[-c]\fR \fI[-f]\fR \fI[-s]\fR \fI[-w]\fR \fI[-p priority]\fR \fIfilenames\fR
+.RS 3
+Prepare one or more files for access.
+.br
+\fI-c\fR co-locate staged files if possible
+.br
+\fI-f\fR refresh file access time even if the location is known
+.br
+\fI-s\fR stage the files to disk if they are not online
+.br
+\fI-w\fR whe files will be accessed for modification
+.br
+\fI-p\fR priority of the request, 0 (lowest) - 3 (highest)
 
 .SH NOTES
 For the list of available environment variables please refere to xrdcopy(1)

@@ -1130,7 +1130,7 @@ int XrdSys::IOEvents::Poller::TmoGet()
 
 void XrdSys::IOEvents::Poller::WakeUp()
 {
-   static PipeData cmdbuff = {PipeData::NoOp, 0, 0, 0, 0};
+   static PipeData cmdbuff(PipeData::NoOp);
 
 // Send it off to wakeup the poller thread, but only if here is no wakeup in
 // progress.

@@ -30,7 +30,6 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysUtils.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -420,9 +419,42 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if the stream should be disconnected
   //----------------------------------------------------------------------------
-  bool XRootDTransport::IsStreamTTLElapsed( time_t     /*inactiveTime*/,
-                                            AnyObject &/*channelData*/ )
+  bool XRootDTransport::IsStreamTTLElapsed( time_t     inactiveTime,
+                                            AnyObject &channelData )
   {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    Env *env = DefaultEnv::GetEnv();
+    Log *log = DefaultEnv::GetLog();
+
+    XrdSysMutexHelper scopedLock( info->mutex );
+
+    //--------------------------------------------------------------------------
+    // Check the TTL settings for the current server
+    //--------------------------------------------------------------------------
+    int ttl;
+    if( info->serverFlags & kXR_isServer )
+    {
+      ttl = DefaultDataServerTTL;
+      env->GetInt( "DataServerTTL", ttl );
+    }
+    else
+    {
+      ttl = DefaultLoadBalancerTTL;
+      env->GetInt( "LoadBalancerTTL", ttl );
+    }
+
+    //--------------------------------------------------------------------------
+    // See whether we can give a go-ahead for the disconnection
+    //--------------------------------------------------------------------------
+    uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
+    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
+               "TTL: %d, allocated SIDs: %d", info->streamName.c_str(),
+               inactiveTime, ttl, allocatedSIDs );
+
+    if( !allocatedSIDs && inactiveTime > ttl )
+      return true;
+
     return false;
   }
 
@@ -1056,6 +1088,7 @@ namespace XrdCl
                                            XRootDChannelInfo * )
   {
     Log *log = DefaultEnv::GetLog();
+    Env *env = DefaultEnv::GetEnv();
 
     //--------------------------------------------------------------------------
     // Compute the login cgi
@@ -1065,8 +1098,10 @@ namespace XrdCl
     std::string countryCode = Utils::FQDNToCC( hostName );
     free( hostName );
     char *cgiBuffer = new char[1024];
+    std::string appName;
+    env->GetString( "AppName", appName );
     snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s",
-              countryCode.c_str(), timeZone, XrdSysUtils::ExecName() );
+              countryCode.c_str(), timeZone, appName.c_str() );
     uint16_t cgiLen = strlen( cgiBuffer );
 
     //--------------------------------------------------------------------------

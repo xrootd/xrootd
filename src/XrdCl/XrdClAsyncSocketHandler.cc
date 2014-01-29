@@ -58,6 +58,7 @@ namespace XrdCl
 
     pSocket = new Socket();
     pIncHandler = std::make_pair( (IncomingMsgHandler*)0, false );
+    pLastActivity = time(0);
   }
 
   //----------------------------------------------------------------------------
@@ -75,7 +76,7 @@ namespace XrdCl
   Status AsyncSocketHandler::Connect( time_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
-    pConnectionStarted = ::time(0);
+    pLastActivity = pConnectionStarted = ::time(0);
     pConnectionTimeout = timeout;
 
     //--------------------------------------------------------------------------
@@ -166,6 +167,8 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
+    pLastActivity = time(0);
+
     //--------------------------------------------------------------------------
     // Read event
     //--------------------------------------------------------------------------

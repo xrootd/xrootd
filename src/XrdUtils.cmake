@@ -6,8 +6,6 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( XRD_UTILS_VERSION   1.0.0 )
 set( XRD_UTILS_SOVERSION 1 )
-set( XRD_MAIN_VERSION    1.0.0 )
-set( XRD_MAIN_SOVERSION  1 )
 set( XRD_ZCRC32_VERSION   1.0.0 )
 set( XRD_ZCRC32_SOVERSION 1 )
 
@@ -144,10 +142,8 @@ add_library(
                                 Xrd/XrdPollE.icc
                                 Xrd/XrdPollPoll.hh
                                 Xrd/XrdPollPoll.icc
-  Xrd/XrdProtLoad.cc            Xrd/XrdProtLoad.hh
   Xrd/XrdProtocol.cc            Xrd/XrdProtocol.hh
   Xrd/XrdScheduler.cc           Xrd/XrdScheduler.hh
-  Xrd/XrdStats.cc               Xrd/XrdStats.hh
                                 Xrd/XrdTrace.hh
 
   #-----------------------------------------------------------------------------
@@ -215,25 +211,8 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
-# The helper lib
-#-------------------------------------------------------------------------------
-add_library(
-  XrdMain
-  SHARED
-  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
-  Xrd/XrdMain.cc )
-
-target_link_libraries( XrdMain XrdUtils pthread )
-
-set_target_properties(
-  XrdMain
-  PROPERTIES
-  VERSION   ${XRD_MAIN_VERSION}
-  SOVERSION ${XRD_MAIN_SOVERSION} )
-
-#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils XrdMain XrdCksCalczcrc32
+  TARGETS XrdUtils XrdCksCalczcrc32
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

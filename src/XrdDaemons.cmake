@@ -2,44 +2,18 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# xrdcp
+# xrootd
 #-------------------------------------------------------------------------------
 add_executable(
   xrootd
-  XrdXrootd/XrdXrootdAdmin.cc           XrdXrootd/XrdXrootdAdmin.hh
-  XrdXrootd/XrdXrootdAio.cc             XrdXrootd/XrdXrootdAio.hh
-  XrdXrootd/XrdXrootdBridge.cc          XrdXrootd/XrdXrootdBridge.hh
-  XrdXrootd/XrdXrootdCallBack.cc        XrdXrootd/XrdXrootdCallBack.hh
-  XrdXrootd/XrdXrootdConfig.cc
-  XrdXrootd/XrdXrootdFile.cc            XrdXrootd/XrdXrootdFile.hh
-                                        XrdXrootd/XrdXrootdFileLock.hh
-  XrdXrootd/XrdXrootdFileLock1.cc       XrdXrootd/XrdXrootdFileLock1.hh
-                                        XrdXrootd/XrdXrootdFileStats.hh
-  XrdXrootd/XrdXrootdJob.cc             XrdXrootd/XrdXrootdJob.hh
-  XrdXrootd/XrdXrootdLoadLib.cc
-                                        XrdXrootd/XrdXrootdMonData.hh
-  XrdXrootd/XrdXrootdMonFile.cc         XrdXrootd/XrdXrootdMonFile.hh
-  XrdXrootd/XrdXrootdMonFMap.cc         XrdXrootd/XrdXrootdMonFMap.hh
-  XrdXrootd/XrdXrootdMonitor.cc         XrdXrootd/XrdXrootdMonitor.hh
-
-  XrdXrootd/XrdXrootdPio.cc             XrdXrootd/XrdXrootdPio.hh
-  XrdXrootd/XrdXrootdPrepare.cc         XrdXrootd/XrdXrootdPrepare.hh
-  XrdXrootd/XrdXrootdProtocol.cc        XrdXrootd/XrdXrootdProtocol.hh
-  XrdXrootd/XrdXrootdResponse.cc        XrdXrootd/XrdXrootdResponse.hh
-                                        XrdXrootd/XrdXrootdStat.icc
-  XrdXrootd/XrdXrootdStats.cc           XrdXrootd/XrdXrootdStats.hh
-  XrdXrootd/XrdXrootdTransit.cc         XrdXrootd/XrdXrootdTransit.hh
-  XrdXrootd/XrdXrootdTransPend.cc       XrdXrootd/XrdXrootdTransPend.hh
-  XrdXrootd/XrdXrootdTransSend.cc       XrdXrootd/XrdXrootdTransSend.hh
-  XrdXrootd/XrdXrootdXeq.cc
-  XrdXrootd/XrdXrootdXeqAio.cc
-                                        XrdXrootd/XrdXrootdTrace.hh
-                                        XrdXrootd/XrdXrootdXPath.hh
-                                        XrdXrootd/XrdXrootdReqID.hh )
+  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
+  Xrd/XrdProtLoad.cc            Xrd/XrdProtLoad.hh
+  Xrd/XrdStats.cc               Xrd/XrdStats.hh
+  Xrd/XrdMain.cc )
 
 target_link_libraries(
   xrootd
-  XrdMain
+  XrdXrootd
   XrdOfs
   XrdUtils
   dl
@@ -52,6 +26,10 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 add_executable(
   cmsd
+  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
+  Xrd/XrdProtLoad.cc            Xrd/XrdProtLoad.hh
+  Xrd/XrdStats.cc               Xrd/XrdStats.hh
+  Xrd/XrdMain.cc
   XrdCms/XrdCmsAdmin.cc           XrdCms/XrdCmsAdmin.hh
   XrdCms/XrdCmsBaseFS.cc          XrdCms/XrdCmsBaseFS.hh
   XrdCms/XrdCmsCache.cc           XrdCms/XrdCmsCache.hh
@@ -78,7 +56,6 @@ add_executable(
 target_link_libraries(
   cmsd
   XrdServer
-  XrdMain
   XrdUtils
   pthread
   ${EXTRA_LIBS}

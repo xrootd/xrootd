@@ -29,6 +29,8 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysUtils.hh"
 
+#include <libgen.h>
+#include <cstring>
 #include <map>
 #include <pthread.h>
 #include <sys/types.h>
@@ -153,10 +155,17 @@ namespace XrdCl
     PutInt( "WorkerThreads",         DefaultWorkerThreads        );
     PutInt( "CPChunkSize",           DefaultCPChunkSize          );
     PutInt( "CPParallelChunks",      DefaultCPParallelChunks     );
+    PutInt( "DataServerTTL",         DefaultDataServerTTL        );
+    PutInt( "LoadBalancerTTL",       DefaultLoadBalancerTTL      );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
     PutString( "NetworkStack",       DefaultNetworkStack         );
+
+    char *tmp = strdup( XrdSysUtils::ExecName() );
+    char *appName = basename( tmp );
+    PutString( "AppName", appName );
+    free( tmp );
 
     ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
     ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
@@ -169,10 +178,13 @@ namespace XrdCl
     ImportInt(    "WorkerThreads",        "XRD_WORKERTHREADS"        );
     ImportInt(    "CPChunkSize",          "XRD_CPCHUNKSIZE"          );
     ImportInt(    "CPParallelChunks",     "XRD_CPPARALLELCHUNKS"     );
+    ImportInt(    "DataServerTTL",        "XRD_DATASERVERTTL"        );
+    ImportInt(    "LoadBalancerTTL",      "XRD_LOADBALANCERTTL"      );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
     ImportString( "NetworkStack",         "XRD_NETWORKSTACK"         );
+    ImportString( "AppName",              "XRD_APPNAME"              );
   }
 
   //----------------------------------------------------------------------------

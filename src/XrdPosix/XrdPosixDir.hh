@@ -77,6 +77,8 @@ static int         dirNo(DIR *dirP)  {return *(int *)dirP;}
 
        bool        Unread() {return myDirVec == 0;}
 
+       using       XrdPosixObject::Who;
+
        bool        Who(XrdPosixDir **dirP) {*dirP = this; return true;}
 
 static const size_t maxDlen = 256;

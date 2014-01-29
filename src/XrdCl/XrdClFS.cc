@@ -22,6 +22,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -710,6 +711,70 @@ XRootDStatus DoLocate( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Process stat query
+//------------------------------------------------------------------------------
+XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
+{
+  Log *log = DefaultEnv::GetLog();
+
+  //----------------------------------------------------------------------------
+  // Process the query
+  //----------------------------------------------------------------------------
+  bool isOrQuery = false;
+  bool status    = true;
+  if( query.find( '|' ) != std::string::npos )
+  {
+    isOrQuery = true;
+    status    = false;
+  }
+  std::vector<std::string> queryFlags;
+  if( isOrQuery )
+    Utils::splitString( queryFlags, query, "|" );
+  else
+    Utils::splitString( queryFlags, query, "&" );
+
+  //----------------------------------------------------------------------------
+  // Initialize flag translation map and check the input flags
+  //----------------------------------------------------------------------------
+  std::map<std::string, StatInfo::Flags> flagMap;
+  flagMap["XBitSet"]     = StatInfo::XBitSet;
+  flagMap["IsDir"]       = StatInfo::IsDir;
+  flagMap["Other"]       = StatInfo::Other;
+  flagMap["Offline"]     = StatInfo::Offline;
+  flagMap["POSCPending"] = StatInfo::POSCPending;
+  flagMap["IsReadable"]  = StatInfo::IsReadable;
+  flagMap["IsWritable"]  = StatInfo::IsWritable;
+
+  std::vector<std::string>::iterator it;
+  for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+    if( flagMap.find( *it ) == flagMap.end() )
+    {
+      log->Error( AppMsg, "Flag '%s' is not recognized.", it->c_str() );
+      return XRootDStatus( stError, errInvalidArgs );
+    }
+
+  //----------------------------------------------------------------------------
+  // Process the query
+  //----------------------------------------------------------------------------
+  if( isOrQuery )
+  {
+    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+      if( info->TestFlags( flagMap[*it] ) )
+        return XRootDStatus();
+  }
+  else
+  {
+    for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
+      if( !info->TestFlags( flagMap[*it] ) )
+        return XRootDStatus( stError, errResponseNegative );
+  }
+
+  if( status )
+    return XRootDStatus();
+  return XRootDStatus( stError, errResponseNegative );
+}
+
+//------------------------------------------------------------------------------
 // Stat a path
 //------------------------------------------------------------------------------
 XRootDStatus DoStat( FileSystem                      *fs,
@@ -722,14 +787,36 @@ XRootDStatus DoStat( FileSystem                      *fs,
   Log         *log     = DefaultEnv::GetLog();
   uint32_t     argc    = args.size();
 
-  if( argc != 2 )
+  if( argc != 2 && argc != 4 )
   {
     log->Error( AppMsg, "Wrong number of arguments." );
     return XRootDStatus( stError, errInvalidArgs );
   }
 
+  std::string path;
+  std::string query;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-q" )
+    {
+      if( i < args.size()-1 )
+      {
+        query = args[i+1];
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-q' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else
+      path = args[i];
+  }
+
   std::string fullPath;
-  if( !BuildPath( fullPath, env, args[1] ).IsOK() )
+  if( !BuildPath( fullPath, env, path ).IsOK() )
   {
     log->Error( AppMsg, "Invalid path." );
     return XRootDStatus( stError, errInvalidArgs );
@@ -772,14 +859,19 @@ XRootDStatus DoStat( FileSystem                      *fs,
   if( !flags.empty() )
     flags.erase( flags.length()-1, 1 );
 
-  std::cout << "Path:  " << fullPath << std::endl;
-  std::cout << "Id:    " << info->GetId() << std::endl;
-  std::cout << "Size:  " << info->GetSize() << std::endl;
-  std::cout << "Flags: " << info->GetFlags() << " (" << flags << ")";
+  std::cout << "Path:   " << fullPath << std::endl;
+  std::cout << "Id:     " << info->GetId() << std::endl;
+  std::cout << "Size:   " << info->GetSize() << std::endl;
+  std::cout << "Flags:  " << info->GetFlags() << " (" << flags << ")";
   std::cout << std::endl;
+  if( query.length() != 0 )
+  {
+    st = ProcessStatQuery( info, query );
+    std::cout << "Query:  " << query << " " << std::endl;
+  }
 
   delete info;
-  return XRootDStatus();
+  return st;
 }
 
 //------------------------------------------------------------------------------
@@ -925,6 +1017,78 @@ XRootDStatus DoQuery( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Query the server
+//------------------------------------------------------------------------------
+XRootDStatus DoPrepare( FileSystem                      *fs,
+                        Env                             *env,
+                        const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc < 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  PrepareFlags::Flags      flags    = PrepareFlags::None;
+  std::vector<std::string> files;
+  uint8_t                  priority = 0;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-p" )
+    {
+      if( i < args.size()-1 )
+      {
+        char *result;
+        int32_t param = ::strtol( args[i+1].c_str(), &result, 0 );
+        if( *result != 0 || param > 3 || param < 0 )
+        {
+          log->Error( AppMsg, "Size priotiry needs to be an integer between 0 "
+                      "and 3" );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+        priority = (uint8_t)param;
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-p' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else if( args[i] == "-c" )
+      flags |= PrepareFlags::Colocate;
+    else if( args[i] == "-f" )
+      flags |= PrepareFlags::Fresh;
+    else if( args[i] == "-s" )
+      flags |= PrepareFlags::Stage;
+    else if( args[i] == "-w" )
+      flags |= PrepareFlags::WriteMode;
+    else
+      files.push_back( args[i] );
+  }
+
+  //----------------------------------------------------------------------------
+  // Run the command
+  //----------------------------------------------------------------------------
+  Buffer *response = 0;
+  XRootDStatus st = fs->Prepare( files, flags, priority, response );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Prepare request failed: %s", st.ToStr().c_str() );
+    return st;
+  }
+  delete response;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -963,8 +1127,15 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   mv <path1> <path2>\n"                                         );
   printf( "     Move path1 to path2 locally on the same server.\n\n"        );
 
-  printf( "   stat <path>\n"                                                );
-  printf( "     Get info about the file or directory.\n\n"                  );
+  printf( "   stat [-q query] <path>\n"                                     );
+  printf( "     Get info about the file or directory.\n"                    );
+  printf( "     -q query optional flag query parameter that makes\n"        );
+  printf( "              xrdfs return error code to the shell if the\n"     );
+  printf( "              requested flag combination is not present;\n"      );
+  printf( "              flags may be combined together using '|' or '&'\n" );
+  printf( "              Available flags:\n"                                );
+  printf( "              XBitSet, IsDir, Other, Offline, POSCPending,\n"    );
+  printf( "              IsReadable, IsWriteable\n\n"                       );
 
   printf( "   statvfs <path>\n"                                             );
   printf( "     Get info about a virtual file system.\n\n"                  );
@@ -990,6 +1161,14 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "   truncate <filename> <length>\n"                               );
   printf( "     Truncate a file.\n\n"                                       );
 
+  printf( "   prepare [-c] [-f] [-s] [-w] [-p priority] filenames\n"        );
+  printf( "     Prepare one or more files for access.\n"                    );
+  printf( "     -c co-locate staged files if possible\n"                    );
+  printf( "     -f refresh file access time even if the location is known\n" );
+  printf( "     -s stage the files to disk if they are not online\n"        );
+  printf( "     -w whe files will be accessed for modification\n"           );
+  printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
+
   return XRootDStatus();
 }
 
@@ -1014,6 +1193,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "rmdir",       DoRmDir      );
   executor->AddCommand( "query",       DoQuery      );
   executor->AddCommand( "truncate",    DoTruncate   );
+  executor->AddCommand( "prepare",     DoPrepare    );
   return executor;
 }
 

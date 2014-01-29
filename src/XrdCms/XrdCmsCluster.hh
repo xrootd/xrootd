@@ -99,6 +99,7 @@ int       sUtil;    // Average utilization
 //
 class XrdCmsBaseFR;
 class XrdCmsSelected;
+class XrdOucTList;
 
 class XrdCmsCluster
 {
@@ -111,6 +112,10 @@ int             NodeCnt;       // Number of active nodes
 //
 XrdCmsNode     *Add(XrdLink *lp, int dport, int Status,
                     int sport, const char *theNID, const char *theIF);
+
+// Put nodes in or remove from a blacklist
+//
+virtual void    BlackList(XrdOucTList *blP);
 
 // Sends a message to all nodes matching smask (three forms for convenience)
 //
@@ -184,7 +189,7 @@ int             Stats(char *bfr, int bln); // Server
 int             Statt(char *bfr, int bln); // Manager
 
                 XrdCmsCluster();
-               ~XrdCmsCluster() {} // This object should never be deleted
+virtual        ~XrdCmsCluster() {} // This object should never be deleted
 
 private:
 int         Assign(const char *Cid);

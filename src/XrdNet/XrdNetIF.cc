@@ -458,14 +458,20 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
 {
    XrdNetAddrInfo *netIF[2] = {0,0};
    XrdNetAddr      netAdr[2];
-   const char *ifErr, *ifBeg = ifList, *ifEnd, *ifAdr, *ifBad = 0;
-   int i, n, ifNum = 1;
+   const char *ifErr = 0, *ifBeg = ifList, *ifEnd, *ifAdr, *ifBad = 0;
+   int i, n, ifCnt = 1;
    char abuff[64];
 
 // If no list is supplied then fill out based on the source address
 //
    if (!(ifPort = src->Port())) ifPort = dfPort;
    if (!ifList || !(*ifList)) return GenIF(&src, 1);
+
+// Prefrentially use the connect address as the primary interface. This
+// avoids using reported interfaces that may have strange routing.
+//
+   if (src->isPrivate()) {if (!netIF[1]) netIF[1] = src;}
+      else               {if (!netIF[0]) netIF[0] = src;}
 
 // Process the iflist (up to two interfaces)
 //
@@ -479,21 +485,18 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
                    else {strncpy(abuff, ifBeg, n); abuff[n] = 0; ifAdr = abuff;}
                 ifBeg = ifEnd+1;
                }
-       if (!ifAdr || (ifErr = netAdr[ifNum].Set(ifAdr, ifPort)))
+       if (!ifAdr || (ifErr = netAdr[ifCnt].Set(ifAdr, ifPort)))
           {if (eDest)
               {if (!ifAdr) ifAdr = ifBad;
                eDest->Emsg("SetIF", "Unable to use interface", ifAdr, ifErr);
               }
            continue;
           }
-       i = (netAdr[ifNum].isPrivate() ? 1 : 0);
-       if (!netIF[i]) netIF[i] = &netAdr[ifNum--];
-      } while(ifNum >= 0);
-
-// Check if we need to add the reporting interface
-//
-   if (src->isPrivate()) {if (!netIF[1]) netIF[1] = src;}
-      else               {if (!netIF[0]) netIF[0] = src;}
+       i = (netAdr[ifCnt].isPrivate() ? 1 : 0);
+       if (!netIF[i] || (netAdr[ifCnt].isIPType(XrdNetAddrInfo::IPv4)
+                         &&  netIF[i]->isIPType(XrdNetAddrInfo::IPv6)))
+          netIF[i] = &netAdr[ifCnt--];
+      } while(ifCnt >= 0);
 
 // Set the interface data
 //

@@ -96,6 +96,7 @@ public:
 
         int            close();
 
+        using          XrdSfsFile::fctl;
         int            fctl(const int               cmd,
                             const char             *args,
                                   XrdOucErrInfo    &out_error);

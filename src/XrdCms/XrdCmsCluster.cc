@@ -43,6 +43,7 @@
 #include "Xrd/XrdScheduler.hh"
 
 #include "XrdCms/XrdCmsBaseFS.hh"
+#include "XrdCms/XrdCmsBlackList.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsCluster.hh"
@@ -248,6 +249,43 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
    return nP;
 }
 
+/******************************************************************************/
+/*                             B l a c k L i s t                              */
+/******************************************************************************/
+
+void XrdCmsCluster::BlackList(XrdOucTList *blP)
+{
+   XrdCmsNode *nP;
+   int i;
+   bool inBL;
+
+// Obtain a lock on the table
+//
+   STMutex.Lock();
+
+// Run through the table looking to put or out of the blacklist
+//
+   for (i = 0; i <= STHi; i++)
+       {if ((nP = NodeTab[i]))
+           {inBL = (blP && XrdCmsBlackList::Present(nP->Name(), blP));
+            if ((inBL && nP->isDisable == 2) || (!inBL && nP->isDisable != 2))
+               continue;
+            nP->Lock();
+            STMutex.UnLock();
+            if (inBL)
+               {nP->isDisable = 2;
+                Say.Emsg("Manager", nP->Name(), "blacklisted.");
+               } else {
+                nP->isDisable = 0;
+                Say.Emsg("Manager", nP->Name(), "removed from blacklist.");
+               }
+            nP->UnLock();
+            STMutex.Lock();
+           }
+       }
+   STMutex.UnLock();
+}
+  
 /******************************************************************************/
 /*                             B r o a d c a s t                              */
 /******************************************************************************/
@@ -532,6 +570,21 @@ int XrdCmsCluster::Locate(XrdCmsSelect &Sel)
    if (Sel.InfoP)
       {Sel.InfoP->rwVec = pinfo.rwvec;
        Sel.InfoP->isLU  = 1;
+      }
+
+// If we are running a shared file system preform an optional restricted
+// pre-selection and then do a standard selection.
+//
+   if (baseFS.isDFS())
+      {SMask_t amask, smask, pmask;
+       amask = pmask = pinfo.rovec;
+       smask = (Sel.Opts & XrdCmsSelect::Online ? 0 : pinfo.ssvec & amask);
+       Sel.Resp.DLen = 0;
+       if (!(retc = SelDFS(Sel, amask, pmask, smask, 1)))
+          return (Sel.Opts & XrdCmsSelect::Asap && Sel.InfoP
+                ? Cache.WT4File(Sel,Sel.Vec.hf) : Config.LUPDelay);
+       if (retc < 0) return -1;
+       return 0;
       }
 
 // First check if we have seen this file before. If so, get nodes that have it.

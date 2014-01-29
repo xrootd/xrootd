@@ -63,6 +63,12 @@
 /*            E x t e r n a l   T h r e a d   I n t e r f a c e s             */
 /******************************************************************************/
 
+void  *XrdSysLoggerMN(void *carg)
+      {XrdSysLogger::Task *tP = (XrdSysLogger::Task *)carg;
+       while(tP) {tP->Ring(); tP = tP->Next();}
+       return (void *)0;
+      }
+
 struct XrdSysLoggerRP
       {XrdSysLogger   *logger;
        XrdSysSemaphore active;
@@ -94,6 +100,7 @@ XrdSysLogger::XrdSysLogger(int ErrFD, int dorotate)
    eKeep = 0;
    doLFR = (dorotate != 0);
    msgList = 0;
+   taskQ   = 0;
    lfhTID  = 0;
    hiRes   = false;
    fifoFN  = 0;
@@ -140,6 +147,21 @@ void XrdSysLogger::AddMsg(const char *msg)
    Logger_Mutex.UnLock();
 }
   
+/******************************************************************************/
+/*                            A t M i d n i g h t                             */
+/******************************************************************************/
+  
+void XrdSysLogger::AtMidnight(XrdSysLogger::Task *mnTask)
+{
+
+// Place this task on the task queue
+//
+   Logger_Mutex.Lock();
+   mnTask->next = taskQ;
+   taskQ = mnTask;
+   Logger_Mutex.UnLock();
+}
+
 /******************************************************************************/
 /*                                  B i n d                                   */
 /******************************************************************************/
@@ -592,7 +614,9 @@ void XrdSysLogger::zHandler()
 {
    mmMsg   *mP;
    sigset_t sigset;
+   pthread_t tid;
    int      signo, rc;
+   Task     *tP;
 
 // If we will be handling via signals, set it up now
 //
@@ -627,6 +651,17 @@ void XrdSysLogger::zHandler()
               {putEmsg(mP->msg, mP->mlen);
                mP = mP->next;
               }
+         tP = taskQ;
          Logger_Mutex.UnLock();
+
+         if (tP)
+            {if (XrdSysThread::Run(&tid, XrdSysLoggerMN, (void *)tP, 0,
+                                   "Midnight Ringer Task"))
+                {char eBuff[256];
+                 rc = sprintf(eBuff, "Error %d (%s) running ringer task.\n",
+                                     errno, strerror(errno));
+                 putEmsg(eBuff, rc);
+                }
+            }
         }
 }

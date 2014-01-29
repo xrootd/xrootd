@@ -121,7 +121,16 @@ int XrdXrootdStats::Stats(char *buff, int blen, int do_sync)
   
 int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
 {
-    int i, xopts = 0;
+    class statsInfo : public XrdStats::CallBack
+         {public:  void Info(const char *buff, int bsz)
+                            {rc = respP->Send((void *)buff, bsz+1);}
+                        statsInfo(XrdXrootdResponse *rP) : respP(rP), rc(0) {}
+                       ~statsInfo() {}
+          XrdXrootdResponse *respP;
+          int rc;
+         };
+    statsInfo statsResp(&resp);
+    int xopts = 0;
 
     while(*opts)
          {switch(*opts)
@@ -140,8 +149,6 @@ int XrdXrootdStats::Stats(XrdXrootdResponse &resp, const char *opts)
 
     if (!xopts) return resp.Send();
 
-    xstats->Lock();
-    i = resp.Send(xstats->Stats(xopts));
-    xstats->UnLock();
-    return i;
+    xstats->Stats(&statsResp, xopts);
+    return statsResp.rc;
 }

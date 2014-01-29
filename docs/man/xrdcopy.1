@@ -204,7 +204,8 @@ The \fIabsolutepath\fR can be a directory.
 .RE
 
 .SH ENVIRONMENT
-The following environment variables are supported.
+The following environment variables are supported. They apply to xrdfs and any
+other application using the libXrdCl library, unless specified otherwise.
 .br
 
 XRD_LOGLEVEL
@@ -339,7 +340,23 @@ addresses
 
 .B IPv4Mapped6
 - use IPv6 stack and mapped IPv4 addresses
+.RE
 
+XRD_DATASERVERTTL
+.RS 5
+Time period after which an idle connection to a data server should be
+closed.
+.RE
+
+XRD_LOADBALANCERTTL
+.RS 5
+Time period after which an idle connection to a manager or a load balancer
+should be closed.
+.RE
+
+XRD_APPNAME
+.RS 5
+Override the application name reported to the server.
 .RE
 
 .SH NOTES

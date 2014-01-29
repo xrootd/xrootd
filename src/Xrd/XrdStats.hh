@@ -54,20 +54,24 @@ public:
 
 void  Report(char **Dest=0, int iVal=600, int Opts=0);
 
-void  Lock() {statsMutex.Lock();}       // Call before doing Stats()
+class CallBack
+     {public: virtual void Info(const char *data, int dlen) = 0;
+                           CallBack() {}
+              virtual     ~CallBack() {}
+     };
 
-const char *Stats(int opts);
-
-void  UnLock() {statsMutex.UnLock();}   // Call after inspecting buffer
+virtual
+void  Stats(CallBack *InfoBack, int opts);
 
       XrdStats(XrdSysError *eP, XrdScheduler *sP, XrdBuffManager *bP,
                const char *hn, int port, const char *in, const char *pn,
                const char *sn);
 
-     ~XrdStats() {if (buff) free(buff);}
+virtual ~XrdStats() {if (buff) free(buff);}
 
 private:
 
+const char *GenStats(int &rsz, int opts);
 int        InfoStats(char *buff, int blen, int dosync=0);
 int        ProcStats(char *buff, int blen, int dosync=0);
 

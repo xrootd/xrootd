@@ -78,6 +78,7 @@ add_library(
   #-----------------------------------------------------------------------------
   # XrdCms - client
   #-----------------------------------------------------------------------------
+  XrdCms/XrdCmsBlackList.cc       XrdCms/XrdCmsBlackList.hh
   XrdCms/XrdCmsLogin.cc           XrdCms/XrdCmsLogin.hh
   XrdCms/XrdCmsParser.cc          XrdCms/XrdCmsParser.hh
   XrdCms/XrdCmsRRData.cc          XrdCms/XrdCmsRRData.hh

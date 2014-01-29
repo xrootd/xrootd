@@ -226,6 +226,9 @@ int XrdProtLoad::Statistics(char *buff, int blen, int do_sync)
 /******************************************************************************/
 /*                           g e t P r o t o c o l                            */
 /******************************************************************************/
+
+extern "C" XrdProtocol *XrdgetProtocol(const char *pname, char *parms,
+                                       XrdProtocol_Config *pi);
   
 XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
                                       const char *pname,
@@ -236,6 +239,10 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
    const char *xname = (lname ? lname : "");
    void *epvoid;
    int i;
+
+// If this is a builtin protocol getthe protocol object directly
+//
+   if (!lname) return XrdgetProtocol(pname, parms, pi);
 
 // Find the matching library. It must be here because getPort was already called
 //
@@ -255,6 +262,9 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
 /******************************************************************************/
 /*                       g e t P r o t o c o l P o r t                        */
 /******************************************************************************/
+
+   extern "C" int XrdgetProtocolPort(const char *pname, char *parms,
+                                     XrdProtocol_Config *pi);
   
 int XrdProtLoad::getProtocolPort(const char *lname,
                                  const char *pname,
@@ -266,6 +276,10 @@ int XrdProtLoad::getProtocolPort(const char *lname,
    int (*ep)(const char *, char *, XrdProtocol_Config *);
    void *epvoid;
    int i;
+
+// If this is for the builtin protocol then get the port directly
+//
+   if (!lname) return XrdgetProtocolPort(pname, parms, pi);
 
 // See if the library is already opened, if not open it
 //

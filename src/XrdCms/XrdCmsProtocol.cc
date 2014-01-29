@@ -385,13 +385,13 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
                                   : (Reason ? Reason : "lost connection")));
        ManTree.Disc(myNID);
        Link->Close();
-       delete myNode; myNode = 0;
+       delete myNode; myNode = 0; Reason = 0;
 
        // Cycle on to the next manager if we have one or snooze and try over
        //
        if (!KickedOut && (Lvl = myMans.Next(xport,manbuff,manblen)))
           {manp = manbuff; continue;}
-       XrdSysTimer::Snooze(9); Lvl = 0;
+       XrdSysTimer::Snooze((rc < 0 ? 60 : 9)); Lvl = 0;
        if (manp != manager) fails++;
        manp = manager; xport = mport;
       } while(1);
@@ -588,9 +588,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
       {Share  = (Data.Mode & CmsLoginData::kYR_share)>>CmsLoginData::kYR_shift;
        if (Share <= 0 || Share > 100) Share = Config.P_gsdf;
        if (Share > 0) myNode->setShare(Share);
-       tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
-       tZone = myNode->setTZone(tZone);
       }
+
+// Set the node's timezone
+//
+   tZone = (Data.Mode & CmsLoginData::kYR_tzone)>>CmsLoginData::kYR_shifttz;
+   tZone = myNode->setTZone(tZone);
 
 // Record the status of the server's filesystem
 //
@@ -635,11 +638,12 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Set the reference counts for intersecting nodes to be the same.
 // Additionally, indicate cache refresh will be needed because we have a new
-// node that may have files the we already reported on.
+// node that may have files the we already reported on. Note that setting
+// isDisabled may be subject to a concurrency race, but that is still OK here.
 //
    Cluster.ResetRef(servset);
    if (Config.asManager()) {Manager.Reset(); myNode->SyncSpace();}
-   myNode->isDisable = 0;
+   if (myNode->isDisable < 2) myNode->isDisable = 0;
 
 // Document the login
 //

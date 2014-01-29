@@ -52,6 +52,8 @@ namespace XrdCl
   const int DefaultWorkerThreads        = 3;
   const int DefaultCPChunkSize          = 16777216;
   const int DefaultCPParallelChunks     = 4;
+  const int DefaultDataServerTTL        = 300;
+  const int DefaultLoadBalancerTTL      = 1200;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
   const char * const DefaultNetworkStack       = "IPAll";
