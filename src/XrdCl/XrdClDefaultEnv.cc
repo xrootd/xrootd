@@ -61,6 +61,7 @@ namespace
       masks["FileSystemMsg"]      = XrdCl::FileSystemMsg;
       masks["AsyncSockMsg"]       = XrdCl::AsyncSockMsg;
       masks["JobMgrMsg"]          = XrdCl::JobMgrMsg;
+      masks["PlugInMgrMsg"]       = XrdCl::PlugInMgrMsg;
     }
 
     //--------------------------------------------------------------------------
@@ -571,6 +572,7 @@ namespace XrdCl
     log->SetTopicName( FileSystemMsg,      "FileSystem" );
     log->SetTopicName( AsyncSockMsg,       "AsyncSock" );
     log->SetTopicName( JobMgrMsg,          "JobMgr" );
+    log->SetTopicName( PlugInMgrMsg,       "PlugInMgr" );
   }
 }
 

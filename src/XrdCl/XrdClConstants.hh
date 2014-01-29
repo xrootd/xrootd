@@ -37,6 +37,7 @@ namespace XrdCl
   const uint64_t FileSystemMsg      = 0x0000000000000100ULL;
   const uint64_t AsyncSockMsg       = 0x0000000000000200ULL;
   const uint64_t JobMgrMsg          = 0x0000000000000400ULL;
+  const uint64_t PlugInMgrMsg       = 0x0000000000000800ULL;
 
   //----------------------------------------------------------------------------
   // Environment settings
