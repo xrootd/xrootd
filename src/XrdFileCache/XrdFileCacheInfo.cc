@@ -38,6 +38,7 @@ using namespace XrdFileCache;
 
 
 Info::Info() :
+   m_version(0),
    m_bufferSize(0),
    m_sizeInBits(0), m_buff(0),
    m_accessCnt(0),
@@ -57,7 +58,7 @@ Info::~Info()
 void Info::ResizeBits(int s)
 {
    m_sizeInBits = s;
-   m_buff = (char*)malloc(GetSizeInBytes());
+   m_buff = (unsigned char*)malloc(GetSizeInBytes());
    memset(m_buff, 0, GetSizeInBytes());
 }
 
@@ -70,6 +71,7 @@ int Info::Read(XrdOssDF* fp)
    // before Prefetch::Run() starts
 
    int off = 0;
+   off += fp->Read(&m_version, off, sizeof(int));
    off += fp->Read(&m_bufferSize, off, sizeof(long long));
    if (off <= 0) return off;
 
@@ -92,7 +94,8 @@ int Info::Read(XrdOssDF* fp)
 
 int Info::GetHeaderSize() const
 {
-   return sizeof(long long) + sizeof(int) + GetSizeInBytes();
+   // version + buffersize + download-status-array-size + download-status-array
+   return sizeof(int) + sizeof(long long) + sizeof(int) + GetSizeInBytes();
 }
 
 //______________________________________________________________________________
@@ -102,6 +105,7 @@ void Info::WriteHeader(XrdOssDF* fp)
    if (fl) xfcMsg(kError, "WriteHeader() lock failed %s \n", strerror(errno));
 
    long long off = 0;
+   off += fp->Write(&m_version, off, sizeof(int));
    off += fp->Write(&m_bufferSize, off, sizeof(long long));
 
    int nb = GetSizeInBits();
@@ -129,9 +133,12 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    off += (m_accessCnt-1)*sizeof(AStat);
    AStat as;
    as.DetachTime = time(0);
-   as.BytesRead = caches->m_BytesCachedPrefetch + caches->m_BytesPrefetch;
-   as.Hits = caches->Hits;  // num blocks
-   as.Miss = caches->Miss;
+   as.BytesRead = caches->m_BytesCached + caches->m_BytesRemote;
+   as.HitsCached = caches->m_HitsCached;
+   as.HitsRemote = caches->m_HitsRemote;
+   for (int i = 0; i < 12; ++i) {
+      as.HitsPartial[i] = caches->m_HitsPartial[i];
+   }
 
    int flu = flock(fp->getFD(),  LOCK_UN);
    if (flu) xfcMsg(kError,"AppendStat() un-lock failed \n");

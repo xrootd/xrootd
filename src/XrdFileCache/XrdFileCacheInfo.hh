@@ -142,16 +142,12 @@ namespace XrdFileCache
          {
             time_t    DetachTime;
             long long BytesRead;
-            int       Hits;
-            int       Miss;
-
-            void Dump() const
-            {
-               printf("AStat value: detach %d, bytesRead = %lld, Hits = %d, Miss = %d \n",
-                      (int)DetachTime, BytesRead, Hits, Miss );
-            }
+            int       HitsCached;
+            int       HitsRemote;
+            int       HitsPartial[12];
          };
 
+         int            m_version;    //!< info version
          long long      m_bufferSize; //!< prefetch buffer size
          int            m_sizeInBits; //!< number of file blocks
          unsigned char *m_buff;       //!< download state vector
