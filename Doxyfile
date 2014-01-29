@@ -172,7 +172,6 @@ src/XrdFileCache/XrdFileCacheDecision.hh \
 src/XrdFileCache/XrdFileCacheAllowDecision.cc \
 
 
-
 FILE_PATTERNS          = *.hh
 RECURSIVE              = YES
 EXCLUDE                = 
