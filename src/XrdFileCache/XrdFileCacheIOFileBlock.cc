@@ -150,7 +150,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       long long min  = blockIdx*m_blockSize;
       if ( off < min) { assert(0); }
       assert(off+readBlockSize <= (min + m_blockSize));
-      int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset0, readBlockSize);
+      int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset, readBlockSize);
 
       xfcMsgIO(kDebug, &m_io,  "IOFileBlock::Read()  Block read returned %d", retvalBlock );
       if (retvalBlock > 0 )

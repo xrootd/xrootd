@@ -64,7 +64,7 @@ namespace XrdFileCache
       private:
          struct FileBlock
          {
-            FileBlock(off_t off, XrdOucCacheIO*  io) : m_prefetch(0), m_offset0(off) {}
+            FileBlock(off_t off, XrdOucCacheIO*  io) : m_prefetch(0), m_offset(off) {}
             Prefetch* m_prefetch;
             long long m_offset;
          };
