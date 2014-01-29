@@ -22,16 +22,19 @@
 #include <iostream>
 
 #define xfcMsg(level, format, ...) \
-   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel) XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
+   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel) \
+      XrdFileCache::strprintf(level, format, ## __VA_ARGS__)
 
 #define xfcMsgIO(level, io, format, ...) \
-   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel ) XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
+   if (level >= Factory::GetInstance().RefConfiguration().m_logLevel) \
+      XrdFileCache::strprintfIO(level, io, format, ## __VA_ARGS__)
 
 class XrdOucCacheIO;
 
-namespace  XrdFileCache
+namespace XrdFileCache
 {
-   enum LogLevel {
+   enum LogLevel
+   {
       kDump,
       kDebug,
       kInfo,

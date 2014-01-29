@@ -34,7 +34,7 @@ class XrdSysError;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Configurable parameters.
+   //! Contains parameters configurable from the xrootd config file.
    //----------------------------------------------------------------------------
    struct Configuration
    {
@@ -48,21 +48,22 @@ namespace XrdFileCache
          m_bufferSize(1024*1024),
          m_blockSize(128*1024*1024) {}
 
-      bool m_prefetchFileBlocks;      //!< flag to enable file block prefetch
-      std::string m_cache_dir;        //!< directory path to disk cache
-      std::string m_username;         //!< username used to instantiate of oss plugin
-      std::string m_osslib_name;      //!< oss library path
+      bool m_prefetchFileBlocks;      //!< flag for enabling block-level operation
+      std::string m_cache_dir;        //!< path of disk cache
+      std::string m_username;         //!< username passed to oss plugin
+      std::string m_osslib_name;      //!< oss library name (optional)
+
       float m_lwm;                    //!< cache purge low water mark
       float m_hwm;                    //!< cache purge high water mark
 
-      LogLevel  m_logLevel;           //!< file cache log level (0->dump, 1->debug, 2->info ...)
+      LogLevel  m_logLevel;           //!< file cache log level (0->dump, 1->debug, 2->info, 3-warning, 4-error)
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
 
 
    //----------------------------------------------------------------------------
-   //! Instantiates Cache and Decision plugin. Parses configuration file.
+   //! Instantiates Cache and Decision plugins. Parses configuration file.
    //----------------------------------------------------------------------------
    class Factory : public XrdOucCache
    {
@@ -73,30 +74,31 @@ namespace XrdFileCache
          Factory();
 
          //---------------------------------------------------------------------
-         //! Disable IO creation.
+         //! \brief Unused abstract method. This method is implemented in the
+         //! the Cache class.
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Attach(XrdOucCacheIO *, int Options=0) { return NULL; }
 
          //---------------------------------------------------------------------
-         //! \brief  This cache instance can be deleted. Need this method to
-         //!          check if there are any associated objects.
+         //! \brief Unused abstract method. This information is available in
+         //! the Cache class.
          //---------------------------------------------------------------------
          virtual int isAttached() { return false; }
 
          //---------------------------------------------------------------------
          //! Creates XrdFileCache::Cache object
          //---------------------------------------------------------------------
-         virtual XrdOucCache *Create(Parms &, XrdOucCacheIO::aprParms *aprP);
+         virtual XrdOucCache* Create(Parms &, XrdOucCacheIO::aprParms *aprP);
 
-         XrdOss*GetOss() const { return m_output_fs; }
+         XrdOss* GetOss() const { return m_output_fs; }
 
          //---------------------------------------------------------------------
-         //! GetSysError Getter for xrootd logger
+         //! Getter for xrootd logger
          //---------------------------------------------------------------------
-         XrdSysError&GetSysError() { return m_log; }
+         XrdSysError& GetSysError() { return m_log; }
 
          //--------------------------------------------------------------------
-         //! \brief Makes decision if the original XrdOucCacheIO will be cached.
+         //! \brief Makes decision if the original XrdOucCacheIO should be cached.
          //!
          //! @param & URL of file
          //!
@@ -122,17 +124,17 @@ namespace XrdFileCache
          bool Config(XrdSysLogger *logger, const char *config_filename, const char *parameters);
 
          //---------------------------------------------------------------------
-         //! GetInstance Get this object
+         //! Singleton access.
          //---------------------------------------------------------------------
          static Factory &GetInstance();
 
          //---------------------------------------------------------------------
-         //! Support version check
+         //! Version check.
          //---------------------------------------------------------------------
          static bool VCheck(XrdVersionInfo &urVersion) { return true; }
 
          //---------------------------------------------------------------------
-         //! Disk cache purge thread.
+         //! Thread function running disk cache purge periodically.
          //---------------------------------------------------------------------
          void CacheDirCleanup();
 
@@ -145,10 +147,10 @@ namespace XrdFileCache
          bool xolib(XrdOucStream &);
          bool xdlib(XrdOucStream &);
 
-         static Factory*    m_factory;  //!< this object
+         static Factory   *m_factory;   //!< this object
 
          XrdSysError       m_log;       //!< XFC namespace logger
-         XrdOucCacheStats  m_stats;     //!< passed to cache, currently no use
+         XrdOucCacheStats  m_stats;     //!< passed to cache, currently not used
          XrdOss           *m_output_fs; //!< disk cache file system
 
          std::vector<XrdFileCache::Decision*> m_decisionpoints; //!< decision plugins
@@ -157,7 +159,6 @@ namespace XrdFileCache
 
          Configuration     m_configuration; //!< configurable parameters
    };
-
 }
 
 #endif

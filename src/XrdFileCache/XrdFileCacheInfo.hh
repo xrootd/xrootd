@@ -25,32 +25,34 @@
 #include <XrdSys/XrdSysPthread.hh>
 class XrdOssDF;
 
-#define cfiBIT(n)       (1ULL << (n))
 
 namespace XrdFileCache
 {
    class Stats;
 
    //----------------------------------------------------------------------------
-   //! Status of cached file. Has utility to read and dump content in binary file.
+   //! Status of cached file. Can be read from and written into a binary file.
    //----------------------------------------------------------------------------
    class Info
    {
+      private:
+         static unsigned char cfiBIT(int n) { return 1 << n; }
+
       public:
          //------------------------------------------------------------------------
-         //! Constructor
+         //! Constructor.
          //------------------------------------------------------------------------
          Info();
 
          //------------------------------------------------------------------------
-         //! Destructor
+         //! Destructor.
          //------------------------------------------------------------------------
          ~Info();
 
          //---------------------------------------------------------------------
-         //! \brief Mark block in the given index as downloaded
+         //! \brief Mark block as downloaded
          //!
-         //! @param i block inex
+         //! @param i block index
          //---------------------------------------------------------------------
          void SetBit(int i);
 
@@ -62,7 +64,7 @@ namespace XrdFileCache
          void ResizeBits(int n);
 
          //---------------------------------------------------------------------
-         //! \brief Read load content from *cinfo file into this object
+         //! \brief Rea load content from cinfo file into this object
          //!
          //! @param fp file handle
          //!
@@ -86,17 +88,17 @@ namespace XrdFileCache
          bool IsAnythingEmptyInRng(int firstIdx, int lastIdx) const;
 
          //---------------------------------------------------------------------
-         //! Get compressed size
+         //! Get size of download-state bit-vector in bytes.
          //---------------------------------------------------------------------
          int GetSizeInBytes() const;
 
          //---------------------------------------------------------------------
-         //! Get number of blocks
+         //! Get number of blocks represented in download-state bit-vector.
          //---------------------------------------------------------------------
          int GetSizeInBits() const;
 
          //----------------------------------------------------------------------
-         //! Get header size
+         //! Get header size.
          //----------------------------------------------------------------------
          int GetHeaderSize() const;
 
@@ -150,11 +152,11 @@ namespace XrdFileCache
             }
          };
 
-         long long   m_bufferSize; //!< prefetch buffer size
-         int         m_sizeInBits; //!< number of file blocks
-         char*       m_buff;       //!< download state vector
-         int         m_accessCnt;  //!< number of written AStat structs
-         bool        m_complete;   //!< cached
+         long long      m_bufferSize; //!< prefetch buffer size
+         int            m_sizeInBits; //!< number of file blocks
+         unsigned char *m_buff;       //!< download state vector
+         int            m_accessCnt;  //!< number of written AStat structs
+         bool           m_complete;   //!< cached
    };
 
    inline bool Info::TestBit(int i) const
@@ -184,7 +186,7 @@ namespace XrdFileCache
    inline bool Info::IsAnythingEmptyInRng(int firstIdx, int lastIdx) const
    {
       for (int i = firstIdx; i <= lastIdx; ++i)
-         if(!TestBit(i)) return true;
+         if (!TestBit(i)) return true;
 
       return false;
    }

@@ -28,9 +28,10 @@ class XrdSysError;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Base decision class.
+   //! Base class for selecting which files should be cached.
    //----------------------------------------------------------------------------
-   class Decision {
+   class Decision
+   {
       public:
          //--------------------------------------------------------------------------
          //! Destructor
@@ -48,14 +49,13 @@ namespace XrdFileCache
          virtual bool Decide(std::string &, XrdOss &) const = 0;
 
          //------------------------------------------------------------------------------
-         //! Parse arguments from configuration
+         //! Parse configuration arguments.
          //!
          //! @param char* configuration parameters
          //!
          //! @return status of configuration
          //------------------------------------------------------------------------------
          virtual bool ConfigDecision(const char*) { return true; }
-
    };
 }
 

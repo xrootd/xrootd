@@ -27,49 +27,52 @@
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Downloads data into file on a local disk and handles IO read requests.
+   //! Downloads data into a file on local disk and handles IO read requests.
    //----------------------------------------------------------------------------
-
-   class Prefetch {
-
+   class Prefetch
+   {
       friend class IOEntireFile;
       friend class IOFileBlock;
 
       struct Task;
       public:
          //------------------------------------------------------------------------
-         //! Constructor
+         //! Constructor.
          //------------------------------------------------------------------------
-         Prefetch(XrdOucCacheIO & inputFile, std::string& path, long long offset, long long fileSize);
+         Prefetch(XrdOucCacheIO& inputFile, std::string& path,
+                  long long offset, long long fileSize);
 
          //------------------------------------------------------------------------
-         //! Destructor
+         //! Destructor.
          //------------------------------------------------------------------------
          ~Prefetch();
 
          //---------------------------------------------------------------------
-         //! Run a thread which prefetches file from XrdFileCache in tasks
+         //! Thread function for file prefetching.
          //---------------------------------------------------------------------
          void Run();
 
          //----------------------------------------------------------------------
-         //! GetStats Reference prefetch statistics
+         //! Reference to prefetch statistics.
          //----------------------------------------------------------------------
          Stats& GetStats() { return m_stats; }
 
       protected:
-         //! Read from disk file
+         //! Read from disk file.
          ssize_t Read(char * buff, off_t offset, size_t size);
 
-         //! Write cache statistics in *cinfo file
+         //! Write cache statistics in *cinfo file.
          void AppendIOStatToFileInfo();
 
-      private:
+   private:
+         //----------------------------------------------------------------------
+         //! A prefetching task -- a file region that requires preferential treatment.
+         //----------------------------------------------------------------------
          struct Task
          {
-            int firstBlock;         //!< begin download firstBlock*bufferSize
-            int lastBlock;          //!< end download lastBlock*bufferSize
-            XrdSysCondVar* condVar; //!< signal when complete
+            int            firstBlock; //!< begin download firstBlock*bufferSize
+            int            lastBlock;  //!< end download lastBlock*bufferSize
+            XrdSysCondVar *condVar;    //!< signal when complete
 
             Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
                firstBlock(fb), lastBlock(lb), condVar(iCondVar) {}
@@ -94,33 +97,32 @@ namespace XrdFileCache
          //! Open file handle for data file and info file on local disk.
          bool Open();
 
-         //! Write download state in *cinfo file
+         //! Write download state into cinfo file
          void RecordDownloadInfo();
 
-         //! Get bytes to read for given block.
+         //! Get number of bytes to read for given block.
          int  GetBytesToRead(Task& task, int block) const;
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
          XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
-         Info            m_cfi;            //!< download status of file blocks
+         Info            m_cfi;            //!< download status of file blocks and access statistics
          XrdOucCacheIO  &m_input;          //!< original data source
-         std::string     m_temp_filename;  //!< path to cached data file on disk
-         long long       m_offset;         //!< offset off cached file relative to original data source
-         long long       m_fileSize;       //!< size of cached disk file, different than XrdPosixFile size in file-block mode
+         std::string     m_temp_filename;  //!< filename of data file on disk
+         long long       m_offset;         //!< offset of cached file for block-based operation
+         long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
 
-         bool            m_started;  //!< run thread is started
+         bool            m_started;  //!< state of run thread
          bool            m_failed;   //!< reading from original source or writing to disk has failed
-         bool            m_stop;     //!< run thread is stopped
+         bool            m_stop;     //!< run thread should be stopped
          XrdSysCondVar   m_stateCond;
 
-         XrdSysMutex      m_downloadStatusMutex; //!< m_cfi mutex
+         XrdSysMutex      m_downloadStatusMutex; //!< mutex locking access to m_cfi object
 
          std::queue<Task> m_tasks_queue; //!< download queue
          XrdSysMutex      m_quequeMutex;
 
          Stats             m_stats;      //!< cache statistics, used in IO detach
    };
-
 }
 #endif

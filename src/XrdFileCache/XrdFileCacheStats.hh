@@ -25,24 +25,30 @@
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Disk-based cache statistics.
+   //! Statistics of disk cache utilisation.
    //----------------------------------------------------------------------------
    class Stats : public XrdOucCacheStats
    {
       public:
-         //------------------------------------------------------------------------
-         //! Constructor
-         //------------------------------------------------------------------------
+         //----------------------------------------------------------------------
+         //! Constructor.
+         //----------------------------------------------------------------------
          Stats() :
          m_BytesCachedPrefetch(0),
          m_BytesPrefetch(0),
          m_HitsPrefetch(0),
          m_HitsDisk(0) {}
 
-         long long m_BytesCachedPrefetch; //!< bytes already prefetch
-         long long m_BytesPrefetch;       //!< bytes waited
-         int       m_HitsPrefetch;        //!< blocks already prefetched
-         int       m_HitsDisk;            //!< blocks waited
+         long long m_BytesCached;  //!< number of bytes served from cache
+         long long m_BytesRemote;  //!< number of bytes that had to be fetched
+         int       m_HitsCached;   //!< number of read requests served from cache
+         int       m_HitsPartial;  //!< number of read requests that were partially available
+         int       m_HitsRemote;   //!< number of read requests that had to be fetched
+
+      // int       m_HitsPartial[10]; 
+      // [0] 0-10%, [1] 10-20% .... [9] 90-100%
+      // int       m_HitsPartial[12];
+      // [0] - 0;   [1] 0-10%, [2] 10-20% .... [10] 90-100%; [11] 100%
 
          inline void AddStat(Stats &Src)
          {
@@ -60,7 +66,6 @@ namespace XrdFileCache
 
       private:
          XrdSysMutex m_MutexXfc;
-
    };
 }
 

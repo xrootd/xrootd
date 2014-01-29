@@ -33,7 +33,8 @@ class XrdOucIOVec;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Downloads original data into single file. Handles read requests.
+   //! \brief Downloads original file into a single file on local disk.
+   //! Handles read requests as they come along.
    //----------------------------------------------------------------------------
    class IOEntireFile : public IO
    {
@@ -49,7 +50,7 @@ namespace XrdFileCache
          ~IOEntireFile();
 
          //---------------------------------------------------------------------
-         //!\brief Read Pass read request to Prefetch and wait task is completed
+         //! Pass Read request to the corresponding Prefetch object.
          //!
          //! @param Buffer
          //! @param Offset
@@ -57,21 +58,20 @@ namespace XrdFileCache
          //!
          //! @return number of bytes read
          //---------------------------------------------------------------------
-         virtual int Read (char  *Buffer, long long Offset, int Length);
+         virtual int Read(char *Buffer, long long Offset, int Length);
 
          //---------------------------------------------------------------------
-         //!\brief ReadV pass vector reads to Prefetch.
+         //! Pass ReadV request to the corresponding Prefetch object.
          //!
          //! @param readV
          //! @param n number of XrdOucIOVecs
          //!
          //! @return total bytes read
          //---------------------------------------------------------------------
-         virtual int  ReadV (const XrdOucIOVec *readV, int n);
+         virtual int ReadV(const XrdOucIOVec *readV, int n);
 
          //---------------------------------------------------------------------
-         //!\brief Detach itself from Cache. Note this will delete this object.
-         //!
+         //! Detach itself from Cache. Note: this will delete the object.
          //!
          //! @return original source \ref XrdPosixFile
          //---------------------------------------------------------------------

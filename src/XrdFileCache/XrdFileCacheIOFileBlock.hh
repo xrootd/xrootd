@@ -32,47 +32,49 @@ class XrdOssDF;
 namespace XrdFileCache
 {
    //----------------------------------------------------------------------------
-   //! Downloads original source into multiple files. Handles read requests.
+   //! \brief Downloads original file into multiple files, chunked into
+   //! blocks. Only blocks that are asked for are downloaded.
+   //! Handles read requests as they come along.
    //----------------------------------------------------------------------------
    class IOFileBlock : public IO
    {
       public:
          //------------------------------------------------------------------------
-         //! Constructor
+         //! Constructor.
          //------------------------------------------------------------------------
          IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache);
 
          //------------------------------------------------------------------------
-         //! Destructor
+         //! Destructor.
          //------------------------------------------------------------------------
          ~IOFileBlock() {}
 
          //---------------------------------------------------------------------
-         //!\brief Detach itself from Cache. Note this will delete this object.
+         //! Detach from Cache. Note: this will delete the object.
          //!
          //! @return original source \ref XrdPosixFile
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO *Detach();
 
          //---------------------------------------------------------------------
-         //! Pass read to corresponding Prefetch objects.
+         //! Pass Read request to the corresponding Prefetch object.
          //---------------------------------------------------------------------
-         virtual int Read (char  *Buffer, long long Offset, int Length);
+         virtual int Read(char *Buffer, long long Offset, int Length);
 
       private:
          struct FileBlock
          {
-            FileBlock(off_t off, XrdOucCacheIO*  io) :  m_prefetch(0), m_offset0(off) {}
+            FileBlock(off_t off, XrdOucCacheIO*  io) : m_prefetch(0), m_offset0(off) {}
             Prefetch* m_prefetch;
-            long long m_offset0;
+            long long m_offset;
          };
 
          long long                  m_blockSize; //!< size of file-block
          std::map<int, FileBlock*>  m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
 
-         FileBlock*  newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io);
+         FileBlock* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
    };
-
 }
+
 #endif

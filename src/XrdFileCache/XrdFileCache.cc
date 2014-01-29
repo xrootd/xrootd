@@ -78,7 +78,6 @@ void Cache::Detach(XrdOucCacheIO* io)
 
    xfcMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
 
-
    delete io;
 }
 
