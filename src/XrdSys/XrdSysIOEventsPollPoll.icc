@@ -278,7 +278,7 @@ void XrdSys::IOEvents::PollPoll::Exclude(XrdSys::IOEvents::Channel *cP,
       {FDRem(ctnum);
        return;
       } else {
-       PipeData cmdbuff = {(char)PipeData::RmFD,0,(short)ctnum,cP->GetFD(),0};
+       PipeData cmdbuff((char)PipeData::RmFD,0,(short)ctnum,cP->GetFD());
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
