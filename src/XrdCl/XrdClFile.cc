@@ -23,13 +23,18 @@
 #include "XrdCl/XrdClFileStateHandler.hh"
 #include "XrdCl/XrdClMessageUtils.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPlugInInterface.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
 
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  File::File()
+  File::File( bool enablePlugIns ):
+    pPlugIn(0),
+    pEnablePlugIns( enablePlugIns )
   {
     pStateHandler = new FileStateHandler();
   }
@@ -49,6 +54,7 @@ namespace XrdCl
     if( DefaultEnv::GetLog() )
       Close();
     delete pStateHandler;
+    delete pPlugIn;
   }
 
   //----------------------------------------------------------------------------
@@ -60,6 +66,30 @@ namespace XrdCl
                            ResponseHandler   *handler,
                            uint16_t           timeout )
   {
+    //--------------------------------------------------------------------------
+    // Check if we need to install and run a plug-in for this URL
+    //--------------------------------------------------------------------------
+    if( pEnablePlugIns && !pPlugIn )
+    {
+      Log *log = DefaultEnv::GetLog();
+      PlugInFactory *fact = DefaultEnv::GetPlugInManager()->GetFactory( url );
+      if( fact )
+      {
+        pPlugIn = fact->CreateFile( url );
+        if( !pPlugIn )
+        {
+          log->Error( FileMsg, "Plug-in factory failed to produce a plug-in "
+                      "for %s, continuing without one", url.c_str() );
+        }
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Open the file
+    //--------------------------------------------------------------------------
+    if( pPlugIn )
+      return pPlugIn->Open( url, flags, mode, handler, timeout );
+
     return pStateHandler->Open( url, flags, mode, handler, timeout );
   }
 
@@ -85,6 +115,9 @@ namespace XrdCl
   XRootDStatus File::Close( ResponseHandler *handler,
                             uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Close( handler, timeout );
+
     return pStateHandler->Close( handler, timeout );
   }
 
@@ -109,6 +142,9 @@ namespace XrdCl
                            ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Stat( force, handler, timeout );
+
     return pStateHandler->Stat( force, handler, timeout );
   }
 
@@ -137,6 +173,9 @@ namespace XrdCl
                            ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Read( offset, size, buffer, handler, timeout );
+
     return pStateHandler->Read( offset, size, buffer, handler, timeout );
   }
 
@@ -173,6 +212,9 @@ namespace XrdCl
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Write( offset, size, buffer, handler, timeout );
+
     return pStateHandler->Write( offset, size, buffer, handler, timeout );
   }
 
@@ -199,6 +241,9 @@ namespace XrdCl
   XRootDStatus File::Sync( ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Sync( handler, timeout );
+
     return pStateHandler->Sync( handler, timeout );
   }
 
@@ -223,6 +268,9 @@ namespace XrdCl
                                ResponseHandler *handler,
                                uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Truncate( size, handler, timeout );
+
     return pStateHandler->Truncate( size, handler, timeout );
   }
 
@@ -249,6 +297,9 @@ namespace XrdCl
                                  ResponseHandler *handler,
                                  uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->VectorRead( chunks, buffer, handler, timeout );
+
     return pStateHandler->VectorRead( chunks, buffer, handler, timeout );
   }
 
@@ -276,6 +327,9 @@ namespace XrdCl
                             ResponseHandler *handler,
                             uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Fcntl( arg, handler, timeout );
+
     return pStateHandler->Fcntl( arg, handler, timeout );
   }
 
@@ -301,6 +355,9 @@ namespace XrdCl
   XRootDStatus File::Visa( ResponseHandler *handler,
                            uint16_t         timeout )
   {
+    if( pPlugIn )
+      return pPlugIn->Visa( handler, timeout );
+
     return pStateHandler->Visa( handler, timeout );
   }
 
@@ -323,6 +380,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool File::IsOpen() const
   {
+    if( pPlugIn )
+      return pPlugIn->IsOpen();
+
     return pStateHandler->IsOpen();
   }
 
@@ -332,6 +392,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void File::EnableReadRecovery( bool enable )
   {
+    if( pPlugIn )
+      pPlugIn->EnableReadRecovery( enable );
+
     pStateHandler->EnableReadRecovery( enable );
   }
 
@@ -341,6 +404,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void File::EnableWriteRecovery( bool enable )
   {
+    if( pPlugIn )
+      pPlugIn->EnableWriteRecovery( enable );
+
     pStateHandler->EnableWriteRecovery( enable );
   }
 
@@ -349,6 +415,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   std::string File::GetDataServer() const
   {
+    if( pPlugIn )
+      return pPlugIn->GetDataServer();
+
     return pStateHandler->GetDataServer();
   }
 
@@ -357,6 +426,9 @@ namespace XrdCl
   //------------------------------------------------------------------------
   URL File::GetLastURL() const
   {
+    if( pPlugIn )
+      return pPlugIn->GetLastURL();
+
     return pStateHandler->GetLastURL();
   }
 }

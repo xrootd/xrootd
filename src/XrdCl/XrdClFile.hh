@@ -28,6 +28,7 @@
 namespace XrdCl
 {
   class FileStateHandler;
+  class FilePlugIn;
 
   //----------------------------------------------------------------------------
   //! A file
@@ -38,7 +39,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      File();
+      File( bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -374,6 +375,8 @@ namespace XrdCl
 
     private:
       FileStateHandler *pStateHandler;
+      FilePlugIn       *pPlugIn;
+      bool              pEnablePlugIns;
   };
 }
 
