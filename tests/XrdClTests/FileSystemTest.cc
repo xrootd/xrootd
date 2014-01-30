@@ -19,11 +19,14 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClFile.hh>
+#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
 #include "CppUnitXrdHelpers.hh"
 
 #include <pthread.h>
 
 #include "TestEnv.hh"
+#include "IdentityPlugIn.hh"
 
 using namespace XrdClTests;
 
@@ -48,6 +51,7 @@ class FileSystemTest: public CppUnit::TestCase
       CPPUNIT_TEST( DirListTest );
       CPPUNIT_TEST( SendInfoTest );
       CPPUNIT_TEST( PrepareTest );
+      CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void LocateTest();
     void MvTest();
@@ -63,6 +67,7 @@ class FileSystemTest: public CppUnit::TestCase
     void DirListTest();
     void SendInfoTest();
     void PrepareTest();
+    void PlugInTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileSystemTest );
@@ -489,4 +494,28 @@ void FileSystemTest::PrepareTest()
   CPPUNIT_ASSERT( id );
   CPPUNIT_ASSERT( id->GetSize() );
   delete id;
+}
+
+//------------------------------------------------------------------------------
+// Plug-in test
+//------------------------------------------------------------------------------
+void FileSystemTest::PlugInTest()
+{
+  XrdCl::PlugInFactory *f = new IdentityFactory;
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(f);
+  LocateTest();
+  MvTest();
+  ServerQueryTest();
+  TruncateRmTest();
+  MkdirRmdirTest();
+  ChmodTest();
+  PingTest();
+  StatTest();
+  StatVFSTest();
+  ProtocolTest();
+  DeepLocateTest();
+  DirListTest();
+  SendInfoTest();
+  PrepareTest();
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(0);
 }

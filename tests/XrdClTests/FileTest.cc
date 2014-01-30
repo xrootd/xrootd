@@ -19,9 +19,12 @@
 #include <cppunit/extensions/HelperMacros.h>
 #include "TestEnv.hh"
 #include "Utils.hh"
+#include "IdentityPlugIn.hh"
+
 #include "CppUnitXrdHelpers.hh"
 #include "XrdCl/XrdClFile.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClPlugInManager.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClSIDManager.hh"
 #include "XrdCl/XrdClPostMaster.hh"
@@ -42,11 +45,13 @@ class FileTest: public CppUnit::TestCase
       CPPUNIT_TEST( ReadTest );
       CPPUNIT_TEST( WriteTest );
       CPPUNIT_TEST( VectorReadTest );
+      CPPUNIT_TEST( PlugInTest );
     CPPUNIT_TEST_SUITE_END();
     void RedirectReturnTest();
     void ReadTest();
     void WriteTest();
     void VectorReadTest();
+    void PlugInTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileTest );
@@ -282,7 +287,6 @@ void FileTest::WriteTest()
   delete [] buffer4;
 }
 
-
 //------------------------------------------------------------------------------
 // Vector read test
 //------------------------------------------------------------------------------
@@ -350,4 +354,18 @@ void FileTest::VectorReadTest()
 
   delete [] buffer1;
   delete [] buffer2;
+}
+
+//------------------------------------------------------------------------------
+// Plug-in test
+//------------------------------------------------------------------------------
+void FileTest::PlugInTest()
+{
+  XrdCl::PlugInFactory *f = new IdentityFactory;
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(f);
+  RedirectReturnTest();
+  ReadTest();
+  WriteTest();
+  VectorReadTest();
+  XrdCl::DefaultEnv::GetPlugInManager()->RegisterDefaultFactory(0);
 }
