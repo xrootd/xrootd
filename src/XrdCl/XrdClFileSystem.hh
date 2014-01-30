@@ -32,6 +32,7 @@ namespace XrdCl
 {
   class PostMaster;
   class Message;
+  class FileSystemPlugIn;
   struct MessageSendParams;
 
   //----------------------------------------------------------------------------
@@ -181,9 +182,10 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //!
-      //! @param url URL    of the entry-point server to be contacted
+      //! @param url URL of the entry-point server to be contacted
+      //! @param enablePlugIns enable the plug-in mechanism for this object
       //------------------------------------------------------------------------
-      FileSystem( const URL &url );
+      FileSystem( const URL &url, bool enablePlugIns = true );
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -676,9 +678,10 @@ namespace XrdCl
         pMutex.UnLock();
       }
 
-      XrdSysMutex  pMutex;
-      bool         pLoadBalancerLookupDone;
-      URL         *pUrl;
+      XrdSysMutex       pMutex;
+      bool              pLoadBalancerLookupDone;
+      URL              *pUrl;
+      FileSystemPlugIn *pPlugIn;
   };
 }
 
