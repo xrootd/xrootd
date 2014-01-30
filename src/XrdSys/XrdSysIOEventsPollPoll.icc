@@ -428,8 +428,8 @@ bool XrdSys::IOEvents::PollPoll::Include(XrdSys::IOEvents::Channel *cP,
       {FDMod(ctnum, fd, cP->GetEvents());
        return true;
       } else {
-       PipeData cmdbuff = {(char)PipeData::MiFD, (char)cP->GetEvents(),
-                           (short)ctnum,         fd, 0};
+       PipeData cmdbuff((char)PipeData::MiFD, (char)cP->GetEvents(),
+                        (short)ctnum,         fd, 0);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
@@ -457,8 +457,8 @@ bool XrdSys::IOEvents::PollPoll::Modify(XrdSys::IOEvents::Channel *cP,
       {FDMod(GetPollEnt(cP), cP->GetFD(), cP->GetEvents());
        return true;
       } else {
-       PipeData cmdbuff = {(char)PipeData::MdFD, (char)cP->GetEvents(),
-                           (short)GetPollEnt(cP), cP->GetFD(), 0};
+       PipeData cmdbuff((char)PipeData::MdFD, (char)cP->GetEvents(),
+                        (short)GetPollEnt(cP), cP->GetFD(), 0);
        if (isLocked) {isLocked = false; UnLockChannel(cP);}
        SendCmd(cmdbuff);
       }
