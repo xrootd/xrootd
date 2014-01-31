@@ -1,0 +1,16 @@
+#-------------------------------------------------------------------------------
+# Example client plug-in configuration file. Its name needs to end wiht '.conf'
+# in order to be taken into account while the plug-in environment is set up.
+#
+# It needs to contain at least three lines with the following key-value pairs:
+# 1) url    - denoting a semicolon separated list of URLs the plug-in applies
+#             to
+# 2) lib    - path to the library containing the plug-in factory
+# 3) enable - telling the system whether the plugin for the specified URLs
+#             should be processed, or disabled, if it has already been
+#             registered by one of the previusly processed files
+#-------------------------------------------------------------------------------
+
+url = root://eosatlas.cern.ch:1094
+lib = /usr/lib/libXrdEosClient.so
+enable = true

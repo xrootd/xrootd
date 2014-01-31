@@ -287,6 +287,10 @@ install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xroo
 install -m 644 packaging/common/xrootd-clustered.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-clustered.cfg
 install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/xrootd-standalone.cfg
 
+# client plug-in config
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/client.plugins.d
+install -m 644 packaging/common/client-plugin.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
+
 # documentation
 mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
 cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
@@ -429,6 +433,7 @@ exit 0
 %{_libdir}/libXrdFfs.so.*
 %{_libdir}/libXrdPosix.so.*
 %{_libdir}/libXrdPosixPreload.so.*
+%{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
 # Some of the libraries are used as plugins - need the .so symlink at runtime
 %{_libdir}/libXrdPosixPreload.so
 
