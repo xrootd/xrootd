@@ -637,7 +637,7 @@ void XrdHttpReq::parseResource(char *res) {
 
   // Not found, then it's just a filename
   if (!p) {
-    resource.assign(res, 0, MAX_RESOURCE_LEN);
+    resource.assign(res, 0);
     return;
   }
 
