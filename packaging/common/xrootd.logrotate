@@ -1,0 +1,13 @@
+/var/log/xrootd/*.log
+{
+  missingok
+  notifempty
+  daily
+  compress
+  postrotate
+    /usr/bin/killall -HUP xrootd
+    /usr/bin/killall -HUP cmsd
+    /usr/bin/killall -HUP frm_purged
+    /usr/bin/killall -HUP frm_xfrd
+  endscript
+}

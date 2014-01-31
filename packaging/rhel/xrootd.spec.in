@@ -278,6 +278,10 @@ install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_p
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
 install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
 
+# logrotate
+mkdir $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
+install -p -m 644 packaging/common/xrootd.logrotate $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/%{name}
+
 %if 0%{?rhel} < 5
 install -m 755 packaging/rhel/xrootd.functions-slc4 $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
 %else
@@ -393,6 +397,7 @@ exit 0
 %attr(-,xrootd,xrootd) %dir %{_var}/run/%{name}
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/%{name}
 %config(noreplace) %{_sysconfdir}/sysconfig/%{name}
+%config(noreplace) %{_sysconfdir}/logrotate.d/%{name}
 
 %files libs
 %defattr(-,root,root,-)
