@@ -38,6 +38,7 @@
 
 #include "Xrd/XrdBuffer.hh"
 #include "Xrd/XrdLink.hh"
+#include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdXrootd/XrdXrootdStats.hh"
 #include "XrdXrootd/XrdXrootdTrace.hh"
@@ -221,6 +222,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
 {
    static XrdSysMutex myMutex;
    static int bID = 0;
+   XrdNetAddrInfo *addrP;
    const char *who;
    char uname[sizeof(Request.login.username)+1];
    int pID, n;
@@ -264,6 +266,17 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
 // Indicate that this brige supports asynchronous responses
 //
    CapVer = kXR_asyncap | kXR_ver002;
+
+// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4
+//
+   addrP = Link->AddrInfo();
+   if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
+      clientPV |= XrdOucEI::uIPv4;
+
+// Mark the client as being on a private net if the address is private
+//
+   if (addrP->isPrivate()) {clientPV |= XrdOucEI::uPrip; rdType = 1;}
+      else rdType = 0;
 
 // Now tie the security information
 //
