@@ -101,7 +101,7 @@ namespace XrdCl
       //! The plug-in library must implement the following method:
       //! extern "C"
       //! {
-      //!   void *GetClientPlugInFactory()
+      //!   void *XrdClGetPlugIn()
       //!   {
       //!     return __your_plug_in_factory__;
       //!   }

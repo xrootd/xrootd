@@ -36,6 +36,8 @@
 #include <string>
 #include <algorithm>
 
+XrdVERSIONINFOREF( XrdCl );
+
 namespace XrdCl
 {
   //----------------------------------------------------------------------------
@@ -330,10 +332,11 @@ namespace XrdCl
 
     char errorBuff[1024];
     XrdSysPlugin *pgHandler = new XrdSysPlugin( errorBuff, 1024,
-                                                lib.c_str(), lib.c_str() );
+                                                lib.c_str(), lib.c_str(),
+                                                &XrdVERSIONINFOVAR( XrdCl ) );
 
     PlugInFunc_t pgFunc= (PlugInFunc_t)pgHandler->getPlugin(
-      "GetClientPlugInFactory", false, false );
+      "XrdClGetPlugIn", false, false );
 
     if( !pgFunc )
     {
