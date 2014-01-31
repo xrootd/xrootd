@@ -87,6 +87,8 @@ Prerelease Notes
    * In xrootdfs, allow users to use multiple physical connections.
 
 + **Major bug fixes**
+   * Avoid Linux semaphore bug that can produce an abort. This should be
+     backported to any new 3.3.x release.
    * Honor the cmsd.dfs directive for locate request to avoid placing a 
      file in ENOENT status. This should be backport to 3.3.7 when and
      if it comes out.
