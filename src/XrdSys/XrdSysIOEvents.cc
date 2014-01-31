@@ -104,12 +104,13 @@ namespace XrdSys
 namespace IOEvents
 {
 struct pollArg
-       {Poller         *pollP;
-        const char     *retMsg;
-        int             retCode;
-        XrdSysSemaphore pollSync;
+       {Poller          *pollP;
+        const char      *retMsg;
+        int              retCode;
+        XrdSysSemaphore *pollSync;
 
-        pollArg() : retMsg(0), retCode(0), pollSync(0, "poll sync") {}
+        pollArg() : retMsg(0), retCode(0)
+                  {pollSync = new XrdSysSemaphore(0, "poll sync");}
        ~pollArg() {}
        };
 
@@ -124,9 +125,11 @@ void *BootStrap::Start(void *parg)
 {
    struct pollArg *pollArg = (struct pollArg *)parg;
    Poller *thePoller = pollArg->pollP;
+   XrdSysSemaphore *theSem = pollArg->pollSync;
    thePoller->pollTid = XrdSysThread::ID();
 
-   thePoller->Begin(&(pollArg->pollSync), pollArg->retCode, &(pollArg->retMsg));
+   thePoller->Begin(theSem, pollArg->retCode, &(pollArg->retMsg));
+   delete theSem;
 
    return (void *)0;
 }
@@ -752,8 +755,11 @@ XrdSys::IOEvents::Poller *XrdSys::IOEvents::Poller::Create(int         &eNum,
       {if (eTxt) *eTxt = "creating poller thread"; return 0;}
 
 // Now wait for the thread to finish initializing before we allow use
+// Note that the bootstrap takes ownership of the semaphore and will delete it
+// once the thread positing the semaphore actually ends. This is to avoid
+// semaphore bugs present in certain (e.g. Linux) kernels.
 //
-   pArg.pollSync.Wait();
+   pArg.pollSync->Wait();
 
 // Check if all went well
 //
