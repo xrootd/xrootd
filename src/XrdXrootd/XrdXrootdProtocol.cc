@@ -745,6 +745,7 @@ void XrdXrootdProtocol::Reset()
    rvSeq              = 0;
    pioFree = pioFirst = pioLast = 0;
    isActive = isDead  = isNOP = isBound = 0;
+   rdType             = 0;
    memset(&Entity, 0, sizeof(Entity));
    memset(Stream,  0, sizeof(Stream));
 }
