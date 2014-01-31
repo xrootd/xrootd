@@ -729,6 +729,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
 int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
 
   dest = "";
+  char save;
 
   // Easy case
   if (myBuffEnd >= myBuffStart) {
@@ -736,7 +737,10 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
     for (char *p = myBuffStart; p < myBuffEnd; p++) {
       l++;
       if (*p == '\n') {
+        save = *(p+1);
+        *(p+1) = '\0';
         dest.assign(myBuffStart, 0, l-1);
+        *(p+1) = save;
 
         //strncpy(dest, myBuffStart, l);
         //dest[l] = '\0';
@@ -757,8 +761,11 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
     for (char *p = myBuffStart; p < myBuff->buff + myBuff->bsize; p++) {
       l++;
       if ((*p == '\n') || (*p == '\0')) {
-
+        save = *(p+1);
+        *(p+1) = '\0';
         dest.assign(myBuffStart, 0, l-1);
+        *(p+1) = save;
+
         //strncpy(dest, myBuffStart, l);
 
         BuffConsume(l);
@@ -775,7 +782,8 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
     for (char *p = myBuff->buff; p < myBuffEnd; p++) {
       l++;
       if ((*p == '\n') || (*p == '\0')) {
-
+        save = *(p+1);
+        *(p+1) = '\0';
         // Remember the 1st segment
         int l1 = myBuff->buff + myBuff->bsize - myBuffStart;
         
@@ -787,6 +795,8 @@ int XrdHttpProtocol::BuffgetLine(XrdOucString &dest) {
         //strncpy(dest + l1, myBuffStart, l);
         //dest[l + l1] = '\0';
         BuffConsume(l);
+
+        *(p+1) = save;
 
         //if (dest[l + l1 - 1] == '\n') dest[l + l1 - 1] = '\0';
         return l + l1;
