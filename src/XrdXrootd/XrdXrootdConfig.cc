@@ -271,8 +271,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Check if we have a wrapper library
 //
    if (FSLib[1])
-      {TRACE(DEBUG, "Loading wrapper filesystem library " <<FSLib[0]);
-       osFS = XrdXrootdloadFileSystem(&eDest, osFS, FSLib[0], pi->ConfigFN);
+      {TRACE(DEBUG, "Loading wrapper filesystem library " <<FSLib[1]);
+       osFS = XrdXrootdloadFileSystem(&eDest, osFS, FSLib[1], pi->ConfigFN);
        if (!osFS)
           {eDest.Emsg("Config", "Unable to load file system wrapper.");
            return 0;
