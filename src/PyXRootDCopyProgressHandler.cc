@@ -30,6 +30,11 @@ namespace PyXRootD
                                       const XrdCl::URL *source,
                                       const XrdCl::URL *target )
   {
+    //--------------------------------------------------------------------------
+    //! Acquire the GIL in case we are called from a non-Python thread
+    //--------------------------------------------------------------------------
+    PyGILState_STATE state = PyGILState_Ensure();
+
     URLType.tp_new = PyType_GenericNew;
     if ( PyType_Ready( &URLType ) < 0 ) return;
     Py_INCREF( &URLType );
@@ -54,6 +59,11 @@ namespace PyXRootD
                            (char *) "(HHOO)", jobNum, jobTotal,
                            pysource, pytarget );
     }
+
+    //--------------------------------------------------------------------------
+    //! Release the GIL
+    //--------------------------------------------------------------------------
+    PyGILState_Release(state);
   }
 
   //----------------------------------------------------------------------------
@@ -61,6 +71,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   void CopyProgressHandler::EndJob( const XrdCl::XRootDStatus &status )
   {
+    PyGILState_STATE state = PyGILState_Ensure();
+
     PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>
                          ( (XrdCl::XRootDStatus*) &status );
     //--------------------------------------------------------------------------
@@ -71,6 +83,8 @@ namespace PyXRootD
       PyObject_CallMethod( handler, const_cast<char*>( "end" ),
                            (char *) "O", pystatus );
     }
+
+    PyGILState_Release(state);
   }
 
   //----------------------------------------------------------------------------
@@ -79,10 +93,14 @@ namespace PyXRootD
   void CopyProgressHandler::JobProgress( uint64_t bytesProcessed,
                                          uint64_t bytesTotal )
   {
+    PyGILState_STATE state = PyGILState_Ensure();
+
     if (handler != NULL)
     {
       PyObject_CallMethod( handler, const_cast<char*>( "update" ),
                            (char *) "kk", bytesProcessed, bytesTotal );
     }
+
+    PyGILState_Release(state);
   }
 }

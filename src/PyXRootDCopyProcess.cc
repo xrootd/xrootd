@@ -83,7 +83,15 @@ namespace PyXRootD
         &pyhandler ) ) return NULL;
 
     handler = new CopyProgressHandler( pyhandler );
-    XrdCl::XRootDStatus status = self->process->Run( handler );
+    XrdCl::XRootDStatus status;
+
+    //--------------------------------------------------------------------------
+    //! Allow other threads to acquire the GIL while the copy jobs are running
+    //--------------------------------------------------------------------------
+    Py_BEGIN_ALLOW_THREADS
+    status = self->process->Run( handler );
+    Py_END_ALLOW_THREADS
+
     return ConvertType<XrdCl::XRootDStatus>( &status );
   }
 }
