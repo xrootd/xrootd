@@ -91,7 +91,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName)
                  XrdNetAddr::fmtAdv6, noPort))  return false;
        if (!(Colon = rindex(ifTab.hAddr, ':'))) return false;
        n = strlen(Colon+1);
-       strcpy(ifTab.hAddr, Colon+1); ifTab.hAddr[n-1] = 0; ifTab.hALen = n-1;
+       memmove(ifTab.hAddr,Colon+1,n); ifTab.hAddr[n-1] = 0; ifTab.hALen = n-1;
        if (!(ifTab.hDLen = src->Format(ifTab.hDest, sizeof(ifTab.hDest),
                                 XrdNetAddr::fmtAdv6, old6M4))) return false;
        return true;
