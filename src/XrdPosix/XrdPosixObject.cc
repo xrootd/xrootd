@@ -35,6 +35,7 @@
 
 #include "XrdPosix/XrdPosixObject.hh"
 #include "XrdSys/XrdSysHeaders.hh"
+#include "XrdSys/XrdSysTimer.hh"
 
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
@@ -94,10 +95,12 @@ XrdPosixDir *XrdPosixObject::Dir(int fd, bool glk)
 {
    XrdPosixDir    *dP;
    XrdPosixObject *oP;
+   int  waitCount = 0;
+   bool haveLock;
 
 // Validate the fildes
 //
-   if (fd >= lastFD || fd < baseFD)
+do{if (fd >= lastFD || fd < baseFD)
       {errno = EBADF; return (XrdPosixDir *)0;}
 
 // Obtain the file object, if any
@@ -106,11 +109,33 @@ XrdPosixDir *XrdPosixObject::Dir(int fd, bool glk)
    if (!(oP = myFiles[fd - baseFD]) || !(oP->Who(&dP)))
       {fdMutex.UnLock(); errno = EBADF; return (XrdPosixDir *)0;}
 
-// Lock the object and unlock the global lock unless it is to be held
+// Attempt to lock the object in the appropriate mode. If we fail, then we need
+// to retry this after dropping the global lock. We pause a bit to let the
+// current lock holder a chance to unlock the lock. We only do this a limited
+// amount of time (1 minute) so that we don't get stuck here forever.
 //
-   oP->Lock();
-   if (!glk) fdMutex.UnLock();
+   if (glk) haveLock = oP->objMutex.CondWriteLock();
+      else  haveLock = oP->objMutex.CondReadLock();
+   if (!haveLock)
+      {fdMutex.UnLock();
+       waitCount++;
+       if (waitCount > 120) break;
+       XrdSysTimer::Wait(500); // We wait 500 milliseconds
+       continue;
+      }
+
+// If the global lock is to be held, then release the object lock as this
+// is a call to destroy the object and there is no need for the local lock.
+//
+   if (glk) oP->UnLock();
+      else  fdMutex.UnLock();
    return dP;
+  } while(1);
+
+// If we get here then we timedout waiting for the object lock
+//
+   errno = ETIMEDOUT;
+   return (XrdPosixDir *)0;
 }
   
 /******************************************************************************/
@@ -121,10 +146,12 @@ XrdPosixFile *XrdPosixObject::File(int fd, bool glk)
 {
    XrdPosixFile   *fP;
    XrdPosixObject *oP;
+   int  waitCount = 0;
+   bool haveLock;
 
 // Validate the fildes
 //
-   if (fd >= lastFD || fd < baseFD)
+do{if (fd >= lastFD || fd < baseFD)
       {errno = EBADF; return (XrdPosixFile *)0;}
 
 // Obtain the file object, if any
@@ -133,11 +160,33 @@ XrdPosixFile *XrdPosixObject::File(int fd, bool glk)
    if (!(oP = myFiles[fd - baseFD]) || !(oP->Who(&fP)))
       {fdMutex.UnLock(); errno = EBADF; return (XrdPosixFile *)0;}
 
-// Lock the object and unlock the global lock unless it is to be held
+// Attempt to lock the object in the appropriate mode. If we fail, then we need
+// to retry this after dropping the global lock. We pause a bit to let the
+// current lock holder a chance to unlock the lock. We only do this a limited
+// amount of time (1 minute) so that we don't get stuck here forever.
 //
-   oP->Lock();
-   if (!glk) fdMutex.UnLock();
+   if (glk) haveLock = oP->objMutex.CondWriteLock();
+      else  haveLock = oP->objMutex.CondReadLock();
+   if (!haveLock)
+      {fdMutex.UnLock();
+       waitCount++;
+       if (waitCount > 120) break;
+       XrdSysTimer::Wait(500); // We wait 500 milliseconds
+       continue;
+      }
+
+// If the global lock is to be held, then release the object lock as this
+// is a call to destroy the object and there is no need for the local lock.
+//
+   if (glk) oP->UnLock();
+      else  fdMutex.UnLock();
    return fP;
+  } while(1);
+
+// If we get here then we timedout waiting for the object lock
+//
+   errno = ETIMEDOUT;
+   return (XrdPosixFile *)0;
 }
 
 /******************************************************************************/

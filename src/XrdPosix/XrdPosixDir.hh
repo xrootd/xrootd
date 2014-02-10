@@ -69,9 +69,9 @@ static int         dirNo(DIR *dirP)  {return *(int *)dirP;}
 
        DIR        *Open();
 
-       void        rewind() {Lock();
+       void        rewind() {objMutex.WriteLock();
                              nxtEnt = 0; delete myDirVec; myDirVec = 0;
-                             UnLock();
+                             objMutex.UnLock();
                             }
        int         Status() {return eNum;}
 

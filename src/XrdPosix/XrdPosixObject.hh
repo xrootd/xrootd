@@ -53,8 +53,6 @@ static  XrdPosixFile *File(int fildes, bool glk=false);
 
 static  int           Init(int numfd);
 
-        void          Lock() {objMutex.Lock();}
-
 static  void          Release(XrdPosixObject *oP, bool needlk=true);
 
 static  XrdPosixDir  *ReleaseDir( int fildes);
@@ -77,7 +75,7 @@ virtual bool          Who(XrdPosixFile **fileP) {return false;}
 virtual              ~XrdPosixObject() {if (fdNum >= 0) Release(this);}
 
 protected:
-       XrdSysMutex      objMutex;
+       XrdSysRWLock     objMutex;
        int              fdNum;
 
 private:
