@@ -141,6 +141,7 @@ install(
     XrdClXRootDResponses.hh
     XrdClPlugInInterface.hh
     XrdClPlugInManager.hh
+    XrdClPropertyList.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(
