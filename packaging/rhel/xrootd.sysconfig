@@ -21,11 +21,11 @@ XROOTD_GROUP=xrootd
 #   NAME   - the name of the instance, any uppercase alphanumeric string
 #            without whitespaces is valid
 #-------------------------------------------------------------------------------
-XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-clustered.cfg -k hup"
-#XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-standalone.cfg -k hup"
-CMSD_DEFAULT_OPTIONS="-l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-clustered.cfg -k hup"
-PURD_DEFAULT_OPTIONS="-l /var/log/xrootd/purged.log -c /etc/xrootd/xrootd-clustered.cfg -k hup"
-XFRD_DEFAULT_OPTIONS="-l /var/log/xrootd/xfrd.log -c /etc/xrootd/xrootd-clustered.cfg -k hup"
+XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+#XROOTD_DEFAULT_OPTIONS="-l /var/log/xrootd/xrootd.log -c /etc/xrootd/xrootd-standalone.cfg -k fifo"
+CMSD_DEFAULT_OPTIONS="-l /var/log/xrootd/cmsd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+PURD_DEFAULT_OPTIONS="-l /var/log/xrootd/purged.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
+XFRD_DEFAULT_OPTIONS="-l /var/log/xrootd/xfrd.log -c /etc/xrootd/xrootd-clustered.cfg -k fifo"
 
 #-------------------------------------------------------------------------------
 # Names of the instances to be started by default, the case doesn't matter,
