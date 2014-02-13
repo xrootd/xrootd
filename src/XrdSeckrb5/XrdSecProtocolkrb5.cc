@@ -56,6 +56,7 @@ extern "C" {
 #include "XrdNet/XrdNetAddrInfo.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPwd.hh"
@@ -227,6 +228,7 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return new XrdSecCredentials(0,0);
       }
 
+#if 0
 // Set KRB5CCNAME to its default value, if not done
 //
    if (!getenv("KRB5CCNAME")) {
@@ -238,7 +240,21 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
       }
    }
    CLDBG((getenv("KRB5CCNAME") ? getenv("KRB5CCNAME") : "KRB5CCNAME unset"));
-	 
+#else	
+// We support passing the credential cache path via Url parameter
+//
+   char *ccn = (error && error->getEnv()) ? error->getEnv()->Get("xrd.k5ccname") : 0;
+   const char *kccn = ccn ? (const char *)ccn : getenv("KRB5CCNAME");
+   char ccname[128];
+   if (!kccn)
+      {snprintf(ccname, 128, "/tmp/krb5cc_%d", geteuid());
+       if (access(ccname, R_OK) == 0)
+          {kccn = ccname;}
+      }
+   CLDBG((kccn ? kccn : "credentials cache unset"));
+
+#endif
+
 // Initialize the context and get the cache default.
 //
    if ((rc = krb5_init_context(&krb_client_context)))
@@ -247,6 +263,16 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
       }
 
    CLDBG("init context");
+
+// Set the name of the default credentials cache for the Kerberos context
+//
+   if ((rc = krb5_cc_set_default_name(krb_client_context, kccn)))
+      {Fatal(error, ENOPROTOOPT, "Kerberos default credentials cache setting failed", Service, rc);
+       return (XrdSecCredentials *)0;
+      }
+
+   CLDBG("cc set default name");
+
 // Obtain the default cache location
 //
    if ((rc = krb5_cc_default(krb_client_context, &krb_client_ccache)))
@@ -254,7 +280,7 @@ XrdSecCredentials *XrdSecProtocolkrb5::getCredentials(XrdSecParameters *noparm,
        return (XrdSecCredentials *)0;
       }
 
-   CLDBG("cc cache default");
+   CLDBG("cc default");
 // Check if the server asked for a forwardable ticket
 //
    char *pfwd = 0;
