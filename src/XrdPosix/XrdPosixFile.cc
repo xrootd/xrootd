@@ -192,7 +192,7 @@ int XrdPosixFile::ReadV (const XrdOucIOVec *readV, int n)
 {
    XrdCl::XRootDStatus    Status;
    XrdCl::ChunkList       chunkVec;
-   XrdCl::VectorReadInfo *vrInfo;
+   XrdCl::VectorReadInfo *vrInfo = 0;
    int i, nbytes = 0;
 
 // Copy in the vector (would be nice if we didn't need to do this)
