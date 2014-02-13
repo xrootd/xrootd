@@ -416,14 +416,20 @@ namespace
       //! Constructor
       //------------------------------------------------------------------------
       StdInSource( const std::string &ckSumType ):
-        pCkSumHelper( "stdin", ckSumType ), pCurrentOffset(0) {}
+        pCkSumHelper(0), pCurrentOffset(0)
+      {
+        if( !ckSumType.empty() )
+          pCkSumHelper = new CheckSumHelper( "stdin", ckSumType );
+      }
 
       //------------------------------------------------------------------------
       //! Initialize the source
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
-        return pCkSumHelper.Initialize();
+        if( pCkSumHelper )
+          return pCkSumHelper->Initialize();
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -459,17 +465,22 @@ namespace
           }
 
           if( bRead == 0 )
-          {
-            delete [] buffer;
-            return XRootDStatus( stOK, suDone );
-          }
+            break;
 
           bytesRead += bRead;
           offset    += bRead;
           toRead    -= bRead;
         }
 
-        pCkSumHelper.Update( buffer, bytesRead );
+        if( bytesRead == 0 )
+        {
+          delete [] buffer;
+          return XRootDStatus( stOK, suDone );
+        }
+
+        if( pCkSumHelper )
+          pCkSumHelper->Update( buffer, bytesRead );
+
         ci.offset = pCurrentOffset;
         ci.length = bytesRead;
         ci.buffer = buffer;
@@ -483,12 +494,15 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        return pCkSumHelper.GetCheckSum( checkSum, checkSumType );
+        using namespace XrdCl;
+        if( pCkSumHelper )
+          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+        return XRootDStatus( stError, errCheckSumError );
       }
 
     private:
-      CheckSumHelper pCkSumHelper;
-      uint64_t       pCurrentOffset;
+      CheckSumHelper *pCkSumHelper;
+      uint64_t        pCurrentOffset;
   };
 
   //----------------------------------------------------------------------------
