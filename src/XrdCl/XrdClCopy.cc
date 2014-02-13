@@ -345,10 +345,10 @@ XrdCpFile* IndexRemote( XrdCl::FileSystem *fs,
 //------------------------------------------------------------------------------
 // Clean up the copy job descriptors
 //------------------------------------------------------------------------------
-void CleanUpJobs( std::vector<XrdCl::JobDescriptor *> &jobs )
+void CleanUpResults( std::vector<XrdCl::PropertyList *> &results )
 {
-  std::vector<XrdCl::JobDescriptor *>::iterator it;
-  for( it = jobs.begin(); it != jobs.end(); ++it )
+  std::vector<XrdCl::PropertyList *>::iterator it;
+  for( it = results.begin(); it != results.end(); ++it )
     delete *it;
 }
 
@@ -380,35 +380,43 @@ int main( int argc, char **argv )
     else if( config.Dlvl == 3 ) log->SetLevel( Log::DumpMsg );
   }
 
-  ProgressDisplay progressHandler, *progress = 0;
-  if( !config.Want(XrdCpConfig::DoNoPbar) )
-    progress = &progressHandler;
+  ProgressDisplay progress;
+  if( config.Want(XrdCpConfig::DoNoPbar) )
+    progress.PrintProgressBar( false );
 
-  bool posc               = false;
-  bool thirdParty         = false;
-  bool thirdPartyFallBack = true;
-  bool force              = false;
-  bool coerce             = false;
-  bool makedir            = false;
+  bool         posc      = false;
+  bool         force     = false;
+  bool         coerce    = false;
+  bool         makedir   = false;
+  std::string thirdParty = "none";
 
-  if( config.Want( XrdCpConfig::DoPosc ) )     posc                = true;
-  if( config.Want( XrdCpConfig::DoForce ) )    force               = true;
-  if( config.Want( XrdCpConfig::DoCoerce ) )   coerce              = true;
-  if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty          = true;
-  if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdPartyFallBack  = false;
-  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir             = true;
+  if( config.Want( XrdCpConfig::DoPosc ) )     posc       = true;
+  if( config.Want( XrdCpConfig::DoForce ) )    force      = true;
+  if( config.Want( XrdCpConfig::DoCoerce ) )   coerce     = true;
+  if( config.Want( XrdCpConfig::DoTpc ) )      thirdParty = "first";
+  if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
+  if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
 
   std::string checkSumType;
   std::string checkSumPreset;
-  bool        checkSumPrint  = false;
+  std::string checkSumMode  = "none";
   if( config.Want( XrdCpConfig::DoCksum ) )
   {
+    checkSumMode = "end2end";
     std::vector<std::string> ckSumParams;
     Utils::splitString( ckSumParams, config.CksVal, ":" );
     if( ckSumParams.size() > 1 )
     {
       if( ckSumParams[1] == "print" )
-        checkSumPrint = true;
+      {
+        checkSumMode = "target";
+        progress.PrintTargetCheckSum( true );
+      }
+      else if( ckSumParams[1] == "source" )
+      {
+        checkSumMode = "source";
+        progress.PrintSourceCheckSum( true );
+      }
       else
         checkSumPreset = ckSumParams[1];
     }
@@ -440,7 +448,7 @@ int main( int argc, char **argv )
   //----------------------------------------------------------------------------
   // Build the URLs
   //----------------------------------------------------------------------------
-  std::vector<JobDescriptor *> jobs;
+  std::vector<XrdCl::PropertyList*> resultVect;
 
   std::string dest;
   if( config.dstFile->Protocol == XrdCpFile::isDir ||
@@ -521,7 +529,8 @@ int main( int argc, char **argv )
     //--------------------------------------------------------------------------
     // Create a job for every source
     //--------------------------------------------------------------------------
-    JobDescriptor *job = new JobDescriptor();
+    PropertyList  properties;
+    PropertyList *results = new PropertyList;
     std::string source = sourceFile->Path;
     if( sourceFile->Protocol == XrdCpFile::isFile )
       source = "file://" + source;
@@ -544,22 +553,27 @@ int main( int argc, char **argv )
 
     AppendCGI( target, config.dstOpq );
 
-    job->source               = source;
-    job->target               = target;
-    job->force                = force;
-    job->posc                 = posc;
-    job->coerce               = coerce;
-    job->makedir              = makedir;
-    job->thirdParty           = thirdParty;
-    job->thirdPartyFallBack   = thirdPartyFallBack;
-    job->checkSumType         = checkSumType;
-    job->checkSumPreset       = checkSumPreset;
-    job->checkSumPrint        = checkSumPrint;
-    job->chunkSize            = chunkSize;
-    job->parallelChunks       = parallelChunks;
-    process.AddJob( job );
-    jobs.push_back( job );
+    properties.Set( "source",         source         );
+    properties.Set( "target",         target         );
+    properties.Set( "force",          force          );
+    properties.Set( "posc",           posc           );
+    properties.Set( "coerce",         coerce         );
+    properties.Set( "makeDir",        makedir        );
+    properties.Set( "thirdParty",     thirdParty     );
+    properties.Set( "checkSumMode",   checkSumMode   );
+    properties.Set( "checkSumType",   checkSumType   );
+    properties.Set( "checkSumPreset", checkSumPreset );
+    properties.Set( "chunkSize",      chunkSize      );
+    properties.Set( "parallelChunks", parallelChunks );
 
+    XRootDStatus st = process.AddJob( properties, results );
+    if( !st.IsOK() )
+    {
+      delete results;
+      std::cerr << "AddJob " << source << " -> " << target << ": ";
+      std::cerr << st.ToStr() << std::endl;
+    }
+    resultVect.push_back( results );
     sourceFile = sourceFile->Next;
   }
 
@@ -569,19 +583,19 @@ int main( int argc, char **argv )
   XRootDStatus st = process.Prepare();
   if( !st.IsOK() )
   {
-    CleanUpJobs( jobs );
+    CleanUpResults( resultVect );
     std::cerr << "Prepare: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
 
-  st = process.Run( progress );
+  st = process.Run( &progress );
   if( !st.IsOK() )
   {
-    CleanUpJobs( jobs );
+    CleanUpResults( resultVect );
     std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
-  CleanUpJobs( jobs );
+  CleanUpResults( resultVect );
   return 0;
 }
 
