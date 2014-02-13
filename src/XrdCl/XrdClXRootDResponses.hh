@@ -251,7 +251,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       std::string ToStr() const
       {
-
         if( code == errErrorResponse )
         {
           std::ostringstream o;
@@ -259,7 +258,10 @@ namespace XrdCl
           o << pMessage << std::endl;
           return o.str();
         }
-        return ToString();
+        std::string str = ToString();
+        if( !pMessage.empty() )
+          str += ": " + pMessage;
+        return str;
       }
 
     private:
