@@ -56,9 +56,15 @@ XrdSecProtocol *Get(const char        *hname,
                     const char        *pname,
                     XrdOucErrInfo     *erp);
 
-XrdSecProtocol *Get (const char       *hname,
-                     XrdNetAddrInfo   &netaddr,
-                     XrdSecParameters &secparm);
+XrdSecProtocol *Get(const char       *hname,
+                    XrdNetAddrInfo   &netaddr,
+                    XrdSecParameters &secparm)
+                    {return Get(hname, netaddr, secparm, (XrdOucErrInfo *)0);} 
+
+XrdSecProtocol *Get(const char       *hname,
+                    XrdNetAddrInfo   &netaddr,
+                    XrdSecParameters &secparm,
+                    XrdOucErrInfo     *erp);
 
 int             Load(XrdOucErrInfo *eMsg,    // In
                      const char     pmode,   // In 'c' | 's'

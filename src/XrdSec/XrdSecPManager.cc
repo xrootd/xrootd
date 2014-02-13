@@ -134,15 +134,21 @@ XrdSecProtocol *XrdSecPManager::Get(const char     *hname,
 
 XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                                     XrdNetAddrInfo   &endPoint,
-                                    XrdSecParameters &secparm)
+                                    XrdSecParameters &secparm,
+                                    XrdOucErrInfo    *eri)
 {
    char secbuff[4096], *nscan, *pname, *pargs, *bp = secbuff;
    char pcomp[XrdSecPROTOIDSIZE+4], *compProt;
-   const char *wantProt = getenv("XrdSecPROTOCOL");
    XrdSecProtList *pl;
    XrdSecProtocol *pp;
-   XrdOucErrInfo   erp;
+   XrdOucErrInfo   ei;
+   XrdOucErrInfo  *erp = (eri) ? eri : &ei;
    int i;
+
+// We support passing the list of protocols via Url parameter
+//
+   char *wp = (eri && eri->getEnv()) ? eri->getEnv()->Get("xrd.wantprot") : 0;
+   const char *wantProt = wp ? (const char *)wp : getenv("XrdSecPROTOCOL");
 
 // We only scan the buffer once
 //
@@ -187,10 +193,10 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
              strcat(pcomp, ",");
             }
          if (!wantProt || strstr(compProt, pcomp))
-            {if ((pl = Lookup(pname)) || (pl = ldPO(&erp, 'c', pname)))
+            {if ((pl = Lookup(pname)) || (pl = ldPO(erp, 'c', pname)))
                 {DEBUG("Using " <<pname <<" protocol, args='"
                        <<(pargs ? pargs : "") <<"'");
-                 if ((pp = pl->ep('c', hname, endPoint, pargs, &erp)))
+                 if ((pp = pl->ep('c', hname, endPoint, pargs, erp)))
                     {if (nscan) {i = nscan - secbuff;
                                  secparm.buffer += i; secparm.size -= i;
                                 } else secparm.size = -1;
@@ -198,7 +204,7 @@ XrdSecProtocol *XrdSecPManager::Get(const char       *hname,
                      return pp;
                     }
                 }
-             if (erp.getErrInfo() != ENOENT) cerr <<erp.getErrText() <<endl;
+             if (erp->getErrInfo() != ENOENT) cerr <<erp->getErrText() <<endl;
             } else {DEBUG("Skipping " <<pname <<" only want " <<wantProt);}
          if (!nscan) break;
          *nscan = '&'; bp = nscan;
