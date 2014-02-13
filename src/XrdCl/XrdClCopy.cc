@@ -39,7 +39,9 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //! Constructor
     //--------------------------------------------------------------------------
     ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0),
-      pStarted(0) {}
+      pStarted(0), pPrintProgressBar(true), pPrintSourceCheckSum(false),
+      pPrintTargetCheckSum(false), pSource(0), pTarget(0)
+    {}
 
     //--------------------------------------------------------------------------
     //! Begin job
@@ -49,26 +51,48 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
                            const XrdCl::URL *source,
                            const XrdCl::URL *destination )
     {
-      if( jobTotal > 1 )
+      if( pPrintProgressBar )
       {
-        std::cerr << "Job: "    << jobNum << "/" << jobTotal << std::endl;
-        std::cerr << "Source: " << source->GetURL() << std::endl;
-        std::cerr << "Target: " << destination->GetURL() << std::endl;
+        if( jobTotal > 1 )
+        {
+          std::cerr << "Job: "    << jobNum << "/" << jobTotal << std::endl;
+          std::cerr << "Source: " << source->GetURL() << std::endl;
+          std::cerr << "Target: " << destination->GetURL() << std::endl;
+        }
       }
       pPrevious = 0;
       pStarted  = time(0);
+      pSource   = source;
+      pTarget   = destination;
     }
 
     //--------------------------------------------------------------------------
     //! End job
     //--------------------------------------------------------------------------
-    virtual void EndJob( const XrdCl::XRootDStatus &/*status*/ )
+    virtual void EndJob( const XrdCl::PropertyList *results )
     {
       // make sure the last available status was printed, which may not be
       // the case when processing stdio since we throttle printing and don't
       // know the total size
       JobProgress( pBytesProcessed, pBytesTotal );
-      std::cerr << std::endl;
+
+      if( pPrintProgressBar )
+        std::cerr << std::endl;
+
+      std::string checkSum;
+      uint64_t    size;
+      results->Get( "size", size );
+      if( pPrintSourceCheckSum )
+      {
+        results->Get( "sourceCheckSum", checkSum );
+        PrintCheckSum( pSource, checkSum, size );
+      }
+
+      if( pPrintTargetCheckSum )
+      {
+        results->Get( "targetCheckSum", checkSum );
+        PrintCheckSum( pTarget, checkSum, size );
+      }
     }
 
     //--------------------------------------------------------------------------
@@ -77,51 +101,92 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     virtual void JobProgress( uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
-      pBytesProcessed = bytesProcessed;
-      pBytesTotal     = bytesTotal;
-
-      time_t now = time(0);
-      if( (now - pPrevious < 1) && (bytesProcessed != bytesTotal) )
-        return;
-      pPrevious = now;
-
-      uint64_t speed = 0;
-      if( now-pStarted )
-        speed = bytesProcessed/(now-pStarted);
-
-      std::string bar;
-      int prog = (int)((double)bytesProcessed/bytesTotal*50);
-      int proc = (int)((double)bytesProcessed/bytesTotal*100);
-
-      if( bytesTotal )
+      if( pPrintProgressBar )
       {
-        prog = (int)((double)bytesProcessed/bytesTotal*50);
-        proc = (int)((double)bytesProcessed/bytesTotal*100);
+        pBytesProcessed = bytesProcessed;
+        pBytesTotal     = bytesTotal;
+
+        time_t now = time(0);
+        if( (now - pPrevious < 1) && (bytesProcessed != bytesTotal) )
+          return;
+        pPrevious = now;
+
+        uint64_t speed = 0;
+        if( now-pStarted )
+          speed = bytesProcessed/(now-pStarted);
+
+        std::string bar;
+        int prog = (int)((double)bytesProcessed/bytesTotal*50);
+        int proc = (int)((double)bytesProcessed/bytesTotal*100);
+
+        if( bytesTotal )
+        {
+          prog = (int)((double)bytesProcessed/bytesTotal*50);
+          proc = (int)((double)bytesProcessed/bytesTotal*100);
+        }
+        else
+        {
+          prog = 50;
+          proc = 100;
+        }
+        bar.append( prog, '=' );
+        if( prog < 50 )
+          bar += ">";
+
+        std::cerr << "\r";
+        std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "B/";
+        std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "B]";
+        std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
+        std::cerr << "[" << std::setw(50) << std::left;
+        std::cerr << bar;
+        std::cerr << "]";
+        std::cerr << "[" << XrdCl::Utils::BytesToString(speed) << "B/s]  ";
+        std::cerr << std::flush;
       }
+    }
+
+    //--------------------------------------------------------------------------
+    //! Print the checksum
+    //--------------------------------------------------------------------------
+    void PrintCheckSum( const XrdCl::URL  *url,
+                        const std::string &checkSum,
+                        uint64_t size )
+    {
+      if( checkSum.empty() )
+        return;
+      std::string::size_type i = checkSum.find( ':' );
+      std::cerr << checkSum.substr( 0, i+1 ) << " ";
+      std::cerr << checkSum.substr( i+1, checkSum.length()-i ) << " ";
+
+      if( url->GetProtocol() == "file" )
+        std::cerr << url->GetPath() << " ";
       else
       {
-        prog = 50;
-        proc = 100;
+        std::cerr << url->GetProtocol() << "://" << url->GetHostId();
+        std::cerr << url->GetPath() << " ";
       }
-      bar.append( prog, '=' );
-      if( prog < 50 )
-        bar += ">";
 
-      std::cerr << "\r";
-      std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "B/";
-      std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "B]";
-      std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
-      std::cerr << "[" << std::setw(50) << std::left;
-      std::cerr << bar;
-      std::cerr << "]";
-      std::cerr << "[" << XrdCl::Utils::BytesToString(speed) << "B/s]  ";
-      std::cerr << std::flush;
+      std::cerr << size;
+      std::cerr << std::endl;
     }
+
+    //--------------------------------------------------------------------------
+    // Printing flags
+    //--------------------------------------------------------------------------
+    void PrintProgressBar( bool print )    { pPrintProgressBar    = print; }
+    void PrintSourceCheckSum( bool print ) { pPrintSourceCheckSum = print; }
+    void PrintTargetCheckSum( bool print ) { pPrintTargetCheckSum = print; }
+
   private:
-    uint64_t pBytesProcessed;
-    uint64_t pBytesTotal;
-    time_t   pPrevious;
-    time_t   pStarted;
+    uint64_t          pBytesProcessed;
+    uint64_t          pBytesTotal;
+    time_t            pPrevious;
+    time_t            pStarted;
+    bool              pPrintProgressBar;
+    bool              pPrintSourceCheckSum;
+    bool              pPrintTargetCheckSum;
+    const XrdCl::URL *pSource;
+    const XrdCl::URL *pTarget;
 };
 
 //------------------------------------------------------------------------------
