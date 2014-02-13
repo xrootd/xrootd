@@ -416,7 +416,7 @@ void UtilsTest::PropertyListTest()
   using namespace XrdCl;
   PropertyList l;
   l.Set( "s1", "test string 1" );
-  l.Set( "i1", (uint64_t)123456789123 );
+  l.Set( "i1", 123456789123ULL );
 
   uint64_t i1;
   std::string s1;
@@ -424,7 +424,7 @@ void UtilsTest::PropertyListTest()
   CPPUNIT_ASSERT( l.Get( "s1", s1 ) );
   CPPUNIT_ASSERT( s1 == "test string 1" );
   CPPUNIT_ASSERT( l.Get( "i1", i1 ) );
-  CPPUNIT_ASSERT( i1 == 123456789123 );
+  CPPUNIT_ASSERT( i1 == 123456789123ULL );
   CPPUNIT_ASSERT( l.HasProperty( "s1" ) );
   CPPUNIT_ASSERT( !l.HasProperty( "s2" ) );
   CPPUNIT_ASSERT( l.HasProperty( "i1" ) );
