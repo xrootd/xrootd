@@ -2,6 +2,8 @@
 // Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdicti
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_COPY_PROCESS_HH__
@@ -21,10 +27,14 @@
 
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClPropertyList.hh"
 #include <stdint.h>
+#include <vector>
 
 namespace XrdCl
 {
+  class CopyJob;
+
   //----------------------------------------------------------------------------
   //! Interface for copy progress notification
   //----------------------------------------------------------------------------
@@ -49,9 +59,9 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Notify when the previous job has finished
       //!
-      //! @param status status of the job
+      //! @param result result of the job
       //------------------------------------------------------------------------
-      virtual void EndJob( const XRootDStatus &status ) = 0;
+      virtual void EndJob( const PropertyList *result ) = 0;
 
       //------------------------------------------------------------------------
       //! Notify about the progress of the current job
@@ -62,91 +72,11 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void JobProgress( uint64_t bytesProcessed,
                                 uint64_t bytesTotal ) = 0;
-  };
-
-  //----------------------------------------------------------------------------
-  //! Job description
-  //----------------------------------------------------------------------------
-  struct JobDescriptor
-  {
-    JobDescriptor(): sourceLimit(1), force(false), posc(false), coerce(false),
-      makedir(false), thirdParty(false), thirdPartyFallBack(true),
-      checkSumPrint(false), chunkSize( 4194304 ), parallelChunks(8)
-    {}
-
-    URL              source;               //!< [in] original source URL
-    URL              target;               //!< [in] target directory or file
-    uint16_t         sourceLimit;          //!< [in] max number of download
-                                           //!< sources
-    bool             force;                //!< [in] overwrite target if exists
-    bool             posc;                 //!< [in] persistify on successful
-                                           //!< close
-    bool             coerce;               //!< [in] ignore file usage rules,
-                                           //!< ie. apply Force flag to Open
-    bool             makedir;              //!< [in] create directory path to
-                                           //!< file if it doesn't exist
-    bool             thirdParty;           //!< [in] do third party copy if
-                                           //!< possible
-    bool             thirdPartyFallBack;   //!< [in] fall back to classic copy
-                                           //!< when it is impossible to do
-                                           //!< 3rd party
-    bool             checkSumPrint;        //!< [in] print checksum after the
-                                           //!< transfer
-    std::string      checkSumType;         //!< [in] type of the checksum
-    std::string      checkSumPreset;       //!< [in] checksum preset
-    uint32_t         chunkSize;            //!< [in] chunk size for remote
-                                           //!< transfers
-    uint8_t          parallelChunks;       //!< [in] number of chunks that
-                                           //!< should be requested in parallel
-
-    std::string      sourceCheckSum;       //!< [out] checksum calculated at
-                                           //!< source
-    std::string      targetCheckSum;       //!< [out] checksum calculated at
-                                           //!< target
-    XRootDStatus     status;               //!< [out] status of the copy
-                                           //!< operation
-    std::vector<URL> sources;              //!< [out] all the possible sources
-                                           //!< that may have been located
-    URL              realTarget;           //!< the actual disk server target
-  };
-
-  //----------------------------------------------------------------------------
-  //! Copy job
-  //----------------------------------------------------------------------------
-  class CopyJob
-  {
-    public:
-      //------------------------------------------------------------------------
-      //! Constructor
-      //------------------------------------------------------------------------
-      CopyJob( JobDescriptor *jobDesc ):
-        pJob( jobDesc ) {}
 
       //------------------------------------------------------------------------
-      //! Virtual destructor
+      //! Determine whether the job should be canceled
       //------------------------------------------------------------------------
-      virtual ~CopyJob()
-      {
-      }
-
-      //------------------------------------------------------------------------
-      //! Run the copy job
-      //!
-      //! @param progress the handler to be notified about the copy progress
-      //! @return         status of the copy operation
-      //------------------------------------------------------------------------
-      virtual XRootDStatus Run( CopyProgressHandler *progress = 0 ) = 0;
-
-      //------------------------------------------------------------------------
-      //! Get the job descriptor
-      //------------------------------------------------------------------------
-      JobDescriptor *GetDescriptor() const
-      {
-        return pJob;
-      }
-
-    protected:
-      JobDescriptor *pJob;
+      virtual bool ShouldCancel() { return false; }
   };
 
   //----------------------------------------------------------------------------
@@ -166,13 +96,43 @@ namespace XrdCl
       virtual ~CopyProcess();
 
       //------------------------------------------------------------------------
-      //! Add job - it's user's responsibility to handle these after the
-      //! copy has bee done
+      //! Add job
+      //!
+      //! @param properties job configuration parameters
+      //! @param results    placeholder for the results
+      //!
+      //! Configuration properties:
+      //! source         [string]   - original source URL
+      //! target         [string]   - target directory or file
+      //! sourceLimit    [uint16_t] - maximum number sources
+      //! force          [bool]     - overwrite target if exists
+      //! posc           [bool]     - persistify only on successful close
+      //! coerce         [bool]     - ignore locking semantics on destination
+      //! makeDir        [bool]     - create path to the file if it doesn't
+      //!                             exist
+      //! thirdParty     [string]   - "first" try third party copy, if it fails
+      //!                             try normal copy; "only" only try third
+      //!                             party copy
+      //! checkSumMode   [string]   - "none"    - no checksumming
+      //!                             "end2end" - end to end checksumming
+      //!                             "source"  - calculate checksum at source
+      //!                             "target"  - calculate checksum at target
+      //! checkSumType   [string]   - type of the checksum to be used
+      //! checkSumPreset [string]   - checksum preset
+      //! chunkSize      [uint32_t] - size of a copy chunks in bytes
+      //! parallelChunks [uint8_t]  - number of chunks that should be requested
+      //!                             in parallel
+      //!
+      //! Results:
+      //! sourceCheckSum [string]   - checksum at source, if requested
+      //! targetCheckSum [string]   - checksum at target, if requested
+      //! size           [uint64_t] - file size
+      //! status         [XRootDStatus] - status of the copy operation
+      //! sources        [vector<string>] - all sources used
+      //! realTarget     [string]   - the actual disk server target
       //------------------------------------------------------------------------
-      void AddJob( JobDescriptor *job )
-      {
-        pJobDescs.push_back( job );
-      }
+      XRootDStatus AddJob( const PropertyList &properties,
+                           PropertyList       *results );
 
       //------------------------------------------------------------------------
       // Prepare the copy jobs
@@ -186,8 +146,9 @@ namespace XrdCl
 
     private:
       void CleanUpJobs();
-      std::list<JobDescriptor*>  pJobDescs;
-      std::list<CopyJob*>        pJobs;
+      std::vector<PropertyList>   pJobProperties;
+      std::vector<PropertyList*>  pJobResults;
+      std::vector<CopyJob*>       pJobs;
   };
 }
 

@@ -20,6 +20,7 @@
 #define __XRD_CL_CLASSIC_COPY_JOB_HH__
 
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClCopyJob.hh"
 
 namespace XrdCl
 {
@@ -29,7 +30,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      ClassicCopyJob( JobDescriptor *jobDesc );
+      ClassicCopyJob( PropertyList *jobProperties,
+                      PropertyList *jobResults );
 
       //------------------------------------------------------------------------
       //! Run the copy job
@@ -38,7 +40,6 @@ namespace XrdCl
       //! @return         status of the copy operation
       //------------------------------------------------------------------------
       virtual XRootDStatus Run( CopyProgressHandler *progress = 0 );
-
   };
 }
 

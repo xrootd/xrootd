@@ -20,24 +20,18 @@
 #define __XRD_CL_THIRD_PARTY_COPY_JOB_HH__
 
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClCopyJob.hh"
 
 namespace XrdCl
 {
   class ThirdPartyCopyJob: public CopyJob
   {
     public:
-      struct Info
-      {
-        Info(): sourceSize(0) {}
-        URL         source;            //!< actual source data server
-        std::string sourceChecksum;    //!< checksum at source
-        uint64_t    sourceSize;        //!< size of the source file
-      };
-
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      ThirdPartyCopyJob( JobDescriptor *jobDesc, Info *tpcInfo );
+      ThirdPartyCopyJob( PropertyList *jobProperties,
+                         PropertyList *jobResults );
 
       //------------------------------------------------------------------------
       //! Run the copy job
@@ -51,16 +45,15 @@ namespace XrdCl
       //! Check whether doing a third party copy is feasible for given
       //! job descriptor
       //!
-      //! @param  jd job descriptor
-      //! @param  info a placeholder for the extra info needed by the copy
+      //! @param  property list - may be extended by info needed for TPC
       //! @return error when a third party copy cannot be performed and
       //!         fatal error when no copy can be performed
       //------------------------------------------------------------------------
-      static XRootDStatus CanDo( JobDescriptor *jd, Info *tpcInfo );
+      static XRootDStatus CanDo( const URL &source, const URL &target,
+                                 PropertyList *properties );
 
     private:
       static std::string GenerateKey();
-      Info pTPCInfo;
   };
 }
 

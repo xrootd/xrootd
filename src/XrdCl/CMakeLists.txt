@@ -67,6 +67,8 @@ add_library(
                               XrdClUglyHacks.hh
                               XrdClPlugInInterface.hh
   XrdClPlugInManager.cc       XrdClPlugInManager.hh
+                              XrdClPropertyList.hh
+                              XrdClCopyJob.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

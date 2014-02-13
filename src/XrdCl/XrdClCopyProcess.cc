@@ -24,6 +24,8 @@
 #include "XrdCl/XrdClThirdPartyCopyJob.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMonitor.hh"
+#include "XrdCl/XrdClCopyJob.hh"
+#include "XrdCl/XrdClUtils.hh"
 
 #include <sys/time.h>
 
@@ -38,66 +40,142 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Add job
+  //----------------------------------------------------------------------------
+  XRootDStatus CopyProcess::AddJob( const PropertyList &properties,
+                                    PropertyList       *results )
+  {
+    //--------------------------------------------------------------------------
+    // Validate properties
+    //--------------------------------------------------------------------------
+    if( !properties.HasProperty( "source" ) )
+      return XRootDStatus( stError, errInvalidArgs, 0, "source not specified" );
+
+    if( !properties.HasProperty( "target" ) )
+      return XRootDStatus( stError, errInvalidArgs, 0, "target not specified" );
+
+    pJobProperties.push_back( properties );
+    PropertyList &p = pJobProperties.back();
+
+    const char *bools[] = {"target", "force", "posc", "coerce", "makeDir", 0};
+    for( int i = 0; bools[i]; ++i )
+      if( !p.HasProperty( bools[i] ) )
+        p.Set( bools[i], false );
+
+    if( !p.HasProperty( "thirdParty" ) )
+      p.Set( "thirdParty", "none" );
+
+    if( !p.HasProperty( "checkSumMode" ) )
+      p.Set( "checkSumMode", "none" );
+    else
+    {
+      if( !p.HasProperty( "checkSumType" ) )
+      {
+        pJobProperties.pop_back();
+        return XRootDStatus( stError, errInvalidArgs, 0,
+                             "checkSumType not specified" );
+      }
+    }
+
+    if( !p.HasProperty( "parallelChunks" ) )
+      p.Set( "parallelChunks", DefaultCPParallelChunks );
+
+    if( !p.HasProperty( "chunkSize" ) )
+      p.Set( "chunkSize", DefaultCPChunkSize );
+
+    //--------------------------------------------------------------------------
+    // Insert the properties
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    Utils::LogPropertyList( log, UtilityMsg, "Adding job with properties: %s",
+                            p );
+    pJobResults.push_back( results );
+    return XRootDStatus();
+  }
+
+  //----------------------------------------------------------------------------
   // Prepare the copy jobs
   //----------------------------------------------------------------------------
   XRootDStatus CopyProcess::Prepare()
   {
     Log *log = DefaultEnv::GetLog();
-    std::list<JobDescriptor*>::iterator it;
+    std::vector<PropertyList>::iterator it;
 
     log->Debug( UtilityMsg, "CopyProcess: %d jobs to prepare",
-                pJobDescs.size() );
+                pJobProperties.size() );
 
     std::map<std::string, uint32_t> targetFlags;
     int i = 0;
-    for( it = pJobDescs.begin(); it != pJobDescs.end(); ++it, ++i )
+    for( it = pJobProperties.begin(); it != pJobProperties.end(); ++it, ++i )
     {
-      JobDescriptor *jobDesc = *it;
+      PropertyList &props = *it;
+      PropertyList *res   = pJobResults[i];
+      std::string tmp;
+
+      props.Get( "source", tmp );
+      URL source = tmp;
+      props.Get( "target", tmp );
+      URL target = tmp;
+
+      bool tpc         = false;
+      bool tpcFallBack = false;
+
+      props.Get( "thirdParty", tmp );
+      if( tmp == "first" )
+      {
+        tpc         = true;
+        tpcFallBack = true;
+      }
+      else if( tmp == "only" )
+        tpc = true;
 
       //------------------------------------------------------------------------
       // Check if we have all we need
       //------------------------------------------------------------------------
-      if( jobDesc->source.GetProtocol() != "stdio" &&
-          jobDesc->source.GetPath().empty() )
+      if( source.GetProtocol() != "stdio" && source.GetPath().empty() )
       {
         log->Debug( UtilityMsg, "CopyProcess (job #%d): no source specified.",
                     i );
         CleanUpJobs();
-        jobDesc->status = Status( stError, errInvalidArgs );
-        return jobDesc->status;
+        XRootDStatus st = XRootDStatus( stError, errInvalidArgs );
+        res->Set( "status", st );
+        return st;
       }
 
-      if( jobDesc->target.GetProtocol() != "stdio" &&
-          jobDesc->target.GetPath().empty() )
+      if( target.GetProtocol() != "stdio" && target.GetPath().empty() )
       {
         log->Debug( UtilityMsg, "CopyProcess (job #%d): no target specified.",
                     i );
         CleanUpJobs();
-        jobDesc->status = Status( stError, errInvalidArgs );
-        return jobDesc->status;
+        XRootDStatus st = XRootDStatus( stError, errInvalidArgs );
+        res->Set( "status", st );
+        return st;
       }
 
       //------------------------------------------------------------------------
       // Check what kind of job we should do
       //------------------------------------------------------------------------
       CopyJob *job = 0;
-      ThirdPartyCopyJob::Info tpcInfo;
-      XRootDStatus st = ThirdPartyCopyJob::CanDo( jobDesc, &tpcInfo );
 
-      if( st.IsOK() )
-        job = new ThirdPartyCopyJob( jobDesc, &tpcInfo );
-      else if( !jobDesc->thirdParty ||
-               (jobDesc->thirdParty && jobDesc->thirdPartyFallBack &&
-                !st.IsFatal()) )
+      if( tpc == true )
       {
-        job = new ClassicCopyJob( jobDesc );
+        XRootDStatus st = ThirdPartyCopyJob::CanDo( source, target, &props );
+
+        if( st.IsOK() )
+          job = new ThirdPartyCopyJob( &props, res );
+        else if( tpcFallBack && !st.IsFatal() )
+          job = new ClassicCopyJob( &props, res );
+        else
+        {
+          CleanUpJobs();
+          st = XRootDStatus( stError, errNotSupported );
+          res->Set( "status", st );
+          return st;
+        }
       }
       else
-      {
-        CleanUpJobs();
-        jobDesc->status = XRootDStatus( stError, errNotSupported );
-        return jobDesc->status;
-      }
+        job = new ClassicCopyJob( &props, res );
+
       pJobs.push_back( job );
     }
     return XRootDStatus();
@@ -108,7 +186,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDStatus CopyProcess::Run( CopyProgressHandler *progress )
   {
-    std::list<CopyJob *>::iterator it;
+    std::vector<CopyJob *>::iterator it;
     uint16_t currentJob = 1;
     uint16_t totalJobs  = pJobs.size();
 
@@ -121,15 +199,14 @@ namespace XrdCl
       // Report beginning of the copy
       //------------------------------------------------------------------------
       if( progress )
-        progress->BeginJob( currentJob, totalJobs,
-                            &(*it)->GetDescriptor()->source,
-                            &(*it)->GetDescriptor()->target );
+        progress->BeginJob( currentJob, totalJobs, &(*it)->GetSource(),
+                            &(*it)->GetTarget() );
 
       if( mon )
       {
         Monitor::CopyBInfo i;
-        i.transfer.origin = &(*it)->GetDescriptor()->source;
-        i.transfer.target = &(*it)->GetDescriptor()->target;
+        i.transfer.origin = &(*it)->GetSource();
+        i.transfer.target = &(*it)->GetTarget();
         mon->Event( Monitor::EvCopyBeg, &i );
       }
 
@@ -139,17 +216,19 @@ namespace XrdCl
       // Do the copy
       //------------------------------------------------------------------------
       XRootDStatus st = (*it)->Run( progress );
-      (*it)->GetDescriptor()->status = st;
+      (*it)->GetResults()->Set( "status", st );
 
       //------------------------------------------------------------------------
       // Report end of the copy
       //------------------------------------------------------------------------
       if( mon )
       {
+        std::vector<std::string> sources;
+        (*it)->GetResults()->Get( "sources", sources );
         Monitor::CopyEInfo i;
-        i.transfer.origin = &(*it)->GetDescriptor()->source;
-        i.transfer.target = &(*it)->GetDescriptor()->target;
-        i.sources         = (*it)->GetDescriptor()->sources.size();
+        i.transfer.origin = &(*it)->GetSource();
+        i.transfer.target = &(*it)->GetTarget();
+        i.sources         = sources.size();
         i.bTOD            = bTOD;
         gettimeofday( &i.eTOD, 0 );
         i.status          = &st;
@@ -157,19 +236,16 @@ namespace XrdCl
       }
 
       if( progress )
-        progress->EndJob( st );
+        progress->EndJob( (*it)->GetResults() );
       if( !st.IsOK() ) return st;
       ++currentJob;
     }
     return XRootDStatus();
   }
 
-  //----------------------------------------------------------------------------
-  // Clean up the jobs
-  //----------------------------------------------------------------------------
   void CopyProcess::CleanUpJobs()
   {
-    std::list<CopyJob*>::iterator itJ;
+    std::vector<CopyJob*>::iterator itJ;
     for( itJ = pJobs.begin(); itJ != pJobs.end(); ++itJ )
       delete *itJ;
     pJobs.clear();
