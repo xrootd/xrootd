@@ -46,6 +46,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 
 #include "XrdSut/XrdSutAux.hh"
 #include "XrdSut/XrdSutCache.hh"
@@ -1393,6 +1394,10 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
       else
          return (XrdSecCredentials *)0;
    }
+
+   // We support passing the user proxy path via Url parameter
+   char *upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrpxy") : 0;
+   if (upp) UsrProxy = upp;
 
    // Count interations
    (hs->Iter)++;
