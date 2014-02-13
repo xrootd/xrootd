@@ -277,8 +277,13 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocalSource( const XrdCl::URL *url ):
-        pPath( url->GetPath() ), pFD( -1 ), pSize( -1 ), pCurrentOffset( 0 ) {}
+      LocalSource( const XrdCl::URL *url, const std::string &ckSumType ):
+        pPath( url->GetPath() ), pFD( -1 ), pSize( -1 ), pCurrentOffset( 0 ),
+        pCkSumHelper(0)
+      {
+        if( !ckSumType.empty() )
+          pCkSumHelper = new CheckSumHelper( url->GetPath(), ckSumType );
+      }
 
       //------------------------------------------------------------------------
       //! Destructor
@@ -287,6 +292,7 @@ namespace
       {
         if( pFD != -1 )
           close( pFD );
+        delete pCkSumHelper;
       }
 
       //------------------------------------------------------------------------
@@ -296,6 +302,13 @@ namespace
       {
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
+
+        if( pCkSumHelper )
+        {
+          XRootDStatus st = pCkSumHelper->Initialize();
+          if( !st.IsOK() )
+            return st;
+        }
 
         //----------------------------------------------------------------------
         // Open the file for reading and get it's size
@@ -363,6 +376,9 @@ namespace
           return XRootDStatus( stOK, suDone );
         }
 
+        if( pCkSumHelper )
+          pCkSumHelper->Update( buffer, bytesRead );
+
         ci.offset = pCurrentOffset;
         ci.length = bytesRead;
         ci.buffer = buffer;
@@ -376,15 +392,18 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
-        return XrdCl::Utils::GetLocalCheckSum( checkSum, checkSumType, pPath );
+        using namespace XrdCl;
+        if( pCkSumHelper )
+          return pCkSumHelper->GetCheckSum( checkSum, checkSumType );
+        return XRootDStatus( stError, errCheckSumError );
       }
 
-
     private:
-      std::string pPath;
-      int         pFD;
-      int64_t     pSize;
-      uint64_t    pCurrentOffset;
+      std::string     pPath;
+      int             pFD;
+      int64_t         pSize;
+      uint64_t        pCurrentOffset;
+      CheckSumHelper *pCkSumHelper;
   };
 
   //----------------------------------------------------------------------------
@@ -1012,7 +1031,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XRDCL_SMART_PTR_T<Source> src;
     if( GetSource().GetProtocol() == "file" )
-      src.reset( new LocalSource( &GetSource() ) );
+      src.reset( new LocalSource( &GetSource(), checkSumType ) );
     else if( GetSource().GetProtocol() == "stdio" )
       src.reset( new StdInSource( checkSumType ) );
     else
