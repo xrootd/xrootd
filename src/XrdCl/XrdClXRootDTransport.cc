@@ -1359,7 +1359,7 @@ namespace XrdCl
       URL::ParamsMap::const_iterator it;
       for( it = urlParams.begin(); it != urlParams.end(); ++it )
       {
-        if( it->first.compare( 0, 7, "XrdSec." ) )
+        if( it->first.compare( 0, 4, "xrd." ) )
           continue;
 
         info->authEnv->Put( it->first.c_str(), it->second.c_str() );
