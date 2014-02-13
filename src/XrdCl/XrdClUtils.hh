@@ -25,6 +25,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClXRootDResponses.hh"
+#include "XrdCl/XrdClPropertyList.hh"
 #include "XrdNet/XrdNetUtils.hh"
 
 #include <sys/time.h>
@@ -167,6 +168,14 @@ namespace XrdCl
       //! Trim a string
       //------------------------------------------------------------------------
       static void Trim( std::string &str );
+
+      //------------------------------------------------------------------------
+      //! Log property list
+      //------------------------------------------------------------------------
+      static void LogPropertyList( Log                *log,
+                                   uint64_t            topic,
+                                   const char         *format,
+                                   const PropertyList &list );
   };
 
   //----------------------------------------------------------------------------

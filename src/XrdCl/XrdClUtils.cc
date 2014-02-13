@@ -434,4 +434,20 @@ namespace XrdCl
     str.erase( std::find_if( str.rbegin(), str.rend(), isNotSpace ).base(),
                str.end() );
   }
+
+  //----------------------------------------------------------------------------
+  // Log property list
+  //----------------------------------------------------------------------------
+  void Utils::LogPropertyList( Log                *log,
+                               uint64_t            topic,
+                               const char         *format,
+                               const PropertyList &list )
+  {
+    PropertyList::PropertyMap::const_iterator it;
+    std::string keyVals;
+    for( it = list.begin(); it != list.end(); ++it )
+      keyVals += "'" + it->first + "' = '" + it->second + "', ";
+    keyVals.erase( keyVals.length()-2, 2 );
+    log->Dump( topic, format, keyVals.c_str() );
+  }
 }
