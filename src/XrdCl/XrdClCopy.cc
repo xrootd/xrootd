@@ -467,6 +467,9 @@ int main( int argc, char **argv )
   if( config.Want( XrdCpConfig::DoTpcOnly ) )  thirdParty = "only";
   if( config.Want( XrdCpConfig::DoRecurse ) )  makedir    = true;
 
+  //----------------------------------------------------------------------------
+  // Checksums
+  //----------------------------------------------------------------------------
   std::string checkSumType;
   std::string checkSumPreset;
   std::string checkSumMode  = "none";
@@ -482,17 +485,34 @@ int main( int argc, char **argv )
         checkSumMode = "target";
         progress.PrintTargetCheckSum( true );
       }
-      else if( ckSumParams[1] == "source" )
-      {
-        checkSumMode = "source";
-        progress.PrintSourceCheckSum( true );
-      }
       else
         checkSumPreset = ckSumParams[1];
     }
     checkSumType = ckSumParams[0];
   }
 
+  if( config.Want( XrdCpConfig::DoCksrc ) )
+  {
+    checkSumMode = "source";
+    std::vector<std::string> ckSumParams;
+    Utils::splitString( ckSumParams, config.CksVal, ":" );
+    if( ckSumParams.size() == 2 )
+    {
+      checkSumMode = "source";
+      checkSumType = ckSumParams[0];
+      progress.PrintSourceCheckSum( true );
+    }
+    else
+    {
+      std::cerr << "Invalid parameter: " << config.CksVal << std::endl;
+      return 254;
+    }
+  }
+
+
+  //----------------------------------------------------------------------------
+  // Environment settings
+  //----------------------------------------------------------------------------
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
   if( config.nStrm != 1 )
     env->PutInt( "SubStreamsPerChannel", config.nStrm );
