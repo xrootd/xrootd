@@ -79,6 +79,11 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       if( pPrintProgressBar )
         std::cerr << std::endl;
 
+      XrdCl::XRootDStatus st;
+      results->Get( "status", st );
+      if( !st.IsOK() )
+        return;
+
       std::string checkSum;
       uint64_t    size;
       results->Get( "size", size );
