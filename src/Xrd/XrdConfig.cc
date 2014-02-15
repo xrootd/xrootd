@@ -418,12 +418,6 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    Log.Say("++++++ ", myInstance, " initialization started.");
 
-// Export the network interface list at this point
-//
-   XrdNetIF::SetMsgs(&Log);
-   if (ppNet && XrdNetIF::GetIF(ifList, 0, true))
-      XrdOucEnv::Export("XRDIFADDRS",ifList);
-
 // Process the configuration file, if one is present
 //
    if (ConfigFN && *ConfigFN)
@@ -437,6 +431,15 @@ int XrdConfig::Configure(int argc, char **argv)
       {Trace.What = TRACE_ALL;
        XrdSysThread::setDebug(&Log);
       }
+
+// Export the network interface list at this point
+//
+   XrdNetIF::SetMsgs(&Log);
+   if (ppNet && XrdNetIF::GetIF(ifList, 0, true))
+      XrdOucEnv::Export("XRDIFADDRS",ifList);
+
+// Now initialize the default protocl
+//
    if (!NoGo) NoGo = Setup(dfltProt);
 
 // If we hae a net name change the working directory
