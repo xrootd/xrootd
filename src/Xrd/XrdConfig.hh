@@ -115,6 +115,6 @@ int                 NetTCPlep;
 int                 AdminMode;
 int                 repInt;
 char                repOpts;
-char                isProxy;
+char                ppNet;
 };
 #endif

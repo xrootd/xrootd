@@ -146,6 +146,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    repDest[1] = 0;
    repInt     = 600;
    repOpts    = 0;
+   ppNet      = 0;
    NetTCPlep  = -1;
    NetADM     = 0;
    memset(NetTCP, 0, sizeof(NetTCP));
@@ -420,7 +421,8 @@ int XrdConfig::Configure(int argc, char **argv)
 // Export the network interface list at this point
 //
    XrdNetIF::SetMsgs(&Log);
-   if (XrdNetIF::GetIF(ifList, 0, true)) XrdOucEnv::Export("XRDIFADDRS",ifList);
+   if (ppNet && XrdNetIF::GetIF(ifList, 0, true))
+      XrdOucEnv::Export("XRDIFADDRS",ifList);
 
 // Process the configuration file, if one is present
 //
@@ -1172,6 +1174,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                           else {eDest->Emsg("Config","Invalid routes argument -",val);
                                 return 1;
                                }
+                          ppNet = 1;
                           break;
                          }
                       if (ntopts[i].hasarg == 2)
