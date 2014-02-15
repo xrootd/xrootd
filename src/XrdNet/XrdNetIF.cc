@@ -245,7 +245,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 //
    XrdNetAddr      netAddr;
    struct ifaddrs *ifBase, *ifP;
-   XrdOucTList    *tList = 0;
+   XrdOucTList    *tLP, *tList = 0, *tLast = 0;
    int             n = 0;
 
    if (getifaddrs(&ifBase) < 0)
@@ -275,7 +275,10 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
                          XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort)))
                 {sval[1] = (netAddr.isPrivate() ? 1 : 0);
                  sval[0] = iLen;
-                 tList = new XrdOucTList(ipBuff, sval, tList);
+                 tLP = new XrdOucTList(ipBuff, sval);
+                 if (tList) tLast->next = tLP;
+                    else    tList       = tLP;
+                 tLast = tLP;
                  n++;
                 }
             }
