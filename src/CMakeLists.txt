@@ -42,8 +42,6 @@ endif()
 #-------------------------------------------------------------------------------
 install(
   FILES
-  ${CMAKE_SOURCE_DIR}/utils/xrdcksum
-  ${CMAKE_SOURCE_DIR}/utils/xrdmd5sum
   ${CMAKE_SOURCE_DIR}/utils/XrdCmsNotify.pm
   ${CMAKE_SOURCE_DIR}/utils/netchk
   ${CMAKE_SOURCE_DIR}/utils/XrdOlbMonPerf
