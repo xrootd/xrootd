@@ -185,7 +185,7 @@ int XrdSysLogger::Bind(const char *path, int lfh)
    eInt   = 0;
    ePath  = 0;
    if (fifoFN) free(fifoFN);
-   fifoFN = 0;
+   fifoFN = 0; doLFR = false;
    if (!path) return 0;
 
 // Bind to a log file

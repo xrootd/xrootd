@@ -207,7 +207,7 @@ int XrdConfig::Configure(int argc, char **argv)
    char *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
    char *ifList;
-   int   myArgc = 1, bindArg = -1;
+   int   myArgc = 1, bindArg = 1;
    bool ipV4 = false, pureLFN = false;
 
 // Obtain the protocol name we will be using
