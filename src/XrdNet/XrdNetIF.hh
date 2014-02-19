@@ -241,6 +241,18 @@ static void Routing(netType nettype);
                   netType nettype=netDefault);
 
 //------------------------------------------------------------------------------
+//! Set the public and private network interface names.
+//!
+//! @param  ifnames  Pointer to the comma seperated interface names. This
+//!                  string is modified.
+//!
+//! @return true     Names have been set.
+//! @return false    Invalid interface name list.
+//------------------------------------------------------------------------------
+
+static bool SetIFNames(char *ifnames);
+
+//------------------------------------------------------------------------------
 //! Specify where messages are to be sent.
 //!
 //! @param  erp      Pointer to the error message object. By default, no error
@@ -271,6 +283,8 @@ struct ifAddrs
 bool  GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName=0);
 bool  GenIF(XrdNetAddrInfo **src, int srcnum);
 static
+bool  IsOkName(const char *ifn, short &ifNum);
+static
 char *SetDomain();
 static
 bool  V4LinkLocal(struct sockaddr *saP);
@@ -295,6 +309,8 @@ static
 XrdSysError   *eDest;
 static
 char          *myDomain;
+static
+char          *ifCfg[2];
 static
 netType        netRoutes;
 static int     dfPort;

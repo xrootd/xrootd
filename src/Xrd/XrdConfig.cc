@@ -401,6 +401,7 @@ int XrdConfig::Configure(int argc, char **argv)
    XrdOucEnv::Export("XRDHOST", myName);
    XrdOucEnv::Export("XRDNAME", ProtInfo.myInst);
    XrdOucEnv::Export("XRDPROG", myProg);
+   XrdNetIF::SetMsgs(&Log);
 
 // Put out the herald
 //
@@ -434,7 +435,6 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Export the network interface list at this point
 //
-   XrdNetIF::SetMsgs(&Log);
    if (ppNet && XrdNetIF::GetIF(ifList, 0, true))
       XrdOucEnv::Export("XRDIFADDRS",ifList);
 
@@ -1124,7 +1124,9 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
    Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
                                          [cache <ct>] [[no]dnr]
-                                         {routes {split | common | local}}
+                                         [routes <rtype> <ifn1>,<ifn2>}]
+
+             <rtype>: split | common | local
 
              wan       parameters apply only to the wan port
              keepalive sets the socket keepalive option.
@@ -1177,6 +1179,12 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                           else {eDest->Emsg("Config","Invalid routes argument -",val);
                                 return 1;
                                }
+                          if (!(val =  Config.GetWord()))
+                             {eDest->Emsg("Config", "network routes i/f names "
+                                                    "not specified.");
+                              return 1;
+                             }
+                          if (!XrdNetIF::SetIFNames(val)) return 1;
                           ppNet = 1;
                           break;
                          }
