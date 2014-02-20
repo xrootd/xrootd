@@ -105,9 +105,9 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName)
 //
    if (hName)
       {XrdNetAddr *iP;
-       int iN;
+       int iN, p = src->Port();
        bool aOK = true;
-       if (!XrdNetUtils::GetAddrs(hName,&iP,iN,XrdNetUtils::onlyIPv4, 0) && iN)
+       if (!XrdNetUtils::GetAddrs(hName,&iP,iN,XrdNetUtils::onlyIPv4, p) && iN)
           {if (!(ifTab.hALen = iP[0].Format(ifTab.hAddr,  sizeof(ifTab.hAddr),
                                      XrdNetAddr::fmtAddr, noPort))
            ||  !(ifTab.hDLen = iP[0].Format(ifTab.hDest,  sizeof(ifTab.hDest),
