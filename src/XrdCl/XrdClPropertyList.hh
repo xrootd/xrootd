@@ -137,6 +137,14 @@ namespace XrdCl
         return pProperties.end();
       }
 
+      //------------------------------------------------------------------------
+      //! Clear the property list
+      //------------------------------------------------------------------------
+      void Clear()
+      {
+        pProperties.clear();
+      }
+
     private:
       PropertyMap pProperties;
   };
