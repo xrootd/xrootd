@@ -168,7 +168,6 @@ namespace XrdCl
         else
         {
           CleanUpJobs();
-          st = XRootDStatus( stError, errNotSupported );
           res->Set( "status", st );
           return st;
         }
