@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCheckSumManager.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 #include "XrdCks/XrdCks.hh"
 #include "XrdCks/XrdCksCalc.hh"
@@ -51,6 +52,8 @@ class FileCopyTest: public CppUnit::TestCase
       CPPUNIT_TEST( UploadTest );
       CPPUNIT_TEST( MultiStreamDownloadTest );
       CPPUNIT_TEST( MultiStreamUploadTest );
+      CPPUNIT_TEST( ThirdPartyCopyTest );
+      CPPUNIT_TEST( NormalCopyTest );
     CPPUNIT_TEST_SUITE_END();
     void DownloadTestFunc();
     void UploadTestFunc();
@@ -58,6 +61,9 @@ class FileCopyTest: public CppUnit::TestCase
     void UploadTest();
     void MultiStreamDownloadTest();
     void MultiStreamUploadTest();
+    void CopyTestFunc( bool thirdParty = true );
+    void ThirdPartyCopyTest();
+    void NormalCopyTest();
 };
 
 CPPUNIT_TEST_SUITE_REGISTRATION( FileCopyTest );
@@ -259,4 +265,140 @@ void FileCopyTest::MultiStreamDownloadTest()
   XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt( "SubStreamsPerChannel", 4 );
   DownloadTestFunc();
+}
+
+namespace
+{
+  //----------------------------------------------------------------------------
+  // Abort handler
+  //----------------------------------------------------------------------------
+  class CancelProgressHandler: public XrdCl::CopyProgressHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Constructor/destructor
+      //------------------------------------------------------------------------
+      CancelProgressHandler(): pCancel( false ) {}
+      virtual ~CancelProgressHandler() {};
+
+      //------------------------------------------------------------------------
+      // Job progress
+      //------------------------------------------------------------------------
+      virtual void JobProgress( uint64_t bytesProcessed,
+                                uint64_t bytesTotal )
+      {
+        if( bytesProcessed > 128*1024*1024 )
+          pCancel = true;
+      }
+
+      //------------------------------------------------------------------------
+      // Determine whether the job should be canceled
+      //------------------------------------------------------------------------
+      virtual bool ShouldCancel() { return pCancel; }
+
+    private:
+      bool pCancel;
+};
+
+}
+
+//------------------------------------------------------------------------------
+// Third party copy test
+//------------------------------------------------------------------------------
+void FileCopyTest::CopyTestFunc( bool thirdParty )
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Initialize
+  //----------------------------------------------------------------------------
+  Env *testEnv = TestEnv::GetEnv();
+
+  std::string manager1;
+  std::string manager2;
+  std::string sourceFile;
+  std::string dataPath;
+
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager1URL", manager1 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "Manager2URL", manager2 ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "RemoteFile",  sourceFile ) );
+  CPPUNIT_ASSERT( testEnv->GetString( "DataPath",    dataPath ) );
+
+  std::string sourceURL  = manager1 + "/" + sourceFile;
+  std::string targetPath = dataPath + "/tpcFile";
+  std::string targetURL  = manager2 + "/" + targetPath;
+
+  //----------------------------------------------------------------------------
+  // Initialize and run the copy
+  //----------------------------------------------------------------------------
+  CopyProcess  process1, process2, process3, process4;
+  PropertyList properties, results;
+  properties.Set( "source",       sourceURL );
+  properties.Set( "target",       targetURL );
+  properties.Set( "checkSumMode", "end2end" );
+  properties.Set( "checkSumType", "zcrc32"  );
+
+  if( thirdParty )
+    properties.Set( "thirdParty",   "only"    );
+
+  CPPUNIT_ASSERT_XRDST( process1.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process1.Prepare() );
+  CPPUNIT_ASSERT_XRDST( process1.Run(0) );
+
+  //----------------------------------------------------------------------------
+  // Cleanup
+  //----------------------------------------------------------------------------
+  FileSystem fs( manager2 );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+  // the further tests are only valid for third party copy for now
+  if( !thirdParty )
+    return;
+
+  //----------------------------------------------------------------------------
+  // Abort the copy after 100MB
+  //----------------------------------------------------------------------------
+//  CancelProgressHandler progress;
+//  CPPUNIT_ASSERT_XRDST( process2.AddJob( properties, &results ) );
+//  CPPUNIT_ASSERT_XRDST( process2.Prepare() );
+//  CPPUNIT_ASSERT_XRDST( process2.Run(&progress) ); // This really should fail
+//                                                   // with errCacnel or sth
+//  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+
+  //----------------------------------------------------------------------------
+  // Copy from a non-existent source
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", "root://localhost:9999//test" );
+  properties.Set( "initTimeout", 10 );
+  CPPUNIT_ASSERT_XRDST( process3.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process3.Prepare(), errOperationExpired );
+  CPPUNIT_ASSERT_XRDST( process3.Run(0) );
+
+  //----------------------------------------------------------------------------
+  // Copy to a non-existent target
+  //----------------------------------------------------------------------------
+  results.Clear();
+  properties.Set( "source", sourceURL );
+  properties.Set( "target", "root://localhost:9999//test" );
+  properties.Set( "initTimeout", 10 );
+  CPPUNIT_ASSERT_XRDST( process4.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process4.Prepare() );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process4.Run(0), errOperationExpired );
+}
+
+//------------------------------------------------------------------------------
+// Third party copy test
+//------------------------------------------------------------------------------
+void FileCopyTest::ThirdPartyCopyTest()
+{
+  CopyTestFunc( true );
+}
+
+//------------------------------------------------------------------------------
+// Cormal copy test
+//------------------------------------------------------------------------------
+void FileCopyTest::NormalCopyTest()
+{
+  CopyTestFunc( false );
 }
