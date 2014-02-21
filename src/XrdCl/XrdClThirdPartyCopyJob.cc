@@ -136,7 +136,6 @@ namespace XrdCl
     URL tpcSource;
     pProperties->Get( "tpcSource", tpcSource );
 
-
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Generating the TPC URLs" );
 
@@ -168,6 +167,24 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Target url is: %s", realTarget.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
+    // Timeouts
+    //--------------------------------------------------------------------------
+    uint16_t timeLeft = 0;
+    pProperties->Get( "initTimeout", timeLeft );
+
+    time_t   start          = 0;
+    bool     hasInitTimeout = false;
+
+    if( timeLeft )
+    {
+      hasInitTimeout = true;
+      start          = time(0);
+    }
+
+    uint16_t tpcTimeout = 0;
+    pProperties->Get( "tpcTimeout", tpcTimeout );
+
+    //--------------------------------------------------------------------------
     // Open the target file
     //--------------------------------------------------------------------------
     File targetFile;
@@ -181,7 +198,8 @@ namespace XrdCl
       targetFlags |= OpenFlags::Force;
 
     XRootDStatus st;
-    st = targetFile.Open( realTarget.GetURL(), targetFlags );
+    st = targetFile.Open( realTarget.GetURL(), targetFlags, Access::None,
+                          timeLeft );
 
     if( !st.IsOK() )
     {
@@ -215,20 +233,36 @@ namespace XrdCl
     log->Debug( UtilityMsg, "Source url is: %s", tpcSource.GetURL().c_str() );
 
     //--------------------------------------------------------------------------
+    // Calculate the time we hav left to perform source open
+    //--------------------------------------------------------------------------
+    if( hasInitTimeout )
+    {
+      time_t now = time(0);
+      if( now-start > timeLeft )
+      {
+        targetFile.Close(1);
+        return XRootDStatus( stError, errOperationExpired );
+      }
+      else
+        timeLeft =- (now-start);
+    }
+
+    //--------------------------------------------------------------------------
     // Open the source and set up the rendez-vous
     //--------------------------------------------------------------------------
     File sourceFile;
-    st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read );
+    st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read, Access::None,
+                          timeLeft );
 
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
-      targetFile.Close();
+      targetFile.Close(1);
       return st;
     }
 
-    st = targetFile.Sync();
+    st = targetFile.Sync( tpcTimeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
@@ -259,6 +293,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Stat the file every second until sync returns
     //--------------------------------------------------------------------------
+    bool canceled = false;
     while( 1 )
     {
       XrdSysTimer::Wait( 1000 );
@@ -272,6 +307,14 @@ namespace XrdCl
           delete info;
           info = 0;
         }
+        bool shouldCancel = progress->ShouldCancel();
+        if( shouldCancel )
+        {
+          log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
+          targetFile.Truncate( 0, 1 );
+          canceled = true;
+          break;
+        }
       }
 
       if( sem->CondWait() )
@@ -281,6 +324,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Sync has returned so we can check if it was successful
     //--------------------------------------------------------------------------
+    if( canceled )
+      sem->Wait();
+
     st = *statusHandler.GetStatus();
 
     if( !st.IsOK() )
@@ -288,14 +334,17 @@ namespace XrdCl
       log->Error( UtilityMsg, "Third party copy from %s to %s failed: %s",
                   GetSource().GetURL().c_str(), GetTarget().GetURL().c_str(),
                   st.ToStr().c_str() );
+
+      sourceFile.Close(1);
+      targetFile.Close(1);
       return st;
     }
 
     log->Debug( UtilityMsg, "Third party copy from %s to %s successful",
                 GetSource().GetURL().c_str(), GetTarget().GetURL().c_str() );
 
-    sourceFile.Close();
-    targetFile.Close();
+    sourceFile.Close(1);
+    targetFile.Close(1);
 
     pResults->Set( "size", sourceSize );
 
@@ -406,6 +455,18 @@ namespace XrdCl
         target.GetProtocol() != "xroot" )
       return XRootDStatus( stError, errNotSupported );
 
+    uint16_t timeLeft       = 0;
+    properties->Get( "initTimeout", timeLeft );
+
+    time_t   start          = 0;
+    bool     hasInitTimeout = false;
+
+    if( timeLeft )
+    {
+      hasInitTimeout = true;
+      start          = time(0);
+    }
+
     //--------------------------------------------------------------------------
     // Check if we can open the source file and whether the actual data server
     // can support the third party copy
@@ -419,7 +480,8 @@ namespace XrdCl
     sourceURL.SetParams( params );
     log->Debug( UtilityMsg, "Trying to open %s for reading",
                 sourceURL.GetURL().c_str() );
-    st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read );
+    st = sourceFile.Open( sourceURL.GetURL(), OpenFlags::Read, Access::None,
+                          timeLeft );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot open source file %s: %s",
@@ -432,9 +494,28 @@ namespace XrdCl
     sourceFile.Stat( false, statInfo );
     properties->Set( "sourceSize", statInfo->GetSize() );
     delete statInfo;
-    sourceFile.Close();
 
-    st = Utils::CheckTPC( sourceFile.GetLastURL().GetHostId() );
+    if( hasInitTimeout )
+    {
+      time_t now = time(0);
+      if( now-start > timeLeft )
+        timeLeft = 1; // we still want to send a close, but we time it out fast
+      else
+        timeLeft =- (now-start);
+    }
+
+    sourceFile.Close( timeLeft );
+
+    if( hasInitTimeout )
+    {
+      time_t now = time(0);
+      if( now-start > timeLeft )
+        return XRootDStatus( stError, errOperationExpired );
+      else
+        timeLeft =- (now-start);
+    }
+
+    st = Utils::CheckTPC( sourceFile.GetLastURL().GetHostId(), timeLeft );
     if( !st.IsOK() )
       return st;
 
@@ -445,6 +526,13 @@ namespace XrdCl
 //    if( !st.IsOK() )
 //      return st;
 
+    if( hasInitTimeout )
+    {
+      if( timeLeft == 0 )
+        properties->Set( "initTimeout", 1 );
+      else
+        properties->Set( "initTimeout", timeLeft );
+    }
     return XRootDStatus();
   }
 
