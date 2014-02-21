@@ -55,6 +55,8 @@ namespace XrdCl
   const int DefaultCPParallelChunks     = 4;
   const int DefaultDataServerTTL        = 300;
   const int DefaultLoadBalancerTTL      = 1200;
+  const int DefaultCPInitTimeout        = 600;
+  const int DefaultCPTPCTimeout         = 1800;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
   const char * const DefaultNetworkStack       = "IPAll";

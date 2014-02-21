@@ -160,6 +160,8 @@ namespace XrdCl
     PutInt( "CPParallelChunks",      DefaultCPParallelChunks     );
     PutInt( "DataServerTTL",         DefaultDataServerTTL        );
     PutInt( "LoadBalancerTTL",       DefaultLoadBalancerTTL      );
+    PutInt( "CPInitTimeout",         DefaultCPInitTimeout        );
+    PutInt( "CPTPCTimeout",          DefaultCPTPCTimeout         );
     PutString( "PollerPreference",   DefaultPollerPreference     );
     PutString( "ClientMonitor",      DefaultClientMonitor        );
     PutString( "ClientMonitorParam", DefaultClientMonitorParam   );
@@ -185,6 +187,8 @@ namespace XrdCl
     ImportInt(    "CPParallelChunks",     "XRD_CPPARALLELCHUNKS"     );
     ImportInt(    "DataServerTTL",        "XRD_DATASERVERTTL"        );
     ImportInt(    "LoadBalancerTTL",      "XRD_LOADBALANCERTTL"      );
+    ImportInt(    "CPInitTimeout",        "XRD_CPINITTIMEOUT"        );
+    ImportInt(    "CPTPCTimeout",         "XRD_CPTPCTIMEOUT"         );
     ImportString( "PollerPreference",     "XRD_POLLERPREFERENCE"     );
     ImportString( "ClientMonitor",        "XRD_CLIENTMONITOR"        );
     ImportString( "ClientMonitorParam",   "XRD_CLIENTMONITORPARAM"   );
