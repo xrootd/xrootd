@@ -33,6 +33,8 @@ include( XrdApps )
 include( XrdCns )
 include( XrdHeaders )
 
+include( XrdFileCache )
+
 if( BUILD_HTTP )
   include( XrdHttp )
 endif()

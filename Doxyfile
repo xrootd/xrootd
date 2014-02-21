@@ -149,7 +149,7 @@ src/XrdCl/XrdClEnv.hh \
 src/XrdCl/XrdClPostMaster.hh \
 src/XrdCl/XrdClFileSystem.hh \
 src/XrdCl/XrdClPostMasterInterfaces.hh \
-src/XrdCl/XrdClBuffer.hh \
+git src/XrdCl/XrdClBuffer.hh \
 src/XrdCl/XrdClConstants.hh \
 src/XrdCl/XrdClCopyProcess.hh \
 src/XrdCl/XrdClDefaultEnv.hh \
@@ -161,6 +161,15 @@ src/XrdCl/XrdClURL.hh \
 src/XrdCl/XrdClAnyObject.hh \
 src/XrdCl/XrdClXRootDResponses.hh \
 src/XrdCl/XrdClFile.hh \
+src/XrdFileCache/XrdFileCache.hh \
+src/XrdFileCache/XrdFileCacheFactory.hh \
+src/XrdFileCache/XrdFileCachePrefetch.hh \
+src/XrdFileCache/XrdFileCacheInfo.hh \
+src/XrdFileCache/XrdFileCacheIOFileBlock.hh \
+src/XrdFileCache/XrdFileCacheIOEntireFile.hh \
+src/XrdFileCache/XrdFileCacheStats.hh \
+src/XrdFileCache/XrdFileCacheDecision.hh \
+src/XrdFileCache/XrdFileCacheAllowDecision.cc \
 
 FILE_PATTERNS          = *.hh
 RECURSIVE              = YES
