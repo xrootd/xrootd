@@ -83,6 +83,12 @@ namespace XrdCl
     if( !p.HasProperty( "chunkSize" ) )
       p.Set( "chunkSize", DefaultCPChunkSize );
 
+    if( !p.HasProperty( "initTimeout" ) )
+      p.Set( "initTimeout", DefaultCPInitTimeout );
+
+    if( !p.HasProperty( "tpcTimeout" ) )
+      p.Set( "tpcTimeout", DefaultCPTPCTimeout );
+
     //--------------------------------------------------------------------------
     // Insert the properties
     //--------------------------------------------------------------------------

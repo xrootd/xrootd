@@ -122,6 +122,9 @@ namespace XrdCl
       //! chunkSize      [uint32_t] - size of a copy chunks in bytes
       //! parallelChunks [uint8_t]  - number of chunks that should be requested
       //!                             in parallel
+      //! initTimeout    [uint16_t] - time limit for successfull initialization
+      //!                             of the copy job
+      //! tpcTimeout     [uint16_t] - time limit for the actual copy to finish
       //!
       //! Results:
       //! sourceCheckSum [string]   - checksum at source, if requested
