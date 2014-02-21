@@ -315,7 +315,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Check if peer supports tpc
   //----------------------------------------------------------------------------
-  XRootDStatus Utils::CheckTPC( const std::string &server )
+  XRootDStatus Utils::CheckTPC( const std::string &server, uint16_t timeout )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Checking if the data server %s supports tpc",
@@ -325,7 +325,8 @@ namespace XrdCl
     Buffer        queryArg; queryArg.FromString( "tpc" );
     Buffer       *queryResponse;
     XRootDStatus  st;
-    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse );
+    st = sourceDSFS.Query( QueryCode::Config, queryArg, queryResponse,
+                           timeout );
     if( !st.IsOK() )
     {
       log->Error( UtilityMsg, "Cannot query source data server %s: %s",
