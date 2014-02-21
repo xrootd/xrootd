@@ -54,14 +54,14 @@ namespace XrdCl
       virtual void BeginJob( uint16_t   jobNum,
                              uint16_t   jobTotal,
                              const URL *source,
-                             const URL *destination ) = 0;
+                             const URL *destination ) {};
 
       //------------------------------------------------------------------------
       //! Notify when the previous job has finished
       //!
       //! @param result result of the job
       //------------------------------------------------------------------------
-      virtual void EndJob( const PropertyList *result ) = 0;
+      virtual void EndJob( const PropertyList *result ) {};
 
       //------------------------------------------------------------------------
       //! Notify about the progress of the current job
@@ -71,7 +71,7 @@ namespace XrdCl
       //!                       current job
       //------------------------------------------------------------------------
       virtual void JobProgress( uint64_t bytesProcessed,
-                                uint64_t bytesTotal ) = 0;
+                                uint64_t bytesTotal ) {};
 
       //------------------------------------------------------------------------
       //! Determine whether the job should be canceled
