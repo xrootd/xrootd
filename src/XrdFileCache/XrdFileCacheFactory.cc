@@ -43,7 +43,9 @@
 
 
 using namespace XrdFileCache;
-
+namespace {
+static long long s_diskSpacePrecisionFactor = 10000000;
+}
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(Config);
 
 XrdVERSIONINFO(XrdOucGetCache, first_cache_imp_alja);
@@ -491,7 +493,8 @@ void Factory::CacheDirCleanup()
          xfcMsg(kInfo, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
-            bytesToRemove = fsstat.f_bsize*fsstat.f_blocks*(oc - m_configuration.m_lwm);
+            long long bytesToRemoveLong = static_cast<long long> ((oc - m_configuration.m_lwm) * static_cast<float>(s_diskSpacePrecisionFactor));
+            bytesToRemove = (fsstat.f_bsize * fsstat.f_blocks * bytesToRemoveLong) / s_diskSpacePrecisionFactor;
             xfcMsg(kInfo, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
          }
       }
@@ -555,8 +558,9 @@ bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
         exit(1);
     }
     float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
+    long long availableSpaceLong =  static_cast<long long>((m_configuration.m_hwm -oc)* static_cast<float>(s_diskSpacePrecisionFactor));
     if (oc < m_configuration.m_hwm) {
-        availableSpace = fsstat.f_bsize*fsstat.f_blocks*(m_configuration.m_hwm -oc);
+        availableSpace = (fsstat.f_bsize * fsstat.f_blocks * availableSpaceLong) / s_diskSpacePrecisionFactor;
 
         if (availableSpace > fsize) {
             m_filesInQueue[path] = fsize;
