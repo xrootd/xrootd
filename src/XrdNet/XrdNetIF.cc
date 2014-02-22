@@ -67,7 +67,8 @@ XrdNetIF::ifData  XrdNetIF::ifNull;
 /* Private:                     G e n A d d r s                               */
 /******************************************************************************/
   
-bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName)
+bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src,
+                                        const char     *hName, bool isPVT)
 {
    static const int noPort  = XrdNetAddr::noPort;
    static const int old6M4  = XrdNetAddr::old6Map4;
@@ -105,15 +106,18 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName)
 //
    if (hName)
       {XrdNetAddr *iP;
-       int iN, p = src->Port();
+       int i, iN, p = src->Port();
        bool aOK = true;
        if (!XrdNetUtils::GetAddrs(hName,&iP,iN,XrdNetUtils::onlyIPv4, p) && iN)
-          {if (!(ifTab.hALen = iP[0].Format(ifTab.hAddr,  sizeof(ifTab.hAddr),
-                                     XrdNetAddr::fmtAddr, noPort))
-           ||  !(ifTab.hDLen = iP[0].Format(ifTab.hDest,  sizeof(ifTab.hDest),
-                                     XrdNetAddr::fmtAdv6, old6M4))) aOK = false;
-           delete [] iP;
-           return aOK;
+          {for (i = 0; i < iN; i++) {if (!(isPVT ^ iP[i].isPrivate())) break;}
+           if (i < iN)
+              {if (!(ifTab.hALen = iP[0].Format(ifTab.hAddr,sizeof(ifTab.hAddr),
+                                   XrdNetAddr::fmtAddr, noPort))
+               ||  !(ifTab.hDLen = iP[0].Format(ifTab.hDest,sizeof(ifTab.hDest),
+                                   XrdNetAddr::fmtAdv6, old6M4))) aOK = false;
+               delete [] iP;
+               return aOK;
+              }
           }
       }
 
@@ -181,8 +185,8 @@ for (i = 0; i < srcnum; i++)
        ADDSLOT(ifName[Public], hName, n);
        n = snprintf(hBuff, sizeof(hBuff), "%s:%d", hName, src[i]->Port());
        ADDSLOT(ifNest[Public], hBuff, n);
-       if (!GenAddrs(ifTab, src[i], hName)) genAOK = false;
-      } else if (!GenAddrs(ifTab, src[i]))  genAOK = false;
+       genAOK = GenAddrs(ifTab, src[i], hName, isPrivate);
+      } else genAOK = GenAddrs(ifTab, src[i], 0, isPrivate);
 
 // Check if we should proceed. Failure here is almost unheard of
 //
@@ -505,7 +509,20 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
 // If no list is supplied then fill out based on the source address
 //
    if (!(ifPort = src->Port())) ifPort = dfPort;
-   if (!ifList || !(*ifList)) return GenIF(&src, 1);
+   if (!ifList || !(*ifList))
+      {XrdNetAddrInfo *ifVec[8];
+       XrdNetAddr *iP;
+       const char *hName = src->Name();
+       ifCnt = 0;
+       if (!hName
+       ||  XrdNetUtils::GetAddrs(hName, &iP, ifCnt, XrdNetUtils::allIPv64,
+                                 ifPort) || !ifCnt) return GenIF(&src, 1);
+       if (ifCnt > 8) ifCnt = 8;
+       for (i = 0; i < ifCnt; i++) ifVec[i] = &iP[i];
+       bool aOK = GenIF(ifVec, ifCnt);
+       delete [] iP;
+       return aOK;
+      }
 
 // Prefrentially use the connect address as the primary interface. This
 // avoids using reported interfaces that may have strange routing.

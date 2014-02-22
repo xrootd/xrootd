@@ -280,7 +280,7 @@ struct ifAddrs
        char  hDest[64];    // IPV6:port in deprecated format
       };
 
-bool  GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src, const char *hName=0);
+bool  GenAddrs(ifAddrs &ifTab,XrdNetAddrInfo *src,const char *hName,bool isPVT);
 bool  GenIF(XrdNetAddrInfo **src, int srcnum);
 static
 bool  IsOkName(const char *ifn, short &ifNum);
