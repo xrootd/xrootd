@@ -18,7 +18,6 @@
 
 #include <fcntl.h>
 #include <sstream>
-#include <tr1/memory>
 #include <sys/statvfs.h>
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
