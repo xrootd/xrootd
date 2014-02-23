@@ -41,8 +41,12 @@ namespace XrdFileCache
    }
 
 
-   void strprintf(LogLevel level, const char* fmt, ...)
+   void xfcMsg(LogLevel level, const char* fmt, ...)
    {
+
+      if (level < Factory::GetInstance().RefConfiguration().m_logLevel) 
+        return;
+
       int size = 512;
 
       std::string str;
@@ -68,8 +72,11 @@ namespace XrdFileCache
    }
 
 
-   void strprintfIO(LogLevel level, XrdOucCacheIO* io, const char* fmt, ...)
+   void xfcMsgIO(LogLevel level, XrdOucCacheIO* io, const char* fmt, ...)
    {
+if (level < Factory::GetInstance().RefConfiguration().m_logLevel) 
+   return;
+
       int size = 512;
 
       std::string str;
@@ -104,5 +111,5 @@ namespace XrdFileCache
             size *= 2;
       }
    }
-
+   
 }
