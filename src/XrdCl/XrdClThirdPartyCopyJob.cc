@@ -311,7 +311,13 @@ namespace XrdCl
         if( shouldCancel )
         {
           log->Debug( UtilityMsg, "Cancelation requested by progress handler" );
-          targetFile.Truncate( 0, 1 );
+          Buffer arg, *response = 0; arg.FromString( "ofs.tpc cancel" );
+          XRootDStatus st = targetFile.Fcntl( arg, response );
+          if( !st.IsOK() )
+            log->Debug( UtilityMsg, "Error while trying to cancel tpc: %s",
+                        st.ToStr().c_str() );
+
+          delete response;
           canceled = true;
           break;
         }
