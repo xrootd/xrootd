@@ -23,11 +23,13 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-#include <XrdOss/XrdOss.hh>
+#include "XrdOss/XrdOss.hh"
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
+
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCache.hh"
 #include "XrdFileCacheFactory.hh"
-#include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"
 
 
@@ -102,7 +104,7 @@ int Info::GetHeaderSize() const
 void Info::WriteHeader(XrdOssDF* fp)
 {
    int fl = flock(fp->getFD(),  LOCK_EX);
-   if (fl) xfcMsg(kError, "WriteHeader() lock failed %s \n", strerror(errno));
+   if (fl) clLog()->Error(XrdCl::AppMsg, "WriteHeader() lock failed %s \n", strerror(errno));
 
    long long off = 0;
    off += fp->Write(&m_version, off, sizeof(int));
@@ -113,7 +115,7 @@ void Info::WriteHeader(XrdOssDF* fp)
    off += fp->Write(m_buff, off, GetSizeInBytes());
 
    int flu = flock(fp->getFD(),  LOCK_UN);
-   if (flu) xfcMsg(kError,"WriteHeader() un-lock failed \n");
+   if (flu) clLog()->Error(XrdCl::AppMsg, "WriteHeader() un-lock failed \n");
 
    assert (off == GetHeaderSize());
 }
@@ -121,10 +123,10 @@ void Info::WriteHeader(XrdOssDF* fp)
 //______________________________________________________________________________
 void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
 {
-   xfcMsg(kInfo,"Info:::AppendIOStat()");
+   clLog()->Info(XrdCl::AppMsg, "Info:::AppendIOStat()");
 
    int fl = flock(fp->getFD(),  LOCK_EX);
-   if (fl) xfcMsg(kError,"AppendIOStat() lock failed \n");
+   if (fl) clLog()->Error(XrdCl::AppMsg, "AppendIOStat() lock failed \n");
 
    m_accessCnt++;
 
@@ -141,7 +143,7 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    }
 
    int flu = flock(fp->getFD(),  LOCK_UN);
-   if (flu) xfcMsg(kError,"AppendStat() un-lock failed \n");
+   if (flu) clLog()->Error(XrdCl::AppMsg, "AppendStat() un-lock failed \n");
 
    long long ws = fp->Write(&as, off, sizeof(AStat));
    if ( ws != sizeof(AStat)) { assert(0); }
@@ -152,7 +154,7 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
 {
    bool res = false;
    int fl = flock(fp->getFD(),  LOCK_SH);
-   if (fl) xfcMsg(kError,"Info::GetLatestAttachTime() lock failed \n");
+   if (fl) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
    if (m_accessCnt)
    {
       AStat stat;
@@ -165,12 +167,12 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
       }
       else
       {
-         xfcMsg(kError, " Info::GetLatestAttachTime() can't get latest access stat. read bytes = %d", res);
+         clLog()->Error(XrdCl::AppMsg, " Info::GetLatestAttachTime() can't get latest access stat. read bytes = %d", res);
       }
    }
 
    int fu = flock(fp->getFD(),  LOCK_UN);
-   if (fu) xfcMsg(kError,"Info::GetLatestAttachTime() lock failed \n");
+   if (fu) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
    return res;
 }
 

@@ -24,7 +24,6 @@
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdFileCacheIOEntireFile.hh"
-#include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"
 #include "XrdFileCacheFactory.hh"
 
@@ -44,7 +43,7 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
    : IO(io, stats, cache),
      m_prefetch(0)
 {
-   xfcMsgIO(kInfo, &m_io, "IO::IO() [%p]", this);
+   clLog()->Info(XrdCl::AppMsg, "IO::IO() [%p] %s", this, m_io.Path());
 
    std::string fname;
    m_cache.getFilePathFromURL(io.Path(), fname);
@@ -74,13 +73,13 @@ XrdOucCacheIO *IOEntireFile::Detach()
 
 int IOEntireFile::Read (char *buff, long long off, int size)
 {
-   xfcMsgIO(kDebug, &m_io, "IO::Read() [%p]  %lld@%d", this, off, size);
+   clLog()->Debug(XrdCl::AppMsg, "IO::Read() [%p]  %lld@%d %s", this, off, size, m_io.Path());
 
    ssize_t bytes_read = 0;
    ssize_t retval = 0;
 
    retval = m_prefetch->Read(buff, off, size);
-   xfcMsgIO(kDebug, &m_io, "IO::Read() read from prefetch retval =  %d", retval);
+   clLog()->Debug(XrdCl::AppMsg, "IO::Read() read from prefetch retval =  %d %s", retval, m_io.Path());
    if (retval > 0)
    {
 
@@ -92,13 +91,13 @@ int IOEntireFile::Read (char *buff, long long off, int size)
 
    if ((size > 0))
    {
-      xfcMsgIO(kDebug, &m_io, "IO::Read() missed %d bytes", size);
+      clLog()->Debug(XrdCl::AppMsg, "IO::Read() missed %d bytes %s", size, m_io.Path());
       if (retval > 0) bytes_read += retval;
    }
 
    if (retval < 0)
    {
-      xfcMsgIO(kError, &m_io, "IO::Read(), origin bytes read %d", retval);
+      clLog()->Error(XrdCl::AppMsg, "IO::Read(), origin bytes read %d %s", retval, m_io.Path());
    }
 
    return (retval < 0) ? retval : bytes_read;
@@ -111,7 +110,7 @@ int IOEntireFile::Read (char *buff, long long off, int size)
  */
 int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
-   xfcMsgIO(kWarning, &m_io, "IO::ReadV(), get %d requests", n);
+   clLog()->Warning(XrdCl::AppMsg, "IO::ReadV(), get %d requests %s", n, m_io.Path());
 
    ssize_t bytes_read = 0;
    size_t missing = 0;
@@ -134,8 +133,9 @@ int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
       {
          // Something went wrong in construction of this request;
          // Should be limited in higher layers to a max of 512 chunks.
-         xfcMsgIO(kError, &m_io, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d",
-                  missing,  READV_MAXCHUNKS);
+
+         clLog()->Error(XrdCl::AppMsg, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d %s",
+                  missing,  READV_MAXCHUNKS, m_io.Path());
          return -1;
       }
       missing++;
