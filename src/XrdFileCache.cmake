@@ -26,6 +26,7 @@ target_link_libraries(
   XrdPosix
   XrdCl
   XrdUtils
+  XrdServer
   pthread )
 
 set_target_properties(
