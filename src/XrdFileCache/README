@@ -119,13 +119,6 @@ CONFIGURATION
 
 -cacheDir <directory>: directory path to cache location
 
--logLevel <level>: 
-          0 - default, only errors are reported
-          1 - report also warnings
-          2 - info-level, report attach / detach events, prefetch completion
-          3 - report each read request
-          4 - report internals about buffer handling and prefetching
-
 -user <username>: username required by the XrdOss plugin
 
 
@@ -138,11 +131,11 @@ Options for block-based cache:
 
 Examples:
 
-pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so -logLevel 2
+pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
   -user alja -cacheDir /data/xrd-file-cache
 
 
-pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so -logLevel 2
+pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
   -user alja -cacheDir /data/hdfs-file-cache
   -prefetchFileBlocks -blockSize 67108864 
 
