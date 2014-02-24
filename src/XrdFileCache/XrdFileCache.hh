@@ -18,8 +18,15 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 #include <string>
+
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
+#include "XrdCl/XrdClDefaultEnv.hh"
+
+namespace XrdCl
+{
+   class Log;
+}
 
 namespace XrdFileCache
 {
@@ -90,9 +97,13 @@ namespace XrdFileCache
          { errno = ENOTSUP; return -1; }
 
       protected:
+         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
+
          XrdOucCacheIO    &m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
+
+
    };
 }
 

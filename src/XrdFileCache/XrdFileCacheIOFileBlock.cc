@@ -18,7 +18,6 @@
 
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCache.hh"
-#include "XrdFileCacheLog.hh"
 #include "XrdFileCacheStats.hh"
 #include "XrdFileCacheFactory.hh"
 
@@ -49,7 +48,7 @@ IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache
 
 XrdOucCacheIO*IOFileBlock::Detach()
 {
-   xfcMsgIO(kInfo, &m_io,"IOFileBlock::Detach()");
+   clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Detach() %s", m_io.Path());
    XrdOucCacheIO * io = &m_io;
 
 
@@ -78,7 +77,7 @@ IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocks
    ss << &offExt[0];
    fname = ss.str();
 
-   xfcMsgIO(kDebug, io, "FileBlock::FileBlock(), create XrdFileCachePrefetch.");
+   clLog()->Debug(XrdCl::AppMsg, "FileBlock::FileBlock(), create XrdFileCachePrefetch. %s", m_io.Path());
    fb->m_prefetch = new Prefetch(*io, fname, off, blocksize);
    pthread_t tid;
    XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "BlockFile Prefetcher");
@@ -93,7 +92,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
    int idx_last = (off0+size-1)/m_blockSize;
 
    int bytes_read = 0;
-   xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n", off, size, idx_first, idx_last);
+   clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n %s", off, size, idx_first, idx_last, m_io.Path());
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {
@@ -113,7 +112,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          if (blockIdx == lastIOFileBlock )
          {
             pbs =  m_io.FSize() - blockIdx*m_blockSize;
-            xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() last block, change output file size to %lld \n", pbs);
+            clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() last block, change output file size to %lld \n %s", pbs, m_io.Path());
          }
 
          fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
@@ -128,12 +127,12 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          if (blockIdx == idx_first)
          {
             readBlockSize = (blockIdx + 1) *m_blockSize - off0;
-            xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() %s", "Read partially till the end of the block");
+            clLog()->Debug(XrdCl::AppMsg, "Read partially till the end of the block %s", m_io.Path());
          }
          else if (blockIdx == idx_last)
          {
             readBlockSize = (off0+size) - blockIdx*m_blockSize;
-            xfcMsgIO(kDebug, &m_io, "IOFileBlock::Read() s", "Read partially from beginning of block");
+            clLog()->Debug(XrdCl::AppMsg, "Read partially from beginning of block %s", m_io.Path());
          }
          else
          {
@@ -142,7 +141,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       }
       assert(readBlockSize);
 
-      xfcMsgIO(kInfo, &m_io, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld]", blockIdx, readBlockSize, off);
+      clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld] %s", blockIdx, readBlockSize, off, m_io.Path());
 
 
       // pass offset unmodified
@@ -152,7 +151,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       assert(off+readBlockSize <= (min + m_blockSize));
       int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset, readBlockSize);
 
-      xfcMsgIO(kDebug, &m_io,  "IOFileBlock::Read()  Block read returned %d", retvalBlock );
+      clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read()  Block read returned %d %s", retvalBlock , m_io.Path());
       if (retvalBlock > 0 )
       {
          bytes_read += retvalBlock;
@@ -163,14 +162,14 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          // cancel read if not successfull
          if (remain > 0)
          {
-            xfcMsgIO( kWarning, &m_io, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d",
-                      blockIdx, readBlockSize, off, remain);
+            clLog()->Warning(XrdCl::AppMsg, "IOFileBlock::Read() Incomplete prefetch block[%d] readSize =%d  offset[%lld], remain = %d %s",
+                                    blockIdx, readBlockSize, off, remain, m_io.Path());
             return bytes_read;
          }
       }
       else
       {
-         xfcMsgIO( kError, &m_io, "IOFileBlock::Read() read error, retval %d", retvalBlock);
+         clLog()->Error(XrdCl::AppMsg, "IOFileBlock::Read() read error, retval %d %s", retvalBlock, m_io.Path());
          return retvalBlock;
       }
    }

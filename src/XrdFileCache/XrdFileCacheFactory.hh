@@ -24,12 +24,18 @@
 
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdOuc/XrdOucCache.hh>
+#include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
+
+#include "XrdFileCacheDecision.hh"
+
 class XrdOucStream;
 class XrdSysError;
 
-#include "XrdFileCacheDecision.hh"
-#include "XrdFileCacheLog.hh"
+namespace XrdCl
+{
+   class Log;
+}
 
 namespace XrdFileCache
 {
@@ -44,7 +50,6 @@ namespace XrdFileCache
          m_username("nobody"),
          m_lwm(0.95),
          m_hwm(0.9),
-         m_logLevel(kError),
          m_bufferSize(1024*1024),
          m_blockSize(128*1024*1024) {}
 
@@ -56,7 +61,6 @@ namespace XrdFileCache
       float m_lwm;                    //!< cache purge low water mark
       float m_hwm;                    //!< cache purge high water mark
 
-      LogLevel  m_logLevel;           //!< file cache log level (0->dump, 1->debug, 2->info, 3-warning, 4-error)
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
       long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
@@ -95,7 +99,7 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          //! Getter for xrootd logger
          //---------------------------------------------------------------------
-         XrdSysError& GetSysError() { return m_log; }
+          XrdSysError& GetSysError() { return m_log; }
 
          //--------------------------------------------------------------------
          //! \brief Makes decision if the original XrdOucCacheIO should be cached.
@@ -146,6 +150,8 @@ namespace XrdFileCache
          bool ConfigXeq(char *, XrdOucStream &);
          bool xolib(XrdOucStream &);
          bool xdlib(XrdOucStream &);
+
+         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          static Factory   *m_factory;   //!< this object
 

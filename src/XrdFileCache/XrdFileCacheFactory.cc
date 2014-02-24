@@ -33,13 +33,11 @@
 #include "XrdClient/XrdClient.hh"
 #include "XrdVersion.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
-#include "XrdCl/XrdClDefaultEnv.hh"
+#include "XrdCl/XrdClConstants.hh"
 
 #include "XrdFileCache.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCachePrefetch.hh"
-#include "XrdFileCacheLog.hh"
-
 
 
 using namespace XrdFileCache;
@@ -151,7 +149,8 @@ Factory &Factory::GetInstance()
 
 XrdOucCache *Factory::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
 {
-   xfcMsg(kInfo, "Factory::Create() new cache object");
+ clLog()->Info(XrdCl::AppMsg, "Factory::Create() new cache object");
+   clLog()->Info(XrdCl::AppMsg, "Factory::Create() new cache object");
    return new Cache(m_stats);
 }
 
@@ -168,14 +167,14 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
 
    if (!config_filename || !*config_filename)
    {
-      xfcMsg(kWarning, "Factory::Config() configuration file not specified.");
+      clLog()->Warning(XrdCl::AppMsg, "Factory::Config() configuration file not specified.");
       return false;
    }
 
    int fd;
    if ( (fd = open(config_filename, O_RDONLY, 0)) < 0)
    {
-      xfcMsg(kError, "Factory::Config() can't open configuration file %s", config_filename);
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() can't open configuration file %s", config_filename);
       return false;
    }
 
@@ -204,7 +203,7 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    if ((retc = Config.LastError()))
    {
       retval = false;
-      xfcMsg(kError, "Factory::Config() error in parsing");
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() error in parsing");
    }
 
    Config.Close();
@@ -213,23 +212,22 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    if (retval)
       retval = ConfigParameters(parameters);
 
-   xfcMsg(kInfo,"Factory::Config() user name %s", m_configuration.m_username.c_str());
-   xfcMsg(kInfo,"Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
-   xfcMsg(kInfo,"Factory::Config() log level %d", m_configuration.m_logLevel);
-   xfcMsg(kInfo,"Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
+   clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
+   clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
+   clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
 
    if (retval)
    {
       XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
       if (!output_fs)
       {
-         xfcMsg(kError, "Factory::Config() Unable to create a OSS object");
+         clLog()->Error(XrdCl::AppMsg, "Factory::Config() Unable to create a OSS object");
          retval = false;
       }
       m_output_fs = output_fs;
    }
 
-   xfcMsg(kInfo, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
+   clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
 
    return retval;
 }
@@ -257,7 +255,7 @@ bool Factory::xolib(XrdOucStream &Config)
 
    if (!(val = Config.GetWord()) || !val[0])
    {
-      xfcMsg(kInfo, "Factory::Config() osslib not specified");
+      clLog()->Info(XrdCl::AppMsg, "Factory::Config() osslib not specified");
       return false;
    }
 
@@ -266,7 +264,7 @@ bool Factory::xolib(XrdOucStream &Config)
    *(parms+pl) = ' ';
    if (!Config.GetRest(parms+pl+1, sizeof(parms)-pl-1))
    {
-      xfcMsg(kError, "Factory::Config() osslib parameters too long");
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() osslib parameters too long");
       return false;
    }
 
@@ -292,7 +290,7 @@ bool Factory::xdlib(XrdOucStream &Config)
    std::string libp;
    if (!(val = Config.GetWord()) || !val[0])
    {
-      xfcMsg(kInfo, " Factory:;Config() decisionlib not specified; always caching files");
+      clLog()->Info(XrdCl::AppMsg, " Factory:;Config() decisionlib not specified; always caching files");
       return true;
    }
    else
@@ -315,7 +313,7 @@ bool Factory::xdlib(XrdOucStream &Config)
    Decision * d = ep(m_log);
    if (!d)
    {
-      xfcMsg(kError, "Factory::Config() decisionlib was not able to create a decision object");
+      clLog()->Error(XrdCl::AppMsg, "Factory::Config() decisionlib was not able to create a decision object");
       return false;
    }
    if (params)
@@ -340,24 +338,19 @@ bool Factory::ConfigParameters(const char * parameters)
       if ( part == "-prefetchFileBlock" )
       {
          m_configuration.m_prefetchFileBlocks = true;
-         xfcMsg(kInfo, "Factory::ConfigParameters() enable block prefetch.");
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() enable block prefetch.");
       }
       else if ( part == "-user" )
       {
          getline(is, part, ' ');
          m_configuration.m_username = part.c_str();
-         // xfcMsg(kInfo, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
+ clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
       }
       else if  ( part == "-cacheDir" )
       {
          getline(is, part, ' ');
          m_configuration.m_cache_dir = part.c_str();
-         // xfcMsg(kInfo, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
-      }
-      else if  ( part == "-logLevel" )
-      {
-         getline(is, part, ' ');
-         m_configuration.m_logLevel = (LogLevel)atoi(part.c_str());
+ clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
       }
       else if  ( part == "-lwm" )
       {
@@ -375,13 +368,13 @@ bool Factory::ConfigParameters(const char * parameters)
          // prefetch buffer size is long long because of possible problems
          // after multiplication, but in this stepe it is save to use atoi
          m_configuration.m_bufferSize = ::atoi(part.c_str());
-         xfcMsg(kInfo, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
       }
       else if  ( part == "-blockSize" )
       {
          getline(is, part, ' ');
          m_configuration.m_blockSize = ::atoi(part.c_str());
-         xfcMsg(kInfo, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
       }
    }
 
@@ -421,6 +414,7 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
    XrdOucEnv env;
    int rdr;
    const size_t InfoExtLen = sizeof(XrdFileCache::Info::m_infoExtension);  // cached var
+   XrdCl::Log *log = XrdCl::DefaultEnv::GetLog();
 
    Factory& factory = Factory::GetInstance();
    while ( (rdr = df->Readdir(&buff[0], 256)) >= 0)
@@ -447,12 +441,12 @@ void FillFileMapRecurse( XrdOssDF* df, const std::string& path, std::map<std::st
             cinfo.Read(fh);
             if (cinfo.GetLatestDetachTime(accessTime, fh))
             {
-               xfcMsg(kDebug, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
+               log->Debug(XrdCl::AppMsg, "FillFileMapRecurse() checking %s accessTime %d ", buff, (int)accessTime);
                fcmap[np] = accessTime;
             }
             else
             {
-               xfcMsg(kWarning, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
+               log->Warning(XrdCl::AppMsg, "FillFileMapRecurse() could not get access time for %s \n", np.c_str());
             }
          }
          else if ( dh->Opendir(np.c_str(), env)  >= 0 )
@@ -471,7 +465,6 @@ void Factory::CacheDirCleanup()
 {
    // check state every sleep seconds
    const static int sleept = 300;
-
    struct stat fstat;
    XrdOucEnv env;
 
@@ -484,18 +477,18 @@ void Factory::CacheDirCleanup()
       struct statvfs fsstat;
       if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 )
       {
-         xfcMsg(kError, "Factory::CacheDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+         clLog()->Error(XrdCl::AppMsg, "Factory::CacheDirCleanup() can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
          exit(1);
       }
       else
       {
          float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-         xfcMsg(kInfo, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
+         clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
             long long bytesToRemoveLong = static_cast<long long> ((oc - m_configuration.m_lwm) * static_cast<float>(s_diskSpacePrecisionFactor));
             bytesToRemove = (fsstat.f_bsize * fsstat.f_blocks * bytesToRemoveLong) / s_diskSpacePrecisionFactor;
-            xfcMsg(kInfo, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
+            clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() need space for  %lld bytes", bytesToRemove);
          }
       }
 
@@ -517,7 +510,7 @@ void Factory::CacheDirCleanup()
                {
                   bytesToRemove -= fstat.st_size;
                   oss->Unlink(path.c_str());
-                  xfcMsg(kInfo, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
 
                // remove data file
@@ -526,7 +519,7 @@ void Factory::CacheDirCleanup()
                {
                   bytesToRemove -= fstat.st_size;
                   oss->Unlink(path.c_str());
-                  xfcMsg(kInfo, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
+                  clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() removed %s size %lld ", path.c_str(), fstat.st_size);
                }
                if (bytesToRemove <= 0)
                   break;
@@ -554,7 +547,7 @@ bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
     struct statvfs fsstat;
 
     if(statvfs(m_configuration.m_cache_dir.c_str(), &fsstat) < 0 ) {
-        xfcMsg(kError, "Factory:::CheckFileForDiskSpace can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
+        clLog()->Error(XrdCl::AppMsg, "Factory:::CheckFileForDiskSpace can't get statvfs for dir [%s] \n", m_configuration.m_cache_dir.c_str());
         exit(1);
     }
     float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
@@ -568,7 +561,7 @@ bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
         }
 
     }
-    xfcMsg(kError, "Factory:::CheckFileForDiskSpace not enugh space , availableSpace = %lld \n", availableSpace);
+    clLog()->Error(XrdCl::AppMsg, "Factory:::CheckFileForDiskSpace not enugh space , availableSpace = %lld \n", availableSpace);
     return false;
 }
 

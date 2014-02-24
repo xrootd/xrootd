@@ -23,8 +23,16 @@
 #include <assert.h>
 
 #include <XrdSys/XrdSysPthread.hh>
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 class XrdOssDF;
 
+namespace XrdCl
+{
+   class Log;
+}
 
 namespace XrdFileCache
 {
@@ -135,6 +143,9 @@ namespace XrdFileCache
          const static char* m_infoExtension;
 
       private:
+
+         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
+
          //---------------------------------------------------------------------
          //! Cache statistics and time of access.
          //---------------------------------------------------------------------

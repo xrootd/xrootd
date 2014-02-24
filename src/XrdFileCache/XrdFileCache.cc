@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <sstream>
 #include <sys/statvfs.h>
+
+#include "XrdCl/XrdClConstants.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucEnv.hh"
@@ -28,7 +30,6 @@
 #include "XrdFileCacheIOFileBlock.hh"
 #include "XrdFileCacheFactory.hh"
 #include "XrdFileCachePrefetch.hh"
-#include "XrdFileCacheLog.hh"
 
 
 using namespace XrdFileCache;
@@ -43,9 +44,12 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
    if (Factory::GetInstance().Decide(io))
    {
       XrdSysMutexHelper lock(&m_io_mutex);
+
       m_attached++;
 
-      xfcMsgIO(kInfo, io, "Cache::Attach()");
+      XrdCl::Log* clLog = XrdCl::DefaultEnv::GetLog();
+      clLog->Info(XrdCl::AppMsg, "Cache::Attach() %s", io->Path());
+
       if (io)
       {
          if (Factory::GetInstance().RefConfiguration().m_prefetchFileBlocks)
@@ -55,7 +59,7 @@ XrdOucCacheIO *Cache::Attach(XrdOucCacheIO *io, int Options)
       }
       else
       {
-         xfcMsgIO(kDebug, io, "Cache::Attache(), XrdOucCacheIO == NULL");
+         clLog->Debug(XrdCl::AppMsg, "Cache::Attache(), XrdOucCacheIO == NULL %s", io->Path());
       }
 
       m_attached--;
@@ -71,11 +75,13 @@ int Cache::isAttached()
 
 void Cache::Detach(XrdOucCacheIO* io)
 {
-   xfcMsgIO(kInfo, io, "Cache::Detach()");
+   XrdCl::Log* clLog = XrdCl::DefaultEnv::GetLog();
+   clLog->Info(XrdCl::AppMsg, "Cache::Detach() %s", io->Path());
+
    XrdSysMutexHelper lock(&m_io_mutex);
    m_attached--;
 
-   xfcMsgIO(kDebug, io, "Cache::Detach(), deleting IO object. Attach count = %d", m_attached);
+   clLog->Debug(XrdCl::AppMsg, "Cache::Detach(), deleting IO object. Attach count = %d %s", m_attached, io->Path());
 
    delete io;
 }

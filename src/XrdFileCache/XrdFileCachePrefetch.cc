@@ -20,15 +20,17 @@
 #include <sstream>
 #include <fcntl.h>
 
-#include "XrdFileCachePrefetch.hh"
-#include "XrdFileCacheFactory.hh"
-#include "XrdFileCache.hh"
-#include "XrdFileCacheLog.hh"
-
+#include "XrdCl/XrdClLog.hh"
+#include "XrdCl/XrdClConstants.hh"
 #include <XrdOss/XrdOss.hh>
 #include <XrdCl/XrdClFile.hh>
 #include <XrdSys/XrdSysPthread.hh>
 #include "XrdOuc/XrdOucEnv.hh"
+
+
+#include "XrdFileCachePrefetch.hh"
+#include "XrdFileCacheFactory.hh"
+#include "XrdFileCache.hh"
 
 using namespace XrdFileCache;
 
@@ -44,7 +46,7 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
    m_stop(false),
    m_stateCond(0)    // We will explicitly lock the condition before use.
 {
-   xfcMsgIO(kDebug, &m_input, "Prefetch::Prefetch()");
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch() %s", m_input.Path());
 }
 
 Prefetch::~Prefetch()
@@ -58,13 +60,13 @@ Prefetch::~Prefetch()
 
    if (m_cfi.IsComplete() == false)
    {
-      xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() file not complete...");
+      clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() file not complete... %s", m_input.Path());
       fflush(stdout);
       XrdSysCondVarHelper monitor(m_stateCond);
       if (m_stop == false)
       {
          m_stop = true;
-         xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch() waiting to stop Run() thread ...");
+         clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() waiting to stop Run() thread ... %s", m_input.Path());
          m_stateCond.Wait();
       }
    }
@@ -72,7 +74,7 @@ Prefetch::~Prefetch()
    // write statistics in *cinfo file
    AppendIOStatToFileInfo();
 
-   xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch close data file");
+   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file %s", m_input.Path());
 
    if (m_output)
    {
@@ -83,7 +85,7 @@ Prefetch::~Prefetch()
    if (m_infoFile)
    {
       RecordDownloadInfo();
-      xfcMsgIO(kInfo, &m_input, "Prefetch::~Prefetch close info file");
+      clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close info file %s", m_input.Path());
 
       m_infoFile->Close();
       delete m_infoFile;
@@ -128,7 +130,7 @@ void Prefetch::Run()
       
    }
    assert(m_infoFile);
-   xfcMsgIO(kDebug, &m_input, "Prefetch::Run()");
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() %s", m_input.Path());
 
    std::vector<char> buff;
    buff.reserve(m_cfi.GetBufferSize());
@@ -143,7 +145,7 @@ void Prefetch::Run()
          break;
       }
 
-      xfcMsgIO(kDebug, &m_input, "Prefetch::Run() new task block[%d, %d], condVar [%c]", task.firstBlock, task.lastBlock, task.condVar ? 'x' : 'o');
+      clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() new task block[%d, %d], condVar [%c] %s", task.firstBlock, task.lastBlock, task.condVar ? 'x' : 'o', m_input.Path());
       for (int block = task.firstBlock; block <= task.lastBlock; block++)
       {
          bool already;
@@ -153,12 +155,12 @@ void Prefetch::Run()
          m_downloadStatusMutex.UnLock();
          if (already)
          {
-            xfcMsgIO(kDump, &m_input, "Prefetch::Run() block [%d] already done, continue ...", block);
+            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Run() block [%d] already done, continue ... %s", block, m_input.Path());
             continue;
          }
          else
          {
-            xfcMsgIO(kDump, &m_input, "Prefetch::Run() download block [%d]", block);
+            clLog()->Dump(XrdCl::AppMsg, "Prefetch::Run() download block [%d] %s", block, m_input.Path());
          }
 
          int numBytes = GetBytesToRead(task, block);
@@ -174,7 +176,7 @@ void Prefetch::Run()
 
                if (retval < 0)
                {
-                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() Failed for negative ret %d block %d", retval, block);
+                  clLog()->Warning(XrdCl::AppMsg, "Prefetch::Run() Failed for negative ret %d block %d %s", retval, block, m_input.Path());
                   XrdSysCondVarHelper monitor(m_stateCond);
                   m_failed = true;
                   retval = -EINTR;
@@ -186,7 +188,7 @@ void Prefetch::Run()
                cnt++;
                if (cnt > PREFETCH_MAX_ATTEMPTS)
                {
-                  xfcMsgIO(kError, &m_input, "Prefetch::Run() too many attempts\n");
+                  clLog()->Error(XrdCl::AppMsg, "Prefetch::Run() too many attempts\n %s", m_input.Path());
                   m_failed = true;
                   retval = -EINTR;
                   break;
@@ -194,7 +196,7 @@ void Prefetch::Run()
 
                if (missing)
                {
-                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattempt writing missing %d for block %d", missing, block);
+                  clLog()->Warning(XrdCl::AppMsg, "Prefetch::Run() reattempt writing missing %d for block %d %s", missing, block, m_input.Path());
                }
             }
          }
@@ -212,13 +214,13 @@ void Prefetch::Run()
                buffer_offset += retval;
                if (buffer_remaining)
                {
-                  xfcMsgIO(kWarning, &m_input, "Prefetch::Run() reattempt writing missing %d for block %d", buffer_remaining, block);
+                  clLog()->Warning(XrdCl::AppMsg, "Prefetch::Run() reattempt writing missing %d for block %d %s", buffer_remaining, block, m_input.Path());
                }
             }
          }
 
          // set downloaded bits
-         xfcMsgIO(kDump, &m_input, "Prefetch::Run() set bit for block [%d]", block);
+         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Run() set bit for block [%d] %s", block, m_input.Path());
          m_downloadStatusMutex.Lock();
          m_cfi.SetBit(block);
          m_downloadStatusMutex.UnLock();
@@ -230,20 +232,20 @@ void Prefetch::Run()
       }   // loop blocks in task
 
 
-      xfcMsgIO(kDebug, &m_input, "Prefetch::Run() task completed ");
+      clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() task completed  %s", m_input.Path());
       if (task.condVar)
       {
-         xfcMsgIO(kDebug, &m_input, "Prefetch::Run() task *Signal* begin");
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() task *Signal* begin %s", m_input.Path());
          XrdSysCondVarHelper(*task.condVar);
          task.condVar->Signal();
-         xfcMsgIO(kDebug, &m_input, "Prefetch::Run() task *Signal* end");
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() task *Signal* end %s", m_input.Path());
       }
 
 
       // after completing a task, check if IO wants to break
       if (m_stop)
       {
-         xfcMsgIO(kDebug, &m_input, "Prefetch::Run() %s", "stopping for a clean cause");
+         clLog()->Debug(XrdCl::AppMsg, "stopping for a clean cause %s", m_input.Path());
          retval = -EINTR;
          m_stateCond.Signal();
          return;
@@ -251,7 +253,7 @@ void Prefetch::Run()
 
    }  // loop tasks
    m_cfi.CheckComplete();
-   xfcMsgIO(kDebug, &m_input, "Prefetch::Run() exits, download %s  !", m_cfi.IsComplete() ? " completed " : "unfinished");
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() exits, download %s  !", m_cfi.IsComplete() ? " completed " : "unfinished %s", m_input.Path());
 
 
    RecordDownloadInfo();
@@ -259,16 +261,10 @@ void Prefetch::Run()
 
 
 //______________________________________________________________________________
-void Prefetch::Task::Dump()
-{
-   xfcMsg(kDebug, "Task firstBlock = %d, lastBlock =  %d,  cond = %p", firstBlock, lastBlock, (void*)condVar);
-}
-
-//______________________________________________________________________________
 
 bool Prefetch::Open()
 {
-   xfcMsgIO(kDebug, &m_input, "Prefetch::Open() open file for disk cache");
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Open() open file for disk cache %s", m_input.Path());
    XrdOss  &m_output_fs =  *Factory::GetInstance().GetOss();
    // Create the data file itself.
    XrdOucEnv myEnv;
@@ -279,7 +275,7 @@ bool Prefetch::Open()
       int res = m_output->Open(m_temp_filename.c_str(), O_RDWR, 0600, myEnv);
       if ( res < 0)
       {
-         xfcMsgIO(kError, &m_input, "Prefetch::Open() can't get data-FD for %s", m_temp_filename.c_str());
+         clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get data-FD for %s %s", m_temp_filename.c_str(), m_input.Path());
          delete m_output;
          m_output = NULL;
          return false;
@@ -295,7 +291,7 @@ bool Prefetch::Open()
       int res = m_infoFile->Open(ifn.c_str(), O_RDWR, 0600, myEnv);
       if ( res < 0 )
       {
-         xfcMsgIO(kError, &m_input, "Prefetch::Open() can't get info-FD %s ", ifn.c_str());
+         clLog()->Error(XrdCl::AppMsg, "Prefetch::Open() can't get info-FD %s  %s", ifn.c_str(), m_input.Path());
          delete m_output;
          m_output = NULL;
          delete m_infoFile;
@@ -308,13 +304,13 @@ bool Prefetch::Open()
    {
       assert(m_fileSize > 0);
       int ss = (m_fileSize -1)/m_cfi.GetBufferSize() + 1;
-      xfcMsgIO(kInfo, &m_input, "Creating new file info with size %lld. Reserve space for %d blocks", m_fileSize,  ss);
+      clLog()->Info(XrdCl::AppMsg, "Creating new file info with size %lld. Reserve space for %d blocks %s", m_fileSize,  ss, m_input.Path());
       m_cfi.ResizeBits(ss);
       RecordDownloadInfo();
    }
    else
    {
-      xfcMsgIO(kDebug, &m_input, "Info file already exists");
+      clLog()->Debug(XrdCl::AppMsg, "Info file already exists %s", m_input.Path());
       // m_cfi.Print();
    }
 
@@ -324,7 +320,7 @@ bool Prefetch::Open()
 //______________________________________________________________________________
 void Prefetch::RecordDownloadInfo()
 {
-   xfcMsgIO(kDebug, &m_input, "Prefetch record Info file");
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch record Info file %s", m_input.Path());
    m_cfi.WriteHeader(m_infoFile);
    m_infoFile->Fsync();
    // m_cfi.Print();
@@ -333,7 +329,7 @@ void Prefetch::RecordDownloadInfo()
 //______________________________________________________________________________
 void Prefetch::AddTaskForRng(long long offset, int size, XrdSysCondVar* cond)
 {
-   xfcMsgIO(kDebug, &m_input, "Prefetch::AddTask %lld %d cond= %p", offset, size, (void*)cond);
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::AddTask %lld %d cond= %p %s", offset, size, (void*)cond, m_input.Path());
    m_downloadStatusMutex.Lock();
    int first_block = offset / m_cfi.GetBufferSize();
    int last_block  = (offset + size -1)/ m_cfi.GetBufferSize();
@@ -360,7 +356,7 @@ bool Prefetch::GetNextTask(Task& t )
             t.lastBlock = t.firstBlock;
             t.condVar = 0;
 
-            xfcMsgIO(kDebug, &m_input, "Prefetch::GetNextTask() read first undread block");
+            clLog()->Debug(XrdCl::AppMsg, "Prefetch::GetNextTask() read first undread block %s", m_input.Path());
             res = true;
             break;
          }
@@ -370,7 +366,7 @@ bool Prefetch::GetNextTask(Task& t )
    }
    else
    {
-      xfcMsgIO(kDebug, &m_input, "Prefetch::GetNextTask() from queue");
+      clLog()->Debug(XrdCl::AppMsg, "Prefetch::GetNextTask() from queue %s", m_input.Path());
       t = m_tasks_queue.front();
       m_tasks_queue.pop();
       res = true;
@@ -419,7 +415,7 @@ bool Prefetch::GetStatForRng(long long offset, int size, int& pulled, int& nbloc
    }
    m_downloadStatusMutex.UnLock();
 
-   xfcMsgIO(kDump, &m_input, "Prefetch::GetStatForRng() bolcksPulled[%d] needed[%d]", pulled, nblocks);
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::GetStatForRng() bolcksPulled[%d] needed[%d] %s", pulled, nblocks, m_input.Path());
 
    return true;
 }
@@ -435,7 +431,7 @@ void Prefetch::AppendIOStatToFileInfo()
    }
    else
    {
-      xfcMsgIO(kWarning, &m_input, "Prefetch::AppendIOStatToFileInfo() info file not opened");
+      clLog()->Warning(XrdCl::AppMsg, "Prefetch::AppendIOStatToFileInfo() info file not opened %s", m_input.Path());
    }
    m_downloadStatusMutex.UnLock();
 }
@@ -444,7 +440,7 @@ void Prefetch::AppendIOStatToFileInfo()
 
 ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
 {
-   xfcMsgIO(kDump, &m_input, "Prefetch::Read()  off = %lld size = %lld.", off, size);
+   clLog()->Dump(XrdCl::AppMsg, "Prefetch::Read()  off = %lld size = %lld. %s", off, size, m_input.Path());
    int nbb;  // num of blocks needed
    int nbp;  // num of blocks pulled
    ssize_t retval = 0;
@@ -460,7 +456,7 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
          AddTaskForRng(off, size, &newTaskCond);
          XrdSysCondVarHelper xx(newTaskCond);
          newTaskCond.Wait();
-         xfcMsgIO(kDump, &m_input, "Prefetch::Read() cond.Wait() finsihed.");
+         clLog()->Dump(XrdCl::AppMsg, "Prefetch::Read() cond.Wait() finsihed. %s", m_input.Path());
       }
 
       retval =  m_output->Read(buff, off, size);
@@ -488,7 +484,7 @@ ssize_t Prefetch::Read(char *buff, off_t off, size_t size)
    }
    else
    {
-      xfcMsgIO(kWarning, &m_input, "Prefetch::Read() failed to get status for read off = %lld size = %lld.", off, size);
+      clLog()->Warning(XrdCl::AppMsg, "Prefetch::Read() failed to get status for read off = %lld size = %lld. %s", off, size, m_input.Path());
       if (m_stop || m_failed)
          retval = -1;
       else

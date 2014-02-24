@@ -21,8 +21,15 @@
 #include <string>
 #include <queue>
 
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
+
+namespace XrdCl
+{
+   class Log;
+}
 
 namespace XrdFileCache
 {
@@ -78,8 +85,6 @@ namespace XrdFileCache
                firstBlock(fb), lastBlock(lb), condVar(iCondVar) {}
 
             ~Task() {}
-
-            void Dump();
          };
 
          //! Adds a new task in queue.
@@ -102,6 +107,8 @@ namespace XrdFileCache
 
          //! Get number of bytes to read for given block.
          int  GetBytesToRead(Task& task, int block) const;
+
+         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
          XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
