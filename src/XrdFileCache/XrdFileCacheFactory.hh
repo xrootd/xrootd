@@ -22,8 +22,8 @@
 #include <vector>
 #include <map>
 
-#include <XrdSys/XrdSysPthread.hh>
-#include <XrdOuc/XrdOucCache.hh>
+#include "XrdSys/XrdSysPthread.hh"
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdVersion.hh"
 

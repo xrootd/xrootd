@@ -22,9 +22,9 @@
 
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
-#include <XrdOss/XrdOss.hh>
-#include <XrdCl/XrdClFile.hh>
-#include <XrdSys/XrdSysPthread.hh>
+#include "XrdOss/XrdOss.hh"
+#include "XrdCl/XrdClFile.hh"
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
 

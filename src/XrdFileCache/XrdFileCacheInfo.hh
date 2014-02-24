@@ -22,7 +22,7 @@
 #include <time.h>
 #include <assert.h>
 
-#include <XrdSys/XrdSysPthread.hh>
+#include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"

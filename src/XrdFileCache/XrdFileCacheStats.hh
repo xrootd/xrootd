@@ -19,7 +19,7 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 
-#include <XrdOuc/XrdOucCache.hh>
+#include "XrdOuc/XrdOucCache.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 namespace XrdFileCache
