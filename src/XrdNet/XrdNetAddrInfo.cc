@@ -343,18 +343,21 @@ int XrdNetAddrInfo::Resolve()
            }
    else return EAI_FAMILY;
 
-// Do lookup of canonical name. Note that under certain conditions (e.g. dns
-// failure) we can get a negative return code that may cause a SEGV. We check.
-// Additionally, some implementations of getnameinfo() return the scopeid when
-// a numeric address is returned. We check and remove it.
+// Do lookup of canonical name. If an error is returned we simply assume that
+// the name is not resolvable and return the address as the host name.
 //
    if ((rc = getnameinfo(&IP.Addr, n, hBuff+1, sizeof(hBuff)-2, 0, 0, 0)))
-      {if (rc < 0) {errno = ENETUNREACH; rc = EAI_SYSTEM;}
+      {int ec = errno;
+       if (Format(hBuff, sizeof(hBuff), fmtAddr, noPort))
+          {hostName = strdup(hBuff); return 0;}
+       errno = ec;
        return rc;
       }
 
 // Handle the case when the mapping returned an actual name or an address
-// We always want numeric ipv6 addresses surrounded by brackets.
+// We always want numeric ipv6 addresses surrounded by brackets. Additionally,
+// some implementations of getnameinfo() return the scopeid when a numeric
+// address is returned. We check and remove it.
 //
         if (!index(hBuff+1, ':')) hostName = strdup(LowCase(hBuff+1));
    else {char *perCent = index(hBuff+1, '%');
