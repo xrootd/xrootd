@@ -787,7 +787,6 @@ int            XrdOfsFile::fctl(const int               cmd,
 int            XrdOfsFile::fctl(const int               cmd,
                                       int               alen,
                                 const char             *args,
-                                      XrdOucErrInfo    &eInfo,
                                 const XrdSecEntity     *client)
 {                             // 12345678901234
    static const char *fctlArg = "ofs.tpc cancel";

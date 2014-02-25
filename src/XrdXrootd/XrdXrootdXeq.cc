@@ -1600,7 +1600,6 @@ int XrdXrootdProtocol::do_Qconf()
 int XrdXrootdProtocol::do_Qfh()
 {
    static XrdXrootdCallBack qryCB("query", XROOTD_MON_QUERY);
-   XrdOucErrInfo myError(Link->ID,&qryCB,ReqID.getID(),Monitor.Did,clientPV);
    XrdXrootdFHandle fh(Request.query.fhandle);
    XrdXrootdFile *fp;
    const char *fArg = 0, *qType = "";
@@ -1617,6 +1616,10 @@ int XrdXrootdProtocol::do_Qfh()
       return Response.Send(kXR_FileNotOpen,
                            "query does not refer to an open file");
 
+// The query is elegible for a defered response, indicate we're ok with that
+//
+   fp->XrdSfsp->error.setErrCB(&qryCB, ReqID.getID());
+
 // Perform the appropriate query
 //
    switch(qopt)
@@ -1624,10 +1627,11 @@ int XrdXrootdProtocol::do_Qfh()
                             fArg = (Request.query.dlen ? argp->buff : 0);
                             rc = fp->XrdSfsp->fctl(SFS_FCTL_SPEC1,
                                                    Request.query.dlen, fArg,
-                                                   myError, CRED);
+                                                   CRED);
                             break;
           case kXR_Qvisa:   qType = "Qvisa";
-                            rc = fp->XrdSfsp->fctl(SFS_FCTL_STATV, 0, myError);
+                            rc = fp->XrdSfsp->fctl(SFS_FCTL_STATV, 0,
+                                                   fp->XrdSfsp->error);
                             break;
           default:          return Response.Send(kXR_ArgMissing, 
                                    "Required query argument not present");
@@ -1639,7 +1643,7 @@ int XrdXrootdProtocol::do_Qfh()
 
 // Return appropriately
 //
-   if (SFS_OK != rc) return fsError(rc, XROOTD_MON_QUERY, myError, 0);
+   if (SFS_OK != rc) return fsError(rc, XROOTD_MON_QUERY,fp->XrdSfsp->error,0);
    return Response.Send();
 }
   

@@ -649,6 +649,8 @@ virtual int            close() = 0;
 //!                 SFS_FCTL_STATV    Reserved for future use.
 //! @param  args  - specific arguments to cmd
 //!                 SFS_FCTL_GETFD    Set to zero.
+//! @param  eInfo  - The object where error info or results are to be returned.
+//!                  This is legacy and the error onject may be used as well.
 //!
 //! @return If an error occurs or the operation is not support, SFS_ERROR
 //!         should be returned with error.code set to errno. Otherwise,
@@ -669,7 +671,6 @@ virtual int            fctl(const int               cmd,
 //!                  SFS_FCTL_SPEC1    Perform implementation defined action
 //! @param  alen   - Length of data pointed to by args.
 //! @param  args   - Data sent with request, zero if alen is zero.
-//! @param  eInfo  - The object where error info or results are to be returned.
 //! @param  client - Client's identify (see common description).
 //!
 //! @return SFS_OK   a null response is sent.
@@ -681,7 +682,6 @@ virtual int            fctl(const int               cmd,
 virtual int            fctl(const int               cmd,
                                   int               alen,
                                   const char       *args,
-                                  XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client = 0) {return SFS_OK;}
 
 //-----------------------------------------------------------------------------

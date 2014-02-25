@@ -120,7 +120,6 @@ public:
         int            fctl(const int               cmd,
                                   int               alen,
                                   const char       *args,
-                                  XrdOucErrInfo    &eInfo,
                             const XrdSecEntity     *client = 0);
 
         const char    *FName() {return (oh ? oh->Name() : "?");}
