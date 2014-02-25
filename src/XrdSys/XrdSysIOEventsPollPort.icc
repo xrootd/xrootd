@@ -88,9 +88,13 @@ private:
        bool  Process();
 
        port_event_t *pollTab;
+       Channel      *cbNow;
        int           pollDfd;
        int           pollMax;
+       unsigned int  numPoll;
+static void         *deadChP;
 };
+       void        *PollPort::deadChP = 0;
 };
 };
   
@@ -170,7 +174,7 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
                                     const char     **eTxt)
 {
    unsigned int numpolled;
-   int i, rc;
+   int rc;
    timespec_t toVal;
    Channel *cP;
 
@@ -187,7 +191,7 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
    do {numpolled = 1; errno = 0;
        do {rc = port_getn(pollDfd, pollTab, pollMax, &numpolled, BegTO(toVal));}
           while (rc < 0 && errno == EINTR);
-       wakePend = true;
+       wakePend = true; numPoll = numpolled;
             if (rc)
                {if (errno == ETIME || !errno) CbkTMO();
                    else {int rc = errno;
@@ -195,7 +199,7 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
                          abort();
                         }
                }
-       for (i = 0; i < (int)numpolled; i++)
+       for (int i = 0; i < (int)numpolled; i++)
            if (pollTab[i].portev_source == PORT_SOURCE_FD)
               {if ((cP = (Channel *)pollTab[i].portev_user))
                   Dispatch(cP, pollTab[i].portev_events);
@@ -209,11 +213,15 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
 /******************************************************************************/
   
 void XrdSys::IOEvents::PollPort::Dispatch(XrdSys::IOEvents::Channel *cP,
-                                       int                        pollEv)
+                                          int                        pollEv)
 {
    const char *eTxt;
    int eNum, events = 0;
    bool isLocked = false;
+
+// Make sure this not a dispatch to a dead channel (rare but true)
+//
+   if (cP == (XrdSys::IOEvents::Channel *)&deadChP) return;
 
 // Translate the event to something reasonable
 //
@@ -231,8 +239,10 @@ void XrdSys::IOEvents::PollPort::Dispatch(XrdSys::IOEvents::Channel *cP,
 
 // Execute the callback
 //
+   cbNow = cP;
    if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
       else Modify(cP, eNum, &eTxt, isLocked);
+   cbNow = 0;
 }
 
 /******************************************************************************/
@@ -259,8 +269,15 @@ void XrdSys::IOEvents::PollPort::Exclude(XrdSys::IOEvents::Channel *cP,
           {isLocked = false;
            UnLockChannel(cP);
           }
-       cmdbuff.req = PipeData::Post;
+       cmdbuff.req = PipeData::RmFD;
+       cmdbuff.fd  = cP->GetFD();
        SendCmd(cmdbuff);
+      } else {
+       if (cbNow && cbNow != cP)
+          for (int i = 0; i < numPoll; i++)
+              {if (cP == (Channel *)pollTab[i].portev_user)
+                  pollTab[i].portev_user = &deadChP;
+              }
       }
 }
 
@@ -331,10 +348,17 @@ bool XrdSys::IOEvents::PollPort::Process()
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
-      if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
-     {if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
-                                         return false;
-                                        }
+     {     if (reqBuff.req == PipeData::RmFD)
+              {Channel *cP;
+               for (int i = 0; i < numPoll; i++)
+                   {if (reqBuff.fd == (int)pollTab[i].portev_object)
+                        pollTab[i].portev_user = &deadChP;
+                   }
+               reqBuff.theSem->Post();
+              }
+      else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
+                                              return false;
+                                             }
      }
 
 // Associate the pipe again and return true
