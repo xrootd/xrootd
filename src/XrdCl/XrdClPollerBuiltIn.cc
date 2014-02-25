@@ -105,7 +105,7 @@ namespace XrdCl
     for( it = pSocketMap.begin(); it != pSocketMap.end(); ++it )
     {
       PollerHelper *helper = (PollerHelper*)it->second;
-      delete helper->channel;
+             helper->channel->Delete();
       delete helper->callBack;
       delete helper;
     }
@@ -201,7 +201,7 @@ namespace XrdCl
         log->Error( PollerMsg, "%s Unable to disable write notifications: %s",
                     socket->GetName().c_str(), errMsg );
       }
-      delete helper->channel;
+      helper->channel->Delete();
       helper->channel = 0;
     }
 
@@ -304,7 +304,7 @@ namespace XrdCl
                     socket->GetName().c_str(), errMsg );
         return false;
       }
-      delete helper->channel;
+      helper->channel->Delete();
     }
     delete helper->callBack;
     delete helper;

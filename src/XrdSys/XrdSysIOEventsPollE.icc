@@ -52,8 +52,8 @@ public:
 static int  AllocMem(void **memP, int slots);
 
             PollE(struct epoll_event *ptab, int numfd, int pfd, int pFD[2])
-                    : Poller(pFD[0], pFD[1]), pollTab(ptab),
-                      pollDfd(pfd), pollMax(numfd), pollNum(1)
+                    : Poller(pFD[0], pFD[1]), pollTab(ptab), cbNow(0),
+                      pollDfd(pfd), pollMax(numfd), pollNum(1), numPoll(0)
                  {}
            ~PollE() {Stop();}
 
@@ -75,10 +75,14 @@ private:
        bool  Process();
 
 struct epoll_event *pollTab;
+       Channel     *cbNow;
        int          pollDfd;
        int          pollMax;
        int          pollNum;
+       int          numPoll;
+static void        *deadChP;
 };
+       void        *PollE::deadChP = 0;
 };
 };
   
@@ -187,7 +191,7 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
                                     int             &retcode,
                                     const char     **eTxt)
 {
-   int i, numpolled;
+   int numpolled;
    Channel *cP;
 
 // Indicate to the starting thread that all went well
@@ -201,14 +205,14 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
 //
    do {do {numpolled = epoll_wait(pollDfd, pollTab, pollMax, TmoGet());}
           while (numpolled < 0 && errno == EINTR);
-       wakePend = true;
+       wakePend = true; numPoll = numpolled;
             if (numpolled == 0) CbkTMO();
        else if (numpolled <  0)
                {int rc = errno;
                 cerr <<"EPoll: " <<strerror(rc) <<" polling for events" <<endl;
                 abort();
                }
-       else for (i = 0; i < numpolled; i++)
+       else for (int i = 0; i < numpolled; i++)
                 {if ((cP = (Channel *)pollTab[i].data.ptr))
                     Dispatch(cP, pollTab[i].events);
                     else if (!Process()) return;
@@ -233,6 +237,10 @@ void XrdSys::IOEvents::PollE::Dispatch(XrdSys::IOEvents::Channel *cP,
    int eNum, events = 0;
    bool isLocked = false;
 
+// Make sure this not a dispatch to a dead channel (rare but true)
+//
+   if (cP == (XrdSys::IOEvents::Channel *)&deadChP) return;
+
 // Translate the event to something reasonable
 //
    if (pollEv & pollOK)
@@ -248,7 +256,9 @@ void XrdSys::IOEvents::PollE::Dispatch(XrdSys::IOEvents::Channel *cP,
 
 // Execute the callback
 //
+   cbNow = cP;
    if (!CbkXeq(cP, events, eNum, eTxt)) Exclude(cP, isLocked, 0);
+   cbNow = 0;
 }
 
 /******************************************************************************/
@@ -268,7 +278,10 @@ void XrdSys::IOEvents::PollE::Exclude(XrdSys::IOEvents::Channel *cP,
 // If we need to verify this action, sync with the poller thread (note that the
 // poller thread will not ask for this action unless it wants to deadlock). We
 // may actually deadlock anyway if the channel lock is held. We are allowed to
-// release it if the caller locked it. This will prevent a deadlock.
+// release it if the caller locked it. This will prevent a deadlock. Otherwise,
+// if we are in a callback and this channel is not the one that initiated the
+// exclude then we must make sure that we cancel any pending callback to the
+// excluded channel as it may have been deleted and we won't know that here.
 //
    if (dover)
       {PipeData cmdbuff;
@@ -276,8 +289,15 @@ void XrdSys::IOEvents::PollE::Exclude(XrdSys::IOEvents::Channel *cP,
           {isLocked = false;
            UnLockChannel(cP);
           }
-       cmdbuff.req = PipeData::Post;
+       cmdbuff.req = PipeData::RmFD;
+       cmdbuff.fd  = cP->GetFD();
        SendCmd(cmdbuff);
+      } else {
+       if (cbNow && cbNow != cP)
+          for (int i = 0; i < numPoll; i++)
+              {if (cP == (Channel *)pollTab[i].data.ptr)
+                  pollTab[i].data.ptr = &deadChP;
+              }
       }
 }
 
@@ -353,7 +373,15 @@ bool XrdSys::IOEvents::PollE::Process()
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
-     {     if (reqBuff.req == PipeData::Post) reqBuff.theSem->Post();
+     {     if (reqBuff.req == PipeData::RmFD)
+              {Channel *cP;
+               for (int i = 0; i < numPoll; i++)
+                   {if ((cP  = (Channel *)pollTab[i].data.ptr)
+                    &&   cP != (XrdSys::IOEvents::Channel *)&deadChP
+                    &&  reqBuff.fd == cP->GetFD()) pollTab[i].data.ptr=&deadChP;
+                   }
+               reqBuff.theSem->Post();
+              }
       else if (reqBuff.req == PipeData::Stop){reqBuff.theSem->Post();
                                               return false;
                                              }

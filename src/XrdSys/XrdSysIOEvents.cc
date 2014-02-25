@@ -275,10 +275,10 @@ XrdSys::IOEvents::Channel::Channel(Poller   *pollP, int   fd,
 }
 
 /******************************************************************************/
-/*                            D e s t r u c t o r                             */
+/*                                D e l e t e                                 */
 /******************************************************************************/
 
-XrdSys::IOEvents::Channel::~Channel()
+void XrdSys::IOEvents::Channel::Delete()
 {
    Poller *myPoller;
    bool isLocked = true;
@@ -314,6 +314,9 @@ XrdSys::IOEvents::Channel::~Channel()
            cbDone.Wait();
           }
       }
+// It is now safe to release the storage
+//
+   delete this;
 }
   
 /******************************************************************************/

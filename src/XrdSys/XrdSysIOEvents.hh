@@ -169,6 +169,16 @@ friend class Poller;
 public:
 
 //-----------------------------------------------------------------------------
+//! Delete a channel. You must use this method instead of delete. The Delete()
+//! may block if an channel is being deleted outside of the poller thread.
+//! When this object is deleted, all events are disabled, pending callbacks
+//! are either completed or canceled, and the channel is removed from the
+//! assigned poller. Only then is the storage freed.
+//-----------------------------------------------------------------------------
+
+        void Delete();
+
+//-----------------------------------------------------------------------------
 //! Event bits used to feed Enable() and Disable(); can be or'd.
 //-----------------------------------------------------------------------------
 
@@ -247,7 +257,7 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //!         <0      Channel not assigned to a Poller object.
 //-----------------------------------------------------------------------------
 
-        int  GetEvents() {return (chPoller ? static_cast<int>(chEvents) : -1);}
+inline  int  GetEvents() {return (chPoller ? static_cast<int>(chEvents) : -1);}
 
 //-----------------------------------------------------------------------------
 //! Get the file descriptor number associated with this channel.
@@ -256,7 +266,7 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 //!         < 0     No file desciptor associated with the channel.
 //-----------------------------------------------------------------------------
 
-        int  GetFD() {return chFD;}
+inline  int  GetFD() {return chFD;}
 
 //-----------------------------------------------------------------------------
 //! Set the callback object and argument associated with this channel.
@@ -301,15 +311,13 @@ enum EventCode {readEvents  = 0x01, //!< Read  and Read  Timeouts
 
       Channel(Poller *pollP, int fd, CallBack *cbP=0, void *cbArg=0);
 
-//-----------------------------------------------------------------------------
-//! Destuctor. When this object is deleted, all events are disabled, pending
-//!            callbacks are completed, and the channel is removed from the
-//!            assigned poller. Only then is the storage freed.
-//-----------------------------------------------------------------------------
-
-     ~Channel();
-
 private:
+
+//-----------------------------------------------------------------------------
+//! Destuctor is private, use Delete() to delete this object.
+//-----------------------------------------------------------------------------
+
+     ~Channel() {}
 
 struct dlQ {Channel *next; Channel *prev;};
 
