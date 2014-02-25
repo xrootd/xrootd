@@ -2406,6 +2406,7 @@ int XrdXrootdProtocol::do_Sync()
   
 int XrdXrootdProtocol::do_Truncate()
 {
+   static XrdXrootdCallBack truncCB("trunc", 0);
    XrdXrootdFile *fp;
    XrdXrootdFHandle fh(Request.truncate.fhandle);
    long long theOffset;
@@ -2429,8 +2430,9 @@ int XrdXrootdProtocol::do_Truncate()
             return Response.Send(kXR_FileNotOpen,
                                      "trunc does not refer to an open file");
 
-     // Truncate the file
+     // Truncate the file (it is eligible for async callbacks)
      //
+        fp->XrdSfsp->error.setErrCB(&truncCB, ReqID.getID());
         rc = fp->XrdSfsp->truncate(theOffset);
         TRACEP(FS, "trunc rc=" <<rc <<" sz=" <<theOffset <<" fh=" <<fh.handle);
         if (SFS_OK != rc) return fsError(rc, 0, fp->XrdSfsp->error, 0);
