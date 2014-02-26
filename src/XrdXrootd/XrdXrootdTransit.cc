@@ -285,7 +285,7 @@ void XrdXrootdTransit::Init(XrdXrootd::Bridge::Result *respP,
 // Allocate a monitoring object, if needed for this connection and record login
 //
    if (Monitor.Ready())
-      {Monitor.Register(linkP->ID, linkP->Host());
+      {Monitor.Register(linkP->ID, linkP->Host(), protP);
        if (Monitor.Logins())
           {if (Monitor.Auths() && seceP) MonAuth();
               else Monitor.Report(Monitor.Auths() ? "" : 0);

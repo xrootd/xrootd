@@ -228,20 +228,28 @@ void XrdXrootdMonitor::User::Enable()
 /*      X r d X r o o t d M o n i t o r : : U s e r : : R e g i s t e r       */
 /******************************************************************************/
   
-void XrdXrootdMonitor::User::Register(const char *Uname, const char *Hname)
+void XrdXrootdMonitor::User::Register(const char *Uname, 
+                                      const char *Hname,
+                                      const char *Pname)
 {
    const char *colonP, *atP;
-   char  uBuff[1024];
+   char  uBuff[1024], *uBP;
+   int n;
+
+// The identification always starts with the protocol being used
+//
+   n = sprintf(uBuff, "%s/", Pname);
+   uBP = uBuff + n;
 
 // Decode the user name as a.b:c@d
 //
    if ((colonP = index(Uname, ':')) && (atP = index(colonP+1, '@')))
-      {int n = colonP - Uname + 1;
-       strncpy(uBuff, Uname, n);
-       strcpy(uBuff+n, sidName);
-       n += sidSize; uBuff[n++] = '@';
-       strcpy(uBuff+n, Hname);
-      } else strcpy(uBuff, Uname);
+      {n = colonP - Uname + 1;
+       strncpy(uBP, Uname, n);
+       strcpy(uBP+n, sidName);
+       n += sidSize; *(uBP+n) = '@'; n++;
+       strcpy(uBP+n, Hname);
+      } else strcpy(uBP, Uname);
 
 // Generate a monitor identity for this user. We do not assign a dictioary
 // identifier unless this entry is reported.
@@ -548,8 +556,9 @@ int XrdXrootdMonitor::Init(XrdScheduler *sp,    XrdSysError *errp,
 
 // Generate our server ID
 //
+   strcpy(iBuff, "=/");
    sprintf(iPuff, "%s&ver=%s", iProg, XrdVERSION);
-   sName = XrdOucUtils::Ident(mySID, iBuff, sizeof(iBuff),
+   sName = XrdOucUtils::Ident(mySID, iBuff+2, sizeof(iBuff)-2,
                               iHost, iPuff, iName, Port);
    cP = (char *)&mySID; *cP = 0; *(cP+1) = 0;
    sidSize = strlen(sName);
