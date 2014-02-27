@@ -186,6 +186,7 @@ static int   Config(const char *fn);
        int   fsError(int rc, char opc, XrdOucErrInfo &myError, const char *Path);
        int   getBuff(const int isRead, int Quantum);
        int   getData(const char *dtype, char *buff, int blen);
+       void  logLogin(bool xauth=false);
 static int   mapMode(int mode);
 static void  PidFile();
        void  Reset();

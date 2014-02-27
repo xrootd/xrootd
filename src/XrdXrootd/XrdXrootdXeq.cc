@@ -152,16 +152,10 @@ int XrdXrootdProtocol::do_Auth()
 // Now try to authenticate the client using the current protocol
 //
    if (!(rc = AuthProt->Authenticate(&cred, &parm, &eMsg)))
-      {const char *msg = (Status & XRD_ADMINUSER ? "IPv4 admin login as"
-                                                 : "IPv4 login as");
-       if (!(clientPV & XrdOucEI::uIPv4)) msg += 5;
-       rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
+      {rc = Response.Send(); Status &= ~XRD_NEED_AUTH; SI->Bump(SI->LoginAU);
        Client = &AuthProt->Entity; numReads = 0; strcpy(Entity.prot, "host");
        if (Monitor.Logins() && Monitor.Auths()) MonAuth();
-       if (Client->name) 
-          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, Client->name);
-          else
-          eDest.Log(SYS_LOG_01, "Xeq", Link->ID, msg, "nobody");
+       logLogin(true);
        return rc;
       }
 
@@ -891,11 +885,7 @@ int XrdXrootdProtocol::do_Login()
 
 // Document this login
 //
-   if (!(Status & XRD_NEED_AUTH))
-      eDest.Log(SYS_LOG_01, "Xeq", Link->ID,
-               (clientPV & XrdOucEI::uIPv4 ? "IPv4" : 0),
-               (Status   & XRD_ADMINUSER   ? "admin login" : "login"));
-
+   if (!(Status & XRD_NEED_AUTH)) logLogin();
    return rc;
 }
 
@@ -2842,6 +2832,33 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
 // Success
 //
    return 1;
+}
+
+/******************************************************************************/
+/* Private:                     l o g L o g i n                               */
+/******************************************************************************/
+  
+void XrdXrootdProtocol::logLogin(bool xauth)
+{
+   const char *uName;
+   char lBuff[512];
+
+// Determine client name
+//
+   if (xauth) uName = (Client->name ? Client->name : "nobody");
+      else    uName = 0;
+
+// Format the line
+//
+   sprintf(lBuff, "%s %s %slogin%s",
+                  (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"),
+                  (clientPV & XrdOucEI::uIPv4 ? "IPv4"   : "IPv6"),
+                  (Status   & XRD_ADMINUSER   ? "admin " : ""),
+                  (xauth                      ? " as"    : ""));
+
+// Document the login
+//
+   eDest.Log(SYS_LOG_01, "Xeq", Link->ID, lBuff, uName);
 }
 
 /******************************************************************************/
