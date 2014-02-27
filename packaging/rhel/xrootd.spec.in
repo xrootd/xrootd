@@ -4,7 +4,7 @@
 Name:      xrootd
 Epoch:     1
 Version:   3.3.6
-Release:   2.CERN%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
+Release:   3.CERN%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
 Summary:   Extended ROOT file server
 Group:     System Environment/Daemons
 License:   LGPL
