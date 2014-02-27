@@ -358,12 +358,11 @@ void FileCopyTest::CopyTestFunc( bool thirdParty )
   //----------------------------------------------------------------------------
   // Abort the copy after 100MB
   //----------------------------------------------------------------------------
-//  CancelProgressHandler progress;
-//  CPPUNIT_ASSERT_XRDST( process2.AddJob( properties, &results ) );
-//  CPPUNIT_ASSERT_XRDST( process2.Prepare() );
-//  CPPUNIT_ASSERT_XRDST( process2.Run(&progress) ); // This really should fail
-//                                                   // with errCacnel or sth
-//  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
+  CancelProgressHandler progress;
+  CPPUNIT_ASSERT_XRDST( process2.AddJob( properties, &results ) );
+  CPPUNIT_ASSERT_XRDST( process2.Prepare() );
+  CPPUNIT_ASSERT_XRDST_NOTOK( process2.Run(&progress), errErrorResponse );
+  CPPUNIT_ASSERT_XRDST( fs.Rm( targetPath ) );
 
   //----------------------------------------------------------------------------
   // Copy from a non-existent source
