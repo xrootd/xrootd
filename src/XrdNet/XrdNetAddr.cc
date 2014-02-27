@@ -252,8 +252,6 @@ const char *XrdNetAddr::Set(const char *hSpec, int pNum)
                }
             memcpy(&IP.Addr, rP->ai_addr, rP->ai_addrlen);
             protType = (IP.v6.sin6_family == AF_INET6 ? PF_INET6 : PF_INET);
-            if (hostName) free(hostName);
-            hostName = (rP->ai_canonname ? strdup(rP->ai_canonname) : 0);
             freeaddrinfo(rP);
            }
 
