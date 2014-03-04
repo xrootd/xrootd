@@ -167,13 +167,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
-    pLastActivity = time(0);
-
     //--------------------------------------------------------------------------
     // Read event
     //--------------------------------------------------------------------------
     if( type & ReadyToRead )
     {
+      pLastActivity = time(0);
       if( likely( pHandShakeDone ) )
         OnRead();
       else
@@ -196,6 +195,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( type & ReadyToWrite )
     {
+      pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
         OnConnectionReturn();
       else if( likely( pHandShakeDone ) )
