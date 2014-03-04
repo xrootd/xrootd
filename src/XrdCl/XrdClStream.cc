@@ -354,45 +354,11 @@ namespace XrdCl
   void Stream::Tick( time_t now )
   {
     //--------------------------------------------------------------------------
-    // Check if there is no outgoing messages and if the stream TTL is elapesed.
-    // It is assumed that the underlying transport makes sure that there is no
-    // pending requests that are not answered, ie. all possible virtual streams
-    // are de-allocated
-    //--------------------------------------------------------------------------
-    Log *log = DefaultEnv::GetLog();
-    SubStreamList::iterator it;
-    pMutex.Lock();
-    if( pSubStreams[0]->status == Socket::Connected )
-    {
-      uint32_t outgoingMessages = 0;
-      time_t   lastActivity     = 0;
-      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-      {
-        outgoingMessages += (*it)->outQueue->GetSize();
-        time_t sockLastActivity = (*it)->socket->GetLastActivity();
-        if( lastActivity < sockLastActivity )
-          lastActivity = sockLastActivity;
-      }
-
-      if( !outgoingMessages )
-      {
-        bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
-                                                          *pChannelData );
-        if( disconnect )
-        {
-          log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, "
-                      "disconnecting...", pStreamName.c_str() );
-          Disconnect();
-        }
-      }
-    }
-    pMutex.UnLock();
-
-    //--------------------------------------------------------------------------
     // Check for timed-out requests and incoming handlers
     //--------------------------------------------------------------------------
     pMutex.Lock();
     OutQueue q;
+    SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabExpired( *(*it)->outQueue, now );
     pMutex.UnLock();
@@ -865,8 +831,45 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t /*substream*/ )
+  void Stream::OnReadTimeout( uint16_t substream )
   {
+    //--------------------------------------------------------------------------
+    // We only take the main stream into account
+    //--------------------------------------------------------------------------
+    if( substream != 0 )
+      return;
+
+    //--------------------------------------------------------------------------
+    // Check if there is no outgoing messages and if the stream TTL is elapesed.
+    // It is assumed that the underlying transport makes sure that there is no
+    // pending requests that are not answered, ie. all possible virtual streams
+    // are de-allocated
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    SubStreamList::iterator it;
+
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint32_t outgoingMessages = 0;
+    time_t   lastActivity     = 0;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+    {
+      outgoingMessages += (*it)->outQueue->GetSize();
+      time_t sockLastActivity = (*it)->socket->GetLastActivity();
+      if( lastActivity < sockLastActivity )
+        lastActivity = sockLastActivity;
+    }
+
+    if( !outgoingMessages )
+    {
+      bool disconnect = pTransport->IsStreamTTLElapsed( time(0)-lastActivity,
+                                                        *pChannelData );
+      if( disconnect )
+      {
+        log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
+                    pStreamName.c_str() );
+        Disconnect();
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
