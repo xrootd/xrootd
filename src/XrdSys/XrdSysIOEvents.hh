@@ -94,8 +94,10 @@ public:
 //! Handle event notification. A method must be supplied. The enable/disable
 //! status of the channel is not modified. To change the status, use the
 //! channel's Enable() and Disable() method prior to returning. After return,
-//! the current channel's status is used to determine how it will behave. The
-//! channel may not be deleted by the callback function! Event loop callbacks
+//! the current channel's status is used to determine how it will behave. If
+//! the event is a timeout, the timeout becomes infinite for that event unless
+//! Enable() is called for the event. This is to prevent timeout loops on
+//! channels that remain enabled even after a timeout. Event loop callbacks
 //! define a hazardous programming model. If you do not have a well defined
 //! threading model, you should restrict yourself to dealing only with the
 //! passed channel object in the callback so as to avoid deadlocks.
@@ -428,7 +430,7 @@ inline  void  LockChannel(Channel *cP) {cP->chMutex.Lock();}
         int   Poll2Enum(short events);
         int   SendCmd(PipeData &cmd);
         void  SetPollEnt(Channel *cP, int ptEnt);
-        bool  TmoAdd(Channel *cP);
+        bool  TmoAdd(Channel *cP, bool setRTO, bool setWTO);
         void  TmoDel(Channel *cP);
         int   TmoGet();
 inline  void  UnLockChannel(Channel *cP) {cP->chMutex.UnLock();}

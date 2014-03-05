@@ -367,9 +367,8 @@ bool XrdSys::IOEvents::Channel::Disable(int events, const char **eText)
 bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
                                        const char **eText)
 {
-   time_t newDL;
    int eNum, newev, curev;
-   bool retval, isLocked = true, setTO = false;
+   bool retval, setTO, tmoRD, tmoWR, isLocked = true;
 
 // Trace this entry
 //
@@ -392,32 +391,22 @@ bool XrdSys::IOEvents::Channel::Enable(int events, int timeout,
 
 // Handle timeout changes now
 //
-   if (timeout)
-      {newDL = (timeout > 0 ? timeout + time(0) : Poller::maxTime);
-       if (events & readEvents)
-          {chRTO = (timeout < 0 ? 0 : timeout);
-           if (newDL != rdDL) {rdDL  = newDL; setTO = true;}
-          }
-       if (events & writeEvents)
-          {chWTO = (timeout < 0 ? 0 : timeout);
-           if (newDL != wrDL) {wrDL  = newDL; setTO = true;}
-          }
-      } else {
-       time_t nowTime = (chRTO || chWTO ? time(0) : 0);
-       if (events & readEvents)
-          {newDL = (chRTO ? nowTime + chRTO : Poller::maxTime);
-           if (newDL != rdDL) {rdDL  = newDL; setTO = true;}
-          }
-       if (events & writeEvents)
-          {newDL = (chWTO ? nowTime + chWTO : Poller::maxTime);
-           if (newDL != wrDL) {wrDL  = newDL; setTO = true;}
-          }
-      }
+   if (REVENTS(events))
+      {     if (timeout > 0) chRTO = timeout;
+       else if (timeout < 0) chRTO = 0;
+       tmoRD = (rdDL != Poller::maxTime || chRTO);
+      } else tmoRD = false;
+
+   if (WEVENTS(events))
+      {     if (timeout > 0) chWTO = timeout;
+       else if (timeout < 0) chWTO = 0;
+       tmoWR = (wrDL != Poller::maxTime || chWTO);
+      } else tmoWR = false;
 
 // Check if we have to reset the timeout. We need to hold the channel lock here.
 //
-   if (setTO && chPoller != &pollErr1)
-           setTO = chPollXQ->TmoAdd(this);
+   if ((tmoRD || tmoWR) && chPoller != &pollErr1)
+           setTO = chPollXQ->TmoAdd(this, tmoRD, tmoWR);
       else setTO = false;
 
 // Check if any modifcations needed here. If so, invoke the modifier. Note that
@@ -613,7 +602,7 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
    XrdSysMutexHelper cbkMHelp(cP->chMutex);
    char oldEvents;
    int isRead = 0, isWrite = 0;
-   bool cbok, retval, isLocked = true;
+   bool cbok, retval, setTMO, isLocked = true;
 
 // Perform any required tracing
 //
@@ -632,11 +621,12 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 //
    if (cP->inTOQ)
       {TmoDel(cP);
-       isRead = (events & (CallBack::ReadyToRead  | CallBack:: ReadTimeOut));
-       if (isRead)  cP->rdDL = maxTime;
-       isWrite= (events & (CallBack::ReadyToWrite | CallBack::WriteTimeOut));
-       if (isWrite) cP->wrDL = maxTime;
-      }
+       isRead = (events & CallBack::ReadyToRead);
+       if (events & CallBack:: ReadTimeOut) cP->rdDL = maxTime;
+       isWrite= (events & CallBack::ReadyToWrite);
+       if (events & CallBack::WriteTimeOut) cP->wrDL = maxTime;
+       setTMO = isRead || isWrite;
+      } else setTMO = false;
 
 // Verify that there is a callback here and the channel is ready. If not,
 // disable this channel for the events being refelcted unless the event is a
@@ -708,14 +698,8 @@ bool XrdSys::IOEvents::Poller::CbkXeq(XrdSys::IOEvents::Channel *cP, int events,
 // the timeout if it hasn't been handled via a call from the callback.
 //
         if (!cbok) Detach(cP,isLocked,false);
-   else if (!(cP->inTOQ) && (cP->chRTO || cP->chWTO))
-           {time_t tNow = time(0);
-            if (isRead)  cP->rdDL = (REVENTS(cP->chEvents) && cP->chRTO
-                                  ?  cP->chRTO + tNow : maxTime);
-            if (isWrite) cP->wrDL = (WEVENTS(cP->chEvents) && cP->chWTO
-                                  ?  cP->chWTO + tNow : maxTime);
-            if (cP->rdDL != maxTime || cP->wrDL != maxTime) TmoAdd(cP);
-           }
+   else if (setTMO && !(cP->inTOQ) && (cP->chRTO || cP->chWTO))
+           TmoAdd(cP, isRead, isWrite);
 
 // All done. While the mutex should not have been unlocked, we relock it if
 // it has to keep the mutex helper from croaking.
@@ -1045,10 +1029,11 @@ void XrdSys::IOEvents::Poller::Stop()
 /*                                T m o A d d                                 */
 /******************************************************************************/
   
-bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP)
+bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP,
+                                      bool setRTO, bool setWTO)
 {
    XrdSysMutexHelper mHelper(toMutex);
-   time_t rdDL, wrDL;
+   time_t tNow;
    Channel *ncP;
 
 // Remove element from timeout queue if it is there
@@ -1056,18 +1041,27 @@ bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP)
    if (cP->inTOQ)
       {REMOVE(tmoBase, tmoList, cP);
        cP->inTOQ = 0;
+       setRTO = setWTO = true;
       }
+
+// Reset the required deadlines
+//
+   tNow = time(0);
+   if (setRTO && REVENTS(cP->chEvents) && cP->chRTO)
+      cP->rdDL = cP->chRTO + tNow;
+   if (setWTO && WEVENTS(cP->chEvents) && cP->chWTO)
+      cP->wrDL = cP->chWTO + tNow;
 
 // Calculate the closest enabled deadline
 //
-   rdDL = (cP->chEvents & Channel:: readEvents ? cP->rdDL : maxTime);
-   wrDL = (cP->chEvents & Channel::writeEvents ? cP->wrDL : maxTime);
-   IF_TRACE(TmoAdd, cP->chFD, "rdDL=" <<rdDL <<" wrDL=" <<wrDL);
-   if (rdDL < wrDL) {cP->deadLine = rdDL; cP->dlType  = CallBack::ReadTimeOut;}
-      else {if (rdDL != wrDL) cP->dlType = CallBack::WriteTimeOut;
-               else cP->dlType  = CallBack::ReadTimeOut|CallBack::WriteTimeOut;
-            cP->deadLine = wrDL;
-           }
+   if (cP->rdDL < cP->wrDL)
+      {cP->deadLine  = cP->rdDL; cP->dlType  = CallBack:: ReadTimeOut;
+      } else {
+       cP->deadLine  = cP->wrDL; cP->dlType  = CallBack::WriteTimeOut;
+       if (cP->rdDL == cP->wrDL) cP->dlType |= CallBack:: ReadTimeOut;
+      }
+   IF_TRACE(TmoAdd, cP->chFD, "t=" <<tNow <<" rdDL=" <<setRTO <<' ' <<cP->rdDL
+                                          <<" wrDL=" <<setWTO <<' ' <<cP->wrDL);
 
 // If no timeout really applies, we are done
 //
