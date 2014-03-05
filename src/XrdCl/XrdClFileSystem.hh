@@ -92,7 +92,9 @@ namespace XrdCl
                                  //!< location. Voids NoWait.
       Replica  = kXR_replica,    //!< The file is being opened for replica
                                  //!< creation
-      SeqIO    = kXR_seqio       //!< File will be read or written sequentially
+      SeqIO    = kXR_seqio,      //!< File will be read or written sequentially
+      PrefName = kXR_prefname    //!< Hostname response is prefered, applies
+                                 //!< only to FileSystem::Locate
     };
   };
   XRDOUC_ENUM_OPERATORS( OpenFlags::Flags )
