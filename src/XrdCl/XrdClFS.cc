@@ -1149,7 +1149,18 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     opaque         <arg>    Implementation dependent\n"         );
   printf( "     opaquefile     <arg>    Implementation dependent\n"         );
   printf( "     space          <space>  Logical space stats\n"              );
-  printf( "     stats          <what>   Server stats\n"                     );
+  printf( "     stats          <what>   Server stats; <what> is a list\n"   );
+  printf( "                             of letters indicating information\n");
+  printf( "                             to be returned:\n"                  );
+  printf( "                               a - all statistics\n"             );
+  printf( "                               p - protocol statistics\n"        );
+  printf( "                               b - buffer usage statistics\n"    );
+  printf( "                               s - scheduling statistics\n"      );
+  printf( "                               d - device polling statistics\n"  );
+  printf( "                               u - usage statistics\n"           );
+  printf( "                               i - server identification\n"      );
+  printf( "                               z - synchronized statistics\n"    );
+  printf( "                               l - connection statistics\n"      );
   printf( "     xattr          <path>   Extended attributes\n\n"            );
 
   printf( "   rm <filename>\n"                                              );
