@@ -859,11 +859,15 @@ namespace XrdCl
       return pPlugIn->DirList( path, flags, handler, timeout );
 
     Message           *msg;
-    ClientStatRequest *req;
+    ClientDirlistRequest *req;
     MessageUtils::CreateRequest( msg, req, path.length() );
 
     req->requestid  = kXR_dirlist;
     req->dlen       = path.length();
+
+    if( flags & DirListFlags::Stat )
+      req->options[0] = kXR_dstat;
+
     msg->Append( path.c_str(), path.length(), 24 );
     MessageSendParams params; params.timeout = timeout;
     MessageUtils::ProcessSendParams( params );
@@ -965,9 +969,14 @@ namespace XrdCl
       return st;
 
     //--------------------------------------------------------------------------
-    // Do the stats on all the entries if necessary
+    // Do the stats on all the entries if necessary.
+    // If we already have the stat objects it means that the bulk stat has
+    // succeeded.
     //--------------------------------------------------------------------------
     if( !(flags & DirListFlags::Stat) )
+      return st;
+
+    if( response->GetSize() && response->At(0)->GetStatInfo() )
       return st;
 
     uint32_t quota = response->GetSize() <= 1024 ? response->GetSize() : 1024;
