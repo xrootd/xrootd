@@ -252,13 +252,48 @@ namespace XrdCl
     if( !data )
       return false;
 
+    //--------------------------------------------------------------------------
+    // Check what kind of response we're dealing with
+    //--------------------------------------------------------------------------
+    std::string dat          = data;
+    std::string dStatPrefix = ".\n0 0 0 0\n";
+    bool        isDStat     = false;
+
+    if( !dat.compare( 0, dStatPrefix.size(), dStatPrefix ) )
+      isDStat = true;
+
     std::vector<std::string>           entries;
     std::vector<std::string>::iterator it;
-    Utils::splitString( entries, data, "\n" );
+    Utils::splitString( entries, dat, "\n" );
 
-    for( it = entries.begin(); it != entries.end(); ++it )
-      Add( new ListEntry( hostId, *it ) );
+    //--------------------------------------------------------------------------
+    // Normal response
+    //--------------------------------------------------------------------------
+    if( !isDStat )
+    {
+      for( it = entries.begin(); it != entries.end(); ++it )
+        Add( new ListEntry( hostId, *it ) );
+      return true;
+    }
 
+    //--------------------------------------------------------------------------
+    // kXR_dstat
+    //--------------------------------------------------------------------------
+    if( (entries.size() < 2) || (entries.size() % 2) )
+      return false;
+
+    it = entries.begin(); ++it; ++it;
+    for( ; it != entries.end(); ++it )
+    {
+      ListEntry *entry = new ListEntry( hostId, *it );
+      Add( entry );
+      ++it;
+      StatInfo *i = new StatInfo();
+      entry->SetStatInfo( i );
+      bool ok = i->ParseServerResponse( it->c_str() );
+      if( !ok )
+        return false;
+    }
     return true;
   }
 }
