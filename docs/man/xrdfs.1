@@ -94,8 +94,28 @@ Obtain server information. Query codes:
 .br
 \fIspace\fR          \fB<space>\fR  Logical space stats
 .br
-\fIstats\fR          \fB<what>\fR   Server stats
+\fIstats\fR          \fB<what>\fR   Server stats; <what> is a list of letters
+indicating information to be returned:
+.RS 5
+a - all statistics
 .br
+p - protocol statistics
+.br
+b - buffer usage statistics
+.br
+s - scheduling statistics
+.br
+d - device polling statistics
+.br
+u - usage statistics
+.br
+i - server identification
+.br
+z - synchronized statistics
+.br
+l - connection statistics
+.br
+.RE
 \fIxattr\fR          \fB<path>\fR   Extended attributes
 
 .RE
