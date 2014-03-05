@@ -578,10 +578,8 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
 // client to issue individual stat requests in that case.
 //
    memset(&Stat, 0, sizeof(Stat));
-   strcpy(ebuff, ".\n");
-   buff = ebuff+2; bleft = sizeof(ebuff)-2;
-   dlen = StatGen(Stat, buff);
-   bleft -= (dlen+1); buff += dlen; *buff = '\n'; buff++;
+   strcpy(ebuff, ".\n0 0 0 0\n");
+   buff = ebuff+10; bleft = sizeof(ebuff)-10;
 
 // Start retreiving each entry and place in a local buffer with a trailing new
 // line character (the last entry will have a null byte). If we cannot fit a
@@ -603,7 +601,7 @@ int XrdXrootdProtocol::do_DirStat(XrdSfsDirectory *dp, char *pbuff,
                        return fsError(rc, XROOTD_MON_STAT, myError, argp->buff);
                    }
                 dlen = StatGen(Stat, buff);
-                bleft -= (dlen+1); buff += dlen; *buff = '\n'; buff++;
+                bleft -= dlen; buff += (dlen-1); *buff = '\n'; buff++;
                }
             dname = 0;
            }
