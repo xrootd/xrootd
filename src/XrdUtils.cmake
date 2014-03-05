@@ -37,6 +37,7 @@ add_library(
                                 XrdSys/XrdSysFAttrSun.icc
   XrdSys/XrdSysIOEvents.cc      XrdSys/XrdSysIOEvents.hh
                                 XrdSys/XrdSysIOEventsPollE.icc
+                                XrdSys/XrdSysIOEventsPollKQ.icc
                                 XrdSys/XrdSysIOEventsPollPoll.icc
                                 XrdSys/XrdSysIOEventsPollPort.icc
                                 XrdSys/XrdSysAtomics.hh

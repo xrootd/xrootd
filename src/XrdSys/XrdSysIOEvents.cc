@@ -1062,6 +1062,7 @@ bool XrdSys::IOEvents::Poller::TmoAdd(XrdSys::IOEvents::Channel *cP)
 //
    rdDL = (cP->chEvents & Channel:: readEvents ? cP->rdDL : maxTime);
    wrDL = (cP->chEvents & Channel::writeEvents ? cP->wrDL : maxTime);
+   IF_TRACE(TmoAdd, cP->chFD, "rdDL=" <<rdDL <<" wrDL=" <<wrDL);
    if (rdDL < wrDL) {cP->deadLine = rdDL; cP->dlType  = CallBack::ReadTimeOut;}
       else {if (rdDL != wrDL) cP->dlType = CallBack::WriteTimeOut;
                else cP->dlType  = CallBack::ReadTimeOut|CallBack::WriteTimeOut;
@@ -1160,6 +1161,8 @@ void XrdSys::IOEvents::Poller::WakeUp()
 #include "XrdSys/XrdSysIOEventsPollPort.icc"
 #elif defined( __linux__ )
 #include "XrdSys/XrdSysIOEventsPollE.icc"
+#elif defined(__APPLE__)
+#include "XrdSys/XrdSysIOEventsPollKQ.icc"
 #else
 #include "XrdSys/XrdSysIOEventsPollPoll.icc"
 #endif
