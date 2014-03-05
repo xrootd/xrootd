@@ -85,10 +85,11 @@ timespec_t *BegTO(timespec_t &theTO)
 private:
 
        void  Dispatch(Channel *cP, int pollEv);
-       bool  Process();
+       bool  Process(int curr);
 
        port_event_t *pollTab;
        Channel      *cbNow;
+       int           cbCurr;
        int           pollDfd;
        int           pollMax;
        unsigned int  numPoll;
@@ -202,8 +203,8 @@ void XrdSys::IOEvents::PollPort::Begin(XrdSysSemaphore *syncsem,
        for (int i = 0; i < (int)numpolled; i++)
            if (pollTab[i].portev_source == PORT_SOURCE_FD)
               {if ((cP = (Channel *)pollTab[i].portev_user))
-                  Dispatch(cP, pollTab[i].portev_events);
-                  else if (!Process()) return;
+                  {cbCurr = i; Dispatch(cP, pollTab[i].portev_events);}
+                  else if (!Process(i)) return;
            }
       } while(1);
 }
@@ -274,7 +275,7 @@ void XrdSys::IOEvents::PollPort::Exclude(XrdSys::IOEvents::Channel *cP,
        SendCmd(cmdbuff);
       } else {
        if (cbNow && cbNow != cP)
-          for (int i = 0; i < numPoll; i++)
+          for (int i = cbCurr+1; i < numPoll; i++)
               {if (cP == (Channel *)pollTab[i].portev_user)
                   pollTab[i].portev_user = &deadChP;
               }
@@ -343,14 +344,14 @@ bool XrdSys::IOEvents::PollPort::Modify(XrdSys::IOEvents::Channel *cP,
 /* Private:                      P r o c e s s                                */
 /******************************************************************************/
 
-bool XrdSys::IOEvents::PollPort::Process()
+bool XrdSys::IOEvents::PollPort::Process(int curr)
 {
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
      {     if (reqBuff.req == PipeData::RmFD)
               {Channel *cP;
-               for (int i = 0; i < numPoll; i++)
+               for (int i = curr+1; i < numPoll; i++)
                    {if (reqBuff.fd == (int)pollTab[i].portev_object)
                         pollTab[i].portev_user = &deadChP;
                    }

@@ -53,7 +53,8 @@ static int  AllocMem(void **memP, int slots);
 
             PollE(struct epoll_event *ptab, int numfd, int pfd, int pFD[2])
                     : Poller(pFD[0], pFD[1]), pollTab(ptab), cbNow(0),
-                      pollDfd(pfd), pollMax(numfd), pollNum(1), numPoll(0)
+                      pollDfd(pfd), pollMax(numfd), pollNum(1), numPoll(0),
+                      cbCurr(0)
                  {}
            ~PollE() {Stop();}
 
@@ -72,7 +73,7 @@ protected:
 private:
        int   AllocPT(int slots);
        void  Dispatch(Channel *cP, uint32_t pollEv);
-       bool  Process();
+       bool  Process(int curr);
 
 struct epoll_event *pollTab;
        Channel     *cbNow;
@@ -80,6 +81,7 @@ struct epoll_event *pollTab;
        int          pollMax;
        int          pollNum;
        int          numPoll;
+       int          cbCurr;
 static void        *deadChP;
 };
        void        *PollE::deadChP = 0;
@@ -214,8 +216,8 @@ void XrdSys::IOEvents::PollE::Begin(XrdSysSemaphore *syncsem,
                }
        else for (int i = 0; i < numpolled; i++)
                 {if ((cP = (Channel *)pollTab[i].data.ptr))
-                    Dispatch(cP, pollTab[i].events);
-                    else if (!Process()) return;
+                    {cbCurr = i; Dispatch(cP, pollTab[i].events);}
+                    else if (!Process(i)) return;
                 }
 
        if (pollMax < pollNum) AllocPT(pollNum);
@@ -294,7 +296,7 @@ void XrdSys::IOEvents::PollE::Exclude(XrdSys::IOEvents::Channel *cP,
        SendCmd(cmdbuff);
       } else {
        if (cbNow && cbNow != cP)
-          for (int i = 0; i < numPoll; i++)
+          for (int i = cbCurr+1; i < numPoll; i++)
               {if (cP == (Channel *)pollTab[i].data.ptr)
                   pollTab[i].data.ptr = &deadChP;
               }
@@ -368,14 +370,14 @@ bool XrdSys::IOEvents::PollE::Modify(XrdSys::IOEvents::Channel *cP,
 /* Private:                      P r o c e s s                                */
 /******************************************************************************/
 
-bool XrdSys::IOEvents::PollE::Process()
+bool XrdSys::IOEvents::PollE::Process(int curr)
 {
 // Get the pipe request and check out actions of interest.
 //
   if (GetRequest())
      {     if (reqBuff.req == PipeData::RmFD)
               {Channel *cP;
-               for (int i = 0; i < numPoll; i++)
+               for (int i = curr+1; i < numPoll; i++)
                    {if ((cP  = (Channel *)pollTab[i].data.ptr)
                     &&   cP != (XrdSys::IOEvents::Channel *)&deadChP
                     &&  reqBuff.fd == cP->GetFD()) pollTab[i].data.ptr=&deadChP;
