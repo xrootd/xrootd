@@ -87,7 +87,8 @@ public:
         ReadyToRead  = 0x01,  //!< New data has arrived
         ReadTimeOut  = 0x02,  //!< Read timeout
         ReadyToWrite = 0x04,  //!< Writing won't block
-        WriteTimeOut = 0x08   //!< Write timeout
+        WriteTimeOut = 0x08,  //!< Write timeout
+        ValidEvents  = 0x0f   //!< Mask to test for valid events
       };
 
 //-----------------------------------------------------------------------------
@@ -376,6 +377,11 @@ public:
 //! @param  eNum   Place where errno is placed upon failure.
 //! @param  eTxt   Place where a pointer to the description of the failing
 //!                operation is to be set. If null, no description is returned.
+//! @param  crOpts Poller options (see static const optxxx):
+//!                optTOM   - Timeout resumption after a timeout event must be
+//!                           manually reenabled. By default, event timeouts are
+//!                           automatically renabled after successful callbacks.
+//!
 //! @return !0     Poller successfully created and started.
 //!                eNum contains zero.
 //!                eTxt if not null contains a null string.
@@ -385,7 +391,9 @@ public:
 //!                eTxt if not null contains the failing operation.
 //-----------------------------------------------------------------------------
 
-static Poller     *Create(int &eNum, const char **eTxt=0);
+enum   CreateOpts  {optTOM};
+
+static Poller     *Create(int &eNum, const char **eTxt=0, int crOpts=0);
 
 //-----------------------------------------------------------------------------
 //! Stop a poller object. Active callbacks are completed. Pending callbacks are
@@ -430,7 +438,7 @@ inline  void  LockChannel(Channel *cP) {cP->chMutex.Lock();}
         int   Poll2Enum(short events);
         int   SendCmd(PipeData &cmd);
         void  SetPollEnt(Channel *cP, int ptEnt);
-        bool  TmoAdd(Channel *cP, bool setRTO, bool setWTO);
+        bool  TmoAdd(Channel *cP, int tmoSet);
         void  TmoDel(Channel *cP);
         int   TmoGet();
 inline  void  UnLockChannel(Channel *cP) {cP->chMutex.UnLock();}
@@ -494,6 +502,7 @@ struct          PipeData {char req; char evt; short ent; int fd;
 PipeData        reqBuff;    // Buffer used by poller thread to recv data
 char           *pipeBuff;   // Read resumption point in buffer
 int             pipeBlen;   // Number of outstanding bytes
+char            tmoMask;    // Timeout mask
 bool            wakePend;   // Wakeup is effectively pending (don't send)
 bool            chDead;     // True if channel deleted by callback
 
