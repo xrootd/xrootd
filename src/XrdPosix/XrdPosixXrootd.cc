@@ -59,6 +59,7 @@
 /******************************************************************************/
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
+int            XrdPosixXrootd::baseFD    = 0;
 int            XrdPosixXrootd::initDone  = 0;
   
 /******************************************************************************/
@@ -84,7 +85,7 @@ XrdPosixXrootd::XrdPosixXrootd(int fdnum, int dirnum, int thrnum)
 
 // Initialize file tracking
 //
-   XrdPosixObject::Init(fdnum);
+   baseFD = XrdPosixObject::Init(fdnum);
 }
  
 /******************************************************************************/

@@ -223,7 +223,7 @@ int XrdPosixObject::Init(int fdnum)
 
 // All done
 //
-   return lastFD;
+   return baseFD;
 }
 
 /******************************************************************************/

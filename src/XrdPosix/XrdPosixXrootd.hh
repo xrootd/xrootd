@@ -333,6 +333,8 @@ static ssize_t Writev(int fildes, const struct iovec *iov, int iovcnt);
 //! allow XrdPosix 'C' functions and XrdPss classes access private members.
 //-----------------------------------------------------------------------------
 
+inline int     fdOrigin() {return baseFD;}
+
 static bool    isXrootdDir(DIR *dirp);
 
 static bool    myFD(int fd);
@@ -369,6 +371,7 @@ static void                  initStat(struct stat *buf);
 static void                  initXdev(dev_t &st_dev, dev_t &st_rdev);
 
 static XrdOucCache   *myCache;
+static int            baseFD;
 static int            initDone;
 };
 #endif
