@@ -42,7 +42,6 @@
 
 #include "XrdFfs/XrdFfsDent.hh"
 #include "XrdFfs/XrdFfsMisc.hh"
-#include "XrdFfs/XrdFfsWcache.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
 
 #include "XrdNet/XrdNetAddr.hh"
@@ -131,7 +130,6 @@ void *XrdPssConfigFfs(void *carg)
 // XrdFfsMisc_xrd_secsss_init();
    XrdFfsMisc_refresh_url_cache(myPSS->urlRdr);
    XrdFfsDent_cache_init();
-   XrdFfsWcache_init();
    XrdFfsQueue_create_workers(myPSS->Workers);
 
 // Tell everyone waiting for this initialization to complete. We use the trick

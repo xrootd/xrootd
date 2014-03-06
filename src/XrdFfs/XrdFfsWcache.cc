@@ -74,16 +74,23 @@ struct XrdFfsWcacheFilebuf *XrdFfsWcacheFbufs;
 
 /* #include "xrdposix.h" */
 
-int XrdFfsWcacheNFILES;
-void XrdFfsWcache_init()
+int XrdFfsPosix_baseFD, XrdFfsWcacheNFILES;
+void XrdFfsWcache_init(int basefd, int maxfd)
 {
     int fd;
+/* We are now using virtual file descriptors (from Xrootd Posix interface) in XrdFfsXrootdfs.cc so we need to set 
+ * base (lowest) file descriptor, and max number of file descriptors..
+ *
     struct rlimit rlp;
 
     getrlimit(RLIMIT_NOFILE, &rlp);
     XrdFfsWcacheNFILES = rlp.rlim_cur;
     XrdFfsWcacheNFILES = (XrdFfsWcacheNFILES == (int)RLIM_INFINITY? 4096 : XrdFfsWcacheNFILES);
-    
+ */
+
+   XrdFfsPosix_baseFD = basefd;
+   XrdFfsWcacheNFILES = maxfd; 
+   
 /*    printf("%d %d\n", XrdFfsWcacheNFILES, sizeof(struct XrdFfsWcacheFilebuf)); */
     XrdFfsWcacheFbufs = (struct XrdFfsWcacheFilebuf*)malloc(sizeof(struct XrdFfsWcacheFilebuf) * XrdFfsWcacheNFILES);
     for (fd = 0; fd < XrdFfsWcacheNFILES; fd++)
@@ -98,6 +105,7 @@ void XrdFfsWcache_init()
 int XrdFfsWcache_create(int fd) 
 {
     XrdFfsWcache_destroy(fd);
+    fd -= XrdFfsPosix_baseFD;
 
     XrdFfsWcacheFbufs[fd].offset = 0;
     XrdFfsWcacheFbufs[fd].len = 0;
@@ -115,7 +123,8 @@ int XrdFfsWcache_create(int fd)
 void XrdFfsWcache_destroy(int fd)
 {
 /*  XrdFfsWcache_flush(fd); */
-    
+    fd -= XrdFfsPosix_baseFD;
+
     XrdFfsWcacheFbufs[fd].offset = 0;
     XrdFfsWcacheFbufs[fd].len = 0;
     if (XrdFfsWcacheFbufs[fd].buf != NULL) 
@@ -132,15 +141,13 @@ void XrdFfsWcache_destroy(int fd)
 ssize_t XrdFfsWcache_flush(int fd)
 {
     ssize_t rc;
+    fd -= XrdFfsPosix_baseFD;
 
     if (XrdFfsWcacheFbufs[fd].len == 0 || XrdFfsWcacheFbufs[fd].buf == NULL )
         return 0;
 
-#ifndef NOXRD
-    rc = XrdFfsPosix_pwrite(fd, XrdFfsWcacheFbufs[fd].buf, XrdFfsWcacheFbufs[fd].len, XrdFfsWcacheFbufs[fd].offset);
-#else
-    rc =     pwrite(fd, XrdFfsWcacheFbufs[fd].buf, XrdFfsWcacheFbufs[fd].len, XrdFfsWcacheFbufs[fd].offset);
-#endif
+    rc = XrdFfsPosix_pwrite(fd + XrdFfsPosix_baseFD, 
+                            XrdFfsWcacheFbufs[fd].buf, XrdFfsWcacheFbufs[fd].len, XrdFfsWcacheFbufs[fd].offset);
     if (rc > 0)
     {
         XrdFfsWcacheFbufs[fd].offset = 0;
@@ -153,15 +160,12 @@ ssize_t XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset)
 {
     ssize_t rc;
     char *bufptr;
+    fd -= XrdFfsPosix_baseFD;
 
 /* do not use caching under these cases */
     if (len > XrdFfsWcacheBufsize/2 || fd >= XrdFfsWcacheNFILES)
     {
-#ifndef NOXRD
-        rc = XrdFfsPosix_pwrite(fd, buf, len, offset);
-#else 
-        rc = pwrite(fd, buf, len, offset);
-#endif
+        rc = XrdFfsPosix_pwrite(fd + XrdFfsPosix_baseFD, buf, len, offset);
         return rc;
     }
 
@@ -174,7 +178,7 @@ ssize_t XrdFfsWcache_pwrite(int fd, char *buf, size_t len, off_t offset)
 */ 
     if (offset != (off_t)(XrdFfsWcacheFbufs[fd].offset + XrdFfsWcacheFbufs[fd].len) ||
         (off_t)(offset + len) > (XrdFfsWcacheFbufs[fd].offset + XrdFfsWcacheBufsize))
-        rc = XrdFfsWcache_flush(fd);
+        rc = XrdFfsWcache_flush(fd + XrdFfsPosix_baseFD);
 
     errno = 0;
     if (rc < 0) 

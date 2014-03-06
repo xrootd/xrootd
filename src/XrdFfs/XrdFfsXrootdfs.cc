@@ -931,12 +931,11 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
 static int xrootdfs_fsync(const char *path, int isdatasync,
                      struct fuse_file_info *fi)
 {
-    /* Just a stub.  This method is optional and can safely be left
-       unimplemented */
+    int fd;
 
-    (void) path;
-    (void) isdatasync;
-    (void) fi;
+    fd = (int) fi->fh;
+    XrdFfsWcache_flush(fd);
+    XrdFfsPosix_fsync(fd);
     return 0;
 }
 
@@ -1350,19 +1349,19 @@ int main(int argc, char *argv[])
         setenv("XrdSecsssKT", xrootdfs.ssskeytab, 1);
     }
 
+/* Now we can allocate the XRootD posix interface as we need to set the maximum
+   number of virtual file descriptors and we don't know that until now.
+*/
+    if (xrootdfs.maxfd < 2048) xrootdfs.maxfd = 2048;
+    XrdPosixXrootd abc(-xrootdfs.maxfd);
+
     XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
-    XrdFfsWcache_init();
+    XrdFfsWcache_init(abc.fdOrigin(), xrootdfs.maxfd);
     signal(SIGUSR1,xrootdfs_sigusr1_handler);
 
     cwdfd = open(".",O_RDONLY);
 
     umask(0);
-
-/* Now we can allocate the XRootD posix interface as we need to set the maximum
-   number of virtual file descriptors and we don't know that until now.
-*/
-   if (xrootdfs.maxfd < 2048) xrootdfs.maxfd = 2048;
-   XrdPosixXrootd abc(-xrootdfs.maxfd);
 
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
 }

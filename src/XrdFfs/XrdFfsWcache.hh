@@ -31,7 +31,7 @@
   extern "C" {
 #endif
 
-void    XrdFfsWcache_init();
+void    XrdFfsWcache_init(int basefd, int maxfd);
 int     XrdFfsWcache_create(int fd);
 void    XrdFfsWcache_destroy(int fd);
 ssize_t  XrdFfsWcache_flush(int fd);
