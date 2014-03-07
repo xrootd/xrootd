@@ -1861,9 +1861,14 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
               }
 
-              int l = 0;
-              if (endp) l = strlen(endp);
-              startp = endp + l + 2;
+
+
+              if (endp) {
+                  char *pp = (char *)strchr((const char *)endp, '\n');
+                  if (pp) startp = pp+1;
+                  else break;
+              } else break;
+
             }
           }
 
