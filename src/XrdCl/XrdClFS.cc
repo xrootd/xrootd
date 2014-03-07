@@ -23,6 +23,7 @@
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdCl/XrdClCopyProcess.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -1091,6 +1092,155 @@ XRootDStatus DoPrepare( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Copy progress handler
+//------------------------------------------------------------------------------
+class ProgressDisplay: public XrdCl::CopyProgressHandler
+{
+  public:
+    //--------------------------------------------------------------------------
+    // Constructor
+    //--------------------------------------------------------------------------
+    ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0)
+    {}
+
+    //--------------------------------------------------------------------------
+    // End job
+    //--------------------------------------------------------------------------
+    virtual void EndJob( const XrdCl::PropertyList *results )
+    {
+      JobProgress( pBytesProcessed, pBytesTotal );
+      std::cerr << std::endl;
+    }
+
+    //--------------------------------------------------------------------------
+    // Job progress
+    //--------------------------------------------------------------------------
+    virtual void JobProgress( uint64_t bytesProcessed,
+                              uint64_t bytesTotal )
+    {
+      pBytesProcessed = bytesProcessed;
+      pBytesTotal     = bytesTotal;
+
+      time_t now = time(0);
+      if( (now - pPrevious < 1) && (bytesProcessed != bytesTotal) )
+        return;
+      pPrevious = now;
+
+      std::cerr << "\r";
+      std::cerr << "Progress: ";
+      std::cerr << XrdCl::Utils::BytesToString(bytesProcessed) << "B ";
+
+      if( bytesTotal )
+        std::cerr << "(" << bytesProcessed*100/bytesTotal << "%)";
+
+      std::cerr << std::flush;
+     }
+
+  private:
+    uint64_t          pBytesProcessed;
+    uint64_t          pBytesTotal;
+    time_t            pPrevious;
+};
+
+//------------------------------------------------------------------------------
+// Cat a file
+//------------------------------------------------------------------------------
+XRootDStatus DoCat( FileSystem                      *fs,
+                    Env                             *env,
+                    const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 && argc != 4 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string server;
+  env->GetString( "ServerURL", server );
+  if( server.empty() )
+  {
+    log->Error( AppMsg, "Invalid address: \"%s\".", server.c_str() );
+    return XRootDStatus( stError, errInvalidAddr );
+  }
+
+  std::string remote;
+  std::string local;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-o" )
+    {
+      if( i < args.size()-1 )
+      {
+        local = args[i+1];
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-o' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else
+      remote = args[i];
+  }
+
+  std::string remoteFile;
+  if( !BuildPath( remoteFile, env, remote ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  URL remoteUrl( server );
+  remoteUrl.SetPath( remoteFile );
+
+  //----------------------------------------------------------------------------
+  // Fetch the data
+  //----------------------------------------------------------------------------
+  CopyProgressHandler *handler = 0; ProgressDisplay d;
+  CopyProcess process; PropertyList props; PropertyList results;
+
+  props.Set( "source", remoteUrl.GetURL() );
+  if( !local.empty() )
+  {
+    props.Set( "target", std::string( "file://" ) + local );
+    handler = &d;
+  }
+  else
+    props.Set( "target", "stdio://-" );
+
+  XRootDStatus st = process.AddJob( props, &results );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Job adding failed: %s.", st.ToStr().c_str() );
+    return st;
+  }
+
+  st = process.Prepare();
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Copy preparation failed: %s.", st.ToStr().c_str() );
+    return st;
+  }
+
+  st = process.Run(handler);
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Cope process failed: %s.", st.ToStr().c_str() );
+    return st;
+  }
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -1187,6 +1337,10 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -w whe files will be accessed for modification\n"           );
   printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
 
+  printf( "   cat [-o local file] file\n"                                   );
+  printf( "     Print contents of a file to stdout.\n"                      );
+  printf( "     -o print to the specified local file\n"                     );
+
   return XRootDStatus();
 }
 
@@ -1212,6 +1366,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "query",       DoQuery      );
   executor->AddCommand( "truncate",    DoTruncate   );
   executor->AddCommand( "prepare",     DoPrepare    );
+  executor->AddCommand( "cat",         DoCat        );
   return executor;
 }
 
