@@ -65,7 +65,7 @@
 #define IS_PROC(x) !strncmp(x+SFS_LCLPLEN, "proc", 4) \
                    &&  (*(x+SFS_LCLPLEN+4) == '\0'||*(x+SFS_LCLPLEN+4) == '/')
 #endif
-  
+
 /******************************************************************************/
 /*                        G l o b a l   O b j e c t s                         */
 /******************************************************************************/
@@ -185,8 +185,10 @@ int XrdDigDirectory::open(const char              *dir_path, // In
 //
 #ifdef __linux__
    if (IS_PROC(dir_path))
-      {isProc = true;
-       dirFD = dirfd(dh);
+      {noTag =  *(dir_path+SFS_LCLPLEN+4) == 0
+             || !strcmp(dir_path+SFS_LCLPLEN+4, "/");
+       isProc = true;
+       dirFD  = dirfd(dh);
       }
 #endif
 
@@ -211,9 +213,10 @@ const char *XrdDigDirectory::nextEntry()
             0 upon EOF and an actual error code (i.e., not 0) on error.
 */
 {
-    static const char *epname = "nextEntry";
-    struct dirent *rp;
-    int retc;
+   static const char *epname = "nextEntry";
+   static const int wMask = ~(S_IWUSR | S_IWGRP | S_IWOTH);
+   struct dirent *rp;
+   int retc;
 
 // Check for base listing
 //
@@ -236,7 +239,7 @@ const char *XrdDigDirectory::nextEntry()
 
 // Read the next directory entry
 //
-   errno = 0;
+do{errno = 0;
    if ((retc = readdir_r(dh, d_pnt, &rp)))
       {if (retc && errno != 0)
           XrdDigFS::Emsg(epname,error,retc,"read directory",fname);
@@ -252,16 +255,32 @@ const char *XrdDigDirectory::nextEntry()
        return (const char *)0;
       }
 
+// If autostat wanted, do so here
+//
+   if (sBuff)
+      {
+#ifdef HAVE_FSTATAT
+       int sFlags = (isProc ?  AT_SYMLINK_NOFOLLOW : 0);
+       if (fstatat(dirFD, d_pnt->d_name, sBuff, sFlags)) continue;
+       sBuff->st_mode = (sBuff->st_mode & wMask) | S_IRUSR;
+#else
+       char dPath[2048];
+       snprintf(dPath, sizeof(dPath), "%s%s", fname, d_pnt->d_name);
+       if (stat(dPath, sBuff) continue;
+       sBuff->st_mode = sBuff->st_mode & STRIP_AR | S_IRUSR;
+#endif
+      }
+
 // We want to extend the directory entry information with symlink information
 // if this is a symlink. This is only done for /proc (Linux only)
 //
 #ifdef __linux__
    if (isProc)
-      {struct stat Stat;
+      {struct stat Stat, *sP = (sBuff ? sBuff : &Stat);
        char *dP;
-       int n;
-       if (!fstatat(dirFD, d_pnt->d_name, &Stat, AT_SYMLINK_NOFOLLOW)
-       &&  S_ISLNK(Stat.st_mode))
+       int n, rc;
+       rc = (sBuff ? 0:fstatat(dirFD,d_pnt->d_name,&Stat,AT_SYMLINK_NOFOLLOW));
+       if (!rc && !noTag && S_ISLNK(sP->st_mode))
           {n = strlen(d_pnt->d_name);
            dP = d_pnt->d_name + n + 4;
            n = sizeof(dirent_full.nbf) - (n + 8);
@@ -275,6 +294,8 @@ const char *XrdDigDirectory::nextEntry()
 // Return the actual entry
 //
    return (const char *)(d_pnt->d_name);
+  } while(1);
+   return 0; // Keep compiler happy
 }
 
 /******************************************************************************/
@@ -294,10 +315,11 @@ int XrdDigDirectory::close()
 
 // Release the handle
 //
-    if (dh && closedir(dh))
-       {XrdDigFS::Emsg(epname, error, errno, "close directory", fname);
-        return SFS_ERROR;
-       }
+   sBuff = 0;
+   if (dh && closedir(dh))
+      {XrdDigFS::Emsg(epname, error, errno, "close directory", fname);
+       return SFS_ERROR;
+      }
 
 // Do some clean-up
 //

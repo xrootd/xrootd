@@ -269,8 +269,13 @@ char *XrdDigConfig::GenPath(int &rc, const XrdSecEntity *client,
 
 // Construct the name to be returned
 //
+   i = (lfnType == isDir ? 1 : 0);
    n = snprintf(path, sizeof(path), fnTmplt, fname);
-   if (n >= (int)sizeof(path)) {rc = ENAMETOOLONG; return 0;}
+   if (n >= (int)sizeof(path)-1) {rc = ENAMETOOLONG; return 0;}
+
+// Attach a trailing slash if there is none if this is a directory
+//
+   if (lfnType == isDir && path[n-1] != '/') {path[n] = '/'; path[n+1] = 0;}
 
 // Return the composite name
 //
