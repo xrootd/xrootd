@@ -106,6 +106,9 @@
 #define SFS_LCLPRFX    "/=/"
 #define SFS_LCLPLEN    3
 #define SFS_LCLPATH(x) !strncmp(x, SFS_LCLPRFX, SFS_LCLPLEN)
+#define SFS_LCLPRFY    "/="
+#define SFS_LCLROOT(x) !strncmp(x, SFS_LCLPRFX, SFS_LCLPLEN-1) \
+                       && (*(x+SFS_LCLPLEN-1) == '/' || *(x+SFS_LCLPLEN-1) == 0)
 
 /******************************************************************************/
 /*                 S t r u c t u r e s   &   T y p e d e f s                  */

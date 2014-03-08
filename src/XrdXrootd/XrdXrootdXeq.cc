@@ -474,7 +474,7 @@ int XrdXrootdProtocol::do_Dirlist()
 
 // Check if we are digging for data
 //
-   doDig = (digFS && SFS_LCLPATH(argp->buff));
+   doDig = (digFS && SFS_LCLROOT(argp->buff));
 
 // Check for static routing
 //
@@ -727,10 +727,10 @@ int XrdXrootdProtocol::do_Locate()
 // Check if this is a non-specific locate
 //
         if (*fn != '*'){Path = fn;
-                        doDig = (digFS && SFS_LCLPATH(Path));
+                        doDig = (digFS && SFS_LCLROOT(Path));
                        }
    else if (*(fn+1))   {Path = fn+1;
-                        doDig = (digFS && SFS_LCLPATH(Path));
+                        doDig = (digFS && SFS_LCLROOT(Path));
                        }
    else                {Path = 0; 
                         fn = XPList.Next()->Path();
@@ -2289,7 +2289,7 @@ int XrdXrootdProtocol::do_Stat()
 
 // Check if we are handling a dig type path
 //
-   doDig = (digFS && SFS_LCLPATH(argp->buff));
+   doDig = (digFS && SFS_LCLROOT(argp->buff));
 
 // Check for static routing
 //

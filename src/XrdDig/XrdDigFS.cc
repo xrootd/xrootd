@@ -155,7 +155,7 @@ int XrdDigDirectory::open(const char              *dir_path, // In
 
 // Check if we are trying to open the root to list it
 //
-   if (!strcmp(dir_path, SFS_LCLPRFX))
+   if (!strcmp(dir_path, SFS_LCLPRFX) || !strcmp(dir_path, SFS_LCLPRFY))
       {isBase = true;
        if ((dirFD = Config.GenAccess(client, dirent_full.aEnt, aESZ)) < 0)
           return XrdDigFS::Emsg(epname,error,EACCES,"open directory",dir_path);
@@ -675,8 +675,8 @@ int XrdDigFS::fsctl(const int               cmd,
 // if valid, we return ourselves as the location. Security is not applied here.
 //
    if ((cmd & SFS_FSCTL_CMD) == SFS_FSCTL_LOCATE)
-      {if ((*args == '*' && strncmp(SFS_LCLPRFX, args+1, SFS_LCLPLEN))
-       ||  (*args == '/' && strncmp(SFS_LCLPRFX, args,   SFS_LCLPLEN)))
+      {if ((*args == '*' && !(SFS_LCLROOT(args+1)))
+       ||  (*args == '/' && !(SFS_LCLROOT(args  ))))
           {eInfo.setErrInfo(EINVAL, "Invalid locate path");
            return SFS_ERROR;
           }
@@ -731,6 +731,16 @@ int XrdDigFS::stat(const char              *path,        // In
    static const int wMask = ~(S_IWUSR | S_IWGRP | S_IWOTH);
    char *fname;
    int   retc;
+
+// Check if we are trying to stat the root
+//
+   if (!strcmp(path, SFS_LCLPRFX) || !strcmp(path, SFS_LCLPRFY))
+      {const char *auth;
+       if (Config.GenAccess(client, &auth, 1) < 0)
+          return XrdDigFS::Emsg(epname,error,EACCES,"stat directory",path);
+       XrdDigConfig::StatRoot(buf);
+       return SFS_OK;
+      }
 
 // Authorize and get the correct fname to stat
 //

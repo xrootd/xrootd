@@ -33,6 +33,7 @@
 class XrdOucStream;
 class XrdOucErrInfo;
 class XrdSecEntity;
+struct stat;
 
 class XrdDigConfig
 {
@@ -51,6 +52,9 @@ char *GenPath(int &rc, const XrdSecEntity *client, const char *opname,
                        const char         *lfn,    pType lfnType=isAny);
 
 void  GetLocResp(XrdOucErrInfo &eInfo, bool nameok);
+
+static
+void  StatRoot(struct stat *sP);
 
       XrdDigConfig() : fnTmplt(0), logAcc(true), logRej(true) {}
      ~XrdDigConfig()   {}
