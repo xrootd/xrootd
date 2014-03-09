@@ -266,8 +266,8 @@ do{errno = 0;
 #else
        char dPath[2048];
        snprintf(dPath, sizeof(dPath), "%s%s", fname, d_pnt->d_name);
-       if (stat(dPath, sBuff) continue;
-       sBuff->st_mode = sBuff->st_mode & STRIP_AR | S_IRUSR;
+       if (stat(dPath, sBuff)) continue;
+       sBuff->st_mode = (sBuff->st_mode & wMask) | S_IRUSR;
 #endif
       }
 
