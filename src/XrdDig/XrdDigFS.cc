@@ -789,13 +789,6 @@ int XrdDigFS::stat(const char              *path,        // In
 //
    buf->st_mode &= wMask;
 
-// Fixup size when stat is issued into /proc (linux only)
-//
-#ifdef __linux__
-   if (!buf->st_size && S_ISREG(buf->st_mode) && (IS_PROC(path)))
-      buf->st_size = 1048576;
-#endif
-
 // All went well
 //
    free(fname);
