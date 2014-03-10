@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStream.hh"
@@ -414,20 +420,21 @@ namespace XrdCl
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
+    uint32_t streamAction = pTransport->MessageReceived( msg, *pChannelData );
+    if( streamAction & TransportHandler::DigestMsg )
+      return;
+
     //--------------------------------------------------------------------------
     // No handler, we cache and see what comes later
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
+
     if( !mh.handler )
     {
       log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
                  pStreamName.c_str(), msg );
 
-      uint32_t streamAction = pTransport->StreamAction( msg, *pChannelData );
-
-      if( streamAction & TransportHandler::DigestMsg )
-        return;
       pJobManager->QueueJob( pQueueIncMsgJob, msg );
       return;
     }
@@ -488,6 +495,7 @@ namespace XrdCl
                               Message  *msg,
                               uint32_t  bytesSent )
   {
+    pTransport->MessageSent( msg, subStream, bytesSent, *pChannelData );
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
     if( h.handler )

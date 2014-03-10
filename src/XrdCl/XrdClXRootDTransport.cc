@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClXRootDTransport.hh"
@@ -37,6 +43,7 @@
 #include <dlfcn.h>
 #include <sstream>
 #include <iomanip>
+#include <set>
 
 namespace XrdCl
 {
@@ -86,7 +93,8 @@ namespace XrdCl
       authBuffer(0),
       authProtocol(0),
       authParams(0),
-      authEnv(0)
+      authEnv(0),
+      openFiles(0)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
@@ -117,6 +125,9 @@ namespace XrdCl
     StreamInfoVector  stream;
     std::string       streamName;
     std::string       authProtocolName;
+    std::set<uint16_t> sentOpens;
+    std::set<uint16_t> sentCloses;
+    uint32_t          openFiles;
     XrdSysMutex       mutex;
   };
 
@@ -449,8 +460,12 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
-               "TTL: %d, allocated SIDs: %d", info->streamName.c_str(),
-               inactiveTime, ttl, allocatedSIDs );
+               "TTL: %d, allocated SIDs: %d, open files: %d",
+               info->streamName.c_str(), inactiveTime, ttl, allocatedSIDs,
+               info->openFiles );
+
+    if( info->openFiles )
+      return false;
 
     if( !allocatedSIDs && inactiveTime > ttl )
       return true;
@@ -822,7 +837,12 @@ namespace XrdCl
     }
 
     if( subStreamId == 0 )
+    {
       info->sidManager->ReleaseAllTimedOut();
+      info->sentOpens.clear();
+      info->sentCloses.clear();
+      info->openFiles = 0;
+    }
   }
 
   //------------------------------------------------------------------------
@@ -876,10 +896,11 @@ namespace XrdCl
     return Status( stError, errQueryNotSupported );
   }
 
-  //------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
   // Check whether the transport can hijack the message
-  //------------------------------------------------------------------------
-  uint32_t XRootDTransport::StreamAction( Message *msg, AnyObject &channelData )
+  //----------------------------------------------------------------------------
+  uint32_t XRootDTransport::MessageReceived( Message   *msg,
+                                             AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
     channelData.Get( info );
@@ -907,7 +928,64 @@ namespace XrdCl
       delete msg;
       return DigestMsg;
     }
+
+    //--------------------------------------------------------------------------
+    // If we got a response to an open request, we may need to bump the counter
+    // of open files
+    //--------------------------------------------------------------------------
+    uint16_t sid; memcpy( &sid, rsp->hdr.streamid, 2 );
+    std::set<uint16_t>::iterator sidIt = info->sentOpens.find( sid );
+    if( sidIt != info->sentOpens.end() )
+    {
+      if( rsp->hdr.status == kXR_waitresp )
+        return NoAction;
+      info->sentOpens.erase( sidIt );
+      if( rsp->hdr.status == kXR_ok )
+        ++info->openFiles;
+      return NoAction;
+    }
+
+    //--------------------------------------------------------------------------
+    // If we got a response to a close, we may need to decrement the counter of
+    // open files
+    //--------------------------------------------------------------------------
+    sidIt = info->sentCloses.find( sid );
+    if( sidIt != info->sentCloses.end() )
+    {
+      if( rsp->hdr.status == kXR_waitresp )
+        return NoAction;
+      info->sentCloses.erase( sidIt );
+      --info->openFiles;
+      return NoAction;
+    }
     return NoAction;
+  }
+
+  //----------------------------------------------------------------------------
+  // Notify the transport about a message having been sent
+  //----------------------------------------------------------------------------
+  void XRootDTransport::MessageSent( Message   *msg,
+                                     uint16_t   subStream,
+                                     uint32_t   bytesSent,
+                                     AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    XrdSysMutexHelper scopedLock( info->mutex );
+    ClientRequest *req = (ClientRequest*)msg->GetBuffer();
+    uint16_t reqid = ntohs( req->header.requestid );
+
+
+    //--------------------------------------------------------------------------
+    // We need to track opens to know if we can close streams due to idleness
+    //--------------------------------------------------------------------------
+    uint16_t sid;
+    memcpy( &sid, req->header.streamid, 2 );
+
+    if( reqid == kXR_open )
+      info->sentOpens.insert( sid );
+    else if( reqid == kXR_close )
+      info->sentCloses.insert( sid );
   }
 
   //----------------------------------------------------------------------------
