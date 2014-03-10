@@ -150,6 +150,7 @@ namespace XrdCl
     PutInt( "ConnectionWindow",      DefaultConnectionWindow     );
     PutInt( "ConnectionRetry",       DefaultConnectionRetry      );
     PutInt( "RequestTimeout",        DefaultRequestTimeout       );
+    PutInt( "StreamTimeout",         DefaultStreamTimeout       );
     PutInt( "SubStreamsPerChannel",  DefaultSubStreamsPerChannel );
     PutInt( "TimeoutResolution",     DefaultTimeoutResolution    );
     PutInt( "StreamErrorWindow",     DefaultStreamErrorWindow    );
@@ -177,6 +178,7 @@ namespace XrdCl
     ImportInt(    "ConnectionWindow",     "XRD_CONNECTIONWINDOW"     );
     ImportInt(    "ConnectionRetry",      "XRD_CONNECTIONRETRY"      );
     ImportInt(    "RequestTimeout",       "XRD_REQUESTTIMEOUT"       );
+    ImportInt(    "StreamTimeout",        "XRD_STREAMTIMEOUT"        );
     ImportInt(    "SubStreamsPerChannel", "XRD_SUBSTREAMSPERCHANNEL" );
     ImportInt(    "TimeoutResolution",    "XRD_TIMEOUTRESOLUTION"    );
     ImportInt(    "StreamErrorWindow",    "XRD_STREAMERRORWINDOW"    );

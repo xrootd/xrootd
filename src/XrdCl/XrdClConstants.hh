@@ -46,6 +46,7 @@ namespace XrdCl
   const int DefaultConnectionWindow     = 120;
   const int DefaultConnectionRetry      = 5;
   const int DefaultRequestTimeout       = 300;
+  const int DefaultStreamTimeout        = 60;
   const int DefaultTimeoutResolution    = 15;
   const int DefaultStreamErrorWindow    = 1800;
   const int DefaultRunForkHandler       = 0;

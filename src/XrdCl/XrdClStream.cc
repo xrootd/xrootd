@@ -855,6 +855,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     SubStreamList::iterator it;
+    time_t                  now = time(0);
 
     XrdSysMutexHelper scopedLock( pMutex );
     uint32_t outgoingMessages = 0;
@@ -869,7 +870,7 @@ namespace XrdCl
 
     if( !outgoingMessages )
     {
-      bool disconnect = pTransport->IsStreamTTLElapsed( time(0)-lastActivity,
+      bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
                                                         *pChannelData );
       if( disconnect )
       {
@@ -878,6 +879,15 @@ namespace XrdCl
         Disconnect();
       }
     }
+
+    //--------------------------------------------------------------------------
+    // Check if the stream is broken
+    //--------------------------------------------------------------------------
+    Status st = pTransport->IsStreamBroken( now-lastActivity,
+                                            pStreamNum,
+                                            *pChannelData );
+    if( !st.IsOK() )
+      OnError( substream, st );
   }
 
   //----------------------------------------------------------------------------

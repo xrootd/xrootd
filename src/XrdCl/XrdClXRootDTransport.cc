@@ -94,7 +94,8 @@ namespace XrdCl
       authProtocol(0),
       authParams(0),
       authEnv(0),
-      openFiles(0)
+      openFiles(0),
+      waitBarrier(0)
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
@@ -128,6 +129,7 @@ namespace XrdCl
     std::set<uint16_t> sentOpens;
     std::set<uint16_t> sentCloses;
     uint32_t          openFiles;
+    time_t            waitBarrier;
     XrdSysMutex       mutex;
   };
 
@@ -438,8 +440,6 @@ namespace XrdCl
     Env *env = DefaultEnv::GetEnv();
     Log *log = DefaultEnv::GetLog();
 
-    XrdSysMutexHelper scopedLock( info->mutex );
-
     //--------------------------------------------------------------------------
     // Check the TTL settings for the current server
     //--------------------------------------------------------------------------
@@ -458,6 +458,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // See whether we can give a go-ahead for the disconnection
     //--------------------------------------------------------------------------
+    XrdSysMutexHelper scopedLock( info->mutex );
     uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
     log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
                "TTL: %d, allocated SIDs: %d, open files: %d",
@@ -471,6 +472,43 @@ namespace XrdCl
       return true;
 
     return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Check the stream is broken - ie. TCP connection got broken and
+  // went undetected by the TCP stack
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::IsStreamBroken( time_t     inactiveTime,
+                                          uint16_t   streamId,
+                                          AnyObject &channelData )
+  {
+    XRootDChannelInfo *info = 0;
+    channelData.Get( info );
+    Env *env = DefaultEnv::GetEnv();
+    Log *log = DefaultEnv::GetLog();
+
+    int streamTimeout = DefaultStreamTimeout;
+    env->GetInt( "StreamTimeout", streamTimeout );
+
+    XrdSysMutexHelper scopedLock( info->mutex );
+
+    uint16_t allocatedSIDs = info->sidManager->GetNumberOfAllocatedSIDs();
+
+    log->Dump( XRootDTransportMsg, "[%s] Stream inactive since %d seconds, "
+               "stream timeout: %d, allocated SIDs: %d, wait barrier: %s",
+               info->streamName.c_str(), inactiveTime, streamTimeout,
+               allocatedSIDs, Utils::TimeToString(info->waitBarrier).c_str() );
+
+    if( inactiveTime < streamTimeout )
+      return Status();
+
+    if( time(0) < info->waitBarrier )
+      return Status();
+
+    if( !allocatedSIDs )
+      return Status();
+
+    return Status( stError, errSocketError );
   }
 
   //----------------------------------------------------------------------------
@@ -841,7 +879,8 @@ namespace XrdCl
       info->sidManager->ReleaseAllTimedOut();
       info->sentOpens.clear();
       info->sentCloses.clear();
-      info->openFiles = 0;
+      info->openFiles   = 0;
+      info->waitBarrier = 0;
     }
   }
 
@@ -928,6 +967,20 @@ namespace XrdCl
       delete msg;
       return DigestMsg;
     }
+
+    //--------------------------------------------------------------------------
+    // If we have a wait or waitresp
+    //--------------------------------------------------------------------------
+    uint32_t seconds = 0;
+    if( rsp->hdr.status == kXR_wait )
+      seconds = ntohl( rsp->body.wait.seconds ) + 5; // we need extra time
+                                                     // to re-send the request
+    else if( rsp->hdr.status == kXR_waitresp )
+      seconds = ntohl( rsp->body.waitresp.seconds );
+
+    time_t barrier = time(0) + seconds;
+    if( info->waitBarrier < barrier )
+      info->waitBarrier = barrier;
 
     //--------------------------------------------------------------------------
     // If we got a response to an open request, we may need to bump the counter

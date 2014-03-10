@@ -109,6 +109,14 @@ namespace XrdCl
                                        AnyObject &channelData );
 
       //------------------------------------------------------------------------
+      //! Check the stream is broken - ie. TCP connection got broken and
+      //! went undetected by the TCP stack
+      //------------------------------------------------------------------------
+      virtual Status IsStreamBroken( time_t     inactiveTime,
+                                     uint16_t   streamId,
+                                     AnyObject &channelData );
+
+      //------------------------------------------------------------------------
       //! Return the ID for the up stream this message should be sent by
       //! and the down stream which the answer should be expected at.
       //! Modify the message itself if necessary.
