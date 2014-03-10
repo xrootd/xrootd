@@ -299,7 +299,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Decide on the path to send the message
     //--------------------------------------------------------------------------
-    PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
+    PathID path = pTransport->MultiplexSubStream( msg, pStreamNum,
+                                                  *pChannelData );
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
@@ -318,7 +319,7 @@ namespace XrdCl
     Status st = EnableLink( path );
     if( st.IsOK() )
     {
-      pTransport->MultiplexSubStream( msg, *pChannelData, &path );
+      pTransport->MultiplexSubStream( msg, pStreamNum, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 expires, stateful );
     }
@@ -420,7 +421,9 @@ namespace XrdCl
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
-    uint32_t streamAction = pTransport->MessageReceived( msg, *pChannelData );
+    uint32_t streamAction = pTransport->MessageReceived( msg, pStreamNum,
+                                                         subStream,
+                                                         *pChannelData );
     if( streamAction & TransportHandler::DigestMsg )
       return;
 
@@ -495,7 +498,8 @@ namespace XrdCl
                               Message  *msg,
                               uint32_t  bytesSent )
   {
-    pTransport->MessageSent( msg, subStream, bytesSent, *pChannelData );
+    pTransport->MessageSent( msg, pStreamNum, subStream, bytesSent,
+                             *pChannelData );
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
     if( h.handler )
@@ -871,6 +875,7 @@ namespace XrdCl
     if( !outgoingMessages )
     {
       bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
+                                                        pStreamNum,
                                                         *pChannelData );
       if( disconnect )
       {

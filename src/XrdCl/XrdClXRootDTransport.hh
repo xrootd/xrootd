@@ -106,6 +106,7 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     time,
+                                       uint16_t   streamId,
                                        AnyObject &channelData );
 
       //------------------------------------------------------------------------
@@ -135,6 +136,7 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
+                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 );
 
@@ -206,12 +208,15 @@ namespace XrdCl
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
       virtual uint32_t MessageReceived( Message   *msg,
+                                        uint16_t   streamId,
+                                        uint16_t   subStream,
                                         AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Notify the transport about a message having been sent
       //------------------------------------------------------------------------
       virtual void MessageSent( Message   *msg,
+                                uint16_t   streamId,
                                 uint16_t   subStream,
                                 uint32_t   bytesSent,
                                 AnyObject &channelData );

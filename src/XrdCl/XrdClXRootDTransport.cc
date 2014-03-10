@@ -433,6 +433,7 @@ namespace XrdCl
   // Check if the stream should be disconnected
   //----------------------------------------------------------------------------
   bool XRootDTransport::IsStreamTTLElapsed( time_t     inactiveTime,
+                                            uint16_t   streamId,
                                             AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
@@ -523,6 +524,7 @@ namespace XrdCl
   // Multiplex
   //----------------------------------------------------------------------------
   PathID XRootDTransport::MultiplexSubStream( Message   *msg,
+                                              uint16_t   streamId,
                                               AnyObject &channelData,
                                               PathID    *hint )
   {
@@ -939,6 +941,8 @@ namespace XrdCl
   // Check whether the transport can hijack the message
   //----------------------------------------------------------------------------
   uint32_t XRootDTransport::MessageReceived( Message   *msg,
+                                             uint16_t   streamId,
+                                             uint16_t   subStream,
                                              AnyObject &channelData )
   {
     XRootDChannelInfo *info = 0;
@@ -1018,6 +1022,7 @@ namespace XrdCl
   // Notify the transport about a message having been sent
   //----------------------------------------------------------------------------
   void XRootDTransport::MessageSent( Message   *msg,
+                                     uint16_t   streamId,
                                      uint16_t   subStream,
                                      uint32_t   bytesSent,
                                      AnyObject &channelData )
