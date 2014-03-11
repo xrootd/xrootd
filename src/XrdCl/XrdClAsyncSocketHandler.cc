@@ -146,6 +146,7 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+    delete pIncoming; pIncoming = 0;
     return Status();
   }
 
