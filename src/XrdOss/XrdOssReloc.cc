@@ -107,6 +107,7 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
    pendFiles PF(pbuff, tbuff);
    XrdOssCache::allocInfo aInfo(path, pbuff, sizeof(pbuff));
    int rc, lblen, datfd, Pure = (anchor && !strcmp(anchor, "."));
+   off_t rc_c;
    struct stat buf;
 
 // Generate the actual local path for this file.
@@ -144,7 +145,7 @@ int XrdOssSys::Reloc(const char *tident, const char *path,
 // Copy the original file to the new location. Copy() always closes the fd.
 //
    PF.datfd = -1;
-   if ((rc = XrdOssCopy::Copy(local_path, pbuff, datfd)) < 0) return rc;
+   if ((rc_c = XrdOssCopy::Copy(local_path, pbuff, datfd)) < 0) return (int)rc_c;
 
 // If the file is to be merely copied, substitute the desired destination
 //
