@@ -263,6 +263,13 @@ Default value for the time after which an error is declared if it was impossible
 to get a response to a request.
 .RE
 
+XRD_STREAMTIMEOUT
+.RS 5
+Default value for the time after which a connection error is declared (and a
+recovery attempted) if there are unfulfilled requests and there is no socket
+activity or a registered wait timeout.
+.RE
+
 XRD_SUBSTREAMSPERCHANNEL
 .RS 5
 Number of streams per session.
