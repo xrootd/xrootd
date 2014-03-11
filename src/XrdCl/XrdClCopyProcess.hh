@@ -125,6 +125,8 @@ namespace XrdCl
       //! initTimeout    [uint16_t] - time limit for successfull initialization
       //!                             of the copy job
       //! tpcTimeout     [uint16_t] - time limit for the actual copy to finish
+      //! dynamicSource  [bool]     - support for the case where the size source
+      //!                             file may change during reading process
       //!
       //! Results:
       //! sourceCheckSum [string]   - checksum at source, if requested

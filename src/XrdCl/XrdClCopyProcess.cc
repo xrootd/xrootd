@@ -89,6 +89,9 @@ namespace XrdCl
     if( !p.HasProperty( "tpcTimeout" ) )
       p.Set( "tpcTimeout", DefaultCPTPCTimeout );
 
+    if( !p.HasProperty( "dynamicSource" ) )
+      p.Set( "dynamiSource", false );
+
     //--------------------------------------------------------------------------
     // Insert the properties
     //--------------------------------------------------------------------------
