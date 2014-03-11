@@ -1216,6 +1216,8 @@ XRootDStatus DoCat( FileSystem                      *fs,
   else
     props.Set( "target", "stdio://-" );
 
+  props.Set( "dynamicSource", true );
+
   XRootDStatus st = process.AddJob( props, &results );
   if( !st.IsOK() )
   {
