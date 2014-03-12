@@ -54,7 +54,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool LocationInfo::ProcessLocation( std::string &location )
   {
-    if( location.length() < 17 )
+    if( location.length() < 5 )
       return false;
 
     //--------------------------------------------------------------------------
