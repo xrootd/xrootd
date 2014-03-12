@@ -24,6 +24,7 @@
 #include "XrdCl/XrdClConstants.hh"
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClCopyProcess.hh"
+#include "XrdCl/XrdClFile.hh"
 
 #include <cstdlib>
 #include <cstdio>
@@ -1243,6 +1244,134 @@ XRootDStatus DoCat( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Tail a file
+//------------------------------------------------------------------------------
+XRootDStatus DoTail( FileSystem                      *fs,
+                     Env                             *env,
+                     const FSExecutor::CommandParams &args )
+{
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc < 2 || argc > 5 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  std::string server;
+  env->GetString( "ServerURL", server );
+  if( server.empty() )
+  {
+    log->Error( AppMsg, "Invalid address: \"%s\".", server.c_str() );
+    return XRootDStatus( stError, errInvalidAddr );
+  }
+
+  std::string remote;
+  bool        followMode = false;
+  uint32_t    offset     = 512;
+
+  for( uint32_t i = 1; i < args.size(); ++i )
+  {
+    if( args[i] == "-f" )
+      followMode = true;
+    else if( args[i] == "-c" )
+    {
+      if( i < args.size()-1 )
+      {
+        char *result;
+        offset = ::strtol( args[i+1].c_str(), &result, 0 );
+        if( *result != 0 )
+        {
+          log->Error( AppMsg, "Offset from the end needs to be a number: %s",
+                      args[i+1].c_str() );
+          return XRootDStatus( stError, errInvalidArgs );
+        }
+        ++i;
+      }
+      else
+      {
+        log->Error( AppMsg, "Parameter '-n' requires an argument." );
+        return XRootDStatus( stError, errInvalidArgs );
+      }
+    }
+    else
+      remote = args[i];
+  }
+
+  std::string remoteFile;
+  if( !BuildPath( remoteFile, env, remote ).IsOK() )
+  {
+    log->Error( AppMsg, "Invalid path." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  URL remoteUrl( server );
+  remoteUrl.SetPath( remoteFile );
+
+  //----------------------------------------------------------------------------
+  // Fetch the data
+  //----------------------------------------------------------------------------
+  File file;
+  XRootDStatus st = file.Open( remoteUrl.GetURL(), OpenFlags::Read );
+  if( !st.IsOK() )
+  {
+    log->Error( AppMsg, "Unable to open file %s: %s",
+                remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+    return st;
+  }
+
+  StatInfo *info = 0;
+  file.Stat( false, info );
+  uint64_t size = info->GetSize();
+
+  if( size < offset )
+    offset = 0;
+  else
+    offset = size - offset;
+
+  uint32_t  chunkSize = 1*1024*1024;
+  char     *buffer    = new char[chunkSize];
+  uint32_t  bytesRead = 0;
+  while(1)
+  {
+    st = file.Read( offset, chunkSize, buffer, bytesRead );
+    if( !st.IsOK() )
+    {
+      log->Error( AppMsg, "Unable to read from %s: %s",
+                  remoteUrl.GetURL().c_str(), st.ToStr().c_str() );
+      delete [] buffer;
+      return st;
+    }
+
+    offset += bytesRead;
+    int ret = write( 1, buffer, bytesRead );
+    if( ret == -1 )
+    {
+      log->Error( AppMsg, "Unable to write to stdout: %s",
+                  strerror(errno) );
+      delete [] buffer;
+      return st;
+    }
+
+    if( bytesRead < chunkSize )
+    {
+      if( !followMode )
+        break;
+      sleep(1);
+    }
+  }
+  delete [] buffer;
+
+  file.Close();
+
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -1341,7 +1470,12 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
 
   printf( "   cat [-o local file] file\n"                                   );
   printf( "     Print contents of a file to stdout.\n"                      );
-  printf( "     -o print to the specified local file\n"                     );
+  printf( "     -o print to the specified local file\n\n"                   );
+
+  printf( "   tail [-c bytes] [-f] file\n"                                  );
+  printf( "     Output last part of files to stdout.\n"                     );
+  printf( "     -c num_bytes out last num_bytes\n"                          );
+  printf( "     -f           output appended data as file grows\n\n"        );
 
   return XRootDStatus();
 }
@@ -1369,6 +1503,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "truncate",    DoTruncate   );
   executor->AddCommand( "prepare",     DoPrepare    );
   executor->AddCommand( "cat",         DoCat        );
+  executor->AddCommand( "tail",        DoTail       );
   return executor;
 }
 
