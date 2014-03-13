@@ -261,9 +261,12 @@ virtual int            chksum(      csFunc            Func,
                                     XrdOucErrInfo    &eInfo,
                               const XrdSecEntity     *client = 0,
                               const char             *opaque = 0)
-                              {eInfo.setErrInfo(ENOTSUP, "Not supported.");
-                               return SFS_ERROR;
-                              }
+{
+  (void)Func; (void)csName; (void)path; (void)eInfo; (void)client;
+  (void)opaque;
+  eInfo.setErrInfo(ENOTSUP, "Not supported.");
+  return SFS_ERROR;
+}
 
 //-----------------------------------------------------------------------------
 //! Change file mode settings.
@@ -289,7 +292,10 @@ virtual int            chmod(const char             *path,
 //! @param  client - Client's identify (see common description).
 //-----------------------------------------------------------------------------
 
-virtual void           Disc(const XrdSecEntity     *client = 0) {}
+virtual void           Disc(const XrdSecEntity     *client = 0)
+{
+  (void)client;
+}
 
 //-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 1)
@@ -324,7 +330,11 @@ virtual void           Disc(const XrdSecEntity     *client = 0) {}
 virtual int            FSctl(const int               cmd,
                                    XrdSfsFSctl      &args,
                                    XrdOucErrInfo    &eInfo,
-                             const XrdSecEntity     *client = 0) {return SFS_OK;}
+                             const XrdSecEntity     *client = 0)
+{
+  (void)cmd; (void)args; (void)eInfo; (void)client;
+  return SFS_OK;
+}
 
 //-----------------------------------------------------------------------------
 //! Perform a filesystem control operation (version 2)
@@ -685,7 +695,11 @@ virtual int            fctl(const int               cmd,
 virtual int            fctl(const int               cmd,
                                   int               alen,
                                   const char       *args,
-                            const XrdSecEntity     *client = 0) {return SFS_OK;}
+                            const XrdSecEntity     *client = 0)
+{
+  (void)cmd; (void)alen; (void)args; (void)client;
+  return SFS_OK;
+}
 
 //-----------------------------------------------------------------------------
 //! Get the file path.
@@ -788,7 +802,11 @@ virtual XrdSfsXferSize readv(XrdOucIOVec      *readV,
 
 virtual int            SendData(XrdSfsDio         *sfDio,
                                 XrdSfsFileOffset   offset,
-                                XrdSfsXferSize     size) {return SFS_OK;}
+                                XrdSfsXferSize     size)
+{
+  (void)sfDio; (void)offset; (void)size;
+  return SFS_OK;
+}
 
 //-----------------------------------------------------------------------------
 //! Write file bytes from a buffer.
@@ -900,7 +918,7 @@ virtual int            getCXinfo(char cxtype[4], int &cxrsz) = 0;
 //! @param  - Pointer to the XrdSfsXio object to be used for buffer exchanges.
 //-----------------------------------------------------------------------------
 
-virtual void           setXio(XrdSfsXio *xioP) {}
+virtual void           setXio(XrdSfsXio *xioP) { (void)xioP; }
 
 //-----------------------------------------------------------------------------
 //! Constructor (user and MonID are the ones passed to newFile()!)
@@ -993,7 +1011,8 @@ virtual const char *FName() = 0;
 //-----------------------------------------------------------------------------
 
 virtual int         autoStat(struct stat *buf)
-                            {error.setErrInfo(ENOTSUP, "Not supported.");
+                            {(void)buf;
+                             error.setErrInfo(ENOTSUP, "Not supported.");
                              return SFS_ERROR;
                             }
 

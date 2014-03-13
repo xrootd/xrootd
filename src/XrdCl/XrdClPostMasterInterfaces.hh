@@ -107,7 +107,7 @@ namespace XrdCl
       //!
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
-      virtual void Process( Message *msg ) {};
+      virtual void Process( Message *msg ) { (void)msg; };
 
       //------------------------------------------------------------------------
       //! Read message body directly from a socket - called if Examine returns
@@ -124,6 +124,7 @@ namespace XrdCl
                                       int       socket,
                                       uint32_t &bytesRead )
       {
+        (void)msg; (void)socket; (void)bytesRead;
         return Status( stOK, suDone );
       };
 
@@ -139,6 +140,7 @@ namespace XrdCl
                                      uint16_t    streamNum,
                                      Status      status )
       {
+        (void)event; (void)streamNum; (void)status;
         return 0;
       };
   };
@@ -166,7 +168,10 @@ namespace XrdCl
       //! @param msg       message concerned
       //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
-      virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
+      virtual void OnReadyToSend( Message *msg, uint16_t streamNum )
+      {
+        (void)msg; (void)streamNum;
+      };
 
       //------------------------------------------------------------------------
       //! Determines whether the handler wants to write some data directly
@@ -188,6 +193,7 @@ namespace XrdCl
       virtual Status WriteMessageBody( int       socket,
                                        uint32_t &bytesRead )
       {
+        (void)socket; (void)bytesRead;
         return Status();
       }
   };

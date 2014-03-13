@@ -100,8 +100,10 @@ static int   Allowed(XrdOucErrInfo *eInfo) {return eInfo->getErrCB() != 0;}
 XrdOucCallBack *Next;
 
 private:
-void  Done(int &Result,XrdOucErrInfo *eInfo,const char *Path=0) {cbSync.Post();}
-int   Same(unsigned long long arg1, unsigned long long arg2) {return 0;}
+void  Done(int &Result,XrdOucErrInfo *eInfo,const char *Path=0)
+{ (void)Result; (void)eInfo; (void)Path; cbSync.Post();}
+int   Same(unsigned long long arg1, unsigned long long arg2)
+{ (void)arg1; (void)arg2; return 0;}
 
 XrdSysSemaphore     cbSync;
 unsigned long long  cbArg;

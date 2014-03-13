@@ -879,7 +879,10 @@ namespace XrdCl
       //!                 (request dependent)
       //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response ) {}
+                                   AnyObject    *response )
+      {
+        (void)status; (void)response;
+      }
   };
 }
 

@@ -61,25 +61,25 @@ class XrdOssDF
 public:
                 // Directory oriented methods
 virtual int     Opendir(const char *, XrdOucEnv &)           {return -ENOTDIR;}
-virtual int     Readdir(char *buff, int blen)                {return -ENOTDIR;}
-virtual int     StatRet(struct stat *buff)                   {return -ENOTSUP;}
+virtual int     Readdir(char *buff, int blen)                {(void)buff; (void)blen; return -ENOTDIR;}
+virtual int     StatRet(struct stat *buff)                   {(void)buff; return -ENOTSUP;}
 
                 // File oriented methods
-virtual int     Fchmod(mode_t mode)                          {return -EISDIR;}
+virtual int     Fchmod(mode_t mode)                          {(void)mode; return -EISDIR;}
 virtual int     Fstat(struct stat *)                         {return -EISDIR;}
 virtual int     Fsync()                                      {return -EISDIR;}
-virtual int     Fsync(XrdSfsAio *aiop)                       {return -EISDIR;}
+virtual int     Fsync(XrdSfsAio *aiop)                       {(void)aiop; return -EISDIR;}
 virtual int     Ftruncate(unsigned long long)                {return -EISDIR;}
 virtual int     getFD()                                      {return -1;}
-virtual off_t   getMmap(void **addr)                         {return 0;}
-virtual int     isCompressed(char *cxidp=0)                  {return -EISDIR;}
+virtual off_t   getMmap(void **addr)                         {(void)addr; return 0;}
+virtual int     isCompressed(char *cxidp=0)                  {(void)cxidp; return -EISDIR;}
 virtual int     Open(const char *, int, mode_t, XrdOucEnv &) {return -EISDIR;}
 virtual ssize_t Read(off_t, size_t)                          {return (ssize_t)-EISDIR;}
 virtual ssize_t Read(void *, off_t, size_t)                  {return (ssize_t)-EISDIR;}
-virtual int     Read(XrdSfsAio *aoip)                        {return (ssize_t)-EISDIR;}
+virtual int     Read(XrdSfsAio *aoip)                        {(void)aoip; return (ssize_t)-EISDIR;}
 virtual ssize_t ReadRaw(    void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
 virtual ssize_t Write(const void *, off_t, size_t)           {return (ssize_t)-EISDIR;}
-virtual int     Write(XrdSfsAio *aiop)                       {return (ssize_t)-EISDIR;}
+virtual int     Write(XrdSfsAio *aiop)                       {(void)aiop; return (ssize_t)-EISDIR;}
 
 // Implemented in the header, as many folks will be happy with the default.
 //
@@ -119,7 +119,10 @@ virtual ssize_t WriteV(XrdOucIOVec *writeV, int n)
 virtual int     Close(long long *retsz=0)=0;
 inline  int     Handle() {return fd;}
 virtual int     Fctl(int cmd, int alen, const char *args, char **resp=0)
-                    {return -ENOTSUP;}
+{
+  (void)cmd; (void)alen; (void)args; (void)resp;
+  return -ENOTSUP;
+}
 
                 XrdOssDF() {fd = -1;}
 virtual        ~XrdOssDF() {}
@@ -180,28 +183,29 @@ virtual int     Init(XrdSysLogger *, const char *)=0;
 virtual int     Mkdir(const char *, mode_t mode, int mkpath=0,
                       XrdOucEnv *eP=0)=0;
 virtual int     Reloc(const char *, const char *, const char *, const char *x=0)
-                      {return -ENOTSUP;}
+                      {(void)x; return -ENOTSUP;}
 virtual int     Remdir(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
 virtual int     Rename(const char *, const char *,
                        XrdOucEnv *eP1=0, XrdOucEnv *eP2=0)=0;
 virtual int     Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0)=0;
 virtual int     StatFS(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
-                      {return -ENOTSUP;}
+{ (void)path; (void)buff; (void)blen; (void)eP; return -ENOTSUP;}
 virtual int     StatLS(XrdOucEnv &env, const char *cgrp, char *buff, int &blen)
-                      {return -ENOTSUP;}
+{ (void)env; (void)cgrp; (void)buff; (void)blen; return -ENOTSUP;}
 virtual int     StatPF(const char *, struct stat *)
                       {return -ENOTSUP;}
 virtual int     StatXA(const char *path, char *buff, int &blen, XrdOucEnv *eP=0)
-                      {return -ENOTSUP;}
+{ (void)path; (void)buff; (void)blen; (void)eP; return -ENOTSUP;}
 virtual int     StatXP(const char *path, unsigned long long &attr,
-                       XrdOucEnv *eP=0) {return -ENOTSUP;}
+                       XrdOucEnv *eP=0)
+{ (void)path; (void)attr; (void)eP; return -ENOTSUP;}
 virtual int     Truncate(const char *, unsigned long long, XrdOucEnv *eP=0)=0;
 virtual int     Unlink(const char *, int Opts=0, XrdOucEnv *eP=0)=0;
 
-virtual int     Stats(char *bp, int bl) {return 0;}
+virtual int     Stats(char *bp, int bl) { (void)bp; (void)bl; return 0;}
 
 virtual int     StatVS(XrdOssVSInfo *sP, const char *sname=0, int updt=0)
-                      {return -ENOTSUP;}
+{ (void)sP; (void)sname; (void)updt; return -ENOTSUP;}
 
 virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
                        {if ((int)strlen(Path) >= blen) return -ENAMETOOLONG;
@@ -209,10 +213,10 @@ virtual int     Lfn2Pfn(const char *Path, char *buff, int blen)
                        }
 virtual
 const char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
-                       {rc = 0; return Path;}
+{ (void)buff; (void)blen; rc = 0; return Path;}
 
 virtual int     FSctl(int cmd, int alen, const char *args, char **resp=0)
-                     {return -ENOTSUP;}
+{ (void)cmd; (void)alen; (void)args; (void)resp; return -ENOTSUP;}
 
                 XrdOss() {}
 virtual        ~XrdOss() {}

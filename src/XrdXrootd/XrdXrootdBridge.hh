@@ -261,7 +261,11 @@ virtual int   Send(const
                    const
                    struct iovec *tailP, //!< pointer to trailing data array
                    int           tailN  //!< array count
-                  ) {return 1;}
+                  )
+{
+  (void)headP; (void)headN; (void)tailP; (void)tailN;
+  return 1;
+}
 
 //-----------------------------------------------------------------------------
 //! Constructor and Destructor
@@ -397,7 +401,10 @@ virtual int   File(Bridge::Context &info,  //!< the result context
 virtual void  Free(Bridge::Context &info,  //!< the result context
                    char            *buffP, //!< pointer to the buffer
                    int              buffL  //!< original length to Run()
-                  ) {}                     //!< The default is to do nothing
+                  )
+{
+  (void)info; (void)buffP; (void)buffL;
+}
 
 //-----------------------------------------------------------------------------
 //! Redirect the client to another host:port.
@@ -437,7 +444,11 @@ virtual bool  Redir(Bridge::Context &info,   //!< the result context
 virtual bool  Wait(Bridge::Context &info,   //!< the result context
                    int              wtime,  //!< the wait time
                    const char      *wtext   //!< associated message
-                   ) {return false;}
+                   )
+{
+  (void)info; (void)wtime; (void)wtext;
+  return false;
+}
 
 //-----------------------------------------------------------------------------
 //! Effect a client wait response (waitresp) NOT CURRENTLY IMPLEMENTED!
@@ -462,7 +473,11 @@ virtual
 Bridge::Result *WaitResp(Bridge::Context &info,   //!< the result context
                          int              wtime,  //!< the wait time
                          const char      *wtext   //!< associated message
-                        ) {return 0;}
+                        )
+{
+  (void)info; (void)wtime; (void)wtext;
+  return 0;
+}
 
 //-----------------------------------------------------------------------------
 //! Constructor & Destructor
