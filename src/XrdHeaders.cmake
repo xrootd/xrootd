@@ -107,6 +107,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdClient/XrdClientSock.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
+  XrdNet/XrdNetIF.hh
   XrdOfs/XrdOfs.hh
   XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsHandle.hh
