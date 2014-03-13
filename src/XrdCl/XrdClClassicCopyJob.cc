@@ -1091,7 +1091,9 @@ namespace
         if( pCoerce )
           flags |= OpenFlags::Force;
 
-        return pFile->Open( pUrl->GetURL(), flags, Access::UR|Access::UW);
+        Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
+
+        return pFile->Open( pUrl->GetURL(), flags, mode );
       }
 
       //------------------------------------------------------------------------
