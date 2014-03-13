@@ -1465,7 +1465,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -c co-locate staged files if possible\n"                    );
   printf( "     -f refresh file access time even if the location is known\n" );
   printf( "     -s stage the files to disk if they are not online\n"        );
-  printf( "     -w whe files will be accessed for modification\n"           );
+  printf( "     -w the files will be accessed for modification\n"           );
   printf( "     -p priority of the request, 0 (lowest) - 3 (highest)\n\n"   );
 
   printf( "   cat [-o local file] file\n"                                   );
