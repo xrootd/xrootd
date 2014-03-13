@@ -186,7 +186,18 @@ namespace XrdCl
 
     Log *log = DefaultEnv::GetLog();
     log->Debug( PollerMsg, "Stopping the poller..." );
+
     XrdSysMutexHelper scopedLock( pMutex );
+    if( !pPoller )
+      log->Debug( PollerMsg, "Stopping a poller that has not been started" );
+
+    XrdSys::IOEvents::Poller *poller = pPoller;
+    pPoller = 0;
+
+    scopedLock.UnLock();
+    poller->Stop();
+    delete poller;
+    scopedLock.Lock( &pMutex );
 
     SocketMap::iterator  it;
     const char          *errMsg = 0;
@@ -204,16 +215,6 @@ namespace XrdCl
       helper->channel->Delete();
       helper->channel = 0;
     }
-
-    if( !pPoller )
-    {
-      log->Debug( PollerMsg, "Stopping a poller that has not been started" );
-      return true;
-    }
-
-    pPoller->Stop();
-    delete pPoller;
-    pPoller = 0;
 
     return true;
   }
