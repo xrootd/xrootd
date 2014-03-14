@@ -1152,7 +1152,7 @@ namespace XrdCl
     std::string checkSumMode;
     std::string checkSumType;
     std::string checkSumPreset;
-    uint8_t     parallelChunks;
+    uint16_t    parallelChunks;
     uint32_t    chunkSize;
     bool        posc, force, coerce, makeDir, dynamicSource;
 
