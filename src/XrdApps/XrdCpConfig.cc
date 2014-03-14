@@ -214,7 +214,6 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpDebug:    OpSpec |= DoDebug;
                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
                            break;
-                           break;
           case OpDynaSrc:  OpSpec |= DoDynaSrc;
                            break;
           case OpForce:    OpSpec |= DoForce;
@@ -228,6 +227,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpLicense:  License();
                            break;
           case OpNoPbar:   OpSpec |= DoNoPbar;
+                           break;
           case OpPosc:     OpSpec |= DoPosc;
                            break;
           case OpProxy:    OpSpec |= DoProxy;
