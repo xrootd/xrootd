@@ -121,10 +121,10 @@ static const int    OpRecursv  =  'R';
 static const int    DoRecurse  =  0x00000800; // -r | --recursive | -R {legacy}
 
 static const int    OpRetry    =  't';
-static const int    DoRetry    =  0x00001000; // --coerce
+static const int    DoRetry    =  0x00001000; // -t | --retry
 
 static const int    OpServer   =  0x03;
-static const int    DoServer   =  0x00002000; // -s | --silent
+static const int    DoServer   =  0x00002000; //      --server
 
 static const int    OpSilent   =  's';
 static const int    DoSilent   =  0x00004000; // -s | --silent
