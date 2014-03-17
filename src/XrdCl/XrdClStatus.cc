@@ -64,6 +64,7 @@ namespace
     { errNoMoreFreeSIDs,     "No more free SIDs"    },
     { errInvalidRedirectURL, "Invalid redirect URL" },
     { errInvalidResponse,    "Invalid response"     },
+    { errRedirect,           "Unhandled redirect"   },
     { errErrorResponse,      "Error response"       },
     { errResponseNegative,   "Query response negative" },
     { 0, 0 } };
