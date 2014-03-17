@@ -235,7 +235,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Handle stateful redirect
       //------------------------------------------------------------------------
-      void OnStateRedirection( RedirectInfo      *redirectInfo,
+      void OnStateRedirection( const std::string &redirectUrl,
                                Message           *message,
                                ResponseHandler   *userHandler,
                                MessageSendParams &sendParams );

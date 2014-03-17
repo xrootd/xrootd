@@ -349,7 +349,7 @@ namespace XrdCl
       bool                       pHasLoadBalancer;
       HostInfo                   pLoadBalancer;
       bool                       pHasSessionId;
-      std::string                pRedirectCgi;
+      std::string                pRedirectUrl;
       ChunkList                 *pChunkList;
       std::vector<ChunkStatus>   pChunkStatus;
       uint16_t                   pRedirectCounter;
