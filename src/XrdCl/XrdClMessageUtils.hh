@@ -181,17 +181,20 @@ namespace XrdCl
       static void ProcessSendParams( MessageSendParams &sendParams );
 
       //------------------------------------------------------------------------
-      //! Append cgi to the on already present in the message
+      //! Rewrite CGI and path if necessary
       //!
       //! @param msg     message concerned
       //! @param newCgi  the new cgi
       //! @param replace indicates whether, in case of a conflict, the new CGI
       //!                parameter should replace an existing one or be
       //!                appended to it using a comma
+      //! @param newPath will be used as the new destination path if it is
+      //!                not empty
       //------------------------------------------------------------------------
-      static void AppendCGI( Message              *msg,
-                             const URL::ParamsMap &newCgi,
-                             bool                  replace );
+      static void RewriteCGIAndPath( Message              *msg,
+                                     const URL::ParamsMap &newCgi,
+                                     bool                  replace,
+                                     const std::string    &newPath );
 
       //------------------------------------------------------------------------
       //! Merge cgi2 into cgi1

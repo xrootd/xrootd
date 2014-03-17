@@ -153,9 +153,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Append cgi to the one already present in the message
   //----------------------------------------------------------------------------
-  void MessageUtils::AppendCGI( Message              *msg,
-                                const URL::ParamsMap &newCgi,
-                                bool                  replace )
+  void MessageUtils::RewriteCGIAndPath( Message              *msg,
+                                        const URL::ParamsMap &newCgi,
+                                        bool                  replace,
+                                        const std::string    &newPath )
   {
     ClientRequest  *req = (ClientRequest *)msg->GetBuffer();
     switch( req->header.requestid )
@@ -197,12 +198,14 @@ namespace XrdCl
         URL::ParamsMap currentCgi = currentPath.GetParams();
         MergeCGI( currentCgi, newCgi, replace );
         currentPath.SetParams( currentCgi );
-        std::string newPath = currentPath.GetPathWithParams();
+        if( !newPath.empty() )
+          currentPath.SetPath( newPath );
+        std::string newPathWitParams = currentPath.GetPathWithParams();
 
         //----------------------------------------------------------------------
         // Write the path with the new cgi appended to the message
         //----------------------------------------------------------------------
-        uint32_t newDlen = req->header.dlen - length + newPath.size();
+        uint32_t newDlen = req->header.dlen - length + newPathWitParams.size();
         msg->ReAllocate( 24+newDlen );
         req  = (ClientRequest *)msg->GetBuffer();
         path = msg->GetBuffer( 24 );
@@ -213,7 +216,7 @@ namespace XrdCl
               break;
           ++path;
         }
-        memcpy( path, newPath.c_str(), newPath.size() );
+        memcpy( path, newPathWitParams.c_str(), newPathWitParams.size() );
         req->header.dlen = newDlen;
         break;
       }
