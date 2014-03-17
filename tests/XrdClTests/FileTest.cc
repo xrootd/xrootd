@@ -107,14 +107,12 @@ void FileTest::RedirectReturnTest()
   SyncResponseHandler *handler = new SyncResponseHandler();
   MessageSendParams params; params.followRedirects = false;
   MessageUtils::ProcessSendParams( params );
-  st = MessageUtils::SendMessage( url, msg, handler, params );
-  RedirectInfo *response = 0;
-  CPPUNIT_ASSERT( st.IsOK() );
+  OpenInfo *response = 0;
+  CPPUNIT_ASSERT_XRDST( MessageUtils::SendMessage( url, msg, handler, params ) );
   XRootDStatus st1 = MessageUtils::WaitForResponse( handler, response );
   delete handler;
-  CPPUNIT_ASSERT( st1.IsOK() );
-  CPPUNIT_ASSERT( st1.code == suXRDRedirect );
-  CPPUNIT_ASSERT( response );
+  CPPUNIT_ASSERT_XRDST_NOTOK( st1, errRedirect );
+  CPPUNIT_ASSERT( !response );
   delete response;
 }
 
