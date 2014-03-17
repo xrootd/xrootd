@@ -387,7 +387,10 @@ namespace XrdCl
         std::string newCgi;
         Utils::splitString( urlComponents, urlInfo, "?" );
         std::ostringstream o;
-        o << urlComponents[0] << ":" << rsp->body.redirect.port << "/";
+
+        o << urlComponents[0];
+        if( rsp->body.redirect.port != -1 )
+          o << ":" << rsp->body.redirect.port << "/";
         pUrl = URL( o.str() );
         if( !pUrl.IsValid() )
         {
@@ -422,7 +425,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
-        Status st = RewriteRequestRedirect( cgiURL.GetParams() );
+        Status st = RewriteRequestRedirect( cgiURL.GetParams(),
+                                            pUrl.GetPath() );
         if( !st.IsOK() )
         {
           pStatus = st;
@@ -1442,7 +1446,9 @@ namespace XrdCl
   // Perform the changes to the original request needed by the redirect
   // procedure - allocate new streamid, append redirection data and such
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RewriteRequestRedirect( const URL::ParamsMap &newCgi )
+  Status XRootDMsgHandler::RewriteRequestRedirect(
+    const URL::ParamsMap &newCgi,
+    const std::string    &newPath )
   {
     Log *log = DefaultEnv::GetLog();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
@@ -1482,7 +1488,7 @@ namespace XrdCl
       return Status();
 
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::AppendCGI( pRequest, newCgi, true );
+    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newPath );
     XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
@@ -1746,7 +1752,7 @@ namespace XrdCl
     URL::ParamsMap cgi;
     cgi["tried"] = pUrl.GetHostName();
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::AppendCGI( pRequest, cgi, false );
+    MessageUtils::RewriteCGIAndPath( pRequest, cgi, false, "" );
     XRootDTransport::MarshallRequest( pRequest );
   }
 
