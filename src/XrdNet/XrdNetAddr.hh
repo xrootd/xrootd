@@ -182,6 +182,16 @@ static void SetCache(int keeptime);
 static void SetIPV4();
 
 //------------------------------------------------------------------------------
+//! Force this object to work in IPV6 mode using IPV6 or mapped IPV4 addresses.
+//! This method permanently sets IPV6 mode which cannot be undone without a
+//! restart. It is meant to disable the default mode which determines which
+//! address to use based on which address types are configured on the host
+//! (i.e. getaddrinfo() with hints AI_ADDRCONFIG|AI_V4MAPPED).
+//------------------------------------------------------------------------------
+
+static void SetIPV6();
+
+//------------------------------------------------------------------------------
 //! Set the location for this address
 //!
 //! @param  loc  pointer to the structure that describes the location. See

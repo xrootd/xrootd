@@ -93,7 +93,7 @@ struct addrinfo *XrdNetAddr::Hints(int htype, int stype)
 // in a static constructor since the addrinfo layout differs by OS-type.
 //
    memset(&theHints[htype], 0, sizeof(struct addrinfo));;
-   if (htype) theHints[htype].ai_flags    = AI_V4MAPPED | AI_ALL;
+   if (htype) theHints[htype].ai_flags    = AI_V4MAPPED | AI_ADDRCONFIG;
        else   theHints[htype].ai_flags    = AI_V4MAPPED | AI_CANONNAME;
    theHints[htype].ai_family   = AF_INET6;
    theHints[htype].ai_socktype = stype;
@@ -458,4 +458,26 @@ void XrdNetAddr::SetIPV4()
    huntHintsUDP->ai_family   = AF_INET;
 
    useIPV4 = true;
+}
+
+/******************************************************************************/
+/*                               S e t I P V 6                                */
+/******************************************************************************/
+  
+void XrdNetAddr::SetIPV6()
+{
+
+// To force IPV6 mode we merely change the hints structure and set the IPV4
+// mode flag to accept IPV6 address.
+//
+   hostHints->ai_flags    = AI_V4MAPPED | AI_CANONNAME;
+   hostHints->ai_family   = AF_INET6;
+
+   huntHintsTCP->ai_flags    = AI_V4MAPPED | AI_ALL;
+   huntHintsTCP->ai_family   = AF_INET6;
+
+   huntHintsUDP->ai_flags    = AI_V4MAPPED | AI_ALL;
+   huntHintsUDP->ai_family   = AF_INET6;
+
+   useIPV4 = false;
 }
