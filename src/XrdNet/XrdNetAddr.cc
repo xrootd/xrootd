@@ -95,7 +95,7 @@ struct addrinfo *XrdNetAddr::Hints(int htype, int stype)
    memset(&theHints[htype], 0, sizeof(struct addrinfo));;
    if (htype) theHints[htype].ai_flags    = AI_V4MAPPED | AI_ADDRCONFIG;
        else   theHints[htype].ai_flags    = AI_V4MAPPED | AI_CANONNAME;
-   theHints[htype].ai_family   = AF_INET6;
+   theHints[htype].ai_family   = AF_UNSPEC;
    theHints[htype].ai_socktype = stype;
    return &theHints[htype];
 }
