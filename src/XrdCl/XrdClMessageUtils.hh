@@ -91,6 +91,23 @@ namespace XrdCl
   };
 
   //----------------------------------------------------------------------------
+  // We're not interested in the response just commit suicide
+  //----------------------------------------------------------------------------
+  class NullResponseHandler: public XrdCl::ResponseHandler
+  {
+    public:
+      //------------------------------------------------------------------------
+      // Handle the response
+      //------------------------------------------------------------------------
+      virtual void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
+                                            XrdCl::AnyObject    *response,
+                                            XrdCl::HostList     *hostList )
+      {
+        delete this;
+      }
+  };
+
+  //----------------------------------------------------------------------------
   // Sending parameters
   //----------------------------------------------------------------------------
   struct MessageSendParams
