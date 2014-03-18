@@ -207,6 +207,9 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
           case prefIPv6: hints.ai_family = AF_INET6;
                          hints.ai_flags  = AI_V4MAPPED;
                          break;
+          case prefAuto: hints.ai_family = AF_UNSPEC;
+                         hints.ai_flags  = AI_V4MAPPED|AI_ADDRCONFIG;
+                         break;
           default:       hints.ai_family = AF_INET6;
                          hints.ai_flags  = AI_V4MAPPED | AI_ALL;
                          break;

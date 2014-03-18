@@ -94,6 +94,8 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //!                  onlyIPv6 - only          IPv6 addrs
 //!                  onlyIPv4 - only unmapped IPv4 addrs
 //!                  prefIPv6 - only IPv6 addrs; if none, mapped IPv4 addrs
+//!                  prefAuto - Returns addresses based on configured addrs.
+//!                             Addresses may be a mixture of IPv4 & IPv6.
 //!                  The above may be or'd with one or more of the following:
 //!                  onlyUDP  - only addrs valid for UDP connections else TCP
 //! @param  pNum     >= 0 uses the value as the port number regardless of what
@@ -116,7 +118,7 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 
 enum AddrOpts {allIPMap=  0, allIPv64=  1, allV4Map=  2,
                onlyIPv6=  3, onlyIPv4=  4, prefIPv6=  8,
-               onlyUDP =128
+               prefAuto= 16, onlyUDP =128
               };
 
 static const int PortInSpec = (int)0x80000000;
