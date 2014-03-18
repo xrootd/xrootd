@@ -428,7 +428,10 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     msg->SetSessionId( pSessionId );
     CloseHandler *closeHandler = new CloseHandler( this, handler, msg );
-    MessageSendParams params; params.timeout = timeout;
+    MessageSendParams params;
+    params.timeout = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pDataServer, msg, closeHandler, params );
@@ -1338,6 +1341,7 @@ namespace XrdCl
     Status st;
     if( pStateRedirect )
     {
+      SendClose( 300 );
       st = ReOpenFileAtServer( *pStateRedirect, 300 );
       delete pStateRedirect; pStateRedirect = 0;
     }
@@ -1353,6 +1357,31 @@ namespace XrdCl
     }
 
     return st;
+  }
+
+  //----------------------------------------------------------------------------
+  // Send a close and ignore the response
+  //----------------------------------------------------------------------------
+  Status FileStateHandler::SendClose( uint16_t timeout )
+  {
+    Message            *msg;
+    ClientCloseRequest *req;
+    MessageUtils::CreateRequest( msg, req );
+
+    req->requestid = kXR_close;
+    memcpy( req->fhandle, pFileHandle, 4 );
+
+    XRootDTransport::SetDescription( msg );
+    msg->SetSessionId( pSessionId );
+    NullResponseHandler *handler = new NullResponseHandler();
+    MessageSendParams params;
+    params.timeout         = timeout;
+    params.followRedirects = false;
+    params.stateful        = true;
+
+    MessageUtils::ProcessSendParams( params );
+
+    return MessageUtils::SendMessage( *pDataServer, msg, handler, params );
   }
 
   //----------------------------------------------------------------------------
