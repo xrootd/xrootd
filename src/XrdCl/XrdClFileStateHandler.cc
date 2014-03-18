@@ -1341,14 +1341,14 @@ namespace XrdCl
     Status st;
     if( pStateRedirect )
     {
-      SendClose( 300 );
-      st = ReOpenFileAtServer( *pStateRedirect, 300 );
+      SendClose( 0 );
+      st = ReOpenFileAtServer( *pStateRedirect, 0 );
       delete pStateRedirect; pStateRedirect = 0;
     }
     else if( IsReadOnly() && pLoadBalancer )
-      st = ReOpenFileAtServer( *pLoadBalancer, 300 );
+      st = ReOpenFileAtServer( *pLoadBalancer, 0 );
     else
-      st = ReOpenFileAtServer( *pDataServer, 300 );
+      st = ReOpenFileAtServer( *pDataServer, 0 );
 
     if( !st.IsOK() )
     {
