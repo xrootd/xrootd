@@ -242,7 +242,7 @@ for (i = 0; i < srcnum; i++)
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 {
    char ipBuff[256];
-   short ifNum, sval[4] = {0, 0, 0, 0};
+   short ifIdx, sval[4] = {0, 0, 0, 0};
    short iLen;
 
 #ifdef HAVE_GETIFADDRS
@@ -267,7 +267,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
    ifP = ifBase;
    while(ifP)
         {if ((ifP->ifa_addr != 0)
-         &&  IsOkName(ifP->ifa_name, ifNum)
+         &&  IsOkName(ifP->ifa_name, ifIdx)
          &&  (ifP->ifa_flags & (IFF_UP))
          &&  (ifP->ifa_flags & (IFF_RUNNING))
          && !(ifP->ifa_flags & (IFF_LOOPBACK))
@@ -281,7 +281,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
             {netAddr.Set(ifP->ifa_addr);
              if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
                          XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort)))
-                {sval[2] = ifNum;
+                {sval[2] = ifIdx;
                  sval[1] = (netAddr.isPrivate() ? 1 : 0);
                  sval[0] = iLen;
                  tLP = new XrdOucTList(ipBuff, sval);
@@ -420,11 +420,11 @@ bool XrdNetIF::InDomain(XrdNetAddrInfo *epaddr)
 /*                              I s O k N a m e                               */
 /******************************************************************************/
 
-bool XrdNetIF::IsOkName(const char *ifn, short &ifNum)
+bool XrdNetIF::IsOkName(const char *ifn, short &ifIdx)
 {
    if (!ifn) return false;
-        if (ifCfg[0] && !strcmp(ifn, ifCfg[0])) ifNum = 0;
-   else if (ifCfg[1] && !strcmp(ifn, ifCfg[1])) ifNum = 1;
+        if (ifCfg[0] && !strcmp(ifn, ifCfg[0])) ifIdx = 0;
+   else if (ifCfg[1] && !strcmp(ifn, ifCfg[1])) ifIdx = 1;
    else return false;
    return true;
 }
