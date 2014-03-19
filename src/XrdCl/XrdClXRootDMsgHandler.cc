@@ -386,7 +386,7 @@ namespace XrdCl
         std::vector<std::string> urlComponents;
         std::string newCgi;
         Utils::splitString( urlComponents, urlInfo, "?" );
-        pRedirectUrl = urlInfo;
+
         std::ostringstream o;
 
         o << urlComponents[0];
@@ -401,6 +401,7 @@ namespace XrdCl
           HandleResponse();
           return;
         }
+        pRedirectUrl = pUrl.GetURL();
 
         URL cgiURL;
         if( urlComponents.size() > 1 )
@@ -408,6 +409,8 @@ namespace XrdCl
           std::ostringstream o;
           o << "fake://fake:111//fake?";
           o << urlComponents[1];
+          pRedirectUrl += "?";
+          pRedirectUrl += urlComponents[1];
           cgiURL = URL( o.str() );
         }
 
