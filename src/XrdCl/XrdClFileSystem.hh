@@ -652,11 +652,16 @@ namespace XrdCl
 
       //------------------------------------------------------------------------
       //! Set filesystem property
+      //!
+      //! Filesystem properties:
+      //! FollowRedirects  [true/false] - enable/disable following redirections
       //------------------------------------------------------------------------
       bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
       //! Get filesystem property
+      //!
+      //! @see FileSystem::SetProperty for property list
       //------------------------------------------------------------------------
       bool GetProperty( const std::string &name, std::string &value ) const;
 
@@ -667,7 +672,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status Send( Message                 *msg,
                    ResponseHandler         *handler,
-                   const MessageSendParams &params );
+                   MessageSendParams       &params );
 
       //------------------------------------------------------------------------
       // Assign a load balancer if it has not already been assigned
@@ -692,6 +697,7 @@ namespace XrdCl
 
       XrdSysMutex       pMutex;
       bool              pLoadBalancerLookupDone;
+      bool              pFollowRedirects;
       URL              *pUrl;
       FileSystemPlugIn *pPlugIn;
   };

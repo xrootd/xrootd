@@ -299,6 +299,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileSystem::FileSystem( const URL &url, bool enablePlugIns ):
     pLoadBalancerLookupDone( false ),
+    pFollowRedirects( true ),
     pPlugIn(0)
   {
     pUrl = new URL( url.GetURL() );
@@ -1108,6 +1109,12 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->SetProperty( name, value );
 
+    if( name == "FollowRedirects" )
+    {
+      if( value == "true" ) pFollowRedirects = true;
+      else pFollowRedirects = false;
+      return true;
+    }
     return false;
   }
 
@@ -1120,6 +1127,12 @@ namespace XrdCl
     if( pPlugIn )
       return pPlugIn->GetProperty( name, value );
 
+    if( name == "FollowRedirects" )
+    {
+      if( pFollowRedirects ) value = "true";
+      else value = "false";
+      return true;
+    }
     return false;
   }
 
@@ -1145,9 +1158,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message in a locked environment
   //----------------------------------------------------------------------------
-  Status FileSystem::Send( Message                 *msg,
-                           ResponseHandler         *handler,
-                           const MessageSendParams &params )
+  Status FileSystem::Send( Message                  *msg,
+                           ResponseHandler          *handler,
+                           MessageSendParams        &params )
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -1155,8 +1168,10 @@ namespace XrdCl
     log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
                pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-    if( !pLoadBalancerLookupDone )
+    if( !pLoadBalancerLookupDone && pFollowRedirects )
       handler = new AssignLBHandler( this, handler );
+
+    params.followRedirects = pFollowRedirects;
 
     return MessageUtils::SendMessage( *pUrl, msg, handler, params );
   }
