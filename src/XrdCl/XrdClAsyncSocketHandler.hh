@@ -117,14 +117,6 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! Set socket domain
-      //------------------------------------------------------------------------
-      void SetSocketDomain( int domain )
-      {
-        pSocketDomain = domain;
-      }
-
-      //------------------------------------------------------------------------
       //! Get timestamp of last registered socket activity
       //------------------------------------------------------------------------
       time_t GetLastActivity()
@@ -218,7 +210,6 @@ namespace XrdCl
       OutgoingMsgHandler            *pOutHandler;
       uint32_t                       pIncMsgSize;
       uint32_t                       pOutMsgSize;
-      int                            pSocketDomain;
       time_t                         pLastActivity;
   };
 }

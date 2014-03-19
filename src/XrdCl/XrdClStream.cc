@@ -183,11 +183,6 @@ namespace XrdCl
                                                     0 );
     s->SetStream( this );
 
-    if( pAddressType == Utils::IPv4 )
-      s->SetSocketDomain( AF_INET );
-    else
-      s->SetSocketDomain( AF_INET6 );
-
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
     return Status();
