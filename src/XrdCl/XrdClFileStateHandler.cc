@@ -186,22 +186,6 @@ namespace
         pSendParams.hostList = hostList;
 
         //----------------------------------------------------------------------
-        // We have been sent out elsewhere, and we can handle it
-        //----------------------------------------------------------------------
-        if( !status->IsOK() && status->code == errRedirect )
-        {
-          std::string root = "root", xroot = "xroot";
-          std::string msg = status->GetErrorMessage();
-          if( !msg.compare( 0, root.size(), root ) ||
-              !msg.compare( 0, xroot.size(), xroot ) )
-          {
-            pStateHandler->OnStateRedirection( msg, pMessage, this,
-                                               pSendParams );
-            return;
-          }
-        }
-
-        //----------------------------------------------------------------------
         // Houston we have a problem...
         //----------------------------------------------------------------------
         if( !status->IsOK() )
@@ -254,7 +238,8 @@ namespace XrdCl
     pOpenFlags( 0 ),
     pSessionId( 0 ),
     pDoRecoverRead( true ),
-    pDoRecoverWrite( true )
+    pDoRecoverWrite( true ),
+    pFollowRedirects( true )
   {
     pFileHandle = new uint8_t[4];
     ResetMonitoringVars();
@@ -373,6 +358,7 @@ namespace XrdCl
     XRootDTransport::SetDescription( msg );
     OpenHandler *openHandler = new OpenHandler( this, handler );
     MessageSendParams params; params.timeout = timeout;
+    params.followRedirects = pFollowRedirects;
     MessageUtils::ProcessSendParams( params );
 
     Status st = MessageUtils::SendMessage( *pFileUrl, msg, openHandler, params );
@@ -840,6 +826,12 @@ namespace XrdCl
       else pDoRecoverWrite = false;
       return true;
     }
+    else if( name == "FollowRedirects" )
+    {
+      if( value == "true" ) pFollowRedirects = true;
+      else pFollowRedirects = false;
+      return true;
+    }
     return false;
   }
 
@@ -859,6 +851,12 @@ namespace XrdCl
     else if( name == "WriteRecovery" )
     {
       if( pDoRecoverWrite ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "FollowRedirects" )
+    {
+      if( pFollowRedirects ) value = "true";
       else value = "false";
       return true;
     }
@@ -1016,6 +1014,24 @@ namespace XrdCl
                                        ResponseHandler   *userHandler,
                                        MessageSendParams &sendParams )
   {
+    //--------------------------------------------------------------------------
+    // It may be a redirection
+    //--------------------------------------------------------------------------
+    if( !status->IsOK() && status->code == errRedirect && pFollowRedirects )
+    {
+      std::string root = "root", xroot = "xroot";
+      std::string msg = status->GetErrorMessage();
+      if( !msg.compare( 0, root.size(), root ) ||
+          !msg.compare( 0, xroot.size(), xroot ) )
+      {
+        OnStateRedirection( msg, message, userHandler, sendParams );
+        return;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Handle error
+    //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
     pInTheFly.erase( message );

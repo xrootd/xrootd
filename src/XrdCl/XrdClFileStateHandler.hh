@@ -413,6 +413,7 @@ namespace XrdCl
       uint64_t                pSessionId;
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
+      bool                    pFollowRedirects;
 
       //------------------------------------------------------------------------
       // Monitoring variables

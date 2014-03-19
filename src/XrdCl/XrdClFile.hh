@@ -355,8 +355,9 @@ namespace XrdCl
       //! Set file property
       //!
       //! File properties:
-      //! ReadRecovery   [true/false] - enable/disable read recovery
-      //! WriteRecovery  [true/false] - enable/disable write recovery
+      //! ReadRecovery     [true/false] - enable/disable read recovery
+      //! WriteRecovery    [true/false] - enable/disable write recovery
+      //! FollowRedirects  [true/false] - enable/disable following redirections
       //------------------------------------------------------------------------
       bool SetProperty( const std::string &name, const std::string &value );
 
