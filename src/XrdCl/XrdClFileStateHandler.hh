@@ -256,20 +256,14 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Set file property
       //!
-      //! File properties:
-      //! ReadRecovery   [true/false] - enable/disable read recovery
-      //! WriteRecovery  [true/false] - enable/disable write recovery
+      //! @see File::GetProperty for propert list
       //------------------------------------------------------------------------
       bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
       //! Get file property
       //!
-      //! @see SetProperty for property list
-      //!
-      //! Read-only properties:
-      //! DataServer [string] - the data server the file is accessed at
-      //! LastURL    [string] - final file URL with all the cgi information
+      //! @see File::SetProperty for property list
       //------------------------------------------------------------------------
       bool GetProperty( const std::string &name, std::string &value ) const;
 

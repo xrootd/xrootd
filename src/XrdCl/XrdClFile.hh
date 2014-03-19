@@ -363,7 +363,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Get file property
       //!
-      //! @see SetProperty for property list
+      //! @see File::SetProperty for property list
       //!
       //! Read-only properties:
       //! DataServer [string] - the data server the file is accessed at

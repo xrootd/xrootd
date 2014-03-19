@@ -651,9 +651,9 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                pFile->GetDataServer(),
-                                                pUrl->GetPath() );
+                                                dataServer, pUrl->GetPath() );
       }
 
     private:
@@ -805,9 +805,9 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                pFile->GetDataServer(),
-                                                pUrl->GetPath() );
+                                                dataServer, pUrl->GetPath() );
       }
 
     private:
@@ -1117,9 +1117,9 @@ namespace
       virtual XrdCl::XRootDStatus GetCheckSum( std::string &checkSum,
                                                std::string &checkSumType )
       {
+        std::string dataServer; pFile->GetProperty( "DataServer", dataServer );
         return XrdCl::Utils::GetRemoteCheckSum( checkSum, checkSumType,
-                                                pFile->GetDataServer(),
-                                                pUrl->GetPath() );
+                                                dataServer, pUrl->GetPath() );
       }
 
     private:

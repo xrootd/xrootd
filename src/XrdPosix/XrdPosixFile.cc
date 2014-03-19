@@ -168,7 +168,8 @@ void XrdPosixFile::HandleResponse(XrdCl::XRootDStatus *status,
   
 const char *XrdPosixFile::Path()
 {
-   if (!fPath) fPath = strdup(clFile.GetLastURL().GetURL().c_str());
+   std::string fileUrl; clFile.GetProperty( "LastURL", fileUrl );
+   if (!fPath) fPath = strdup(fileUrl.c_str());
    return fPath;
 }
 

@@ -207,7 +207,8 @@ namespace XrdCl
                   realTarget.GetURL().c_str(), st.ToStr().c_str() );
       return st;
     }
-    realTarget = targetFile.GetLastURL();
+    std::string lastUrl; targetFile.GetProperty( "LastURL", lastUrl );
+    realTarget = lastUrl;
 
     //--------------------------------------------------------------------------
     // Generate the source CGI
@@ -495,7 +496,9 @@ namespace XrdCl
       st.status = stFatal;
       return st;
     }
-    properties->Set( "tpcSource", sourceFile.GetLastURL().GetURL() );
+    std::string sourceUrl; sourceFile.GetProperty( "LastURL", sourceUrl );
+    URL         sourceUrlU = sourceUrl;
+    properties->Set( "tpcSource", sourceUrl );
     StatInfo *statInfo;
     sourceFile.Stat( false, statInfo );
     properties->Set( "sourceSize", statInfo->GetSize() );
@@ -521,7 +524,7 @@ namespace XrdCl
         timeLeft =- (now-start);
     }
 
-    st = Utils::CheckTPC( sourceFile.GetLastURL().GetHostId(), timeLeft );
+    st = Utils::CheckTPC( sourceUrlU.GetHostId(), timeLeft );
     if( !st.IsOK() )
       return st;
 
