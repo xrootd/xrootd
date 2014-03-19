@@ -1100,6 +1100,30 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Set file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::SetProperty( const std::string &name,
+                                const std::string &value )
+  {
+    if( pPlugIn )
+      return pPlugIn->SetProperty( name, value );
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::GetProperty( const std::string &name,
+                                std::string &value ) const
+  {
+    if( pPlugIn )
+      return pPlugIn->GetProperty( name, value );
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Assign a load balancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )

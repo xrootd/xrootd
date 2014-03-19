@@ -650,6 +650,16 @@ namespace XrdCl
                             Buffer                         *&response,
                             uint16_t                         timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Set filesystem property
+      //------------------------------------------------------------------------
+      bool SetProperty( const std::string &name, const std::string &value );
+
+      //------------------------------------------------------------------------
+      //! Get filesystem property
+      //------------------------------------------------------------------------
+      bool GetProperty( const std::string &name, std::string &value ) const;
+
     private:
 
       //------------------------------------------------------------------------

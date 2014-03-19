@@ -368,6 +368,26 @@ namespace XrdCl
         (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
       }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::SetProperty
+      //------------------------------------------------------------------------
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
+      {
+        (void)name; (void)value;
+        return false;
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::GetProperty
+      //------------------------------------------------------------------------
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
+      {
+        (void)name; (void)value;
+        return false;
+      }
   };
 
   //----------------------------------------------------------------------------
