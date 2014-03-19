@@ -458,6 +458,10 @@ void XrdNetAddr::SetIPV4()
    huntHintsUDP->ai_family   = AF_INET;
 
    useIPV4 = true;
+
+// Inform NetUtils that we changed mode
+//
+   XrdNetUtils::SetAuto(XrdNetUtils::onlyIPv4);
 }
 
 /******************************************************************************/
@@ -480,4 +484,8 @@ void XrdNetAddr::SetIPV6()
    huntHintsUDP->ai_family   = AF_INET6;
 
    useIPV4 = false;
+
+// Inform NetUtils that we changed mode
+//
+   XrdNetUtils::SetAuto(XrdNetUtils::allIPMap);
 }

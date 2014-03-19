@@ -235,8 +235,6 @@ for (i = 0; i < srcnum; i++)
 /*                                 G e t I F                                  */
 /******************************************************************************/
 
-#define IN4_IS_ADDR_LINKLOCAL(x) (*(unsigned int *)x>>16) == 0xffffa9fe
-
 #define prtaddr(x) cerr <<"Addr!!! " << *x <<endl;
 
 int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
@@ -244,6 +242,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
    char ipBuff[256];
    short ifIdx, sval[4] = {0, 0, 0, 0};
    short iLen;
+   int   haveIF = 0;
 
 #ifdef HAVE_GETIFADDRS
 
@@ -256,7 +255,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 
    if (getifaddrs(&ifBase) < 0)
       {if (eText) *eText = strerror(errno);
-       *ifList = 0;
+       if (ifList) *ifList = 0;
        if (eDest) eDest->Emsg("GetIF", errno, "get interface addresses.");
        return 0;
       }
@@ -267,7 +266,7 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
    ifP = ifBase;
    while(ifP)
         {if ((ifP->ifa_addr != 0)
-         &&  IsOkName(ifP->ifa_name, ifIdx)
+         &&  (!ifList || IsOkName(ifP->ifa_name, ifIdx))
          &&  (ifP->ifa_flags & (IFF_UP))
          &&  (ifP->ifa_flags & (IFF_RUNNING))
          && !(ifP->ifa_flags & (IFF_LOOPBACK))
@@ -278,17 +277,21 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
               !(IN6_IS_ADDR_LINKLOCAL(&((sockaddr_in6 *)(ifP->ifa_addr))->sin6_addr)))
              )
             )
-            {netAddr.Set(ifP->ifa_addr);
-             if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
-                         XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort)))
-                {sval[2] = ifIdx;
-                 sval[1] = (netAddr.isPrivate() ? 1 : 0);
-                 sval[0] = iLen;
-                 tLP = new XrdOucTList(ipBuff, sval);
-                 if (tList) tLast->next = tLP;
-                    else    tList       = tLP;
-                 tLast = tLP;
-                 n++;
+            {if (ifP->ifa_addr->sa_family == AF_INET) haveIF |= haveIPv4;
+                else haveIF |= haveIPv6;
+             if (ifList)
+                {netAddr.Set(ifP->ifa_addr);
+                 if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
+                             XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort)))
+                    {sval[2] = ifIdx;
+                     sval[1] = (netAddr.isPrivate() ? 1 : 0);
+                     sval[0] = iLen;
+                     tLP = new XrdOucTList(ipBuff, sval);
+                     if (tList) tLast->next = tLP;
+                        else    tList       = tLP;
+                     tLast = tLP;
+                     n++;
+                    }
                 }
             }
           ifP = ifP->ifa_next;
@@ -298,15 +301,22 @@ int XrdNetIF::GetIF(XrdOucTList **ifList, const char **eText)
 //
    if (ifBase) freeifaddrs(ifBase);
    if (eText) *eText = 0;
+   if (!ifList) return haveIF;
    *ifList = tList;
    return n;
 
 #else
 
-// For platforms that don't support getifaddrs() return our registered address
+// If we just need to provide the interface type, indicate we cannot
+//
+   if (!ifList) return haveNoGI;
+
+// For platforms that don't support getifaddrs() use our address
 //
    XrdNetAddr netAddr((int)0);
 
+// Simply return our formatted address as the interface address
+//
    if ((iLen = netAddr.Format(ipBuff, sizeof(ipBuff),
                        XrdNetAddrInfo::fmtAddr,XrdNetAddrInfo::noPort)))
       {if (eText) *eText = 0;
