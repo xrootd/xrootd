@@ -132,8 +132,10 @@ void FileCopyTest::DownloadTestFunc()
   std::string transferSum = "zcrc32:"; transferSum += crcBuff;
 
   std::string remoteSum;
+  std::string dataServer;
+  CPPUNIT_ASSERT( f.GetProperty( "DataServer", dataServer ) );
   CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
-                                                  f.GetDataServer(),
+                                                  dataServer,
                                                   remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );
 }
@@ -225,10 +227,10 @@ void FileCopyTest::UploadTestFunc()
   XrdCksData crc; crc.Set( (const void *)crc32Sum->Final(), 4 ); crc.Get( crcBuff, 9 );
   std::string transferSum = "zcrc32:"; transferSum += crcBuff;
 
-  std::string remoteSum;
+  std::string remoteSum, dataServer;
+  f.GetProperty( "DataServer", dataServer );
   CPPUNIT_ASSERT_XRDST( Utils::GetRemoteCheckSum( remoteSum, "zcrc32",
-                                                  f.GetDataServer(),
-                                                  remoteFile ) );
+                                                  dataServer, remoteFile ) );
   CPPUNIT_ASSERT( remoteSum == transferSum );
 
   //----------------------------------------------------------------------------
