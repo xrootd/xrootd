@@ -121,7 +121,7 @@ namespace XrdCl
       return false;
     }
 
-    pURL = url;
+    ComputeURL();
 
     //--------------------------------------------------------------------------
     // Dump the url
