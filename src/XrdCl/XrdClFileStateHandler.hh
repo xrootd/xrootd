@@ -254,26 +254,24 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! reading
+      //! Set file property
+      //!
+      //! File properties:
+      //! ReadRecovery   [true/false] - enable/disable read recovery
+      //! WriteRecovery  [true/false] - enable/disable write recovery
       //------------------------------------------------------------------------
-      void EnableReadRecovery( bool enable );
+      bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! writing or read/write
+      //! Get file property
+      //!
+      //! @see SetProperty for property list
+      //!
+      //! Read-only properties:
+      //! DataServer [string] - the data server the file is accessed at
+      //! LastURL    [string] - final file URL with all the cgi information
       //------------------------------------------------------------------------
-      void EnableWriteRecovery( bool enable );
-
-      //------------------------------------------------------------------------
-      //! Get the data server the file is accessed at
-      //------------------------------------------------------------------------
-      std::string GetDataServer() const;
-
-      //------------------------------------------------------------------------
-      //! Get final url with all the cgi information
-      //------------------------------------------------------------------------
-      URL GetLastURL() const;
+      bool GetProperty( const std::string &name, std::string &value ) const;
 
       //------------------------------------------------------------------------
       //! Lock the internal lock

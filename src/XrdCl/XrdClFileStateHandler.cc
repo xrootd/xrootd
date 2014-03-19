@@ -822,45 +822,52 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // reading
+  // Set file property
   //----------------------------------------------------------------------------
-  void FileStateHandler::EnableReadRecovery( bool enable )
+  bool FileStateHandler::SetProperty( const std::string &name,
+                                      const std::string &value )
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    pDoRecoverRead = enable;
+    if( name == "ReadRecovery" )
+    {
+      if( value == "true" ) pDoRecoverRead = true;
+      else pDoRecoverRead = false;
+      return true;
+    }
+    else if( name == "WriteRecovery" )
+    {
+      if( value == "true" ) pDoRecoverWrite = true;
+      else pDoRecoverWrite = false;
+      return true;
+    }
+    return false;
   }
 
   //----------------------------------------------------------------------------
-  //! Enable/disable state recovery procedures while the file is open for
-  //! writing or read/write
+  // Get file property
   //----------------------------------------------------------------------------
-  void FileStateHandler::EnableWriteRecovery( bool enable )
+  bool FileStateHandler::GetProperty( const std::string &name,
+                                      std::string &value ) const
   {
     XrdSysMutexHelper scopedLock( pMutex );
-    pDoRecoverWrite = enable;
-  }
-
-  //----------------------------------------------------------------------------
-  // Get the data server the file is accessed at
-  //----------------------------------------------------------------------------
-  std::string FileStateHandler::GetDataServer() const
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( pDataServer )
-      return pDataServer->GetHostId();
-    return "";
-  }
-
-  //----------------------------------------------------------------------------
-  // Get the final url with all the cgi information
-  //----------------------------------------------------------------------------
-  URL FileStateHandler::GetLastURL() const
-  {
-    XrdSysMutexHelper scopedLock( pMutex );
-    if( pDataServer )
-      return *pDataServer;
-    return URL();
+    if( name == "ReadRecovery" )
+    {
+      if( pDoRecoverRead ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "WriteRecovery" )
+    {
+      if( pDoRecoverWrite ) value = "true";
+      else value = "false";
+      return true;
+    }
+    else if( name == "DataServer" && pDataServer )
+      { value = pDataServer->GetHostId(); return true; }
+    else if( name == "LastURL" && pDataServer )
+      { value =  pDataServer->GetURL(); return true; }
+    value = "";
+    return false;
   }
 
   //----------------------------------------------------------------------------
