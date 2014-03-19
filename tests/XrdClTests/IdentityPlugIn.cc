@@ -436,6 +436,28 @@ namespace
                                      timeout );
       }
 
+      //------------------------------------------------------------------------
+      // SetProperty
+      //------------------------------------------------------------------------
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
+      {
+        XrdCl::Log *log = TestEnv::GetLog();
+        log->Debug( 1, "Calling IdentityFileSystem::SetProperty" );
+        return pFileSystem->SetProperty( name, value );
+      }
+
+      //------------------------------------------------------------------------
+      // GetProperty
+      //------------------------------------------------------------------------
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
+      {
+        XrdCl::Log *log = TestEnv::GetLog();
+        log->Debug( 1, "Calling IdentityFilesystem::GetProperty" );
+        return pFileSystem->GetProperty( name, value );
+      }
+
     private:
       XrdCl::FileSystem *pFileSystem;
   };
