@@ -60,7 +60,7 @@ namespace XrdCl
   const int DefaultCPTPCTimeout         = 1800;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
-  const char * const DefaultNetworkStack       = "IPAll";
+  const char * const DefaultNetworkStack       = "IPAuto";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
   const char * const DefaultPlugInConfDir      = "";
