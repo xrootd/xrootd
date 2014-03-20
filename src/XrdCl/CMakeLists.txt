@@ -69,6 +69,7 @@ add_library(
   XrdClPlugInManager.cc       XrdClPlugInManager.hh
                               XrdClPropertyList.hh
                               XrdClCopyJob.hh
+  XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -144,6 +145,7 @@ install(
     XrdClPlugInInterface.hh
     XrdClPlugInManager.hh
     XrdClPropertyList.hh
+    XrdClFileSystemUtils.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(
