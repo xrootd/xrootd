@@ -54,6 +54,7 @@ namespace
                          XrdCl::OpenFlags::Flags   flags,
                          time_t                    expires ):
         pFirstTime( true ),
+        pPartial( false ),
         pOutstanding( 1 ),
         pHandler( handler ),
         pPath( path ),
@@ -104,6 +105,8 @@ namespace
             delete this;
             return;
           }
+
+          pPartial = true;
 
           //--------------------------------------------------------------------
           // We have no more outstanding requests, so let give to the client
@@ -191,13 +194,16 @@ namespace
           AnyObject *obj = new AnyObject();
           obj->Set( pLocations );
           pLocations = 0;
-          pHandler->HandleResponse( new XRootDStatus(), obj );
+          XRootDStatus *st = new XRootDStatus();
+          if( pPartial ) st->code = suPartial;
+          pHandler->HandleResponse( st, obj );
         }
         delete this;
       }
 
     private:
       bool                      pFirstTime;
+      bool                      pPartial;
       uint16_t                  pOutstanding;
       XrdCl::ResponseHandler   *pHandler;
       XrdCl::LocationInfo      *pLocations;
