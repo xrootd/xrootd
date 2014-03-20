@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,9 +16,14 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClFileSystem.hh"
+#include "XrdCl/XrdClFileSystemUtils.hh"
 #include "XrdCl/XrdClFSExecutor.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdCl/XrdClLog.hh"
@@ -1378,6 +1385,47 @@ XRootDStatus DoTail( FileSystem                      *fs,
 }
 
 //------------------------------------------------------------------------------
+// Print statistics concerning given space
+//------------------------------------------------------------------------------
+XRootDStatus DoSpaceInfo( FileSystem                      *fs,
+                          Env                             *env,
+                          const FSExecutor::CommandParams &args )
+{
+  using namespace XrdCl;
+
+  //----------------------------------------------------------------------------
+  // Check up the args
+  //----------------------------------------------------------------------------
+  Log         *log     = DefaultEnv::GetLog();
+  uint32_t     argc    = args.size();
+
+  if( argc != 2 )
+  {
+    log->Error( AppMsg, "Wrong number of arguments." );
+    return XRootDStatus( stError, errInvalidArgs );
+  }
+
+  FileSystemUtils::SpaceInfo *i = 0;
+
+  XRootDStatus st = FileSystemUtils::GetSpaceInfo( i, fs, args[1] );
+  if( !st.IsOK() )
+    return st;
+
+  if( st.code == suPartial )
+  {
+    std::cerr << "[!] Some of the requests failed. The result may be ";
+    std::cerr << "incomplete." << std::endl;
+  }
+
+  std::cout << "Path:               " << args[1]                  << std::endl;
+  std::cout << "Total:              " << i->GetTotal()            << std::endl;
+  std::cout << "Free:               " << i->GetFree()             << std::endl;
+  std::cout << "Used:               " << i->GetUsed()             << std::endl;
+  std::cout << "Largest free chunk: " << i->GetLargestFreeChunk() << std::endl;
+  return XRootDStatus();
+}
+
+//------------------------------------------------------------------------------
 // Print help
 //------------------------------------------------------------------------------
 XRootDStatus PrintHelp( FileSystem *, Env *,
@@ -1483,6 +1531,9 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -c num_bytes out last num_bytes\n"                          );
   printf( "     -f           output appended data as file grows\n\n"        );
 
+  printf( "   spaceinfo path\n"                                             );
+  printf( "     Get space statistics for given path.\n\n"                   );
+
   return XRootDStatus();
 }
 
@@ -1510,6 +1561,7 @@ FSExecutor *CreateExecutor( const URL &url )
   executor->AddCommand( "prepare",     DoPrepare    );
   executor->AddCommand( "cat",         DoCat        );
   executor->AddCommand( "tail",        DoTail       );
+  executor->AddCommand( "spaceinfo",   DoSpaceInfo  );
   return executor;
 }
 
