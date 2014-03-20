@@ -674,6 +674,12 @@ XRootDStatus DoLocate( FileSystem                      *fs,
   //----------------------------------------------------------------------------
   // Print the result
   //----------------------------------------------------------------------------
+  if( st.code == suPartial )
+  {
+    std::cerr << "[!] Some of the requests failed. The result may be ";
+    std::cerr << "incomplete" << std::endl;
+  }
+
   LocationInfo::Iterator it;
   for( it = info->Begin(); it != info->End(); ++it )
   {
