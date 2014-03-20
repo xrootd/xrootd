@@ -254,7 +254,7 @@ XRootDStatus DoLS( FileSystem                      *fs,
   if( st.code == suPartial )
   {
     std::cerr << "[!] Some of the requests failed. The result may be ";
-    std::cerr << "incomplete" << std::endl;
+    std::cerr << "incomplete." << std::endl;
   }
 
   //----------------------------------------------------------------------------
@@ -677,7 +677,7 @@ XRootDStatus DoLocate( FileSystem                      *fs,
   if( st.code == suPartial )
   {
     std::cerr << "[!] Some of the requests failed. The result may be ";
-    std::cerr << "incomplete" << std::endl;
+    std::cerr << "incomplete." << std::endl;
   }
 
   LocationInfo::Iterator it;
