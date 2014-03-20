@@ -926,7 +926,7 @@ namespace XrdCl
       DirectoryList *currentResp  = 0;
       uint32_t       errors       = 0;
       uint32_t       numLocations = locations->GetSize();
-      bool           partial      = false;
+      bool           partial      = st.code == suPartial ? true : false;
 
       response = new DirectoryList();
       response->SetParentName( path );
