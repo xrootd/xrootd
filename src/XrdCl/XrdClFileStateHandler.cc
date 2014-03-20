@@ -181,7 +181,6 @@ namespace
                                             XrdCl::HostList     *hostList )
       {
         using namespace XrdCl;
-        XRDCL_SMART_PTR_T<XRootDStatus>    statusPtr( status );
         XRDCL_SMART_PTR_T<AnyObject>       responsePtr( response );
         pSendParams.hostList = hostList;
 
@@ -190,7 +189,6 @@ namespace
         //----------------------------------------------------------------------
         if( !status->IsOK() )
         {
-          statusPtr.release();
           pStateHandler->OnStateError( status, pMessage, this, pSendParams );
           return;
         }
@@ -198,7 +196,6 @@ namespace
         //----------------------------------------------------------------------
         // We're clear
         //----------------------------------------------------------------------
-        statusPtr.release();
         responsePtr.release();
         pStateHandler->OnStateResponse( status, pMessage, response, hostList );
         pUserHandler->HandleResponseWithHosts( status, response, hostList );
