@@ -7,7 +7,7 @@ xrdfs - xrootd file and directory meta-data utility
 \fBxrdfs\fR \fIhost[:port]\fR \fI[command [args]]\fR
 
 \fBcommand\fR: help, chmod, ls, locate, mkdir, mv, stat, statvfs, query, rm, rmdir,
-           truncate, prepare, cat, tail
+           truncate, prepare, cat, tail, spaceinfo
 .fi
 .br
 .ad l
@@ -165,6 +165,11 @@ Output last part of files to stdout.
 \fI-c\fR num_bytes out last num_bytes
 .br
 \fI-f\fR           output appended data as file grows
+
+.RE
+\fBspaceinfo\fR \fIpath\fR
+.RS 3
+Get space statistics for given path.
 
 .SH NOTES
 For the list of available environment variables please refere to xrdcopy(1)
