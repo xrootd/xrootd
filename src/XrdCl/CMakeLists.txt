@@ -153,3 +153,17 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcopy xrdcp
+      WORKING_DIRECTORY  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
+)
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcopy.1 xrdcp.1
+      WORKING_DIRECTORY  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
+)
