@@ -1,4 +1,4 @@
-.TH xrdcp 1 "8 March 2011"
+.TH xrdcp 1 "31 March 2012"
 .SH NAME
 xrdcp - copy files
 .SH SYNOPSIS
@@ -6,11 +6,14 @@ xrdcp - copy files
 
 \fBxrdcp\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
 
-\fIoptions\fR: [\fB-adler\fR] [\fB-d\fR \fIlvl\fR] [\fB-D\fIproxyaddr\fB:\fIproxyport\fR]
-[\fB-DS\fR\fIpname stringval\fR] [\fB-DI\fR\fIpname numberval\fR] [\fB-f\fR] [\fB-F\fR]
-[\fB-force\fR] [\fB-h\fR] [\fB-md5\fR] [\fB-ML \fIlibname\fR] [\fB-np\fR] [\fB-OD\fR\fIopaqueinfo\fR]
-[\fB-OS\fR\fIopaqueinfo\fR] [\fB-P\fR] [\fB-R\fR] [\fB-s\fR] [\fB-S \fInum\fR] [\fB-v\fR] [\fB-version\fR]
-[\fB-x\fR] [\fB-X \fIrdr\fR]
+\fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR] [\fB--coerce\fR] [\fB--force\fR]
+[\fB--help\fR] [\fB--license\fR] [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
+[\fB--recursive\fR] [\fB--retry\fR \fItime\fR] [\fB--server\fR] [\fB--silent\fR]
+[\fB--sources\fR \fInum\fR] [\fB--streams\fR \fInum\fR] [\fB--tpc\fR] [\fB--verbose\fR]
+[\fB--version\fR] [\fB--xrate\fR \fIrate\fR]
+
+\fIlegacy options\fR: [\fB-adler\fR] [\fB-DS\fR\fIparm string\fR] [\fB-DI\fR\fIparm number\fR]
+[\fB-md5\fR] [\fB-np\fR] [\fB-OD\fR\fIcgi\fR] [\fB-OS\fR\fIcgi\fR] [\fB-x\fR]
 
 .fi
 .br
@@ -21,25 +24,117 @@ another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
 .SH OPTIONS
-\fB-adler\fR
+{\fB-C | --cksum\fR} \fItype\fR[\fB:\fR{\fIvalue\fR|\fBprint\fR}]
 .RS 5
-calculate the adler32 checksum during transfers.
-This option may not be available on all platforms.
+obtains the checksum of \fItype\fR (i.e. adler32, crc32, or md5) from the source,
+computes the checksum at the destination, and verifies that they are the same. If a \fIvalue\fR
+is specified, it is used as the source checksum. When \fBprint\fR
+is specified, the checksum at the destination is printed but is \fInot\fR verified.
 
 .RE
-\fB-d\fR \fIlvl\fR
+{\fB-d\fR | \fB--debug\fR} \fIlvl\fR
 .RS 5
 debug level: 1 (low), 2 (medium), 3 (high)
 
 .RE
-\fB-D\fIproxyaddr\fB:\fIproxyport\fR
+{\fB-F\fR | --coerce}
+.RS 5
+ignores locking semantics on the destination file. This option may lead to
+file corruption if not properly used.
+
+.RE
+{\fB-f\fR | \fB--force\fR}
+.RS 5
+re-creates a file if it is already present.
+
+.RE
+{\fB-h\fR | --help}
+.RS 5
+displays usage information.
+
+.RE
+{\fB-H\fR | --license}
+.RS 5
+displays license terms and conditions.
+
+.RE
+{\fB-N\fR | \fB--nopbar\fR}
+.RS5
+does not display the progress bar.
+
+.RE
+{\fB-P\fR | \fB--posc\fR}
+.RS 5
+requests POSC (persist-on-successful-close) processing
+to create a new file. Files are automatically deleted should they not be
+successfully closed.
+
+.RE
+{\fB-D\fR | \fB--proxy\fR} \fIproxyaddr\fB:\fIproxyport\fR
 .RS 5
 use \fIproxyaddr\fB:\fIproxyport\fR as a SOCKS4 proxy. Only numerical addresses are supported.
 
 .RE
-\fB-DS\fR\fIpname stringval\fR
+{\fB-r\fR | \fB--recursive\fR}
 .RS 5
-set the internal parameter \fIpname\fR with the string value \fIstringval\fR.
+recursively copy all files starting at the given source directory. This option is
+\fIonly\fR supported for local files.
+
+.RE
+\fB--server\fR
+.RS5
+runs as if in a server environment. Used only for server-side
+third party copy support.
+
+.RE
+{\fB-s\fR | \fB--silent\fR}
+.RS 5
+neither produces summary information nor displays the progress bar.
+
+.RE
+{\fB-y\fR | \fB--sources\fR} \fInum\fR
+.RS 5
+uses up to \fInum\fR sources to copy the file.
+
+.RE
+{\fB-S\fR | \fB--streams\fR} \fInum\fR
+.RS 5
+uses \fInum\fR additional parallel streams to do the transfer.
+The maximum value is 15. The default is 0 (i.e., use only the main stream).
+
+.RE
+\fB--tpc\fR
+.RS 5
+copies the file from remote server to remote server using third-party-copy
+protocol (i.e., data flows from server to server). The source and destination
+servers must support third party copies. Additional security restrictions
+may apply and may cause the copy to fail if they cannot be satisfied.
+
+.RE
+{\fB-v\fR | \fB--verbose\fR}
+.RS 5
+displays summary output.
+
+.RE
+{\fB-V\fR | \fB-version\fR}
+.RS 5
+displays version information and immediately exits.
+
+.RE
+{\fB-X\fR | \fB--xrate\fR} \fIrate\fR
+.RS 5
+limits the copy speed to the specified \fIrate\fB. The rate may be qualified
+with the letter \fBk\fR, \fBm\fR, or \fBg\fR to indicate kilo, mega, or giga
+bytes, respectively. The option only applies when the source or destination is
+local.
+
+.SH LEGACY OPTIONS
+Legacy options are provided for backward compatability. These are now
+deprecated and should be avoided.
+.RE
+\fB--adler\fR
+.RS 5
+equivalent to "\fB--cksum adler32:print\fR".
 
 .RE
 \fB-DI\fR\fIpname numberval\fR
@@ -47,70 +142,35 @@ set the internal parameter \fIpname\fR with the string value \fIstringval\fR.
 set the internal parameter \fIpname\fR with the numeric value \fInumberval\fR.
 
 .RE
-\fB-f\fR   re-create a file if already present.
-
-.HP
-\fB-F\fR   set the 'force' flag for xrootd dest file opens (ignore
-if file is already opened).
-
-.RE
-\fB-force\fR
+\fB-DS\fR\fIpname stringval\fR
 .RS 5
-set 1-min (re)connect attempts to retry for up to 1
-week, to block until xrdcp is executed.
+set the internal parameter \fIpname\fR with the string value \fIstringval\fR.
 
 .RE
-\fB-h\fR   display usage information.
-
-\fB-md5\fR calculate the md5 sum during transfers.
-
-\fB-ML \fIlibname\fR
+\fB-md5\fR
 .RS 5
-use \fIlibname\fR as the external monitoring reporting library. The default
-name is "XrdCpMonitorClient.so". Make sure it is reachable.
+equivalent to "\fB--cksum md5:print\fR".
 
 .RE
-\fB-np\fR   no progress bar.
-
-\fB-OD\fR\fIopaqueinfo\fR
+\fB-np\fR
 .RS 5
-add opaque information \fIopaqueinfo\fR to any destination xrootd URL.
+equivalent to "\fB--nopbar\fR".
 
 .RE
-\fB-OS\fR\fIopaqueinfo\fR
+\fB-OD\fR\fIcgi\fR
 .RS 5
-add opaque information \fIopaqueinfo\fR to any source xrootd URL.
-.RE
-.HP
-\fB-P\fR   request POSC (persist-on-successful-close) processing
-     to create a new file.
+add cgi information \fIcgi\fR to any destination xrootd URL.
+You should specify the opaque information directly on the destination URL.
 
 .RE
-\fB-R\fR   recurse through source subdirectories.
-
-\fB-s\fR   silent mode.
-
-\fB-S \fInum\fR
+\fB-OS\fR\fIcgi\fR
 .RS 5
-use \fInum\fR additional parallel streams to do the transfer.
-The maximum value is 15. The default is 0 (i.e., use only the main stream).
+add cgi information \fIcgi\fR to any source xrootd URL.
 
 .RE
-\fB-v\fR   display summary output.
-
-\fB-version\fR
+\fB-x\fR
 .RS 5
-display version information.
-.RE
-.HP
-\fB-x\fR   activate the Xtreme copy algorithm. Use the source
-     hostname to query for additional sources.
-
-.RE
-\fB-x \fIrdr\fR
-.RS 5
-activate the Xtreme copy algorithm. Use \fIrdr\fR as hostname where to query
-for additional sources.
+equivalent to "\fB--sources 12\fR".
 
 .RE
 .SH OPERANDS
@@ -119,37 +179,34 @@ for additional sources.
 a local file, a local directory name suffixed by /, or
 an xrootd URL in the form of
 .ce 1
-\fBroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
-The \fIabsolutepath\fR can be a directory. In this case the \fB-R\fR option can be
-fully honored only on a standalone server.
+\fBxroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
+The \fIabsolutepath\fR can be a directory.
 
 .RE
 \fIdestination\fR
 .RS 5
-a local file, a local directory name suffixed by /, or
-an xrootd URL in the form
+a dash (i.e. \fB-\fR) indicating stanard out, a local file, a local directory
+name suffixed by /, or an xrootd URL in the form
 .ce 1
-\fBroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
-The \fIabsolutepath\fR can be a directory. In this case the \fB-R\fR option, the
-the \fIabsolutepath\fR must be a directory and all files are copied into this
-directory.
+\fBxroot://[\fIuser\fB@\fR]\fIhost[\fB:\fIport\fR]\fB/\fIabsolutepath\fR
+The \fIabsolutepath\fR can be a directory.
 
 .RE
 .SH EXAMPLES (GENERIC)
 .TP
 local file upload:
 .br
-.B $ xrdcp /tmp/myfile root://foo.bar.com//data/myfile
+.B $ xrdcp /tmp/myfile xroot://foo.bar.com//data/myfile
 .br
 .TP
 remote file download:
 .br
-.B $ xrdcp root://foo.bar.com//data/myfile /tmp/myfile
+.B $ xrdcp xroot://foo.bar.com//data/myfile /tmp/myfile
 .br
 .TP
 remote-remote copy:
 .br
-.B $ xrdcp root://foo.bar.com//data/myfile1 root://foo.bar.com//data/myfile2
+.B $ xrdcp xroot://foo.bar.com//data/myfile1 xroot://foo.bar.com//data/myfile2
 .br
 .fi
 .br

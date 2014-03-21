@@ -121,10 +121,10 @@ static const int    OpRecursv  =  'R';
 static const int    DoRecurse  =  0x00000800; // -r | --recursive | -R {legacy}
 
 static const int    OpRetry    =  't';
-static const int    DoRetry    =  0x00001000; // --coerce
+static const int    DoRetry    =  0x00001000; // -t | --retry
 
 static const int    OpServer   =  0x03;
-static const int    DoServer   =  0x00002000; // -s | --silent
+static const int    DoServer   =  0x00002000; //      --server
 
 static const int    OpSilent   =  's';
 static const int    DoSilent   =  0x00004000; // -s | --silent
@@ -147,8 +147,8 @@ static const int    OpVersion  =  'V';        // -V | --version
 static const int    OpXrate    =  'X';
 static const int    DoXrate    =  0x00080000; // -X | --xrate
 
-static const int    OpNoSzChk  =  'Z';
-static const int    DoNoSzChk  =  0x00200000; //      --noszchk
+static const int    OpDynaSrc  =  'Z';
+static const int    DoDynaSrc  =  0x00200000; //      --dynamic-src
 
 // Call Config with the parameters passed to main() to fill out this object. If
 // the method returns then no errors have been found. Otherwise, it exits.

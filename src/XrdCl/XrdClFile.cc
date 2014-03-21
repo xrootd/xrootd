@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClLog.hh"
@@ -387,48 +393,24 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // reading
+  // Set file property
   //----------------------------------------------------------------------------
-  void File::EnableReadRecovery( bool enable )
+  bool File::SetProperty( const std::string &name, const std::string &value )
   {
     if( pPlugIn )
-      pPlugIn->EnableReadRecovery( enable );
+      return pPlugIn->SetProperty( name, value );
 
-    pStateHandler->EnableReadRecovery( enable );
+    return pStateHandler->SetProperty( name, value );
   }
 
   //----------------------------------------------------------------------------
-  // Enable/disable state recovery procedures while the file is open for
-  // writing or read/write
+  // Get file property
   //----------------------------------------------------------------------------
-  void File::EnableWriteRecovery( bool enable )
+  bool File::GetProperty( const std::string &name, std::string &value ) const
   {
     if( pPlugIn )
-      pPlugIn->EnableWriteRecovery( enable );
+      return pPlugIn->GetProperty( name, value );
 
-    pStateHandler->EnableWriteRecovery( enable );
-  }
-
-  //----------------------------------------------------------------------------
-  // Get the data server the file is accessed at
-  //----------------------------------------------------------------------------
-  std::string File::GetDataServer() const
-  {
-    if( pPlugIn )
-      return pPlugIn->GetDataServer();
-
-    return pStateHandler->GetDataServer();
-  }
-
-  //------------------------------------------------------------------------
-  // Get final url with all the cgi information
-  //------------------------------------------------------------------------
-  URL File::GetLastURL() const
-  {
-    if( pPlugIn )
-      return pPlugIn->GetLastURL();
-
-    return pStateHandler->GetLastURL();
+    return pStateHandler->GetProperty( name, value );
   }
 }

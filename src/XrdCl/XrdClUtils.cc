@@ -117,8 +117,10 @@ namespace XrdCl
       return IPv4;
     else if( addressType == "IPv4Mapped6" )
       return IPv4Mapped6;
-    else
+    else if( addressType == "IPAll" )
       return IPAll;
+    else
+      return IPAuto;
   }
 
   //----------------------------------------------------------------------------
@@ -142,7 +144,8 @@ namespace XrdCl
     if( type == IPv6 ) opts = XrdNetUtils::onlyIPv6;
     else if( type == IPv4 ) opts = XrdNetUtils::onlyIPv4;
     else if( type == IPv4Mapped6 ) opts = XrdNetUtils::allV4Map;
-    else opts = XrdNetUtils::allIPMap;
+    else if( type == IPAll ) opts = XrdNetUtils::allIPMap;
+    else opts = XrdNetUtils::prefAuto;
 
     err = XrdNetUtils::GetAddrs( o.str().c_str(), &addrs, nAddrs, opts );
 

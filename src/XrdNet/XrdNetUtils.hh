@@ -94,6 +94,10 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 //!                  onlyIPv6 - only          IPv6 addrs
 //!                  onlyIPv4 - only unmapped IPv4 addrs
 //!                  prefIPv6 - only IPv6 addrs; if none, mapped IPv4 addrs
+//!                  prefAuto - Returns addresses based on configured non-local
+//!                             interfaces. The returned addresses will be
+//!                             normally useable on this host and may be IPv4,
+//!                             IPv6, mapped IPv4, or a mixture.
 //!                  The above may be or'd with one or more of the following:
 //!                  onlyUDP  - only addrs valid for UDP connections else TCP
 //! @param  pNum     >= 0 uses the value as the port number regardless of what
@@ -116,7 +120,7 @@ static int  Encode(const XrdNetSockAddr *sadr, char *buff, int blen, int port=-1
 
 enum AddrOpts {allIPMap=  0, allIPv64=  1, allV4Map=  2,
                onlyIPv6=  3, onlyIPv4=  4, prefIPv6=  8,
-               onlyUDP =128
+               prefAuto= 16, onlyUDP =128
               };
 
 static const int PortInSpec = (int)0x80000000;
@@ -296,6 +300,21 @@ static int  ProtoID(const char *pName);
 static int  ServPort(const char *sName, bool isUDP=false, const char **eText=0);
 
 //------------------------------------------------------------------------------
+//! Set the family and hints to be used in GetAddrs() with prefAuto. This is
+//! used within this class and by XrdNetAddr when the IP mode changes.  It is
+//! meant for internal use only.
+//!
+//! @param  ipType   Is one of the following from the AddrOpts enum:
+//!                  allIPMap - Use IPv6 and mapped IPv4 addrs (default)
+//!                  onlyIPv4 - Use only IPv4 addresses.
+//!                  prefAuto - Determine proper options based on configuration.
+//!
+//! @return The getaddrinfo() hints value that should be used.
+//------------------------------------------------------------------------------
+
+static int  SetAuto(AddrOpts aOpts=allIPMap);
+
+//------------------------------------------------------------------------------
 //! Constructor
 //------------------------------------------------------------------------------
 
@@ -309,6 +328,8 @@ static int  ServPort(const char *sName, bool isUDP=false, const char **eText=0);
 private:
 
 static int setET(char **errtxt, int rc);
+static int autoFamily;
+static int autoHints;
 };
 
 XRDOUC_ENUM_OPERATORS(XrdNetUtils::AddrOpts)

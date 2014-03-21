@@ -54,14 +54,20 @@ namespace XrdCl
       virtual void BeginJob( uint16_t   jobNum,
                              uint16_t   jobTotal,
                              const URL *source,
-                             const URL *destination ) {};
+                             const URL *destination )
+      {
+        (void)jobNum; (void)jobTotal; (void)source; (void)destination;
+      };
 
       //------------------------------------------------------------------------
       //! Notify when the previous job has finished
       //!
       //! @param result result of the job
       //------------------------------------------------------------------------
-      virtual void EndJob( const PropertyList *result ) {};
+      virtual void EndJob( const PropertyList *result )
+      {
+        (void)result;
+      };
 
       //------------------------------------------------------------------------
       //! Notify about the progress of the current job
@@ -71,7 +77,10 @@ namespace XrdCl
       //!                       current job
       //------------------------------------------------------------------------
       virtual void JobProgress( uint64_t bytesProcessed,
-                                uint64_t bytesTotal ) {};
+                                uint64_t bytesTotal )
+      {
+        (void)bytesProcessed; (void)bytesTotal;
+      };
 
       //------------------------------------------------------------------------
       //! Determine whether the job should be canceled
@@ -125,6 +134,8 @@ namespace XrdCl
       //! initTimeout    [uint16_t] - time limit for successfull initialization
       //!                             of the copy job
       //! tpcTimeout     [uint16_t] - time limit for the actual copy to finish
+      //! dynamicSource  [bool]     - support for the case where the size source
+      //!                             file may change during reading process
       //!
       //! Results:
       //! sourceCheckSum [string]   - checksum at source, if requested

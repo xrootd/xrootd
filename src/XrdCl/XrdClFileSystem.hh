@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_FILE_SYSTEM_HH__
@@ -650,6 +656,21 @@ namespace XrdCl
                             Buffer                         *&response,
                             uint16_t                         timeout = 0 );
 
+      //------------------------------------------------------------------------
+      //! Set filesystem property
+      //!
+      //! Filesystem properties:
+      //! FollowRedirects  [true/false] - enable/disable following redirections
+      //------------------------------------------------------------------------
+      bool SetProperty( const std::string &name, const std::string &value );
+
+      //------------------------------------------------------------------------
+      //! Get filesystem property
+      //!
+      //! @see FileSystem::SetProperty for property list
+      //------------------------------------------------------------------------
+      bool GetProperty( const std::string &name, std::string &value ) const;
+
     private:
 
       //------------------------------------------------------------------------
@@ -657,7 +678,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       Status Send( Message                 *msg,
                    ResponseHandler         *handler,
-                   const MessageSendParams &params );
+                   MessageSendParams       &params );
 
       //------------------------------------------------------------------------
       // Assign a load balancer if it has not already been assigned
@@ -682,6 +703,7 @@ namespace XrdCl
 
       XrdSysMutex       pMutex;
       bool              pLoadBalancerLookupDone;
+      bool              pFollowRedirects;
       URL              *pUrl;
       FileSystemPlugIn *pPlugIn;
   };

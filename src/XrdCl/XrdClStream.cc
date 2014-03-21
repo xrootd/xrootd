@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClStream.hh"
@@ -177,11 +183,6 @@ namespace XrdCl
                                                     0 );
     s->SetStream( this );
 
-    if( pAddressType == Utils::IPv4 )
-      s->SetSocketDomain( AF_INET );
-    else
-      s->SetSocketDomain( AF_INET6 );
-
     pSubStreams.push_back( new SubStreamData() );
     pSubStreams[0]->socket = s;
     return Status();
@@ -293,7 +294,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Decide on the path to send the message
     //--------------------------------------------------------------------------
-    PathID path = pTransport->MultiplexSubStream( msg, *pChannelData );
+    PathID path = pTransport->MultiplexSubStream( msg, pStreamNum,
+                                                  *pChannelData );
     if( pSubStreams.size() <= path.up )
     {
       log->Warning( PostMasterMsg, "[%s] Unable to send message %s through "
@@ -312,7 +314,7 @@ namespace XrdCl
     Status st = EnableLink( path );
     if( st.IsOK() )
     {
-      pTransport->MultiplexSubStream( msg, *pChannelData, &path );
+      pTransport->MultiplexSubStream( msg, pStreamNum, *pChannelData, &path );
       pSubStreams[path.up]->outQueue->PushBack( msg, handler,
                                                 expires, stateful );
     }
@@ -354,45 +356,11 @@ namespace XrdCl
   void Stream::Tick( time_t now )
   {
     //--------------------------------------------------------------------------
-    // Check if there is no outgoing messages and if the stream TTL is elapesed.
-    // It is assumed that the underlying transport makes sure that there is no
-    // pending requests that are not answered, ie. all possible virtual streams
-    // are de-allocated
-    //--------------------------------------------------------------------------
-    Log *log = DefaultEnv::GetLog();
-    SubStreamList::iterator it;
-    pMutex.Lock();
-    if( pSubStreams[0]->status == Socket::Connected )
-    {
-      uint32_t outgoingMessages = 0;
-      time_t   lastActivity     = 0;
-      for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
-      {
-        outgoingMessages += (*it)->outQueue->GetSize();
-        time_t sockLastActivity = (*it)->socket->GetLastActivity();
-        if( lastActivity < sockLastActivity )
-          lastActivity = sockLastActivity;
-      }
-
-      if( !outgoingMessages )
-      {
-        bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
-                                                          *pChannelData );
-        if( disconnect )
-        {
-          log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, "
-                      "disconnecting...", pStreamName.c_str() );
-          Disconnect();
-        }
-      }
-    }
-    pMutex.UnLock();
-
-    //--------------------------------------------------------------------------
     // Check for timed-out requests and incoming handlers
     //--------------------------------------------------------------------------
     pMutex.Lock();
     OutQueue q;
+    SubStreamList::iterator it;
     for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
       q.GrabExpired( *(*it)->outQueue, now );
     pMutex.UnLock();
@@ -448,20 +416,23 @@ namespace XrdCl
     msg->SetSessionId( pSessionId );
     pBytesReceived += bytesReceived;
 
+    uint32_t streamAction = pTransport->MessageReceived( msg, pStreamNum,
+                                                         subStream,
+                                                         *pChannelData );
+    if( streamAction & TransportHandler::DigestMsg )
+      return;
+
     //--------------------------------------------------------------------------
     // No handler, we cache and see what comes later
     //--------------------------------------------------------------------------
     Log *log = DefaultEnv::GetLog();
     InMessageHelper &mh = pSubStreams[subStream]->inMsgHelper;
+
     if( !mh.handler )
     {
       log->Dump( PostMasterMsg, "[%s] Queuing received message: 0x%x.",
                  pStreamName.c_str(), msg );
 
-      uint32_t streamAction = pTransport->StreamAction( msg, *pChannelData );
-
-      if( streamAction & TransportHandler::DigestMsg )
-        return;
       pJobManager->QueueJob( pQueueIncMsgJob, msg );
       return;
     }
@@ -522,6 +493,8 @@ namespace XrdCl
                               Message  *msg,
                               uint32_t  bytesSent )
   {
+    pTransport->MessageSent( msg, pStreamNum, subStream, bytesSent,
+                             *pChannelData );
     OutMessageHelper &h = pSubStreams[subStream]->outMsgHelper;
     pBytesSent += bytesSent;
     if( h.handler )
@@ -865,8 +838,56 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Call back when a message has been reconstructed
   //----------------------------------------------------------------------------
-  void Stream::OnReadTimeout( uint16_t /*substream*/ )
+  void Stream::OnReadTimeout( uint16_t substream )
   {
+    //--------------------------------------------------------------------------
+    // We only take the main stream into account
+    //--------------------------------------------------------------------------
+    if( substream != 0 )
+      return;
+
+    //--------------------------------------------------------------------------
+    // Check if there is no outgoing messages and if the stream TTL is elapesed.
+    // It is assumed that the underlying transport makes sure that there is no
+    // pending requests that are not answered, ie. all possible virtual streams
+    // are de-allocated
+    //--------------------------------------------------------------------------
+    Log *log = DefaultEnv::GetLog();
+    SubStreamList::iterator it;
+    time_t                  now = time(0);
+
+    XrdSysMutexHelper scopedLock( pMutex );
+    uint32_t outgoingMessages = 0;
+    time_t   lastActivity     = 0;
+    for( it = pSubStreams.begin(); it != pSubStreams.end(); ++it )
+    {
+      outgoingMessages += (*it)->outQueue->GetSize();
+      time_t sockLastActivity = (*it)->socket->GetLastActivity();
+      if( lastActivity < sockLastActivity )
+        lastActivity = sockLastActivity;
+    }
+
+    if( !outgoingMessages )
+    {
+      bool disconnect = pTransport->IsStreamTTLElapsed( now-lastActivity,
+                                                        pStreamNum,
+                                                        *pChannelData );
+      if( disconnect )
+      {
+        log->Debug( PostMasterMsg, "[%s] Stream TTL elapsed, disconnecting...",
+                    pStreamName.c_str() );
+        Disconnect();
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Check if the stream is broken
+    //--------------------------------------------------------------------------
+    Status st = pTransport->IsStreamBroken( now-lastActivity,
+                                            pStreamNum,
+                                            *pChannelData );
+    if( !st.IsOK() )
+      OnError( substream, st );
   }
 
   //----------------------------------------------------------------------------

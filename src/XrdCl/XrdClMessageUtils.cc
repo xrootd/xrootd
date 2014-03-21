@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClMessageUtils.hh"
@@ -153,9 +159,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   //! Append cgi to the one already present in the message
   //----------------------------------------------------------------------------
-  void MessageUtils::AppendCGI( Message              *msg,
-                                const URL::ParamsMap &newCgi,
-                                bool                  replace )
+  void MessageUtils::RewriteCGIAndPath( Message              *msg,
+                                        const URL::ParamsMap &newCgi,
+                                        bool                  replace,
+                                        const std::string    &newPath )
   {
     ClientRequest  *req = (ClientRequest *)msg->GetBuffer();
     switch( req->header.requestid )
@@ -197,12 +204,14 @@ namespace XrdCl
         URL::ParamsMap currentCgi = currentPath.GetParams();
         MergeCGI( currentCgi, newCgi, replace );
         currentPath.SetParams( currentCgi );
-        std::string newPath = currentPath.GetPathWithParams();
+        if( !newPath.empty() )
+          currentPath.SetPath( newPath );
+        std::string newPathWitParams = currentPath.GetPathWithParams();
 
         //----------------------------------------------------------------------
         // Write the path with the new cgi appended to the message
         //----------------------------------------------------------------------
-        uint32_t newDlen = req->header.dlen - length + newPath.size();
+        uint32_t newDlen = req->header.dlen - length + newPathWitParams.size();
         msg->ReAllocate( 24+newDlen );
         req  = (ClientRequest *)msg->GetBuffer();
         path = msg->GetBuffer( 24 );
@@ -213,7 +222,7 @@ namespace XrdCl
               break;
           ++path;
         }
-        memcpy( path, newPath.c_str(), newPath.size() );
+        memcpy( path, newPathWitParams.c_str(), newPathWitParams.size() );
         req->header.dlen = newDlen;
         break;
       }

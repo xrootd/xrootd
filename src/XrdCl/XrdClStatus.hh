@@ -41,8 +41,6 @@ namespace XrdCl
   const uint16_t suPartial         = 3;
   const uint16_t suAlreadyDone     = 4;
 
-  const uint16_t suXRDRedirect     = 101;
-
   //----------------------------------------------------------------------------
   // Generic errors
   //----------------------------------------------------------------------------
@@ -98,6 +96,7 @@ namespace XrdCl
   const uint16_t errRedirectLimit      = 306;
 
   const uint16_t errErrorResponse      = 400;
+  const uint16_t errRedirect           = 401;
 
   const uint16_t errResponseNegative   = 500; //!< Query response was negative
 

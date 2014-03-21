@@ -115,18 +115,30 @@ inline int  GetName(ifType ntype, char *nbuff, int &nport)
 //------------------------------------------------------------------------------
 //! Obtain an easily digestable list of IP routable interfaces to this machine.
 //!
-//! @param  ifList   Place where the list of interfaces will be placed.
+//! @param  ifList   Place where the list of interfaces will be placed. If
+//!                  ifList is null, returns configured interface types.
 //! @param  eText    When not nil, is where to place error message text.
 //!
-//! @return Success: Returns the count of interfaces in the list.
+//! @return Success: ifList != 0: returns the count of interfaces in the list.
 //!                  *ifList->sval[0] strlen(ifList->text)
 //!                  *ifList->sval[1] when != 0 the address is private.
 //!                  *ifList->text    the interface address is standard format.
 //!                  The list of objects belongs to the caller and must be
 //!                  deleted when no longer needed.
+//!
+//!                  ifList == 0: returns types of configured non-local i/f.
+//!                  This is or'd values of the static const ints haveXXXX.
+//!
 //!         Failure: Zero is returned. If eText is supplied, the error message,
 //!                  in persistent storage, is returned.
 //------------------------------------------------------------------------------
+
+static
+const  int  haveNoGI = 0;  //!< ifList == 0 && getifaddrs() is not supported
+static
+const  int  haveIPv4 = 1;  //!< ifList == 0 && non-local ipv4 i/f found (or'd)
+static
+const  int  haveIPv6 = 2;  //!< ifList == 0 && non-local ipv6 i/f found (or'd)
 
 static int  GetIF(XrdOucTList **ifList, const char **eText=0);
 
@@ -283,7 +295,7 @@ struct ifAddrs
 bool  GenAddrs(ifAddrs &ifTab,XrdNetAddrInfo *src,const char *hName,bool isPVT);
 bool  GenIF(XrdNetAddrInfo **src, int srcnum);
 static
-bool  IsOkName(const char *ifn, short &ifNum);
+bool  IsOkName(const char *ifn, short &ifIdx);
 static
 char *SetDomain();
 static

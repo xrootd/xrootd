@@ -34,6 +34,8 @@ namespace XrdCl
       pEnv = env;
     else
       pEnv = new Env();
+
+    pEnv->PutString( "ServerURL", url.GetURL() );
   }
 
   //----------------------------------------------------------------------------

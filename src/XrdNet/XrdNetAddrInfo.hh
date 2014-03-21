@@ -108,7 +108,7 @@ int         Format(char *bAddr, int bLen, fmtUse fmtType=fmtAuto, int fmtOpts=0)
 bool        isLoopback();
 
 //------------------------------------------------------------------------------
-//! Indicate whether or not our address is if teh desired type.
+//! Indicate whether or not our address is if the desired type.
 //!
 //! @param ipType    The IP address version to test (see enum below).
 //!
@@ -116,9 +116,9 @@ bool        isLoopback();
 //! @return False:   This is not the address version of ipType.
 //------------------------------------------------------------------------------
 
-enum IPType {IPv4 = 0, IPv6 = 1};
+enum IPType {IPv4 = AF_INET, IPv6 = AF_INET6, IPuX = AF_UNIX};
 
-bool        isIPType(IPType ipType) const;
+inline bool isIPType(IPType ipType) const {return IP.Addr.sa_family == ipType;}
 
 //------------------------------------------------------------------------------
 //! Indicate whether or not our address is an IPv4 mapped to IPv6 address.
@@ -127,7 +127,9 @@ bool        isIPType(IPType ipType) const;
 //!         False: The address is not a mapped IPv4 address.
 //------------------------------------------------------------------------------
 
-inline bool isMapped() const {return IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);}
+inline bool isMapped() const {return IP.Addr.sa_family == AF_INET6
+                                  && IN6_IS_ADDR_V4MAPPED(&IP.v6.sin6_addr);
+                             }
 
 //------------------------------------------------------------------------------
 //! Indicate whether or not our address is private.

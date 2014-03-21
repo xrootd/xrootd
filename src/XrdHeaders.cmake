@@ -83,6 +83,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysError.hh
   XrdSys/XrdSysFD.hh
   XrdSys/XrdSysHeaders.hh
+  XrdSys/XrdSysLinuxSemaphore.hh
   XrdSys/XrdSysLogger.hh
   XrdSys/XrdSysPlatform.hh
   XrdSys/XrdSysPlugin.hh
@@ -107,6 +108,7 @@ set( XROOTD_PRIVATE_HEADERS
   XrdClient/XrdClientSock.hh
   XrdNet/XrdNetPeer.hh
   XrdNet/XrdNetBuffer.hh
+  XrdNet/XrdNetIF.hh
   XrdOfs/XrdOfs.hh
   XrdOfs/XrdOfsEvr.hh
   XrdOfs/XrdOfsHandle.hh

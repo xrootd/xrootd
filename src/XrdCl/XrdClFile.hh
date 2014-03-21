@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_FILE_HH__
@@ -352,26 +358,25 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! reading
+      //! Set file property
+      //!
+      //! File properties:
+      //! ReadRecovery     [true/false] - enable/disable read recovery
+      //! WriteRecovery    [true/false] - enable/disable write recovery
+      //! FollowRedirects  [true/false] - enable/disable following redirections
       //------------------------------------------------------------------------
-      void EnableReadRecovery( bool enable = true );
+      bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! writing or read/write
+      //! Get file property
+      //!
+      //! @see File::SetProperty for property list
+      //!
+      //! Read-only properties:
+      //! DataServer [string] - the data server the file is accessed at
+      //! LastURL    [string] - final file URL with all the cgi information
       //------------------------------------------------------------------------
-      void EnableWriteRecovery( bool enable = true );
-
-      //------------------------------------------------------------------------
-      //! Get the data server the file is accessed at
-      //------------------------------------------------------------------------
-      std::string GetDataServer() const;
-
-      //------------------------------------------------------------------------
-      //! Get final url with all the cgi information
-      //------------------------------------------------------------------------
-      URL GetLastURL() const;
+      bool GetProperty( const std::string &name, std::string &value ) const;
 
     private:
       FileStateHandler *pStateHandler;

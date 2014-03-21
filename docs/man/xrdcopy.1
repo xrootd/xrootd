@@ -263,6 +263,13 @@ Default value for the time after which an error is declared if it was impossible
 to get a response to a request.
 .RE
 
+XRD_STREAMTIMEOUT
+.RS 5
+Default value for the time after which a connection error is declared (and a
+recovery attempted) if there are unfulfilled requests and there is no socket
+activity or a registered wait timeout.
+.RE
+
 XRD_SUBSTREAMSPERCHANNEL
 .RS 5
 Number of streams per session.
@@ -327,6 +334,9 @@ XRD_NETWORKSTACK
 .RS 5
 The network stack that the client should use to connect to the server. Possible
 values are:
+
+.B IPAuto
+- automatically detect which IP stack to use
 
 .B IPAll
 - use IPv6 stack (AF_INET6 sockets) and both IPv6 and IPv4 (mapped to IPv6)

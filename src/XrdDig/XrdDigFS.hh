@@ -56,9 +56,11 @@ public:
 
 const   char       *FName() {return (const char *)fname;}
 
+        int         autoStat(struct stat *buf) {sBuff = buf; return SFS_OK;}
+
                     XrdDigDirectory(char *user=0, int monid=0)
                                 : XrdSfsDirectory(user, monid),
-                                  dh((DIR *)0), fname(0),
+                                  dh((DIR *)0), fname(0), sBuff(0),
                                   d_pnt(&dirent_full.d_entry),
                                   dirFD(-1), ateof(false),
                                   isProc(false), isBase(false) {}
@@ -68,11 +70,13 @@ private:
 
 DIR           *dh;  // Directory stream handle
 char          *fname;
+struct stat   *sBuff;
 struct dirent *d_pnt;
 int            dirFD;
 bool           ateof;
 bool           isProc;
 bool           isBase;
+bool           noTag;
 
 static const int aESZ = (MAXNAMLEN+MAXPATHLEN)/sizeof(const char *);
 

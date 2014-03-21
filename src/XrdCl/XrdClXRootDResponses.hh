@@ -826,26 +826,6 @@ namespace XrdCl
   typedef std::vector<HostInfo> HostList;
 
   //----------------------------------------------------------------------------
-  //! Describe the redirection information
-  //----------------------------------------------------------------------------
-  struct RedirectInfo
-  {
-    //--------------------------------------------------------------------------
-    //! Constructor
-    //--------------------------------------------------------------------------
-    RedirectInfo( const std::string &h,
-                  uint16_t           p,
-                  const std::string &c ):
-      protocol("xroot"), host(h), port(p), path(""), cgi(c), token("") {};
-    std::string protocol; //!< protocol
-    std::string host;     //!< host the request has been redirected to
-    uint16_t    port;     //!< host port
-    std::string path;     //!< path
-    std::string cgi;      //!< the cgi that should be appended to the request
-    std::string token;    //!< additional token info
-  };
-
-  //----------------------------------------------------------------------------
   //! Handle an async response
   //----------------------------------------------------------------------------
   class ResponseHandler
@@ -879,7 +859,10 @@ namespace XrdCl
       //!                 (request dependent)
       //------------------------------------------------------------------------
       virtual void HandleResponse( XRootDStatus *status,
-                                   AnyObject    *response ) {}
+                                   AnyObject    *response )
+      {
+        (void)status; (void)response;
+      }
   };
 }
 

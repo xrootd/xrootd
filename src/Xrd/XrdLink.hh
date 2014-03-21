@@ -92,7 +92,7 @@ XrdNetAddrInfo *AddrInfo() {return (XrdNetAddrInfo *)&Addr;}
 static XrdLink *Alloc(XrdNetAddr &peer, int opts=0);
 
 void          Bind() {}                // Obsolete
-void          Bind(pthread_t tid) {}   // Obsolete
+void          Bind(pthread_t tid) { (void)tid; }   // Obsolete
 
 int           Client(char *buff, int blen);
 

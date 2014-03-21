@@ -47,8 +47,7 @@ namespace XrdCl
     pOutMsgDone( false ),
     pOutHandler( 0 ),
     pIncMsgSize( 0 ),
-    pOutMsgSize( 0 ),
-    pSocketDomain( AF_INET6 )
+    pOutMsgSize( 0 )
   {
     Env *env = DefaultEnv::GetEnv();
 
@@ -82,7 +81,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Initialize the socket
     //--------------------------------------------------------------------------
-    Status st = pSocket->Initialize( pSocketDomain );
+    Status st = pSocket->Initialize( pSockAddr.Family() );
     if( !st.IsOK() )
     {
       log->Error( AsyncSockMsg, "[%s] Unable to initialize socket: %s",
@@ -146,6 +145,11 @@ namespace XrdCl
 
     pPoller->RemoveSocket( pSocket );
     pSocket->Close();
+
+    if( !pIncHandler.second )
+      delete pIncoming;
+
+    pIncoming = 0;
     return Status();
   }
 
@@ -167,13 +171,12 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   void AsyncSocketHandler::Event( uint8_t type, XrdCl::Socket */*socket*/ )
   {
-    pLastActivity = time(0);
-
     //--------------------------------------------------------------------------
     // Read event
     //--------------------------------------------------------------------------
     if( type & ReadyToRead )
     {
+      pLastActivity = time(0);
       if( likely( pHandShakeDone ) )
         OnRead();
       else
@@ -196,6 +199,7 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( type & ReadyToWrite )
     {
+      pLastActivity = time(0);
       if( unlikely( pSocket->GetStatus() == Socket::Connecting ) )
         OnConnectionReturn();
       else if( likely( pHandShakeDone ) )

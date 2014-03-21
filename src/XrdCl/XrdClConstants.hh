@@ -45,7 +45,8 @@ namespace XrdCl
   const int DefaultSubStreamsPerChannel = 1;
   const int DefaultConnectionWindow     = 120;
   const int DefaultConnectionRetry      = 5;
-  const int DefaultRequestTimeout       = 300;
+  const int DefaultRequestTimeout       = 1800;
+  const int DefaultStreamTimeout        = 60;
   const int DefaultTimeoutResolution    = 15;
   const int DefaultStreamErrorWindow    = 1800;
   const int DefaultRunForkHandler       = 0;
@@ -59,7 +60,7 @@ namespace XrdCl
   const int DefaultCPTPCTimeout         = 1800;
 
   const char * const DefaultPollerPreference   = "built-in,libevent";
-  const char * const DefaultNetworkStack       = "IPAll";
+  const char * const DefaultNetworkStack       = "IPAuto";
   const char * const DefaultClientMonitor      = "";
   const char * const DefaultClientMonitorParam = "";
   const char * const DefaultPlugInConfDir      = "";

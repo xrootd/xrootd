@@ -164,35 +164,23 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
-      //! @see XrdCl::File::EnableReadRecovery
+      //! @see XrdCl::File::SetProperty
       //------------------------------------------------------------------------
-      virtual void EnableReadRecovery( bool enable )
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
       {
-        (void)enable;
+        (void)name; (void)value;
+        return false;
       }
 
       //------------------------------------------------------------------------
-      //! @see XrdCl::File::EnableWriteRecovery
+      //! @see XrdCl::File::GetProperty
       //------------------------------------------------------------------------
-      virtual void EnableWriteRecovery( bool enable )
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
       {
-        (void)enable;
-      }
-
-      //------------------------------------------------------------------------
-      //! @see XrdCl::File::GetDataServer
-      //------------------------------------------------------------------------
-      virtual std::string GetDataServer() const
-      {
-        return "";
-      }
-
-      //------------------------------------------------------------------------
-      //! @see XrdCl::File::GetLastURL
-      //------------------------------------------------------------------------
-      virtual URL GetLastURL() const
-      {
-        return URL();
+        (void)name; (void)value;
+        return false;
       }
   };
 
@@ -379,6 +367,26 @@ namespace XrdCl
         (void)fileList; (void)flags; (void)priority; (void)handler;
         (void)timeout;
         return XRootDStatus( stError, errNotImplemented );
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::SetProperty
+      //------------------------------------------------------------------------
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
+      {
+        (void)name; (void)value;
+        return false;
+      }
+
+      //------------------------------------------------------------------------
+      //! @see XrdCl::FileSystem::GetProperty
+      //------------------------------------------------------------------------
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
+      {
+        (void)name; (void)value;
+        return false;
       }
   };
 

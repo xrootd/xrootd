@@ -54,7 +54,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   bool LocationInfo::ProcessLocation( std::string &location )
   {
-    if( location.length() < 17 )
+    if( location.length() < 5 )
       return false;
 
     //--------------------------------------------------------------------------
@@ -256,7 +256,7 @@ namespace XrdCl
     // Check what kind of response we're dealing with
     //--------------------------------------------------------------------------
     std::string dat          = data;
-    std::string dStatPrefix = ".\n0 0 0 0\n";
+    std::string dStatPrefix = ".\n0 0 0 0";
     bool        isDStat     = false;
 
     if( !dat.compare( 0, dStatPrefix.size(), dStatPrefix ) )

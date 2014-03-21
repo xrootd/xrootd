@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_POST_MASTER_INTERFACES_HH__
@@ -101,7 +107,7 @@ namespace XrdCl
       //!
       //! @param msg the message to be processed
       //------------------------------------------------------------------------
-      virtual void Process( Message *msg ) {};
+      virtual void Process( Message *msg ) { (void)msg; };
 
       //------------------------------------------------------------------------
       //! Read message body directly from a socket - called if Examine returns
@@ -118,6 +124,7 @@ namespace XrdCl
                                       int       socket,
                                       uint32_t &bytesRead )
       {
+        (void)msg; (void)socket; (void)bytesRead;
         return Status( stOK, suDone );
       };
 
@@ -133,6 +140,7 @@ namespace XrdCl
                                      uint16_t    streamNum,
                                      Status      status )
       {
+        (void)event; (void)streamNum; (void)status;
         return 0;
       };
   };
@@ -160,7 +168,10 @@ namespace XrdCl
       //! @param msg       message concerned
       //! @param streamNum number of the stream the message will go through
       //------------------------------------------------------------------------
-      virtual void OnReadyToSend( Message *msg, uint16_t streamNum ) {};
+      virtual void OnReadyToSend( Message *msg, uint16_t streamNum )
+      {
+        (void)msg; (void)streamNum;
+      };
 
       //------------------------------------------------------------------------
       //! Determines whether the handler wants to write some data directly
@@ -182,6 +193,7 @@ namespace XrdCl
       virtual Status WriteMessageBody( int       socket,
                                        uint32_t &bytesRead )
       {
+        (void)socket; (void)bytesRead;
         return Status();
       }
   };
@@ -340,7 +352,16 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     inactiveTime,
+                                       uint16_t   streamId,
                                        AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Check the stream is broken - ie. TCP connection got broken and
+      //! went undetected by the TCP stack
+      //------------------------------------------------------------------------
+      virtual Status IsStreamBroken( time_t     inactiveTime,
+                                     uint16_t   streamId,
+                                     AnyObject &channelData ) = 0;
 
       //------------------------------------------------------------------------
       //! Return the ID for the up stream this message should be sent by
@@ -361,6 +382,7 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
+                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 ) = 0;
 
@@ -391,7 +413,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual uint32_t StreamAction( Message *msg, AnyObject &channelData ) = 0;
+      virtual uint32_t MessageReceived( Message   *msg,
+                                        uint16_t   streamId,
+                                        uint16_t   subStream,
+                                        AnyObject &channelData ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Notify the transport about a message having been sent
+      //------------------------------------------------------------------------
+      virtual void MessageSent( Message   *msg,
+                                uint16_t   streamId,
+                                uint16_t   subStream,
+                                uint32_t   bytesSent,
+                                AnyObject &channelData ) = 0;
   };
 }
 

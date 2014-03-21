@@ -186,16 +186,20 @@ int XrdPosixXrootd::endPoint(int FD, char *Buff, int Blen)
 
 // Make sure we can fit result in the buffer
 //
-   if (fp->clFile.GetDataServer().size() >= (uint32_t)Blen)
+   std::string dataServer;
+   fp->clFile.GetProperty( "DataServer", dataServer );
+   XrdCl::URL dataServerUrl = dataServer;
+
+   if (dataServer.size() >= (uint32_t)Blen)
       {fp->UnLock(); return -ENAMETOOLONG;}
 
 // Copy the data server location
 //
-   strcpy(Buff, fp->clFile.GetDataServer().c_str());
+   strcpy(Buff, dataServer.c_str());
 
 // Get the port and return it
 //
-   uPort = fp->clFile.GetLastURL().GetPort();
+   uPort = dataServerUrl.GetPort();
    fp->UnLock();
    return uPort;
 }

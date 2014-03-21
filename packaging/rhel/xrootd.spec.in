@@ -295,6 +295,9 @@ install -m 644 packaging/common/xrootd-standalone.cfg $RPM_BUILD_ROOT%{_sysconfd
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/client.plugins.d
 install -m 644 packaging/common/client-plugin.conf.example $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
 
+# client config
+install -m 644 packaging/common/client.conf $RPM_BUILD_ROOT%{_sysconfdir}/%{name}/client.conf
+
 # documentation
 mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
 cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
@@ -439,6 +442,7 @@ exit 0
 %{_libdir}/libXrdPosix.so.*
 %{_libdir}/libXrdPosixPreload.so.*
 %{_sysconfdir}/%{name}/client.plugins.d/client-plugin.conf.example
+%config(noreplace) %{_sysconfdir}/%{name}/client.conf
 # Some of the libraries are used as plugins - need the .so symlink at runtime
 %{_libdir}/libXrdPosixPreload.so
 

@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClXRootDMsgHandler.hh"
@@ -386,8 +392,12 @@ namespace XrdCl
         std::vector<std::string> urlComponents;
         std::string newCgi;
         Utils::splitString( urlComponents, urlInfo, "?" );
+
         std::ostringstream o;
-        o << urlComponents[0] << ":" << rsp->body.redirect.port << "/";
+
+        o << urlComponents[0];
+        if( rsp->body.redirect.port != -1 )
+          o << ":" << rsp->body.redirect.port << "/";
         pUrl = URL( o.str() );
         if( !pUrl.IsValid() )
         {
@@ -397,6 +407,7 @@ namespace XrdCl
           HandleResponse();
           return;
         }
+        pRedirectUrl = pUrl.GetURL();
 
         URL cgiURL;
         if( urlComponents.size() > 1 )
@@ -404,16 +415,20 @@ namespace XrdCl
           std::ostringstream o;
           o << "fake://fake:111//fake?";
           o << urlComponents[1];
+          pRedirectUrl += "?";
+          pRedirectUrl += urlComponents[1];
           cgiURL = URL( o.str() );
-          pRedirectCgi = urlComponents[1];
         }
 
         //----------------------------------------------------------------------
         // Check if we need to return the URL as a response
         //----------------------------------------------------------------------
+        if( pUrl.GetProtocol() != "root" && pUrl.GetProtocol() != "xroot" )
+          pRedirectAsAnswer = true;
+
         if( pRedirectAsAnswer )
         {
-          pStatus   = Status( stOK, suXRDRedirect );
+          pStatus   = Status( stError, errRedirect );
           pResponse = msgPtr.release();
           HandleResponse();
           return;
@@ -422,7 +437,8 @@ namespace XrdCl
         //----------------------------------------------------------------------
         // Rewrite the message in a way required to send it to another server
         //----------------------------------------------------------------------
-        Status st = RewriteRequestRedirect( cgiURL.GetParams() );
+        Status st = RewriteRequestRedirect( cgiURL.GetParams(),
+                                            pUrl.GetPath() );
         if( !st.IsOK() )
         {
           pStatus = st;
@@ -1009,10 +1025,16 @@ namespace XrdCl
     ServerResponse *rsp = 0;
     if( pResponse )
       rsp = (ServerResponse *)pResponse->GetBuffer();
-    if( !pStatus.IsOK() && pStatus.code == errErrorResponse && rsp )
+
+    if( !pStatus.IsOK() && rsp )
     {
-      st->errNo = rsp->body.error.errnum;
-      st->SetErrorMessage( rsp->body.error.errmsg );
+      if( pStatus.code == errErrorResponse )
+      {
+        st->errNo = rsp->body.error.errnum;
+        st->SetErrorMessage( rsp->body.error.errmsg );
+      }
+      else if( pStatus.code == errRedirect )
+        st->SetErrorMessage( pRedirectUrl );
     }
     return st;
   }
@@ -1035,21 +1057,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     if( rsp->hdr.status == kXR_redirect )
     {
-      if( !pRedirectAsAnswer )
-      {
-        log->Error( XRootDMsg, "Internal Error: trying to pass redirect as an "
-                    "answer even though this has never been requested" );
-        return 0;
-      }
-      log->Dump( XRootDMsg, "Parsing the response to %s as RedirectInfo",
-                 pRequest->GetDescription().c_str() );
-      AnyObject    *obj  = new AnyObject();
-      RedirectInfo *info = new RedirectInfo( pUrl.GetHostName(),
-                                             pUrl.GetPort(),
-                                             pRedirectCgi );
-      obj->Set( info );
-      response = obj;
-      return Status();
+      log->Error( XRootDMsg, "Internal Error: unable to process redirect" );
+      return 0;
     }
 
     //--------------------------------------------------------------------------
@@ -1442,7 +1451,9 @@ namespace XrdCl
   // Perform the changes to the original request needed by the redirect
   // procedure - allocate new streamid, append redirection data and such
   //----------------------------------------------------------------------------
-  Status XRootDMsgHandler::RewriteRequestRedirect( const URL::ParamsMap &newCgi )
+  Status XRootDMsgHandler::RewriteRequestRedirect(
+    const URL::ParamsMap &newCgi,
+    const std::string    &newPath )
   {
     Log *log = DefaultEnv::GetLog();
     ClientRequest  *req = (ClientRequest *)pRequest->GetBuffer();
@@ -1478,11 +1489,8 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Rewrite particular requests
     //--------------------------------------------------------------------------
-    if( newCgi.empty() )
-      return Status();
-
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::AppendCGI( pRequest, newCgi, true );
+    MessageUtils::RewriteCGIAndPath( pRequest, newCgi, true, newPath );
     XRootDTransport::MarshallRequest( pRequest );
     return Status();
   }
@@ -1746,7 +1754,7 @@ namespace XrdCl
     URL::ParamsMap cgi;
     cgi["tried"] = pUrl.GetHostName();
     XRootDTransport::UnMarshallRequest( pRequest );
-    MessageUtils::AppendCGI( pRequest, cgi, false );
+    MessageUtils::RewriteCGIAndPath( pRequest, cgi, false, "" );
     XRootDTransport::MarshallRequest( pRequest );
   }
 

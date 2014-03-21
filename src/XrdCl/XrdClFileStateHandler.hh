@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_FILE_STATE_HANDLER_HH__
@@ -235,7 +241,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Handle stateful redirect
       //------------------------------------------------------------------------
-      void OnStateRedirection( RedirectInfo      *redirectInfo,
+      void OnStateRedirection( const std::string &redirectUrl,
                                Message           *message,
                                ResponseHandler   *userHandler,
                                MessageSendParams &sendParams );
@@ -254,26 +260,18 @@ namespace XrdCl
       bool IsOpen() const;
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! reading
+      //! Set file property
+      //!
+      //! @see File::GetProperty for propert list
       //------------------------------------------------------------------------
-      void EnableReadRecovery( bool enable );
+      bool SetProperty( const std::string &name, const std::string &value );
 
       //------------------------------------------------------------------------
-      //! Enable/disable state recovery procedures while the file is open for
-      //! writing or read/write
+      //! Get file property
+      //!
+      //! @see File::SetProperty for property list
       //------------------------------------------------------------------------
-      void EnableWriteRecovery( bool enable );
-
-      //------------------------------------------------------------------------
-      //! Get the data server the file is accessed at
-      //------------------------------------------------------------------------
-      std::string GetDataServer() const;
-
-      //------------------------------------------------------------------------
-      //! Get final url with all the cgi information
-      //------------------------------------------------------------------------
-      URL GetLastURL() const;
+      bool GetProperty( const std::string &name, std::string &value ) const;
 
       //------------------------------------------------------------------------
       //! Lock the internal lock
@@ -350,6 +348,11 @@ namespace XrdCl
       Status RunRecovery();
 
       //------------------------------------------------------------------------
+      // Send a close and ignore the response
+      //------------------------------------------------------------------------
+      Status SendClose( uint16_t timeout );
+
+      //------------------------------------------------------------------------
       //! Check if the file is open for read only
       //------------------------------------------------------------------------
       bool IsReadOnly() const;
@@ -416,6 +419,7 @@ namespace XrdCl
       uint64_t                pSessionId;
       bool                    pDoRecoverRead;
       bool                    pDoRecoverWrite;
+      bool                    pFollowRedirects;
 
       //------------------------------------------------------------------------
       // Monitoring variables

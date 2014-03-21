@@ -87,13 +87,13 @@ struct option XrdCpConfig::opVec[] =         // For getopt_long()
      {
       {OPT_TYPE "cksum",     1, 0, XrdCpConfig::OpCksum},
       {OPT_TYPE "debug",     1, 0, XrdCpConfig::OpDebug},
+      {OPT_TYPE "dynamic-src",0,0, XrdCpConfig::OpDynaSrc},
       {OPT_TYPE "coerce",    0, 0, XrdCpConfig::OpCoerce},
       {OPT_TYPE "force",     0, 0, XrdCpConfig::OpForce},
       {OPT_TYPE "help",      0, 0, XrdCpConfig::OpHelp},
       {OPT_TYPE "infiles",   1, 0, XrdCpConfig::OpIfile},
       {OPT_TYPE "license",   0, 0, XrdCpConfig::OpLicense},
       {OPT_TYPE "nopbar",    0, 0, XrdCpConfig::OpNoPbar},
-      {OPT_TYPE "noszchk",   0, 0, XrdCpConfig::OpNoSzChk},
       {OPT_TYPE "posc",      0, 0, XrdCpConfig::OpPosc},
       {OPT_TYPE "proxy",     1, 0, XrdCpConfig::OpProxy},
       {OPT_TYPE "recursive", 0, 0, XrdCpConfig::OpRecurse},
@@ -214,6 +214,8 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpDebug:    OpSpec |= DoDebug;
                            if (!a2i(optarg, &Dlvl, 0, 3)) Usage(22);
                            break;
+          case OpDynaSrc:  OpSpec |= DoDynaSrc;
+                           break;
           case OpForce:    OpSpec |= DoForce;
                            break;
           case OpHelp:     Usage(0);
@@ -225,8 +227,6 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpLicense:  License();
                            break;
           case OpNoPbar:   OpSpec |= DoNoPbar;
-                           break;
-          case OpNoSzChk:  OpSpec |= DoNoSzChk;
                            break;
           case OpPosc:     OpSpec |= DoPosc;
                            break;
@@ -821,11 +821,11 @@ void XrdCpConfig::Usage(int rc)
    "Usage:   xrdcp [<options>] <src> <dest>\n";
 
    static const char *Options= "\n"
-   "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--force] [--help]\n"
-   "         [--infiles <fn>] [--license] [--nopbar] [--noszchk] [--posc]\n"
-   "         [--proxy <host>:<port] [--recursive] [--retry <n>] [--server]\n"
-   "         [--silent] [--sources <n>] [--streams <n>] [--tpc {first|only}]\n"
-   "         [--verbose] [--version] [--xrate <rate>]";
+   "Options: [--cksum <args>] [--debug <lvl>] [--coerce] [--dynamic-src]\n"
+   "         [--force] [--help] [--infiles <fn>] [--license] [--nopbar]\n"
+   "         [--posc] [--proxy <host>:<port>] [--recursive] [--retry <n>]\n"
+   "         [--server] [--silent] [--sources <n>] [--streams <n>]\n"
+   "         [--tpc {first|only}] [--verbose] [--version] [--xrate <rate>]";
 
    static const char *Syntax2= "\n"
    "<src>:   [[x]root://<host>[:<port>]/]<path> | -";
@@ -845,13 +845,13 @@ void XrdCpConfig::Usage(int rc)
    "                    and computed for local files. Specifying print merely\n"
    "                    prints the checksum but does not verify it.\n"
    "-d | --debug <lvl>  sets the debug level: 0 off, 1 low, 2 medium, 3 high\n"
+   "-Z | --dynamic-src  file size may change during the copy\n"
    "-F | --coerce       coerces the copy by ignoring file locking semantics\n"
    "-f | --force        replaces any existing output file\n"
    "-h | --help         prints this information\n"
    "-H | --license      prints license terms and conditions\n"
    "-I | --infiles      specifies the file that contains a list of input files\n"
    "-N | --nopbar       does not print the progress bar\n"
-   "     --noszchk      neither verifies nor post-checks the size of the file\n"
    "-P | --posc         enables persist on successful close semantics\n"
    "-D | --proxy        uses the specified SOCKS4 proxy connection\n"
    "-r | --recursive    recursively copies all source files\n"

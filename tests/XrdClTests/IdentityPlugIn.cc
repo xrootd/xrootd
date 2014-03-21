@@ -196,43 +196,25 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      // EnableReadRecovery
+      // SetProperty
       //------------------------------------------------------------------------
-      virtual void EnableReadRecovery( bool enable )
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
       {
         XrdCl::Log *log = TestEnv::GetLog();
-        log->Debug( 1, "Calling IdentityFile::EnableReadRecovery" );
-        pFile->EnableReadRecovery( enable );
+        log->Debug( 1, "Calling IdentityFile::SetProperty" );
+        return pFile->SetProperty( name, value );
       }
 
       //------------------------------------------------------------------------
-      //! @see XrdCl::File::EnableWriteRecovery
+      // GetProperty
       //------------------------------------------------------------------------
-      virtual void EnableWriteRecovery( bool enable )
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
       {
         XrdCl::Log *log = TestEnv::GetLog();
-        log->Debug( 1, "Calling IdentityFile::EnableWriteRecovery" );
-        pFile->EnableWriteRecovery( enable );
-      }
-
-      //------------------------------------------------------------------------
-      //! @see XrdCl::File::GetDataServer
-      //------------------------------------------------------------------------
-      virtual std::string GetDataServer() const
-      {
-        XrdCl::Log *log = TestEnv::GetLog();
-        log->Debug( 1, "Calling IdentityFile::GetDataServer" );
-        return pFile->GetDataServer();
-      }
-
-      //------------------------------------------------------------------------
-      //! @see XrdCl::File::GetLastURL
-      //------------------------------------------------------------------------
-      virtual URL GetLastURL() const
-      {
-        XrdCl::Log *log = TestEnv::GetLog();
-        log->Debug( 1, "Calling IdentityFile::GetLastURL" );
-        return pFile->GetLastURL();
+        log->Debug( 1, "Calling IdentityFile::GetProperty" );
+        return pFile->GetProperty( name, value );
       }
 
     private:
@@ -452,6 +434,28 @@ namespace
         log->Debug( 1, "Calling IdentityFileSystem::Prepare" );
         return pFileSystem->Prepare( fileList, flags, priority, handler,
                                      timeout );
+      }
+
+      //------------------------------------------------------------------------
+      // SetProperty
+      //------------------------------------------------------------------------
+      virtual bool SetProperty( const std::string &name,
+                                const std::string &value )
+      {
+        XrdCl::Log *log = TestEnv::GetLog();
+        log->Debug( 1, "Calling IdentityFileSystem::SetProperty" );
+        return pFileSystem->SetProperty( name, value );
+      }
+
+      //------------------------------------------------------------------------
+      // GetProperty
+      //------------------------------------------------------------------------
+      virtual bool GetProperty( const std::string &name,
+                                std::string &value ) const
+      {
+        XrdCl::Log *log = TestEnv::GetLog();
+        log->Debug( 1, "Calling IdentityFilesystem::GetProperty" );
+        return pFileSystem->GetProperty( name, value );
       }
 
     private:

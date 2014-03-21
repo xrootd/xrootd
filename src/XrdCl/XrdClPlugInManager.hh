@@ -99,18 +99,24 @@ namespace XrdCl
       //! programatically.
       //!
       //! The plug-in library must implement the following method:
+      //!
+      //! @code{.cpp}
       //! extern "C"
       //! {
-      //!   void *XrdClGetPlugIn()
+      //!   void *XrdClGetPlugIn( const void *arg )
       //!   {
       //!     return __your_plug_in_factory__;
       //!   }
       //! }
+      //! @endcode
+      //!
+      //! where arf is a const pointer to std::map<std::string, std::string>
+      //! containing the plug-in configuration.
       //------------------------------------------------------------------------
       void ProcessEnvironmentSettings();
 
     private:
-      typedef void *(*PlugInFunc_t)();
+      typedef void *(*PlugInFunc_t)( const void *arg );
 
       struct FactoryHelper
       {
@@ -136,7 +142,8 @@ namespace XrdCl
       //! Load the plug-in and create the factory
       //------------------------------------------------------------------------
       std::pair<XrdSysPlugin*,PlugInFactory*> LoadFactory(
-        const std::string &lib );
+        const std::string                        &lib,
+        const std::map<std::string, std::string> &config );
 
       //------------------------------------------------------------------------
       //! Register factory, if successful it actuires ownership of the objects

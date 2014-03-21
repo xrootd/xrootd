@@ -127,7 +127,10 @@ virtual bool Event(Channel *chP, void *cbArg, int evFlags) = 0;
 //! @param  eTxt    descriptive name of the operation encountering the error.
 //-----------------------------------------------------------------------------
 
-virtual void Fatal(Channel *chP, void *cbArg, int eNum, const char *eTxt) {};
+virtual void Fatal(Channel *chP, void *cbArg, int eNum, const char *eTxt)
+{
+  (void)chP; (void)cbArg; (void)eNum; (void)eTxt;
+};
 
 //-----------------------------------------------------------------------------
 //! Handle poller stop notification. This method is called only when the poller
@@ -139,7 +142,7 @@ virtual void Fatal(Channel *chP, void *cbArg, int eNum, const char *eTxt) {};
 //! @param  cbArg   the callback argument specified for the channel.
 //-----------------------------------------------------------------------------
 
-virtual void Stop(Channel *chP, void *cbArg) {}
+virtual void Stop(Channel *chP, void *cbArg) { (void)chP; (void)cbArg;}
 
 //-----------------------------------------------------------------------------
 //! Constructor

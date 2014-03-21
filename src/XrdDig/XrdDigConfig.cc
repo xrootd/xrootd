@@ -86,6 +86,8 @@ namespace
                           {"proc", XrdDigAuthEnt::aProc, 4, 0}
                          };
    static const int pNum = 4;
+
+   struct stat rootStat;
 };
 
 /******************************************************************************/
@@ -163,6 +165,10 @@ bool XrdDigConfig::Configure(const char *cFN, const char *parms)
 // Setup locate response
 //
    SetLocResp();
+
+// Get a valid stat structure for the root directory
+//
+   stat("/", &rootStat);
 
 // Validate base entries
 //
@@ -263,8 +269,13 @@ char *XrdDigConfig::GenPath(int &rc, const XrdSecEntity *client,
 
 // Construct the name to be returned
 //
+   i = (lfnType == isDir ? 1 : 0);
    n = snprintf(path, sizeof(path), fnTmplt, fname);
-   if (n >= (int)sizeof(path)) {rc = ENAMETOOLONG; return 0;}
+   if (n >= (int)sizeof(path)-1) {rc = ENAMETOOLONG; return 0;}
+
+// Attach a trailing slash if there is none if this is a directory
+//
+   if (lfnType == isDir && path[n-1] != '/') {path[n] = '/'; path[n+1] = 0;}
 
 // Return the composite name
 //
@@ -286,6 +297,15 @@ void XrdDigConfig::GetLocResp(XrdOucErrInfo &eInfo, bool nameok)
    else if (eInfo.getUCap() & XrdOucEI::uIPv4)
            eInfo.setErrInfo(locRlenV4, locRespV4);
    else    eInfo.setErrInfo(locRlenV6, locRespV6);
+}
+
+/******************************************************************************/
+/*                              S t a t R o o t                               */
+/******************************************************************************/
+  
+void XrdDigConfig::StatRoot(struct stat *sP)
+{
+   memcpy(sP, &rootStat, sizeof(struct stat));
 }
 
 /******************************************************************************/

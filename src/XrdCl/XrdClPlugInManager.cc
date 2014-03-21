@@ -186,7 +186,7 @@ namespace XrdCl
                   defaultPlugIn.c_str());
 
       std::pair<XrdSysPlugin*, PlugInFactory *> pg = LoadFactory(
-        defaultPlugIn );
+        defaultPlugIn, std::map<std::string, std::string>() );
 
       if( !pg.first )
       {
@@ -306,7 +306,7 @@ namespace XrdCl
       log->Debug( PlugInMgrMsg, "Trying to load a plug-in for '%s' from '%s'",
                   url.c_str(), lib.c_str() );
 
-      pg = LoadFactory( lib );
+      pg = LoadFactory( lib, config );
 
       if( !pg.first )
         return;
@@ -326,7 +326,7 @@ namespace XrdCl
   // Load the plug-in and create the factory
   //----------------------------------------------------------------------------
   std::pair<XrdSysPlugin*,PlugInFactory*> PlugInManager::LoadFactory(
-    const std::string &lib )
+    const std::string &lib, const std::map<std::string, std::string> &config )
   {
     Log *log = DefaultEnv::GetLog();
 
@@ -335,7 +335,7 @@ namespace XrdCl
                                                 lib.c_str(), lib.c_str(),
                                                 &XrdVERSIONINFOVAR( XrdCl ) );
 
-    PlugInFunc_t pgFunc= (PlugInFunc_t)pgHandler->getPlugin(
+    PlugInFunc_t pgFunc = (PlugInFunc_t)pgHandler->getPlugin(
       "XrdClGetPlugIn", false, false );
 
     if( !pgFunc )
@@ -345,7 +345,7 @@ namespace XrdCl
       return std::make_pair<XrdSysPlugin*, PlugInFactory*>( 0, 0 );
     }
 
-    PlugInFactory *f = (PlugInFactory*)pgFunc();
+    PlugInFactory *f = (PlugInFactory*)pgFunc( &config );
 
     if( !f )
     {

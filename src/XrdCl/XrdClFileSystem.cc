@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClMessageUtils.hh"
@@ -48,6 +54,7 @@ namespace
                          XrdCl::OpenFlags::Flags   flags,
                          time_t                    expires ):
         pFirstTime( true ),
+        pPartial( false ),
         pOutstanding( 1 ),
         pHandler( handler ),
         pPath( path ),
@@ -98,6 +105,8 @@ namespace
             delete this;
             return;
           }
+
+          pPartial = true;
 
           //--------------------------------------------------------------------
           // We have no more outstanding requests, so let give to the client
@@ -185,13 +194,16 @@ namespace
           AnyObject *obj = new AnyObject();
           obj->Set( pLocations );
           pLocations = 0;
-          pHandler->HandleResponse( new XRootDStatus(), obj );
+          XRootDStatus *st = new XRootDStatus();
+          if( pPartial ) st->code = suPartial;
+          pHandler->HandleResponse( st, obj );
         }
         delete this;
       }
 
     private:
       bool                      pFirstTime;
+      bool                      pPartial;
       uint16_t                  pOutstanding;
       XrdCl::ResponseHandler   *pHandler;
       XrdCl::LocationInfo      *pLocations;
@@ -299,6 +311,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   FileSystem::FileSystem( const URL &url, bool enablePlugIns ):
     pLoadBalancerLookupDone( false ),
+    pFollowRedirects( true ),
     pPlugIn(0)
   {
     pUrl = new URL( url.GetURL() );
@@ -913,7 +926,7 @@ namespace XrdCl
       DirectoryList *currentResp  = 0;
       uint32_t       errors       = 0;
       uint32_t       numLocations = locations->GetSize();
-      bool           partial      = false;
+      bool           partial      = st.code == suPartial ? true : false;
 
       response = new DirectoryList();
       response->SetParentName( path );
@@ -1100,6 +1113,42 @@ namespace XrdCl
   }
 
   //----------------------------------------------------------------------------
+  // Set file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::SetProperty( const std::string &name,
+                                const std::string &value )
+  {
+    if( pPlugIn )
+      return pPlugIn->SetProperty( name, value );
+
+    if( name == "FollowRedirects" )
+    {
+      if( value == "true" ) pFollowRedirects = true;
+      else pFollowRedirects = false;
+      return true;
+    }
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  // Get file property
+  //----------------------------------------------------------------------------
+  bool FileSystem::GetProperty( const std::string &name,
+                                std::string &value ) const
+  {
+    if( pPlugIn )
+      return pPlugIn->GetProperty( name, value );
+
+    if( name == "FollowRedirects" )
+    {
+      if( pFollowRedirects ) value = "true";
+      else value = "false";
+      return true;
+    }
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
   // Assign a load balancer if it has not already been assigned
   //----------------------------------------------------------------------------
   void FileSystem::AssignLoadBalancer( const URL &url )
@@ -1121,9 +1170,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Send a message in a locked environment
   //----------------------------------------------------------------------------
-  Status FileSystem::Send( Message                 *msg,
-                           ResponseHandler         *handler,
-                           const MessageSendParams &params )
+  Status FileSystem::Send( Message                  *msg,
+                           ResponseHandler          *handler,
+                           MessageSendParams        &params )
   {
     Log *log = DefaultEnv::GetLog();
     XrdSysMutexHelper scopedLock( pMutex );
@@ -1131,8 +1180,10 @@ namespace XrdCl
     log->Dump( FileSystemMsg, "[0x%x@%s] Sending %s", this,
                pUrl->GetHostId().c_str(), msg->GetDescription().c_str() );
 
-    if( !pLoadBalancerLookupDone )
+    if( !pLoadBalancerLookupDone && pFollowRedirects )
       handler = new AssignLBHandler( this, handler );
+
+    params.followRedirects = pFollowRedirects;
 
     return MessageUtils::SendMessage( *pUrl, msg, handler, params );
   }

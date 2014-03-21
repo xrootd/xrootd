@@ -256,7 +256,10 @@ virtual XrdOucCacheIO *Detach() {return this;}
 static const int SingleUse = 0x0001; // Mark pages for single use
 
 virtual
-void        Preread (long long Offset, int Length, int Opts=0) {}
+void        Preread (long long Offset, int Length, int Opts=0)
+{
+  (void)Offset; (void)Length; (void)Opts;
+}
 
 // The following structure describes automatic preread parameters. These can be
 // set at any time for each XrdOucCacheIO object. It can also be specified when
@@ -280,7 +283,7 @@ struct aprParms
       };
 
 virtual
-void        Preread(aprParms &Parms) {}
+void        Preread(aprParms &Parms) { (void)Parms; }
 
 //          Here is where the stats about cache and I/O usage reside. There
 //          is a summary object in the associated cache as well.

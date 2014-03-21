@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #ifndef __XRD_CL_XROOTD_TRANSPORT_HH__
@@ -100,7 +106,16 @@ namespace XrdCl
       //! Check if the stream should be disconnected
       //------------------------------------------------------------------------
       virtual bool IsStreamTTLElapsed( time_t     time,
+                                       uint16_t   streamId,
                                        AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Check the stream is broken - ie. TCP connection got broken and
+      //! went undetected by the TCP stack
+      //------------------------------------------------------------------------
+      virtual Status IsStreamBroken( time_t     inactiveTime,
+                                     uint16_t   streamId,
+                                     AnyObject &channelData );
 
       //------------------------------------------------------------------------
       //! Return the ID for the up stream this message should be sent by
@@ -121,6 +136,7 @@ namespace XrdCl
       //! the answer will be returned via the hinted stream.
       //------------------------------------------------------------------------
       virtual PathID MultiplexSubStream( Message   *msg,
+                                         uint16_t   streamId,
                                          AnyObject &channelData,
                                          PathID    *hint = 0 );
 
@@ -191,7 +207,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Check if the message invokes a stream action
       //------------------------------------------------------------------------
-      virtual uint32_t StreamAction( Message *msg, AnyObject &channelData );
+      virtual uint32_t MessageReceived( Message   *msg,
+                                        uint16_t   streamId,
+                                        uint16_t   subStream,
+                                        AnyObject &channelData );
+
+      //------------------------------------------------------------------------
+      //! Notify the transport about a message having been sent
+      //------------------------------------------------------------------------
+      virtual void MessageSent( Message   *msg,
+                                uint16_t   streamId,
+                                uint16_t   subStream,
+                                uint32_t   bytesSent,
+                                AnyObject &channelData );
 
     private:
 

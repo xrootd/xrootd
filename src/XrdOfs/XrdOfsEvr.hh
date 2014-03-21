@@ -64,9 +64,10 @@ class theClient : XrdOucEICB
 public:
 
 void Done(int &Result, XrdOucErrInfo *eInfo, const char *path=0)
-         {EvrP->Work4Event(this);}
+         { (void)Result; (void)eInfo; (void)path; EvrP->Work4Event(this);}
 
-int  Same(unsigned long long arg1, unsigned long long arg2) {return 0;}
+int  Same(unsigned long long arg1, unsigned long long arg2)
+{ (void)arg1; (void)arg2; return 0;}
 
 theClient         *Next;
 const char        *User;

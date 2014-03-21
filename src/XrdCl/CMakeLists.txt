@@ -13,8 +13,8 @@ endif()
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_CL_VERSION   1.0.1 )
-set( XRD_CL_SOVERSION 1 )
+set( XRD_CL_VERSION   2.0.0 )
+set( XRD_CL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCl lib
@@ -69,6 +69,7 @@ add_library(
   XrdClPlugInManager.cc       XrdClPlugInManager.hh
                               XrdClPropertyList.hh
                               XrdClCopyJob.hh
+  XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
   ${LIBEVENT_POLLER_FILES}
 )
 
@@ -144,6 +145,7 @@ install(
     XrdClPlugInInterface.hh
     XrdClPlugInManager.hh
     XrdClPropertyList.hh
+    XrdClFileSystemUtils.hh
   DESTINATION    ${CMAKE_INSTALL_INCLUDEDIR}/xrootd/XrdCl )
 
 install(
@@ -151,3 +153,17 @@ install(
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
   ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcopy xrdcp
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
+)
+
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND ln -sf xrdcopy.1 xrdcp.1
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
+)

@@ -125,7 +125,7 @@ public:
 //!               (e.g. copied in).
 //------------------------------------------------------------------------------
 
-virtual void   Added(const char *path, int Pend=0) {}
+virtual void   Added(const char *path, int Pend=0) { (void)path; (void)Pend; }
 
 //------------------------------------------------------------------------------
 //! Configure the client object.
@@ -171,7 +171,11 @@ virtual int    Configure(const char *cfn, char *Parms, XrdOucEnv *EnvInfo) = 0;
 
 virtual int    Forward(XrdOucErrInfo &Resp,   const char *cmd,
                        const char    *arg1=0, const char *arg2=0,
-                       XrdOucEnv     *Env1=0, XrdOucEnv  *Env2=0) {return 0;}
+                       XrdOucEnv     *Env1=0, XrdOucEnv  *Env2=0)
+{
+  (void)Resp; (void)cmd; (void)arg1; (void)arg2; (void)Env1; (void)Env2;
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 //! Check if this client is configured for a manager node.
@@ -237,7 +241,11 @@ XrdOucTList   *Managers() {return 0;}
 //------------------------------------------------------------------------------
 
 virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
-                       XrdOucEnv  *Info=0) {return 0;}
+                       XrdOucEnv  *Info=0)
+{
+  (void)Resp; (void)pargs; (void)Info;
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 //! Notify the cmsd that a file or directory has been deleted. It is only called
@@ -246,7 +254,7 @@ virtual int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
 //! @param  path The logical file name that was removed.
 //------------------------------------------------------------------------------
 
-virtual void   Removed(const char *path) {}
+virtual void   Removed(const char *path) { (void)path; }
 
 //------------------------------------------------------------------------------
 //! Resume service after a suspension.
@@ -255,7 +263,7 @@ virtual void   Removed(const char *path) {}
 //!              it is treated as a temporary request.
 //------------------------------------------------------------------------------
 
-virtual void   Resume (int Perm=1) {}
+virtual void   Resume (int Perm=1) { (void)Perm; }
 
 //------------------------------------------------------------------------------
 //! Suspend service.
@@ -264,7 +272,7 @@ virtual void   Resume (int Perm=1) {}
 //!              Otherwise, it is treated as a temporary request.
 //------------------------------------------------------------------------------
 
-virtual void   Suspend(int Perm=1) {}
+virtual void   Suspend(int Perm=1) { (void)Perm; }
 
 // The following set of functions can be used to control whether or not clients
 // are dispatched to this data server based on a virtual resource. The default
@@ -279,7 +287,7 @@ virtual void   Suspend(int Perm=1) {}
 //! @return The previous resource value. This first call returns 0.
 //------------------------------------------------------------------------------
 
-virtual int    Resource(int n)   {return 0;}
+virtual int    Resource(int n)   { (void)n; return 0;}
 
 //------------------------------------------------------------------------------
 //! Decreases the amount of resources available. When the available resources
@@ -291,7 +299,7 @@ virtual int    Resource(int n)   {return 0;}
 //! @return The amount of resource left.
 //------------------------------------------------------------------------------
 
-virtual int    Reserve (int n=1) {return 0;}
+virtual int    Reserve (int n=1) { (void)n; return 0;}
 
 //------------------------------------------------------------------------------
 //! Increases the amount of resource available. When transitioning from a
@@ -304,7 +312,7 @@ virtual int    Reserve (int n=1) {return 0;}
 //! @return The amount of resource left.
 //------------------------------------------------------------------------------
 
-virtual int    Release (int n=1) {return 0;}
+virtual int    Release (int n=1) { (void)n; return 0;}
 
 //------------------------------------------------------------------------------
 //! Obtain the overall space usage of a cluster. Called only on manager nodes.

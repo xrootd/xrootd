@@ -40,6 +40,7 @@
 #include <sys/types.h>
 
 #include "XrdNet/XrdNetAddr.hh"
+#include "XrdNet/XrdNetIF.hh"
 #include "XrdNet/XrdNetUtils.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -47,6 +48,16 @@
 #include "XrdSys/XrdSysPthread.hh"
 #endif
 
+/******************************************************************************/
+/*                        S t a t i c   M e m b e r s                         */
+/******************************************************************************/
+
+int  XrdNetUtils::autoFamily;
+
+// The following also sets autoFamily!
+//
+int  XrdNetUtils::autoHints  = XrdNetUtils::SetAuto(XrdNetUtils::prefAuto);
+  
 /******************************************************************************/
 /*                                D e c o d e                                 */
 /******************************************************************************/
@@ -206,6 +217,9 @@ const char  *XrdNetUtils::GetAddrs(const char            *hSpec,
                          break;
           case prefIPv6: hints.ai_family = AF_INET6;
                          hints.ai_flags  = AI_V4MAPPED;
+                         break;
+          case prefAuto: hints.ai_family = autoFamily;
+                         hints.ai_flags  = autoHints;
                          break;
           default:       hints.ai_family = AF_INET6;
                          hints.ai_flags  = AI_V4MAPPED | AI_ALL;
@@ -535,6 +549,36 @@ int XrdNetUtils::ServPort(const char *sName, bool isUDP, const char **eText)
    return portnum;
 }
  
+/******************************************************************************/
+/*                               S e t A u t o                                */
+/******************************************************************************/
+  
+int XrdNetUtils::SetAuto(XrdNetUtils::AddrOpts aOpts)
+{
+
+// If a specific family is not specified, then determine which families to use
+//
+   if (aOpts != onlyIPv4 && aOpts != allIPMap)
+      {int ifTypes = XrdNetIF::GetIF(0);
+            if (ifTypes & XrdNetIF::haveIPv6) aOpts = allIPMap;
+       else if (ifTypes & XrdNetIF::haveIPv4) aOpts = onlyIPv4;
+       else {autoFamily = AF_UNSPEC; autoHints = AI_V4MAPPED | AI_ADDRCONFIG;
+             return AI_V4MAPPED | AI_ADDRCONFIG;
+            }
+      }
+
+// If this is forced IPv4 then we know how to set the hints
+//
+   if (aOpts == onlyIPv4)
+      {autoFamily = AF_INET; autoHints = 0; return 0;}
+
+// So, this is IPv6. Be as flexible as possible.
+//
+   autoFamily = AF_INET6;
+   autoHints  = AI_V4MAPPED | AI_ALL;
+   return AI_V4MAPPED | AI_ALL;
+}
+  
 /******************************************************************************/
 /* Private:                        s e t E T                                  */
 /******************************************************************************/
