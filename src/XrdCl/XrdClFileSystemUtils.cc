@@ -54,10 +54,10 @@ namespace XrdCl
     bool partial = st.code == suPartial ? true : false;
 
     std::vector<std::pair<std::string, uint64_t> > resp;
-    resp.push_back( std::make_pair( "oss.space", 0 ) );
-    resp.push_back( std::make_pair( "oss.free", 0 ) );
-    resp.push_back( std::make_pair( "oss.used", 0 ) );
-    resp.push_back( std::make_pair( "oss.maxf", 0 ) );
+    resp.push_back( std::make_pair( std::string("oss.space"), (uint64_t)0 ) );
+    resp.push_back( std::make_pair( std::string("oss.free"), (uint64_t)0 ) );
+    resp.push_back( std::make_pair( std::string("oss.used"), (uint64_t)0 ) );
+    resp.push_back( std::make_pair( std::string("oss.maxf"), (uint64_t)0 ) );
 
     //--------------------------------------------------------------------------
     // Loop over the file servers and get the space info from each of them
