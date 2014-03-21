@@ -13,8 +13,8 @@ endif()
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_CL_VERSION   1.0.1 )
-set( XRD_CL_SOVERSION 1 )
+set( XRD_CL_VERSION   2.0.0 )
+set( XRD_CL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCl lib
@@ -158,12 +158,12 @@ install(
   CODE "
     EXECUTE_PROCESS(
       COMMAND ln -sf xrdcopy xrdcp
-      WORKING_DIRECTORY  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
 )
 
 install(
   CODE "
     EXECUTE_PROCESS(
       COMMAND ln -sf xrdcopy.1 xrdcp.1
-      WORKING_DIRECTORY  ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
+      WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
 )
