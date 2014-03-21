@@ -245,7 +245,7 @@ namespace XrdCl
         return XRootDStatus( stError, errOperationExpired );
       }
       else
-        timeLeft =- (now-start);
+        timeLeft -= (now-start);
     }
 
     //--------------------------------------------------------------------------
@@ -510,7 +510,7 @@ namespace XrdCl
       if( now-start > timeLeft )
         timeLeft = 1; // we still want to send a close, but we time it out fast
       else
-        timeLeft =- (now-start);
+        timeLeft -= (now-start);
     }
 
     sourceFile.Close( timeLeft );
@@ -521,7 +521,7 @@ namespace XrdCl
       if( now-start > timeLeft )
         return XRootDStatus( stError, errOperationExpired );
       else
-        timeLeft =- (now-start);
+        timeLeft -= (now-start);
     }
 
     st = Utils::CheckTPC( sourceUrlU.GetHostId(), timeLeft );
