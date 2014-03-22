@@ -143,6 +143,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                              const char       *theParms);
    extern int optind, opterr;
 
+   XrdOucEnv myEnv;
    XrdXrootdXPath *xp;
    void *secGetProt = 0;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
@@ -252,21 +253,27 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                }
            }
 
+// Establish our specific environment that will be passed along
+//
+   myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
+   myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
+   myEnv.PutPtr("XrdScheduler*", Sched);
+
 // Get the filesystem to be used
 //
    if (FSLib[0])
       {TRACE(DEBUG, "Loading base filesystem library " <<FSLib[0]);
        osFS = XrdXrootdloadFileSystem(&eDest, 0, FSLib[0], pi->ConfigFN);
       } else {
-       XrdOucEnv myEnv;
-       myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
-       myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
        osFS = XrdSfsGetDefaultFileSystem(0,eDest.logger(),pi->ConfigFN,&myEnv);
       }
    if (!osFS)
       {eDest.Emsg("Config", "Unable to load file system.");
        return 0;
-      } else SI->setFS(osFS);
+      } else {
+       SI->setFS(osFS);
+       if (FSLib[0]) osFS->EnvInfo(&myEnv);
+      }
 
 // Check if we have a wrapper library
 //
@@ -276,7 +283,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
        if (!osFS)
           {eDest.Emsg("Config", "Unable to load file system wrapper.");
            return 0;
-          }
+          } else osFS->EnvInfo(&myEnv);
       }
 
 // Check if the diglib should be loaded. We only support the builtin one. In

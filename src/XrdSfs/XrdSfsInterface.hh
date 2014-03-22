@@ -167,6 +167,7 @@ struct XrdSfsPrep  //!< Prepare parameters
 
 class  XrdSfsFile;
 class  XrdSfsDirectory;
+class  XrdOucEnv;
 class  XrdOucTList;
 class  XrdSecEntity;
 
@@ -295,6 +296,18 @@ virtual int            chmod(const char             *path,
 virtual void           Disc(const XrdSecEntity     *client = 0)
 {
   (void)client;
+}
+
+//-----------------------------------------------------------------------------
+//! Notify filesystem about implmentation dependent environment. This method
+//! may be called only once, if at all, right after obtaining this object.
+//!
+//! @param  envP   - Pointer to environmental information.
+//-----------------------------------------------------------------------------
+
+virtual void           EnvInfo(XrdOucEnv *envP)
+{
+  (void)envP;
 }
 
 //-----------------------------------------------------------------------------
