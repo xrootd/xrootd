@@ -71,11 +71,15 @@
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
+class XrdScheduler;
+
 namespace XrdProxy
 {
 static XrdPssSys   XrdProxySS;
   
        XrdSysError eDest(0, "proxy_");
+
+static XrdScheduler *schedP = 0;
 
 static const int   PBsz = 4096;
 }
@@ -199,6 +203,17 @@ int XrdPssSys::Create(const char *tident, const char *path, mode_t Mode,
    return -ENOTSUP;
 }
 
+/******************************************************************************/
+/*                               E n v I n f o                                */
+/******************************************************************************/
+  
+void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
+{
+// We only need to extract the scheduler pointer from the environment
+//
+   if (envP) schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+}
+  
 /******************************************************************************/
 /*                               L f n 2 P f n                                */
 /******************************************************************************/

@@ -124,6 +124,7 @@ virtual XrdOssDF *newFile(const char *tident)
 int       Chmod(const char *, mode_t mode, XrdOucEnv *eP=0);
 virtual
 int       Create(const char *, const char *, mode_t, XrdOucEnv &, int opts=0);
+void      EnvInfo(XrdOucEnv *envP);
 int       Init(XrdSysLogger *, const char *);
 int       Lfn2Pfn(const char *Path, char *buff, int blen);
 const
