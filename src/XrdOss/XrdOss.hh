@@ -218,6 +218,8 @@ const char     *Lfn2Pfn(const char *Path, char *buff, int blen, int &rc)
 virtual int     FSctl(int cmd, int alen, const char *args, char **resp=0)
 { (void)cmd; (void)alen; (void)args; (void)resp; return -ENOTSUP;}
 
+virtual void    EnvInfo(XrdOucEnv *envP) {(void)envP;}
+
                 XrdOss() {}
 virtual        ~XrdOss() {}
 };

@@ -793,7 +793,7 @@ int XrdCmsConfig::ConfigN2N()
 int XrdCmsConfig::ConfigOSS()
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                              const char   *, XrdVersionInfo &);
+                              const char   *, XrdOucEnv  *, XrdVersionInfo &);
 
 // Set up environment for the OSS to keep it relevant for cmsd
 //
@@ -808,7 +808,7 @@ int XrdCmsConfig::ConfigOSS()
 
 // Load and return result
 //
-   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,*myVInfo));
+   return !(ossFS=XrdOssGetSS(Say.logger(),ConfigFN,ossLib,ossParms,0,*myVInfo));
 }
 
 /******************************************************************************/

@@ -121,7 +121,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
   Output:   0 upon success or !0 otherwise.
 */
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                                              const char *, XrdVersionInfo &);
+                              const char   *, XrdOucEnv  *, XrdVersionInfo &);
    char *var;
    const char *tmp;
    int  i, j, cfgFD, retc, NoGo = 0;
@@ -246,7 +246,7 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 // Now configure the storage system
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib, OssParms,
-                                 XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
+                                 EnvInfo, XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
       else XrdOfsTPC::Init(XrdOfsOss);
 
 // Initialize redirection.  We type te herald here to minimize confusion

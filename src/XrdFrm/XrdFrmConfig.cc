@@ -234,7 +234,7 @@ XrdFrmConfig::XrdFrmConfig(SubSys ss, const char *vopts, const char *uinfo)
 int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 {
    extern XrdOss *XrdOssGetSS(XrdSysLogger *, const char *, const char *,
-                              const char   *, XrdVersionInfo &);
+                              const char   *, XrdOucEnv *,  XrdVersionInfo &);
    extern int *XrdOssRunMode;
    static XrdNetAddr myAddr(0);
    XrdFrmConfigSE theSE;
@@ -408,7 +408,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
        if (ssID == ssPurg) XrdOucEnv::Export("XRDOSSCSCAN", "off");
        if (!NoGo)
           {if (!(ossFS=XrdOssGetSS(Say.logger(), ConfigFN, ossLib, ossParms,
-                                   *myVersion))) NoGo = 1;
+                                   0, *myVersion))) NoGo = 1;
               else {struct stat Stat;
                     doStatPF = ossFS->StatPF("/", &Stat) != -ENOTSUP;
                     runNew = !(runOld = XrdOssRunMode ? *XrdOssRunMode : 0);

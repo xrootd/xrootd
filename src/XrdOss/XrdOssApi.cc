@@ -96,11 +96,12 @@ char      XrdOssSys::chkMmap = 0;
 //
 XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                     const char   *OssLib, const char *OssParms,
-                    XrdVersionInfo &urVer)
+                    XrdOucEnv    *envP,   XrdVersionInfo &urVer)
 {
    static XrdOssSys   myOssSys;
    extern XrdSysError OssEroute;
    XrdSysPlugin    *myLib;
+   XrdOss          *ossP;
    XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
 
 // Verify that versions are compatible.
@@ -129,7 +130,9 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 // Get the Object now
 //
    myLib->Persist(); delete myLib;
-   return ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms);
+   if ((ossP = ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms)) && envP)
+      ossP->EnvInfo(envP);
+   return ossP;
 }
  
 /******************************************************************************/
@@ -140,7 +143,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                          const char     *cfg_fn,
                          XrdVersionInfo &urVer)
 {
-   return XrdOssGetSS(logger, cfg_fn, 0, 0, urVer);
+   return XrdOssGetSS(logger, cfg_fn, 0, 0, 0, urVer);
 }
 
 /******************************************************************************/
