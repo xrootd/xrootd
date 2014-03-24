@@ -35,6 +35,7 @@ namespace XrdCl
   class TransportManager;
   class FileTimer;
   class PlugInManager;
+  class PlugInFactory;
 
   //----------------------------------------------------------------------------
   //! Default environment for the client. Responsible for setting/importing
@@ -132,6 +133,13 @@ namespace XrdCl
       //! Get plug-in manager
       //------------------------------------------------------------------------
       static PlugInManager *GetPlugInManager();
+
+      //------------------------------------------------------------------------
+      //! Retrieve the plug-in factory for the given URL
+      //!
+      //! @return you do not own the returned memory
+      //------------------------------------------------------------------------
+      static PlugInFactory *GetPlugInFactory( const std::string url );
 
       //------------------------------------------------------------------------
       //! Initialize the environment

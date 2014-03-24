@@ -513,6 +513,13 @@ namespace XrdCl
     return sPlugInManager;
   }
 
+  //----------------------------------------------------------------------------
+  // Retrieve the plug-in factory for the given URL
+  //----------------------------------------------------------------------------
+  PlugInFactory *DefaultEnv::GetPlugInFactory( const std::string url )
+  {
+    return  sPlugInManager->GetFactory( url );
+  }
 
   //----------------------------------------------------------------------------
   // Initialize the environment
