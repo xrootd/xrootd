@@ -4,14 +4,14 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_CRYPTO_VERSION   0.0.1 )
-set( XRD_CRYPTO_SOVERSION 0 )
+set( XRD_CRYPTO_VERSION   1.0.0 )
+set( XRD_CRYPTO_SOVERSION 1 )
 
-set( XRD_CRYPTO_LITE_VERSION   0.0.1 )
-set( XRD_CRYPTO_LITE_SOVERSION 0 )
+set( XRD_CRYPTO_LITE_VERSION   1.0.0 )
+set( XRD_CRYPTO_LITE_SOVERSION 1 )
 
-set( XRD_CRYPTO_SSL_VERSION   1.0.0 )
-set( XRD_CRYPTO_SSL_SOVERSION 1 )
+set( XRD_CRYPTO_SSL_VERSION   2.0.0 )
+set( XRD_CRYPTO_SSL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCrypto library

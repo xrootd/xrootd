@@ -4,10 +4,10 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SERVER_VERSION   1.0.0 )
-set( XRD_SERVER_SOVERSION 1 )
-set( XRD_XROOTD_VERSION   1.0.0 )
-set( XRD_XROOTD_SOVERSION 1 )
+set( XRD_SERVER_VERSION   2.0.0 )
+set( XRD_SERVER_SOVERSION 2 )
+set( XRD_XROOTD_VERSION   2.0.0 )
+set( XRD_XROOTD_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdClient lib

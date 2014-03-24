@@ -4,8 +4,8 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_APP_UTILS_VERSION   0.0.0 )
-set( XRD_APP_UTILS_SOVERSION 0 )
+set( XRD_APP_UTILS_VERSION   1.0.0 )
+set( XRD_APP_UTILS_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # xrdadler32

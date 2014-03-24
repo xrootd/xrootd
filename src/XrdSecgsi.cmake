@@ -4,17 +4,17 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_SEC_GSI_VERSION            2.0.0 )
-set( XRD_SEC_GSI_SOVERSION          0 )
+set( XRD_SEC_GSI_VERSION            3.0.0 )
+set( XRD_SEC_GSI_SOVERSION          3 )
 
-set( XRD_SEC_GSI_GMAPLDAP_VERSION   1.0.0 )
-set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 0 )
+set( XRD_SEC_GSI_GMAPLDAP_VERSION   2.0.0 )
+set( XRD_SEC_GSI_GMAPLDAP_SOVERSION 2 )
 
-set( XRD_SEC_GSI_GMAPDN_VERSION     1.0.0 )
-set( XRD_SEC_GSI_GMAPDN_SOVERSION   0 )
+set( XRD_SEC_GSI_GMAPDN_VERSION     2.0.0 )
+set( XRD_SEC_GSI_GMAPDN_SOVERSION   2 )
 
-set( XRD_SEC_GSI_AUTHZVO_VERSION    1.0.0 )
-set( XRD_SEC_GSI_AUTHZVO_SOVERSION  0 )
+set( XRD_SEC_GSI_AUTHZVO_VERSION    2.0.0 )
+set( XRD_SEC_GSI_AUTHZVO_SOVERSION  2 )
 
 #-------------------------------------------------------------------------------
 # The XrdSecgsi library
