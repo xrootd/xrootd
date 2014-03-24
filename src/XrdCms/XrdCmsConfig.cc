@@ -688,6 +688,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    AskPerf  = 10;         // Every 10 pings
    AskPing  = 60;         // Every  1 minute
    PingTick = 0;
+   DoMWChk  = 1;
    MaxDelay = -1;
    LogPerf  = 10;         // Every 10 usage requests
    DiskMin  = 10240;      // 10GB*1024 (Min partition space) in MB
@@ -2644,6 +2645,8 @@ int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 
                           [[min] {<mnp> [<min>] | <min>}  [[<hwp>] <hwm>]]
 
+                          [mwfiles]
+
              <num> Maximum number of times a server may be reselected without
                    a break. The default is 0.
 
@@ -2660,6 +2663,10 @@ int XrdCmsConfig::xsecl(XrdSysError *eDest, XrdOucStream &CFile)
 
              <sec> Number of seconds that must elapse before a disk free space
                    calculation will occur.
+
+             mwfiles
+                   space supports multiple writable file copies. This suppresses
+                   multiple file check when open a file in write mode.
 
    Notes:   This is used by the manager and the server.
 
@@ -2690,6 +2697,7 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
                   {eDest->Emsg("Config", "space min value not specified"); return 1;}
                break;
               }
+      else if (!strcmp("mwfiles", val)) DoMWChk = 0;
       else if (isdigit(*val)) break;
       else {eDest->Emsg("Config", "invalid space parameters"); return 1;}
       }

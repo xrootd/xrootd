@@ -882,7 +882,7 @@ int XrdCmsCluster::Select(XrdCmsSelect &Sel)
            else if (Sel.Vec.bf) pmask = smask = 0;
            else if (Sel.Vec.hf)
                    {if (Sel.Opts & XrdCmsSelect::NewFile) return SelFail(Sel,eExists);
-                    if (!(Sel.Opts & XrdCmsSelect::isMeta)
+                    if (!(Sel.Opts & XrdCmsSelect::isMeta) && Config.DoMWChk
                     &&  Multiple(Sel.Vec.hf))             return SelFail(Sel,eDups);
                     if (!(pmask = Sel.Vec.hf & amask))    return SelFail(Sel,eROfs);
                     smask = 0;
