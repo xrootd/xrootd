@@ -182,7 +182,10 @@ void XrdCmsAdmin::Login(int socknum)
         {DEBUG("received request: '" <<request <<"'");
          if ((tp = Stream.GetToken()))
             {     if (!strcmp("resume",   tp))
-                      CmsState.Update(XrdCmsState::Active, 1);
+                     {if ((tp = Stream.GetToken()) && *tp == 't') sPerm = 0;
+                         else sPerm = 1;
+                      CmsState.Update(XrdCmsState::Active, 1, sPerm);
+                     }
              else if (!strcmp("rmdid",    tp)) do_RmDid();   // via lfn
              else if (!strcmp("newfn",    tp)) do_RmDud();   // via lfn
              else if (!strcmp("suspend",  tp)) 
