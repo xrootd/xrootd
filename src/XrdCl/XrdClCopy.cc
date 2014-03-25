@@ -535,7 +535,7 @@ int main( int argc, char **argv )
   }
 
   log->Dump( AppMsg, "Chunk size: %d, parallel chunks %d, streams: %d",
-             config.nStrm, chunkSize, parallelChunks );
+             chunkSize, parallelChunks, config.nStrm );
 
   //----------------------------------------------------------------------------
   // Build the URLs
