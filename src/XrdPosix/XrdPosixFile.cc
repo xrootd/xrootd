@@ -184,8 +184,8 @@ int XrdPosixFile::Read (char *Buff, long long Offs, int Len)
 
 // Issue read and return appropriately
 //
-   Status = XrdPosixMap::Result(clFile.Read((uint64_t)Offs, (uint32_t)Len,
-                                                      Buff,           bytes));
+   Status = clFile.Read((uint64_t)Offs, (uint32_t)Len, Buff, bytes);
+
    return (Status.IsOK() ? (int)bytes : XrdPosixMap::Result(Status));
 }
   
