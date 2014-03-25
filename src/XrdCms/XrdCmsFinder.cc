@@ -105,6 +105,7 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
 {
      myManagers  = 0;
      myManCount  = 0;
+     myManList   = 0;
      myPort      = Port;
      SMode       = 0;
      sendID      = 0;
@@ -122,8 +123,11 @@ XrdCmsFinderRMT::XrdCmsFinderRMT(XrdSysLogger *lp, int whoami, int Port)
 XrdCmsFinderRMT::~XrdCmsFinderRMT()
 {
     XrdCmsClientMan *mp, *nmp = myManagers;
+    XrdOucTList *tp, *tpp = myManList;
 
     while((mp = nmp)) {nmp = mp->nextManager(); delete mp;}
+
+    while((tp = tpp)) {tpp = tp->next; delete tp;}
 }
 
 /******************************************************************************/
@@ -171,8 +175,14 @@ int XrdCmsFinderRMT::Configure(const char *cfn, char *Args, XrdOucEnv *envP)
    FwdWait    = config.FwdWait;
    PrepWait   = config.PrepWait;
    if (isProxy)
-           {SMode = config.SModeP; StartManagers(config.PanList);}
-      else {SMode = config.SMode;  StartManagers(config.ManList);}
+           {SMode = config.SModeP;
+            StartManagers(config.PanList);
+            config.PanList = 0;
+           }
+      else {SMode = config.SMode;
+            StartManagers(config.ManList);
+            config.ManList = 0;
+           }
 
 // If we are tracing or if redirect monitoring is enabled, we will need
 // to save path information.
@@ -725,6 +735,10 @@ int XrdCmsFinderRMT::StartManagers(XrdOucTList *theManList)
    pthread_t tid;
    char buff[128];
 
+// Save the proper manager list for later reporting
+//
+   myManList = theManList;
+
 // Clear manager table
 //
    memset((void *)myManTable, 0, sizeof(myManTable));
@@ -836,6 +850,7 @@ XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
    isProxy = whoami & IsProxy;
    SS      = theSS;
    CMSPath = 0;
+   myManList = 0;
    CMSp    = new XrdOucStream(&Say);
    Active  = 0;
    myPort  = port;
@@ -853,8 +868,12 @@ XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
 
 XrdCmsFinderTRG::~XrdCmsFinderTRG()
 {
+  XrdOucTList *tp, *tpp = myManList;
+
   if (CMSp)  delete CMSp;
   if (Login) free(Login);
+
+  while((tp = tpp)) {tpp = tp->next; delete tp;}
 }
   
 /******************************************************************************/
@@ -902,6 +921,11 @@ int XrdCmsFinderTRG::Configure(const char *cfn, char *Ags, XrdOucEnv *envP)
 //
    What = (isRedir ? XrdCmsClientConfig::configSuper 
                    : XrdCmsClientConfig::configServer);
+
+// Steal the manlist as we might have to report it
+//
+   if (isProxy) {myManList = config.PanList; config.PanList = 0;}
+      else      {myManList = config.ManList; config.ManList = 0;}
 
 // Set the error dest and simply call the configration object and if
 // successful, run the Admin thread. Note that unlike FinderRMT, we do not

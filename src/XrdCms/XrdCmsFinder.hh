@@ -116,6 +116,7 @@ unsigned char    savePath;
 /******************************************************************************/
 
 class XrdOucStream;
+class XrdOucTList;
   
 class XrdCmsFinderTRG : public XrdCmsClient
 {
@@ -129,6 +130,8 @@ public:
 
         int    Prepare(XrdOucErrInfo &Resp, XrdSfsPrep &pargs,
                        XrdOucEnv *Info=0) {return 0;}
+
+XrdOucTList   *Managers() {return myManList;}
 
         void   Removed(const char *path);
 
@@ -157,14 +160,15 @@ void  Hookup();
 int   Process(XrdCmsRRData &Data);
 
 XrdOss        *SS;
+char          *CMSPath;
+char          *Login;
+XrdOucTList   *myManList;
 XrdOucStream  *CMSp;
 XrdSysMutex    myData;
 XrdSysMutex    rrMutex;
 int            resMax;
 int            resCur;
 int            myPort;
-char          *CMSPath;
-char          *Login;
 int            isRedir;
 int            isProxy;
 int            Active;
