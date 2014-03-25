@@ -132,6 +132,13 @@ public:
 
         void   Removed(const char *path);
 
+        void   Resume (int Perm=1);
+        void   Suspend(int Perm=1);
+
+        int    Resource(int n);
+        int    Reserve (int n);
+        int    Release (int n);
+
         int    RunAdmin(char *Path);
 
         int    Space(XrdOucErrInfo &Resp, const char *path, XrdOucEnv *envP=0)
@@ -152,6 +159,9 @@ int   Process(XrdCmsRRData &Data);
 XrdOss        *SS;
 XrdOucStream  *CMSp;
 XrdSysMutex    myData;
+XrdSysMutex    rrMutex;
+int            resMax;
+int            resCur;
 int            myPort;
 char          *CMSPath;
 char          *Login;

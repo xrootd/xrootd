@@ -266,7 +266,7 @@ void XrdCmsState::Update(StateType StateT, int ActivCnt, int StageCnt)
    myMutex.Lock();
    switch(StateT)
          {case Active:   if ((newVal = ActivCnt ? 0 : 1) != adminSuspend)
-                            {if (newVal) unlink(SuspendFile);
+                            {if (!newVal || !StageCnt) unlink(SuspendFile);
                                 else close(open(SuspendFile, O_WRONLY|O_CREAT,
                                                              S_IRUSR|S_IWUSR));
                              adminSuspend = newVal;

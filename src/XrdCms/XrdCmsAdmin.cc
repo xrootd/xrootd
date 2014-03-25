@@ -155,7 +155,10 @@ void *XrdCmsAdminSend(void *carg)
 void XrdCmsAdmin::Login(int socknum)
 {
    const char *epname = "Admin_Login";
+   const char *sMsg[2] = {"temporary suspend requested by",
+                          "long-term suspend requested by"};
    char *request, *tp;
+   int sPerm;
 
 // Attach the socket FD to a stream
 //
@@ -183,8 +186,10 @@ void XrdCmsAdmin::Login(int socknum)
              else if (!strcmp("rmdid",    tp)) do_RmDid();   // via lfn
              else if (!strcmp("newfn",    tp)) do_RmDud();   // via lfn
              else if (!strcmp("suspend",  tp)) 
-                     {CmsState.Update(XrdCmsState::Active, 0);
-                      Say.Emsg("Notes","suspend requested by",Stype,Sname);
+                     {if ((tp = Stream.GetToken()) && *tp == 't') sPerm = 0;
+                         else sPerm = 1;
+                      CmsState.Update(XrdCmsState::Active, 0, sPerm);
+                      Say.Emsg("Login", sMsg[sPerm], Stype, Sname);
                      }
              else Say.Emsg(epname, "invalid admin request,", tp);
             }

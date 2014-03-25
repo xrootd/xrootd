@@ -839,6 +839,8 @@ XrdCmsFinderTRG::XrdCmsFinderTRG(XrdSysLogger *lp, int whoami, int port,
    CMSp    = new XrdOucStream(&Say);
    Active  = 0;
    myPort  = port;
+   resMax  = -1;
+   resCur  = 0;
    sprintf(buff, "login %c %d port %d\n",(isProxy ? 'P' : 'p'),
                  static_cast<int>(getpid()), port);
    Login = strdup(buff);
@@ -939,6 +941,36 @@ int XrdCmsFinderTRG::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 }
   
 /******************************************************************************/
+/*                               R e l e a s e                                */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::Release(int rNum)
+{
+   int resOld;
+
+// Lock the variables of interest
+//
+   rrMutex.Lock();
+   resOld = resCur;
+
+// If reserve/release not enabled or we have a non-positive value, return
+//
+   if (resMax < 0 || rNum <= 0) {rrMutex.UnLock(); return resOld;}
+
+// Adjust resource and check if we can resume
+//
+   resCur += rNum;
+   if (resCur > resMax) resCur = resMax;
+   if (resOld < 1 && resCur > 0) Resume(0);
+
+// All done
+//
+   resOld = resCur;
+   rrMutex.UnLock();
+   return resOld;
+}
+  
+/******************************************************************************/
 /*                               R e m o v e d                                */
 /******************************************************************************/
   
@@ -958,6 +990,102 @@ void XrdCmsFinderTRG::Removed(const char *path)
 //
    myData.Lock();
    if (Active && CMSp->Put((const char **)data, (const int *)dlen))
+      {CMSp->Close(); Active = 0;}
+   myData.UnLock();
+}
+  
+/******************************************************************************/
+/*                               R e s e r v e                                */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::Reserve(int rNum)
+{
+   int resOld;
+
+// Lock the variables of interest
+//
+   rrMutex.Lock();
+   resOld = resCur;
+
+// If reserve/release not enabled or we have a non-positive value, return
+//
+   if (resMax < 0 || rNum <= 0) {rrMutex.UnLock(); return resOld;}
+
+// Adjust resource and check if we can suspend
+//
+   resCur -= rNum;
+   if (resOld > 0 && resCur < 1) Suspend(0);
+
+// All done
+//
+   resOld = resCur;
+   rrMutex.UnLock();
+   return resOld;
+}
+  
+/******************************************************************************/
+/*                              R e s o u r c e                               */
+/******************************************************************************/
+  
+int XrdCmsFinderTRG::Resource(int rNum)
+{
+   int resOld;
+
+// Lock the variables of interest
+//
+   rrMutex.Lock();
+   resOld = (resMax < 0 ? 0 : resMax);
+
+// If we have a non-positive value, return
+//
+   if (rNum <= 0) {rrMutex.UnLock(); return resOld;}
+
+// Set the resource and adjust the current value as needed
+//
+   resMax = rNum;
+   if (resCur > resMax) resCur = resMax;
+
+// All done
+//
+   rrMutex.UnLock();
+   return resOld;
+}
+  
+/******************************************************************************/
+/*                                R e s u m e                                 */
+/******************************************************************************/
+  
+void XrdCmsFinderTRG::Resume(int Perm)
+{                               // 1234567890
+   static const char *rPerm[2] = {"resume\n", 0};
+   static const char *rTemp[2] = {"resume t\n", 0};
+   static       int   lPerm[2] = { 7, 0};
+   static       int   lTemp[2] = { 9, 0};
+
+// Now send the notification
+//
+   myData.Lock();
+   if (Active && CMSp->Put((const char **)(Perm ? rPerm : rTemp),
+                           (const int *)  (Perm ? lPerm : lTemp)))
+      {CMSp->Close(); Active = 0;}
+   myData.UnLock();
+}
+
+/******************************************************************************/
+/*                               S u s p e n d                                */
+/******************************************************************************/
+  
+void XrdCmsFinderTRG::Suspend(int Perm)
+{                               // 1234567890
+   static const char *sPerm[2] = {"suspend\n", 0};
+   static const char *sTemp[2] = {"suspend t\n", 0};
+   static       int   lPerm[2] = { 8, 0};
+   static       int   lTemp[2] = {10, 0};
+
+// Now send the notification
+//
+   if (Active && CMSp->Put((const char **)(Perm ? sPerm : sTemp),
+                           (const int *)  (Perm ? lPerm : lTemp)))
       {CMSp->Close(); Active = 0;}
    myData.UnLock();
 }
