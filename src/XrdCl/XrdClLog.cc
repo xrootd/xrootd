@@ -114,7 +114,9 @@ namespace XrdCl
 
       if( ret < 0 )
       {
-        pOutput->Write( "Error while processing a log message" );
+        snprintf( buffer, size, "Error while processing a log message \"%s\" \n", format);
+        pOutput->Write(buffer);
+        delete [] buffer;
         return;
       }
       else if( ret < size )
