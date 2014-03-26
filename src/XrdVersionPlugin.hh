@@ -93,6 +93,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
+        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdOssStatInfoInit            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache                )\
         XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdOucgetName2Name            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecGetProtocol             )\
