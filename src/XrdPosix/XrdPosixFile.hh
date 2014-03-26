@@ -60,7 +60,7 @@ class XrdPosixFile : public XrdPosixObject,
                      public XrdJob
 {
 public:
- 
+
 XrdOucCacheIO *XCio;
 XrdCl::File    clFile;
 

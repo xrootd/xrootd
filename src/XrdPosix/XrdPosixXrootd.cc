@@ -146,7 +146,7 @@ int XrdPosixXrootd::Close(int fildes)
    int ret;
 
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
-   {errno = EBADF; return -1;}
+      {errno = EBADF; return -1;}
 
    if (fP->XCio->ioActive())
    {
