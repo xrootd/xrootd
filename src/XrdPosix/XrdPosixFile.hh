@@ -47,6 +47,7 @@
 #include "XrdPosix/XrdPosixMap.hh"
 #include "XrdPosix/XrdPosixObject.hh"
 
+#include "Xrd/XrdJob.hh"
 /******************************************************************************/
 /*                    X r d P o s i x F i l e   C l a s s                     */
 /******************************************************************************/
@@ -55,7 +56,8 @@ class XrdPosixCallBack;
 
 class XrdPosixFile : public XrdPosixObject, 
                      public XrdOucCacheIO,
-                     public XrdCl::ResponseHandler
+                     public XrdCl::ResponseHandler,
+                     public XrdJob
 {
 public:
 
@@ -70,6 +72,8 @@ XrdCl::File    clFile;
                               }
 
 static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
+
+static void*         DelayedDestroy(void*);
 
        bool          Close(XrdCl::XRootDStatus &Status);
 
@@ -111,6 +115,8 @@ static XrdPosixFile *Alloc(const char *path, XrdPosixCallBack *cbP, int Opts);
                           {return XrdPosixMap::Result(clFile.Write((uint64_t)Offs,
                                                          (uint32_t)Len, Buff));
                           }
+
+       void          DoIt();
 
        size_t        mySize;
        time_t        myMtime;
