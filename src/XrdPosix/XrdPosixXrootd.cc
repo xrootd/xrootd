@@ -146,11 +146,26 @@ int XrdPosixXrootd::Close(int fildes)
    int ret;
 
    if (!(fP = XrdPosixObject::ReleaseFile(fildes)))
-      {errno = EBADF; return -1;}
+   {errno = EBADF; return -1;}
 
-   ret = fP->Close(Status);
-   delete fP;
-   return (ret ? 0 : XrdPosixMap::Result(Status));
+   if (fP->XCio->ioActive())
+   {
+      if (XrdPosixGlobals::schedP )
+      {
+         XrdPosixGlobals::schedP->Schedule(fP);
+      }
+      else {
+         pthread_t tid;
+         XrdSysThread::Run(&tid, XrdPosixFile::DelayedDestroy, fP, 0, "PosixFileDestroy");
+      }
+      return 0;
+   }
+   else
+   {
+      ret = fP->Close(Status);
+      delete fP;
+      return (ret ? 0 : XrdPosixMap::Result(Status));
+   }
 }
 
 /******************************************************************************/

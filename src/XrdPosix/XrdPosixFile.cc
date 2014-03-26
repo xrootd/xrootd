@@ -91,7 +91,22 @@ XrdPosixFile::~XrdPosixFile()
 //
    if (fPath) free(fPath);
 }
-  
+
+/******************************************************************************/
+/*                   D e l a y e d D e s t r o y                              */
+/******************************************************************************/
+
+void* XrdPosixFile::DelayedDestroy(void* vpf)
+{
+// Static function.
+// Called within a dedicated thread if XrdOucCacheIO is io-active.
+
+   XrdPosixFile* pf = (XrdPosixFile*)vpf;
+   delete pf;
+
+   return 0;
+}
+
 /******************************************************************************/
 /*                                 C l o s e                                  */
 /******************************************************************************/
@@ -249,4 +264,15 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 //
    delete sInfo;
    return true;
+}
+
+/******************************************************************************/
+/*                                  D o I t                                   */
+/******************************************************************************/
+void XrdPosixFile::DoIt()
+{
+// Virtual function of XrdJob.
+// Called from XrdPosixXrootd::Close if the file is still IO active.
+
+   delete this;
 }

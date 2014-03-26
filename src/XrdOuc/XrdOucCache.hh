@@ -244,6 +244,12 @@ virtual XrdOucCacheIO *Base()   {return this;}
 //
 virtual XrdOucCacheIO *Detach() {return this;}
 
+
+// ioActive() returns true if there is any ongoing IO operation. The function is
+//            used in XrdPosixXrootd::Close() to check if destruction od PosixFile
+//            has to be done in a separate task. 
+virtual bool ioActive() { return false; }
+
 // Preread() places Length bytes into the cache from a data source at Offset.
 //          When there is no cache or the associated cache does not support or
 //          allow pre-reads, it's a no-op. Cache placement limits do not apply.
