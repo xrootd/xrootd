@@ -246,6 +246,7 @@ namespace XrdCl
     char *appName = basename( tmp );
     PutString( "AppName", appName );
     free( tmp );
+    ImportString( "AppName", "XRD_APPNAME" );
 
     //--------------------------------------------------------------------------
     // Process ints
