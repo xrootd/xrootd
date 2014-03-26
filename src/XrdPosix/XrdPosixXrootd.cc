@@ -35,6 +35,8 @@
 #include <sys/resource.h>
 #include <sys/uio.h>
 
+#include "Xrd/XrdScheduler.hh"
+
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClFile.hh"
@@ -57,6 +59,11 @@
 /******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
+
+namespace XrdPosixGlobals
+{
+XrdScheduler  *schedP = 0;
+};
 
 XrdOucCache   *XrdPosixXrootd::myCache  =  0;
 int            XrdPosixXrootd::baseFD    = 0;
@@ -1270,6 +1277,15 @@ void XrdPosixXrootd::setIPV4(bool usev4)
 // Set the env value
 //
    env->PutString((std::string)"NetworkStack", (const std::string)ipmode);
+}
+  
+/******************************************************************************/
+/*                              s e t S c h e d                               */
+/******************************************************************************/
+
+void XrdPosixXrootd::setSched(XrdScheduler *sP)
+{
+    XrdPosixGlobals::schedP = sP;
 }
   
 /******************************************************************************/

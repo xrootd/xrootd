@@ -212,6 +212,8 @@ void        XrdPssSys::EnvInfo(XrdOucEnv *envP)
 // We only need to extract the scheduler pointer from the environment
 //
    if (envP) schedP = (XrdScheduler *)envP->GetPtr("XrdScheduler*");
+
+   XrdPosixXrootd::setSched(schedP);
 }
   
 /******************************************************************************/
