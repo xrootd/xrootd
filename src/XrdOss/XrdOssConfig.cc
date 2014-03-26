@@ -43,6 +43,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdFrc/XrdFrcProxy.hh"
+#include "XrdOss/XrdOssPath.hh"
 #include "XrdOss/XrdOssApi.hh"
 #include "XrdOss/XrdOssCache.hh"
 #include "XrdOss/XrdOssConfig.hh"
@@ -300,6 +301,12 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
 //
    ConfigSpace();
 
+// Set the prefix for files in cache file systems  
+   if ( OptFlags & XrdOss_CacheFS ) 
+       if (!NoGo) {
+           NoGo = XrdOssPath::InitPrefix();
+           if (NoGo) Eroute.Emsg("Config", "cache file prefix initialization failed");
+       }
 // Configure extended attributes (really not much to do here)
 //
    XrdSysFAttr::Msg(&Eroute);

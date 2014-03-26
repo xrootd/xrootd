@@ -64,6 +64,8 @@ static int   getCname(const char *path, char *Cache, char *lbuf=0, int lbsz=0);
 static
 inline int   isXA(const char *path) {return path[strlen(path)-1] == xChar;}
 
+static int InitPrefix();
+
 enum theSfx {isBase =0, isAnew =1,
              sfxMigF=1, isFail=2,  isLock =3, isPin =4, sfxMigL=4,
              sfxMemF=4, isMkeep=5, isMlock=6, isMmap=7, sfxMemL=7,
@@ -87,9 +89,9 @@ static void  Trim2Base(char *eP);
 
 private:
 static char *bin2hex(char *inbuff, int dlen, char *buff);
-static int   Init(char *pfnPfx);
 static char *posCname(char *lbuf, int lbsz, int &cnsz);
 
 static char h2c[16];
+static char pfnPfx[60];
 };
 #endif
