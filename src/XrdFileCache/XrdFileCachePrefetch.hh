@@ -26,6 +26,7 @@
 #include "XrdFileCacheInfo.hh"
 #include "XrdFileCacheStats.hh"
 
+class XrdOucIOVec;
 namespace XrdCl
 {
    class Log;
@@ -72,6 +73,8 @@ namespace XrdFileCache
       protected:
          //! Read from disk, RAM, or client
          ssize_t Read(char * buff, off_t offset, size_t size);
+
+         int ReadV (const XrdOucIOVec *readV, int n);
 
          //! Write cache statistics in *cinfo file.
          void AppendIOStatToFileInfo();

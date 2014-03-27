@@ -28,6 +28,8 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdPosix/XrdPosixFile.hh"
 
 #include "XrdFileCachePrefetch.hh"
 #include "XrdFileCacheFactory.hh"
@@ -72,7 +74,7 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
 
 bool Prefetch::InitiateClose()
 {
-   // Retruns true id delay is needed
+   // Retruns true if delay is needed
 
    m_stateCond.Lock();
    if (m_started == false) return false;
@@ -717,6 +719,76 @@ ssize_t Prefetch::ReadInBlocks(char *buff, off_t off, size_t size)
    return bytes_read;
 }
 
+
+//______________________________________________________________________________
+
+int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
+{
+   // check if read sizes are big enough to cache
+
+   XrdCl::XRootDStatus Status;
+   XrdCl::ChunkList chunkVec;
+   XrdCl::VectorReadInfo *vrInfo = 0;
+
+   std::vector<int> cachedReads;
+
+   int nbytes = 0;
+   for (int i=0; i<n; i++)
+   {
+      nbytes += readV[i].size;
+
+      XrdSfsXferSize size = readV[i].size;
+      XrdSfsFileOffset off = readV[i].offset;
+
+      bool cached = true;
+      const int idx_first = off / m_cfi.GetBufferSize();
+      const int idx_last = (off + size - 1) / m_cfi.GetBufferSize();
+      for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx)
+      {
+         bool onDisk = false;
+         bool inRam = false;
+         m_downloadStatusMutex.Lock();
+         onDisk = m_cfi.TestBit(blockIdx);
+         m_downloadStatusMutex.UnLock();
+         if (!onDisk) {
+            m_ram.m_writeMutex.Lock();
+            for (int ri = 0; ri < m_ram.m_numBlocks; ++ri )
+            {
+               if (m_ram.m_blockStates[ri].fileBlockIdx == blockIdx)
+               {
+                  inRam = true;
+                  break;
+               }
+            }
+         }
+
+         if ((inRam || onDisk) == false) {
+            cached = false;
+            break;
+         }
+      }
+
+      if (cached) {
+         // TODO handle error status
+         clLog()->Debug(XrdCl::AppMsg, "ReadV %d from cache ", i);
+         Read(readV[i].data, readV[i].offset, readV[i].size);
+      }
+      else
+      {
+         clLog()->Debug(XrdCl::AppMsg, "ReadV %d add back to client vector read ", i);
+         chunkVec.push_back(XrdCl::ChunkInfo((uint64_t)readV[i].offset,
+                                             (uint32_t)readV[i].size,
+                                             (void *)readV[i].data
+                                             ));
+      }
+
+   }
+   XrdCl::File& clFile = ((XrdPosixFile&)m_input).clFile;
+   Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
+   delete vrInfo;
+
+   return (Status.IsOK() ? nbytes : -1);
+}
 //______________________________________________________________________________
 ssize_t 
 Prefetch::Read(char *buff, off_t off, size_t size)

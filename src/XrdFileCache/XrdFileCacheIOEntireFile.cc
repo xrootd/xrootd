@@ -123,34 +123,6 @@ int IOEntireFile::ReadV (const XrdOucIOVec *readV, int n)
 {
    clLog()->Warning(XrdCl::AppMsg, "IO::ReadV(), get %d requests %s", n, m_io.Path());
 
-   ssize_t bytes_read = 0;
-   size_t missing = 0;
-   for (int i=0; i<n; i++)
-   {
-      XrdSfsXferSize size = readV[i].size;
-      char * buff = readV[i].data;
-      XrdSfsFileOffset off = readV[i].offset;
-      if (m_prefetch)
-      {
-         ssize_t retval = Read(buff, off, size);
-         if ((retval > 0) && (retval == size))
-         {
-            // TODO: could handle partial reads here
-            bytes_read += size;
-            continue;
-         }
-      }
-      if (missing >= READV_MAXCHUNKS)
-      {
-         // Something went wrong in construction of this request;
-         // Should be limited in higher layers to a max of 512 chunks.
 
-         clLog()->Error(XrdCl::AppMsg, "IO::ReadV(), missing %d >  READV_MAXCHUNKS %d %s",
-                  missing,  READV_MAXCHUNKS, m_io.Path());
-         return -1;
-      }
-      missing++;
-   }
-
-   return bytes_read;
+   return m_prefetch->ReadV(readV, n);
 }
