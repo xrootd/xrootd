@@ -51,6 +51,8 @@ namespace XrdFileCache
          m_lwm(0.95),
          m_hwm(0.9),
          m_bufferSize(1024*1024),
+	 m_NRamBuffersRead(8),
+	 m_NRamBuffersPrefetch(1),
          m_blockSize(128*1024*1024) {}
 
       bool m_prefetchFileBlocks;      //!< flag for enabling block-level operation
@@ -62,6 +64,8 @@ namespace XrdFileCache
       float m_hwm;                    //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
+      int  m_NRamBuffersRead;         //!< size of read in-memory cache  
+      int  m_NRamBuffersPrefetch;     //!< size of prefetch in-memory cache 
       long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
 

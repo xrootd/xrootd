@@ -344,13 +344,13 @@ bool Factory::ConfigParameters(const char * parameters)
       {
          getline(is, part, ' ');
          m_configuration.m_username = part.c_str();
- clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set user to %s", m_configuration.m_username.c_str());
       }
       else if  ( part == "-cacheDir" )
       {
          getline(is, part, ' ');
          m_configuration.m_cache_dir = part.c_str();
- clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() set temp. directory to %s", m_configuration.m_cache_dir.c_str());
       }
       else if  ( part == "-lwm" )
       {
@@ -367,8 +367,21 @@ bool Factory::ConfigParameters(const char * parameters)
          getline(is, part, ' ');
          // prefetch buffer size is long long because of possible problems
          // after multiplication, but in this stepe it is save to use atoi
-         m_configuration.m_bufferSize = ::atoi(part.c_str());
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize = %lld", m_configuration.m_bufferSize);
+         int xm = ::atoi(part.c_str());
+         m_configuration.m_bufferSize = xm*1024*1024;
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %dM => %lld", xm, m_configuration.m_bufferSize);
+      }
+      else if (part == "-NRamBuffersRead")
+      {
+         getline(is, part, ' ');
+         m_configuration.m_NRamBuffersRead = ::atoi(part.c_str());
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersRead = %d", m_configuration.m_NRamBuffersRead);
+      } 
+      else if (part == "-NRamBuffersPrefetch")
+      {
+         getline(is, part, ' ');
+         m_configuration.m_NRamBuffersPrefetch = ::atoi(part.c_str());
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersPrefetch = %d", m_configuration.m_NRamBuffersPrefetch);
       }
       else if  ( part == "-blockSize" )
       {
@@ -383,8 +396,8 @@ bool Factory::ConfigParameters(const char * parameters)
 
 bool Factory::Decide(XrdOucCacheIO* io)
 {
-   if ( CheckFileForDiskSpace(io->Path(), io->FSize()) == false )
-      return false;
+   //   if ( CheckFileForDiskSpace(io->Path(), io->FSize()) == false )
+   //  return false;
 
    if(!m_decisionpoints.empty())
    {
