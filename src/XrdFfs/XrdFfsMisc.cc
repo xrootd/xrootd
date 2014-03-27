@@ -52,6 +52,7 @@
 #include "XrdFfs/XrdFfsMisc.hh"
 #include "XrdFfs/XrdFfsPosix.hh"
 #include "XrdFfs/XrdFfsQueue.hh"
+#include "XrdPosix/XrdPosixXrootd.hh"
 
 #ifdef __cplusplus
   extern "C" {
@@ -301,6 +302,7 @@ void XrdFfsMisc_xrd_init(const char *rdrurl, const char *urlcachelife, int start
 //    EnvPutInt(NAME_READAHEADSIZE,0);
 //    EnvPutInt(NAME_READCACHESIZE,0);
 //    EnvPutInt(NAME_REQUESTTIMEOUT, 30);
+    XrdPosixXrootd::setEnv("WorkerThreads", 50);
 
     if (getenv("XROOTDFS_SECMOD") != NULL && !strcmp(getenv("XROOTDFS_SECMOD"), "sss"))
         XrdFfsMisc_xrd_secsss_init();

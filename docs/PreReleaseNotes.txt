@@ -4,4 +4,7 @@ XRootD
 
 Prerelease Notes
 ================
+  * fix xrootdfs wcache crashing issue when using virtual file descriptor. 
+  * manually daemonize xrootdfs (with new client) in order to work with
+    /etc/fstab and autofs
 
