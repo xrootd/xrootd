@@ -76,6 +76,9 @@ bool Prefetch::InitiateClose()
 {
    // Retruns true if delay is needed
 
+
+   if (m_cfi.IsComplete()) return false;
+
    m_stateCond.Lock();
    if (m_started == false) return false;
    m_stopping = true;
@@ -275,6 +278,8 @@ Prefetch::Run()
 
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() exits, download %s  !", m_cfi.IsComplete() ? " completed " : "unfinished %s", m_input.Path());
 
+
+   m_cfi.CheckComplete();
    RecordDownloadInfo();
 
    m_stateCond.Lock();
