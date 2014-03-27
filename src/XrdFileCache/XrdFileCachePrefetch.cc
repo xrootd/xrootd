@@ -736,10 +736,10 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
    for (int i=0; i<n; i++)
    {
       nbytes += readV[i].size;
-
+     
+      
       XrdSfsXferSize size = readV[i].size;
       XrdSfsFileOffset off = readV[i].offset;
-
       bool cached = true;
       const int idx_first = off / m_cfi.GetBufferSize();
       const int idx_last = (off + size - 1) / m_cfi.GetBufferSize();
@@ -760,6 +760,7 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
                   break;
                }
             }
+            m_ram.m_writeMutex.UnLock();
          }
 
          if ((inRam || onDisk) == false) {
@@ -767,15 +768,14 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
             break;
          }
       }
-
+     
       if (cached) {
-         // TODO handle error status
-         clLog()->Debug(XrdCl::AppMsg, "ReadV %d from cache ", i);
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::ReadV %d from cache ", i);
          Read(readV[i].data, readV[i].offset, readV[i].size);
       }
       else
       {
-         clLog()->Debug(XrdCl::AppMsg, "ReadV %d add back to client vector read ", i);
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::ReadV %d add back to client vector read ", i);
          chunkVec.push_back(XrdCl::ChunkInfo((uint64_t)readV[i].offset,
                                              (uint32_t)readV[i].size,
                                              (void *)readV[i].data
