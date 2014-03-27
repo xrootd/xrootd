@@ -64,8 +64,10 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          Stats& GetStats() { return m_stats; }
 
+      void    WriteBlockToDisk(int ramIdx, int fileIdx, size_t size);
+      void    FreeRamBlock(int ramIdx);
       protected:
-         //! Read from disk file.
+         //! Read from disk, RAM, or client
          ssize_t Read(char * buff, off_t offset, size_t size);
 
          //! Write cache statistics in *cinfo file.
@@ -77,27 +79,43 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          struct Task
          {
-            int            firstBlock; //!< begin download firstBlock*bufferSize
-            int            lastBlock;  //!< end download lastBlock*bufferSize
-            XrdSysCondVar *condVar;    //!< signal when complete
+            int            fileBlockIdx; //!< idx in output file
+            int            ramBlockIdx;         //!< idx in the in-memory buffer
+            size_t         size;         // cached, fo case this is end file block
+            XrdSysCondVar *condVar;      //!< signal when complete
+            bool* ok;
 
-            Task(int fb = 0, int lb = 0, XrdSysCondVar* iCondVar = 0) :
-               firstBlock(fb), lastBlock(lb), condVar(iCondVar) {}
-
-            ~Task() {}
+            Task(): fileBlockIdx(-1), ramBlockIdx(-1), size(0), condVar(0), ok(0) {}
+            Task(int b, int r, size_t s, XrdSysCondVar *cv, bool* rs):
+               fileBlockIdx(b), ramBlockIdx(r), size(s), condVar(cv), ok(rs) {}
+           ~Task() {}
          };
 
-         //! Adds a new task in queue.
-         void AddTaskForRng(long long offset, int size, XrdSysCondVar* cond);
+      struct RAMBlock {
+         int fileBlockIdx;
+         int refCount;
+         bool fromRead;
 
-         //! Checks status of downloaded fragments
-         bool GetStatForRng(long long offset, int size, int& pulled, int& nblocks);
+         RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false) {}
+      };
 
+         struct RAM
+         {
+            int         m_numBlocks;
+            char*       m_buffer;
+            RAMBlock*   m_blockStates;
+            XrdSysMutex m_writeMutex;
+
+            RAM();
+           ~RAM();
+         };
+
+       
          //! Stop Run thread.
          void CloseCleanly();
 
          //! Get blocks to prefetch.
-         bool GetNextTask(Task&);
+         Task* GetNextTask();
 
          //! Open file handle for data file and info file on local disk.
          bool Open();
@@ -105,29 +123,36 @@ namespace XrdFileCache
          //! Write download state into cinfo file
          void RecordDownloadInfo();
 
-         //! Get number of bytes to read for given block.
-         int  GetBytesToRead(Task& task, int block) const;
-
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
+
+         ssize_t ReadInBlocks( char* buff, off_t offset, size_t size);
+         bool    ReadFromTask(int bIdx, char* buff, long long off, size_t size);
+         void    DoTask(Task* task);
+
+
+         Task* CreateTaskForFirstUndownloadedBlock();
+
+         RAM             m_ram;            //!< in memory cache
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
          XrdOssDF       *m_infoFile;       //!< file handle for data-info file on disk
          Info            m_cfi;            //!< download status of file blocks and access statistics
          XrdOucCacheIO  &m_input;          //!< original data source
+
          std::string     m_temp_filename;  //!< filename of data file on disk
          long long       m_offset;         //!< offset of cached file for block-based operation
          long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-
          bool            m_started;  //!< state of run thread
          bool            m_failed;   //!< reading from original source or writing to disk has failed
-         bool            m_stop;     //!< run thread should be stopped
+         bool            m_stopping;     //!< run thread should be stopped
+         bool            m_stopped;   //!< prefetch is stopped
          XrdSysCondVar   m_stateCond;
 
          XrdSysMutex      m_downloadStatusMutex; //!< mutex locking access to m_cfi object
 
-         std::queue<Task> m_tasks_queue; //!< download queue
-         XrdSysMutex      m_quequeMutex;
+         std::deque<Task*> m_tasks_queue; //!< download queue
+         XrdSysCondVar    m_queueCond;
 
          Stats            m_stats;      //!< cache statistics, used in IO detach
    };
