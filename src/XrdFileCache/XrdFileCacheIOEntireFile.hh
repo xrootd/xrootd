@@ -77,6 +77,9 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO* Detach();
 
+   protected:
+      virtual void StartPrefetch();
+
       private:
          Prefetch* m_prefetch;
    };

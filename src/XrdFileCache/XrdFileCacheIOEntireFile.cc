@@ -49,13 +49,19 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
    m_cache.getFilePathFromURL(io.Path(), fname);
 
    m_prefetch = new Prefetch(io, fname, 0, io.FSize());
-   pthread_t tid;
-   XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
 
 }
 
 IOEntireFile::~IOEntireFile()
 {}
+
+void IOEntireFile::StartPrefetch()
+{  
+   pthread_t tid;
+   XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
+
+}
+
 
 XrdOucCacheIO *IOEntireFile::Detach()
 {
