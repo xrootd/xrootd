@@ -66,6 +66,9 @@ namespace XrdFileCache
 
       void    WriteBlockToDisk(int ramIdx, int fileIdx, size_t size);
       void    FreeRamBlock(int ramIdx);
+
+         bool InitiateClose(); 
+
       protected:
          //! Read from disk, RAM, or client
          ssize_t Read(char * buff, off_t offset, size_t size);

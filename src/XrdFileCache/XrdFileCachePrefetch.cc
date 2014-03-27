@@ -68,6 +68,26 @@ Prefetch::Prefetch(XrdOucCacheIO &inputIO, std::string& disk_file_path, long lon
    assert(m_fileSize > 0);
    clLog()->Debug(XrdCl::AppMsg, "Prefetch::Prefetch() %p %s", (void*)&m_input, m_input.Path());
 }
+//______________________________________________________________________________
+
+bool Prefetch::InitiateClose()
+{
+   // Retruns true id delay is needed
+
+   m_stateCond.Lock();
+   if (m_started == false) return false;
+   m_stopping = true;
+   m_stateCond.UnLock();
+
+   XrdSysMutexHelper(m_ram.m_writeMutex);
+   for (int i = 0; i < m_ram.m_numBlocks;++i )
+   {
+      if (m_ram.m_blockStates[i].refCount)
+         return true;
+   }
+
+   return false;   
+}
 
 //______________________________________________________________________________
 Prefetch::~Prefetch()
@@ -75,11 +95,7 @@ Prefetch::~Prefetch()
    // see if we have to shut down
    clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() %p %s", (void*)this, m_input.Path());
 
-   m_stateCond.Lock();
-   if (m_started == false) return;
-   m_stopping = true;
-   m_stateCond.UnLock();
-
+  
    m_queueCond.Lock();
    m_queueCond.Signal();
    m_queueCond.UnLock();

@@ -55,6 +55,11 @@ IOEntireFile::IOEntireFile(XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache & c
 IOEntireFile::~IOEntireFile()
 {}
 
+bool IOEntireFile::ioActive()
+{
+   return m_prefetch->InitiateClose();
+}
+
 void IOEntireFile::StartPrefetch()
 {  
    pthread_t tid;
