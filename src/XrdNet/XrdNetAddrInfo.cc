@@ -131,6 +131,7 @@ int XrdNetAddrInfo::Format(char *bAddr, int bLen, fmtUse theFmt, int fmtOpts)
                      if (fmtOpts & old6Map4) {strcpy(bAddr, "[::"); n = 3;}
                         else {strcpy(bAddr, "[::ffff:"); n = 8;}
                      if (ipRaw) {strcpy(bAddr, bAddr+1); n--;}
+                     addBrak = 1;
                     }
             if (!inet_ntop(AF_INET, &(IP.v4.sin_addr),bAddr+n,bLen-n))
                return QFill(bAddr, bLen);
