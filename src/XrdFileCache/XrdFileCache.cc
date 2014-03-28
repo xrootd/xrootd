@@ -120,39 +120,39 @@ bool Cache::getFilePathFromURL(const char* url, std::string &result) const
 
 //______________________________________________________________________________
 bool
-Cache::HaveFreeWritingSlots() 
+Cache::HaveFreeWritingSlots()
 {
-   const static size_t maxWriteWaits=10000;
+   const static size_t maxWriteWaits=100;
    return s_writeQ.size < maxWriteWaits;
 }
 
 
 //______________________________________________________________________________
 void
-Cache::AddWriteTask(Prefetch* p, int ri, int fi, size_t s, bool fromRead)
+Cache::AddWriteTask(Prefetch* p, int ri, size_t s, bool fromRead)
 {
-   XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::AppMsg, "Cache::AddWriteTask() wqsize = %d, bi=%d,  fi=%d", s_writeQ.size, ri, fi);
-   s_writeQ.mutex.Lock();
+   XrdCl::DefaultEnv::GetLog()->Debug(XrdCl::AppMsg, "Cache::AddWriteTask() wqsize = %d, bi=%d", s_writeQ.size, ri);
+   s_writeQ.condVar.Lock();
    if (fromRead)
-      s_writeQ.queue.push_back(WriteTask(p, ri, fi, s));
+      s_writeQ.queue.push_back(WriteTask(p, ri, s));
    else
-      s_writeQ.queue.push_front(WriteTask(p, ri, fi, s));
+      s_writeQ.queue.push_front(WriteTask(p, ri, s));
    s_writeQ.size++;
-   s_writeQ.mutex.Signal();
-   s_writeQ.mutex.UnLock();
+   s_writeQ.condVar.Signal();
+   s_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
 void Cache::RemoveWriteQEntriesFor(Prefetch *p)
 {
-   s_writeQ.mutex.Lock();
+   s_writeQ.condVar.Lock();
    std::list<WriteTask>::iterator i = s_writeQ.queue.begin();
    while (i != s_writeQ.queue.end())
    {
       if (i->prefetch == p)
       {
          std::list<WriteTask>::iterator j = i++;
-         j->prefetch->FreeRamBlock(j->ramBlockIdx);
+         j->prefetch->DecRamBlockRefCount(j->ramBlockIdx);
          s_writeQ.queue.erase(j);
          --s_writeQ.size;
       }
@@ -161,26 +161,26 @@ void Cache::RemoveWriteQEntriesFor(Prefetch *p)
          ++i;
       }
    }
-   s_writeQ.mutex.UnLock();
+   s_writeQ.condVar.UnLock();
 }
 
 //______________________________________________________________________________
-void  
+void
 Cache::ProcessWriteTasks()
 {
    while (true)
    {
-      s_writeQ.mutex.Lock();
+      s_writeQ.condVar.Lock();
       if (s_writeQ.queue.empty())
       {
-         s_writeQ.mutex.Wait();
+         s_writeQ.condVar.Wait();
       }
       WriteTask t = s_writeQ.queue.front();
       s_writeQ.queue.pop_front();
-      s_writeQ.size--;  
-      s_writeQ.mutex.UnLock();
+      s_writeQ.size--;
+      s_writeQ.condVar.UnLock();
 
-      t.prefetch->WriteBlockToDisk(t.ramBlockIdx, t.fileBlockIdx, t.size); // AMT check in lock all the time is really necessary
-      t.prefetch->FreeRamBlock(t.ramBlockIdx);
+      t.prefetch->WriteBlockToDisk(t.ramBlockIdx, t.size);
+      t.prefetch->DecRamBlockRefCount(t.ramBlockIdx);
    }
 }

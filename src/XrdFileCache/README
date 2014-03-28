@@ -114,6 +114,10 @@ CONFIGURATION
 
 -bufferSize: prefetch buffer size, default 1 MB
 
+-NRamBuffersRead: number of in memmory cached blocks reserved for read tasks
+
+-NRamBuffersRead: number of in memmory cached blocks reserved for prefetch tasks
+
 -hwm <fraction> / -lwm <fraction>: high / low watermarks for disk cache purge
  operation (default 0.7 and 0.9)
 
@@ -132,12 +136,12 @@ Options for block-based cache:
 Examples:
 
 pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
-  -user alja -cacheDir /data/xrd-file-cache
+  -user alja -NRamBuffersRead 4  -NRamBuffersPrefetch 1 -cacheDir /data/xrd-file-cache
 
 
 pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
   -user alja -cacheDir /data/hdfs-file-cache
-  -prefetchFileBlocks -blockSize 67108864 
+  -prefetchFileBlocks -blockSize 67108864
 
 
 //==============================================================================

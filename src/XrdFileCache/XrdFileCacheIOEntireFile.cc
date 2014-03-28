@@ -61,7 +61,7 @@ bool IOEntireFile::ioActive()
 }
 
 void IOEntireFile::StartPrefetch()
-{  
+{
    pthread_t tid;
    XrdSysThread::Run(&tid, PrefetchRunner, (void *)(m_prefetch), 0, "XrdFileCache Prefetcher");
 

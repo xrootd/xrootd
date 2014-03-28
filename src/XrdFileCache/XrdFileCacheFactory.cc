@@ -376,7 +376,7 @@ bool Factory::ConfigParameters(const char * parameters)
          getline(is, part, ' ');
          m_configuration.m_NRamBuffersRead = ::atoi(part.c_str());
          clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() NRamBuffersRead = %d", m_configuration.m_NRamBuffersRead);
-      } 
+      }
       else if (part == "-NRamBuffersPrefetch")
       {
          getline(is, part, ' ');
@@ -554,7 +554,7 @@ bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
     long long inQueue = 0;
     for (std::map<std::string, long long>::iterator i = m_filesInQueue.begin(); i!= m_filesInQueue.end(); ++i)
         inQueue += i->second;
-    
+
 
     long long availableSpace = 0;;
     struct statvfs fsstat;

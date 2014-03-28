@@ -65,15 +65,27 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          Stats& GetStats() { return m_stats; }
 
-      void    WriteBlockToDisk(int ramIdx, int fileIdx, size_t size);
-      void    FreeRamBlock(int ramIdx);
+         //----------------------------------------------------------------------
+         //! Write block to file on disk. Called from Cache.
+         //----------------------------------------------------------------------
+         void WriteBlockToDisk(int ramIdx, size_t size);
 
-         bool InitiateClose(); 
+         //----------------------------------------------------------------------
+         //! Decrease block reference count.
+         //----------------------------------------------------------------------
+         void DecRamBlockRefCount(int ramIdx);
+
+         //----------------------------------------------------------------------
+         //! \brief Initiate close. Return true if still IO active.
+         //! Used in XrdPosixXrootd::Close()
+         //----------------------------------------------------------------------
+         bool InitiateClose();
 
       protected:
-         //! Read from disk, RAM, or client
+         //! Read from disk, RAM, task, or client.
          ssize_t Read(char * buff, off_t offset, size_t size);
 
+         //! Vector read from disk if block is already downloaded, else ReadV from client.
          int ReadV (const XrdOucIOVec *readV, int n);
 
          //! Write cache statistics in *cinfo file.
@@ -86,8 +98,8 @@ namespace XrdFileCache
          struct Task
          {
             int            fileBlockIdx; //!< idx in output file
-            int            ramBlockIdx;         //!< idx in the in-memory buffer
-            size_t         size;         // cached, fo case this is end file block
+            int            ramBlockIdx;  //!< idx in the in-memory buffer
+            size_t         size;         //!< cached, used for the end file block
             XrdSysCondVar *condVar;      //!< signal when complete
             bool* ok;
 
@@ -97,26 +109,25 @@ namespace XrdFileCache
            ~Task() {}
          };
 
-      struct RAMBlock {
-         int fileBlockIdx;
-         int refCount;
-         bool fromRead;
+         struct RAMBlock {
+             int  fileBlockIdx; //!< offset in output file
+             int  refCount;     //!< read and write reference count
+             bool fromRead;     //!< is ram requested from prefetch or read
 
-         RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false) {}
-      };
+             RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false) {}
+         };
 
          struct RAM
          {
-            int         m_numBlocks;
-            char*       m_buffer;
-            RAMBlock*   m_blockStates;
-            XrdSysMutex m_writeMutex;
+           int         m_numBlocks;    //!< number of in memory blocks
+           char*       m_buffer;       //!< buffer m_numBlocks x size_of_block
+           RAMBlock*   m_blockStates;  //!< referenced structure
+           XrdSysMutex m_writeMutex;   //!< write mutex
 
-            RAM();
+           RAM();
            ~RAM();
          };
 
-       
          //! Stop Run thread.
          void CloseCleanly();
 
@@ -126,17 +137,23 @@ namespace XrdFileCache
          //! Open file handle for data file and info file on local disk.
          bool Open();
 
-         //! Write download state into cinfo file
+         //! Write download state into cinfo file.
          void RecordDownloadInfo();
 
+         //! Short log alias.
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
+         //! Split read in blocks.
          ssize_t ReadInBlocks( char* buff, off_t offset, size_t size);
+
+         //! Prefetch block.
+         Task*   CreateTaskForFirstUndownloadedBlock();
+
+         //! Create task from read request and wait its completed.
          bool    ReadFromTask(int bIdx, char* buff, long long off, size_t size);
+
+         //! Read from client into in memory cache, queue ram buffer for disk write.
          void    DoTask(Task* task);
-
-
-         Task* CreateTaskForFirstUndownloadedBlock();
 
          RAM             m_ram;            //!< in memory cache
 
@@ -149,16 +166,16 @@ namespace XrdFileCache
          long long       m_offset;         //!< offset of cached file for block-based operation
          long long       m_fileSize;       //!< size of cached disk file for block-based operation
 
-         bool            m_started;  //!< state of run thread
-         bool            m_failed;   //!< reading from original source or writing to disk has failed
-         bool            m_stopping;     //!< run thread should be stopped
+         bool            m_started;   //!< state of run thread
+         bool            m_failed;    //!< reading from original source or writing to disk has failed
+         bool            m_stopping;  //!< run thread should be stopped
          bool            m_stopped;   //!< prefetch is stopped
-         XrdSysCondVar   m_stateCond;
+         XrdSysCondVar   m_stateCond; //!< state condition variable
 
          XrdSysMutex      m_downloadStatusMutex; //!< mutex locking access to m_cfi object
 
-         std::deque<Task*> m_tasks_queue; //!< download queue
-         XrdSysCondVar    m_queueCond;
+         std::deque<Task*> m_tasks_queue;  //!< download queue
+         XrdSysCondVar     m_queueCond;    //!< m_tasks_queue condition variable
 
          Stats            m_stats;      //!< cache statistics, used in IO detach
    };

@@ -35,8 +35,8 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          Stats() {
             m_BytesDisk = m_BytesRam = m_BytesMissed = 0;
-         }   
-     
+         }
+
          long long m_BytesDisk;   //!< number of bytes served from disk cache
          long long m_BytesRam;    //!< number of bytes served from RAM cache
          long long m_BytesMissed; //!< number of bytes served directly from XrdCl

@@ -64,8 +64,8 @@ namespace XrdFileCache
       float m_hwm;                    //!< cache purge high water mark
 
       long long m_bufferSize;         //!< prefetch buffer size, default 1MB
-      int  m_NRamBuffersRead;         //!< size of read in-memory cache  
-      int  m_NRamBuffersPrefetch;     //!< size of prefetch in-memory cache 
+      int  m_NRamBuffersRead;         //!< number of read in-memory cache blocks
+      int  m_NRamBuffersPrefetch;     //!< number of prefetch in-memory cache blocks
       long long m_blockSize;          //!< used with m_prefetchFileBlocks, default 128MB
    };
 
@@ -119,7 +119,7 @@ namespace XrdFileCache
          //------------------------------------------------------------------------
          const Configuration& RefConfiguration() const { return m_configuration; }
 
-       
+
          //---------------------------------------------------------------------
          //! \brief Parse configuration file
          //!
