@@ -87,12 +87,6 @@ static struct fuse_opt xrootdfs_opts[14];
 
 enum { OPT_KEY_HELP, OPT_KEY_SECSSS, };
 
-/*
-char *rdr, *cns, *fastls="", *daemon_user;
-//enum Boolean {false, true} ofsfwd;
-bool ofsfwd;
-*/
-
 static void* xrootdfs_init(struct fuse_conn_info *conn)
 {
     struct passwd pw, *pwp;
@@ -128,6 +122,10 @@ static void* xrootdfs_init(struct fuse_conn_info *conn)
     }
     free(pwbuf);
 
+/* put Xrootd related initialization calls here, after fuse daemonize itself. */
+    XrdPosixXrootd *abc = new XrdPosixXrootd(-xrootdfs.maxfd);
+    XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
+    XrdFfsWcache_init(abc->fdOrigin(), xrootdfs.maxfd);
 /*
    From FAQ:
       Miscellaneous threads should be started from the init() method.
@@ -1225,22 +1223,15 @@ int main(int argc, char *argv[])
 /* Define XrootdFS options */
     char **cmdline_opts;
 
-    cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 4));
+    cmdline_opts = (char **) malloc(sizeof(char*) * (argc -1 + 3));
     cmdline_opts[0] = argv[0];
     cmdline_opts[1] = strdup("-o");
     cmdline_opts[2] = strdup("fsname=xrootdfs,allow_other,max_write=131072,attr_timeout=10,entry_timeout=10,negative_timeout=5");
-/* the new xrootd client doesn't like fork(). So we use a "-f" flag to tell fuse not to call daemon(0, 0).
- * We daemonize manually before xrootd client is called (see below), if user doesn't specify -f or -d
- */
-    cmdline_opts[3] = strdup("-f");
 
-    bool daemonize = true;
     for (int i = 1; i < argc; i++)
-    {
-        cmdline_opts[i+3] = argv[i];
-        if (! strcmp(argv[i], "-f") || ! strcmp(argv[i], "-d")) daemonize = false;
-    }
-    struct fuse_args args = FUSE_ARGS_INIT(argc -1 + 4, cmdline_opts);
+        cmdline_opts[i+2] = argv[i];
+
+    struct fuse_args args = FUSE_ARGS_INIT(argc -1 + 3, cmdline_opts);
 
     xrootdfs_opts[0].templ = "-h";
     xrootdfs_opts[0].offset = -1U;
@@ -1357,29 +1348,11 @@ int main(int argc, char *argv[])
         setenv("XrdSecsssKT", xrootdfs.ssskeytab, 1);
     }
 
-/* daemonize at here (after parsing -h options, and before calling xrootd client).  */
-    if (daemonize) 
-    {
-//         daemon(0, 0);
-         if (fork()) { exit(0); }
-         setsid();
-         close(0); open("/dev/null", O_RDONLY);
-         close(1); open("/dev/null", O_RDWR);
-         close(2); open("/dev/null", O_RDWR);
-    }
-
-/* Now we can allocate the XRootD posix interface as we need to set the maximum
-   number of virtual file descriptors and we don't know that until now.
-*/
     if (xrootdfs.maxfd < 2048) xrootdfs.maxfd = 2048;
-    XrdPosixXrootd abc(-xrootdfs.maxfd);
 
-    XrdFfsMisc_xrd_init(xrootdfs.rdr,xrootdfs.urlcachelife,0);
-    XrdFfsWcache_init(abc.fdOrigin(), xrootdfs.maxfd);
     signal(SIGUSR1,xrootdfs_sigusr1_handler);
 
     cwdfd = open(".",O_RDONLY);
-
     umask(0);
 
     return fuse_main(args.argc, args.argv, &xrootdfs_oper, NULL);
