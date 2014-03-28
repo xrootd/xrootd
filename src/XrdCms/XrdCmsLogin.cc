@@ -179,7 +179,7 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 {
    static const int xNum   = 18;
 
-   int          n, iovcnt;
+   int          n, iovcnt, iovnum;
    char         Work[xNum*12];
    struct iovec Liov[xNum];
    CmsRRHdr     Resp={0, kYR_login, 0, 0};
@@ -198,10 +198,12 @@ int XrdCmsLogin::sendData(XrdLink *Link, CmsLoginData &Data)
 // Send off the data *break it up to IOV_MAX chunks, mostly for Solaris)
 //
    n = 0; iovcnt++;
-   do {if (iovcnt <= IOV_MAX) {Link->Send(&Liov[n], iovcnt); break;}
-       Link->Send(&Liov[n], iovcnt+1);
-       n += IOV_MAX; iovcnt -= IOV_MAX;
-      } while(1);
+   if (iovcnt <= IOV_MAX) Link->Send(Liov, iovcnt);
+      else while(iovcnt > 0)
+                {iovnum = (iovcnt > IOV_MAX ? IOV_MAX : iovcnt);
+                 Link->Send(&Liov[n], iovnum);
+                 n += IOV_MAX; iovcnt -= IOV_MAX;
+                }
 
 // Return success
 //
