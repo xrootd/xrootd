@@ -93,7 +93,7 @@ void XrdNetSecurity::AddHost(char *hname)
 // the name pattern list.
 //
    if (!index(hname, '*') && !hAddr.Set(hname,0)
-   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAddr, fmtOpts))
+   &&  hAddr.Format(ipbuff, sizeof(ipbuff), XrdNetAddr::fmtAdv6, fmtOpts))
       {OKHosts.Add(ipbuff, 0, 0, Hash_data_is_key);
       }
       else {XrdOucNList *nlp = new XrdOucNList(hname);
@@ -138,7 +138,7 @@ bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
 
 // Convert IP address to characters
 //
-   if (!addr.Format(ipAddr, sizeof(ipAddr), XrdNetAddr::fmtAddr, fmtOpts))
+   if (!addr.Format(ipAddr, sizeof(ipAddr), XrdNetAddr::fmtAdv6, fmtOpts))
       return false;
 
 // Check if we have seen this host before
