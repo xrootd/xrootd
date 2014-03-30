@@ -40,7 +40,7 @@ using namespace XrdFileCache;
 bool POK = 0;
 bool PFALSE = 0;
 
-Prefetch::RAM::RAM(): m_numBlocks(0),m_buffer(0),  m_blockStates(0)
+Prefetch::RAM::RAM(): m_numBlocks(0),m_buffer(0),  m_blockStates(0), m_writeMutex(0)
 {
    m_numBlocks = Factory::GetInstance().RefConfiguration().m_NRamBuffersRead + Factory::GetInstance().RefConfiguration().m_NRamBuffersPrefetch;
    m_buffer = (char*)malloc(m_numBlocks * Factory::GetInstance().RefConfiguration().m_bufferSize);
@@ -84,7 +84,7 @@ bool Prefetch::InitiateClose()
    m_stopping = true;
    m_stateCond.UnLock();
 
-   XrdSysMutexHelper(m_ram.m_writeMutex);
+   XrdSysCondVarHelper(m_ram.m_writeMutex);
    for (int i = 0; i < m_ram.m_numBlocks;++i )
    {
       if (m_ram.m_blockStates[i].refCount)
@@ -336,7 +336,7 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
                assert(m_ram.m_blockStates[r].fileBlockIdx == -1);
                m_ram.m_blockStates[r].refCount = 1;
                m_ram.m_blockStates[r].fileBlockIdx = t.fileBlockIdx;
-               m_ram.m_blockStates[r].fromRead = false;
+               m_ram.m_blockStates[r].status = kReadWait;
                break;
             }
          }
@@ -446,7 +446,17 @@ Prefetch::DoTask(Task* task)
       }
    }
 
-   assert(missing >= 0);
+   m_ram.m_writeMutex.Lock();
+   if (missing) {
+       m_ram.m_blockStates[task->ramBlockIdx].status = kreadFailed;
+       m_ram.m_blockStates[task->ramBlockIdx].readErrno = errno;
+   }
+   else {
+       m_ram.m_blockStates[task->ramBlockIdx].status = kReadSuccess;
+       m_ram.m_blockStates[task->ramBlockIdx].readErrno = 0;
+   }
+   m_ram.m_writeMutex.Broadcast();
+   m_ram.m_writeMutex.UnLock();
 
    if (missing == 0)
    {
@@ -553,6 +563,7 @@ bool Prefetch::ReadFromTask(int iFileBlockIdx, char* iBuff, long long iOff, size
                m_ram.m_blockStates[i].refCount = 1;
                m_ram.m_blockStates[i].fileBlockIdx = iFileBlockIdx;
                m_ram.m_blockStates[i].fromRead = true;
+               m_ram.m_blockStates[i].status = kReadWait;
                break;
             }
          }
@@ -585,7 +596,7 @@ bool Prefetch::ReadFromTask(int iFileBlockIdx, char* iBuff, long long iOff, size
 
             newTaskCond.Wait();
          }
-         if (clientreadOK)
+         if (clientreadOK) // AMT use RAM idx ..
          {
             clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadFromTask memcpy from RAM to IO::buffer fileIdx=%d ", iFileBlockIdx);
             long long inBlockOff = iOff - iFileBlockIdx * m_cfi.GetBufferSize();
@@ -668,21 +679,33 @@ ssize_t Prefetch::ReadInBlocks(char *buff, off_t off, size_t size)
             {
                RamIdx = ri;
                m_ram.m_blockStates[ri].refCount++;
+               clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadInBlocks  ram = %d file block = %d wait", RamIdx, blockIdx);
+               while (m_ram.m_blockStates[ri].status == kReadWait)
+               {
+                   m_ram.m_writeMutex.Wait();
+               }
                break;
             }
          }
 
          m_ram.m_writeMutex.UnLock();
-         if (RamIdx >= 0) {
-            clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadInBlocks  ram = %d file block = %d", RamIdx, blockIdx);
-            int in_block_off = off - m_ram.m_blockStates[RamIdx].fileBlockIdx *m_cfi.GetBufferSize();
-            char *rbuff = m_ram.m_buffer + RamIdx*m_cfi.GetBufferSize() + in_block_off;
-            memcpy(buff, rbuff, readBlockSize);
-            DecRamBlockRefCount(RamIdx);
-            retvalBlock = readBlockSize;
-         }
 
-         if (RamIdx < 0) {
+         if (RamIdx >= 0 ) {
+             if ( m_ram.m_blockStates[RamIdx].status == kReadSuccess) {
+                 clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadInBlocks  ram = %d file block = %d", RamIdx, blockIdx);
+                 int in_block_off = off - m_ram.m_blockStates[RamIdx].fileBlockIdx *m_cfi.GetBufferSize();
+                 char *rbuff = m_ram.m_buffer + RamIdx*m_cfi.GetBufferSize() + in_block_off;
+                 memcpy(buff, rbuff, readBlockSize);
+                 retvalBlock = readBlockSize;
+             }
+             else  {
+                 errno = m_ram.m_blockStates[RamIdx].readErrno;
+                 DecRamBlockRefCount(RamIdx);
+                 return -1;
+             }
+         }
+         else
+         {
             if (ReadFromTask(blockIdx, buff, off, readBlockSize))
             {
                retvalBlock = readBlockSize; // presume since ReadFromTask did not fail, could pass a refrence to ReadFromTask
@@ -735,7 +758,6 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
    {
       nbytes += readV[i].size;
 
-
       XrdSfsXferSize size = readV[i].size;
       XrdSfsFileOffset off = readV[i].offset;
       bool cached = true;
@@ -769,7 +791,8 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
 
       if (cached) {
          clLog()->Debug(XrdCl::AppMsg, "Prefetch::ReadV %d from cache ", i);
-         Read(readV[i].data, readV[i].offset, readV[i].size);
+         if (Read(readV[i].data, readV[i].offset, readV[i].size) < 0)
+             return -1;
       }
       else
       {
@@ -785,7 +808,13 @@ int Prefetch::ReadV (const XrdOucIOVec *readV, int n)
    Status = clFile.VectorRead(chunkVec, (void *)0, vrInfo);
    delete vrInfo;
 
-   return (Status.IsOK() ? nbytes : -1);
+   if (!Status.IsOK())
+   {
+       XrdPosixMap::Result(Status);
+       return -1;
+   }
+  else
+      return nbytes;
 }
 //______________________________________________________________________________
 ssize_t

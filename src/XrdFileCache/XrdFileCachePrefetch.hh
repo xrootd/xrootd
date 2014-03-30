@@ -41,6 +41,7 @@ namespace XrdFileCache
    {
       friend class IOEntireFile;
       friend class IOFileBlock;
+      enum ReadRamState_t { kReadWait, kReadSuccess, kReadFailed};
 
       struct Task;
       public:
@@ -97,11 +98,11 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          struct Task
          {
-            int            fileBlockIdx; //!< idx in output file
+            int            fileBlockIdx; //!< idx in output file // xx not needed
             int            ramBlockIdx;  //!< idx in the in-memory buffer
             size_t         size;         //!< cached, used for the end file block
-            XrdSysCondVar *condVar;      //!< signal when complete
-            bool* ok;
+            XrdSysCondVar *condVar;      //!< signal when complete // xxx in principal not needed
+             bool* ok; // not needed xxx
 
             Task(): fileBlockIdx(-1), ramBlockIdx(-1), size(0), condVar(0), ok(0) {}
             Task(int b, int r, size_t s, XrdSysCondVar *cv, bool* rs):
@@ -113,8 +114,10 @@ namespace XrdFileCache
              int  fileBlockIdx; //!< offset in output file
              int  refCount;     //!< read and write reference count
              bool fromRead;     //!< is ram requested from prefetch or read
+             ReadRamState_t status;       //!< read from client status 0=wait, 1=sucess, -1=fail xxx
+             int readErrno; //!< posix error on read fail
 
-             RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false) {}
+             RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false), status(kReadWait) {}
          };
 
          struct RAM
@@ -122,7 +125,7 @@ namespace XrdFileCache
            int         m_numBlocks;    //!< number of in memory blocks
            char*       m_buffer;       //!< buffer m_numBlocks x size_of_block
            RAMBlock*   m_blockStates;  //!< referenced structure
-           XrdSysMutex m_writeMutex;   //!< write mutex
+           XrdSysCondVar m_writeMutex;   //!< write mutex
 
            RAM();
            ~RAM();
