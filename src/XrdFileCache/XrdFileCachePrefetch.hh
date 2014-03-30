@@ -98,15 +98,13 @@ namespace XrdFileCache
          //----------------------------------------------------------------------
          struct Task
          {
-            int            fileBlockIdx; //!< idx in output file // xx not needed
             int            ramBlockIdx;  //!< idx in the in-memory buffer
             size_t         size;         //!< cached, used for the end file block
-            XrdSysCondVar *condVar;      //!< signal when complete // xxx in principal not needed
-             bool* ok; // not needed xxx
+            XrdSysCondVar *condVar;      //!< signal when complete
 
-            Task(): fileBlockIdx(-1), ramBlockIdx(-1), size(0), condVar(0), ok(0) {}
-            Task(int b, int r, size_t s, XrdSysCondVar *cv, bool* rs):
-               fileBlockIdx(b), ramBlockIdx(r), size(s), condVar(cv), ok(rs) {}
+            Task(): ramBlockIdx(-1), size(0), condVar(0) {}
+            Task(int r, size_t s, XrdSysCondVar *cv):
+                ramBlockIdx(r), size(s), condVar(cv) {}
            ~Task() {}
          };
 
@@ -114,7 +112,7 @@ namespace XrdFileCache
              int  fileBlockIdx; //!< offset in output file
              int  refCount;     //!< read and write reference count
              bool fromRead;     //!< is ram requested from prefetch or read
-             ReadRamState_t status;       //!< read from client status 0=wait, 1=sucess, -1=fail xxx
+             ReadRamState_t status;       //!< read from client status
              int readErrno; //!< posix error on read fail
 
              RAMBlock():fileBlockIdx(-1), refCount(0), fromRead(false), status(kReadWait) {}
