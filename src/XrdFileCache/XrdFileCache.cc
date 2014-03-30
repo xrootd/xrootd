@@ -171,7 +171,7 @@ Cache::ProcessWriteTasks()
    while (true)
    {
       s_writeQ.condVar.Lock();
-      if (s_writeQ.queue.empty())
+      while (s_writeQ.queue.empty())
       {
          s_writeQ.condVar.Wait();
       }
