@@ -462,7 +462,13 @@ Prefetch::DoTask(Task* task)
    if (missing == 0)
    {
       // queue for ram to disk write
-      Cache::AddWriteTask(this, task->ramBlockIdx, task->size, task->condVar ? true : false );
+      XrdSysCondVarHelper monitor(m_stateCond);
+      if (!m_stopping) { Cache::AddWriteTask(this, task->ramBlockIdx, task->size, task->condVar ? true : false );
+      }
+      else {
+         m_ram.m_blockStates[task->ramBlockIdx].refCount--;
+      }
+
    }
    else
    {
@@ -694,6 +700,7 @@ ssize_t Prefetch::ReadInBlocks(char *buff, off_t off, size_t size)
                  int in_block_off = off - m_ram.m_blockStates[RamIdx].fileBlockIdx *m_cfi.GetBufferSize();
                  char *rbuff = m_ram.m_buffer + RamIdx*m_cfi.GetBufferSize() + in_block_off;
                  memcpy(buff, rbuff, readBlockSize);
+                 DecRamBlockRefCount(RamIdx);
                  retvalBlock = readBlockSize;
              }
              else  {
