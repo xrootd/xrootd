@@ -27,6 +27,10 @@ BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 
+# selinux
+BuildRequires: checkpolicy
+BuildRequires: policycoreutils
+
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
 %endif
@@ -68,6 +72,8 @@ The cmsd server is the next generation version of the olbd server,
 originally developed to cluster and load balance Objectivity/DB AMS
 database servers. It provides enhanced capability along with lower
 latency and increased throughput.
+
+%define policy_dir /usr/share/selinux/targeted
 
 #-------------------------------------------------------------------------------
 # libs
@@ -207,6 +213,19 @@ BuildArch:	noarch
 This package contains the API documentation of the xrootd libraries.
 
 #-------------------------------------------------------------------------------
+# selinux
+#-------------------------------------------------------------------------------
+%package selinux
+Summary:	 SELinux policy extensions for xrootd.
+Group:		 System Environment/Base
+BuildArch: noarch
+Requires:  policycoreutils
+Requires:  selinux-policy-targeted
+
+%description selinux
+SELinux policy extensions for running xrootd while in enforcing mode.
+
+#-------------------------------------------------------------------------------
 # tests
 #-------------------------------------------------------------------------------
 %if %{?_with_tests:1}%{!?_with_tests:0}
@@ -245,6 +264,10 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
 %endif
 
 make -i VERBOSE=1 %{?_smp_mflags}
+
+checkmodule -M -m -o xrootd.mod ../packaging/common/xrootd.te
+semodule_package -o xrootd.pp -m xrootd.mod
+
 cd ..
 doxygen Doxyfile
 
@@ -301,6 +324,10 @@ install -m 644 packaging/common/client.conf $RPM_BUILD_ROOT%{_sysconfdir}/%{name
 # documentation
 mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
 cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
+
+# selinux
+mkdir -p ${RPM_BUILD_ROOT}%{policy_dir}
+install -m 644 build/xrootd.pp ${RPM_BUILD_ROOT}%{policy_dir}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -362,6 +389,16 @@ getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
        -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
+
+#-------------------------------------------------------------------------------
+# Selinux
+#-------------------------------------------------------------------------------
+%post selinux
+semodule -i %{policy_dir}/xrootd.pp
+semodule -R
+
+%postun selinux
+semodule -R
 
 #-------------------------------------------------------------------------------
 # Files
@@ -528,10 +565,17 @@ exit 0
 %{_libdir}/libXrdClTestMonitor.so
 %endif
 
+%files selinux
+%defattr(-,root,root)
+%{policy_dir}/xrootd.pp
+
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Mon Mar 31 2014 Lukasz Janyst <ljanyst@cern.ch>
+- Add selinux policy
+
 * Fri Jan 24 2014 Lukasz Janyst <ljanyst@cern.ch>
 - Import XrdHttp
 
