@@ -1,0 +1,10 @@
+module xrootd 4;
+
+require {
+  type logrotate_t;
+  type var_log_t;
+  class fifo_file { write open };
+}
+
+#============= logrotate_t ==============
+allow logrotate_t var_log_t:fifo_file { write open };
