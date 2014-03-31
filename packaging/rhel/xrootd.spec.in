@@ -29,7 +29,12 @@ BuildRequires: ncurses-devel
 
 # selinux
 BuildRequires: checkpolicy
+
+%if %{?fedora}%{!?fedora:0} >= 20
+BuildRequires: policycoreutils-python
+%else
 BuildRequires: policycoreutils
+%endif
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
@@ -218,7 +223,9 @@ This package contains the API documentation of the xrootd libraries.
 %package selinux
 Summary:	 SELinux policy extensions for xrootd.
 Group:		 System Environment/Base
+%if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch: noarch
+%endif
 Requires:  policycoreutils
 Requires:  selinux-policy-targeted
 
