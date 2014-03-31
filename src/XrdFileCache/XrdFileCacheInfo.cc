@@ -51,7 +51,7 @@ Info::Info() :
 
 Info::~Info()
 {
-   if (m_buff) delete [] m_buff;
+   if (m_buff) free(m_buff);
 }
 
 //______________________________________________________________________________
@@ -135,13 +135,10 @@ void Info::AppendIOStat(const Stats* caches, XrdOssDF* fp)
    off += fp->Write(&m_accessCnt, off, sizeof(int));
    off += (m_accessCnt-1)*sizeof(AStat);
    AStat as;
-   as.DetachTime = time(0);
-   as.BytesRead = caches->m_BytesCached + caches->m_BytesRemote;
-   as.HitsCached = caches->m_HitsCached;
-   as.HitsRemote = caches->m_HitsRemote;
-   for (int i = 0; i < 12; ++i) {
-      as.HitsPartial[i] = caches->m_HitsPartial[i];
-   }
+   as.DetachTime  = time(0);
+   as.BytesDisk   = caches->m_BytesDisk;
+   as.BytesRam    = caches->m_BytesRam;
+   as.BytesMissed = caches->m_BytesMissed;
 
    flr = XrdOucSxeq::Release(fp->getFD());
    if (flr) clLog()->Error(XrdCl::AppMsg, "AppendStat() un-lock failed \n");
@@ -178,19 +175,4 @@ bool Info::GetLatestDetachTime(time_t& t, XrdOssDF* fp) const
    if (flr) clLog()->Error(XrdCl::AppMsg, "Info::GetLatestAttachTime() lock failed \n");
 
    return res;
-}
-
-//______________________________________________________________________________
-
-
-void Info::Print() const
-{
-   printf("blocksSize %lld \n",m_bufferSize );
-   printf("printing [%d] blocks \n", m_sizeInBits);
-   for (int i = 0; i < m_sizeInBits; ++i)
-   {
-      printf("%d ", TestBit(i));
-   }
-   printf("\n");
-   printf("printing complete %d\n", m_complete);
 }

@@ -34,32 +34,21 @@ namespace XrdFileCache
          //! Constructor.
          //----------------------------------------------------------------------
          Stats() {
-            m_BytesCached = m_BytesRemote = m_HitsCached = m_HitsRemote = 0;
-            for (int i = 0; i < 12; ++i)
-               m_HitsPartial[i] = 0;
-         }   
-     
-         long long m_BytesCached; //!< number of bytes served from cache
-         long long m_BytesRemote; //!< number of bytes that had to be fetched
+            m_BytesDisk = m_BytesRam = m_BytesMissed = 0;
+         }
 
-         int       m_HitsCached;      //!< number of read requests served from cache
-         int       m_HitsPartial[12]; //!< number of read requests that were partially available
-         int       m_HitsRemote;      //!< number of read requests that had to be fetched
+         long long m_BytesDisk;   //!< number of bytes served from disk cache
+         long long m_BytesRam;    //!< number of bytes served from RAM cache
+         long long m_BytesMissed; //!< number of bytes served directly from XrdCl
 
          inline void AddStat(Stats &Src)
          {
             XrdOucCacheStats::Add(Src);
 
             m_MutexXfc.Lock();
-            m_BytesCached += Src.m_BytesCached;
-            m_BytesRemote += Src.m_BytesRemote;
-
-            m_HitsCached  += Src.m_HitsCached;
-            m_HitsRemote  += Src.m_HitsRemote;
-
-           // [0] - 0;   [1] 0-10%, [2] 10-20% .... [10] 90-100%; [11] 100%
-           for (int i = 0; i < 12; ++i)
-              m_HitsPartial[i]  += Src.m_HitsPartial[i];
+            m_BytesDisk += Src.m_BytesDisk;
+            m_BytesRam += Src.m_BytesRam;
+            m_BytesMissed += Src.m_BytesMissed;
 
             m_MutexXfc.UnLock();
          }

@@ -77,6 +77,14 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          virtual XrdOucCacheIO* Detach();
 
+         //! \brief Virtual method of XrdOucCacheIO. 
+         //! Called to check if destruction needs to be done in a separate task.
+         virtual bool ioActive();
+
+   protected:
+      //! Run prefetch outside constructor.
+      virtual void StartPrefetch();
+
       private:
          Prefetch* m_prefetch;
    };
