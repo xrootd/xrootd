@@ -18,14 +18,17 @@
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
 //----------------------------------------------------------------------------------
 #include <string>
+#include <list>
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucCache.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 
-namespace XrdCl
-{
+namespace XrdCl {
    class Log;
+}
+namespace XrdFileCache {
+class Prefetch;
 }
 
 namespace XrdFileCache
@@ -61,21 +64,68 @@ namespace XrdFileCache
          virtual XrdOucCache* Create(XrdOucCache::Parms&, XrdOucCacheIO::aprParms*)
          { return NULL; }
 
+         //---------------------------------------------------------------------
+         //! Add downloaded block in write queue.
+         //---------------------------------------------------------------------
+         static void AddWriteTask(Prefetch* p, int ramBlockidx, size_t size, bool fromRead);
+
+         //---------------------------------------------------------------------
+         //! Check write queue size is not over limit.
+         //---------------------------------------------------------------------
+         static bool HaveFreeWritingSlots();
+
+         //---------------------------------------------------------------------
+         //!  \brief Remove blocks from write queue which belong to given prefetch.
+         //! This method is used at the time of Prefetch destruction.
+         //---------------------------------------------------------------------
+         static void RemoveWriteQEntriesFor(Prefetch *p);
+
+         //---------------------------------------------------------------------
+         //! Separate task which writes blocks from ram to disk.
+         //---------------------------------------------------------------------
+         static void ProcessWriteTasks();
+
       private:
+         //! Decrease attached count. Called from IO::Detach().
          void Detach(XrdOucCacheIO *);
+
+         //! Transfor URL to path on local disk.
          bool getFilePathFromURL(const char* url, std::string& res) const;
+
+         //! Short log alias.
+         XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          XrdSysMutex        m_io_mutex; //!< central lock for this class
          unsigned int       m_attached; //!< number of attached IO objects
          XrdOucCacheStats  &m_stats;    //!< global cache usage statistics
-   };
 
+         struct WriteTask
+         {
+            Prefetch* prefetch;    //!< object queued for writing
+            int       ramBlockIdx; //!< in memory cache index
+            size_t    size;        //!< write size -- block size except in case this is the end file block
+            WriteTask(Prefetch* p, int ri, size_t s):prefetch(p), ramBlockIdx(ri), size(s){}
+         };
+
+         struct WriteQ
+         {
+            WriteQ() : condVar(0), size(0) {}
+            XrdSysCondVar         condVar;  //!< write list condVar
+            size_t                size;     //!< cache size of a container
+            std::list<WriteTask>  queue;    //!< container
+         };
+
+         static WriteQ s_writeQ;
+
+   };
 
    //----------------------------------------------------------------------------
    //! Base cache-io class that implements XrdOucCacheIO abstract methods.
    //----------------------------------------------------------------------------
    class IO : public XrdOucCacheIO
    {
+      friend class Prefetch;
+
       public:
          IO (XrdOucCacheIO &io, XrdOucCacheStats &stats, Cache &cache) :
          m_io(io), m_statsGlobal(stats), m_cache(cache) {}
@@ -96,14 +146,14 @@ namespace XrdFileCache
          virtual int Write(char *Buffer, long long Offset, int Length)
          { errno = ENOTSUP; return -1; }
 
+         virtual void StartPrefetch() {}
+
       protected:
          XrdCl::Log* clLog() const { return XrdCl::DefaultEnv::GetLog(); }
 
          XrdOucCacheIO    &m_io;          //!< original data source
          XrdOucCacheStats &m_statsGlobal; //!< reference to Cache statistics
          Cache            &m_cache;       //!< reference to Cache needed in detach
-
-
    };
 }
 
