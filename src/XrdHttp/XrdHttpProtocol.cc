@@ -364,39 +364,57 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   // If https then check independently for the ssl handshake
   if (ishttps && !ssldone) {
-    ssl = SSL_new(sslctx);
-    if (!ssl) {
-      TRACEI(DEBUG, " SSL_new returned NULL");
+
+      if (!ssl) {
+          sbio = BIO_new_socket(Link->FDnum(), BIO_NOCLOSE);
+          BIO_set_nbio(sbio, 1);
+          ssl = SSL_new(sslctx);
+        }
+
+      if (!ssl) {
+          TRACEI(DEBUG, " SSL_new returned NULL");
+          ERR_print_errors(sslbio_err);
+          return -1;
+        }
+
+      SSL_set_bio(ssl, sbio, sbio);
+      //SSL_set_connect_state(ssl);
+
+      //SSL_set_fd(ssl, Link->FDnum());
+      struct timeval tv;
+      tv.tv_sec = 1;
+      tv.tv_usec = 0;
+      setsockopt(Link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+      setsockopt(Link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+
+      TRACEI(DEBUG, " Entering SSL_accept...");
+      int res = SSL_accept(ssl);
+      TRACEI(DEBUG, " SSL_accept returned :" << res);
       ERR_print_errors(sslbio_err);
-      return -1;
+
+      if ((res == -1) && (SSL_get_error(ssl, res) == SSL_ERROR_WANT_READ)) {
+          TRACEI(DEBUG, " SSL_accept wants to read more bytes... err:" << SSL_get_error(ssl, res));
+          return 1;
+        }
+
+      if (res < 0) {
+          SSL_free(ssl);
+          ssl = 0;
+          return -1;
+        }
+      BIO_set_nbio(sbio, 0);
+
+      // Get the voms string and auth information
+      GetVOMSData(Link);
+
+      ERR_print_errors(sslbio_err);
+      res = SSL_get_verify_result(ssl);
+      TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
+      ERR_print_errors(sslbio_err);
+
+      if (res != X509_V_OK) return -1;
+      ssldone = true;
     }
-    SSL_set_fd(ssl, Link->FDnum());
-    struct timeval tv;
-    tv.tv_sec = readWait;
-    tv.tv_usec = 0;
-    setsockopt(Link->FDnum(), SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-    setsockopt(Link->FDnum(), SOL_SOCKET, SO_SNDTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-    
-    int res = SSL_accept(ssl);
-    TRACEI(DEBUG, " SSL_accept returned :" << res);
-    ERR_print_errors(sslbio_err);
-    if (res < 0) {
-      SSL_free(ssl);
-      ssl = 0;
-      return -1;
-    }
-
-    // Get the voms string and auth information
-    GetVOMSData(Link);
-
-    ERR_print_errors(sslbio_err);
-    res = SSL_get_verify_result(ssl);
-    TRACEI(DEBUG, " SSL_get_verify_result returned :" << res);
-    ERR_print_errors(sslbio_err);
-
-    if (res != X509_V_OK) return -1;
-    ssldone = true;
-  }
 
 
 
@@ -1327,7 +1345,7 @@ int XrdHttpProtocol::InitSecurity() {
   /* Load server certificate into the SSL context */
   if (SSL_CTX_use_certificate_file(sslctx, sslcert,
           SSL_FILETYPE_PEM) <= 0) {
-
+    TRACE(EMSG, " Error setting the cert.");
     ERR_print_errors(sslbio_err); /* == ERR_print_errors_fp(stderr); */
     exit(1);
   }
@@ -1335,7 +1353,7 @@ int XrdHttpProtocol::InitSecurity() {
   /* Load the server private-key into the SSL context */
   if (SSL_CTX_use_PrivateKey_file(sslctx, sslkey,
           SSL_FILETYPE_PEM) <= 0) {
-
+    TRACE(EMSG, " Error setting the private key.");
     ERR_print_errors(sslbio_err); /* == ERR_print_errors_fp(stderr); */
     exit(1);
   }
@@ -1343,10 +1361,13 @@ int XrdHttpProtocol::InitSecurity() {
   /* Load trusted CA. */
   //eDest.Say(" Setting cafile ", sslcafile, "'.");
   //eDest.Say(" Setting cadir ", sslcadir, "'.");
-  if (!SSL_CTX_load_verify_locations(sslctx, sslcafile, sslcadir)) {
-    ERR_print_errors(sslbio_err); /* == 
+  if (sslcafile || sslcadir) {
+    if (!SSL_CTX_load_verify_locations(sslctx, sslcafile, sslcadir)) {
+      TRACE(EMSG, " Error setting the ca file or directory.");
+      ERR_print_errors(sslbio_err); /* ==
                   ERR_print_errors_fp(stderr); */
-    exit(1);
+      exit(1);
+    }
   }
 
   //eDest.Say(" Setting verify depth to ", itoa(sslverifydepth), "'.");
@@ -1376,6 +1397,11 @@ void XrdHttpProtocol::Cleanup() {
   }
 
 
+  if (sbio) {
+    TRACE(DEBUG, " Freeing sbio");
+    BIO_free(sbio);
+    }
+
   if (ssl) {
     if (SSL_shutdown(ssl) != 1) {
       TRACE(ALL, " SSL_shutdown failed");
@@ -1385,7 +1411,9 @@ void XrdHttpProtocol::Cleanup() {
      SSL_free(ssl);
   }
 
+
   ssl = 0;
+  sbio = 0;
 
 
   if (SecEntity.vorg) free(SecEntity.vorg);
@@ -1434,6 +1462,7 @@ void XrdHttpProtocol::Reset() {
 
   Bridge = 0;
   ssl = 0;
+  sbio = 0;
 
 }
 
