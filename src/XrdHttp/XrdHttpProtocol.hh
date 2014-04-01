@@ -207,6 +207,9 @@ private:
   /// Private SSL context
   SSL *ssl;
 
+  /// Private SSL bio
+  BIO *sbio;
+
   /// bio to print SSL errors
   static BIO *sslbio_err;
 
