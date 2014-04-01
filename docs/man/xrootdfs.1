@@ -15,18 +15,15 @@ using FUSE.
 Usage synopsis can be displayed by typing "\fBxrootdfs -h\fR".
 Short documentation can be found in a README file in the src/XrdFfs source
 directory.
-.SH NOTES
-Documentation for all components associated with \fBxrootdfs\fR can be found at
-http://xrootd.org/docs.html
-.SH DIAGNOSTICS
-Errors yield an error message and a non-zero exit status.
-The program never exits upon success.  Use the umount command to terminate the
-program.
 
-Additional logging information can be found in syslog (/var/log/messages)
 .SH EXAMPLES
 Assuming the redirector is 
 .B rdr:port
+
+run from command line with debugging output
+.RS
+xrootdfs -d -o rdr=root://rdr:port//data,uid=daemon /mnt
+.RE
 
 use in /etc/fstab
 .RS
@@ -36,22 +33,49 @@ xrootdfs /mnt fuse rdr=root://rdr:port//data,uid=daemon 1 2
 use with autofs
 .RS
 1. add a line to /etc/auto.master
-.RE
-.RS
+.br
 /\- /etc/auto.fuse
 
 2. create /etc/auto.fuse with the following one line
-.RE
-.RS
+.br
 /mnt \-fstype=fuse,uid=2,rdr=root://rdr\\:port//data :xrootdfs.sh
 
 3. create script /usr/bin/xrootdfs.sh (make sure +x bit is set)
-.RE
-.RS
+.br
 #!/bin/sh
-.RS
-.RE
+.br
 exec /usr/bin/xrootdfs $@ >/dev/null 2>&1
+
+.SH NOTES
+Documentation for all components associated with \fBxrootdfs\fR can be found at
+http://xrootd.org/docs.html
+
+xrootdfs allows users and administators to query and change the internal
+parameters on the fly via the filesystem extened attributes
+
+getfattr -n attribute_name /mount_point
+.br 
+setfattr -n attribute_name [ -v value ] /mount_point
+
+attribute_name:
+.RS
+.B xroot.url:
+query the actual ROOT url of the file (this is an old one)
+.br
+.B xrootdfs.fs.nworkers:
+query or change the number of threads working in parallel on
+operations such as stat(), unlink()/rmdir(), readdir(), statvfs(), etc.
+.br
+.B xrootdfs.fs.dataserverlist: 
+query or refresh the list of all data servers known to this xrootdfs
+instance (or "kill -USR1 pid" to refresh)
+
+.SH DIAGNOSTICS
+Errors yield an error message and a non-zero exit status.
+The program never exits upon success.  Use the umount command to terminate the
+program.
+
+Additional logging information can be found in syslog (/var/log/messages)
 .SH LICENSE
 License terms can be displayed by typing "\fBxrootd -H\fR".
 .SH SUPPORT LEVEL
