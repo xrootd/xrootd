@@ -11,7 +11,9 @@ Version 4.0.0
 
 + **New Features**
    * Supprt IPv6. Please read docs/README_IPV4_To_IPV6 for details.
-   * Support HTTP.
+   * Introduce the XrdFileCache library - a proxy server plugin used for caching
+     of data into local files.
+   * Beta support HTTP(S).
    * Provide protocol bridge to let other protocols use xrootd back-end plugins.
    * Provide full support for public/private IP networks.
    * Allow remote debugging via the xrootd.diglib directive.
