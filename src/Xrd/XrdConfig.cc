@@ -1125,7 +1125,7 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
    Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
                                          [cache <ct>] [[no]dnr]
-                                         [routes <rtype> <ifn1>,<ifn2>}]
+                                         [routes <rtype> [use <ifn1>,<ifn2>]]
 
              <rtype>: split | common | local
 
@@ -1180,7 +1180,9 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                           else {eDest->Emsg("Config","Invalid routes argument -",val);
                                 return 1;
                                }
-                          if (!(val =  Config.GetWord()))
+                          if (!(val =  Config.GetWord())|| !(*val)) break;
+                          if (strcmp(val, "use")) continue;
+                          if (!(val =  Config.GetWord())|| !(*val))
                              {eDest->Emsg("Config", "network routes i/f names "
                                                     "not specified.");
                               return 1;

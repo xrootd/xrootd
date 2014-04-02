@@ -57,7 +57,7 @@ char             *XrdNetIF::myDomain  = XrdNetIF::SetDomain();
 
 char             *XrdNetIF::ifCfg[2]  = {0,0};
 
-XrdNetIF::netType XrdNetIF::netRoutes = XrdNetIF::netSplit;
+XrdNetIF::netType XrdNetIF::netRoutes = XrdNetIF::netLocal;
 
 int               XrdNetIF::dfPort    = 1094;
 
