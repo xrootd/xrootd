@@ -1396,12 +1396,6 @@ void XrdHttpProtocol::Cleanup() {
     myBuff = 0;
   }
 
-
-  if (sbio) {
-    TRACE(DEBUG, " Freeing sbio");
-    BIO_free(sbio);
-    }
-
   if (ssl) {
     if (SSL_shutdown(ssl) != 1) {
       TRACE(ALL, " SSL_shutdown failed");
