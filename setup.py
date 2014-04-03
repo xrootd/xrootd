@@ -1,13 +1,13 @@
 from distutils.core import setup, Extension
 from distutils import sysconfig
 from os import getenv, walk, path
-from subprocess import call
+from subprocess import check_output
 
 xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
 
-print ('XRootD library dir:', xrdlibdir)
-print ('XRootD include dir:', xrdincdir)
+print 'XRootD library dir:', xrdlibdir
+print 'XRootD include dir:', xrdincdir
 
 sources = list()
 depends = list()
@@ -19,8 +19,11 @@ for dirname, dirnames, filenames in walk('src'):
     elif filename.endswith('.hh'):
       depends.append(path.join(dirname, filename))
 
+version = check_output( ["./genversion.sh"])
+print version
+
 setup( name             = 'pyxrootd',
-       version          = '0.1.2',
+       version          = version,
        author           = 'Justin Salmon',
        author_email     = 'jsalmon@cern.ch',
        url              = 'http://xrootd.org',
