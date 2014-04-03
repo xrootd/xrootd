@@ -48,9 +48,8 @@ namespace PyXRootD
       static PyObject* VectorRead( File *self, PyObject *args, PyObject *kwds );
 
       static PyObject* IsOpen( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* EnableReadRecovery( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* EnableWriteRecovery( File *self, PyObject *args, PyObject *kwds );
-      static PyObject* GetDataServer( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* GetProperty( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* SetProperty( File *self, PyObject *args, PyObject *kwds );
 
     public:
       PyObject_HEAD
@@ -180,12 +179,10 @@ namespace PyXRootD
        (PyCFunction) PyXRootD::File::VectorRead,          METH_KEYWORDS, NULL },
     { "is_open",
        (PyCFunction) PyXRootD::File::IsOpen,              METH_KEYWORDS, NULL },
-    { "enable_read_recovery",
-       (PyCFunction) PyXRootD::File::EnableReadRecovery,  METH_KEYWORDS, NULL },
-    { "enable_write_recovery",
-       (PyCFunction) PyXRootD::File::EnableWriteRecovery, METH_KEYWORDS, NULL },
-    { "get_data_server",
-       (PyCFunction) PyXRootD::File::GetDataServer,       METH_KEYWORDS, NULL },
+    { "get_property",
+       (PyCFunction) PyXRootD::File::GetProperty,         METH_KEYWORDS, NULL },
+    { "set_property",
+       (PyCFunction) PyXRootD::File::SetProperty,         METH_KEYWORDS, NULL },
     {"__enter__",
        (PyCFunction) File_enter,                          METH_NOARGS,   NULL},
     {"__exit__",

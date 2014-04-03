@@ -230,28 +230,20 @@ class File(object):
     """
     return self.__file.is_open()
 
-  def enable_read_recovery(self, enable):
-    """Enable/disable state recovery procedures while the file is open for
-    reading.
+  def set_property(self, name, value):
+    """Set file property.
 
-    :param enable: is read recovery enabled
-    :type  enable: boolean
+    :param name: name of the property to set
+    :type  name: string
+    :returns:    boolean denoting if property setting was successful
+    :rtype:      boolean
     """
-    self.__file.enable_read_recovery(enable)
+    return self.__file.set_property(name, value)
 
-  def enable_write_recovery(self, enable):
-    """Enable/disable state recovery procedures while the file is open for
-    writing or read/write.
+  def get_property(self, name):
+    """Get file property.
 
-    :param enable: is write recovery enabled
-    :type  enable: boolean
+    :param name: name of the property
+    :type  name: string
     """
-    self.__file.enable_write_recovery(enable)
-
-  def get_data_server(self):
-    """Get the data server the file is accessed at.
-
-    :returns: the address of the data server
-    :rtype:   string
-    """
-    return self.__file.get_data_server()
+    return self.__file.get_property(name)

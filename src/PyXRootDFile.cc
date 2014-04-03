@@ -631,45 +631,35 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
-  //! Enable/disable state recovery procedures while the file is open for
-  //! reading
+  //! Get property
   //----------------------------------------------------------------------------
-  PyObject* File::EnableReadRecovery( File *self, PyObject *args, PyObject *kwds )
+  PyObject* File::GetProperty( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char *kwlist[] = { "enable", NULL };
-    bool               enable   = NULL;
+    static const char *kwlist[] = { "name", NULL };
+    char        *name = 0;
+    std::string  value;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_read_recovery",
-         (char**) kwlist, &enable ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s:get_property",
+         (char**) kwlist, &name ) ) return NULL;
 
-    self->file->EnableReadRecovery(enable);
-    Py_RETURN_NONE;
+    bool status = self->file->GetProperty( name, value );
+
+    return status ? Py_BuildValue( "s", value.c_str() ) : Py_None;
   }
 
   //----------------------------------------------------------------------------
-  //! Enable/disable state recovery procedures while the file is open for
-  //! writing or read/write
+  //! Set property
   //----------------------------------------------------------------------------
-  PyObject* File::EnableWriteRecovery( File *self, PyObject *args, PyObject *kwds )
+  PyObject* File::SetProperty( File *self, PyObject *args, PyObject *kwds )
   {
-    static const char *kwlist[] = { "enable", NULL };
-    bool               enable   = NULL;
+    static const char *kwlist[] = { "name", "value", NULL };
+    char *name  = 0;
+    char *value = 0;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "i:enable_write_recovery",
-         (char**) kwlist, &enable ) ) return NULL;
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss:set_property",
+         (char**) kwlist, &name, &value ) ) return NULL;
 
-    self->file->EnableWriteRecovery(enable);
-    Py_RETURN_NONE;
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get the data server the file is accessed at
-  //----------------------------------------------------------------------------
-  PyObject* File::GetDataServer( File *self, PyObject *args, PyObject *kwds )
-  {
-    (void) FileType; // Suppress unused variable warning
-
-    if ( !PyArg_ParseTuple( args, ":get_data_server" ) ) return NULL; // No args
-    return Py_BuildValue("s", self->file->GetDataServer().c_str());
+    bool status = self->file->SetProperty( name, value );
+    return status ? Py_True : Py_False;
   }
 }
