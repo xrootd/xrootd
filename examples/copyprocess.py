@@ -34,11 +34,14 @@ class MyCopyProgressHandler(client.utils.CopyProgressHandler):
     print 'source: %s' % source
     print 'target: %s' % target
 
-  def end(self, status):
-    print 'end status:', status
+  def end(self, result):
+    print 'end status:', str(result['status']['message'])
 
   def update(self, processed, total):
     print 'processed: %d, total: %d' % (processed, total)
+
+  def should_cancel():
+    return False
 
 process = client.CopyProcess()
 
