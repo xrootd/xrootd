@@ -18,6 +18,9 @@
 
 #include "PyXRootDCopyProcess.hh"
 #include "PyXRootDCopyProgressHandler.hh"
+#include "XrdCl/XrdClConstants.hh"
+#include "XrdCl/XrdClDefaultEnv.hh"
+
 #include "Conversions.hh"
 
 namespace PyXRootD
@@ -27,37 +30,81 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* CopyProcess::AddJob( CopyProcess *self, PyObject *args, PyObject *kwds )
   {
+    //--------------------------------------------------------------------------
+    // Initialize default parameters
+    //--------------------------------------------------------------------------
+    XrdCl::Env *env = XrdCl::DefaultEnv::GetEnv();
+
     static const char *kwlist[]
       = { "source", "target", "sourcelimit", "force", "posc", "coerce",
-          "thirdparty", "checksumprint", "chunksize", "parallelchunks", NULL };
+          "makedir", "thirdparty", "checksummode", "checksumtype",
+          "checksumpreset", "chunksize", "parallelchunks", "inittimeout",
+          "tpctimeout", "dynamicsource", 0 };
+
     const char  *source;
     const char  *target;
     uint16_t sourceLimit   = 1;
     bool force             = false;
     bool posc              = false;
     bool coerce            = false;
-    bool thirdParty        = false;
-    bool checkSumPrint     = false;
-    uint32_t chunkSize     = 4194304;
-    uint8_t parallelChunks = 8;
+    bool makeDir           = false;
+    const char *thirdParty       = "none";
+    const char *checkSumMode     = "none";
+    const char *checkSumType     = 0;
+    const char *checkSumPreset   = 0;
 
-    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbbIb:add_job",
+    int tmp = XrdCl::DefaultCPChunkSize;
+    env->GetInt( "CPChunkSize", tmp );
+    uint32_t chunkSize     = tmp;
+    tmp = XrdCl::DefaultCPParallelChunks;
+    env->GetInt( "CPParallelChunks", tmp );
+    uint8_t parallelChunks = tmp;
+    tmp = XrdCl::DefaultCPInitTimeout;
+    env->GetInt( "CPInitTimeout", tmp );
+    uint16_t initTimeout   = tmp;
+    tmp = XrdCl::DefaultCPTPCTimeout;
+    env->GetInt( "CPTPCTimeout", tmp );
+    uint16_t tpcTimeout    = tmp;
+
+    bool     dynSrc = false;
+
+    if( !PyArg_ParseTupleAndKeywords( args, kwds, "ss|HbbbbssssIBHHb:add_job",
          (char**) kwlist, &source, &target, &sourceLimit, &force, &posc,
-         &coerce, &thirdParty, &checkSumPrint, &chunkSize, &parallelChunks ) )
+         &coerce, &makeDir, &thirdParty, &checkSumMode, &checkSumType,
+         &checkSumPreset, &chunkSize, &parallelChunks, &initTimeout,
+         &tpcTimeout, &dynSrc ) )
       return NULL;
 
-    XrdCl::JobDescriptor *job = new XrdCl::JobDescriptor();
-    job->source = XrdCl::URL( source );
-    job->target = XrdCl::URL( target );
-    job->sourceLimit = sourceLimit;
-    job->force = force;
-    job->posc = posc;
-    job->coerce = coerce;
-    job->thirdParty = thirdParty;
-    job->checkSumPrint = checkSumPrint;
+    //--------------------------------------------------------------------------
+    // Add the job
+    //--------------------------------------------------------------------------
+    XrdCl::PropertyList  properties;
+    XrdCl::PropertyList *results = new XrdCl::PropertyList;
+    properties.Set( "source",         source         );
+    properties.Set( "target",         target         );
+    properties.Set( "force",          force          );
+    properties.Set( "posc",           posc           );
+    properties.Set( "coerce",         coerce         );
+    properties.Set( "makeDir",        makeDir        );
+    properties.Set( "dynamicSource",  dynSrc         );
+    properties.Set( "thirdParty",     thirdParty     );
+    properties.Set( "checkSumMode",   checkSumMode   );
+    properties.Set( "checkSumType",   checkSumType   );
+    properties.Set( "checkSumPreset", checkSumPreset );
+    properties.Set( "chunkSize",      chunkSize      );
+    properties.Set( "parallelChunks", (int)parallelChunks );
 
-    self->process->AddJob( job );
-    Py_RETURN_NONE;
+    //--------------------------------------------------------------------------
+    // Add results
+    //--------------------------------------------------------------------------
+    XrdCl::XRootDStatus status = self->process->AddJob( properties, results );
+
+    if( !status.IsOK() )
+      delete results;
+
+    self->results.push_back( results );
+
+    return ConvertType<XrdCl::XRootDStatus>( &status );
   }
 
   //----------------------------------------------------------------------------

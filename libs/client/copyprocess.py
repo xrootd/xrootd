@@ -30,13 +30,18 @@ class ProgressHandlerWrapper(object):
     if self.handler:
       self.handler.begin(id, total, URL(source), URL(target))
 
-  def end(self, status):
+  def end(self, result):
     if self.handler:
-      self.handler.end(XRootDStatus(status))
+      self.handler.end(result)
 
   def update(self, processed, total):
     if self.handler:
       self.handler.update(processed, total)
+
+  def should_cancel():
+    if self.handler:
+      return self.handler.should_cancel()
+    return False
 
 class CopyProcess(object):
   """Add multiple individually-configurable copy jobs to a "copy process" and
@@ -47,8 +52,9 @@ class CopyProcess(object):
     self.__process = client.CopyProcess()
 
   def add_job(self, source, target, sourcelimit=1, force=False, posc=False,
-              coerce=False, thirdparty=False, checksumprint=False,
-              chunksize=4194304, parallelchunks=8):
+              coerce=False, makedir=False, thirdparty="none", checksummode="none",
+              checksumtype="", checksumpreset="", chunksize=4194304,
+              parallelchunks=8, inittimeout=0, tpctimeout=0, dynamicsource=False):
     """Add a job to the copy process.
 
     :param         source: original source URL
@@ -64,17 +70,31 @@ class CopyProcess(object):
     :param         coerce: ignore file usage rules, i.e. apply `FORCE` flag to
                            ``open()``
     :type          coerce: boolean
-    :param     thirdparty: do third party copy if possible
-    :type      thirdparty: boolean
-    :param  checksumprint: print checksum after the transfer
-    :type   checksumprint: boolean
+    :param        makedir: create missing directory tree for the file
+    :type         makedif: boolean
+    :param     thirdparty: thirdparty copy mode: "none", "first", "only"
+    :type      thirdparty: string
+    :param   checksummode: checksumming operations to be performed: "none", "end2end", "source", "target"
+    :type    checksummode: string
+    :param   checksumtype: type of the checksum to be calculates "md5", "adler32", and so on
+    :type    checksumtype: string
+    :param checksumpreset: pre-set the value of the source checksum
+    :type  checksumpreset: string
     :param      chunksize: chunk size for remote transfers
     :type       chunksize: integer
     :param parallelchunks: number of chunks that should be requested in parallel
     :type  parallelchunks: integer
+    :param    inittimeout: copy initialization timeout
+    :type     inittimeout: integer
+    :param     tpctimeout: timeout for a third-party copy to finish
+    :type      tpctimeout: integer
+    :param  dynamicsource: allow for the size of the sourcefile to change during copy
+    :type   dynamicsource: boolean
     """
     self.__process.add_job(source, target, sourcelimit, force, posc, coerce,
-                           thirdparty, checksumprint, chunksize, parallelchunks)
+                           makedir, thirdparty, checksummode, checksumtype,
+                           checksumpreset, chunksize, parallelchunks,
+                           inittimeout, tpctimeout, dynamicsource)
 
   def prepare(self):
     """Prepare the copy jobs. **Must be called before** ``run()``."""

@@ -23,6 +23,57 @@
 namespace PyXRootD
 {
   //----------------------------------------------------------------------------
+  // Fill the result dictionary
+  //----------------------------------------------------------------------------
+  PyObject *ConvertResult( const XrdCl::PropertyList *res )
+  {
+    PyObject *dict = PyDict_New();
+    PyDict_SetItemString( dict, "sourcechecksum", Py_None );
+    PyDict_SetItemString( dict, "targetchecksum", Py_None );
+    PyDict_SetItemString( dict, "size",           Py_None );
+    PyDict_SetItemString( dict, "status",         Py_None );
+    PyDict_SetItemString( dict, "sources",        Py_None );
+    PyDict_SetItemString( dict, "realtarget",     Py_None );
+
+    if( res->HasProperty( "sourceCheckSum" ) )
+    {
+      std::string value; res->Get( "sourceCheckSum", value );
+      PyDict_SetItemString( dict, "sourcechecksum",
+                            Py_BuildValue( "s", value.c_str() ) );
+    }
+
+    if( res->HasProperty( "targetCheckSum" ) )
+    {
+      std::string value; res->Get( "targetCheckSum", value );
+      PyDict_SetItemString( dict, "targetchecksum",
+                            Py_BuildValue( "s", value.c_str() ) );
+    }
+
+    if( res->HasProperty( "size" ) )
+    {
+      // we need to pass size as string, sigh
+      std::string value; res->Get( "size", value );
+      PyDict_SetItemString( dict, "size",
+                            Py_BuildValue( "s", value.c_str() ) );
+    }
+
+    if( res->HasProperty( "status" ) )
+    {
+      XrdCl::XRootDStatus value; res->Get( "status", value );
+      PyDict_SetItemString( dict, "status",
+                            ConvertType<XrdCl::XRootDStatus>( &value ) );
+    }
+
+    if( res->HasProperty( "realTarget" ) )
+    {
+      std::string value; res->Get( "realTarget", value );
+      PyDict_SetItemString( dict, "realtarget",
+                            Py_BuildValue( "s", value.c_str() ) );
+    }
+    return dict;
+  }
+
+  //----------------------------------------------------------------------------
   //! Notify when a new job is about to start
   //----------------------------------------------------------------------------
   void CopyProgressHandler::BeginJob( uint16_t          jobNum,
@@ -69,21 +120,19 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Notify when the previous job has finished
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::EndJob( const XrdCl::XRootDStatus &status )
+  void CopyProgressHandler::EndJob( const XrdCl::PropertyList *result )
   {
-    PyGILState_STATE state = PyGILState_Ensure();
+    PyGILState_STATE  state    = PyGILState_Ensure();
+    PyObject         *pyResult = ConvertResult( result );
 
-    PyObject *pystatus = ConvertType<XrdCl::XRootDStatus>
-                         ( (XrdCl::XRootDStatus*) &status );
     //--------------------------------------------------------------------------
     //! Invoke the method
     //--------------------------------------------------------------------------
     if (handler != NULL)
     {
       PyObject_CallMethod( handler, const_cast<char*>( "end" ),
-                           (char *) "O", pystatus );
+                           (char *) "O", pyResult );
     }
-
     PyGILState_Release(state);
   }
 
@@ -102,5 +151,25 @@ namespace PyXRootD
     }
 
     PyGILState_Release(state);
+  }
+
+  //----------------------------------------------------------------------------
+  // Determine whether the job should be canceled
+  //----------------------------------------------------------------------------
+  bool CopyProgressHandler::ShouldCancel()
+  {
+    PyGILState_STATE state = PyGILState_Ensure();
+
+    bool retVal = false;
+    if (handler != NULL)
+    {
+      PyObject *ret = PyObject_CallMethod( handler,
+                                           const_cast<char*>( "should_cancel" ),
+                                           (char *)"" );
+      if( ret == Py_True )
+        retVal = true;
+    }
+    PyGILState_Release(state);
+    return retVal;
   }
 }

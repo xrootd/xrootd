@@ -35,10 +35,11 @@ namespace PyXRootD
       static PyObject* AddJob(CopyProcess *self, PyObject *args, PyObject *kwds);
       static PyObject* Prepare(CopyProcess *self, PyObject *args, PyObject *kwds);
       static PyObject* Run(CopyProcess *self, PyObject *args, PyObject *kwds);
-
     public:
       PyObject_HEAD
       XrdCl::CopyProcess *process;
+      std::vector<XrdCl::PropertyList*> results;
+      std::vector<PyObject*>            pythonResults;
   };
 
   PyDoc_STRVAR(copyprocess_type_doc, "CopyProcess object (internal)");
@@ -58,6 +59,9 @@ namespace PyXRootD
   static void CopyProcess_dealloc( CopyProcess *self )
   {
     delete self->process;
+//    std::vector<XrdCl::PropertyList*>::iterator it;
+//    for( it = self->results.begin(); it != self->results.end(); ++it )
+//      delete *it;
     self->ob_type->tp_free( (PyObject*) self );
   }
 

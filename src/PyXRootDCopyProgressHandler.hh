@@ -39,20 +39,25 @@ namespace PyXRootD
       //------------------------------------------------------------------------
       //! Notify when a new job is about to start
       //------------------------------------------------------------------------
-      void BeginJob( uint16_t          jobNum,
-                     uint16_t          jobTotal,
-                     const XrdCl::URL *source,
-                     const XrdCl::URL *target );
+      virtual void BeginJob( uint16_t          jobNum,
+                             uint16_t          jobTotal,
+                             const XrdCl::URL *source,
+                             const XrdCl::URL *target );
 
       //------------------------------------------------------------------------
       //! Notify when the previous job has finished
       //------------------------------------------------------------------------
-      void EndJob( const XrdCl::XRootDStatus &status );
+      virtual void EndJob( const XrdCl::PropertyList *result );
 
       //------------------------------------------------------------------------
       //! Notify about the progress of the current job
       //------------------------------------------------------------------------
-      void JobProgress( uint64_t bytesProcessed, uint64_t bytesTotal );
+      virtual void JobProgress( uint64_t bytesProcessed, uint64_t bytesTotal );
+
+      //------------------------------------------------------------------------
+      //! Determine whether the job should be canceled
+      //------------------------------------------------------------------------
+      virtual bool ShouldCancel();
 
     public:
       PyObject *handler;
