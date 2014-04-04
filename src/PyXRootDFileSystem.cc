@@ -647,4 +647,40 @@ namespace PyXRootD
     Py_XDECREF( pyresponse );
     return o;
   }
+
+  //----------------------------------------------------------------------------
+  //! Get property
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::GetProperty( FileSystem *self,
+                                     PyObject   *args,
+                                     PyObject   *kwds )
+  {
+    static const char *kwlist[] = { "name", NULL };
+    char        *name = 0;
+    std::string  value;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s:get_property",
+         (char**) kwlist, &name ) ) return NULL;
+
+    bool status = self->filesystem->GetProperty( name, value );
+    return status ? Py_BuildValue( "s", value.c_str() ) : Py_None;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set property
+  //----------------------------------------------------------------------------
+  PyObject* FileSystem::SetProperty( FileSystem *self,
+                                     PyObject   *args,
+                                     PyObject   *kwds )
+  {
+    static const char *kwlist[] = { "name", "value", NULL };
+    char *name  = 0;
+    char *value = 0;
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "ss:set_property",
+         (char**) kwlist, &name, &value ) ) return NULL;
+
+    bool status = self->filesystem->SetProperty( name, value );
+    return status ? Py_True : Py_False;
+  }
 }

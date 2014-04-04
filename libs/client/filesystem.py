@@ -340,3 +340,20 @@ class FileSystem(object):
     status, response = self.__fs.prepare(files, flags, priority, timeout)
     return XRootDStatus(status), response
 
+  def set_property(self, name, value):
+    """Set file system property.
+
+    :param name: name of the property to set
+    :type  name: string
+    :returns:    boolean denoting if property setting was successful
+    :rtype:      boolean
+    """
+    return self.__fs.set_property(name, value)
+
+  def get_property(self, name):
+    """Get file system property.
+
+    :param name: name of the property
+    :type  name: string
+    """
+    return self.__fs.get_property(name)
