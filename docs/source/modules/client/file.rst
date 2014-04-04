@@ -36,6 +36,5 @@ Methods
 .. automethod:: XRootD.client.File.truncate
 .. automethod:: XRootD.client.File.vector_read
 .. automethod:: XRootD.client.File.is_open
-.. automethod:: XRootD.client.File.enable_read_recovery
-.. automethod:: XRootD.client.File.enable_write_recovery
-.. automethod:: XRootD.client.File.get_data_server
+.. automethod:: XRootD.client.File.set_property
+.. automethod:: XRootD.client.File.get_property

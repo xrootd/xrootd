@@ -34,4 +34,5 @@ Methods
 .. automethod:: XRootD.client.FileSystem.dirlist
 .. automethod:: XRootD.client.FileSystem.sendinfo
 .. automethod:: XRootD.client.FileSystem.prepare
-
+.. automethod:: XRootD.client.FileSystem.set_property
+.. automethod:: XRootD.client.FileSystem.get_property
