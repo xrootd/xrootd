@@ -1,7 +1,7 @@
 from distutils.core import setup, Extension
 from distutils import sysconfig
 from os import getenv, walk, path
-from subprocess import check_output
+import subprocess
 
 # Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
 cfg_vars = sysconfig.get_config_vars()
@@ -24,7 +24,8 @@ for dirname, dirnames, filenames in walk('src'):
     elif filename.endswith('.hh'):
       depends.append(path.join(dirname, filename))
 
-version = check_output( ["./genversion.sh"])
+p = subprocess.Popen(["./genversion.sh"], stdout=subprocess.PIPE)
+version, err = p.communicate()
 print version
 
 setup( name             = 'pyxrootd',
