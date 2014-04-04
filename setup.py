@@ -3,6 +3,11 @@ from distutils import sysconfig
 from os import getenv, walk, path
 from subprocess import check_output
 
+# Remove the "-Wstrict-prototypes" compiler option, which isn't valid for C++.
+cfg_vars = sysconfig.get_config_vars()
+opt = cfg_vars["OPT"]
+cfg_vars["OPT"] = " ".join( flag for flag in opt.split() if flag != '-Wstrict-prototypes' )
+
 xrdlibdir = getenv( 'XRD_LIBDIR' ) or '/usr/lib'
 xrdincdir = getenv( 'XRD_INCDIR' ) or '/usr/include/xrootd'
 
