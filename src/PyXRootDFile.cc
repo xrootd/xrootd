@@ -652,6 +652,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   PyObject* File::SetProperty( File *self, PyObject *args, PyObject *kwds )
   {
+    (void) FileType; // Suppress unused variable warning
+
     static const char *kwlist[] = { "name", "value", NULL };
     char *name  = 0;
     char *value = 0;
