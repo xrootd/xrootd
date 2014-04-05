@@ -42,9 +42,9 @@ public:
 // If you do so, error messages and all command output will be writen via the 
 // error object. Otherwise, errors will be returned quietly.
 //
-            XrdOucProg(XrdSysError *errobj=0)
+            XrdOucProg(XrdSysError *errobj=0, int efd=-1)
                       : eDest(errobj), myStream(0), myProc(0), ArgBuff(0),
-                        numArgs(0), theEFD(-1) {Arg[0] = 0;}
+                        numArgs(0), theEFD(efd) {Arg[0] = 0;}
 
            ~XrdOucProg();
 

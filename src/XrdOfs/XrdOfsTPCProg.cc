@@ -55,6 +55,7 @@ extern XrdOucTrace  OfsTrace;
 XrdSysMutex        XrdOfsTPCProg::pgmMutex;
 XrdOfsTPCProg     *XrdOfsTPCProg::pgmIdle  = 0;
 const char        *XrdOfsTPCProg::XfrProg  = 0;
+bool               XrdOfsTPCProg::doEcho   = false;
 
 /******************************************************************************/
 /*                     E x t e r n a l   L i n k a g e s                      */
@@ -71,17 +72,19 @@ void *XrdOfsTPCProgRun(void *pp)
 /*                           C o n s t r u c t o r                            */
 /******************************************************************************/
   
-XrdOfsTPCProg::XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num)
-             : Prog(&OfsEroute),
+XrdOfsTPCProg::XrdOfsTPCProg(XrdOfsTPCProg *Prev, int num, int errMon)
+             : Prog(&OfsEroute, errMon),
                JobStream(&OfsEroute),
-               Next(Prev), Job(0), Pnum(num)
-             {}
+               Next(Prev), Job(0)
+             {snprintf(Pname, sizeof(Pname), "TPC job %d: ", num);
+              Pname[sizeof(Pname)-1] = 0;
+             }
 
 /******************************************************************************/
 /*                                  I n i t                                   */
 /******************************************************************************/
   
-int XrdOfsTPCProg::Init(char *xProg, int Num)
+int XrdOfsTPCProg::Init(char *xProg, int Num, int errMon, bool xEcho)
 {
    int n;
 
@@ -89,12 +92,13 @@ int XrdOfsTPCProg::Init(char *xProg, int Num)
 //
    XfrProg = xProg;
    for (n = 0; n < Num; n++)
-       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n);
+       {pgmIdle = new XrdOfsTPCProg(pgmIdle, n, errMon);
         if (pgmIdle->Prog.Setup(XfrProg, &OfsEroute)) return 0;
        }
 
 // All done
 //
+   doEcho = xEcho || GTRACE(debug);
    return 1;
 }
 
@@ -160,8 +164,7 @@ int XrdOfsTPCProg::Xeq()
    char *lP, *Colon, *cksVal, *tident = Job->Info.Org;
    int rc;
 
-   DEBUG("Job " <<Pnum <<" starting " <<XfrProg <<' ' <<Job->Info.Key
-                <<' ' <<Job->Info.Dst);
+   DEBUG(Pname<<"starting "<<XfrProg<<' '<<Job->Info.Key<<' '<<Job->Info.Dst);
 
 // Determine checksum option
 //
@@ -183,13 +186,13 @@ int XrdOfsTPCProg::Xeq()
    while((lP = JobStream.GetLine()))
         {if ((Colon = index(lP, ':')) && *(Colon+1) == ' ')
             {strncpy(eRec, Colon+2, sizeof(eRec)); eRec[sizeof(eRec)-1] = 0;}
-         DEBUG("Job " <<Pnum <<": " <<lP);
+         if (doEcho) OfsEroute.Say(Pname, lP);
         }
 
 // The job has completed. So, we must get the ending status.
 //
    if ((rc = Prog.RunDone(JobStream)) < 0) rc = -rc;
-   DEBUG("Job " <<Pnum <<" ended; rc=" <<rc);
+   DEBUG(Pname <<" ended with rc=" <<rc);
 
 // Check if we should generate a message
 //

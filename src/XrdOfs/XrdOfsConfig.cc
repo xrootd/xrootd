@@ -1283,6 +1283,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [logok] [xfr <n>] [allow <parms>]
                                          [require {all|client|dest} <auth>[+]]
                                          [restrict <path>] [streams <num>]
+                                         [echo] [scan {stderr | stdout}]
                                          [pgm <path> [parms]]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
@@ -1301,6 +1302,9 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                      valid authentication mechanisms. If the <auth> is suffixed
                      by a plus, then the request must also be encrypted using
                      the authentication's session key.
+             echo    echo the pgm's output to the log.
+             scan    scan fr error messages either in stderr or stdout. The
+                     default is to scan both.
              pgm     specifies the transfer command with optional paramaters.
                      It must be the last parameter on the line.
 
@@ -1326,6 +1330,15 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
              Parms.Ckst = strdup(val);
              continue;
             }
+         if (!strcmp(val, "scan"))
+            {if (!(val = Config.GetWord()))
+                {Eroute.Emsg("Config","scan type not specified"); return 1;}
+                  if (strcmp(val, "stderr")) Parms.Grab = -2;
+             else if (strcmp(val, "stdout")) Parms.Grab = -1;
+                {Eroute.Emsg("Config","invalid scan type -",val); return 1;}
+             continue;
+            }
+         if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
          if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))

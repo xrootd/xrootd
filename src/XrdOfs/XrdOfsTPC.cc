@@ -133,6 +133,8 @@ int                XrdOfsTPC::nStrms   = 0;
 int                XrdOfsTPC::xfrMax   = 9;
 int                XrdOfsTPC::tpcOK    = 0;
 int                XrdOfsTPC::encTPC   = 0;
+int                XrdOfsTPC::errMon   =-3;
+bool               XrdOfsTPC::doEcho   = false;
   
 /******************************************************************************/
 /*                                 A l l o w                                  */
@@ -351,6 +353,8 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
    if (Parms.Logok  >= 0) LogOK  = Parms.Logok;
    if (Parms.Strm   >  0) nStrms = Parms.Strm;
    if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
+   if (Parms.Grab   <  0) errMon = Parms.Grab;
+   if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
 }
 
 /******************************************************************************/
@@ -451,7 +455,7 @@ int XrdOfsTPC::Start()
 
 // Allocate copy program objects
 //
-   if (!XrdOfsTPCProg::Init(XfrProg, xfrMax)) return 0;
+   if (!XrdOfsTPCProg::Init(XfrProg, xfrMax, errMon, doEcho)) return 0;
 
 // Start the expiration thread
 //

@@ -80,8 +80,11 @@ struct  iParm {char *Pgm;
                int   Logok;
                int   Strm;
                int   Xmax;
+               int   Grab;
+               bool  xEcho;
                      iParm() : Pgm(0), Ckst(0), Dflttl(-1), Maxttl(-1),
-                               Logok(-1), Strm(-1), Xmax(-1) {}
+                               Logok(-1), Strm(-1), Xmax(-1), Grab(0), xEcho(-1)
+                          {}
               };
 
 static  void  Init(iParm &Parms);
@@ -142,6 +145,8 @@ static int                nStrms;
 static int                xfrMax;
 static int                tpcOK;
 static int                encTPC;
+static int                errMon;
+static bool               doEcho;
 
        char               Refs;      // Reference count
        char               inQ;       // Object in queue

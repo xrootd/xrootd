@@ -307,7 +307,9 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
     // Handle the standard error file descriptor
     //
     if (!efd) Child_log = (Eroute ? dup(Eroute->logger()->originalFD()) : -1);
-       else if (efd > 0) Child_log = efd;
+       else if (efd  >  0) Child_log = efd;
+       else if (efd == -2){Child_log = Child_out; Child_out = -1;}
+       else if (efd == -3) Child_log = Child_out;
 
     // Fork a process first so we can pick up the next request. We also
     // set the process group in case the child hasn't been able to do so.
@@ -348,7 +350,7 @@ int XrdOucStream::Exec(char **parm, int inrd, int efd)
        {if (dup2(Child_out, STDOUT_FILENO) < 0)
            {Erx(Exec, errno, "setting up standard out for " <<parm[0]);
             exit(255);
-           } else close(Child_out);
+           } else if (Child_out != Child_log) close(Child_out);
        }
 
     // Redirect stderr of the stream if we can to avoid keeping the logfile open
