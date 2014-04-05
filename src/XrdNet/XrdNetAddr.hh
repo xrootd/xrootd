@@ -139,17 +139,19 @@ const char *Set(const char *hSpec, int &numIP, int maxIP,
 const char *Set(const struct sockaddr *sockP, int sockFD=-1);
 
 //------------------------------------------------------------------------------
-//! Set our address via getpeername() from the supplied socket file descriptor.
+//! Set our address from the supplied socket file descriptor.
 //!
 //! @param  sockFD   a connected socket file descriptor. The value is also
 //!                  recorded as the associated file descriptor.
+//! @param  peer     When true  the address is set from getpeername()
+//!                  When false the address is set from getsockname()
 //!
 //! @return Success: Returns 0.
 //!         Failure: Returns the error message text describing the error. The
 //!                  message is in persistent storage and cannot be modified.
 //------------------------------------------------------------------------------
 
-const char *Set(int sockFD);
+const char *Set(int sockFD, bool peer=true);
 
 //------------------------------------------------------------------------------
 //! Set our address via and addrinfo structure and initialize the port.

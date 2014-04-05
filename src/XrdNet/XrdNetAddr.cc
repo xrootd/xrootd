@@ -366,8 +366,9 @@ const char *XrdNetAddr::Set(const struct sockaddr *sockP, int sockFD)
 
 /******************************************************************************/
   
-const char *XrdNetAddr::Set(int sockFD)
+const char *XrdNetAddr::Set(int sockFD, bool peer)
 {
+   int rc;
 
 // Clear translation if set
 //
@@ -376,9 +377,11 @@ const char *XrdNetAddr::Set(int sockFD)
    addrSize = sizeof(sockaddr_in6);
    sockNum = sockFD;
 
-// Get the address on the other side of this socket
+// Get the address on the appropriate side of this socket
 //
-   if (getpeername(sockFD, &IP.Addr, &addrSize) < 0)
+   if (peer) rc = getpeername(sockFD, &IP.Addr, &addrSize);
+      else   rc = getsockname(sockFD, &IP.Addr, &addrSize);
+   if (rc < 0)
       {addrSize = 0;
        return strerror(errno);
       }
