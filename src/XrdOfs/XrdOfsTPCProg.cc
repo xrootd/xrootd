@@ -192,7 +192,7 @@ int XrdOfsTPCProg::Xeq()
 // The job has completed. So, we must get the ending status.
 //
    if ((rc = Prog.RunDone(JobStream)) < 0) rc = -rc;
-   DEBUG(Pname <<" ended with rc=" <<rc);
+   DEBUG(Pname <<"ended with rc=" <<rc);
 
 // Check if we should generate a message
 //
