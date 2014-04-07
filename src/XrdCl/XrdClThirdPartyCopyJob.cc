@@ -249,8 +249,17 @@ namespace XrdCl
     }
 
     //--------------------------------------------------------------------------
-    // Open the source and set up the rendez-vous
+    // Set up the rendez-vous and open the source
     //--------------------------------------------------------------------------
+    st = targetFile.Sync( tpcTimeout );
+    if( !st.IsOK() )
+    {
+      log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
+                   st.ToStr().c_str() );
+      targetFile.Close();
+      return st;
+    }
+
     File sourceFile;
     st = sourceFile.Open( tpcSource.GetURL(), OpenFlags::Read, Access::None,
                           timeLeft );
@@ -260,16 +269,6 @@ namespace XrdCl
       log->Error( UtilityMsg, "Unable to open source %s: %s",
                   tpcSource.GetURL().c_str(), st.ToStr().c_str() );
       targetFile.Close(1);
-      return st;
-    }
-
-    st = targetFile.Sync( tpcTimeout );
-    if( !st.IsOK() )
-    {
-      log->Error( UtilityMsg, "Unable set up rendez-vous: %s",
-                   st.ToStr().c_str() );
-      sourceFile.Close();
-      targetFile.Close();
       return st;
     }
 
