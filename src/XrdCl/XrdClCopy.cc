@@ -217,12 +217,6 @@ bool AllOptionsSupported( XrdCpConfig *config )
     return false;
   }
 
-  if( config->Want( XrdCpConfig::DoServer ) )
-  {
-    std::cerr << "Running in server mode is not yet supported" << std::endl;
-    return false;
-  }
-
   return true;
 }
 
