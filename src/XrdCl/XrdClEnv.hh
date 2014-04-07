@@ -72,14 +72,16 @@ namespace XrdCl
       bool PutInt( const std::string &key, int value );
 
       //------------------------------------------------------------------------
-      //! Import an int from the shell environment
+      //! Import an int from the shell environment. Any imported setting
+      //! takes precedence over the one set by other means.
       //!
       //! @return true if the setting exists in the shell, false otherwise
       //------------------------------------------------------------------------
       bool ImportInt( const std::string &key, const std::string &shellKey );
 
       //------------------------------------------------------------------------
-      //! Import a string from the shell environment
+      //! Import a string from the shell environment. Any imported setting
+      //! takes precedence over the one set by ther means.
       //!
       //! @return true if the setting exists in the shell, false otherwise
       //------------------------------------------------------------------------
