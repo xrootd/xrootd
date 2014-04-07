@@ -240,7 +240,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           case OpRetry:    OpSpec |= DoRetry;
                            if (!a2i(optarg, &Retry, 0, -1)) Usage(22);
                            break;
-          case OpServer:   OpSpec |= DoServer;
+          case OpServer:   OpSpec |= DoServer|DoSilent|DoNoPbar|DoForce;
                            break;
           case OpSilent:   OpSpec |= DoSilent|DoNoPbar;
                            break;
@@ -287,6 +287,13 @@ do{while(optind < Argc && Legacy(optind)) {}
 //
    if (OpSpec & DoTpc &&  nSrcs > 1)
       UMSG("Third party copy requires a single source.");
+
+// Turn off verbose if we are in server mode
+//
+   if (OpSpec & DoServer)
+      {OpSpec &= ~DoVerbose;
+       Verbose = 0;
+      }
 
 // Process the destination first as it is special
 //
