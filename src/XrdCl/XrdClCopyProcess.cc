@@ -45,6 +45,8 @@ namespace XrdCl
   XRootDStatus CopyProcess::AddJob( const PropertyList &properties,
                                     PropertyList       *results )
   {
+    Env *env = DefaultEnv::GetEnv();
+
     //--------------------------------------------------------------------------
     // Validate properties
     //--------------------------------------------------------------------------
@@ -78,16 +80,32 @@ namespace XrdCl
     }
 
     if( !p.HasProperty( "parallelChunks" ) )
-      p.Set( "parallelChunks", DefaultCPParallelChunks );
+    {
+      int val = DefaultCPParallelChunks;
+      env->GetInt( "CPParallelChunks", val );
+      p.Set( "parallelChunks", val );
+    }
 
     if( !p.HasProperty( "chunkSize" ) )
-      p.Set( "chunkSize", DefaultCPChunkSize );
+    {
+      int val = DefaultCPChunkSize;
+      env->GetInt( "CPChunkSize", val );
+      p.Set( "chunkSize", val );
+    }
 
     if( !p.HasProperty( "initTimeout" ) )
-      p.Set( "initTimeout", DefaultCPInitTimeout );
+    {
+      int val = DefaultCPInitTimeout;
+      env->GetInt( "CPInitTimeout", val );
+      p.Set( "initTimeout", val );
+    }
 
     if( !p.HasProperty( "tpcTimeout" ) )
-      p.Set( "tpcTimeout", DefaultCPTPCTimeout );
+    {
+      int val = DefaultCPTPCTimeout;
+      env->GetInt( "CPTPCTimeout", val );
+      p.Set( "tpcTimeout", val );
+    }
 
     if( !p.HasProperty( "dynamicSource" ) )
       p.Set( "dynamicSource", false );
