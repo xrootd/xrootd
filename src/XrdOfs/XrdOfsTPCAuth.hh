@@ -38,7 +38,6 @@
 
 class XrdOfsTPCAuth : XrdOfsTPC
 {
-friend class XrdOfsTPCJob;
 public:
 
         int   Add(Facts &Args);

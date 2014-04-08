@@ -43,7 +43,7 @@ public:
 
        void      Cancel() {JobStream.Drain();}
 
-static int       Init(char *XfrProg, int Num, int errMon, bool xEcho);
+static int       Init();
 
        void      Run();
 
@@ -59,8 +59,6 @@ private:
 
 static XrdSysMutex    pgmMutex;
 static XrdOfsTPCProg *pgmIdle;
-static const char    *XfrProg;
-static bool           doEcho;
 
        XrdOucProg     Prog;
        XrdOucStream   JobStream;

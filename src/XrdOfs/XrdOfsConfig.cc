@@ -247,7 +247,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    if (!(XrdOfsOss = XrdOssGetSS(Eroute.logger(), ConfigFN, OssLib, OssParms,
                                  EnvInfo, XrdVERSIONINFOVAR(XrdOfs)))) NoGo = 1;
-      else XrdOfsTPC::Init(XrdOfsOss);
 
 // Initialize redirection.  We type te herald here to minimize confusion
 //
@@ -1284,7 +1283,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                                          [require {all|client|dest} <auth>[+]]
                                          [restrict <path>] [streams <num>]
                                          [echo] [scan {stderr | stdout}]
-                                         [pgm <path> [parms]]
+                                         [autorm] [pgm <path> [parms]]
 
              parms: [dn <name>] [group <grp>] [host <hn>] [vo <vo>]
 
@@ -1303,6 +1302,7 @@ int XrdOfs::xrole(XrdOucStream &Config, XrdSysError &Eroute)
                      by a plus, then the request must also be encrypted using
                      the authentication's session key.
              echo    echo the pgm's output to the log.
+             autorm  Remove file when copy fails.
              scan    scan fr error messages either in stderr or stdout. The
                      default is to scan both.
              pgm     specifies the transfer command with optional paramaters.
@@ -1340,6 +1340,7 @@ int XrdOfs::xtpc(XrdOucStream &Config, XrdSysError &Eroute)
             }
          if (!strcmp(val, "echo"))  {Parms.xEcho = 1; continue;}
          if (!strcmp(val, "logok")) {Parms.Logok = 1; continue;}
+         if (!strcmp(val, "autorm")){Parms.autoRM = 1; continue;}
          if (!strcmp(val, "pgm"))
             {if (!Config.GetRest(pgm, sizeof(pgm)))
                 {Eroute.Emsg("Config", "tpc command line too long"); return 1;}

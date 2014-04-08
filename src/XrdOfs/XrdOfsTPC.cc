@@ -42,7 +42,6 @@
 #include "XrdOfs/XrdOfsTPCJob.hh"
 #include "XrdOfs/XrdOfsTPCProg.hh"
 #include "XrdOfs/XrdOfsTrace.hh"
-#include "XrdOss/XrdOss.hh"
 #include "XrdOuc/XrdOucCallBack.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucProg.hh"
@@ -61,6 +60,22 @@
 extern XrdSysError  OfsEroute;
 extern XrdOfsStats  OfsStats;
 extern XrdOucTrace  OfsTrace;
+
+namespace XrdOfsTPCParms
+{
+char              *XfrProg  = 0;
+char              *cksType  = 0;
+int                LogOK    = 0;
+int                nStrms   = 0;
+int                xfrMax   = 9;
+int                tpcOK    = 0;
+int                encTPC   = 0;
+int                errMon   =-3;
+bool               doEcho   = false;
+bool               autoRM   = false;
+};
+
+using namespace XrdOfsTPCParms;
 
 /******************************************************************************/
 /*                         L o c a l   C l a s s e s                          */
@@ -113,8 +128,6 @@ int XrdOfsTPCAllow::Match(const XrdSecEntity *Who, const char *Host)
 /*                      S t a t i c   V a r i a b l e s                       */
 /******************************************************************************/
   
-char              *XrdOfsTPC::XfrProg  = 0;
-
 XrdOucTList       *XrdOfsTPC::AuthDst  = 0;
 XrdOucTList       *XrdOfsTPC::AuthOrg  = 0;
 
@@ -122,19 +135,10 @@ XrdOucPListAnchor *XrdOfsTPC::RPList;
 
 XrdOfsTPCAllow    *XrdOfsTPC::ALList   = 0;
 
-XrdOss            *XrdOfsTPC::OfsOss   = 0;
 XrdAccAuthorize   *XrdOfsTPC::fsAuth   = 0;
 
-char              *XrdOfsTPC::cksType  = 0;
-int                XrdOfsTPC::dflTTL   = 7;
 int                XrdOfsTPC::maxTTL   =15;
-int                XrdOfsTPC::LogOK    = 0;
-int                XrdOfsTPC::nStrms   = 0;
-int                XrdOfsTPC::xfrMax   = 9;
-int                XrdOfsTPC::tpcOK    = 0;
-int                XrdOfsTPC::encTPC   = 0;
-int                XrdOfsTPC::errMon   =-3;
-bool               XrdOfsTPC::doEcho   = false;
+int                XrdOfsTPC::dflTTL   = 7;
   
 /******************************************************************************/
 /*                                 A l l o w                                  */
@@ -355,6 +359,7 @@ void XrdOfsTPC::Init(XrdOfsTPC::iParm &Parms)
    if (Parms.Xmax   >  0) xfrMax = Parms.Xmax;
    if (Parms.Grab   <  0) errMon = Parms.Grab;
    if (Parms.xEcho  >= 0) doEcho = Parms.xEcho != 0;
+   if (Parms.autoRM >= 0) autoRM = Parms.autoRM != 0;
 }
 
 /******************************************************************************/
@@ -455,7 +460,7 @@ int XrdOfsTPC::Start()
 
 // Allocate copy program objects
 //
-   if (!XrdOfsTPCProg::Init(XfrProg, xfrMax, errMon, doEcho)) return 0;
+   if (!XrdOfsTPCProg::Init()) return 0;
 
 // Start the expiration thread
 //
