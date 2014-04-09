@@ -108,11 +108,11 @@ target_link_libraries(
 # xrdcopy
 #-------------------------------------------------------------------------------
 add_executable(
-  xrdcopy
+  xrdcp
   XrdClCopy.cc )
 
 target_link_libraries(
-  xrdcopy
+  xrdcp
   XrdCl
   XrdAppUtils )
 
@@ -120,7 +120,7 @@ target_link_libraries(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdCl xrdfs xrdcopy
+  TARGETS XrdCl xrdfs xrdcp
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
@@ -151,19 +151,19 @@ install(
 install(
   FILES
   ${PROJECT_SOURCE_DIR}/docs/man/xrdfs.1
-  ${PROJECT_SOURCE_DIR}/docs/man/xrdcopy.1
+  ${PROJECT_SOURCE_DIR}/docs/man/xrdcp.1
   DESTINATION ${CMAKE_INSTALL_MANDIR}/man1 )
 
 install(
   CODE "
     EXECUTE_PROCESS(
-      COMMAND ln -sf xrdcopy xrdcp
+      COMMAND ln -sf xrdcp xrdcopy
       WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR} )"
 )
 
 install(
   CODE "
     EXECUTE_PROCESS(
-      COMMAND ln -sf xrdcopy.1 xrdcp.1
+      COMMAND ln -sf xrdcp.1 xrdcopy.1
       WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man1 )"
 )

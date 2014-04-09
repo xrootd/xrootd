@@ -1,10 +1,10 @@
 .TH xrdcopy 1 "30 November 2012"
 .SH NAME
-xrdcopy - copy files
+xrdcp - copy files
 .SH SYNOPSIS
 .nf
 
-\fBxrdcopy\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
+\fBxrdcp\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
 
 \fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR]
 [\fB--coerce\fR] [\fB--force\fR] [\fB--help\fR] [\fB--license\fR]
@@ -21,7 +21,7 @@ xrdcopy - copy files
 .br
 .ad l
 .SH DESCRIPTION
-The \fBxrdcopy\fR utility copies one or more files from one location to
+The \fBxrdcp\fR utility copies one or more files from one location to
 another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
@@ -321,13 +321,13 @@ Number of threads processing user callbacks.
 
 XRD_CPPARALLELCHUNKS
 .RS 5
-Maximum number of asynchronous requests being processed by the xrdcopy command
+Maximum number of asynchronous requests being processed by the xrdcp command
 at any given time.
 .RE
 
 XRD_CPCHUNKSIZE
 .RS 5
-Size of a single data chunk handled by xrdcopy.
+Size of a single data chunk handled by xrdcp.
 .RE
 
 XRD_NETWORKSTACK
@@ -391,7 +391,7 @@ Maximum time allowed for a third-party copy operation to finish.
 .RE
 
 .SH NOTES
-Documentation for all components associated with \fBxrdcopy\fR can be found at
+Documentation for all components associated with \fBxrdcp\fR can be found at
 http://xrootd.org/docs.html
 
 .SH DIAGNOSTICS
@@ -401,7 +401,7 @@ Errors yield an error message and a non-zero exit status.
 LGPL
 
 .SH SUPPORT LEVEL
-The \fBxrdcopy\fR command is supported by the xrootd collaboration.
+The \fBxrdcp\fR command is supported by the xrootd collaboration.
 Contact information can be found at:
 
 .ce
