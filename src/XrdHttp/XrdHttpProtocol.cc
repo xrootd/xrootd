@@ -1666,8 +1666,70 @@ int XrdHttpProtocol::xsecretkey(XrdOucStream & Config) {
     return 1;
   }
 
+
+  // If the token starts with a slash, then we interpret it as
+  // the path to a file that contains the secretkey
+  // otherwise, the token itself is the secretkey
+  if (val[0] == '/') {
+    struct stat st;
+    if ( stat(val, &st) ) {
+      eDest.Emsg("Config", "Cannot stat shared secret key file '", val, "'");
+      eDest.Emsg("Config", "Cannot stat shared secret key file. err: ", strerror(errno));
+      return 1;
+    }
+
+    if ( st.st_mode & S_IWOTH & S_IWGRP & S_IROTH) {
+      eDest.Emsg("Config", "For your own security, the shared secret key file cannot be world readable or group writable'", val, "'");
+      return 1;
+    }
+
+    FILE *fp = fopen(val,"r");
+    
+    if( fp == NULL ) {
+      eDest.Emsg("Config", "Cannot open shared secret key file '", val, "'");
+      eDest.Emsg("Config", "Cannot open shared secret key file. err: ", strerror(errno));
+      return 1;
+    }
+
+    char line[1024];
+    while( fgets(line, 1024, fp) ) {
+      char *pp;
+
+      // Trim the end
+      pp = line + strlen(line) - 1;
+      while ( (pp >= line) && (!isalnum(*pp)) ) {
+        *pp = '\0';
+        pp--;
+      }
+
+      // Trim the beginning
+      pp = line;
+      while ( *pp && !isalnum(*pp) ) pp++;
+
+      if ( strlen(pp) >= 32 ) {
+        eDest.Say("Config", "Secret key loaded.");
+        // Record the path
+        if (secretkey) free(secretkey);
+        secretkey = strdup(pp);
+
+        fclose(fp);
+        return 0;
+      }
+
+    }
+
+    fclose(fp);
+    eDest.Emsg("Config", "Cannot find useful secretkey in file '", val, "'");
+    return 1;
+
+  }
+
+  if ( strlen(val) < 32 ) {
+    eDest.Emsg("Config", "Secret key is too short");
+    return 1;
+  }
+
   // Record the path
-  //
   if (secretkey) free(secretkey);
   secretkey = strdup(val);
 
