@@ -831,8 +831,6 @@ int XrdSecProtocolkrb5::exp_krbTkn(XrdSecCredentials *cred, XrdOucErrInfo *erp)
 
 // Change permission and ownership of the file
 //
-    if (chown(ccfile, pw->pw_uid, pw->pw_gid) == -1)
-       return Fatal(erp, errno, "Unable to change file ownership;", ccfile, 0);
     if (chmod(ccfile, 0600) == -1)
        return Fatal(erp, errno, "Unable to change file permissions;", ccfile, 0);
 
