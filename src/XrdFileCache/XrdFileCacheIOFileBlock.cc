@@ -41,23 +41,24 @@ void *PrefetchRunnerBl(void * prefetch_void)
    return NULL;
 }
 
-
+//______________________________________________________________________________
 IOFileBlock::IOFileBlock(XrdOucCacheIO &io, XrdOucCacheStats &statsGlobal, Cache & cache)
    : IO(io, statsGlobal, cache)
 {
    m_blockSize = Factory::GetInstance().RefConfiguration().m_blockSize;
 }
 
-XrdOucCacheIO*IOFileBlock::Detach()
+//______________________________________________________________________________
+XrdOucCacheIO* IOFileBlock::Detach()
 {
    clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Detach() %s", m_io.Path());
    XrdOucCacheIO * io = &m_io;
 
 
-   for (std::map<int, FileBlock*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
+   for (std::map<int, Prefetch*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it)
    {
-      m_statsGlobal.Add(it->second->m_prefetch->GetStats());
-      delete it->second->m_prefetch;
+      m_statsGlobal.Add(it->second->GetStats());
+      delete it->second;
    }
 
    m_cache.Detach(this);  // This will delete us!
@@ -65,10 +66,9 @@ XrdOucCacheIO*IOFileBlock::Detach()
    return io;
 }
 
-IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
+//______________________________________________________________________________
+Prefetch* IOFileBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO*  io)
 {
-   FileBlock* fb = new FileBlock(off, io);
-
    std::string fname;
    m_cache.getFilePathFromURL(io->Path(), fname);
    std::stringstream ss;
@@ -80,28 +80,39 @@ IOFileBlock::FileBlock*IOFileBlock::newBlockPrefetcher(long long off, int blocks
    fname = ss.str();
 
    clLog()->Debug(XrdCl::AppMsg, "FileBlock::FileBlock(), create XrdFileCachePrefetch. %s", m_io.Path());
-   fb->m_prefetch = new Prefetch(*io, fname, off, blocksize);
+   Prefetch* prefetch = new Prefetch(*io, fname, off, blocksize);
    pthread_t tid;
-   XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)fb->m_prefetch, 0, "BlockFile Prefetcher");
+   XrdSysThread::Run(&tid, PrefetchRunnerBl, (void *)prefetch, 0, "BlockFile Prefetcher");
 
-   return fb;
+   return prefetch;
 }
 
+//______________________________________________________________________________
+bool IOFileBlock::ioActive()
+{
+   for (std::map<int, Prefetch*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it) {
+    if (it->second->InitiateClose())
+       return true;
+   }
+  
+   return false;
+}
+
+//______________________________________________________________________________
 int IOFileBlock::Read (char *buff, long long off, int size)
 {
    long long off0 = off;
    int idx_first = off0/m_blockSize;
    int idx_last = (off0+size-1)/m_blockSize;
-
    int bytes_read = 0;
    clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read() %lld@%d block range [%d-%d] \n %s", off, size, idx_first, idx_last, m_io.Path());
 
    for (int blockIdx = idx_first; blockIdx <= idx_last; ++blockIdx )
    {
       // locate block
-      FileBlock* fb;
+      Prefetch* fb;
       m_mutex.Lock();
-      std::map<int, FileBlock*>::iterator it = m_blocks.find(blockIdx);
+      std::map<int, Prefetch*>::iterator it = m_blocks.find(blockIdx);
       if ( it != m_blocks.end() )
       {
          fb = it->second;
@@ -118,7 +129,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
          }
 
          fb = newBlockPrefetcher(blockIdx*m_blockSize, pbs, &m_io);
-         m_blocks.insert(std::pair<int,FileBlock*>(blockIdx, (FileBlock*) fb));
+         m_blocks.insert(std::pair<int,Prefetch*>(blockIdx, (Prefetch*) fb));
       }
       m_mutex.UnLock();
 
@@ -148,7 +159,7 @@ int IOFileBlock::Read (char *buff, long long off, int size)
       long long min  = blockIdx*m_blockSize;
       if ( off < min) { assert(0); }
       assert(off+readBlockSize <= (min + m_blockSize));
-      int retvalBlock = fb->m_prefetch->Read(buff, off, readBlockSize);
+      int retvalBlock = fb->Read(buff, off, readBlockSize);
 
       clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read()  Block read returned %d %s", retvalBlock , m_io.Path());
       if (retvalBlock ==  readBlockSize )

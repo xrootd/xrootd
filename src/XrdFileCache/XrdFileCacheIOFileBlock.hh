@@ -61,19 +61,16 @@ namespace XrdFileCache
          //---------------------------------------------------------------------
          virtual int Read(char *Buffer, long long Offset, int Length);
 
-      private:
-         struct FileBlock
-         {
-            FileBlock(off_t off, XrdOucCacheIO*  io) : m_prefetch(0), m_offset(off) {}
-            Prefetch* m_prefetch;
-            long long m_offset;
-         };
+         //! \brief Virtual method of XrdOucCacheIO. 
+         //! Called to check if destruction needs to be done in a separate task.
+         virtual bool ioActive();
 
+      private:
          long long                  m_blockSize; //!< size of file-block
-         std::map<int, FileBlock*>  m_blocks;    //!< map of created blocks
+         std::map<int, Prefetch*>   m_blocks;    //!< map of created blocks
          XrdSysMutex                m_mutex;     //!< map mutex
 
-         FileBlock* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
+         Prefetch* newBlockPrefetcher(long long off, int blocksize, XrdOucCacheIO* io);
    };
 }
 
