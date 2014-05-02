@@ -76,7 +76,6 @@ bool Prefetch::InitiateClose()
 {
    // Retruns true if delay is needed
 
-
    if (m_cfi.IsComplete()) return false;
 
    m_stateCond.Lock();
@@ -84,14 +83,7 @@ bool Prefetch::InitiateClose()
    m_stopping = true;
    m_stateCond.UnLock();
 
-   XrdSysCondVarHelper(m_ram.m_writeMutex);
-   for (int i = 0; i < m_ram.m_numBlocks;++i )
-   {
-      if (m_ram.m_blockStates[i].refCount)
-         return true;
-   }
-
-   return false;
+   return true;
 }
 
 //______________________________________________________________________________
@@ -99,7 +91,6 @@ Prefetch::~Prefetch()
 {
    // see if we have to shut down
    clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() %p %s", (void*)this, m_input.Path());
-
 
    m_queueCond.Lock();
    m_queueCond.Signal();
@@ -260,7 +251,7 @@ Prefetch::Run()
 
       if (task->condVar)
       {
-         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() valgrind task %p condvar %p",  task, task->condVar);
+         clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() task %p condvar %p",  task, task->condVar);
          XrdSysCondVarHelper(task->condVar);
          task->condVar->Signal();
       }
@@ -350,7 +341,6 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
       return task;
    }
 
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch::CreateTaskForFirstUndownloadedBlock for block %d failed %s", fileBlockIdx, m_input.Path());
    delete task;
    return 0;
 }
@@ -393,11 +383,7 @@ Prefetch::GetNextTask()
       if (doExit) return 0;
 
       Task* t = CreateTaskForFirstUndownloadedBlock();
-      clLog()->Dump(XrdCl::AppMsg, "Prefetch::GetNextTask from undownloaded %p %s", (void*)t,  m_input.Path());
       if (t)  return t;
-
-      clLog()->Dump(XrdCl::AppMsg, "Prefetch::GetNextTask  no resources, reentering %s", m_input.Path());
-
    }
 
    Task *task = m_tasks_queue.front();
@@ -591,7 +577,7 @@ bool Prefetch::ReadFromTask(int iFileBlockIdx, char* iBuff, long long iOff, size
             m_queueCond.Signal();
             m_queueCond.UnLock();
 
-            clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadFromTask valgrind wait task %p confvar %p",  task, task->condVar);
+            clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadFromTask wait task %p confvar %p",  task, task->condVar);
 
             newTaskCond.Wait();
          }
