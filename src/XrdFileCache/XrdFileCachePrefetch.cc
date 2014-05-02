@@ -828,7 +828,7 @@ Prefetch::Read(char *buff, off_t off, size_t size)
 
    if (fileComplete)
    {
-      int res = m_output->Read(buff, off, size);
+      int res = m_output->Read(buff, off - m_offset, size);
       m_stats.m_BytesDisk += res;
       return res;
    }
