@@ -386,7 +386,7 @@ bool Factory::ConfigParameters(const char * parameters)
       else if  ( part == "-blockSize" )
       {
          getline(is, part, ' ');
-         m_configuration.m_blockSize = ::atoi(part.c_str());
+         m_configuration.m_blockSize = ::atoi(part.c_str())*1024*1024;
          clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
       }
    }
