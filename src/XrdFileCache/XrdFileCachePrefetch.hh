@@ -99,12 +99,11 @@ namespace XrdFileCache
          struct Task
          {
             int            ramBlockIdx;  //!< idx in the in-memory buffer
-            size_t         size;         //!< cached, used for the end file block
             XrdSysCondVar *condVar;      //!< signal when complete
 
-            Task(): ramBlockIdx(-1), size(0), condVar(0) {}
-            Task(int r, size_t s, XrdSysCondVar *cv):
-                ramBlockIdx(r), size(s), condVar(cv) {}
+            Task(): ramBlockIdx(-1),  condVar(0) {}
+            Task(int r, XrdSysCondVar *cv):
+                ramBlockIdx(r), condVar(cv) {}
            ~Task() {}
          };
 
@@ -164,8 +163,9 @@ namespace XrdFileCache
          XrdOucCacheIO  &m_input;          //!< original data source
 
          std::string     m_temp_filename;  //!< filename of data file on disk
-         long long       m_offset;         //!< offset of cached file for block-based operation
-         long long       m_fileSize;       //!< size of cached disk file for block-based operation
+
+         long long       m_offset;         //!< offset of disk file for block-based operation
+         long long       m_fileSize;       //!< size of disk file for block-based operation
 
          bool            m_started;   //!< state of run thread
          bool            m_failed;    //!< reading from original source or writing to disk has failed

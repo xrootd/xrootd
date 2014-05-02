@@ -315,7 +315,7 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
 
       if (!isdn)
       {
-         fileBlockIdx = f;
+         fileBlockIdx = f + m_offset/m_cfi.GetBufferSize();
          // get ram for the file block
          m_ram.m_writeMutex.Lock();
          for (int r =0 ; r < m_ram.m_numBlocks; ++r)
@@ -345,12 +345,7 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
    }
 
    if (t.ramBlockIdx >= 0)
-   {
-      if (fileBlockIdx == (m_cfi.GetSizeInBits() -1))
-         t.size =  m_input.FSize() - fileBlockIdx*m_cfi.GetBufferSize();
-      else
-         t.size = m_cfi.GetBufferSize();
-
+   {     
       clLog()->Dump(XrdCl::AppMsg, "Prefetch::CreateTaskForFirstUndownloadedBlock success block %d %s ",  fileBlockIdx, m_input.Path());
       return task;
    }
@@ -423,14 +418,21 @@ Prefetch::DoTask(Task* task)
    // read block from client  into buffer
    int fileBlockIdx = m_ram.m_blockStates[task->ramBlockIdx].fileBlockIdx;
    long long offset  = fileBlockIdx * m_cfi.GetBufferSize();
-   int       missing = task->size;
+
+   long long  rw_size = m_cfi.GetBufferSize();
+   // fix size if this is the last file block
+   if ( offset + rw_size - m_offset > m_fileSize ) {
+      rw_size = m_fileSize + m_offset - offset;
+      assert (rw_size < m_cfi.GetBufferSize());
+   }
+   int   missing = rw_size;
    int   cnt  = 0;
    char* buff = m_ram.m_buffer;
    buff += task->ramBlockIdx * m_cfi.GetBufferSize();
    while (missing)
    {
       clLog()->Dump(XrdCl::AppMsg, "Prefetch::DoTask() for block f = %d r = %dsingal = %p  %s", fileBlockIdx, task->ramBlockIdx, task->condVar,  m_input.Path());
-      int retval = m_input.Read(buff, offset + m_offset, missing);
+      int retval = m_input.Read(buff, offset, missing);
       if (retval < 0)
       {
          clLog()->Warning(XrdCl::AppMsg, "Prefetch::DoTask() failed for negative ret %d block %d %s", retval, fileBlockIdx , m_input.Path());
@@ -463,7 +465,7 @@ Prefetch::DoTask(Task* task)
    {
       // queue for ram to disk write
       XrdSysCondVarHelper monitor(m_stateCond);
-      if (!m_stopping) { Cache::AddWriteTask(this, task->ramBlockIdx, task->size, task->condVar ? true : false );
+      if (!m_stopping) { Cache::AddWriteTask(this, task->ramBlockIdx, rw_size, task->condVar ? true : false );
       }
       else {
          m_ram.m_blockStates[task->ramBlockIdx].refCount--;
@@ -490,7 +492,7 @@ Prefetch::WriteBlockToDisk(int ramIdx, size_t size)
    int retval = 0;
 
    // write block buffer into disk file
-   long long offset = fileIdx * m_cfi.GetBufferSize();
+   long long offset = fileIdx * m_cfi.GetBufferSize() - m_offset;
    int buffer_remaining = size;
    int buffer_offset = 0;
    int cnt = 0;
@@ -516,7 +518,7 @@ Prefetch::WriteBlockToDisk(int ramIdx, size_t size)
    // set downloaded bits
    clLog()->Dump(XrdCl::AppMsg, "Prefetch::WriteToDisk() success set bit for block [%d] size [%d] %s", fileIdx, size, m_input.Path());
    m_downloadStatusMutex.Lock();
-   m_cfi.SetBit(fileIdx);
+   m_cfi.SetBit( fileIdx - m_offset/m_cfi.GetBufferSize());
    m_downloadStatusMutex.UnLock();
 }
 
@@ -577,19 +579,12 @@ bool Prefetch::ReadFromTask(int iFileBlockIdx, char* iBuff, long long iOff, size
 
       if (ramIdx >= 0)
       {
-         // create task, check if this is the end block
-         size_t taskSize = m_cfi.GetBufferSize();
-         if (iFileBlockIdx == (m_cfi.GetSizeInBits() -1))
-         {
-            taskSize = m_input.FSize() - iFileBlockIdx*m_cfi.GetBufferSize();
-         }
-
          clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadFromTask, going to add task fileIdx=%d ", iFileBlockIdx);
          XrdSysCondVar newTaskCond(0);
          {
             XrdSysCondVarHelper xx(newTaskCond);
 
-            Task* task = new Task(ramIdx, taskSize, &newTaskCond);
+            Task* task = new Task(ramIdx, &newTaskCond);
 
             m_queueCond.Lock();
             m_tasks_queue.push_front(task);
@@ -664,12 +659,12 @@ ssize_t Prefetch::ReadInBlocks(char *buff, off_t off, size_t size)
       // now do per block read at Read(buff, off, readBlockSize)
 
       m_downloadStatusMutex.Lock();
-      bool dsl = m_cfi.TestBit(blockIdx);
+      bool dsl = m_cfi.TestBit(blockIdx - m_offset/m_cfi.GetBufferSize());
       m_downloadStatusMutex.UnLock();
 
       if (dsl)
       {
-         retvalBlock = m_output->Read(buff, off, readBlockSize);
+         retvalBlock = m_output->Read(buff, off - m_offset, readBlockSize);
          m_stats.m_BytesDisk += retvalBlock;
          clLog()->Dump(XrdCl::AppMsg, "Prefetch::ReadInBlocks [%d] disk = %d",blockIdx, retvalBlock);
       }
