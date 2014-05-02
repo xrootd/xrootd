@@ -145,16 +145,13 @@ int IOFileBlock::Read (char *buff, long long off, int size)
 
       clLog()->Info(XrdCl::AppMsg, "IOFileBlock::Read() block[%d] read-block-size[%d], offset[%lld] %s", blockIdx, readBlockSize, off, m_io.Path());
 
-
-      // pass offset unmodified
-
       long long min  = blockIdx*m_blockSize;
       if ( off < min) { assert(0); }
       assert(off+readBlockSize <= (min + m_blockSize));
-      int retvalBlock = fb->m_prefetch->Read(buff, off - fb->m_offset, readBlockSize);
+      int retvalBlock = fb->m_prefetch->Read(buff, off, readBlockSize);
 
       clLog()->Debug(XrdCl::AppMsg, "IOFileBlock::Read()  Block read returned %d %s", retvalBlock , m_io.Path());
-      if (retvalBlock > 0 )
+      if (retvalBlock ==  readBlockSize )
       {
          bytes_read += retvalBlock;
          buff += retvalBlock;
