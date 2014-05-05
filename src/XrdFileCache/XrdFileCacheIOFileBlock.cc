@@ -90,12 +90,13 @@ Prefetch* IOFileBlock::newBlockPrefetcher(long long off, int blocksize, XrdOucCa
 //______________________________________________________________________________
 bool IOFileBlock::ioActive()
 {
+   bool res = false;
    for (std::map<int, Prefetch*>::iterator it = m_blocks.begin(); it != m_blocks.end(); ++it) {
-    if (it->second->InitiateClose())
-       return true;
+      if (it->second->InitiateClose())
+         res = true;
    }
   
-   return false;
+   return res;
 }
 
 //______________________________________________________________________________
