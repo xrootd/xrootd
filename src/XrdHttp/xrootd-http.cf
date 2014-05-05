@@ -13,7 +13,7 @@ fi
 http.cert /etc/grid-security/hostcert.pem
 http.key /etc/grid-security/hostkey.pem
 http.cadir /etc/grid-security/certificates
-http.secretkey etc/hosts8374653847t37t8873t3t3u
+http.secretkey CHANGEME
 #http.secxtractor /usr/lib64/libXrdHttpVOMS.so.1
 
 # As an example of preloading files, let's preload in memory
