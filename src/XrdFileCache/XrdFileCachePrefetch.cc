@@ -77,6 +77,7 @@ bool Prefetch::InitiateClose()
 {
    // Retruns true if delay is needed
 
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::Initiate close start", lPath());
    if (m_cfi.IsComplete()) return false;
 
    m_stateCond.Lock();
@@ -90,15 +91,14 @@ bool Prefetch::InitiateClose()
 //______________________________________________________________________________
 Prefetch::~Prefetch()
 {
-   // see if we have to shut down
-   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() %p %s", (void*)this, lPath());
+   clLog()->Debug(XrdCl::AppMsg, "Prefetch::~Prefetch() %p %s", (void*)this, lPath());
 
    m_queueCond.Lock();
    m_queueCond.Signal();
    m_queueCond.UnLock();
 
    Cache::RemoveWriteQEntriesFor(this);
-
+   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch() check write queues ...%s", lPath());
    while (true)
    {
       m_stateCond.Lock();
@@ -133,7 +133,7 @@ Prefetch::~Prefetch()
    // write statistics in *cinfo file
    AppendIOStatToFileInfo();
 
-   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file %p",(void*)this );
+   clLog()->Info(XrdCl::AppMsg, "Prefetch::~Prefetch close data file %p",(void*)this , lPath());
 
    if (m_output)
    {
@@ -342,10 +342,12 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
       }
    }
 
-   if (t.ramBlockIdx >= 0)
-   {     
+   if (t.ramBlockIdx >= 0) {
       clLog()->Dump(XrdCl::AppMsg, "Prefetch::CreateTaskForFirstUndownloadedBlock success block %d %s ",  fileBlockIdx, lPath());
       return task;
+   }
+   else if (fileBlockIdx == -1) {
+      m_cfi.CheckComplete();
    }
 
    delete task;
@@ -390,7 +392,10 @@ Prefetch::GetNextTask()
       if (doExit) return 0;
 
       Task* t = CreateTaskForFirstUndownloadedBlock();
-      if (t)  return t;
+      if (t)
+         return t;
+      else if (m_cfi.IsComplete()) 
+         return 0; 
    }
 
    Task *task = m_tasks_queue.front();
