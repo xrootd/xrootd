@@ -155,6 +155,9 @@ namespace XrdFileCache
          //! Read from client into in memory cache, queue ram buffer for disk write.
          void    DoTask(Task* task);
 
+         //! Log path
+         const char* lPath() const;
+
          RAM             m_ram;            //!< in memory cache
 
          XrdOssDF       *m_output;         //!< file handle for data file on disk
