@@ -682,28 +682,63 @@ int XrdHttpReq::ProcessHTTPReq() {
     case XrdHttpReq::rtGET:
     {
 
-      if (prot->embeddedstatic && resource.beginswith("/static/")) {
-        // This is a request for an embedded static resource
-        // The sysadmin can always use the file system if he wants to put his own.
-        // In that case he has to respect the behavior of
-        // the xrootd with the oss.localroot and all.export directives, which is
-        // not very practical.
+        if (resource.beginswith("/static/")) {
 
-        if (resource == "/static/css/xrdhttp.css") {
-          prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len);
-          reset();
-          return 1;
-        }
-        if (resource == "/static/icons/xrdhttp.ico") {
-          prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len);
-          reset();
-          return 1;
-        }
+            // This is a request for a /static resource
+            // If we have to use the embedded ones then we return the ones in memory as constants
+
+            // The sysadmin can always redirect the request to another host that
+            // contains his static resources
+
+            // We also allow xrootd to preread from the local disk all the files
+            // that have to be served as static resources.
+
+            if (prot->embeddedstatic) {
+
+                // Default case: the icon and the css of the HTML rendering of XrdHttp
+                if (resource == "/static/css/xrdhttp.css") {
+                    prot->SendSimpleResp(200, NULL, NULL, (char *) static_css_xrdhttp_css, static_css_xrdhttp_css_len);
+                    reset();
+                    return 1;
+                  }
+                if (resource == "/static/icons/xrdhttp.ico") {
+                    prot->SendSimpleResp(200, NULL, NULL, (char *) favicon_ico, favicon_ico_len);
+                    reset();
+                    return 1;
+                  }
+
+              }
+
+              // If we are here then none of the embedded resources match (or they are disabled)
+              // We may have to redirect to a host that is supposed to serve the static resources
+              if (prot->staticredir) {
+
+                  XrdOucString s = "Location: ";
+                  s.append(prot->staticredir);
+
+                  if (s.endswith('/'))
+                    s.erasefromend(1);
+
+                  s.append(resource);
+                  appendOpaque(s, 0, 0, 0);
+
+                  prot->SendSimpleResp(302, NULL, (char *) s.c_str(), 0, 0);
+                  return -1;
 
 
-      }
+                } else {
+
+                  // We lookup the requested path in a hash containing the preread files
+                  XrdHttpProtocol::StaticPreloadInfo *mydata = prot->staticpreload->Find(resource.c_str());
+                  if (mydata) {
+                      prot->SendSimpleResp(200, NULL, NULL, (char *) mydata->data, mydata->len);
+                      reset();
+                      return 1;
+                    }
+                }
 
 
+          }
 
       switch (reqstate) {
         case 0: // Stat()
