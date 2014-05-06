@@ -67,6 +67,7 @@
 #define MaxARGC 64
 #define XrdOucStream_EOM  0x01
 #define XrdOucStream_BUSY 0x02
+#define XrdOucStream_ELIF 0x80
 
 #define Erq(p, a, b) Err(p, a, b, (char *)0)
 #define Err(p, a, b, c) (ecode=(Eroute ? Eroute->Emsg(#p, a, b, c) : a), -1)
@@ -830,7 +831,9 @@ char *XrdOucStream::doelse()
            return 0;
           }
        sawif = 0;
+       flags |=  XrdOucStream_ELIF;
        var = doif();
+       flags &= ~XrdOucStream_ELIF;
       } while(var && !strcmp("else", var));
    return var;
 }
@@ -862,7 +865,7 @@ char *XrdOucStream::doelse()
 
 char *XrdOucStream::doif()
 {
-    char *var;
+    char *var, ifLine[512];
     int rc;
 
 // Check if the previous if was properly closed
@@ -872,12 +875,20 @@ char *XrdOucStream::doif()
        ecode = EINVAL;
       }
 
+// Save the line for context message should we get an error
+//
+   snprintf(ifLine, sizeof(ifLine), "%s", token);
+
 // Check if we should continue
 //
    sawif = 1; skpel = 0;
    if ((rc = XrdOucUtils::doIf(Eroute,*this,"if directive",myHost,myName,myExec)))
-      {if (rc < 0) ecode = EINVAL;
-          else skpel = 1;
+      {if (rc >= 0) skpel = 1;
+          else {ecode = EINVAL;
+                if(Eroute) Eroute->Say(llPrefix,
+                                      (flags & XrdOucStream_ELIF ? "else " : 0),
+                                       "if ", ifLine);
+               }
        return 0;
       }
 

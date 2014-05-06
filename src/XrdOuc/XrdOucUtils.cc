@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #endif
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -88,8 +89,11 @@ char *XrdOucUtils::eText(int rc, char *eBuff, int eBlen, int AsIs)
 /*                                  d o I f                                   */
 /******************************************************************************/
   
-// doIf() parses "if [<hostlist>] [<altopt> [&& <altop> [ ... ]]]"
-// altop: [exec <pgmlist> [&& named <namelist>]] | [named <namelist>]
+// doIf() parses "if [<hostlist>] [<conds>]"
+// conds: <cond1> | <cond2> | <cond3>
+// cond1: defined <varlist> [&& <conds>]
+// cond2: exec <pgmlist> [&& <cond3>]
+// cond3: named <namelist>
 
 // Returning 1 if true (i.e., this machine is one of the named hosts in hostlist 
 // and is running one of the programs pgmlist and named by one of the names in 
@@ -102,9 +106,10 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
                       const char *what,  const char *hname,
                       const char *nname, const char *pname)
 {
-   static const char *brk[] = {"exec", "named", 0};
+   static const char *brk[] = {"defined", "exec", "named", 0};
+   XrdOucEnv *theEnv = 0;
    char *val;
-   int hostok;
+   int hostok, isDef;
 
 // Make sure that at least one thing appears after the if
 //
@@ -124,6 +129,45 @@ int XrdOucUtils::doIf(XrdSysError *eDest, XrdOucStream &Config,
            // No more directives
            if (!val) return 1;
          } else return 0;
+      }
+
+// Check if this is a defined test
+//
+   while(!strcmp(val, "defined"))
+      {if (!(val = Config.GetWord()) || *val != '?')
+          {if (eDest)
+              eDest->Emsg("Config","'?var' missing after 'defined' in",what);
+              return -1;
+          }
+       // Get environment if we have none
+       //
+          if (!theEnv && (theEnv = Config.SetEnv(0))) Config.SetEnv(theEnv);
+          if (!theEnv && *(val+1) != '~') return 0;
+
+       // Check if any listed variable is defined.
+       //
+       isDef = 0;
+       while(val && *val == '?')
+            {if (*(val+1) == '~' ? getenv(val+2) : theEnv->Get(val+1)) isDef=1;
+             val = Config.GetWord();
+            }
+       if (!val || !isDef) return isDef;
+       if (strcmp(val, "&&"))
+          {if (eDest)
+              eDest->Emsg("Config",val,"is invalid for defined test in",what);
+              return -1;
+          } else {
+           if (!(val = Config.GetWord()))
+              {if (eDest)
+                   eDest->Emsg("Config","missing keyword after '&&' in",what);
+                   return -1;
+              }
+          }
+       if (!is1of(val, brk))
+          {if (eDest)
+              eDest->Emsg("Config",val,"is invalid after '&&' in",what);
+              return -1;
+          }
       }
 
 // Check if we need to compare program names (we are here only if we either
