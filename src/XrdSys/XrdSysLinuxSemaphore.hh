@@ -34,6 +34,7 @@
 #include <cerrno>
 #include <exception>
 #include <string>
+#include <cstdlib>
 
 namespace XrdSys
 {
