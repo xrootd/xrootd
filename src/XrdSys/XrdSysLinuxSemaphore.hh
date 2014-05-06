@@ -127,6 +127,14 @@ namespace XrdSys
 
           Unpack( pValue, value, val, waiters );
 
+          //--------------------------------------------------------------------
+          // We need to make sure again that the value of the semaphore is 0
+          // because we fetched it again (first time was in CondWait()) and
+          // it may have changed in the mean time.
+          //--------------------------------------------------------------------
+          if( val != 0 )
+            continue;
+
           if( waiters == WaitersMask )
             throw LinuxSemaphoreError( "Reached maximum number of waiters" );
 
