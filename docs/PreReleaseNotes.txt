@@ -11,6 +11,7 @@ Prerelease Notes
 + **Major bug fixes**
    * Fix xrootdfs wcache crashing issue when using virtual file descriptor.
    * Fix selection of a server when a DNS entry resolves to more than one.
+   * Correct pthread_cond_timedwait() time calculation and error handling.
 
 + **Minor bug fixes**
    * Fix null insertion of hostname in error message when open fails.
