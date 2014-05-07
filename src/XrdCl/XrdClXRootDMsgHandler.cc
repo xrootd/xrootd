@@ -496,11 +496,24 @@ namespace XrdCl
         }
 
         //----------------------------------------------------------------------
-        // Register a task to resend the message in some seconds
+        // Register a task to resend the message in some seconds, if we still
+        // have time to do that, and report a timeout otherwise
         //----------------------------------------------------------------------
-        TaskManager *taskMgr = pPostMaster->GetTaskManager();
-        taskMgr->RegisterTask( new WaitTask( this ),
-                               ::time(0)+waitSeconds );
+        time_t resendTime = ::time(0)+waitSeconds;
+
+        if( resendTime < pExpiration )
+        {
+          TaskManager *taskMgr = pPostMaster->GetTaskManager();
+          taskMgr->RegisterTask( new WaitTask( this ), resendTime );
+        }
+        else
+        {
+          log->Debug( XRootDMsg, "[%s] Wait time is too long, timing out %s",
+                      pUrl.GetHostId().c_str(),
+                      pRequest->GetDescription().c_str() );
+          pStatus   = Status( stError, errOperationExpired );
+          HandleResponse();
+        }
         return;
       }
 
