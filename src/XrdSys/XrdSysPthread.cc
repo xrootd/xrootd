@@ -140,7 +140,7 @@ int XrdSysCondVar::WaitMS(int msec)
 //
    tval.tv_sec  = tnow.tv_sec  +  sec;
    tval.tv_nsec = tnow.tv_usec + usec;
-   if (tval.tv_nsec > 1000000)
+   if (tval.tv_nsec >= 1000000)
       {tval.tv_sec += tval.tv_nsec / 1000000;
        tval.tv_nsec = tval.tv_nsec % 1000000;
       }
@@ -150,9 +150,13 @@ int XrdSysCondVar::WaitMS(int msec)
 // Now wait for the condition or timeout
 //
    do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
-   while (retc && (retc != ETIMEDOUT));
+   while (retc && (retc == EINTR));
 
    if (relMutex) UnLock();
+
+// Determine how to return
+//
+   if (retc && retc != ETIMEDOUT) {throw "cond_timedwait() failed";}
    return retc == ETIMEDOUT;
 }
  
