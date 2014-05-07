@@ -327,7 +327,7 @@ void undoProgBar(int isOK)
 /*                               c p F a t a l                                */
 /******************************************************************************/
   
-int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst)
+int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst, const char *hn=0)
 {
    XrdClient *cObj;
    const char *Msg;
@@ -337,7 +337,9 @@ int cpFatal(const char *Act, XrdClient *cSrc, XrdClient *cDst)
    if (cSrc) {cObj = cSrc; Msg = "Copy from ";}
       else   {cObj = cDst; Msg = "Copy to ";}
 
-   EMSG(Msg <<cObj->GetCurrentUrl().Host.c_str() <<" failed on " <<Act <<"!");
+   if (!hn) hn = cObj->GetCurrentUrl().Host.c_str();
+
+   EMSG(Msg <<hn <<" failed on " <<Act <<"!");
    EMSG(ServerError(cObj));
    return -1;
 }
@@ -836,9 +838,10 @@ int doCp_xrd3xrd(XrdClient *xrddest, const char *src, const char *dst)
 // Open the source
 //
    Client.Src = new XrdClient(sUrl.c_str());
+   const char *hName = Client.Src->GetCurrentUrl().Host.c_str();
    if ((!Client.Src->Open(0, kXR_async) ||
       (Client.Src->LastServerResp()->status != kXR_ok)))
-      return cpFatal("open", Client.Src, 0);
+      return cpFatal("open", Client.Src, 0, hName);
    
 // Start the progress bar if so wanted
 //
@@ -906,9 +909,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli)
       {cpnfo.XrdCli = new XrdClient(src);
+       const char *hName = cpnfo.XrdCli->GetCurrentUrl().Host.c_str();
        if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
           (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) )
-          {cpFatal("open", cpnfo.XrdCli, 0);
+          {cpFatal("open", cpnfo.XrdCli, 0, hName);
            delete cpnfo.XrdCli;
            cpnfo.XrdCli = 0;
            return 1;
@@ -923,9 +927,10 @@ int doCp_xrd2xrd(XrdClient **xrddest, const char *src, const char *dst) {
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest) {
       *xrddest = new XrdClient(dest.c_str());
+       const char *hName = (*xrddest)->GetCurrentUrl().Host.c_str();
       
       if (!PedanticOpen4Write(*xrddest, rwMode, xrd_wr_flags))
-         {cpFatal("open", 0, *xrddest);
+         {cpFatal("open", 0, *xrddest, hName);
           delete cpnfo.XrdCli;
           delete *xrddest;
           *xrddest = 0;
@@ -1089,9 +1094,10 @@ int doCp_xrd2loc(const char *src, const char *dst) {
    // If Xrdcli is non-null, the correct src file has already been opened
    if (!cpnfo.XrdCli)
       {cpnfo.XrdCli = new XrdClient(src);
+       const char *hName = cpnfo.XrdCli->GetCurrentUrl().Host.c_str();
        if ( ( !cpnfo.XrdCli->Open(0, kXR_async) ||
           (cpnfo.XrdCli->LastServerResp()->status != kXR_ok) ) )
-          {cpFatal("open", cpnfo.XrdCli, 0);
+          {cpFatal("open", cpnfo.XrdCli, 0, hName);
            delete cpnfo.XrdCli;
            cpnfo.XrdCli = 0;
            return 1;
@@ -1296,8 +1302,9 @@ int doCp_loc2xrd(XrdClient **xrddest, const char *src, const char * dst) {
    // if xrddest if nonzero, then the file is already opened for writing
    if (!*xrddest)
       {*xrddest = new XrdClient(dest.c_str());
+       const char *hName = (*xrddest)->GetCurrentUrl().Host.c_str();
        if (!PedanticOpen4Write(*xrddest, rwMode, xrd_wr_flags) )
-          {cpFatal("open", 0 , *xrddest);
+          {cpFatal("open", 0 , *xrddest, hName);
            close(cpnfo.localfile);
            delete *xrddest;
            *xrddest = 0;
@@ -1452,7 +1459,7 @@ int doCp(XrdOucString &src, XrdOucString &dest, XrdClient *xrddest)
 int main(int argc, char**argv)
 {
    const char *Opaque;
-   char *srcpath = 0, *destpath = 0;
+   char *hName, *srcpath = 0, *destpath = 0;
 
 // Preset globals
 //
@@ -1571,6 +1578,13 @@ int main(int argc, char**argv)
  //    if (dup2(STDOUT_FILENO, STDERR_FILENO)) cerr <<"??? " <<errno <<endl;
       }
 
+// Extract source host if present
+//
+   if (strncmp(srcpath, "root://", 7) || strncmp(srcpath, "xroot://", 8) )
+      {XrdClientUrlInfo sUrl(srcpath);
+       hName = (sUrl.IsValid() ? strdup(sUrl.Host.c_str()) : 0);
+      } else hName = 0;
+
 // Prepare to generate a copy list
 //
    XrdCpWorkLst *wklst = new XrdCpWorkLst();
@@ -1581,7 +1595,7 @@ int main(int argc, char**argv)
 // Generate the sources
 //
    if (wklst->SetSrc(&cpnfo.XrdCli, srcpath, Config.srcOpq, recurse, 1))
-      {cpFatal("open", cpnfo.XrdCli, 0);
+      {cpFatal("open", cpnfo.XrdCli, 0, hName);
        exit(1);
       }
 
@@ -1592,12 +1606,21 @@ int main(int argc, char**argv)
             tpcSrc = cpnfo.XrdCli;
            }
 
+// Extract source host if present
+//
+   if (hName) free(hName);
+   if (strncmp(destpath, "root://", 7) || strncmp(destpath, "xroot://", 8) )
+      {XrdClientUrlInfo dUrl(destpath);
+       hName = (dUrl.IsValid() ? strdup(dUrl.Host.c_str()) : 0);
+      } else hName = 0;
+
 // Verify the correctness of the destination
 //
    if (wklst->SetDest(&xrddest, destpath, Opaque, xrd_wr_flags, 1))
-      {cpFatal("open", 0, xrddest);
+      {cpFatal("open", 0, xrddest, hName);
        exit(1);
       }
+   if (hName) {free(hName); hName = 0;}
 
       // Initialize monitoring client, if a plugin is present
       cpnfo.mon = 0;
