@@ -218,8 +218,39 @@ void XrdClient::TerminateOpenAttempt() {
     //cout << "Mytest " << time(0) << " File: " << fUrl.File << " - Open finished." << endl;
 }
 
+#define OpenErr(a,b) fConnModule->LastServerError.errnum=a;\
+                     strcpy(fConnModule->LastServerError.errmsg,b);\
+                     Error("Open", b)
+
 //_____________________________________________________________________________
 bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
+    class urlHelper
+         {public:
+          void              Erase(XrdClientUrlInfo *url){urlSet->EraseUrl(url);}
+
+          XrdClientUrlInfo *Get() {return urlSet->GetARandomUrl(seed);}
+
+          int               Init(XrdOucString urls)
+                                {if (urlSet) delete urlSet;
+                                 urlSet = new XrdClientUrlSet(urls);
+                                 iSize = (urlSet->IsValid() ? urlSet->Size():0);
+                                 return iSize;
+                                }
+
+          int               Size() {return iSize;}
+
+                            urlHelper() : urlSet(0), iSize(0)
+                                        {seed = static_cast<unsigned int>
+                                                (getpid() ^ getppid());
+                                        }
+                           ~urlHelper() {if (urlSet) delete urlSet;}
+          private:
+          XrdClientUrlSet *urlSet;
+          int iSize;
+          unsigned int seed;
+         };
+    urlHelper urlList;
+
   
     // But we initialize the internal params...
     fOpenPars.opened = FALSE;  
@@ -235,34 +266,23 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
     fConnModule->SetOpTimeLimit(EnvGetLong(NAME_TRANSACTIONTIMEOUT));
 
-    // Construction of the url set coming from the resolution of the hosts given
-    XrdClientUrlSet urlArray(fInitialUrl);
-    if (!urlArray.IsValid()) {
-	Error("Open", "The URL provided is incorrect.");
-	return FALSE;
-    }
-
-    XrdClientUrlInfo unfo(fInitialUrl);
-    if (unfo.File == "") {
-      Error("Open", "The URL provided is incorrect.");
-      return FALSE;
-    }
-    
-
     //
-    // Now start the connection phase, picking randomly from UrlArray
+    // Now start the connection phase, picking randomly from UrlList
     //
-    urlArray.Rewind();
     int urlstried = 0;
+    fConnModule->LastServerError.errnum = kXR_noErrorYet;
     for (int connectTry = 0;
 	 (connectTry < connectMaxTry) && (!fConnModule->IsConnected()); 
 	 connectTry++) {
 
-        XrdClientUrlSet urlArray(fInitialUrl);
-        urlArray.Rewind();
+        int urlCount;
+        if ((urlCount = urlList.Init(fInitialUrl)) < 1) {
+           OpenErr(kXR_ArgInvalid, "The URL provided is incorrect.");
+           return FALSE;
+        }
 
 	XrdClientUrlInfo *thisUrl = 0;
-	urlstried = (urlstried == urlArray.Size()) ? 0 : urlstried;
+	urlstried = (urlstried == urlCount) ? 0 : urlstried;
 
         if ( fConnModule->IsOpTimeLimitElapsed(time(0)) ) {
            // We have been so unlucky and wasted too much time in connecting and being redirected
@@ -272,12 +292,10 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
         }
 
 	bool nogoodurl = TRUE;
-	while (urlArray.Size() > 0) {
-
-	  unsigned int seed = XrdOucCRC::CRC32((const unsigned char*)unfo.File.c_str(), unfo.File.length());
+	while (urlCount--) {
 
 	    // Get an url from the available set
-	    if ((thisUrl = urlArray.GetARandomUrl(seed))) {
+	    if ((thisUrl = urlList.Get())) {
 
 		if (fConnModule->CheckHostDomain(thisUrl->Host)) {
 		    nogoodurl = FALSE;
@@ -288,16 +306,17 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 		    fConnModule->Connect(*thisUrl, this);
 		    // To find out if we have tried the whole URLs set
 		    urlstried++;
+                    if (!(fConnModule->IsConnected())) continue;
 		    break;
 		} else {
 		    // Invalid domain: drop the url and move to next, if any
-		    urlArray.EraseUrl(thisUrl);
+		    urlList.Erase(thisUrl);
 		    continue;
 		}
 	    }
 	}
 	if (nogoodurl) {
-	    Error("Open", "Access denied to all URL domains requested");
+	    OpenErr(kXR_NotAuthorized, "Access denied to all URL domains requested");
 	    break;
 	}
 
@@ -323,12 +342,12 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
                   // We have been so unlucky.
                   // The max number of redirections was exceeded while logging in
                   fConnModule->Disconnect(TRUE);
-                  Error("Open", "Access to server failed: Max redirections exceeded. This means typically 'too many errors'.");
+                  OpenErr(kXR_ServerError, "Unable to connect; too many redirections.");
                   break;
                }
 
 		if (fConnModule->LastServerError.errnum == kXR_NotAuthorized) {
-		    if (urlstried == urlArray.Size()) {
+		    if (urlstried == urlList.Size()) {
 			// Authentication error: we tried all the indicated URLs:
 			// does not make much sense to retry
 			fConnModule->Disconnect(TRUE);
@@ -374,6 +393,8 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     } //for connect try
 
     if (!fConnModule->IsConnected()) {
+       if (fConnModule->LastServerError.errnum == kXR_noErrorYet)
+          {OpenErr(kXR_noserver, "Server is unreachable.");}
 	return FALSE;
     }
 
@@ -397,6 +418,7 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
 
             if (fXrdCcb && !doitparallel) 
                fXrdCcb->OpenComplete(this, fXrdCcbArg, false);
+     OpenErr(kXR_Cancelled, "Open failed for unknown reason.");
 
 	    return FALSE;
 
@@ -416,14 +438,17 @@ bool XrdClient::Open(kXR_unt16 mode, kXR_unt16 options, bool doitparallel) {
     } else {
 	// the server is an old rootd
 	if (fConnModule->GetServerType() == kSTRootd) {
+    OpenErr(kXR_ArgInvalid, "Server is not an xrootd server.");
 	    return FALSE;
 	}
 	if (fConnModule->GetServerType() == kSTNone) {
+    OpenErr(kXR_ArgInvalid, "Server is not an xrootd server.");
 	    return FALSE;
 	}
     }
 
 
+    fConnModule->LastServerError.errnum = kXR_noErrorYet;
     return TRUE;
 
 }
