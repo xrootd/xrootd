@@ -149,8 +149,7 @@ int XrdSysCondVar::WaitMS(int msec)
 
 // Now wait for the condition or timeout
 //
-   do {retc = pthread_cond_timedwait(&cvar, &cmut, &tval);}
-   while (retc && (retc != ETIMEDOUT));
+   retc = pthread_cond_timedwait(&cvar, &cmut, &tval);
 
    if (relMutex) UnLock();
    return retc == ETIMEDOUT;
