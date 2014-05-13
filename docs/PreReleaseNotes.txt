@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add flag to indicates a secondary copy of a file exists.
    * Allow testing for undefined set/env vars via if-else-fi.
 
 + **Major bug fixes**
