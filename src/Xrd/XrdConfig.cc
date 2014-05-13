@@ -196,7 +196,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
    int retc, NoGo = 0, clPort = -1, optbg = 0;
    const char *temp;
-   char c, buff[512], *dfltProt, *logfn = 0;
+   char c, buff[512], *dfltProt, *libProt = 0, *logfn = 0;
    uid_t myUid = 0;
    gid_t myGid = 0;
    extern char *optarg;
@@ -233,7 +233,7 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    opterr = 0;
    if (argc > 1 && '-' == *argv[1]) 
-      while ((c = getopt(argc,argv,":bc:dhHI:k:l:n:p:P:R:s:S:vz"))
+      while ((c = getopt(argc,argv,":bc:dhHI:k:l:L:n:p:P:R:s:S:vz"))
              && ((unsigned char)c != 0xff))
      { switch(c)
        {
@@ -268,6 +268,13 @@ int XrdConfig::Configure(int argc, char **argv)
                     }
                  if (logfn) free(logfn);
                  logfn = strdup(optarg);
+                 break;
+       case 'L': if (!*optarg)
+                    {Log.Emsg("Config", "Protocol library path not specified.");
+                     Usage(1);
+                    }
+                 if (libProt) free(libProt);
+                 libProt = strdup(optarg);
                  break;
        case 'n': myInsName = (!strcmp(optarg,"anon")||!strcmp(optarg,"default")
                            ? 0 : optarg);
@@ -414,7 +421,7 @@ int XrdConfig::Configure(int argc, char **argv)
 
 // Setup the initial required protocol.
 //
-   Firstcp = Lastcp = new XrdConfigProt(strdup(dfltProt), 0, 0);
+   Firstcp = Lastcp = new XrdConfigProt(strdup(dfltProt), libProt, 0);
 
 // Let start it up!
 //
@@ -991,7 +998,7 @@ void XrdConfig::Usage(int rc)
   if (rc < 0) cerr <<XrdLicense;
      else
      cerr <<"\nUsage: " <<myProg <<" [-b] [-c <cfn>] [-d] [-h] [-H] [-I {v4|v6}]\n"
-            "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>]\n"
+            "[-k {n|sz|sig}] [-l [=]<fn>] [-n name] [-p <port>] [-P <prot>] [-L <libprot>]\n"
             "[-R] [-s pidfile] [-S site] [-v] [-z] [<prot_options>]" <<endl;
      _exit(rc > 0 ? rc : 0);
 }
