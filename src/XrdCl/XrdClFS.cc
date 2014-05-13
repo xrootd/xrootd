@@ -754,13 +754,14 @@ XRootDStatus ProcessStatQuery( StatInfo *info, const std::string &query )
   // Initialize flag translation map and check the input flags
   //----------------------------------------------------------------------------
   std::map<std::string, StatInfo::Flags> flagMap;
-  flagMap["XBitSet"]     = StatInfo::XBitSet;
-  flagMap["IsDir"]       = StatInfo::IsDir;
-  flagMap["Other"]       = StatInfo::Other;
-  flagMap["Offline"]     = StatInfo::Offline;
-  flagMap["POSCPending"] = StatInfo::POSCPending;
-  flagMap["IsReadable"]  = StatInfo::IsReadable;
-  flagMap["IsWritable"]  = StatInfo::IsWritable;
+  flagMap["XBitSet"]      = StatInfo::XBitSet;
+  flagMap["IsDir"]        = StatInfo::IsDir;
+  flagMap["Other"]        = StatInfo::Other;
+  flagMap["Offline"]      = StatInfo::Offline;
+  flagMap["POSCPending"]  = StatInfo::POSCPending;
+  flagMap["IsReadable"]   = StatInfo::IsReadable;
+  flagMap["IsWritable"]   = StatInfo::IsWritable;
+  flagMap["BackUpExists"] = StatInfo::BackUpExists;
 
   std::vector<std::string>::iterator it;
   for( it = queryFlags.begin(); it != queryFlags.end(); ++it )
@@ -872,6 +873,8 @@ XRootDStatus DoStat( FileSystem                      *fs,
     flags += "IsReadable|";
   if( info->TestFlags( StatInfo::IsWritable ) )
     flags += "IsWritable|";
+  if( info->TestFlags( StatInfo::BackUpExists ) )
+    flags += "BackUpExists|";
 
   if( !flags.empty() )
     flags.erase( flags.length()-1, 1 );
