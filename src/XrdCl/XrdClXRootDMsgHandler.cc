@@ -398,16 +398,25 @@ namespace XrdCl
         o << urlComponents[0];
         if( rsp->body.redirect.port != -1 )
           o << ":" << rsp->body.redirect.port << "/";
-        pUrl = URL( o.str() );
-        if( !pUrl.IsValid() )
+
+        URL newUrl = URL( o.str() );
+        if( !newUrl.IsValid() )
         {
           pStatus = Status( stError, errInvalidRedirectURL );
           log->Error( XRootDMsg, "[%s] Got invalid redirection URL: %s",
-                                pUrl.GetHostId().c_str(), urlInfo.c_str() );
+                      pUrl.GetHostId().c_str(), urlInfo.c_str() );
           HandleResponse();
           return;
         }
-        pRedirectUrl = pUrl.GetURL();
+
+        if( pUrl.GetUserName() != "" && newUrl.GetUserName() == "" )
+          newUrl.SetUserName( pUrl.GetUserName() );
+
+        if( pUrl.GetPassword() != "" && newUrl.GetPassword() == "" )
+          newUrl.SetPassword( pUrl.GetPassword() );
+
+        pUrl         = newUrl;
+        pRedirectUrl = newUrl.GetURL();
 
         URL cgiURL;
         if( urlComponents.size() > 1 )
