@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Provide the filesystem plugin a way of creating a session storage area.
    * Add flag to indicates a secondary copy of a file exists.
    * Allow testing for undefined set/env vars via if-else-fi.
 
