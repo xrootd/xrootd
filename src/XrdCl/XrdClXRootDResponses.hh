@@ -344,7 +344,8 @@ namespace XrdCl
         POSCPending  = kXR_poscpend,  //!< File opened with POST flag, not yet
                                       //!< successfully closed
         IsReadable   = kXR_readable,  //!< Read access is allowed
-        IsWritable   = kXR_writable   //!< Write access is allowed
+        IsWritable   = kXR_writable,  //!< Write access is allowed
+        BackUpExists = kXR_bkpexist   //!< Back up copy exists
       };
 
       //------------------------------------------------------------------------
