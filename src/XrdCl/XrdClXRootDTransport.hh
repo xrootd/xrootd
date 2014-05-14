@@ -30,6 +30,8 @@
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
+class XrdSysPlugin;
+
 namespace XrdCl
 {
   struct XRootDChannelInfo;
@@ -318,7 +320,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       static std::string FileHandleToStr( const unsigned char handle[4] );
 
-      void            *pSecLibHandle;
+      XrdSysPlugin    *pSecLibHandle;
       XrdSecGetProt_t  pAuthHandler;
   };
 }

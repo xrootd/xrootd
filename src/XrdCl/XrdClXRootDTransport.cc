@@ -36,6 +36,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdSys/XrdSysPlugin.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
@@ -44,6 +45,8 @@
 #include <sstream>
 #include <iomanip>
 #include <set>
+
+XrdVERSIONINFOREF( XrdCl );
 
 namespace XrdCl
 {
@@ -147,8 +150,7 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   XRootDTransport::~XRootDTransport()
   {
-    if( pSecLibHandle )
-      dlclose( pSecLibHandle );
+    delete pSecLibHandle; pSecLibHandle = 0;
   }
 
   //----------------------------------------------------------------------------
@@ -1582,29 +1584,21 @@ namespace XrdCl
     if( pAuthHandler )
       return pAuthHandler;
 
-    //--------------------------------------------------------------------------
-    // dlopen the library
-    //--------------------------------------------------------------------------
+    char errorBuff[1024];
     std::string libName = "libXrdSec"; libName += LT_MODULE_EXT;
-    pSecLibHandle = ::dlopen( libName.c_str(), RTLD_NOW );
-    if( !pSecLibHandle )
-    {
-      log->Error( XRootDTransportMsg,
-                  "Unable to load the authentication library %s: %s",
-                  libName.c_str(), ::dlerror() );
-      return 0;
-    }
+    pSecLibHandle = new XrdSysPlugin( errorBuff, 1024, libName.c_str(),
+                                      libName.c_str(),
+                                      &XrdVERSIONINFOVAR( XrdCl ) );
 
-    //--------------------------------------------------------------------------
-    // Get the authentication function handle
-    //--------------------------------------------------------------------------
-    pAuthHandler = (XrdSecGetProt_t)dlsym( pSecLibHandle, "XrdSecGetProtocol" );
+    pAuthHandler = (XrdSecGetProt_t)pSecLibHandle->getPlugin(
+      "XrdSecGetProtocol", false, false );
+
     if( !pAuthHandler )
     {
       log->Error( XRootDTransportMsg,
                   "Unable to get the XrdSecGetProtocol symbol from library "
-                  "%s: %s", libName.c_str(), ::dlerror() );
-      ::dlclose( pSecLibHandle );
+                  "%s: %s", libName.c_str(), errorBuff );
+      delete pSecLibHandle;
       pSecLibHandle = 0;
       return 0;
     }
