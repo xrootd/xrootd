@@ -6,17 +6,10 @@ Prerelease Notes
 ================
 
 + **New Features**
-   * Provide the filesystem plugin a way of creating a session storage area.
-   * Add flag to indicates a secondary copy of a file exists.
-   * Allow testing for undefined set/env vars via if-else-fi.
 
 + **Major bug fixes**
-   * Fix xrootdfs wcache crashing issue when using virtual file descriptor.
-   * Fix selection of a server when a DNS entry resolves to more than one.
-   * Correct pthread_cond_timedwait() time calculation and error handling.
 
 + **Minor bug fixes**
-   * Fix null insertion of hostname in error message when open fails.
 
 + **Miscellaneous**
 

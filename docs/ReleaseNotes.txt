@@ -51,6 +51,10 @@ Version 4.0.0
    * Add version as a variable that can be returned by kXR_Qconfig.
    * Add sitename as an argument to kXR_Query+kXR_Qconfig.
    * Provide disconnect notifiation to underlying file system.
+   * Provide the filesystem plugin a way of creating a session storage area.
+   * Add flag to indicates a secondary copy of a file exists.
+   * Allow testing for undefined set/env vars via if-else-fi.
+   * Add '-L' flag to the xrootd command to allow loading a protocol library
 
 + **Bug fixes**
    * Fix various dead locks in the IOEvents poller.
@@ -74,6 +78,10 @@ Version 4.0.0
    * Squelch casting complaints from C++11.
    * Make sure to return all nodes in a star locate request.
    * Always load protocols in the specified order.
+   * Fix xrootdfs wcache crashing issue when using virtual file descriptor.
+   * Fix selection of a server when a DNS entry resolves to more than one.
+   * Correct pthread_cond_timedwait() time calculation and error handling.
+   * Fix null insertion of hostname in error message when open fails.
 
 + **Miscellaneous**
    * XrdClient and associated commandline utilities are now obsoleted.
