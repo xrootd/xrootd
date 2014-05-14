@@ -1530,7 +1530,7 @@ namespace XrdCl
       info->authProtocol = (*authHandler)( hsData->url->GetHostName().c_str(),
                                            *srvAddr,
                                            *info->authParams,
-                                           0 );
+                                           &ei );
       if( !info->authProtocol )
       {
         log->Error( XRootDTransportMsg, "[%s] No protocols left to try",
