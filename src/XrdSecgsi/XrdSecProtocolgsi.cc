@@ -1395,9 +1395,13 @@ XrdSecCredentials *XrdSecProtocolgsi::getCredentials(XrdSecParameters *parm,
          return (XrdSecCredentials *)0;
    }
 
-   // We support passing the user proxy path via Url parameter
+   // We support passing the user {proxy, cert, key} paths via Url parameter
    char *upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrpxy") : 0;
    if (upp) UsrProxy = upp;
+   upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrcrt") : 0;
+   if (upp) UsrCert = upp;
+   upp = (ei && ei->getEnv()) ? ei->getEnv()->Get("xrd.gsiusrkey") : 0;
+   if (upp) UsrKey = upp;
 
    // Count interations
    (hs->Iter)++;
