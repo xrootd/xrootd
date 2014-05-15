@@ -621,6 +621,7 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
          return -kErrPX_SetPathDepth;
       }
    }
+
    //
    // create extension
    X509_EXTENSION *ext = X509_EXTENSION_new();
@@ -665,7 +666,9 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
       PRINT("could not create stack for extensions"); 
       return -kErrPX_NoResources;
    }
-   if (sk_X509_EXTENSION_push(esk, ext) != 1) {
+   //
+   // Now we add the new extension
+   if (sk_X509_EXTENSION_push(esk, ext) == 0) {
       PRINT("could not push the extension in the stack"); 
       return -kErrPX_Error;
    }
@@ -728,6 +731,25 @@ int XrdSslgsiX509CreateProxy(const char *fnc, const char *fnk,
    if (!X509_gmtime_adj(X509_get_notAfter(xPX), valid)) {
       PRINT("could not set notAfter"); 
       return -kErrPX_SetAttribute;
+   }
+
+   // First duplicate the extensions of the EE certificate
+   X509_EXTENSION *xEECext = 0;
+   int nEECext = X509_get_ext_count(xEEC);
+   PRINT("number of extensions found in the original certificate: "<< nEECext);
+   int i = 0;
+   for (i = 0; i< nEECext; i++) {
+      xEECext = X509_get_ext(xEEC, i);
+      X509_EXTENSION *xEECextdup = X509_EXTENSION_dup(xEECext);
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xEECextdup), 1);
+      if (X509_add_ext(xPX, xEECextdup, -1) == 0) {
+         PRINT("could not push the extension '"<<s<<"' in the stack"); 
+         return -kErrPX_Error;
+      }
+      // Notify what we added
+      int crit = X509_EXTENSION_get_critical(xEECextdup);
+      PRINT("added extension '"<<s<<"', critical: " << crit);
    }
 
    // Add the extension
@@ -1324,7 +1346,7 @@ int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
       PRINT("invalid inputs");
       return rc;
    }
-   
+
    // Point to the cerificate
    X509 *xpi = (X509 *)(xcpi->Opaque());
 
@@ -1337,8 +1359,9 @@ int XrdSslgsiX509DumpExtensions(XrdCryptoX509 *xcpi)
       xpiext = X509_get_ext(xpi, i);
       char s[256];
       OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
+      int crit = X509_EXTENSION_get_critical(xpiext);
       // Notify what we found
-      PRINT("found extension '"<<s<<"'");
+      PRINT("found extension '"<<s<<"', critical: " << crit);
       // Dump its content
       rc = 0;
       XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
