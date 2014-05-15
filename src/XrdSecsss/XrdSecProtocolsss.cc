@@ -160,8 +160,8 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
       {Fatal(einfo,"Authenticate",ENOENT,"No hostname or IP address specified.");
        return -1;
       }
-   CLDBG(urName <<' ' <<urIP << " must match " <<(theHost ? theHost : "?")
-         <<' ' <<(theIP ? theIP : "[?]"));
+   CLDBG(urName <<' ' <<urIP <<" or " <<urIQ << " must match " 
+         <<(theHost ? theHost : "?") <<' ' <<(theIP ? theIP : "[?]"));
    if (theIP)
       {if (strcmp(theIP, urIP) && strcmp(theIP, urIQ))
           {Fatal(einfo, "Authenticate", EINVAL, "IP address mismatch.");
@@ -636,6 +636,7 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
    static const int hdrSZ = sizeof(XrdSecsssRR_Hdr);
    XrdOucEnv *errEnv = 0;
    char *myIP = 0, *credP, *eodP = ((char *)rrData) + dLen;
+   char ipBuff[256];
    int knum, cLen;
 
 // Make sure we have enought space left in the buffer
@@ -651,13 +652,16 @@ XrdSecCredentials *XrdSecProtocolsss::Encode(XrdOucErrInfo      *einfo,
 //
    if (einfo && (errEnv = einfo->getEnv()) && (myIP = errEnv->Get("sockname")))
       {*eodP++ = XrdSecsssRR_Data::theHost;
+       if (!strncmp(myIP, "[::ffff:", 8))
+          {strcpy(ipBuff, "[::"); strcpy(ipBuff+3, myIP+8); myIP = ipBuff;}
        XrdOucPup::Pack(&eodP, myIP);
        dLen = eodP - (char *)rrData;
       } else {
-       char ipBuff[256];
        if (epAddr.SockFD() > 0
-       &&  XrdNetUtils::IPFormat(-(epAddr.SockFD()), ipBuff, sizeof(ipBuff)))
-          {XrdOucPup::Pack(&eodP, ipBuff);
+       &&  XrdNetUtils::IPFormat(-(epAddr.SockFD()), ipBuff, sizeof(ipBuff),
+                                 XrdNetUtils::oldFmt))
+          {*eodP++ = XrdSecsssRR_Data::theHost;
+           XrdOucPup::Pack(&eodP, ipBuff);
            dLen = eodP - (char *)rrData;
           } else {
             CLDBG("No IP address to encode (" <<(einfo==0) <<(errEnv==0)
