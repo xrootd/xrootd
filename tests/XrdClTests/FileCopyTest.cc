@@ -286,7 +286,8 @@ namespace
       //------------------------------------------------------------------------
       // Job progress
       //------------------------------------------------------------------------
-      virtual void JobProgress( uint64_t bytesProcessed,
+      virtual void JobProgress( uint16_t jobNum,
+                                uint64_t bytesProcessed,
                                 uint64_t bytesTotal )
       {
         if( bytesProcessed > 128*1024*1024 )
@@ -296,7 +297,7 @@ namespace
       //------------------------------------------------------------------------
       // Determine whether the job should be canceled
       //------------------------------------------------------------------------
-      virtual bool ShouldCancel() { return pCancel; }
+      virtual bool ShouldCancel( uint16_t jobNum ) { return pCancel; }
 
     private:
       bool pCancel;
