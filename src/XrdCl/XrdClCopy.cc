@@ -69,12 +69,12 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! End job
     //--------------------------------------------------------------------------
-    virtual void EndJob( const XrdCl::PropertyList *results )
+    virtual void EndJob( uint16_t jobNum, const XrdCl::PropertyList *results )
     {
       // make sure the last available status was printed, which may not be
       // the case when processing stdio since we throttle printing and don't
       // know the total size
-      JobProgress( pBytesProcessed, pBytesTotal );
+      JobProgress( jobNum, pBytesProcessed, pBytesTotal );
 
       if( pPrintProgressBar )
         std::cerr << std::endl;
@@ -103,7 +103,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Job progress
     //--------------------------------------------------------------------------
-    virtual void JobProgress( uint64_t bytesProcessed,
+    virtual void JobProgress( uint16_t jobNum,
+                              uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
       if( pPrintProgressBar )
