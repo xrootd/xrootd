@@ -1133,9 +1133,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ClassicCopyJob::ClassicCopyJob( PropertyList *jobProperties,
+  ClassicCopyJob::ClassicCopyJob( uint16_t      jobId,
+                                  PropertyList *jobProperties,
                                   PropertyList *jobResults ):
-    CopyJob( jobProperties, jobResults )
+    CopyJob( jobId, jobProperties, jobResults )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a classic copy job, from %s to %s",
@@ -1239,7 +1240,7 @@ namespace XrdCl
         return st;
 
       processed += chunkInfo.length;
-      if( progress ) progress->JobProgress( processed, size );
+      if( progress ) progress->JobProgress( pJobId, processed, size );
     }
 
     //--------------------------------------------------------------------------

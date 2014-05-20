@@ -100,9 +100,10 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   // Constructor
   //----------------------------------------------------------------------------
-  ThirdPartyCopyJob::ThirdPartyCopyJob( PropertyList *jobProperties,
+  ThirdPartyCopyJob::ThirdPartyCopyJob( uint16_t      jobId,
+                                        PropertyList *jobProperties,
                                         PropertyList *jobResults ):
-    CopyJob( jobProperties, jobResults )
+    CopyJob( jobId, jobProperties, jobResults )
   {
     Log *log = DefaultEnv::GetLog();
     log->Debug( UtilityMsg, "Creating a third party copy job, from %s to %s",
@@ -303,11 +304,11 @@ namespace XrdCl
         st = fs.Stat( GetTarget().GetPathWithParams(), info );
         if( st.IsOK() )
         {
-          progress->JobProgress( info->GetSize(), sourceSize );
+          progress->JobProgress( pJobId, info->GetSize(), sourceSize );
           delete info;
           info = 0;
         }
-        bool shouldCancel = progress->ShouldCancel();
+        bool shouldCancel = progress->ShouldCancel( pJobId );
         if( shouldCancel )
         {
           log->Debug( UtilityMsg, "Cancelation requested by progress handler" );

@@ -30,7 +30,8 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Constructor
       //------------------------------------------------------------------------
-      ClassicCopyJob( PropertyList *jobProperties,
+      ClassicCopyJob( uint16_t      jobId,
+                      PropertyList *jobProperties,
                       PropertyList *jobResults );
 
       //------------------------------------------------------------------------

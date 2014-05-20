@@ -38,9 +38,12 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      CopyJob( PropertyList *jobProperties, PropertyList *jobResults ):
+      CopyJob( uint16_t      jobId,
+               PropertyList *jobProperties,
+               PropertyList *jobResults ):
         pProperties( jobProperties ),
-        pResults( jobResults )
+        pResults( jobResults ),
+        pJobId( jobId )
       {
         pProperties->Get( "source", pSource );
         pProperties->Get( "target", pTarget );
@@ -98,6 +101,7 @@ namespace XrdCl
       PropertyList *pResults;
       URL           pSource;
       URL           pTarget;
+      uint16_t      pJobId;
   };
 }
 
