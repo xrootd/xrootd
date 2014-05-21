@@ -44,6 +44,7 @@
 #include "XrdCms/XrdCmsBaseFS.hh"
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsCluster.hh"
+#include "XrdCms/XrdCmsClustID.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsManager.hh"
 #include "XrdCms/XrdCmsManList.hh"
@@ -93,6 +94,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     Link     =  lnkp;
     NodeMask =  (id < 0 ? 0 : smask_1 << id);
     NodeID   = id;
+    cidP     =  0;
     isDisable=  0;
     isNoStage=  0;
     isOffline=  (lnkp == 0);
@@ -108,7 +110,6 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     myCost   =  0;
     myLoad   =  0;
     myMass   =  0;
-    myCNUM   = -3;
     DiskTotal=  0;
     DiskFree =  0;
     DiskMinF =  0;
@@ -135,6 +136,7 @@ XrdCmsNode::XrdCmsNode(XrdLink *lnkp, const char *theIF, const char *nid,
     ConfigID =  0;
     TZValid  = 0;
     TimeZone = 0;
+    subsPort = 0;
 
 // setName() will set the node identification information
 //
@@ -156,6 +158,7 @@ XrdCmsNode::~XrdCmsNode()
 
 // Delete other appendages
 //
+   if (cidP) {cidP->RemNode(this); cidP = 0;}
    if (Ident) free(Ident);
    if (myNID) free(myNID);
    if (myName)free(myName);

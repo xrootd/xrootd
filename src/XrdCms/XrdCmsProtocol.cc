@@ -302,8 +302,9 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 // Compute the Manager's status (this never changes for managers/supervisors)
 //
    if (Config.asPeer())                Role  = CmsLoginData::kYR_peer;
-      else if (Config.asManager())     Role  = CmsLoginData::kYR_manager;
-              else                     Role  = CmsLoginData::kYR_server;
+      else {if (Config.asManager())    Role |= CmsLoginData::kYR_manager;
+            if (Config.asServer())     Role |= CmsLoginData::kYR_server;
+           }
    if (Config.asProxy())               Role |= CmsLoginData::kYR_proxy;
 
 // If we are a simple server, permanently add the nostage option if we are
@@ -360,7 +361,8 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
        //
        loginData.fSpace= Meter.FreeSpace(fsUtil);
        loginData.fsUtil= static_cast<kXR_unt16>(fsUtil);
-       KickedOut = 0; loginData.dPort = CmsState.Port();
+       KickedOut = 0;
+       if (!(loginData.dPort = CmsState.Port())) loginData.dPort = 1094;
        Data = loginData; Data.Mode = Mode | myShare | myTimeZ;
        if (!(rc = XrdCmsLogin::Login(Link, Data, TimeOut)))
           {if(!ManTree.Connect(myNID, myNode)) KickedOut = 1;
@@ -500,8 +502,8 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    XrdCmsRole::RoleID roleID = XrdCmsRole::noRole;
    const char  *Reason;
    SMask_t      newmask, servset(0);
-   int addedp = 0, Status = 0, isMan = 0, isPeer = 0, isProxy = 0, isServ = 0;
-   int wasSuspended = 0, Share = 100, tZone = 0;
+   int addedp = 0, Status = 0, isPeer = 0, isProxy = 0;
+   int isMan, isServ, wasSuspended = 0, Share = 100, tZone = 0;
 
 // Establish outgoing mode
 //
@@ -528,16 +530,23 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    if (Config.asSolo())
       return Login_Failed("configuration disallows subscribers");
 
+// Setup for role tests
+//
+   isMan  = Data.Mode & CmsLoginData::kYR_manager;
+   isServ = Data.Mode & CmsLoginData::kYR_server;
+
 // Determine the role of this incomming login.
 //
-        if ((isMan = Data.Mode & CmsLoginData::kYR_manager))
-           {Status = CMS_isMan;
+        if (isMan)
+           {Status = (isServ ? CMS_isSuper : CMS_isMan);
                  if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
                     {Status |= CMS_isPeer;  roleID = XrdCmsRole::PeerManager;}
             else if (Data.Mode & CmsLoginData::kYR_proxy)
                                             roleID = XrdCmsRole::ProxyManager;
             else if (Config.asMetaMan())    roleID = XrdCmsRole::Manager;
-            else                            roleID = XrdCmsRole::Supervisor;
+            else                           {roleID = XrdCmsRole::Supervisor;
+                                            Status|= CMS_isSuper;
+                                           }
            }
    else if ((isServ =  Data.Mode & CmsLoginData::kYR_server))
            {if ((isProxy=  Data.Mode & CmsLoginData::kYR_proxy))
@@ -647,7 +656,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 
 // Document the login
 //
-   Say.Emsg("Protocol", myNode->Ident,
+   Say.Emsg("Protocol",(myNode->isMan > 1 ? "Standby":"Primary"),myNode->Ident,
             (myNode->isSuspend ? "logged in suspended." : "logged in."));
 
 // All done

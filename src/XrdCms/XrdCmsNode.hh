@@ -44,6 +44,7 @@
 
 class XrdCmsBaseFR;
 class XrdCmsBaseFS;
+class XrdCmsClustID;
 class XrdCmsDrop;
 class XrdCmsPrepArgs;
 class XrdCmsRRData;
@@ -184,11 +185,13 @@ XrdCmsNode        *Next;
 time_t             DropTime;
 XrdCmsDrop        *DropJob;  
 
+XrdCmsClustID     *cidP;
 SMask_t            NodeMask;
 int                NodeID;
 int                Instance;
 int                myLevel;
-int                myCNUM;
+short              subsPort;     // Subscription port number
+short              Rsvd2;
 char              *myCID;
 char              *myNID;
 char              *myName;

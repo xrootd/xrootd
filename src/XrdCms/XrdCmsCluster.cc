@@ -47,6 +47,7 @@
 #include "XrdCms/XrdCmsCache.hh"
 #include "XrdCms/XrdCmsConfig.hh"
 #include "XrdCms/XrdCmsCluster.hh"
+#include "XrdCms/XrdCmsClustID.hh"
 #include "XrdCms/XrdCmsNode.hh"
 #include "XrdCms/XrdCmsRole.hh"
 #include "XrdCms/XrdCmsRRQ.hh"
@@ -102,7 +103,6 @@ XrdCmsCluster::XrdCmsCluster()
 {
      memset((void *)NodeTab, 0, sizeof(NodeTab));
      memset((void *)AltMans, (int)' ', sizeof(AltMans));
-     cidFirst=  0;
      AltMend = AltMans;
      AltMent = -1;
      NodeCnt =  0;
@@ -129,9 +129,12 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
    EPNAME("Add")
    const char *act = "";
    XrdCmsNode *nP = 0;
-   int Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1, aSet = 0;
-   int tmp, Special = (Status & (CMS_isMan|CMS_isPeer));
+   XrdCmsClustID *cidP = 0;
    XrdSysMutexHelper STMHelper(STMutex);
+   int tmp, Slot, Free = -1, Bump1 = -1, Bump2 = -1, Bump3 = -1, aSet = 0;
+   bool Special = (Status & (CMS_isMan|CMS_isPeer));
+   bool SpecAlt = (Special && !(Status & CMS_isSuper));
+   bool Hidden  = false;
 
 // Find available slot for this node. Here are the priorities:
 // Slot  = Reconnecting node
@@ -166,7 +169,18 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
            nP->isConn    = 1;
            nP->Instance++;
            nP->setName(lp, theIF, port);  // Just in case it changed
-           act = "Re-added ";
+           act = "Reconnect ";
+          }
+      }
+
+// First see if this node may be an alternate
+//
+   if (!nP && SpecAlt)
+      {if ((cidP = XrdCmsClustID::Find(theNID)) && !(cidP->IsEmpty()))
+          {if (!(nP = AddAlt(cidP, lp, port, Status, sport, theNID, theIF)))
+              return 0;
+           aSet = 1; Slot = nP->NodeID;
+           if (nP != NodeTab[Slot]) {Hidden = true; act = "Alternate ";}
           }
       }
 
@@ -195,11 +209,14 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
                 act = "Shoved ";
                }
        NodeTab[Slot] = nP = new XrdCmsNode(lp, theIF, theNID, port, 0, Slot);
+       if (!cidP) cidP = XrdCmsClustID::AddID(theNID);
+       if ((cidP->AddNode(nP, Special))) nP->cidP = cidP;
+          else {delete nP; NodeTab[Slot] = 0; return 0;}
       }
 
 // Indicate whether this snode can be redirected
 //
-   nP->isPerm = (Status & (CMS_isMan | CMS_isPeer)) ? CMS_Perm : 0;
+   nP->isPerm = (Status & (CMS_isMan | CMS_isPeer)) ? 1 : 0;
 
 // Assign new server
 //
@@ -207,15 +224,21 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;
-   nP->isNoStage = (Status & CMS_noStage);
-   nP->isSuspend = (Status & CMS_Suspend);
-   nP->isMan     = (Status & CMS_isMan);
-   nP->isPeer    = (Status & CMS_isPeer);
+   nP->isNoStage = 0 != (Status & CMS_noStage);
+   nP->isSuspend = 0 != (Status & CMS_Suspend);
+   nP->isMan     = 0 != (Status & CMS_isMan);
+   nP->isPeer    = 0 != (Status & CMS_isPeer);
    nP->isDisable = 1;
-   NodeCnt++;
-   if (Config.SUPLevel
-   && (tmp = NodeCnt*Config.SUPLevel/100) > Config.SUPCount)
-      {Config.SUPCount=tmp; CmsState.Set(tmp);}
+   nP->subsPort  = sport;
+
+// If this is an actual non-hidden node, count it
+//
+   if (!Hidden)
+      {NodeCnt++;
+       if (Config.SUPLevel
+       && (tmp = NodeCnt*Config.SUPLevel/100) > Config.SUPCount)
+          {Config.SUPCount=tmp; CmsState.Set(tmp);}
+      } else nP->isMan |= 0x02;
 
 // Compute new peer mask, as needed
 //
@@ -223,17 +246,13 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
       else         peerHost &= ~nP->NodeMask;
    peerMask = ~peerHost;
 
-// Assign a unique cluster number
-//
-   nP->myCNUM = Assign(nP->myCID);
-
 // Document login
 //
    if (QTRACE(Debug))
       {const char *ifPub, *ifPrv;
-       DEBUG(act <<nP->Ident <<" to cluster " <<nP->myCNUM <<" slot "
-             <<Slot <<'.' <<nP->Instance <<" (n=" <<NodeCnt <<" m="
-             <<Config.SUPCount <<") ID=" <<nP->myNID);
+       DEBUG(act <<nP->Ident <<" to cluster " <<nP->myNID <<" slot "
+             <<Slot <<'.' <<nP->Instance <<" (nodecnt=" <<NodeCnt
+             <<" supn=" <<Config.SUPCount <<")");
        if (!nP->netIF.GetDest(XrdNetIF::Public, ifPub)) ifPub = "n/a";
        if (!nP->netIF.GetDest(XrdNetIF::Private,ifPrv)) ifPrv = "n/a";
        DEBUG(act <<nP->Ident <<" i/f public: " <<ifPub <<" private: " <<ifPrv);
@@ -241,11 +260,58 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
 
 // Compute new state of all nodes if we are a reporting manager.
 //
-   if (Config.asManager()) 
+   if (Config.asManager() && !Hidden)
       CmsState.Update(XrdCmsState::Counts,nP->isSuspend?0:1,nP->isNoStage?0:1);
 
 // All done
 //
+   return nP;
+}
+  
+/******************************************************************************/
+/* Private:                       A d d A l t                                 */
+/******************************************************************************/
+  
+XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
+                                  int port, int Status, int sport,
+                                  const char *theNID, const char *theIF)
+
+{
+   EPNAME("AddAlt")
+   XrdCmsNode *nP, *pP;
+   int slot = cidP->Slot();
+
+// Check if this node is already in the alternate table
+//
+   if (cidP->Exists(lp, theNID, port))
+      {Say.Emsg(epname, lp->ID, "already logged in.");
+       return 0;
+      }
+
+// Add this node if there is room
+//
+   if (cidP->Avail())
+      {nP = new XrdCmsNode(lp, theIF, theNID, port, 0, slot);
+       if (!(cidP->AddNode(nP, true)))
+          {delete nP;
+           Say.Emsg(epname, "Add alternate manager", lp->ID,
+                            "failed; too many subscribers.");
+           return 0;
+          }
+      }
+
+// Check if the existing lead dead and we can substiture this one
+//
+   if ((pP = NodeTab[slot]) && !(pP->isBound))
+      {setAltMan(nP->NodeID, nP->Link, sport);
+       Say.Emsg("AddAlt", nP->Ident, "replacing dropped", pP->Ident);
+       NodeTab[slot] = nP;
+       delete pP;
+      }
+
+// Hook the node to the cluster table and return
+//
+   nP->cidP = cidP;
    return nP;
 }
 
@@ -433,39 +499,7 @@ SMask_t XrdCmsCluster::getMask(const XrdNetAddr *addr)
 
 SMask_t XrdCmsCluster::getMask(const char *Cid)
 {
-   XrdCmsNode *nP;
-   SMask_t smask(0);
-   XrdOucTList *cP;
-   int i = 1, Cnum = -1;
-
-// Lock the cluster ID list
-//
-   cidMutex.Lock();
-
-// Now find the cluster
-//
-   cP = cidFirst;
-   while(cP && (i = strcmp(Cid, cP->text)) < 0) cP = cP->next;
-
-// If we didn't find the cluster, return a mask of zeroes
-//
-   if (cP) Cnum = cP->val;
-   cidMutex.UnLock();
-   if (i) return smask;
-
-// Obtain a lock on the table
-//
-   STMutex.Lock();
-
-// Run through the table looking for a node with matching cluster number
-//
-   for (i = 0; i <= STHi; i++)
-       if ((nP = NodeTab[i]) && nP->myCNUM == Cnum) smask |= nP->NodeMask;
-
-// All done
-//
-   STMutex.UnLock();
-   return smask;
+   return XrdCmsClustID::Mask(Cid);
 }
 
 /******************************************************************************/
@@ -704,28 +738,37 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
    struct theLocks
           {XrdSysMutex *myMutex;
            XrdCmsNode  *myNode;
-           char        *myIdent;
-           int          myImmed;
            int          myNID;
            int          myInst;
+           bool         hasLK;
+           bool         doDrop;
+           char         myIdent[510];
 
                        theLocks(XrdSysMutex *mtx, XrdCmsNode *node, int immed)
-                               : myMutex(mtx), myNode(node), myImmed(immed)
-                               {myIdent = strdup(node->Ident);
+                               : myMutex(mtx), myNode(node), hasLK(immed < 0),
+                                 doDrop(false)
+                               {strlcpy(myIdent, node->Ident, sizeof(myIdent));
                                 myNID = node->ID(myInst);
-                                if (myImmed >= 0)
+                                if (!hasLK)
                                    {myNode->UnLock();
                                     myMutex->Lock();
                                     myNode->Lock();
                                    }
                                }
                       ~theLocks()
-                               {if (myImmed >= 0) myMutex->UnLock();
-                                if (myNode) myNode->UnLock();
-                                free(myIdent);
+                               {if (myNode)
+                                   {if (doDrop)
+                                       {myNode->DropTime = 0;
+                                        myNode->DropJob  = 0;
+                                        myNode->isBound  = 0;
+                                        myNode->UnLock(); delete myNode;
+                                       } else myNode->UnLock();
+                                   }
+                                if (!hasLK) myMutex->UnLock();
                                }
           } LockHandler(&STMutex, theNode, immed);
 
+   XrdCmsNode *altNode = 0;
    int Inst, NodeID = theNode->ID(Inst);
 
 // The LockHandler makes sure that the proper locks are obtained in a deadlock
@@ -739,7 +782,7 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
              << LockHandler.myNID <<'.' <<LockHandler.myInst <<" at entry.");
       }
 
-// Mark node as being offline
+// Mark node as being offline and remove any drop job from it
 //
    theNode->isOffline = 1;
 
@@ -754,23 +797,49 @@ void XrdCmsCluster::Remove(const char *reason, XrdCmsNode *theNode, int immed)
        return;
       }
 
+// If we are not the primary node, then get rid of this node post-haste
+//
+   if (!(NodeTab[NodeID] == theNode))
+      {Say.Emsg("Remove_Node", theNode->Ident, "dropped as alternate.");
+       LockHandler.doDrop = true;
+       return;
+      }
+
 
 // If the node is part of the cluster, do not count it anymore and
 // indicate new state of this nodes if we are a reporting manager
 //
    if (theNode->isBound)
-      {theNode->isBound = 0; NodeCnt--;
+      {theNode->isBound = 0;
+       NodeCnt--;
        if (Config.asManager())
           CmsState.Update(XrdCmsState::Counts, theNode->isSuspend ? 0 : -1,
                                                theNode->isNoStage ? 0 : -1);
       }
 
+// If we have a working alternate, substitute it here and immediately drop
+// the former primary. This allows the cache to remain warm.
+//
+   if (theNode->isMan && theNode->cidP && !(theNode->cidP->IsSingle())
+   && (altNode = theNode->cidP->RemNode(theNode)))
+      {if (altNode->isBound) NodeCnt++;
+       NodeTab[NodeID] = altNode;
+       if (Config.asManager())
+          CmsState.Update(XrdCmsState::Counts, altNode->isSuspend ? 0 :  1,
+                                               altNode->isNoStage ? 0 :  1);
+       setAltMan(altNode->NodeID, altNode->Link, altNode->subsPort);
+       Say.Emsg("Manager",altNode->Ident,"replacing dropped",theNode->Ident);
+       LockHandler.doDrop = true;
+       return;
+      }
+
 // If this is an immediate drop request, do so now. Drop() will delete
-// the node object and remove the node lock. So, tell LockHandler that.
+// the node object, so remove the node lock and tell LockHandler that.
 //
    if (immed || !Config.DRPDelay) 
-      {Drop(NodeID, Inst);
+      {theNode->UnLock();
        LockHandler.myNode = 0;
+       Drop(NodeID, Inst);
        return;
       }
 
@@ -1214,42 +1283,6 @@ int XrdCmsCluster::Statt(char *bfr, int bln)
 /*                       P r i v a t e   M e t h o d s                        */
 /******************************************************************************/
 /******************************************************************************/
-/*                                A s s i g n                                 */
-/******************************************************************************/
-  
-int XrdCmsCluster::Assign(const char *Cid)
-{
-   static int cNum = 0;
-   XrdOucTList *cP, *cPP, *cNew;
-   int n = -1;
-
-// Lock the cluster ID list
-//
-   cidMutex.Lock();
-
-// Now find the cluster
-//
-   cP = cidFirst; cPP = 0;
-   while(cP && (n = strcmp(Cid, cP->text)) < 0) {cPP = cP; cP = cP->next;}
-
-// If an exiting cluster simply return the cluster number
-//
-   if (!n && cP) {n = cP->val; cidMutex.UnLock(); return n;}
-
-// Add this cluster
-//
-   n = ++cNum;
-   cNew = new XrdOucTList(Cid, cNum, cP);
-   if (cPP) cPP->next = cNew;
-      else  cidFirst  = cNew;
-
-// Return the cluster number
-//
-   cidMutex.UnLock();
-   return n;
-}
-
-/******************************************************************************/
 /*                             c a l c D e l a y                              */
 /******************************************************************************/
   
@@ -1311,7 +1344,7 @@ int XrdCmsCluster::Drop(int sent, int sinst, XrdCmsDrop *djp)
 //
    strlcpy(hname, nP->Ident, sizeof(hname));
 
-// Remove node from the node table
+// Cleanup status
 //
    NodeTab[sent] = 0;
    nP->isOffline = 1;

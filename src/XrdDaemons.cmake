@@ -34,6 +34,7 @@ add_executable(
   XrdCms/XrdCmsBaseFS.cc          XrdCms/XrdCmsBaseFS.hh
   XrdCms/XrdCmsCache.cc           XrdCms/XrdCmsCache.hh
   XrdCms/XrdCmsCluster.cc         XrdCms/XrdCmsCluster.hh
+  XrdCms/XrdCmsClustID.cc         XrdCms/XrdCmsClustID.hh
   XrdCms/XrdCmsConfig.cc          XrdCms/XrdCmsConfig.hh
   XrdCms/XrdCmsJob.cc             XrdCms/XrdCmsJob.hh
   XrdCms/XrdCmsKey.cc             XrdCms/XrdCmsKey.hh

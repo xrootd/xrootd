@@ -68,6 +68,12 @@ static const int CMS_Lost    = 16;
 static const int CMS_isPeer  = 32;
 static const int CMS_isProxy = 64;
 static const int CMS_noSpace =128;
+static const int CMS_isSuper =256;
+
+static const int CMS_isVers3 =0x01000000;
+
+static const int CMS_notServ =CMS_isMan|CMS_isPeer|CMS_isSuper;
+static const int CMS_hasAlts =CMS_isMan|CMS_isPeer;
 
 // Class passed to Space()
 //
@@ -98,6 +104,7 @@ int       sUtil;    // Average utilization
 // This a single-instance global class
 //
 class XrdCmsBaseFR;
+class XrdCmsClustID;
 class XrdCmsSelected;
 class XrdOucTList;
 
@@ -192,7 +199,8 @@ int             Statt(char *bfr, int bln); // Manager
 virtual        ~XrdCmsCluster() {} // This object should never be deleted
 
 private:
-int         Assign(const char *Cid);
+XrdCmsNode *AddAlt(XrdCmsClustID *cidP, XrdLink *lp, int port, int Status,
+                   int sport, const char *theNID, const char *theIF);
 XrdCmsNode *calcDelay(int nump, int numd, int numf, int numo,
                       int nums, int &delay, const char **reason);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
@@ -212,9 +220,6 @@ void        setAltMan(int snum, XrdLink *lp, int port);
 // Number of IP:Port characters per entry
 //
 static const  int AltSize = INET6_ADDRSTRLEN+10;
-
-XrdSysMutex   cidMutex;         // Protects to cid list
-XrdOucTList  *cidFirst;         // Cluster ID to cluster number map
 
 XrdSysMutex   XXMutex;          // Protects cluster summary state variables
 XrdSysMutex   STMutex;          // Protects all node information  variables
