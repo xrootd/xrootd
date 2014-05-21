@@ -8,7 +8,6 @@ Prerelease Notes
 + **New Features**
 
 + **Major bug fixes**
-   * Provide backward compatibility for sss protocol.
 
 + **Minor bug fixes**
 
