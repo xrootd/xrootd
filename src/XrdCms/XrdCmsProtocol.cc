@@ -538,7 +538,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 // Determine the role of this incomming login.
 //
         if (isMan)
-           {Status = (isServ ? CMS_isSuper : CMS_isMan);
+           {Status = (isServ ? CMS_isSuper|CMS_isMan : CMS_isMan);
                  if ((isPeer =  Data.Mode & CmsLoginData::kYR_peer))
                     {Status |= CMS_isPeer;  roleID = XrdCmsRole::PeerManager;}
             else if (Data.Mode & CmsLoginData::kYR_proxy)
