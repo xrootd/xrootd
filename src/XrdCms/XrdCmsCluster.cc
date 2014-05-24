@@ -278,7 +278,7 @@ XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
 
 {
    EPNAME("AddAlt")
-   XrdCmsNode *nP, *pP;
+   XrdCmsNode *pP, *nP = 0;
    int slot = cidP->Slot();
 
 // Check if this node is already in the alternate table
@@ -292,12 +292,15 @@ XrdCmsNode *XrdCmsCluster::AddAlt(XrdCmsClustID *cidP, XrdLink *lp,
 //
    if (cidP->Avail())
       {nP = new XrdCmsNode(lp, theIF, theNID, port, 0, slot);
-       if (!(cidP->AddNode(nP, true)))
-          {delete nP;
-           Say.Emsg(epname, "Add alternate manager", lp->ID,
-                            "failed; too many subscribers.");
-           return 0;
-          }
+       if (!(cidP->AddNode(nP, true))) {delete nP; nP = 0;}
+      }
+
+// Check if we were actually able to add this node
+//
+   if (!nP)
+      {Say.Emsg(epname, "Add alternate manager", lp->ID,
+                        "failed; too many subscribers.");
+       return 0;
       }
 
 // Check if the existing lead dead and we can substiture this one
