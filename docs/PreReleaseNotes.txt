@@ -12,4 +12,5 @@ Prerelease Notes
 + **Minor bug fixes**
 
 + **Miscellaneous**
+   * Efficiently handle replicated subscribers (i.e. managers).
 
