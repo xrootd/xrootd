@@ -1,4 +1,4 @@
-#ifndef __XRDCKSCALCMD2_HH__
+#ifndef __XRDCKSCALCMD5_HH__
 #define __XRDCKSCALCMD5_HH__
 /******************************************************************************/
 /*                                                                            */

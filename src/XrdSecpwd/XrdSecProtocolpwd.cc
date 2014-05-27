@@ -2072,7 +2072,7 @@ bool XrdSecProtocolpwd::CheckCreds(XrdSutBucket *creds, int ctype)
       // Get the crypt
       char *pass_crypt = crypt(passwd.c_str(), hs->Pent->buf1.buf);
       // Compare
-      if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1) != 0)
+      if (!strncmp(pass_crypt, hs->Pent->buf1.buf, hs->Pent->buf1.len + 1))
          match = 1;
       if (match && KeepCreds) {
          memcpy(cbuf, "cpt:", 4);
