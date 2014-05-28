@@ -211,9 +211,14 @@ namespace
       virtual ~Destination() {}
 
       //------------------------------------------------------------------------
-      //! Initialize the source
+      //! Initialize the destination
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize() = 0;
+
+      //------------------------------------------------------------------------
+      //! Finalize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Finalize() = 0;
 
       //------------------------------------------------------------------------
       //! Put a data chunk at a destination
@@ -838,11 +843,11 @@ namespace
       virtual ~LocalDestination()
       {
         if( pFD != -1 )
-          close( pFD );
+          Finalize();
       }
 
       //------------------------------------------------------------------------
-      //! Initialize the source
+      //! Initialize the destination
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
@@ -878,6 +883,21 @@ namespace
         }
 
         pFD   = fd;
+        return XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Finalize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Finalize()
+      {
+        using namespace XrdCl;
+        if( pFD != -1 )
+        {
+          int fd = pFD; pFD = -1;
+          if( close( fd ) != 0 )
+            return XRootDStatus( stError, errOSError, errno );
+        }
         return XRootDStatus();
       }
 
@@ -995,11 +1015,19 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      //! Initialize the source
+      //! Initialize the destination
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
         return pCkSumHelper.Initialize();
+      }
+
+      //------------------------------------------------------------------------
+      //! Finalize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Finalize()
+      {
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1070,7 +1098,7 @@ namespace
       }
 
       //------------------------------------------------------------------------
-      //! Initialize the source
+      //! Initialize the destination
       //------------------------------------------------------------------------
       virtual XrdCl::XRootDStatus Initialize()
       {
@@ -1094,6 +1122,14 @@ namespace
         Access::Mode mode = Access::UR|Access::UW|Access::GR|Access::OR;
 
         return pFile->Open( pUrl->GetURL(), flags, mode );
+      }
+
+      //------------------------------------------------------------------------
+      //! Finalize the destination
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Finalize()
+      {
+        return pFile->Close();
       }
 
       //------------------------------------------------------------------------
@@ -1254,6 +1290,13 @@ namespace XrdCl
       return XRootDStatus( stError, errDataError );
     }
     pResults->Set( "size", processed );
+
+    //--------------------------------------------------------------------------
+    // Finalize the destination
+    //--------------------------------------------------------------------------
+    st = dest->Finalize();
+    if( !st.IsOK() )
+      return st;
 
     //--------------------------------------------------------------------------
     // Verify the checksums if needed
