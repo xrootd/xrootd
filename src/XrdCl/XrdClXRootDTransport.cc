@@ -1869,7 +1869,9 @@ namespace XrdCl
         else
         {
           if( sreq->options == kXR_refresh )
-            o << "kXR_refresh";
+            o << "kXR_refresh ";
+          if( sreq->options == kXR_prefname )
+            o << "kXR_prefname ";
         }
         o << ")";
         break;
