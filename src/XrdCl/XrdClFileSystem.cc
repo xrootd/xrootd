@@ -907,7 +907,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       LocationInfo *locations;
       std::string locatePath = "*"; locatePath += path;
-      XRootDStatus st = DeepLocate( locatePath, OpenFlags::None, locations );
+      XRootDStatus st = DeepLocate( locatePath, OpenFlags::PrefName, locations );
 
       if( !st.IsOK() )
         return st;
