@@ -111,9 +111,9 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src,
        if (!XrdNetUtils::GetAddrs(hName,&iP,iN,XrdNetUtils::onlyIPv4, p) && iN)
           {for (i = 0; i < iN; i++) {if (!(isPVT ^ iP[i].isPrivate())) break;}
            if (i < iN)
-              {if (!(ifTab.hALen = iP[0].Format(ifTab.hAddr,sizeof(ifTab.hAddr),
+              {if (!(ifTab.hALen = iP[i].Format(ifTab.hAddr,sizeof(ifTab.hAddr),
                                    XrdNetAddr::fmtAddr, noPort))
-               ||  !(ifTab.hDLen = iP[0].Format(ifTab.hDest,sizeof(ifTab.hDest),
+               ||  !(ifTab.hDLen = iP[i].Format(ifTab.hDest,sizeof(ifTab.hDest),
                                    XrdNetAddr::fmtAdv6, old6M4))) aOK = false;
                delete [] iP;
                return aOK;
