@@ -415,6 +415,53 @@ char *XrdNetUtils::MyHostName(const char *eName, const char **eText)
 }
 
 /******************************************************************************/
+/*                             N e t C o n f i g                              */
+/******************************************************************************/
+  
+XrdNetUtils::NetProt XrdNetUtils::NetConfig(XrdNetUtils::NetType netquery,
+                                            const char **eText)
+{
+  XrdNetAddr *myAddrs;
+  const char *eMsg;
+  char buff[1024];
+  NetProt hasProt = hasNone;
+  int aCnt;
+
+// Make sure we support this query
+//
+   if (netquery != qryINET)
+      {if (eText) *eText = "unsupported NetType query";
+       return hasNone;
+      }
+
+// Get our host name and initialize this object with it
+//
+   gethostname(buff, sizeof(buff));
+
+// Now get all of the addresses associated with this hostname
+//
+   if ((eMsg = GetAddrs(buff, &myAddrs, aCnt, allIPv64, NoPortRaw)))
+      {if (eText) *eText = eMsg;
+       return hasNone;
+      }
+
+// Now run through all of the addresses to see what we have
+//
+   for (int i = 0; i < aCnt && hasProt != hasIP64; i++)
+       {     if (myAddrs[i].isIPType(XrdNetAddrInfo::IPv6))
+                hasProt = NetProt(hasProt | hasIPv4);
+        else if (myAddrs[i].isIPType(XrdNetAddrInfo::IPv4))
+                hasProt = NetProt(hasProt | hasIPv6);
+       }
+
+// Delete the array and return what we have
+//
+   delete [] myAddrs;
+   if (hasProt == hasNone && eText) *eText = "";
+   return hasProt;
+}
+
+/******************************************************************************/
 /*                                 P a r s e                                  */
 /******************************************************************************/
   

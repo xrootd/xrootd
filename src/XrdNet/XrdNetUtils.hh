@@ -142,7 +142,7 @@ const char  *GetAddrs(const char *hSpec, XrdNetAddr *aListP[], int &aListN,
 //!                  When <  0 the port must be present in hSpec.
 //!         hWant    Maximum number of list entries wanted. If hWant is greater
 //!                  that eight it is set eigth.
-//! @param  eText    When not nil, is wher to place error message text.
+//! @param  eText    When not nil, is where to place error message text.
 //!
 //! @return Success: Pointer to a list of XrdOucTList objects where
 //!                  p->val  is the port number
@@ -241,6 +241,29 @@ static bool Match(const char *hName, const char *pattern);
 //------------------------------------------------------------------------------
 
 static char *MyHostName(const char *eName="*unknown*", const char **eText=0);
+
+//------------------------------------------------------------------------------
+//! Get the supported network protocols.
+//!
+//! @param  netqry   An NetType enum specifying the protocol to inspect.
+//! @param  eText    When not nil, is where to place error message text.
+//!
+//! @return One the the NetProt enums (see below). When hasNone is returned
+//!         and eText is not nill it will point to a static string that gives
+//!         the reason. If the reason is a null string, the query was successful
+//!         but returned no matching protocols.
+//------------------------------------------------------------------------------
+
+enum NetProt {hasNone  = 0, //!< Unable to determine available protocols
+              hasIPv4  = 1, //<! Has only IPv4 capability
+              hasIPv6  = 2, //<! Has only IPv6 capability
+              hasIP64  = 3, //<! Has IPv4 IPv6 capability (dual stack)
+             };
+
+enum NetType {qryINET  = 0 //!< Only consider internet protocols
+             };
+
+NetProt      NetConfig(NetType netquery=qryINET, const char **eText=0);
 
 //------------------------------------------------------------------------------
 //! Parse an IP or host name specification.
