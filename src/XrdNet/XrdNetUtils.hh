@@ -263,7 +263,7 @@ enum NetProt {hasNone  = 0, //!< Unable to determine available protocols
 enum NetType {qryINET  = 0 //!< Only consider internet protocols
              };
 
-NetProt      NetConfig(NetType netquery=qryINET, const char **eText=0);
+static NetProt      NetConfig(NetType netquery=qryINET, const char **eText=0);
 
 //------------------------------------------------------------------------------
 //! Parse an IP or host name specification.
