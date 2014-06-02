@@ -1255,6 +1255,15 @@ namespace XrdCl
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
 
+    XrdNetUtils::NetProt stacks    = XrdNetUtils::NetConfig();
+    bool                 dualStack = false;
+
+    if( (stacks & 0x03) == XrdNetUtils::hasIP64 )
+    {
+      dualStack = true;
+      loginReq->ability  |= kXR_hasipv64;
+    }
+
     if( hsData->url->GetUserName().length() )
     {
       ::strncpy( (char*)loginReq->username,
@@ -1273,8 +1282,9 @@ namespace XrdCl
     msg->Append( cgiBuffer, cgiLen, 24 );
 
     log->Debug( XRootDTransportMsg, "[%s] Sending out kXR_login request, "
-                "username: %s, cgi: %s", hsData->streamName.c_str(),
-                loginReq->username, cgiBuffer );
+                "username: %s, cgi: %s, dual-stack: %s",
+                hsData->streamName.c_str(), loginReq->username, cgiBuffer,
+                dualStack ? "true" : "false");
 
     delete [] cgiBuffer;
     MarshallRequest( msg );
