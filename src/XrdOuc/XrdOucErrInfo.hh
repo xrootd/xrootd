@@ -62,7 +62,9 @@ static const int uUrlOK = 0x40000000;  //! ucap: Supports url   redirects
 static const int uMProt = 0x20000000;  //! ucap: Supports multiple protocols
 static const int uReadR = 0x10000000;  //! ucap: Supports read redirects
 static const int uIPv4  = 0x08000000;  //! ucap: Supports only IPv4 info
-static const int uPrip  = 0x04000000;  //! ucap: Client is on a private net
+static const int uIPv64 = 0x04000000;  //! ucap: Supports IPv6|IPv4 info and
+static const int uPrip  = 0x02000000;  //! ucap: Client is on a private net
+                                       //!       uIPv4 says IPv4 is prefered
 
 inline     void clear(const char *usr=0, int uc=0)
                      {code=0; ucap = uc; message[0]='\0';
