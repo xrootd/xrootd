@@ -93,6 +93,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysXSLock.hh
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh
+  XrdHttp/XrdHttpSecXtractor.hh
 )
 
 set( XROOTD_PRIVATE_HEADERS
