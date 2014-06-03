@@ -516,6 +516,7 @@ semodule -R
 %{_includedir}/xrootd/XrdOss
 %{_includedir}/xrootd/XrdSfs
 %{_includedir}/xrootd/XrdXrootd
+%{_includedir}/xrootd/XrdHttp
 # These libraries are not used as plugins
 %{_libdir}/libXrdOfs.so
 %{_libdir}/libXrdServer.so
