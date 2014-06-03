@@ -449,9 +449,9 @@ XrdNetUtils::NetProt XrdNetUtils::NetConfig(XrdNetUtils::NetType netquery,
 //
    for (int i = 0; i < aCnt && hasProt != hasIP64; i++)
        {     if (myAddrs[i].isIPType(XrdNetAddrInfo::IPv6))
-                hasProt = NetProt(hasProt | hasIPv4);
-        else if (myAddrs[i].isIPType(XrdNetAddrInfo::IPv4))
                 hasProt = NetProt(hasProt | hasIPv6);
+        else if (myAddrs[i].isIPType(XrdNetAddrInfo::IPv4))
+                hasProt = NetProt(hasProt | hasIPv4);
        }
 
 // Delete the array and return what we have
