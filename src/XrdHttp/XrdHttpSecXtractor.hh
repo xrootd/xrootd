@@ -33,6 +33,8 @@
 #ifndef __XRDHTTPSECXTRACTOR_H__
 #define __XRDHTTPSECXTRACTOR_H__
 
+#include <openssl/ssl.h>
+
 class XrdLink;
 class XrdSecEntity;
 
