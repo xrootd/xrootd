@@ -46,6 +46,7 @@
 #include "XrdXrootd/XrdXrootdBridge.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "Xrd/XrdProtocol.hh"
+#include "XrdOuc/XrdOucHash.hh"
 
 #include <openssl/ssl.h>
 
@@ -160,6 +161,8 @@ private:
   static int xlistredir(XrdOucStream &Config);
   static int xselfhttps2http(XrdOucStream &Config);
   static int xembeddedstatic(XrdOucStream &Config);
+  static int xstaticredir(XrdOucStream &Config);
+  static int xstaticpreload(XrdOucStream &Config);
   static int xsslcafile(XrdOucStream &Config);
   static int xsslverifydepth(XrdOucStream &Config);
   static int xsecretkey(XrdOucStream &Config);
@@ -309,7 +312,16 @@ protected:
   /// If true, use the embedded css and icons
   static bool embeddedstatic;
   
-  
+  // Url to redirect to in the case a /static is requested
+  static char *staticredir;
+
+  // Hash that keeps preloaded files
+  struct StaticPreloadInfo {
+    char *data;
+    int len;
+  };
+  static XrdOucHash<StaticPreloadInfo> *staticpreload;
+
   /// Our role
   static kXR_int32 myRole;
   

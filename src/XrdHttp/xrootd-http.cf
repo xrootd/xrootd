@@ -13,8 +13,15 @@ fi
 http.cert /etc/grid-security/hostcert.pem
 http.key /etc/grid-security/hostkey.pem
 http.cadir /etc/grid-security/certificates
-#http.secretkey CHANGEME
+http.secretkey CHANGEME
 #http.secxtractor /usr/lib64/libXrdHttpVOMS.so.1
+
+# As an example of preloading files, let's preload in memory
+# the /etc/services and /etc/hosts files
+# and assign them to some urlpaths in /static
+http.staticpreload /static/services_preload1 /etc/services
+http.staticpreload /static/services_preload2 /etc/services
+http.staticpreload /static/hosts_preload /etc/hosts
 
 all.role server
 all.manager pcitgt02.cern.ch:1213
