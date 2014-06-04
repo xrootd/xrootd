@@ -26,7 +26,7 @@ Version 4.0.0
      odd ways (e.g. GPFS). Patch assumes XRDROLE patch below.
    * Implement full readv-passthru for enhanced performance.
    * Add a disconnect record to the f-stream.
-   * xrdcp is now a symlink to xrdcopy, and old xrdcp is now xrdcp-old
+   * xrdcp is now the same as xrdcopy, and old xrdcp is now xrdcp-old
    * Make clients configurable via /etc/xrootd/client.conf and
      ~/.xrootd/client.conf
    * Implement a plug-in system for client's File and FileSystem queries.
@@ -55,6 +55,8 @@ Version 4.0.0
    * Add flag to indicates a secondary copy of a file exists.
    * Allow testing for undefined set/env vars via if-else-fi.
    * Add '-L' flag to the xrootd command to allow loading a protocol library
+   * Add flag to indicates a secondary copy of a file exists
+
 
 + **Bug fixes**
    * Fix various dead locks in the IOEvents poller.
@@ -82,6 +84,11 @@ Version 4.0.0
    * Fix selection of a server when a DNS entry resolves to more than one.
    * Correct pthread_cond_timedwait() time calculation and error handling.
    * Fix null insertion of hostname in error message when open fails.
+   * Fix issues with extensions in GSI proxies
+   * Fix problem with creation of the forwarded KRB5 ticket
+   * Correctly handle reading of a partial readv headers (issue #45)
+   * Make sure to propagate username and password when redirecting
+   * Honor request timeouts when processing kXR_wait
 
 + **Miscellaneous**
    * XrdClient and associated commandline utilities are now obsoleted.
@@ -93,6 +100,10 @@ Version 4.0.0
    * Final change to f-stream monitoring. Replace standard deviation
      (sdv) calc with reporting sum of squares (ssq) counts.
    * Make public headers compile cleanly with -Wall -Wextra -Werror.
+   * Support passing cert, key paths via URLs
+   * Allow testing of undefined set/env vars via if-else-fi
+   * Pass user environment settings settings in the login CGI
+   * Use DNS names instead of addresses for kXR_locate when listing
 
 -------------
 Version 3.3.6
