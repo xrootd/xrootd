@@ -34,6 +34,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdNet/XrdNet.hh
   XrdNet/XrdNetAddr.hh
   XrdNet/XrdNetAddrInfo.hh
+  XrdNet/XrdNetUtils.hh
   XrdNet/XrdNetCmsNotify.hh
   XrdNet/XrdNetConnect.hh
   XrdNet/XrdNetOpts.hh
