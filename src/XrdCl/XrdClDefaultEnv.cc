@@ -240,13 +240,15 @@ namespace XrdCl
                   it->first.c_str(), it->second.c_str() );
 
     //--------------------------------------------------------------------------
-    // Apply the settings
+    // Monitoring settings
     //--------------------------------------------------------------------------
     char *tmp = strdup( XrdSysUtils::ExecName() );
     char *appName = basename( tmp );
     PutString( "AppName", appName );
     free( tmp );
     ImportString( "AppName", "XRD_APPNAME" );
+    PutString( "MonInfo", "" );
+    ImportString( "MonInfo", "XRD_MONINFO" );
 
     //--------------------------------------------------------------------------
     // Process ints

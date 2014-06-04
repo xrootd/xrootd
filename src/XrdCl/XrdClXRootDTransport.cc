@@ -1237,9 +1237,13 @@ namespace XrdCl
     free( hostName );
     char *cgiBuffer = new char[1024];
     std::string appName;
+    std::string monInfo;
     env->GetString( "AppName", appName );
-    snprintf( cgiBuffer, 1024, "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s",
-              countryCode.c_str(), timeZone, appName.c_str() );
+    env->GetString( "MonInfo", monInfo );
+    snprintf( cgiBuffer, 1024,
+              "?xrd.cc=%s&xrd.tz=%d&xrd.appname=%s&xrd.info=%s",
+              countryCode.c_str(), timeZone, appName.c_str(),
+              monInfo.c_str() );
     uint16_t cgiLen = strlen( cgiBuffer );
 
     //--------------------------------------------------------------------------
