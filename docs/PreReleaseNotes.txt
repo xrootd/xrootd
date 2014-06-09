@@ -10,6 +10,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Provide full error mapping for POSIX interface.
 
 + **Miscellaneous**
    * Efficiently handle replicated subscribers (i.e. managers).
