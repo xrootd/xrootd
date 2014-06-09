@@ -259,7 +259,7 @@ Prefetch::Run()
       if (task->condVar)
       {
          clLog()->Debug(XrdCl::AppMsg, "Prefetch::Run() task %p condvar %p",  task, task->condVar);
-         XrdSysCondVarHelper(task->condVar);
+         XrdSysCondVarHelper tmph(task->condVar);
          task->condVar->Signal();
       }
 
