@@ -11,6 +11,8 @@ Prerelease Notes
 
 + **Minor bug fixes**
    * Provide full error mapping for POSIX interface.
+   * Prevent over-scan of the xrd.network routes option which may cause
+     a config file error message and initialization failure.
 
 + **Miscellaneous**
    * Efficiently handle replicated subscribers (i.e. managers).
