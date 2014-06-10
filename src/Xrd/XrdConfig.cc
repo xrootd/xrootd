@@ -1212,6 +1212,7 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
             }
       if (i >= numopts)
          eDest->Say("Config warning: ignoring invalid net option '",val,"'.");
+         else if (!val) break;
       val = Config.GetWord();
      }
 
