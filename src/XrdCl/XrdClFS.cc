@@ -634,6 +634,8 @@ XRootDStatus DoLocate( FileSystem                      *fs,
       flags |= OpenFlags::Refresh;
     else if( args[i] == "-m" )
       flags |= OpenFlags::PrefName;
+    else if( args[i] == "-i" )
+      flags |= OpenFlags::Force;
     else if( args[i] == "-d" )
       doDeepLocate = true;
     else if( !hasPath )
@@ -1465,7 +1467,8 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -n make the server return the response immediately even\n"  );
   printf( "        though it may be incomplete\n"                           );
   printf( "     -d do a recursive (deep) locate\n"                          );
-  printf( "     -m prefer host names to IP addresses\n\n"                   );
+  printf( "     -m prefer host names to IP addresses\n"                     );
+  printf( "     -i ignore network dependencies\n\n"                         );
 
   printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"              );
   printf( "     Creates a directory/tree of directories.\n\n"               );
