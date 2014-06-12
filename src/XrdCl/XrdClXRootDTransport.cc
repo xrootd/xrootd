@@ -1882,10 +1882,14 @@ namespace XrdCl
           o << "none";
         else
         {
-          if( sreq->options == kXR_refresh )
+          if( sreq->options & kXR_refresh )
             o << "kXR_refresh ";
-          if( sreq->options == kXR_prefname )
+          if( sreq->options & kXR_prefname )
             o << "kXR_prefname ";
+          if( sreq->options & kXR_nowait )
+            o << "kXR_nowait ";
+          if( sreq->options & kXR_force )
+            o << "kXR_force ";
         }
         o << ")";
         break;
