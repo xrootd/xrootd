@@ -632,7 +632,7 @@ XRootDStatus DoLocate( FileSystem                      *fs,
       flags |= OpenFlags::NoWait;
     else if( args[i] == "-r" )
       flags |= OpenFlags::Refresh;
-    else if( args[i] == "-m" )
+    else if( args[i] == "-m" || args[i] == "-h" )
       flags |= OpenFlags::PrefName;
     else if( args[i] == "-i" )
       flags |= OpenFlags::Force;
@@ -1467,7 +1467,7 @@ XRootDStatus PrintHelp( FileSystem *, Env *,
   printf( "     -n make the server return the response immediately even\n"  );
   printf( "        though it may be incomplete\n"                           );
   printf( "     -d do a recursive (deep) locate\n"                          );
-  printf( "     -m prefer host names to IP addresses\n"                     );
+  printf( "     -m|-h prefer host names to IP addresses\n"                  );
   printf( "     -i ignore network dependencies\n\n"                         );
 
   printf( "   mkdir [-p] [-m<user><group><other>] <dirname>\n"              );
