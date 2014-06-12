@@ -77,7 +77,8 @@ namespace XrdCl
       None     = 0,              //!< Nothing
       Delete   = kXR_delete,     //!< Open a new file, deleting any existing
                                  //!< file
-      Force    = kXR_force,      //!< Ignore file usage rules
+      Force    = kXR_force,      //!< Ignore file usage rules, for kXR_locate
+                                 //!< it means ignoreing network dependencies
       MakePath = kXR_mkpath,     //!< Create directory path if it does not
                                  //!< already exist
       New      = kXR_new,        //!< Open the file only if it does not already
