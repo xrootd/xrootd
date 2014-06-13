@@ -141,8 +141,13 @@ namespace XrdCl
 
       props.Get( "source", tmp );
       URL source = tmp;
+      if( !source.IsValid() )
+        return XRootDStatus( stError, errInvalidArgs, 0, "invalid source" );
+
       props.Get( "target", tmp );
       URL target = tmp;
+      if( !target.IsValid() )
+        return XRootDStatus( stError, errInvalidArgs, 0, "invalid target" );
 
       bool tpc         = false;
       bool tpcFallBack = false;
