@@ -146,7 +146,11 @@ namespace XrdCl
 
     std::string normUrl = NormalizeURL( url );
     if( normUrl.empty() )
-      return pDefaultFactory->factory;
+    {
+      if( pDefaultFactory )
+        return pDefaultFactory->factory;
+      return 0;
+    }
 
     std::map<std::string, FactoryHelper*>::iterator it;
     it = pFactoryMap.find( normUrl );
