@@ -74,6 +74,9 @@ char *XrdHttpProtocol::sslcadir = 0;
 char *XrdHttpProtocol::listredir = 0;
 bool XrdHttpProtocol::listdeny = false;
 bool XrdHttpProtocol::embeddedstatic = true;
+char *XrdHttpProtocol::staticredir = 0;
+XrdOucHash<XrdHttpProtocol::StaticPreloadInfo> *XrdHttpProtocol::staticpreload = 0;
+
 kXR_int32 XrdHttpProtocol::myRole = kXR_isManager;
 bool XrdHttpProtocol::selfhttps2http = false;
 bool XrdHttpProtocol::isdesthttps = false;
@@ -710,6 +713,8 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
       else if TS_Xeq("selfhttps2http", xselfhttps2http);
       else if TS_Xeq("embeddedstatic", xembeddedstatic);
       else if TS_Xeq("listingredir", xlistredir);
+      else if TS_Xeq("staticredir", xstaticredir);
+      else if TS_Xeq("staticpreload", xstaticpreload);
       else if TS_Xeq("listingdeny", xlistdeny);
       else {
         eDest.Say("Config warning: ignoring unknown directive '", var, "'.");
@@ -1866,6 +1871,112 @@ int XrdHttpProtocol::xembeddedstatic(XrdOucStream & Config) {
   embeddedstatic = (!strcasecmp(val, "true") || !strcasecmp(val, "yes") || !strcmp(val, "1"));
 
 
+  return 0;
+}
+
+
+
+/******************************************************************************/
+/*                                 x r e d i r s t a t i c                    */
+/******************************************************************************/
+
+/* Function: xstaticredir
+
+   Purpose:  To parse the directive: staticredir <Url>
+
+             <Url>    http/https server to redirect to in the case of /static
+
+  Output: 0 upon success or !0 upon failure.
+ */
+
+int XrdHttpProtocol::xstaticredir(XrdOucStream & Config) {
+  char *val;
+
+  // Get the path
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "staticredir url not specified");
+    return 1;
+  }
+
+  // Record the value
+  //
+  if (staticredir) free(staticredir);
+  staticredir = strdup(val);
+
+  return 0;
+}
+
+
+/******************************************************************************/
+/*                             x p r e l o a d s t a t i c                    */
+/******************************************************************************/
+
+/* Function: xpreloadstatic
+
+   Purpose:  To parse the directive: preloadstatic <http url path> <local file>
+
+             <http url path>    http/http path whose response we are preloading
+                                e.g. /static/mycss.css
+                                NOTE: this must start with /static
+
+
+  Output: 0 upon success or !0 upon failure.
+ */
+
+int XrdHttpProtocol::xstaticpreload(XrdOucStream & Config) {
+  char *val, *k, key[1024];
+
+  // Get the key
+  //
+  k = Config.GetWord();
+  if (!k || !k[0]) {
+    eDest.Emsg("Config", "preloadstatic urlpath not specified");
+    return 1;
+  }
+
+  strcpy(key, k);
+
+  // Get the val
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "preloadstatic filename not specified");
+    return 1;
+  }
+
+  // Try to load the file into memory
+  int fp = open(val, O_RDONLY);
+  if( fp < 0 ) {
+    eDest.Emsg("Config", "Cannot open preloadstatic filename '", val, "'");
+    eDest.Emsg("Config", "Cannot open preloadstatic filename. err: ", strerror(errno));
+    return 1;
+  }
+
+  StaticPreloadInfo *nfo = new StaticPreloadInfo;
+  // Max 64Kb ok?
+  nfo->data = (char *)malloc(65536);
+  nfo->len = read(fp, (void *)nfo->data, 65536);
+  close(fp);
+
+  if (nfo->len <= 0) {
+      eDest.Emsg("Config", "Cannot read from preloadstatic filename '", val, "'");
+      eDest.Emsg("Config", "Cannot read from preloadstatic filename. err: ", strerror(errno));
+      return 1;
+  }
+
+  if (nfo->len >= 65536) {
+      eDest.Emsg("Config", "Truncated preloadstatic filename. Max is 64 KB '", val, "'");
+      return 1;
+  }
+
+  // Record the value
+  //
+  if (!staticpreload)
+    staticpreload = new XrdOucHash<StaticPreloadInfo>;
+
+  staticpreload->Rep((const char *)key, nfo);
   return 0;
 }
 

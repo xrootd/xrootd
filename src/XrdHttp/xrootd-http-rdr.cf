@@ -61,6 +61,13 @@ http.embeddedstatic yes
 #http.secxtractor /home/furano/Park/xrootd/xrootd_trunk2/xrootd/build/src/XrdHTTP/libXrdHttpVOMS.so
 
 
+# As an example of preloading files, let's preload in memory
+# the /etc/services and /etc/hosts files
+# and assign them to some urlpaths in /static
+http.staticpreload /static/services_preload1 /etc/services
+http.staticpreload /static/services_preload2 /etc/services
+http.staticpreload /static/hosts_preload /etc/hosts
+
 all.role manager
 all.manager pcitgt02:1213
 
