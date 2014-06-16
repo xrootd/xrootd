@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Pass along XRD_MONINFO setting and application name to monitoring.
+   * Set client location information.
 
 + **Major bug fixes**
 
