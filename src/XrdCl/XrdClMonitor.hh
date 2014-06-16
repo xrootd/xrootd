@@ -228,6 +228,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual void Event( EventCode evCode, void *evData ) = 0;
   };
-};
+}
 
 #endif // __XRD_CL_MONITOR_HH

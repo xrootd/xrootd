@@ -411,6 +411,6 @@ namespace XrdCl
       //------------------------------------------------------------------------
       virtual FileSystemPlugIn *CreateFileSystem( const std::string &url ) = 0;
   };
-};
+}
 
 #endif // __XRD_CL_PLUGIN_INTERFACE__

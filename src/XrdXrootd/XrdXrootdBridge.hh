@@ -495,5 +495,5 @@ virtual      ~Result() {}
 protected:
 virtual      ~Bridge() {}
 };
-};
+}
 #endif
