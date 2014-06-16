@@ -630,6 +630,10 @@ void XrdXrootdProtocol::Cleanup()
    XrdXrootdPio *pioP;
    int i;
 
+// Release any internal monitoring information
+//
+   if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
+
 // If we have a buffer, release it
 //
    if (argp) {BPool->Release(argp); argp = 0;}
