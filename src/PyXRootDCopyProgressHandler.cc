@@ -127,7 +127,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Notify when the previous job has finished
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::EndJob( const XrdCl::PropertyList *result )
+  void CopyProgressHandler::EndJob( uint16_t                   jobNum,
+                                    const XrdCl::PropertyList *result )
   {
     PyGILState_STATE  state    = PyGILState_Ensure();
     PyObject         *pyResult = ConvertResult( result );
@@ -138,7 +139,7 @@ namespace PyXRootD
     if (handler != NULL)
     {
       PyObject_CallMethod( handler, const_cast<char*>( "end" ),
-                           (char *) "O", pyResult );
+                           (char *) "HO", jobNum, pyResult );
     }
     PyGILState_Release(state);
   }
@@ -146,7 +147,8 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   //! Notify about the progress of the current job
   //----------------------------------------------------------------------------
-  void CopyProgressHandler::JobProgress( uint64_t bytesProcessed,
+  void CopyProgressHandler::JobProgress( uint16_t jobNum,
+                                         uint64_t bytesProcessed,
                                          uint64_t bytesTotal )
   {
     PyGILState_STATE state = PyGILState_Ensure();
@@ -154,7 +156,7 @@ namespace PyXRootD
     if (handler != NULL)
     {
       PyObject_CallMethod( handler, const_cast<char*>( "update" ),
-                           (char *) "kk", bytesProcessed, bytesTotal );
+                           (char *) "Hkk", jobNum, bytesProcessed, bytesTotal );
     }
 
     PyGILState_Release(state);
@@ -163,7 +165,7 @@ namespace PyXRootD
   //----------------------------------------------------------------------------
   // Determine whether the job should be canceled
   //----------------------------------------------------------------------------
-  bool CopyProgressHandler::ShouldCancel()
+  bool CopyProgressHandler::ShouldCancel( uint16_t jobNum )
   {
     PyGILState_STATE state = PyGILState_Ensure();
 
@@ -172,7 +174,7 @@ namespace PyXRootD
     {
       PyObject *ret = PyObject_CallMethod( handler,
                                            const_cast<char*>( "should_cancel" ),
-                                           (char *)"" );
+                                           (char *)"H", jobNum );
       if( ret == Py_True )
         retVal = true;
     }

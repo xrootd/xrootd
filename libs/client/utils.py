@@ -59,11 +59,11 @@ class CopyProgressHandler(object):
             something useful with the progress updates yourself.
   """
 
-  def begin(self, id, total, source, target):
+  def begin(self, jobId, total, source, target):
     """Notify when a new job is about to start
 
-    :param     id: the job number of the copy job concerned
-    :type      id: integer
+    :param  jobId: the job number of the copy job concerned
+    :type   jobId: integer
     :param  total: total number of jobs being processed
     :type   total: integer
     :param source: the source url of the current job
@@ -73,20 +73,44 @@ class CopyProgressHandler(object):
     """
     pass
 
-  def end(self, status):
+  def end(self, jobId, status):
     """Notify when the previous job has finished
 
+    :param  jobId: the job number of the copy job concerned
+    :type   jobId: integer
     :param status: status of the job
     :type  status: :mod:`XRootD.client.responses.XRootDStatus` object
     """
     pass
 
-  def update(self, processed, total):
+  def update(self, jobId, processed, total):
     """Notify about the progress of the current job
 
+    :param     jobId: the job number of the copy job concerned
+    :type      jobId: integer
     :param processed: bytes processed by the current job
     :type  processed: integer
     :param     total: total number of bytes to be processed by the current job
     :type      total: integer
     """
     pass
+
+  def update(self, jobId, processed, total):
+    """Notify about the progress of the current job
+
+    :param     jobId: the job number of the copy job concerned
+    :type      jobId: integer
+    :param processed: bytes processed by the current job
+    :type  processed: integer
+    :param     total: total number of bytes to be processed by the current job
+    :type      total: integer
+    """
+    pass
+
+  def should_cancel( self, jobId ):
+    """Check whether the current job should be canceled.
+
+    :param  jobId: the job number of the copy job concerned
+    :type   jobId: integer
+    """
+    return False;

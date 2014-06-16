@@ -32,21 +32,21 @@ class ProgressHandlerWrapper(object):
   def __init__(self, handler):
     self.handler = handler
 
-  def begin(self, id, total, source, target):
+  def begin(self, jobId, total, source, target):
     if self.handler:
-      self.handler.begin(id, total, URL(source), URL(target))
+      self.handler.begin(jobId, total, URL(source), URL(target))
 
-  def end(self, result):
+  def end(self, jobId, result):
     if self.handler:
-      self.handler.end(result)
+      self.handler.end(jobId, result)
 
-  def update(self, processed, total):
+  def update(self, jobId, processed, total):
     if self.handler:
-      self.handler.update(processed, total)
+      self.handler.update(jobId, processed, total)
 
-  def should_cancel():
+  def should_cancel(self, jobId):
     if self.handler:
-      return self.handler.should_cancel()
+      return self.handler.should_cancel(jobId)
     return False
 
 class CopyProcess(object):
