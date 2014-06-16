@@ -257,7 +257,7 @@ static char *MyHostName(const char *eName="*unknown*", const char **eText=0);
 enum NetProt {hasNone  = 0, //!< Unable to determine available protocols
               hasIPv4  = 1, //<! Has only IPv4 capability
               hasIPv6  = 2, //<! Has only IPv6 capability
-              hasIP64  = 3, //<! Has IPv4 IPv6 capability (dual stack)
+              hasIP64  = 3  //<! Has IPv4 IPv6 capability (dual stack)
              };
 
 enum NetType {qryINET  = 0 //!< Only consider internet protocols

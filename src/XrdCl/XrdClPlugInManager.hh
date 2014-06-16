@@ -163,6 +163,6 @@ namespace XrdCl
       FactoryHelper                         *pDefaultFactory;
       XrdSysMutex                            pMutex;
   };
-};
+}
 
 #endif // __XRD_CL_PLUGIN_MANAGER__

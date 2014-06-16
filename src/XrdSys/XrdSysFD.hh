@@ -137,5 +137,5 @@ inline bool XrdSysFD_Yield(int fd)
                    if (fdFlags < 0) return false;
                    return   0 == fcntl(fd, F_SETFD, fdFlags & ~FD_CLOEXEC);
                   }
-};
+}
 #endif
