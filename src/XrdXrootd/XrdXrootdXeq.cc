@@ -33,6 +33,7 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysTimer.hh"
+#include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucReqID.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucStream.hh"
@@ -869,12 +870,37 @@ int XrdXrootdProtocol::do_Login()
    Entity.addrInfo = Link->AddrInfo();
    Client = &Entity;
 
+// Check if we need to process a login environment
+//
+   if (Request.login.dlen > 8)
+      {XrdOucEnv loginEnv(argp->buff+1, Request.login.dlen-1);
+       char *cCode = loginEnv.Get("xrd.cc");
+       char *tzVal = loginEnv.Get("xrd.tz");
+       char *appXQ = loginEnv.Get("xrd.appname");
+       char *aInfo = loginEnv.Get("xrd.info");
+       int   tzNum = (tzVal ? atoi(tzVal) : 0);
+       if (cCode && *cCode && tzNum >= -12 && tzNum <= 14)
+          {XrdNetAddrInfo::LocInfo locInfo;
+           locInfo.Country[0] = cCode[0]; locInfo.Country[1] = cCode[1];
+           locInfo.TimeZone = tzNum & 0xff;
+           Link->setLocation(locInfo);
+          }
+       if (Monitor.Ready() && (appXQ || aInfo))
+          {char apBuff[1024];
+           snprintf(apBuff, sizeof(apBuff), "&x=%s&y=%s",
+                    (appXQ ? appXQ : ""), (aInfo ? aInfo : ""));
+           Entity.moninfo = strdup(apBuff);
+          }
+      }
+
 // Allocate a monitoring object, if needed for this connection
 //
    if (Monitor.Ready())
       {Monitor.Register(Link->ID, Link->Host(), "xrootd");
        if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
-          Monitor.Report(Monitor.Auths() ? "" : 0);
+          {Monitor.Report(Entity.moninfo);
+           if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
+          }
       }
 
 // Complete the rquestID object
@@ -2197,7 +2223,7 @@ int XrdXrootdProtocol::do_Set()
 /*                            d o _ S e t _ M o n                             */
 /******************************************************************************/
 
-// Process: set monitor {off | on} [appid] | info [info]}
+// Process: set monitor {off | on} {[appid] | info [info]}
 
 int XrdXrootdProtocol::do_Set_Mon(XrdOucTokenizer &setargs)
 {
@@ -2886,21 +2912,23 @@ int XrdXrootdProtocol::mapMode(int Mode)
 
 void XrdXrootdProtocol::MonAuth()
 {
-         char Buff[2048];
+         char Buff[4096];
    const char *bP = Buff;
 
-   if (Client == &Entity) bP = (Monitor.Auths() ? "" : 0);
-      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s",
+   if (Client == &Entity) bP = Entity.moninfo;
+      else snprintf(Buff,sizeof(Buff), "&p=%s&n=%s&h=%s&o=%s&r=%s&g=%s&m=%s%s",
                      Client->prot,
                     (Client->name ? Client->name : ""),
                     (Client->host ? Client->host : ""),
                     (Client->vorg ? Client->vorg : ""),
                     (Client->role ? Client->role : ""),
                     (Client->grps ? Client->grps : ""),
-                    (Client->moninfo ? Client->moninfo : "")
+                    (Client->moninfo ? Client->moninfo : ""),
+                    (Entity.moninfo  ? Entity.moninfo  : "")
                    );
 
    Monitor.Report(bP);
+   if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
 }
   
 /******************************************************************************/
