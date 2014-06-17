@@ -229,6 +229,34 @@ class File(object):
     if response: response = VectorReadInfo(response)
     return XRootDStatus(status), response
 
+  def fcntl(self, arg, timeout=0, callback=None):
+    """Perform a custom operation on an open file.
+
+    :param    arg: argument
+    :type     arg: string
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                   object and a string
+    """
+    if callback:
+      callback = CallbackWrapper(callback, None)
+      return XRootDStatus(self.__file.fcntl( arg, timeout, callback))
+
+    status, response = self.__file.fcntl( arg, timeout )
+    return XRootDStatus(status), response
+
+  def visa(self, timeout=0, callback=None):
+    """Get access token to a file.
+
+    :returns:      tuple containing :mod:`XRootD.client.responses.XRootDStatus`
+                   object and a string
+    """
+    if callback:
+      callback = CallbackWrapper(callback, None)
+      return XRootDStatus(self.__file.visa(timeout, callback))
+
+    status, response = self.__file.visa(timeout)
+    return XRootDStatus(status), response
+
   def is_open(self):
     """Check if the file is open.
 

@@ -52,7 +52,8 @@ namespace PyXRootD
       static PyObject* Sync( File *self, PyObject *args, PyObject *kwds );
       static PyObject* Truncate( File *self, PyObject *args, PyObject *kwds );
       static PyObject* VectorRead( File *self, PyObject *args, PyObject *kwds );
-
+      static PyObject* Fcntl( File *self, PyObject *args, PyObject *kwds );
+      static PyObject* Visa( File *self, PyObject *args, PyObject *kwds );
       static PyObject* IsOpen( File *self, PyObject *args, PyObject *kwds );
       static PyObject* GetProperty( File *self, PyObject *args, PyObject *kwds );
       static PyObject* SetProperty( File *self, PyObject *args, PyObject *kwds );
@@ -183,6 +184,10 @@ namespace PyXRootD
        (PyCFunction) PyXRootD::File::Truncate,            METH_KEYWORDS, NULL },
     { "vector_read",
        (PyCFunction) PyXRootD::File::VectorRead,          METH_KEYWORDS, NULL },
+    { "fcntl",
+       (PyCFunction) PyXRootD::File::Fcntl,               METH_KEYWORDS, NULL },
+    { "visa",
+       (PyCFunction) PyXRootD::File::Visa,                METH_KEYWORDS, NULL },
     { "is_open",
        (PyCFunction) PyXRootD::File::IsOpen,              METH_KEYWORDS, NULL },
     { "get_property",

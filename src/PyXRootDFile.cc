@@ -628,6 +628,90 @@ namespace PyXRootD
   }
 
   //----------------------------------------------------------------------------
+  // Perform a custom operation on an open file
+  //----------------------------------------------------------------------------
+  PyObject* File::Fcntl( File *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "arg", "timeout", "callback", NULL };
+    const char         *buffer   = 0;
+    int                 buffSize = 0;
+    uint16_t            timeout  = 0;
+    PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "s#|HO:fcntl",
+          (char**) kwlist, &buffer, &buffSize, &timeout, &callback ) )
+      return NULL;
+
+    XrdCl::Buffer arg; arg.Append( buffer, buffSize );
+
+    if ( callback && callback != Py_None )
+    {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      if( !handler )
+        return NULL;
+      async( status = self->file->Fcntl( arg, handler, timeout ) );
+    }
+
+    else {
+      XrdCl::Buffer *response = 0;
+      status = self->file->Fcntl( arg, response, timeout );
+      pyresponse = ConvertType<XrdCl::Buffer>( response );
+      delete response;
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+    Py_DECREF( pystatus );
+    Py_XDECREF( pyresponse );
+    return o;
+  }
+
+  //----------------------------------------------------------------------------
+  // Perform a custom operation on an open file
+  //----------------------------------------------------------------------------
+  PyObject* File::Visa( File *self, PyObject *args, PyObject *kwds )
+  {
+    static const char  *kwlist[] = { "timeout", "callback", NULL };
+    uint16_t            timeout  = 0;
+    PyObject           *callback = NULL, *pystatus = NULL, *pyresponse = NULL;
+    XrdCl::XRootDStatus status;
+
+    if ( !self->file->IsOpen() ) return FileClosedError();
+
+    if ( !PyArg_ParseTupleAndKeywords( args, kwds, "|HO:visa",
+          (char**) kwlist, &timeout, &callback ) )
+      return NULL;
+
+    if ( callback && callback != Py_None )
+    {
+      XrdCl::ResponseHandler *handler = GetHandler<XrdCl::Buffer>( callback );
+      if( !handler )
+        return NULL;
+      async( status = self->file->Visa( handler, timeout ) );
+    }
+
+    else {
+      XrdCl::Buffer *response = 0;
+      status = self->file->Visa( response, timeout );
+      pyresponse = ConvertType<XrdCl::Buffer>( response );
+      delete response;
+    }
+
+    pystatus = ConvertType<XrdCl::XRootDStatus>( &status );
+    PyObject *o = ( callback && callback != Py_None ) ?
+            Py_BuildValue( "O", pystatus ) :
+            Py_BuildValue( "OO", pystatus, pyresponse );
+    Py_DECREF( pystatus );
+    Py_XDECREF( pyresponse );
+    return o;
+  }
+
+  //----------------------------------------------------------------------------
   //! Check if the file is open
   //----------------------------------------------------------------------------
   PyObject* File::IsOpen( File *self, PyObject *args, PyObject *kwds )
