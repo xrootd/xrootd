@@ -29,18 +29,18 @@ Produces output similar to the following::
 from XRootD import client
 
 class MyCopyProgressHandler(client.utils.CopyProgressHandler):
-  def begin(self, id, total, source, target):
-    print 'id: %d, total: %d' % (id, total)
+  def begin(self, jobId, total, source, target):
+    print 'id: %d, total: %d' % (jobId, total)
     print 'source: %s' % source
     print 'target: %s' % target
 
-  def end(self, result):
+  def end(self, jobId, result):
     print 'end status:', str(result['status']['message'])
 
-  def update(self, processed, total):
+  def update(self, jobId, processed, total):
     print 'processed: %d, total: %d' % (processed, total)
 
-  def should_cancel():
+  def should_cancel( jobId ):
     return False
 
 process = client.CopyProcess()
