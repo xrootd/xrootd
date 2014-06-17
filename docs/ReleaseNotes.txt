@@ -6,6 +6,21 @@ Release Notes
 =============
 
 -------------
+Version 0.2.0
+-------------
+
++ **New features**
+   * Move copy process to xrootd4 API
+   * Move file and filesystem to xrootd4 API
+   * Implement file.fcntl and file.visa
+
++ Major bug fixes
+   * Release the GIL while running copy jobs to allow other Python threads to run
+
++ **Miscellaneous**
+   * Cleanup of compilation scripts
+
+-------------
 Version 0.1.3
 -------------
 
