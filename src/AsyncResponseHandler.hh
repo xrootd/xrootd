@@ -41,14 +41,6 @@ namespace PyXRootD
           callback( callback ), state( PyGILState_UNLOCKED ) {}
 
       //------------------------------------------------------------------------
-      //! Handle the asynchronous response call without host list
-      //------------------------------------------------------------------------
-      void HandleResponse( XrdCl::XRootDStatus *status, XrdCl::AnyObject *response )
-      {
-        HandleResponseWithHosts(status, response, 0);
-      }
-
-      //------------------------------------------------------------------------
       //! Handle the asynchronous response call
       //------------------------------------------------------------------------
       void HandleResponseWithHosts( XrdCl::XRootDStatus *status,
