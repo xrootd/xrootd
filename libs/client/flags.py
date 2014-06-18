@@ -103,7 +103,8 @@ StatInfoFlags = enum(
   OFFLINE      = 8,
   IS_READABLE  = 16,
   IS_WRITABLE  = 32,
-  POSC_PENDING = 64
+  POSC_PENDING = 64,
+  BACKUP_EXISTS = 128
 )
 
 LocationType = enum(
