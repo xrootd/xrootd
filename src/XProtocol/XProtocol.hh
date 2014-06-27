@@ -139,7 +139,9 @@ enum XLoginAbility {
    kXR_fullurl =   1,
    kXR_multipr =   3,
    kXR_readrdok=   4,
-   kXR_hasipv64=   8
+   kXR_hasipv64=   8,
+   kXR_haspubv4=  16,
+   kXR_haspubv6=  32
 };
 
 // this is a bitmask
