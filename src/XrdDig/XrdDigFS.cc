@@ -376,7 +376,7 @@ int XrdDigFile::open(const char               *path,      // In
                                 path+SFS_LCLPLEN, XrdDigConfig::isFile)))
       return XrdDigFS::Emsg(epname,error,retc,"open file",path);
 
-// Prohibit opening of a symlink in /proc (linux only)
+// Prohibit opening of a symlink in /proc (linux only) and memory
 //
 #ifdef __linux__
    if (IS_PROC(path))
@@ -384,6 +384,7 @@ int XrdDigFile::open(const char               *path,      // In
        if (XrdDigUFS::Statlk(fname, &Stat)) retc = errno;
           else if (!S_ISREG(Stat.st_mode))  retc = EPERM;
                   else retc = 0;
+       if (!retc && strstr(fname, "/mem"))  retc = EACCES;
        if (retc)
           {free(fname);
            return XrdDigFS::Emsg(epname, error, retc, "open proc file", path);
