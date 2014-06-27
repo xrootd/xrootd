@@ -348,18 +348,23 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 // Set options and command
 //
    if (flags & SFS_O_LOCATE)
-      {if (flags & SFS_O_LOCAL) return LocLocal(Resp, Env);
+      {bool doAll = (flags & SFS_O_FORCE) != 0;
+       if (flags & SFS_O_LOCAL) return LocLocal(Resp, Env);
        Data.Request.rrCode = kYR_locate;
        Data.Opts = (flags & SFS_O_NOWAIT ? CmsLocateRequest::kYR_asap    : 0)
                  | (flags & SFS_O_RESET  ? CmsSelectRequest::kYR_refresh : 0);
        if (Resp.getUCap() & XrdOucEI::uPrip)
           Data.Opts |= CmsLocateRequest::kYR_prvtnet;
        if (Resp.getUCap() & XrdOucEI::uIPv4)
-          Data.Opts |= CmsLocateRequest::kYR_retipv4;
-       if (flags & SFS_O_FORCE)
-          Data.Opts |= CmsLocateRequest::kYR_retipv6;
-       if (flags & SFS_O_HNAME)
-          Data.Opts |= CmsLocateRequest::kYR_retname;
+         {Data.Opts |= (Resp.getUCap() & XrdOucEI::uIPv64 || doAll
+                     ?  CmsLocateRequest::kYR_retipv46 : 0);
+         } else {
+          Data.Opts |= (Resp.getUCap() & XrdOucEI::uIPv64 || doAll
+                     ?  CmsLocateRequest::kYR_retipv64 :
+                        CmsLocateRequest::kYR_retipv6);
+         }
+       if (flags & SFS_O_HNAME) Data.Opts |= CmsLocateRequest::kYR_retname;
+       if (doAll)               Data.Opts |= CmsLocateRequest::kYR_listall;
       } else
   {     Data.Request.rrCode = kYR_select;
         if (flags & SFS_O_TRUNC) Data.Opts = CmsSelectRequest::kYR_trunc;
@@ -382,8 +387,14 @@ int XrdCmsFinderRMT::Locate(XrdOucErrInfo &Resp, const char *path, int flags,
 
    if (Resp.getUCap() & XrdOucEI::uPrip)
       Data.Opts |= CmsSelectRequest::kYR_prvtnet;
-   if (Resp.getUCap() & XrdOucEI::uIPv4)
-      Data.Opts |= CmsSelectRequest::kYR_ipv4net;
+       if (Resp.getUCap() & XrdOucEI::uIPv4)
+         {Data.Opts |= (Resp.getUCap() & XrdOucEI::uIPv64
+                     ?  CmsSelectRequest::kYR_retipv46 : 0);
+         } else {
+          Data.Opts |= (Resp.getUCap() & XrdOucEI::uIPv64
+                     ?  CmsSelectRequest::kYR_retipv64 :
+                        CmsSelectRequest::kYR_retipv6);
+         }
   }
 
 // Pack the arguments

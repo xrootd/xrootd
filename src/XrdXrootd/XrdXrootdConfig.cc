@@ -75,6 +75,7 @@
 #include "XrdXrootd/XrdXrootdXPath.hh"
 
 #include "Xrd/XrdBuffer.hh"
+#include "Xrd/XrdInet.hh"
 
 /******************************************************************************/
 /*         P r o t o c o l   C o m m a n d   L i n e   O p t i o n s          */
@@ -253,9 +254,15 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                }
            }
 
+// Set up the network for self-identification and display it
+//
+   pi->NetTCP->netIF.Port(Port);
+   pi->NetTCP->netIF.Display("Config ");
+
 // Establish our specific environment that will be passed along
 //
    myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
+   myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
    myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
 

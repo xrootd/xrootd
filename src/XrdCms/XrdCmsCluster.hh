@@ -44,6 +44,7 @@ class XrdLink;
 class XrdCmsDrop;
 class XrdCmsNode;
 class XrdCmsSelect;
+class XrdCmsSelector;
 class XrdNetAddr;
 
 namespace XrdCms
@@ -149,11 +150,10 @@ SMask_t         getMask(const char *Cid);
 
 // Extracts out node information. Opts are one or more of CmsLSOpts
 //
-enum            CmsLSOpts {LS_NULL=0, LS_IP4=1, LS_IP6=2, LS_IPO=3,
-                           LS_IDNT=4, LS_All=8, LS_PRV=16};
+enum            CmsLSOpts {LS_NULL=0, LS_IPO=0x0100, LS_IDNT=0x0200,
+                           LS_ANY =0x0400, LS_IFMASK = 0x0f};
 
-XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts,
-                     bool &oksel, bool &noipv4, bool &nonet);
+XrdCmsSelected *List(SMask_t mask, CmsLSOpts opts, bool &oksel);
 
 // Returns the location of a file
 //
@@ -184,7 +184,7 @@ void            ResetRef(SMask_t smask);
 int             Select(XrdCmsSelect &Sel);
 
 int             Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
-                       int isrw, int isMulti, int isPvt);
+                       int isrw, int isMulti, int ifWant);
 
 // Called to get cluster space (for managers and supervisors only)
 //
@@ -201,21 +201,22 @@ virtual        ~XrdCmsCluster() {} // This object should never be deleted
 private:
 XrdCmsNode *AddAlt(XrdCmsClustID *cidP, XrdLink *lp, int port, int Status,
                    int sport, const char *theNID, const char *theIF);
-XrdCmsNode *calcDelay(int nump, int numd, int numf, int numo,
-                      int nums, int &delay, const char **reason);
+XrdCmsNode *calcDelay(XrdCmsSelector &selR);
 int         Drop(int sent, int sinst, XrdCmsDrop *djp=0);
-void        Record(char *path, const char *reason);
+void        Record(char *path, const char *reason, bool force=false);
 int         Multiple(SMask_t mVec);
 enum        {eExists, eDups, eROfs, eNoRep, eNoEnt}; // Passed to SelFail
 int         SelFail(XrdCmsSelect &Sel, int rc);
 int         SelNode(XrdCmsSelect &Sel, SMask_t  pmask, SMask_t  amask);
-XrdCmsNode *SelbyCost(SMask_t, int &, int &, const char **, int);
-XrdCmsNode *SelbyLoad(SMask_t, int &, int &, const char **, int);
-XrdCmsNode *SelbyRef (SMask_t, int &, int &, const char **, int);
+XrdCmsNode *SelbyCost(SMask_t, XrdCmsSelector &selR);
+XrdCmsNode *SelbyLoad(SMask_t, XrdCmsSelector &selR);
+XrdCmsNode *SelbyRef (SMask_t, XrdCmsSelector &selR);
 int         SelDFS(XrdCmsSelect &Sel, SMask_t amask,
                    SMask_t &pmask, SMask_t &smask, int isRW);
 void        sendAList(XrdLink *lp);
 void        setAltMan(int snum, XrdLink *lp, int port);
+int         Unreachable(XrdCmsSelect &Sel, bool none);
+int         Unuseable(XrdCmsSelect &Sel);
 
 // Number of IP:Port characters per entry
 //

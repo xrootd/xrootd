@@ -206,7 +206,7 @@ int XrdConfig::Configure(int argc, char **argv)
    static const int myMaxc = 80;
    char *myArgv[myMaxc], argBuff[myMaxc*3+8];
    char *argbP = argBuff, *argbE = argbP+sizeof(argBuff)-4;
-   char *ifList;
+   char *ifList = 0;
    int   myArgc = 1, bindArg = 1;
    bool ipV4 = false, ipV6 = false, pureLFN = false;
 
@@ -445,6 +445,13 @@ int XrdConfig::Configure(int argc, char **argv)
 //
    if (ppNet && XrdNetIF::GetIF(ifList, 0, true))
       XrdOucEnv::Export("XRDIFADDRS",ifList);
+
+// Configure network routing
+//
+   if (!XrdInet::netIF.SetIF(myIPAddr, ifList))
+      {Log.Emsg("Config", "Unable to determine interface addresses!");
+       NoGo = 1;
+      }
 
 // Now initialize the default protocl
 //

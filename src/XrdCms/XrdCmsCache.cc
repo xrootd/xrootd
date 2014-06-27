@@ -442,7 +442,7 @@ void XrdCmsCache::Add2Q(XrdCmsRRQInfo *Info, XrdCmsKeyItem *iP, int selOpts)
 //
    Info->Key = iP;
    Info->isRW= isrw;
-   Info->prvt= (selOpts & XrdCmsSelect::Private) != 0;
+   Info->ifOP= (selOpts & XrdCmsSelect::ifWant);
    if (!(Slot = RRQ.Add(Slot, Info))) Info->Key = 0;
       else if (isrw) iP->Loc.rwPend = Slot;
                else  iP->Loc.roPend = Slot;

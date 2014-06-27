@@ -817,9 +817,13 @@ int XrdXrootdProtocol::do_Login()
           clientPV |= (XrdOucEI::uMProt | XrdOucEI::uUrlOK);
        if (Request.login.ability & kXR_readrdok)
           clientPV |= XrdOucEI::uReadR;
+       if (Request.login.ability & kXR_hasipv64)
+          clientPV |= XrdOucEI::uIPv64;
       }
 
-// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4
+// Mark the client as IPv4 if they came in as IPv4 or mapped IPv4 we can only
+// return IPv4 addresses. Of course, if the client is dual-stacked then we
+// simply indicate the client can accept either (the client better be honest).
 //
    addrP = Link->AddrInfo();
    if (addrP->isIPType(XrdNetAddrInfo::IPv4) || addrP->isMapped())
@@ -2864,8 +2868,14 @@ int XrdXrootdProtocol::getBuff(const int isRead, int Quantum)
   
 void XrdXrootdProtocol::logLogin(bool xauth)
 {
-   const char *uName;
+   const char *uName, *ipName;
    char lBuff[512];
+
+// Determine ip type
+//
+   if (clientPV & XrdOucEI::uIPv4)
+           ipName = (clientPV & XrdOucEI::uIPv64 ? "IP46"   : "IPv4");
+      else ipName = (clientPV & XrdOucEI::uIPv64 ? "IP64"   : "IPv6");
 
 // Determine client name
 //
@@ -2875,8 +2885,7 @@ void XrdXrootdProtocol::logLogin(bool xauth)
 // Format the line
 //
    sprintf(lBuff, "%s %s %slogin%s",
-                  (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"),
-                  (clientPV & XrdOucEI::uIPv4 ? "IPv4"   : "IPv6"),
+                  (clientPV & XrdOucEI::uPrip ? "pvt"    : "pub"), ipName,
                   (Status   & XRD_ADMINUSER   ? "admin " : ""),
                   (xauth                      ? " as"    : ""));
 

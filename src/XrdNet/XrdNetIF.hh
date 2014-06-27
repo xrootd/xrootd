@@ -50,66 +50,77 @@ class XrdNetIF
 public:
 
 //------------------------------------------------------------------------------
+//! Display the final interface configuration.
+//!
+//! @param  pfx   The desired message prefix (default is as shown).
+//------------------------------------------------------------------------------
+
+       void Display(const char *pfx="=====> ");
+
+//------------------------------------------------------------------------------
 //! The enum that is used to index into ifData to get appropriate interface.
 //------------------------------------------------------------------------------
 
-       enum ifType {Public = 0, Private = 1, ifNum = 2};
-
-//------------------------------------------------------------------------------
-//! Check if destination type is a true IPV6 address.
-//!
-//! @param  dtype -> Either Public or Private ifType
-//!
-//! @return true  GetDest() will return a true   IPV6 address.
-//! @return false GetDest() will return a mapped IPV4 address.
-//------------------------------------------------------------------------------
-
-inline bool DestIPv6(ifType dtype) {return v6Dest[dtype];}
+       enum ifType {PublicV4  = 0,  //<! Public  IPv4 network
+                    PrivateV4 = 1,  //<! Private IPv4 network
+                    PublicV6  = 2,  //<! Public  IPv6 network
+                    PrivateV6 = 3,  //<! Private IPv6 network
+                    PrivateIF = 1,  //<! Bit to change PublicVx -> PrivateVx
+                    ifNum     = 4,  //<! Count of actual interface types
+                    Public46  = 4,  //<! Public  v4|6 network (dual stack)
+                    Private46 = 5,  //<! Private v4|6 network (dual stack)
+                    Public64  = 6,  //<! Public  v6|4 network (dual stack)
+                    Private64 = 7,  //<! Private v6|4 network (dual stack)
+                    ifMax     = 8,  //<! Total elements in if vector
+                    ifAny     = 8}; //<! Used to select any avilable i/f
 
 //------------------------------------------------------------------------------
 //! Get the interface address with a port number.
 //!
-//! @param  dtype -> Either Public or Private ifType
-//! @param  dest  -> Reference to where a pointer to the dest will be placed
-//! @param  prefn -> When true, a hostname:port is returned if possible
+//! @param  dest  Pointer to the buffer where dest will be placed.
+//! @param  dlen  The length of the buffer.
+//! @param  ifT   Desired ifType (PublicV6 is the default)
+//! @param  prefn When true, a hostname:port is returned if possible
 //!
 //! @return The length of the name whose pointer is placed in name.
-//!         A value of zero indicates that no such interface exists.
+//!         A value of zero indicates that no such interface exists or
+//!         the buffer was too small.
 //------------------------------------------------------------------------------
 
-inline int  GetDest(ifType dtype, const char *&dest, bool prefn=false)
-                   {ifData *ifP = (prefn ? ifNest[dtype] : ifDest[dtype]);
-                    dest = ifP->iVal; return ifP->iLen;
-                   }
+       int  GetDest(char *dest, int dlen, ifType ifT=PublicV6, bool prefn=false);
 
 //------------------------------------------------------------------------------
 //! Get the interface name without a port number.
 //!
-//! @param  ntype -> Either Public or Private ifType
-//! @param  name  -> Reference to where a pointer to the name will be placed
+//! @param  name  Reference to where a pointer to the name will be placed
+//! @param  ifT   Desired ifType (PublicV6 is the default)
 //!
 //! @return The length of the name whose pointer is placed in name.
 //!         A value of zero indicates that no such interface exists.
 //------------------------------------------------------------------------------
 
-inline int  GetName(ifType ntype, const char *&name)
-                   {name = ifName[ntype]->iVal; return ifName[ntype]->iLen;}
+inline int  GetName(const char *&name, ifType ifT=PublicV6)
+                   {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
+                    name = ifName[ifT]->iVal;
+                    return ifName[ifT]->iLen;
+                   }
 
 //------------------------------------------------------------------------------
 //! Copy the interface name and return port number.
 //!
-//! @param  ntype -> Either Public or Private ifType
-//! @param  nbuff -> Reference to buffer where the name will be placed. It must
-//!                  be atleast 256 bytes in length.
-//! @param  nport -> Place where the port number will be placed.
+//! @param  nbuff Reference to buffer where the name will be placed. It must
+//!               be atleast 256 bytes in length.
+//! @param  nport Place where the port number will be placed.
+//! @param  ifT   Desired ifType (PublicV6 is the default)
 //!
 //! @return The length of the name copied into the buffer.
 //!         A value of zero indicates that no such interface exists.
 //------------------------------------------------------------------------------
 
-inline int  GetName(ifType ntype, char *nbuff, int &nport)
-                   {strcpy(nbuff, ifName[ntype]->iVal); nport = ifPort;
-                    return ifName[ntype]->iLen;
+inline int  GetName(char *nbuff, int &nport, ifType ifT=PublicV6)
+                   {if (ifT >= ifAny) ifT = static_cast<ifType>(ifAvail);
+                    strcpy(nbuff, ifName[ifT]->iVal); nport = ifPort;
+                    return ifName[ifT]->iLen;
                    }
 
 //------------------------------------------------------------------------------
@@ -173,6 +184,36 @@ static int  GetIF(char *buff, int blen, const char **eText=0, bool show=false);
 static int  GetIF(char *&ifline, const char **eText=0, bool show=false);
 
 //------------------------------------------------------------------------------
+//! Get the ifType for client connection.
+//!
+//! @param  conIPv4  True if connected via IPv4, false means IPv6.
+//! @param  hasIP64  True if the client has an IPv4 and IPv6 address.
+//! @param  pvtIP    True if the ip address is private.
+//!
+//! @return The ifType correspodning to the passed arguments.
+//------------------------------------------------------------------------------
+
+static ifType GetIFType(bool conIPv4, bool hasIP64, bool pvtIP)
+                       {ifType ifT;
+                        if (conIPv4) ifT = (hasIP64 ? Public46 : PublicV4);
+                           else      ifT = (hasIP64 ? Public64 : PublicV6);
+                        if (pvtIP) Privatize(ifT);
+                        return ifT;
+                       }
+
+//------------------------------------------------------------------------------
+//! Determine whether or not an interface exists.
+//!
+//! @param  ifT   -> Desired ifType (PublicV6 is the default)
+//!
+//! @return true  -> desired dest exists.
+//!         false -> desired dest does not exist.
+//------------------------------------------------------------------------------
+
+inline bool HasDest(ifType ifT=PublicV6)
+                   {return ifT >= ifAny || ifDest[ifT]->iLen != 0;}
+
+//------------------------------------------------------------------------------
 //! Determine if an endpoint is this domain based on hostname.
 //!
 //! @param  epAddr   Pointer to the endpoint NetAddrInfo object.
@@ -185,20 +226,37 @@ static int  GetIF(char *&ifline, const char **eText=0, bool show=false);
 static bool InDomain(XrdNetAddrInfo *epaddr);
 
 //------------------------------------------------------------------------------
-//! Routing() and SetIF() parameter.
+//! Get the ifType selection mask for this object.
 //!
-//! netDefault - netSplit for Routing() and Routing() value for SetIF().
-//! netSplit   - public and private addresses are routed separately so that
-//!              substitution of one type of address for another is not allowed.
-//! netCommon  - clients with private addresses also have public addresses.
-//!              Source and target addresses should match but a public address
-//!              may be used in the absence of a private address.
-//! netLocal   - private addresses are registered and can be used by public
-//!              clients within this domain. Clients with public addresses can
-//!              be routed to private addresses.
+//! @return A single char that represents the selection mask.
 //------------------------------------------------------------------------------
 
-       enum netType {netDefault = 0, netSplit, netCommon, netLocal};
+       char Mask() {return ifMask;}
+
+//------------------------------------------------------------------------------
+//! Convert an ifType to its corresponding selection mask.
+//!
+//! @param  ifT   The ifType to convert.
+//!
+//! @return A single char that represents the selection mask.
+//------------------------------------------------------------------------------
+
+static char Mask(ifType ifT) {if (ifT >= ifAny) return 0x0f;
+                              return ifMaskVec[ifT];
+                             }
+
+//------------------------------------------------------------------------------
+//! Get the human readable for for an ifType.
+//!
+//! @param  ifT   The ifType to convert.
+//!
+//! @return A pointer to the human readable name. The string resides in static
+//!         storage and is always valid.
+//------------------------------------------------------------------------------
+static
+const char *Name(ifType ifT) {if (ifT >= ifAny) return "any";
+                              return ifTName[ifT];
+                             }
 
 //------------------------------------------------------------------------------
 //! Get the assigned port number
@@ -207,6 +265,14 @@ static bool InDomain(XrdNetAddrInfo *epaddr);
 //------------------------------------------------------------------------------
 
 inline int  Port() {return ifPort;}
+
+//------------------------------------------------------------------------------
+//! Make an iofType refer to the private network.
+//!
+//! @param x     The iftype variable that will have the private bit set.
+//------------------------------------------------------------------------------
+static
+inline void Privatize(ifType &x) {x = ifType(x | PrivateIF);}
 
 //------------------------------------------------------------------------------
 //! Set the assigned port number. This method is not thread safe!
@@ -229,6 +295,22 @@ inline int  Port() {return ifPort;}
 static void PortDefault(int pnum=1094) {dfPort = pnum;}
 
 //------------------------------------------------------------------------------
+//! Routing() and SetIF() parameter.
+//!
+//! netDefault - netSplit for Routing() and Routing() value for SetIF().
+//! netSplit   - public and private addresses are routed separately so that
+//!              substitution of one type of address for another is not allowed.
+//! netCommon  - clients with private addresses also have public addresses.
+//!              Source and target addresses should match but a public address
+//!              may be used in the absence of a private address.
+//! netLocal   - private addresses are registered and can be used by public
+//!              clients within this domain. Clients with public addresses can
+//!              be routed to private addresses.
+//------------------------------------------------------------------------------
+
+       enum netType {netDefault = 0, netSplit, netCommon, netLocal};
+
+//------------------------------------------------------------------------------
 //! Set default interface network routing.
 //!
 //! @param  nettype  Network routing (see netType definition).
@@ -241,7 +323,11 @@ static void Routing(netType nettype);
 //!
 //! @param  src      The network information of host supplying the if string.
 //! @param  ifList   The interface string, it must be null terminated.
-//! @param  nettype  Determine how undefined interfaces are resolved. See
+//! @param  port     The port associated with the interfaces; as follows:
+//!                  <0 -> Use previous setting if any.
+//!                  =0 -> use default port (the default).
+//!                  >0 -> Use the number passed.
+//! @param  nettype  Determines how undefined interfaces are resolved. See
 //!                  the netType definition.
 //!
 //! @return Success: True.
@@ -249,7 +335,7 @@ static void Routing(netType nettype);
 //!                  in persistent storage, is returned.
 //------------------------------------------------------------------------------
 
-       bool SetIF(XrdNetAddrInfo *src, const char *ifList,
+       bool SetIF(XrdNetAddrInfo *src, const char *ifList, int port=0,
                   netType nettype=netDefault);
 
 //------------------------------------------------------------------------------
@@ -278,7 +364,7 @@ static void SetMsgs(XrdSysError *erp) {eDest = erp;}
 //! Constructor and Destructor
 //------------------------------------------------------------------------------
 
-       XrdNetIF() : ifBuff(0) {}
+       XrdNetIF() : ifBuff(0), ifMask(0), ifAvail(0)  {}
 
       ~XrdNetIF() {if (ifBuff) free(ifBuff);}
 
@@ -288,41 +374,55 @@ struct ifAddrs
       {short hALen;
        short hDLen;
        bool  ipV6;
-       char  hAddr[64];    // IPV6      address ([])
-       char  hDest[64];    // IPV6:port in deprecated format
+       bool  prvt;
+       char  hAddr[64];    // address
+       char  hDest[64];    // address possibly in deprecated format
       };
 
-bool  GenAddrs(ifAddrs &ifTab,XrdNetAddrInfo *src,const char *hName,bool isPVT);
+bool  GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src);
+bool  GenAddrs(ifAddrs &ifTab, const char *hName, bool wantV6);
 bool  GenIF(XrdNetAddrInfo **src, int srcnum);
 static
 bool  IsOkName(const char *ifn, short &ifIdx);
 static
 char *SetDomain();
+void  SetIFPP();
+bool  SetIF64(bool retVal);
 static
 bool  V4LinkLocal(struct sockaddr *saP);
 
 struct ifData
 {
        short  iLen;
-       char   iVal[256]; // Actually of size iLen
+       char   iVal[6]; // Actually of size iLen
 
        ifData() : iLen(0) {*iVal = 0;}
       ~ifData() {}
 };
 
-ifData        *ifName[ifNum];
-ifData        *ifNest[ifNum];
-ifData        *ifDest[ifNum];
-int            ifPort;
-bool           v6Dest[ifNum];
+ifData        *ifName[ifMax];
+ifData        *ifDest[ifMax];
+bool           ifxDNS[ifMax];
 char          *ifBuff;
+
+struct pInfo {char   len;
+              char   val[7]; // Contains ":12345\0"
+                     pInfo() : len(0) {*val = 0;}
+             } portSfx;
+
+int            ifPort;
+short          ifRoute;
+char           ifMask;
+char           ifAvail;
 
 static
 XrdSysError   *eDest;
+static char   *myDomain;
+static char   *ifCfg[2];
 static
-char          *myDomain;
+const char    *ifTName[ifMax];
 static
-char          *ifCfg[2];
+const char     ifMaskVec[ifMax];
 static
 netType        netRoutes;
 static int     dfPort;

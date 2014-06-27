@@ -33,13 +33,13 @@
 #include <dirent.h>
 #include <sys/types.h>
   
-#include "XrdNet/XrdNetIF.hh"
 #include "XrdOfs/XrdOfsEvr.hh"
 #include "XrdOfs/XrdOfsHandle.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdCms/XrdCmsClient.hh"
 
+class XrdNetIF;
 class XrdOfsEvs;
 class XrdOfsPocq;
 class XrdOss;
@@ -308,7 +308,7 @@ int   myPort;                // Port number being used
 
 // Networking
 //
-XrdNetIF myIF;
+XrdNetIF *myIF;
 
 // Forward options
 //

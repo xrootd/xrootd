@@ -94,7 +94,7 @@ XrdCmsNode *XrdCmsManager::Add(XrdLink *lp, int Lvl)
    if (i > MTHi) MTHi = i;
    nP->isOffline  = 0;
    nP->isNoStage  = 0;
-   nP->isSuspend  = 0;
+   nP->isBad      = 0;
    nP->isBound    = 1;
    nP->isConn     = 1;
    nP->isMan      = (Config.asManager() ? 1 : 0);

@@ -303,7 +303,7 @@ void XrdCmsRRQ::sendLocResp(XrdCmsRRQSlot *lP)
 // ASAP responses always respond in with IPv6 addresses or mapped IPv4 ones.
 //
    lsopts = static_cast<XrdCmsCluster::CmsLSOpts>(lP->Info.lsLU);
-   if (!(sP = Cluster.List(lP->Arg1, lsopts, oksel, oksel, oksel))
+   if (!(sP = Cluster.List(lP->Arg1, lsopts, oksel))
    || (!(bytes = XrdCmsNode::do_LocFmt(databuff,sP,lP->Arg2,lP->Info.rwVec))))
       {sendLwtResp(lP);
        return;
@@ -366,7 +366,7 @@ void XrdCmsRRQ::sendRedResp(XrdCmsRRQSlot *rP)
 //
    if ((doredir = (rP->Arg1 && Cluster.Select(rP->Arg1, port, hostbuff, hlen,
                                               rP->Info.isRW, rP->Info.actR,
-                                              rP->Info.prvt))))
+                                              rP->Info.ifOP))))
       {redrResp.Val = htonl(port);
        redrResp.Hdr.datalen = htons(static_cast<unsigned short>(hlen+ovhd));
        redr_iov[1].iov_len  = hlen;

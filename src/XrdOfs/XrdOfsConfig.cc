@@ -132,6 +132,13 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
 //
    Eroute.Say("++++++ File system initialization started.");
 
+// Establish the network interface that the caller must provide
+//
+   if (!EnvInfo || !(myIF = (XrdNetIF *)EnvInfo->GetPtr("XrdNetIF*")))
+      {Eroute.Emsg("Finder", "Network i/f undefined; unable to self-locate.");
+       NoGo = 1;
+      }
+
 // Preset all variables with common defaults
 //
    Options            = 0;
@@ -170,14 +177,6 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                               ConfigFN);
            Config.Close();
           }
-
-// Configure network routing this is needed for local locates
-//
-   XrdNetAddr myAddr((int)myPort);
-   if (!myIF.SetIF(&myAddr, getenv("XRDIFADDRS")))
-      {Eroute.Emsg("Config", "Unable to set locate interface addresses!");
-       NoGo = 1;
-      }
 
 // Determine whether we should initialize authorization
 //

@@ -56,26 +56,29 @@ class XrdCmsNode
 friend class XrdCmsCluster;
 public:
        char  *Ident;        // -> role hostname
-       char   isDisable;    //0 Set via admin command to temporarily remove node
-       char   isOffline;    //1 Set when a link failure occurs
-       char   isNoStage;    //2 Set upon a nostage event
-       char   isMan;        //3 Set when node acts as manager
-       char   isPeer;       //4 Set when node acts as peer manager
-       char   isProxy;      //5 Set when node acts as a proxy
-       char   isSuspend;    //6 Set upon a suspend event
+       char   hasNet;       //0 Network selection mask
+       char   isBad;        //1 Set on an event that makes it unselectable
+       char   isOffline;    //2 Set when a link failure occurs
+       char   isRW;         //3 Set when node can write or stage data
+       char   isNoStage;    //4 Set upon a nostage event
+       char   isMan;        //5 Set when node acts as manager
+       char   isPeer;       //6 Set when node acts as peer manager
        char   isBound;      //7 Set when node is in the configuration
-       char   isRW;         //0 Set when node can write or stage data
-       char   isKnown;      //1 Set when we have recieved a "state"
-       char   isConn;       //2 Set when node is network connected
-       char   isGone;       //3 Set when node must be deleted
-       char   isPerm;       //4 Set when node is permanently bound
-       char   isReserved[2];
-       char   RoleID;       // The converted XrdCmsRole::RoleID
-       char   TimeZone;     // Time zone in +UTC-
-       char   TZValid;      // Time zone has been set
+       char   isKnown;      //0 Set when we have recieved a "state"
+       char   isConn;       //1 Set when node is network connected
+       char   isGone;       //2 Set when node must be deleted
+       char   isPerm;       //3 Set when node is permanently bound
+       char   isReserved;   //4
+       char   RoleID;       //5 The converted XrdCmsRole::RoleID
+       char   TimeZone;     //6 Time zone in +UTC-
+       char   TZValid;      //7 Time zone has been set
 
-static const char allowsRW = 0x01; // in isRW -> Server allows r/w access
-static const char allowsSS = 0x02; // in isRW -> Server can stage data
+static const char isBlisted  = 0x01; // in isBad -> Node is black listed
+static const char isDisabled = 0x02; // in isBad -> Node is disable (internal)
+static const char isSuspend  = 0x04; // in isBad -> Node is suspended via event
+
+static const char allowsRW   = 0x01; // in isRW  -> Server allows r/w access
+static const char allowsSS   = 0x02; // in isRW  -> Server can stage data
 
 unsigned int    DiskTotal;    // Total disk space in GB
          int    DiskNums;     // Number of file systems
@@ -161,6 +164,8 @@ inline int   Send(const struct iovec *iov, int iovcnt, int iotot=0)
 
 inline void  setSlot(short rslot) {RSlot = rslot;}
 inline short getSlot() {return RSlot;}
+
+inline void  ShowIF() {netIF.Display("=====> ");}
 
        void  SyncSpace();
 

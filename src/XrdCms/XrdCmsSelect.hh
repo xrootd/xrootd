@@ -51,22 +51,22 @@ struct iovec  *iovP;    //  In: Prepare notification I/O vector
 int            iovN;    //  In: Prepare notification I/O vector count
 int            Opts;    //  In: One or more of the following enums
 
-enum {Write   = 0x0001, // File will be open in write mode     (select & cache)
-      NewFile = 0x0002, // File will be created may not exist  (select)
-      Online  = 0x0004, // Only consider online files          (select & prep)
-      Trunc   = 0x0008, // File will be truncated              (Select   only)
-      Create  = 0x000A, // Create file, truncate if exists
-      Defer   = 0x0010, // Do not select a server now          (prep     only)
-      Peers   = 0x0020, // Peer clusters may be selected       (select   only)
-      Refresh = 0x0040, // Cache should be refreshed           (all)
-      Asap    = 0x0080, // Respond as soon as possible         (locate   only)
-      noBind  = 0x0100, // Do not new bind file to a server    (select   only)
-      isMeta  = 0x0200, // Only inode information being changed(select   only)
-      Freshen = 0x0400, // Freshen access times                (prep     only)
-      Replica = 0x0800, // File will be replicated (w/ Create) (select   only)
-      Private = 0x2000, // Return private interface information(select   only)
-      Advisory= 0x4000, // Cache A/D is advisory (no delay)    (have   & cache)
-      Pending = 0x8000  // File being staged                   (have   & cache)
+enum {Write   = 0x00010, // File will be open in write mode     (select & cache)
+      NewFile = 0x00020, // File will be created may not exist  (select)
+      Online  = 0x00040, // Only consider online files          (select & prep)
+      Trunc   = 0x00080, // File will be truncated              (Select   only)
+      Create  = 0x000A0, // Create file, truncate if exists
+      Defer   = 0x00100, // Do not select a server now          (prep     only)
+      Peers   = 0x00200, // Peer clusters may be selected       (select   only)
+      Refresh = 0x00400, // Cache should be refreshed           (all)
+      Asap    = 0x00800, // Respond as soon as possible         (locate   only)
+      noBind  = 0x01000, // Do not new bind file to a server    (select   only)
+      isMeta  = 0x02000, // Only inode information being changed(select   only)
+      Freshen = 0x04000, // Freshen access times                (prep     only)
+      Replica = 0x08000, // File will be replicated (w/ Create) (select   only)
+      Advisory= 0x40000, // Cache A/D is advisory (no delay)    (have   & cache)
+      Pending = 0x80000, // File being staged                   (have   & cache)
+      ifWant  = 0x0000f  // XrdNetIF::ifType encoding location
      };
 
 struct {SMask_t wf;     // Out: Writable locations
@@ -121,5 +121,28 @@ enum           {Disable = 0x0001,
                XrdCmsSelected(XrdCmsSelected *np=0) : next(np) {}
 
               ~XrdCmsSelected() {}
+};
+
+/******************************************************************************/
+/*                  C l a s s   X r d C m s S e l e c t o r                   */
+/******************************************************************************/
+  
+class XrdCmsSelector
+{
+public:
+const  char *reason;
+       int   delay;
+       short nPick;
+       char  needNet;
+       char  needSpace;
+       bool  xFull;
+       bool  xNoNet;
+       bool  xOff;
+       bool  xOvld;
+       bool  xSusp;
+
+inline void  Reset() {reason = 0; delay = 0; nPick = 0;
+                      xFull = xNoNet = xOff = xOvld = xSusp = false;
+                     }
 };
 #endif

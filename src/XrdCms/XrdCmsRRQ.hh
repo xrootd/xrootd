@@ -55,13 +55,13 @@ char      isLU;    // True if locate response wanted
 char      minR;    // Minimum number of responses for fast redispatch
 char      actR;    // Actual  number of responses
 char      lsLU;    // Lookup options
-char      prvt;    // Use private interface as target
+char      ifOP;    // XrdNetIF::ifType to return (cast as char)
 SMask_t   rwVec;   // R/W servers for corresponding path (if isLU is true)
 
-        XrdCmsRRQInfo() : isLU(0), prvt(0) {}
+        XrdCmsRRQInfo() : isLU(0), ifOP(0) {}
         XrdCmsRRQInfo(int rinst, short rnum, kXR_unt32 id, int minQ=0)
                         : Key(0), ID(id), Rinst(rinst), Rnum(rnum),
-                          isRW(0), isLU(0), minR(minQ), actR(0), lsLU(0), prvt(0),
+                          isRW(0), isLU(0), minR(minQ), actR(0), lsLU(0), ifOP(0),
                           rwVec(0) {}
        ~XrdCmsRRQInfo() {}
 };
