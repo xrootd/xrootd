@@ -549,8 +549,6 @@ void Factory::CacheDirCleanup()
 
 bool Factory::CheckFileForDiskSpace(const char* path, long long fsize)
 {
-    XrdSysMutexHelper tmph(m_factory_mutex);
-
     long long inQueue = 0;
     for (std::map<std::string, long long>::iterator i = m_filesInQueue.begin(); i!= m_filesInQueue.end(); ++i)
         inQueue += i->second;
