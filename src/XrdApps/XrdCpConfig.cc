@@ -207,7 +207,7 @@ void XrdCpConfig::Config(int aCnt, char **aVec, int opts)
 // Process legacy options first before atempting normal options
 //
 do{while(optind < Argc && Legacy(optind)) {}
-   if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) >= 0)
+   if ((opC = getopt_long(Argc, Argv, opLetters, opVec, &i)) != (char)-1)
       switch(opC)
          {case OpCksum:    defCks(optarg);
                            break;
@@ -274,7 +274,7 @@ do{while(optind < Argc && Legacy(optind)) {}
           default:         UMSG("Internal error processing '" <<OpName() <<"'.");
                            break;
          }
-  } while(opC >= 0 && optind < Argc);
+  } while(opC != (char)-1 && optind < Argc);
 
 // Make sure we have the right number of files
 //

@@ -864,7 +864,7 @@ int XrdFrmAdmin::Parse(const char *What, XrdOucArgs &Spec, const char **Reqs)
 
 // Now process all the options
 //
-   while((theOpt = Spec.getopt()) != -1)
+   while((theOpt = Spec.getopt()) != (char)-1)
         {switch(theOpt)
                {case 'A': Opt.All     = 1; break;
                 case 'e': Opt.Erase   = 1; break;
@@ -964,7 +964,7 @@ int XrdFrmAdmin::ParseOwner(const char *What, char *Uname)
 // Process username
 //
    if (Uname)
-      {if (*Uname >= 0 && *Uname <= 9)
+      {if (*Uname >= '0' && *Uname <= '9')
           {if (XrdOuca2x::a2i(Say,"uid",Uname, &Unum)) return 0;
            Opt.Uid = Unum;
           }
@@ -977,7 +977,7 @@ int XrdFrmAdmin::ParseOwner(const char *What, char *Uname)
 // Process groupname
 //
    if (Gname)
-      {if (*Gname >= 0 && *Gname <= 9)
+      {if (*Gname >= '0' && *Gname <= '9')
           {if (XrdOuca2x::a2i(Say, "gid", Gname, &Gnum))  return 0;
            Opt.Gid = Gnum;
           }

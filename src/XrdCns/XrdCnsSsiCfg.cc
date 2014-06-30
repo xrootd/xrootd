@@ -107,7 +107,7 @@ int XrdCnsSsiCfg::Configure(int argc, char **argv, const char *Opts)
 
 // Parse the options
 //
-   while((theOpt = Spec.getopt()) != -1) 
+   while((theOpt = Spec.getopt()) != (char)-1) 
      {switch(theOpt)
        {
        case 'h': Lopt |= Lhost;
