@@ -496,7 +496,7 @@ void Factory::CacheDirCleanup()
       else
       {
          float oc = 1 - float(fsstat.f_bfree)/fsstat.f_blocks;
-         clLog()->Info(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
+         clLog()->Debug(XrdCl::AppMsg, "Factory::CacheDirCleanup() occupates disk space == %f", oc);
          if (oc > m_configuration.m_hwm)
          {
             long long bytesToRemoveLong = static_cast<long long> ((oc - m_configuration.m_lwm) * static_cast<float>(s_diskSpacePrecisionFactor));

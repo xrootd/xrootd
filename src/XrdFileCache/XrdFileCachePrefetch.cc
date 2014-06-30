@@ -358,8 +358,6 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
 Prefetch::Task*
 Prefetch::GetNextTask()
 {
-   clLog()->Dump(XrdCl::AppMsg, "Prefetch::GetNextTask begin ");
-
    while (true)
    {
       m_stateCond.Lock();
@@ -404,7 +402,7 @@ Prefetch::GetNextTask()
    m_queueCond.UnLock();
 
    assert(task->ramBlockIdx >=0);
-   clLog()->Debug(XrdCl::AppMsg, "Prefetch::GetNextTask [%d] from queue %s", m_ram.m_blockStates[task->ramBlockIdx].fileBlockIdx, lPath());
+   clLog()->Info(XrdCl::AppMsg, "Prefetch::GetNextTask [%d] from queue %s", m_ram.m_blockStates[task->ramBlockIdx].fileBlockIdx, lPath());
 
    return task;
 }
