@@ -722,7 +722,7 @@ int valTPC(XrdClient *cObj, int isDest)
   
 char *genDestCgi(XrdClient *xrdsrc, const char *src)
 {
-   union {int *intP;
+   union {long long intP;
           int  intV[2];
          } iKey;
    XrdClientStatInfo stat;
@@ -749,7 +749,7 @@ char *genDestCgi(XrdClient *xrdsrc, const char *src)
    gettimeofday(&abs_start_time,&tz);
    myKey[0] = abs_start_time.tv_usec;
    myKey[1] = getpid() | (getppid() << 16);
-   iKey.intP = &myKey[0];
+   iKey.intP = (long long) &myKey[0];
    myKey[2] = iKey.intV[0] ^ iKey.intV[1];
    sprintf(tpcKey, "%08x%08x%08x", myKey[0], myKey[1], myKey[2]);
 
