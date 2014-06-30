@@ -143,7 +143,7 @@ int XrdCnsConfig::Configure(int argc, char **argv, char *argt)
 
 // Parse the options
 //
-   while((theOpt = Spec.getopt()) != -1) 
+   while((theOpt = Spec.getopt()) != (char)-1) 
      {switch(theOpt)
        {
        case 'a': if (*aPath == '/') aPath = Spec.argval;

@@ -487,7 +487,7 @@ int main(int argc, char *argv[])
 //
    opterr = 0;
    optind = 1;
-   while((opC = getopt_long(argc, argv, opLetters, opVec, &i)) >= 0)
+   while((opC = getopt_long(argc, argv, opLetters, opVec, &i)) != (char)-1)
         switch(opC)
               {case 'h': Usage(0);
                          break;

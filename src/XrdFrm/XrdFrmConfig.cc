@@ -257,7 +257,7 @@ int XrdFrmConfig::Configure(int argc, char **argv, int (*ppf)())
 //
    opterr = 0; nextArg = 1;
    while(nextArg < argc && '-' == *argv[nextArg]
-         && (c=getopt(argc,argv,vOpts)) && (c != -1))
+         && (c=getopt(argc,argv,vOpts)) && (c != (char)-1))
      { switch(c)
        {
        case 'b': optBG = 1;
