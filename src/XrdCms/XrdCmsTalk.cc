@@ -77,7 +77,7 @@ int XrdCmsTalk::Complain(XrdLink *Link, int ecode, const char *msg)
 
    struct iovec Liov[xNum];
    int mlen = strlen(msg)+1;
-   CmsResponse LEResp={{0, kYR_error, 0, 0}, htonl(ecode)};
+   CmsResponse LEResp={{0, kYR_error, 0, 0}, htonl((unsigned int)ecode)};
 
 // Fill out header and iovector
 //
