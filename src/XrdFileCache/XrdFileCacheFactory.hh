@@ -159,7 +159,7 @@ namespace XrdFileCache
 
          static Factory   *m_factory;   //!< this object
 
-         XrdSysError       m_log;       //!< XFC namespace logger
+         XrdSysError       m_log;       //!< XrdFileCache namespace logger
          XrdOucCacheStats  m_stats;     //!< passed to cache, currently not used
          XrdOss           *m_output_fs; //!< disk cache file system
 
