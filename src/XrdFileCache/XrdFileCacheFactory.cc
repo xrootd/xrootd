@@ -46,7 +46,7 @@ static long long s_diskSpacePrecisionFactor = 10000000;
 }
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(Config);
 
-XrdVERSIONINFO(XrdOucGetCache, first_cache_imp_alja);
+XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
 
 // Copy/paste from XrdOss/XrdOssApi.cc.  Unfortunately, this function
 // is not part of the stable API for extension writers, necessitating
