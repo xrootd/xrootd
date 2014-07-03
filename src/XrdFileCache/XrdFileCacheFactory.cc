@@ -113,7 +113,7 @@ void *CacheDirCleanupThread(void* cache_void)
 
 
 Factory::Factory()
-   : m_log(0, "XFC_")
+   : m_log(0, "XrdFileCache_")
 {}
 
 extern "C"
