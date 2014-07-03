@@ -25,6 +25,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucStream.hh"
+#include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOss/XrdOss.hh"
 #if !defined(HAVE_VERSIONS)
 #include "XrdOss/XrdOssApi.hh"
@@ -46,7 +47,9 @@ static long long s_diskSpacePrecisionFactor = 10000000;
 }
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(Config);
 
+
 XrdVERSIONINFO(XrdOucGetCache, XrdFileCache);
+
 
 // Copy/paste from XrdOss/XrdOssApi.cc.  Unfortunately, this function
 // is not part of the stable API for extension writers, necessitating
@@ -149,7 +152,6 @@ Factory &Factory::GetInstance()
 
 XrdOucCache *Factory::Create(Parms & parms, XrdOucCacheIO::aprParms * prParms)
 {
- clLog()->Info(XrdCl::AppMsg, "Factory::Create() new cache object");
    clLog()->Info(XrdCl::AppMsg, "Factory::Create() new cache object");
    return new Cache(m_stats);
 }
@@ -212,10 +214,6 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
    if (retval)
       retval = ConfigParameters(parameters);
 
-   clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
-   clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
-   clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
-
    if (retval)
    {
       XrdOss *output_fs = XrdOssGetSS(m_log.logger(), config_filename, m_configuration.m_osslib_name.c_str(), NULL);
@@ -225,6 +223,10 @@ bool Factory::Config(XrdSysLogger *logger, const char *config_filename, const ch
          retval = false;
       }
       m_output_fs = output_fs;
+
+      clLog()->Info(XrdCl::AppMsg, "Factory::Config() user name %s", m_configuration.m_username.c_str());
+      clLog()->Info(XrdCl::AppMsg, "Factory::Config() cache directory %s", m_configuration.m_cache_dir.c_str());
+      clLog()->Info(XrdCl::AppMsg, "Factory::Config() purge file cache within %f-%f", m_configuration.m_lwm, m_configuration.m_hwm);
    }
 
    clLog()->Info(XrdCl::AppMsg, "Factory::Config() Configuration = %s ", retval ? "Success" : "Fail");
@@ -365,11 +367,13 @@ bool Factory::ConfigParameters(const char * parameters)
       else if  ( part == "-bufferSize" )
       {
          getline(is, part, ' ');
-         // prefetch buffer size is long long because of possible problems
-         // after multiplication, but in this stepe it is save to use atoi
-         int xm = ::atoi(part.c_str());
-         m_configuration.m_bufferSize = xm*1024*1024;
-         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %dM => %lld", xm, m_configuration.m_bufferSize);
+         long long minBSize = 64 * 1024;
+         long long maxBSize = 16 * 1024 * 1024;
+         if ( XrdOuca2x::a2sz(m_log, "get buffer size", part.c_str(), &m_configuration.m_bufferSize, minBSize, maxBSize))
+         {
+            return false;
+         }
+         clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() bufferSize %lld", m_configuration.m_bufferSize);
       }
       else if (part == "-NRamBuffersRead")
       {
@@ -386,7 +390,13 @@ bool Factory::ConfigParameters(const char * parameters)
       else if  ( part == "-blockSize" )
       {
          getline(is, part, ' ');
-         m_configuration.m_blockSize = ::atoi(part.c_str())*1024*1024;
+         long long minBlSize = 128 * 1024;
+         long long maxBlSize = 1024 * 1024 * 1024;
+
+         if ( XrdOuca2x::a2sz(m_log, "get block size", part.c_str(), &m_configuration.m_blockSize, minBlSize, maxBlSize))
+         {
+            return false;
+         }
          clLog()->Info(XrdCl::AppMsg, "Factory::ConfigParameters() blockSize = %lld", m_configuration.m_blockSize);
       }
    }
