@@ -50,6 +50,7 @@ short     Opaque;       // Offset to '?' in LFN if exists, 0 o/w
 char      Reserved2;
 char      csType;       // Checksum type
 char      OPc;          // Original Operation Request code (debugging)
+signed
 char      Prty;         // Request priority
 
 // Flags set in options

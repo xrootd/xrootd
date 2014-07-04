@@ -280,6 +280,7 @@ struct aprParms
        int   prRecalc;  // Recalc pr efficiency every prRecalc bytes   (0->50M)
        int   Reserve4;
        short minPages;  // If rdln/pgsz < min,  preread minPages       (0->off)
+       signed
        char  minPerf;   // Minimum auto preread performance required   (0->n/a)
        char  Reserve1;
 

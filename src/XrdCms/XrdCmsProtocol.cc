@@ -996,7 +996,7 @@ void XrdCmsProtocol::Reply_Error(XrdCmsRRData &Data, int ecode, const char *etex
 
      if (Data.Request.streamid && (Data.Routing & XrdCmsRouting::Repliable))
         {CmsResponse Resp = {{Data.Request.streamid, kYR_error, 0,
-                              htons(sizeof(kXR_unt32)+n)},
+                              htons((unsigned short int)(sizeof(kXR_unt32)+n))},
                              htonl(static_cast<unsigned int>(ecode))};
          struct iovec ioV[2] = {{(char *)&Resp, sizeof(Resp)},
                                 {(char *)etext, (size_t)n}};
