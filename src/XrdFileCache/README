@@ -35,7 +35,7 @@ The second mode supports on-demand downloading of individual blocks of a file
 (block-size can also be passes as opaque information in file-open
 request). The distinguishing feature of the second implementation is that it
 only downloads the requested fixed-size blocks of a file. The main motivation
-was to provide prefetching of HDFS blocks (typical size 64 or 128 MB) when
+was to provide prefetching of HDFS blocks (typical size 64k or 128M) when
 they become unavailable on local site, either permanently or temporarily due
 to server overload or other transient failures. When additional file replicas
 exist in a data-federation, the remote data can be used to supplement local
@@ -104,7 +104,7 @@ Partial file block-based prefetching is enabled with option '-prefetchFileBlock'
   with its own info file. Block size and offset are postfixed onto the file name, e.g.,
     /tmp/store/data/test.root___134217728_0
 
-- Default size of file-block is 128 MB. The size is configurable and saved into
+- Default size of file-block is 128M. The size is configurable and saved into
   corresponding info file.
 
 
@@ -112,7 +112,7 @@ Partial file block-based prefetching is enabled with option '-prefetchFileBlock'
 
 CONFIGURATION
 
--bufferSize: prefetch buffer size, default 1 MB
+-bufferSize: prefetch buffer size, default 1M
 
 -NRamBuffersRead: number of in memmory cached blocks reserved for read tasks
 
@@ -130,18 +130,18 @@ Options for block-based cache:
 
 -prefetchFileBlocks -- enable prefetching a unit of a file
 
--blockSize <size in MBytes>: default size of a file-block on the local disk
+-blockSize <size>: default size of a file-block on the local disk
 
 
 Examples:
 
 pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
-  -user alja -NRamBuffersRead 4  -NRamBuffersPrefetch 1 -cacheDir /data/xrd-file-cache
+  -user alja -NRamBuffersRead 4M  -NRamBuffersPrefetch 1 -cacheDir /data/xrd-file-cache
 
 
 pss.cachelib /home/alja/xrd/hdfs/xfc/src/libXrdFileCache.so
   -user alja -cacheDir /data/hdfs-file-cache
-  -prefetchFileBlocks -blockSize 67108864
+  -prefetchFileBlocks -blockSize 64M
 
 
 //==============================================================================
