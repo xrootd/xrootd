@@ -105,7 +105,7 @@ XrdSutBuffer::XrdSutBuffer(const char *buf, kXR_int32 len)
       // Assume exchange info format
       // Check integrity
       int k = 0;
-      while (buf[k] && k < XrdSecPROTOIDSIZE && k < len) { k++; } 
+      while ( k < XrdSecPROTOIDSIZE && k < len && buf[k]) { k++; }
       if (!k || k == XrdSecPROTOIDSIZE) {
          PRINT("no protocol name: do nothing");
          ok = 0;
