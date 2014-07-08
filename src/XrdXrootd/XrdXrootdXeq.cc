@@ -896,7 +896,7 @@ int XrdXrootdProtocol::do_Login()
 // Allocate a monitoring object, if needed for this connection
 //
    if (Monitor.Ready())
-      {Monitor.Register(Link->ID, Link->Host(), "xrootd");
+      {Monitor.Register(Link->ID, Link->Host(), "xroot");
        if (Monitor.Logins() && (!Monitor.Auths() || !(Status & XRD_NEED_AUTH)))
           {Monitor.Report(Entity.moninfo);
            if (Entity.moninfo) {free(Entity.moninfo); Entity.moninfo = 0;}
