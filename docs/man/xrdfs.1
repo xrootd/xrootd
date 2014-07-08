@@ -84,8 +84,35 @@ Get info about a virtual file system.
 .RS 3
 Obtain server information. Query codes:
 .br
-\fIconfig\fR         \fB<what>\fR   Server configuration
+\fIconfig\fR         \fB<what>\fR   Server configuration; <what> is one of the following:
+.RS 5
+bind_max      - the maximum number of parallel streams
 .br
+chksum        - the supported checksum
+.br
+pio_max       - maximum number of parallel I/O requests
+.br
+readv_ior_max - maximum size of a readv element
+.br
+readv_iov_max - maximum number of readv entries
+.br
+tpc           - support for third party copies
+.br
+wan_port      - the port to use for wan copies
+.br
+wan_window    - the wan_port window size
+.br
+window        - the tcp window size
+.br
+cms           - the status of the cmsd
+.br
+role          - the role in a cluster
+.br
+sitename      - the site name
+.br
+version       - the version of the server
+.br
+.RE
 \fIchecksumcancel\fR \fB<path>\fR   File checksum cancelation
 .br
 \fIchecksum\fR       \fB<path>\fR   File checksum
