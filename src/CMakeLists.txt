@@ -52,3 +52,19 @@ install(
   OWNER_EXECUTE OWNER_WRITE OWNER_READ
   GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ )
+
+#-------------------------------------------------------------------------------
+# Post process man pages
+#-------------------------------------------------------------------------------
+
+install(
+  CODE "
+    FILE(GLOB MANPAGES
+      \"\$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}/man[1,8]/*.[1,8]\" )
+    FOREACH(MANPAGE \${MANPAGES})
+      MESSAGE( \"-- Processing: \" \${MANPAGE} )
+      EXECUTE_PROCESS(
+        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\" -i \${MANPAGE} )
+    ENDFOREACH()"
+
+)
