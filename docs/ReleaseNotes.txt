@@ -10,24 +10,25 @@ Version 4.0.1
 -------------
 
 + **Major bug fixes**
-   * Prohibit accessing memory via /proc using digFS.
+   * **[Server]** Prohibit accessing memory via /proc using digFS.
 
 + **Minor bug fixes**
-   * Provide full error mapping for POSIX interface.
-   * Prevent over-scan of the xrd.network routes option which may cause
+   * **[Server]** Prevent over-scan of the xrd.network routes option which may cause
      a config file error message and initialization failure.
-   * Fixes to make things compile on ix86, arm and ppc64.
-   * Various minor fixes to caching proxy.
-   * Check the length before looking inside a SUT buffer. (issue #126)
-   * Remove some unnecessary commas and semicolons. (issue #121)
-   * Check for copy source and target validity to display proper error messages.
-   * Return default plug-in factory for an empty URL. (issue #120)
-   
+   * **[Server]** Fixes to make things compile on ix86, arm and ppc64.
+   * **[Server/Proxy]** Various minor fixes to caching proxy.
+   * **[Security]** Check the length before looking inside a SUT buffer. (issue #126)
+   * **[Client/Cl]** Check for copy source and target validity to display proper error
+     messages.
+   * **[Client/Cl]** Return default plug-in factory for an empty URL. (issue #120)
+   * **[Client/Posix]** Provide full error mapping for POSIX interface.
+   * **[All]** Remove some unnecessary commas and semicolons. (issue #121)
+
 + **Miscellaneous**
-   * Pass client login information to monitoring.
-   * Various documentation updates.
-   * Make xrdfs locate -h synonymous to locate -m.
-   * Add -i option to xrdfs locate setting the Force flag.
+   * **[Server]** Pass client login information to monitoring.
+   * **[Client/Cl]** Make xrdfs locate -h synonymous to locate -m.
+   * **[Client/Cl]** Add -i option to xrdfs locate setting the Force flag.
+   * **[Docs]** Various documentation updates.
 
 -------------
 Version 4.0.0
