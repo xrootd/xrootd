@@ -56,7 +56,6 @@ install(
 #-------------------------------------------------------------------------------
 # Post process man pages
 #-------------------------------------------------------------------------------
-
 install(
   CODE "
     FILE(GLOB MANPAGES
@@ -64,7 +63,10 @@ install(
     FOREACH(MANPAGE \${MANPAGES})
       MESSAGE( \"-- Processing: \" \${MANPAGE} )
       EXECUTE_PROCESS(
-        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\" -i \${MANPAGE} )
+        COMMAND cat \${MANPAGE}
+        COMMAND sed  -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+        OUTPUT_FILE \${MANPAGE}.new )
+      EXECUTE_PROCESS(
+        COMMAND mv -f \${MANPAGE}.new \${MANPAGE} )
     ENDFOREACH()"
-
 )
