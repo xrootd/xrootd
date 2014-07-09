@@ -292,7 +292,7 @@ Prefetch::CreateTaskForFirstUndownloadedBlock()
    // first check if there are enough write and ram resources
    if (Cache::HaveFreeWritingSlots() == false) return 0;
 
-   bool nRP = 0;
+   int nRP = 0;
    for (int i =0 ; i < m_ram.m_numBlocks; ++i) {
       if (m_ram.m_blockStates[i].fromRead == false && m_ram.m_blockStates[i].refCount > 0) nRP++;
    }
