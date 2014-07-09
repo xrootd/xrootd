@@ -16,6 +16,7 @@ Version 4.0.1
    * **[Server]** Prevent over-scan of the xrd.network routes option which may cause
      a config file error message and initialization failure.
    * **[Server]** Fixes to make things compile on ix86, arm and ppc64.
+   * **[Server]** Correct protocol name supplied to monitoring for userid.
    * **[Server/Proxy]** Various minor fixes to caching proxy.
    * **[Security]** Check the length before looking inside a SUT buffer. (issue #126)
    * **[Client/Cl]** Check for copy source and target validity to display proper error
