@@ -1,10 +1,10 @@
-.TH xrdcp 1 "__VERSION__"
+.TH xrdcp-old 1 "__VERSION__"
 .SH NAME
-xrdcp - copy files
+xrdcp-old - copy files
 .SH SYNOPSIS
 .nf
 
-\fBxrdcp\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
+\fBxrdcp-old\fR [\fIoptions\fR] \fIsource\fR \fIdestination\fR
 
 \fIoptions\fR: [\fB--cksum\fR \fIargs\fR] [\fB--debug\fR \fIlvl\fR] [\fB--coerce\fR] [\fB--force\fR]
 [\fB--help\fR] [\fB--license\fR] [\fB--nopbar\fR] [\fB--posc\fR] [\fB--proxy \fIipaddr\fB:\fIport\fR]
@@ -19,7 +19,13 @@ xrdcp - copy files
 .br
 .ad l
 .SH DESCRIPTION
-The \fBxrdcp\fR utility copies one or more files from one location to
+
+
+\fBThis tool is DEPRECATED. It is what used to be xrdcp prior to xrootd 4.0.0 release.
+Please use xrdcp instead.\fR
+
+
+The \fBxrdcp-old\fR utility copies one or more files from one location to
 another. The data source and destination may be a local
 or remote file or directory.  Additionally, the data source may also reside
 on multiple servers.
@@ -59,7 +65,7 @@ displays license terms and conditions.
 
 .RE
 {\fB-N\fR | \fB--nopbar\fR}
-.RS5
+.RS 5
 does not display the progress bar.
 
 .RE
@@ -82,7 +88,7 @@ recursively copy all files starting at the given source directory. This option i
 
 .RE
 \fB--server\fR
-.RS5
+.RS 5
 runs as if in a server environment. Used only for server-side
 third party copy support.
 
@@ -196,17 +202,17 @@ The \fIabsolutepath\fR can be a directory.
 .TP
 local file upload:
 .br
-.B $ xrdcp /tmp/myfile xroot://foo.bar.com//data/myfile
+.B $ xrdcp-old /tmp/myfile xroot://foo.bar.com//data/myfile
 .br
 .TP
 remote file download:
 .br
-.B $ xrdcp xroot://foo.bar.com//data/myfile /tmp/myfile
+.B $ xrdcp-old xroot://foo.bar.com//data/myfile /tmp/myfile
 .br
 .TP
 remote-remote copy:
 .br
-.B $ xrdcp xroot://foo.bar.com//data/myfile1 xroot://foo.bar.com//data/myfile2
+.B $ xrdcp-old xroot://foo.bar.com//data/myfile1 xroot://foo.bar.com//data/myfile2
 .br
 .fi
 .br
@@ -215,17 +221,17 @@ remote-remote copy:
 .TP
 local file upload to a Castor instance using a specific service class and stager:
 .br
-.B $ xrdcp /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -ODstagerHost=$STAGE_HOST&svcClass=$STAGE_SVCCLASS
+.B $ xrdcp-old /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -ODstagerHost=$STAGE_HOST&svcClass=$STAGE_SVCCLASS
 .br
 [ you need to escape the '&' in the shell ]
 .TP
 remote file download from a Castor instance using a specific stager:
 .br
-.B $ xrdcp /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -OSstagerHost=$STAGE_HOST
+.B $ xrdcp-old /tmp/myfile root://<stagerhost>.cern.ch//castor/cern.ch/data/myfile -OSstagerHost=$STAGE_HOST
 .TP
 client-proxy copy to-/from- a Castor instance:
 .br
-.B $ xrdcp
+.B $ xrdcp-old
 .br
 .B root://<stagerA>.cern.ch//castor/cern.ch/data/stagerA/myfile -OSstagerHost=<stagerA>
 .br
@@ -234,7 +240,7 @@ client-proxy copy to-/from- a Castor instance:
 .br
 [ you cannot copy between stagers using the same logical filename in the castor namespace! ]
 .SH NOTES
-Documentation for all components associated with \fBxrdcp\fR can be found at
+Documentation for all components associated with \fBxrdcp-old\fR can be found at
 http://xrootd.org/docs.html
 .SH DIAGNOSTICS
 Errors yield an error message and a non-zero exit status.
