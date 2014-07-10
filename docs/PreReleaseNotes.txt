@@ -12,6 +12,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Add missing initializer to the LocInfo structure.
    * Provide full error mapping for POSIX interface.
    * Prevent over-scan of the xrd.network routes option which may cause
      a config file error message and initialization failure.
