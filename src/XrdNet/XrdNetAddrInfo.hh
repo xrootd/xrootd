@@ -168,7 +168,7 @@ struct LocInfo
                 int   Longtitude; //!< Degrees +/- xx.xxxxxx  (not supported)
 
                 LocInfo() : Region(0), Locale(0), TimeZone(-128), Reserved(0),
-                            Speed(0), Latitude(0), Longtitude(0) {}
+                            Speed(0), Latitude(0), Longtitude(0) {*Country = 0;}
        };
 
 const struct
