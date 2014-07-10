@@ -18,5 +18,7 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Prevent mkdir failure in a clustered environment by creating the
+     full directory path by default (can be turned off).
    * Efficiently handle replicated subscribers (i.e. managers).
 
