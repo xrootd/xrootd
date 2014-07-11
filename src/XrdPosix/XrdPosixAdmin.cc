@@ -123,7 +123,7 @@ int XrdPosixAdmin::Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz)
 /******************************************************************************/
   
 bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime,
-                         size_t *size,  ino_t  *id)
+                         size_t *size,  ino_t  *id, dev_t *rdv)
 {
    XrdCl::XRootDStatus xStatus;
    XrdCl::StatInfo    *sInfo = 0;
@@ -137,7 +137,7 @@ bool XrdPosixAdmin::Stat(mode_t *flags, time_t *mtime,
 //
    xStatus = Xrd.Stat(Url.GetPathWithParams(), sInfo);
    if (!xStatus.IsOK()) rc = XrdPosixMap::Result(xStatus);
-      else {if (flags) *flags = XrdPosixMap::Flags2Mode(sInfo->GetFlags());
+      else {if (flags) *flags = XrdPosixMap::Flags2Mode(rdv, sInfo->GetFlags());
             if (mtime) *mtime = static_cast<time_t>(sInfo->GetModTime());
             if (size)  *size  = static_cast<size_t>(sInfo->GetSize());
             if (id)    *id    = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));

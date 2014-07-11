@@ -44,6 +44,8 @@
 
 #include "XrdOss/XrdOss.hh"
 
+#include "XrdSfs/XrdSfsFlags.hh"
+
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysTimer.hh"
 
@@ -165,8 +167,8 @@ int XrdCmsBaseFS::Exists(char *Path, int fnPos, int UpAT)
 //
    if (!Config.ossFS->Stat(Path, &buf, Opts))
       {if ((buf.st_mode & S_IFMT) == S_IFREG)
-          return (buf.st_mode & S_ISUID ? CmsHaveRequest::Pending
-                                        : CmsHaveRequest::Online);
+          return (buf.st_mode & XRDSFS_POSCPEND ? CmsHaveRequest::Pending
+                                                : CmsHaveRequest::Online);
 
        return (buf.st_mode & S_IFMT) == S_IFDIR ? CmsHaveRequest::Online : -1;
       }

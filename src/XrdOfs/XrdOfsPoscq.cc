@@ -41,6 +41,7 @@
 
 #include "XrdOfs/XrdOfsPoscq.hh"
 #include "XrdOss/XrdOss.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -210,7 +211,7 @@ XrdOfsPoscq::recEnt *XrdOfsPoscq::Init(int &Ok)
         if (rc < 0) {eDest->Emsg("Init",errno,"read",pocFN); return First;}
         if (*tmpReq.LFN == '\0'
         ||  ossFS->Stat(tmpReq.LFN, &Stat)
-        ||  !(S_ISREG(Stat.st_mode) || !(Stat.st_mode & S_ISUID))) continue;
+        ||  !(S_ISREG(Stat.st_mode) || !(Stat.st_mode & XRDSFS_POSCPEND))) continue;
         First = new recEnt(tmpReq, Stat.st_mode & S_IAMB, First); numreq++;
        }
 

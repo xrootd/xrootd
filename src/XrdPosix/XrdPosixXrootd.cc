@@ -245,6 +245,7 @@ int     XrdPosixXrootd::Fstat(int fildes, struct stat *buf)
    buf->st_atime  = buf->st_mtime = buf->st_ctime = fp->myMtime;
    buf->st_blocks = buf->st_size/512+1;
    buf->st_ino    = fp->myInode;
+   buf->st_rdev   = fp->myRdev;
    buf->st_mode   = fp->myMode;
 
 // All done
@@ -813,13 +814,14 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
 {
    XrdPosixAdmin admin(path);
    size_t stSize;
+   dev_t  stRdev;
    ino_t  stId;
    time_t stMtime;
    mode_t stFlags;
 
 // Issue the stat and verify that all went well
 //
-   if (!admin.Stat(&stFlags, &stMtime, &stSize, &stId)) return -1;
+   if (!admin.Stat(&stFlags, &stMtime, &stSize, &stId, &stRdev)) return -1;
 
 // Return what little we can
 //
@@ -828,6 +830,7 @@ int XrdPosixXrootd::Stat(const char *path, struct stat *buf)
    buf->st_blocks = stSize/512+1;
    buf->st_atime  = buf->st_mtime = buf->st_ctime = stMtime;
    buf->st_ino    = stId;
+   buf->st_rdev   = stRdev;
    buf->st_mode   = stFlags;
    return 0;
 }

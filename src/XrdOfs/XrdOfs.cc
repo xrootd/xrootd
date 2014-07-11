@@ -79,6 +79,7 @@
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdSfs/XrdSfsAio.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 
 #ifdef AIX
@@ -627,7 +628,7 @@ int XrdOfsFile::open(const char          *path,      // In
 // Verify that we can actually use this file
 //
    if (oP.poscNum > 0)
-      {if ((retc = oP.fP->Fchmod(static_cast<mode_t>(theMode | S_ISUID))))
+      {if ((retc = oP.fP->Fchmod(static_cast<mode_t>(theMode|XRDSFS_POSCPEND))))
           return XrdOfsFS->Emsg(epname, error, retc, "fchmod", path);
        XrdOfsFS->poscQ->Commit(path, oP.poscNum);
       }

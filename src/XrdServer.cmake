@@ -21,6 +21,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdSfs/XrdSfsNative.cc       XrdSfs/XrdSfsNative.hh
                                XrdSfs/XrdSfsAio.hh
+                               XrdSfs/XrdSfsFlags.hh
                                XrdSfs/XrdSfsInterface.hh
 
   #-----------------------------------------------------------------------------

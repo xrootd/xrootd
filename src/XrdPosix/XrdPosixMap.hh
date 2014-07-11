@@ -40,7 +40,7 @@ class XrdPosixMap
 {
 public:
 
-static mode_t              Flags2Mode(uint32_t flags);
+static mode_t              Flags2Mode(dev_t *rdv, uint32_t flags);
 
 static XrdCl::Access::Mode Mode2Access(mode_t mode);
 

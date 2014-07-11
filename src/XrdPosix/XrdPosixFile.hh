@@ -120,6 +120,7 @@ static void*         DelayedDestroy(void*);
 
        size_t        mySize;
        time_t        myMtime;
+       dev_t         myRdev;
        ino_t         myInode;
        mode_t        myMode;
 

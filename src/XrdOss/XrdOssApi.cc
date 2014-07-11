@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysAtomics.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysFD.hh"
@@ -723,7 +724,8 @@ int XrdOssFile::Open(const char *path, int Oflag, mode_t Mode, XrdOucEnv &Env)
           {close(fd); fd = (buf.st_mode & S_IFDIR ? -EISDIR : -ENOTBLK);}
        if (Oflag & (O_WRONLY | O_RDWR))
           {FSize = buf.st_size; cacheP = XrdOssCache::Find(local_path);}
-          else {if (buf.st_mode & S_ISUID && fd >= 0) {close(fd); fd=-ETXTBSY;}
+          else {if (buf.st_mode & XRDSFS_POSCPEND && fd >= 0)
+                   {close(fd); fd=-ETXTBSY;}
                 FSize = -1; cacheP = 0;
                }
       } else if (fd == -EEXIST)

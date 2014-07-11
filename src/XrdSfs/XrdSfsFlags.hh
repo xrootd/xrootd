@@ -1,13 +1,12 @@
-#ifndef __XRDPOSIXADMIN_HH__
-#define __XRDPOSIXADMIN_HH__
+#ifndef __SFS_FLAGS_H__
+#define __SYS_FLAGS_H__
 /******************************************************************************/
 /*                                                                            */
-/*                      X r d P o s i x A d m i n . h h                       */
+/*                        X r d S f s F l a g s . h h                         */
 /*                                                                            */
-/* (c) 2013 by the Board of Trustees of the Leland Stanford, Jr., University  */
-/*                            All Rights Reserved                             */
-/*   Produced by Andrew Hanushevsky for Stanford University under contract    */
-/*              DE-AC02-76-SFO0515 with the Department of Energy              */
+/*(c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University   */
+/*Produced by Andrew Hanushevsky for Stanford University under contract       */
+/*           DE-AC02-76-SFO0515 with the Deprtment of Energy                  */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -30,37 +29,35 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-#include "XrdCl/XrdClFile.hh"
-#include "XrdCl/XrdClFileSystem.hh"
-#include "XrdCl/XrdClURL.hh"
-#include "XrdCl/XrdClXRootDResponses.hh"
+//-----------------------------------------------------------------------------
+//! This include file defines certain falgs that can be used by various Sfs
+//! plug-ins to passthrough special attributes of regular files.
+//-----------------------------------------------------------------------------
 
-/******************************************************************************/
-/*                         X r d P o s i x A d m i n                          */
-/******************************************************************************/
-  
-class XrdPosixAdmin
-{
-public:
+//-----------------------------------------------------------------------------
+//! The following flags define the mode bit that can be used to mark a file
+//! as close pending. This varies depending on the platform. This supports the
+//! Persist On Successful Close (POSC) feature in an efficient way.
+//-----------------------------------------------------------------------------
 
-XrdCl::URL        Url;
-XrdCl::FileSystem Xrd;
+#ifdef __solaris__
+#define XRDSFS_POSCPEND S_ISUID
+#else
+#define XRDSFS_POSCPEND S_ISVTX
+#endif
 
-bool           isOK() {if (Url.IsValid()) return true;
-                       errno = EINVAL;    return false;
-                      }
+//-----------------------------------------------------------------------------
+//! The following bits may be set in the st_rdev member of the stat() structure
+//! to indicate special attributes of a regular file. These bits are inspected
+//! only when the remaining bits identified by XRD_RDVMASK are set to zero.
+//! For backward compatability, offline status is also assumed when st_dev and
+//! st_ino are both set to zero.
+//-----------------------------------------------------------------------------
 
-XrdCl::URL    *FanOut(int &num);
-
-int            Query(XrdCl::QueryCode::Code reqCode, void *buff, int bsz);
-
-bool           Stat(mode_t *flags=0, time_t *mtime=0,
-                    size_t *size=0,  ino_t  *id=0, dev_t *rdv=0);
-
-      XrdPosixAdmin(const char *path)
-                      : Url((std::string)path), Xrd(Url) {}
-     ~XrdPosixAdmin() {}
-};
+static const dev_t XRDSFS_OFFLINE =   0x80LL<<((sizeof(dev_t)*8)-8);
+static const dev_t XRDSFS_HASBKUP =   0x40LL<<((sizeof(dev_t)*8)-8);
+static const dev_t XRDSFS_RDVMASK = ~(0xffLL<<((sizeof(dev_t)*8)-8));
 #endif

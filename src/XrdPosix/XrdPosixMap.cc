@@ -33,6 +33,7 @@
 
 #include "XProtocol/XProtocol.hh"
 #include "XrdPosix/XrdPosixMap.hh"
+#include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 
 /******************************************************************************/
@@ -45,7 +46,7 @@ bool XrdPosixMap::Debug = false;
 /*                            F l a g s 2 M o d e                             */
 /******************************************************************************/
   
-mode_t XrdPosixMap::Flags2Mode(uint32_t flags)
+mode_t XrdPosixMap::Flags2Mode(dev_t *rdv, uint32_t flags)
 {
    mode_t newflags = 0;
 
@@ -57,8 +58,12 @@ mode_t XrdPosixMap::Flags2Mode(uint32_t flags)
         if (flags & XrdCl::StatInfo::Other)    newflags |= S_IFBLK;
    else if (flags & XrdCl::StatInfo::IsDir)    newflags |= S_IFDIR;
    else                                        newflags |= S_IFREG;
-   if (flags & XrdCl::StatInfo::Offline)       newflags |= S_ISVTX;
-   if (flags & XrdCl::StatInfo::POSCPending)   newflags |= S_ISUID;
+   if (flags & XrdCl::StatInfo::POSCPending)   newflags |= XRDSFS_POSCPEND;
+   if (rdv)
+  {*rdv = 0;
+   if (flags & XrdCl::StatInfo::Offline)       *rdv     |= XRDSFS_OFFLINE;
+   if (flags & XrdCl::StatInfo::BackUpExists)  *rdv     |= XRDSFS_HASBKUP;
+  }
 
    return newflags;
 }

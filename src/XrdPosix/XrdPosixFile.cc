@@ -255,7 +255,7 @@ bool XrdPosixFile::Stat(XrdCl::XRootDStatus &Status, bool force)
 
 // Copy over the relevant fields
 //
-   myMode  = XrdPosixMap::Flags2Mode(sInfo->GetFlags());
+   myMode  = XrdPosixMap::Flags2Mode(&myRdev, sInfo->GetFlags());
    myMtime = static_cast<time_t>(sInfo->GetModTime());
    mySize  = static_cast<size_t>(sInfo->GetSize());
    myInode = static_cast<ino_t>(strtoll(sInfo->GetId().c_str(), 0, 10));
