@@ -12,6 +12,8 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Fully support extended file system features and pass those features
+     through a proxy server. This fixes bug report #115.
    * Add missing initializer to the LocInfo structure.
    * Provide full error mapping for POSIX interface.
    * Prevent over-scan of the xrd.network routes option which may cause
