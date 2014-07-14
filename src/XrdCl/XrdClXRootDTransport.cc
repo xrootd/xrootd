@@ -910,9 +910,12 @@ namespace XrdCl
   void XRootDTransport::LogErrorResponse( const Message &msg )
   {
     Log *log = DefaultEnv::GetLog();
-    ServerResponseBody_Error *err = (ServerResponseBody_Error *)msg.GetBuffer(8);
+    ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
+    char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+    memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
     log->Error( XRootDTransportMsg, "Server responded with an error [%d]: %s",
-                                    err->errnum, err->errmsg );
+                                    rsp->body.error.errnum, errmsg );
+   delete [] errmsg;
   }
 
   //----------------------------------------------------------------------------
@@ -1516,10 +1519,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       else if( rsp->hdr.status == kXR_error )
       {
+        char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: %s",
                     hsData->streamName.c_str(), protocolName.c_str(),
-                    rsp->body.error.errmsg );
+                    errmsg );
+        delete [] errmsg;
 
         if( info->authProtocol )
         {
