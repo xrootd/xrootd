@@ -1448,6 +1448,8 @@ namespace XrdCl
       memcpy( pars, info->authBuffer, authBuffLen );
       info->authParams = new XrdSecParameters( pars, authBuffLen );
       sInfo.status = XRootDStreamInfo::AuthSent;
+      delete [] info->authBuffer;
+      info->authBuffer = 0;
 
       //------------------------------------------------------------------------
       // Find a protocol that gives us valid credentials
