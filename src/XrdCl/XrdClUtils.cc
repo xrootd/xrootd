@@ -454,4 +454,17 @@ namespace XrdCl
     keyVals.erase( keyVals.length()-2, 2 );
     log->Dump( topic, format, keyVals.c_str() );
   }
+
+  //----------------------------------------------------------------------------
+  // Print a char array as hex
+  //----------------------------------------------------------------------------
+  std::string Utils::Char2Hex( uint8_t *array, uint16_t size )
+  {
+    char *hex = new char[2*size+1];
+    for( uint16_t i = 0; i < size; ++i )
+      snprintf( hex+(2*i), 3, "%02x", (int)array[i] );
+    std::string result = hex;
+    delete [] hex;
+    return result;
+  }
 }
