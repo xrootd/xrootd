@@ -67,6 +67,7 @@ namespace XrdCl
       LoginSent,
       AuthSent,
       BindSent,
+      EndSessionSent,
       Connected
     };
 
@@ -92,6 +93,7 @@ namespace XrdCl
     XRootDChannelInfo():
       serverFlags(0),
       protocolVersion(0),
+      firstLogIn(true),
       sidManager(0),
       authBuffer(0),
       authProtocol(0),
@@ -102,6 +104,7 @@ namespace XrdCl
     {
       sidManager = new SIDManager();
       memset( sessionId, 0, 16 );
+      memset( oldSessionId, 0, 16 );
     }
 
     //--------------------------------------------------------------------------
@@ -121,6 +124,8 @@ namespace XrdCl
     uint32_t          serverFlags;
     uint32_t          protocolVersion;
     uint8_t           sessionId[16];
+    uint8_t           oldSessionId[16];
+    bool              firstLogIn;
     SIDManager       *sidManager;
     char             *authBuffer;
     XrdSecProtocol   *authProtocol;
@@ -343,7 +348,20 @@ namespace XrdCl
 
       if( st.IsOK() && st.code == suDone )
       {
+        //----------------------------------------------------------------------
+        // If it's not our first log in we need to end the previous session
+        // to make sure that the server noticed our disconnection and closed
+        // all the writable handles that we owned
+        //----------------------------------------------------------------------
+        if( !info->firstLogIn )
+        {
+          handShakeData->out = GenerateEndSession( handShakeData, info );
+          sInfo.status = XRootDStreamInfo::EndSessionSent;
+          return Status( stOK, suContinue );
+        }
+
         sInfo.status = XRootDStreamInfo::Connected;
+        info->firstLogIn = false;
         return st;
       }
 
@@ -363,12 +381,47 @@ namespace XrdCl
       Status st = DoAuthentication( handShakeData, info );
 
       if( !st.IsOK() )
+      {
         sInfo.status = XRootDStreamInfo::Broken;
+        return st;
+      }
 
       if( st.IsOK() && st.code == suDone )
-        sInfo.status = XRootDStreamInfo::Connected;
+      {
+        //----------------------------------------------------------------------
+        // If it's not our first log in we need to end the previous session
+        //----------------------------------------------------------------------
+        if( !info->firstLogIn )
+        {
+          handShakeData->out = GenerateEndSession( handShakeData, info );
+          sInfo.status = XRootDStreamInfo::EndSessionSent;
+          return Status( stOK, suContinue );
+        }
 
-      return st;
+        sInfo.status = XRootDStreamInfo::Connected;
+        info->firstLogIn = false;
+        return st;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // The last step - kXR_endsess returned
+    //--------------------------------------------------------------------------
+    if( sInfo.status == XRootDStreamInfo::EndSessionSent )
+    {
+      Status st = ProcessEndSessionResp( handShakeData, info );
+
+      if( !st.IsOK() )
+      {
+        sInfo.status = XRootDStreamInfo::Broken;
+        return st;
+      }
+
+      if( st.IsOK() && st.code == suDone )
+      {
+        sInfo.status = XRootDStreamInfo::Connected;
+        return st;
+      }
     }
 
     return Status( stOK, suDone );
@@ -1316,10 +1369,15 @@ namespace XrdCl
       return Status( stFatal, errLoginFailed );
     }
 
-    log->Debug( XRootDTransportMsg, "[%s] Logged in",
-                hsData->streamName.c_str() );
+    if( !info->firstLogIn )
+      memcpy( info->oldSessionId, info->sessionId, 16 );
 
     memcpy( info->sessionId, rsp->body.login.sessid, 16 );
+
+    std::string sessId = Utils::Char2Hex( rsp->body.login.sessid, 16 );
+
+    log->Debug( XRootDTransportMsg, "[%s] Logged in, session: %s",
+                hsData->streamName.c_str(), sessId.c_str() );
 
     //--------------------------------------------------------------------------
     // We have an authentication info to process
@@ -1617,6 +1675,60 @@ namespace XrdCl
       return 0;
     }
     return pAuthHandler;
+  }
+
+  //----------------------------------------------------------------------------
+  // Generate the end session message
+  //----------------------------------------------------------------------------
+  Message *XRootDTransport::GenerateEndSession( HandShakeData     *hsData,
+                                                XRootDChannelInfo *info )
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    //--------------------------------------------------------------------------
+    // Generate the message
+    //--------------------------------------------------------------------------
+    Message *msg = new Message( sizeof(ClientEndsessRequest) );
+    ClientEndsessRequest *endsessReq = (ClientEndsessRequest *)msg->GetBuffer();
+
+    endsessReq->requestid = kXR_endsess;
+    memcpy( endsessReq->sessid, info->oldSessionId, 16 );
+    std::string sessId = Utils::Char2Hex( endsessReq->sessid, 16 );
+
+    log->Debug( XRootDTransportMsg, "[%s] Sending out kXR_endsess for session:"
+                " %s", hsData->streamName.c_str(), sessId.c_str() );
+
+    MarshallRequest( msg );
+    return msg;
+  }
+
+  //----------------------------------------------------------------------------
+  // Process the protocol response
+  //----------------------------------------------------------------------------
+  Status XRootDTransport::ProcessEndSessionResp( HandShakeData     *hsData,
+                                                 XRootDChannelInfo *info )
+  {
+    Log *log = DefaultEnv::GetLog();
+
+    Status st = UnMarshallBody( hsData->in, kXR_endsess );
+    if( !st.IsOK() )
+      return st;
+
+    ServerResponse *rsp = (ServerResponse*)hsData->in->GetBuffer();
+
+    if( rsp->hdr.status == kXR_error )
+    {
+      char *errorMsg = new char[rsp->hdr.dlen-3]; errorMsg[rsp->hdr.dlen-4] = 0;
+      memcpy( errorMsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+      log->Debug( XRootDTransportMsg, "[%s] Got error response to "
+                  "kXR_endsess: %s", hsData->streamName.c_str(),
+                  errorMsg );
+      delete [] errorMsg;
+      // we don't really care if it failed
+      // return Status( stFatal, errLoginFailed );
+    }
+
+    return Status();
   }
 
   //----------------------------------------------------------------------------

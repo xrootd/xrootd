@@ -307,8 +307,19 @@ namespace XrdCl
       //------------------------------------------------------------------------
       // Get the authentication function handle
       //------------------------------------------------------------------------
-
       XrdSecGetProt_t GetAuthHandler();
+
+      //------------------------------------------------------------------------
+      // Generate the end session message
+      //------------------------------------------------------------------------
+      Message *GenerateEndSession( HandShakeData     *hsData,
+                                   XRootDChannelInfo *info );
+
+      //------------------------------------------------------------------------
+      // Process the end session response
+      //------------------------------------------------------------------------
+      Status ProcessEndSessionResp( HandShakeData     *hsData,
+                                    XRootDChannelInfo *info );
 
       //------------------------------------------------------------------------
       // Get a string representation of the server flags
