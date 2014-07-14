@@ -306,10 +306,13 @@ namespace XrdCl
       //------------------------------------------------------------------------
       case kXR_error:
       {
+        char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
+        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         log->Dump( XRootDMsg, "[%s] Got a kXR_error response to request %s "
                    "[%d] %s", pUrl.GetHostId().c_str(),
                    pRequest->GetDescription().c_str(), rsp->body.error.errnum,
-                   rsp->body.error.errmsg );
+                   errmsg );
+        delete [] errmsg;
 
         HandleError( Status(stError, errErrorResponse), pResponse );
         return;
@@ -1059,7 +1062,11 @@ namespace XrdCl
       if( pStatus.code == errErrorResponse )
       {
         st->errNo = rsp->body.error.errnum;
-        st->SetErrorMessage( rsp->body.error.errmsg );
+        char *errmsg = new char[rsp->hdr.dlen-3];
+        errmsg[rsp->hdr.dlen-4] = 0;
+        memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
+        st->SetErrorMessage( errmsg );
+        delete errmsg;
       }
       else if( pStatus.code == errRedirect )
         st->SetErrorMessage( pRedirectUrl );
