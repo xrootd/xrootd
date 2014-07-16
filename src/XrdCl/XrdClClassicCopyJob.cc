@@ -596,14 +596,18 @@ namespace
         //----------------------------------------------------------------------
         while( pChunks.size() < pParallel && pCurrentOffset < pSize )
         {
-          char *buffer = new char[pChunkSize];
+          uint64_t chunkSize = pChunkSize;
+          if( pCurrentOffset + chunkSize > (uint64_t)pSize )
+            chunkSize = pSize - pCurrentOffset;
+
+          char *buffer = new char[chunkSize];
           ChunkHandler *ch = new ChunkHandler;
           ch->chunk.offset = pCurrentOffset;
-          ch->chunk.length = pChunkSize;
+          ch->chunk.length = chunkSize;
           ch->chunk.buffer = buffer;
-          ch->status = pFile->Read( pCurrentOffset, pChunkSize, buffer, ch );
+          ch->status = pFile->Read( pCurrentOffset, chunkSize, buffer, ch );
           pChunks.push( ch );
-          pCurrentOffset += pChunkSize;
+          pCurrentOffset += chunkSize;
           if( !ch->status.IsOK() )
           {
             ch->sem->Post();
