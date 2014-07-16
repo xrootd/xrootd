@@ -916,17 +916,28 @@ namespace
         if( pFD == -1 )
           return XRootDStatus( stError, errUninitialized );
 
-        int64_t wr = pwrite( pFD, ci.buffer, ci.length, ci.offset );
-        if( wr == -1 || wr != ci.length )
+        int64_t   wr     = 0;
+        uint64_t  offset = ci.offset;
+        uint32_t  length = ci.length;
+        char     *cursor = (char*)ci.buffer;
+        do
         {
-          log->Debug( UtilityMsg, "Unable write to %s: %s",
-                                  pPath.c_str(), strerror( errno ) );
-          close( pFD );
-          pFD = -1;
-          if( pPosc )
-            unlink( pPath.c_str() );
-          return XRootDStatus( stError, errOSError, errno );
+          wr = pwrite( pFD, cursor, length, offset );
+          if( wr == -1 )
+          {
+            log->Debug( UtilityMsg, "Unable to write to %s: %s", pPath.c_str(),
+                        strerror( errno ) );
+            close( pFD );
+            pFD = -1;
+            if( pPosc )
+              unlink( pPath.c_str() );
+            return XRootDStatus( stError, errOSError, errno );
+          }
+          offset += wr;
+          cursor += wr;
+          length -= wr;
         }
+        while( length );
         return XRootDStatus();
       }
 
@@ -1048,14 +1059,23 @@ namespace
           return XRootDStatus( stError, errInternal );
         }
 
-        int64_t wr = write( 1, ci.buffer, ci.length );
-        if( wr == -1 || wr != ci.length )
+        int64_t   wr     = 0;
+        uint32_t  length = ci.length;
+        char     *cursor = (char*)ci.buffer;
+        do
         {
-          log->Debug( UtilityMsg, "Unable write to stdout: %s",
-                      strerror( errno ) );
-          return XRootDStatus( stError, errOSError, errno );
+          wr = write( 1, cursor, length );
+          if( wr == -1 )
+          {
+            log->Debug( UtilityMsg, "Unable to write to stdout: %s",
+                        strerror( errno ) );
+            return XRootDStatus( stError, errOSError, errno );
+          }
+          pCurrentOffset += wr;
+          cursor         += wr;
+          length         -= wr;
         }
-        pCurrentOffset += ci.length;
+        while( length );
 
         pCkSumHelper.Update( ci.buffer, ci.length );
         return XRootDStatus();
