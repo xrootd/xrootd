@@ -6,6 +6,22 @@ Release Notes
 =============
 
 -------------
+Version 4.0.2
+-------------
+
++ **Minor bug fixes**
+   * **[Client/Cl]** Handle all non-NULL-terminated error responses correctly.
+   * **[Client/Cl]** Release old auth buffer when reconnecting after TTL
+     expiration.
+
++ **Miscellaneous**
+   * **[Client/Cl]** Retry after an incomplete local write. This produces
+     clearer error messages. Ie: "Run: [ERROR] OS Error: No space left on
+     device" instead of: "Run: [ERROR] OS Error: Operation now in progress".
+   * **[Client/Cl]** Don't force a server to issue a short read when fetching
+     last data chunk. This works around issues for proxied FAX sites.
+
+-------------
 Version 4.0.1
 -------------
 
