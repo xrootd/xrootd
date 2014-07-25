@@ -1056,12 +1056,12 @@ int XrdCmsCluster::Select(SMask_t pmask, int &port, char *hbuff, int &hlen,
 //
    STMutex.Lock();
    if ((nP = NodeTab[Snum]))
-      {if (nP->isBad) nP = 0;
-          else if (!Config.sched_RR && (nP->myLoad > Config.MaxLoad)) nP = 0;
-       if (!(selR.needNet &  nP->hasNet))                             nP = 0;
+      {     if (nP->isBad) nP = 0;
+       else if (!Config.sched_RR && (nP->myLoad > Config.MaxLoad)) nP = 0;
+       else if (!(selR.needNet & nP->hasNet))                      nP = 0;
        if (nP)
           {if (isrw)
-              if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)       nP = 0;
+              if (nP->isNoStage || nP->DiskFree < nP->DiskMinF)    nP = 0;
                  else {SelWcnt++; nP->RefTotW++; nP->RefW++; nP->Lock();}
               else    {SelRcnt++; nP->RefTotR++; nP->RefR++; nP->Lock();}
           }

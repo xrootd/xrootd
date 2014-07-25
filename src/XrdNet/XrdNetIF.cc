@@ -49,6 +49,59 @@
 using namespace std;
   
 /******************************************************************************/
+/*                         L o c a l   S t a t i c s                          */
+/******************************************************************************/
+  
+namespace
+{
+// Selection mask values
+//
+const char hasPub4 = 0x01;
+const char hasPrv4 = 0x02;
+const char hasPub6 = 0x04;
+const char hasPrv6 = 0x08;
+const char hasAny4 = hasPub4 | hasPrv4;
+const char hasAny6 = hasPub6 | hasPrv6;
+const int  hasNum  = 4;
+
+// Name translation table
+//
+const char  sMask[hasNum] = {hasPub4,  hasPrv4,   hasPub6,  hasPrv6};
+const char *sName[hasNum] = {"pub4 ",  "prv4 ",   "pub6 ",  "prv6"};
+
+// common -> Only private addresses may select any node. Public must select
+//           a node that has a public address.
+//
+   const char ifMaskComm [XrdNetIF::ifMax] = {hasPub4,  hasAny4,
+                                              hasPub6,  hasAny6,
+                                              hasPub4 | hasPub6,
+                                              hasAny6 | hasAny4,
+                                              hasPub6 | hasPub4,
+                                              hasAny4 | hasAny6
+                                             };
+
+// local  -> Public-private address is immaterial for node selection.
+//
+   const char ifMaskLocal[XrdNetIF::ifMax] = {hasAny4,  hasAny4,
+                                              hasAny6,  hasAny6,
+                                              hasAny4 | hasAny6,
+                                              hasAny4 | hasAny6,
+                                              hasAny6 | hasAny4,
+                                              hasAny6 | hasAny4
+                                             };
+
+// split  -> Address type may only select node with that address type.
+//
+   const char ifMaskSplit[XrdNetIF::ifMax] = {hasPub4,  hasPrv4,
+                                              hasPub6,  hasPrv6,
+                                              hasPub4 | hasPub6,
+                                              hasPrv4 | hasPrv6,
+                                              hasPub6 | hasPub4,
+                                              hasPrv6 | hasPrv4
+                                             };
+}
+
+/******************************************************************************/
 /*                        S t a t i c   M e m b e r s                         */
 /******************************************************************************/
 
@@ -67,22 +120,12 @@ const char       *XrdNetIF::ifTName[ifMax] = {"public IPv4",   // 01
                                               "public",
                                               "private"
                                              };
-static const char hasPub4 = 0x01;
-static const char hasPrv4 = 0x02;
-static const char hasPub6 = 0x04;
-static const char hasPrv6 = 0x08;
-static const int  hasNum  = 4;
 
-const char        sMask[hasNum] = {hasPub4,  hasPrv4,   hasPub6,  hasPrv6};
-const char       *sName[hasNum] = {"pub4 ",  "prv4 ",   "pub6 ",  "prv6"};
 
-const char        XrdNetIF::ifMaskVec[ifMax] = {hasPub4,  hasPrv4,
-                                                hasPub6,  hasPrv6,
-                                                hasPub4 | hasPub6,
-                                                hasPrv4 | hasPrv6,
-                                                hasPub6 | hasPub4,
-                                                hasPrv6 | hasPrv4
-                                               };
+// The following vector is suitable only for local routing. It is reset
+// to the appropriate selection bits when Routing() is called.
+//
+const char       *XrdNetIF::ifMaskVec = ifMaskLocal;
 
 XrdNetIF::netType XrdNetIF::netRoutes = XrdNetIF::netLocal;
 
@@ -590,7 +633,16 @@ int XrdNetIF::Port(int pnum)
   
 void XrdNetIF::Routing(XrdNetIF::netType nettype)
 {
+
+// Set the routing type
+//
    netRoutes = (nettype == netDefault ? netLocal : nettype);
+
+// Based on the routing we need to set the appropriate selection mask vector
+//
+        if (netRoutes == netLocal) ifMaskVec = ifMaskLocal;
+   else if (netRoutes == netSplit) ifMaskVec = ifMaskSplit;
+   else                            ifMaskVec = ifMaskComm;
 }
 
 /******************************************************************************/

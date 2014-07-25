@@ -241,9 +241,10 @@ static bool InDomain(XrdNetAddrInfo *epaddr);
 //! @return A single char that represents the selection mask.
 //------------------------------------------------------------------------------
 
-static char Mask(ifType ifT) {if (ifT >= ifAny) return 0x0f;
-                              return ifMaskVec[ifT];
-                             }
+static char Mask(ifType ifT)
+                {if (ifT >= ifAny) return 0x0f;
+                 return ifMaskVec[ifT];
+                }
 
 //------------------------------------------------------------------------------
 //! Get the human readable for for an ifType.
@@ -422,7 +423,7 @@ static char   *ifCfg[2];
 static
 const char    *ifTName[ifMax];
 static
-const char     ifMaskVec[ifMax];
+const char    *ifMaskVec;
 static
 netType        netRoutes;
 static int     dfPort;
