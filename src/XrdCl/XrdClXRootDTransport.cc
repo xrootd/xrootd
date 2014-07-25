@@ -1316,8 +1316,13 @@ namespace XrdCl
     loginReq->role[0]   = kXR_useruser;
     loginReq->dlen      = cgiLen;
 
-    XrdNetUtils::NetProt stacks    = XrdNetUtils::NetConfig();
-    bool                 dualStack = false;
+    //--------------------------------------------------------------------------
+    // Check the IP stacks
+    //--------------------------------------------------------------------------
+    XrdNetUtils::NetProt stacks      = XrdNetUtils::NetConfig();
+    bool                 dualStack   = false;
+    bool                 privateIPv6 = false;
+    bool                 privateIPv4 = false;
 
     if( (stacks & 0x03) == XrdNetUtils::hasIP64 )
     {
@@ -1325,6 +1330,21 @@ namespace XrdCl
       loginReq->ability  |= kXR_hasipv64;
     }
 
+    if( (stacks | XrdNetUtils::hasIPv6) && !(stacks | XrdNetUtils::hasPub6) )
+    {
+      privateIPv6 = true;
+      loginReq->ability |= kXR_onlyprv6;
+    }
+
+    if( (stacks | XrdNetUtils::hasIPv4) && !(stacks | XrdNetUtils::hasPub4) )
+    {
+      privateIPv4 = true;
+      loginReq->ability |= kXR_onlyprv4;
+    }
+
+    //--------------------------------------------------------------------------
+    // Check the username
+    //--------------------------------------------------------------------------
     if( hsData->url->GetUserName().length() )
     {
       ::strncpy( (char*)loginReq->username,
@@ -1343,9 +1363,11 @@ namespace XrdCl
     msg->Append( cgiBuffer, cgiLen, 24 );
 
     log->Debug( XRootDTransportMsg, "[%s] Sending out kXR_login request, "
-                "username: %s, cgi: %s, dual-stack: %s",
-                hsData->streamName.c_str(), loginReq->username, cgiBuffer,
-                dualStack ? "true" : "false");
+                "username: %s, cgi: %s, dual-stack: %s, private IPv4: %s, "
+                "private IPv6: %s", hsData->streamName.c_str(),
+                loginReq->username, cgiBuffer, dualStack ? "true" : "false",
+                privateIPv4 ? "true" : "false",
+                privateIPv6 ? "true" : "false" );
 
     delete [] cgiBuffer;
     MarshallRequest( msg );
