@@ -29,6 +29,7 @@
 #include "XrdCl/XrdClUtils.hh"
 #include "XrdCl/XrdClURL.hh"
 #include "XrdSys/XrdSysPwd.hh"
+#include "XrdVersion.hh"
 
 #include <unistd.h>
 #include <sys/types.h>

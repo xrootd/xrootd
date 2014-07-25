@@ -21,7 +21,6 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
-#include "XrdVersion.hh"
 
 class XrdSysPlugin;
 

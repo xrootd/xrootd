@@ -30,6 +30,7 @@
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
+#include "XrdVersion.hh"
 
 #include <libgen.h>
 #include <cstring>

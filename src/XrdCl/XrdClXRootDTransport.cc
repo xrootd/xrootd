@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
+#include "XrdVersion.hh"
 
 #include <arpa/inet.h>
 #include <sys/types.h>
