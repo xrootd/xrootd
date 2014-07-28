@@ -293,7 +293,7 @@ struct ifAddrs
       };
 
 bool  GenAddrs(ifAddrs &ifTab,XrdNetAddrInfo *src,const char *hName,bool isPVT);
-bool  GenIF(XrdNetAddrInfo **src, int srcnum);
+bool  GenIF(XrdNetAddrInfo **src, int srcnum, netType nettype);
 static
 bool  IsOkName(const char *ifn, short &ifIdx);
 static

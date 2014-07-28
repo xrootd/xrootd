@@ -140,7 +140,7 @@ bool XrdNetIF::GenAddrs(ifAddrs &ifTab, XrdNetAddrInfo *src,
 
 #define RLOSLOT(xdst) xdst = (ifData *)(ifBuff+((char *)xdst-buff))
 
-bool XrdNetIF::GenIF(XrdNetAddrInfo **src, int srcnum)
+bool XrdNetIF::GenIF(XrdNetAddrInfo **src, int srcnum, netType nettype)
 {
    ifAddrs ifTab;
    const char *hName;
@@ -225,6 +225,27 @@ for (i = 0; i < srcnum; i++)
         if (ifNest[i] != &ifNull) RLOSLOT(ifNest[i]);
         if (ifDest[i] != &ifNull) RLOSLOT(ifDest[i]);
        }
+
+// Establish how undefined interfaces will be resolved
+//
+   if (nettype == netDefault) nettype = netRoutes;
+   if (nettype == netSplit)   return true;
+
+// Now set all undefined private interfaces for common and local network routing
+//
+   if (ifName[Private] == &ifNull) ifName[Private] = ifName[Public];
+   if (ifNest[Private] == &ifNull) ifNest[Private] = ifNest[Public];
+   if (ifDest[Private] == &ifNull) ifDest[Private] = ifDest[Public];
+
+// If this is a common network then we are done
+//
+   if (nettype == netCommon) return true;
+
+// Now set all undefined public  interfaces for local network routing
+//
+   if (ifName[Public ] == &ifNull) ifName[Public ] = ifName[Private];
+   if (ifNest[Public ] == &ifNull) ifNest[Public ] = ifNest[Private];
+   if (ifDest[Public ] == &ifNull) ifDest[Public ] = ifDest[Private];
 
 // All done
 //
@@ -526,10 +547,10 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
        ifCnt = 0;
        if (!hName
        ||  XrdNetUtils::GetAddrs(hName, &iP, ifCnt, XrdNetUtils::allIPv64,
-                                 ifPort) || !ifCnt) return GenIF(&src, 1);
+                                 ifPort) || !ifCnt) return GenIF(&src,1,nettype);
        if (ifCnt > 8) ifCnt = 8;
        for (i = 0; i < ifCnt; i++) ifVec[i] = &iP[i];
-       bool aOK = GenIF(ifVec, ifCnt);
+       bool aOK = GenIF(ifVec, ifCnt, nettype);
        delete [] iP;
        return aOK;
       }
@@ -567,29 +588,7 @@ bool XrdNetIF::SetIF(XrdNetAddrInfo *src, const char *ifList, netType nettype)
 
 // Set the interface data
 //
-   if (!GenIF(netIF, 2)) return false;
-
-// Establish how undefined interfaces will be resolved
-//
-   if (nettype == netDefault) nettype = netRoutes;
-   if (nettype == netSplit)   return true;
-
-// Now set all undefined private interfaces for common and local network routing
-//
-   if (ifName[Private] == &ifNull) ifName[Private] = ifName[Public];
-   if (ifNest[Private] == &ifNull) ifNest[Private] = ifNest[Public];
-   if (ifDest[Private] == &ifNull) ifDest[Private] = ifDest[Public];
-
-// If this is a common network then we are done
-//
-   if (nettype == netCommon) return true;
-
-// Now set all undefined public  interfaces for local network routing
-//
-   if (ifName[Public ] == &ifNull) ifName[Public ] = ifName[Private];
-   if (ifNest[Public ] == &ifNull) ifNest[Public ] = ifNest[Private];
-   if (ifDest[Public ] == &ifNull) ifDest[Public ] = ifDest[Private];
-   return true;
+   return GenIF(netIF, 2, nettype);
 }
 
 /******************************************************************************/
