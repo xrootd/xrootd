@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement a forwarding proxy option.
    * Pass along XRD_MONINFO setting and application name to monitoring.
    * Set client location information.
 
