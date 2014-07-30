@@ -137,6 +137,8 @@ int       Stat(const char *, struct stat *, int opts=0, XrdOucEnv *eP=0);
 int       Truncate(const char *, unsigned long long, XrdOucEnv *eP=0);
 int       Unlink(const char *, int Opts=0, XrdOucEnv *eP=0);
 
+static char *P2OUT(int &retc,  char *pbuff, int pblen,
+                   const char *path, const char *Ident);
 static char *P2URL(int &retc, char *pbuff, int pblen,
                    const char *path,       int Split=0,
                    const char *Cgi=0,      int CgiLn=0,
@@ -183,6 +185,8 @@ char              *cPath;    // -> Cache path
 char              *cParm;    // -> Cache parameters
 XrdVersionInfo    *myVersion;// -> Compilation version
 int                TraceLvl; // Tracing options
+static bool        outProxy; // True means outgoing proxy
+static bool        pfxProxy; // True means outgoing proxy is prefixed
 
 int    buildHdr();
 int    Configure(const char *);

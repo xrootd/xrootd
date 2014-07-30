@@ -880,6 +880,57 @@ int XrdPssFile::isCompressed(char *cxidp)  // Not supported for proxies
 }
 
 /******************************************************************************/
+/*                                 P 2 O U T                                  */
+/******************************************************************************/
+  
+char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
+                 const char *path, const char *Ident)
+{
+   char  hBuff[288], idBuff[8], *idP;
+   const char *Slash, *theID = "", *thePath = path;
+   int n;
+
+// If we have an Ident then use the fd number as the userid. This allows us to
+// have one stream per open connection.
+//
+   if (Ident && (Ident = index(Ident, ':')))
+      {strncpy(idBuff, Ident+1, 7); idBuff[7] = 0;
+       if ((idP = index(idBuff, '@'))) {*(idP+1) = 0; theID = idBuff;}
+      }
+
+// Make sure the path is valid for an outgoing proxy
+//
+   if (*path == '/') path++;
+   if (*path == 'x') path++;
+   if (!strncmp("root:/", path, 6)) path += 6;
+      else {if (!hdrLen) {retc = -ENOTSUP; return 0;}
+            n = snprintf(pbuff, pblen, hdrData, theID, thePath);
+            if (n >= pblen) {retc = -ENAMETOOLONG; return 0;}
+            return pbuff;
+           }
+
+// Extract out the destination. We need to do this because the front end
+// will have extracted out double slashes and we need to add them back.
+//
+   if (!(Slash = index(path, '/'))) {retc = -EINVAL; return 0;}
+   n = Slash - path;
+   if (n >= (int)sizeof(hBuff)) {retc = -ENAMETOOLONG; return 0;}
+   strncpy(hBuff, path, n); hBuff[n] = 0; path += n;
+
+// Create the new path
+//
+   n = snprintf(pbuff, pblen, "root://%s%s//%s", theID, hBuff, path);
+
+// Make sure the path will fit
+//
+   if (n > pblen) {retc = -ENAMETOOLONG; return 0;}
+
+// All done
+//
+   return pbuff;
+}
+
+/******************************************************************************/
 /*                                 P 2 U R L                                  */
 /******************************************************************************/
   
@@ -892,6 +943,10 @@ char *XrdPssSys::P2URL(int &retc, char *pbuff, int pblen,
    const char *fname = path;
    char  idBuff[8], *idP, *retPath;
    char  Apath[MAXPATHLEN*2+1];
+
+// If this is an outgoing proxy then we need to do someother work
+//
+   if (outProxy) return P2OUT(retc, pbuff, pblen, path, Ident);
 
 // First, apply the N2N mapping if necessary. If N2N fails then the whole
 // mapping fails and ENAMETOOLONG will be returned.

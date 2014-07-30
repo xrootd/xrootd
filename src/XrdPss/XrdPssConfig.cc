@@ -105,6 +105,9 @@ char         XrdPssSys::allTrunc  =  0;
 
 char         XrdPssSys::cfgDone   =  0;
 
+bool         XrdPssSys::outProxy  = false;
+bool         XrdPssSys::pfxProxy  = false;
+
 namespace XrdProxy
 {
 static XrdPosixXrootd  *Xroot;
@@ -185,20 +188,44 @@ int XrdPssSys::Configure(const char *cfn)
 //
    if ((NoGo = ConfigProc(cfn))) return NoGo;
 
-// Build the URL header
+// Make sure we have some kind of origin
 //
-   if (!ManList)
+   if (!ManList && !outProxy)
       {eDest.Emsg("Config", "Origin for proxy service not specified.");
        return 1;
       }
-   if (!(hpLen = buildHdr())) return 1;
 
-// Copy out the forwarding that might be happening via the ofs
+// Tell xrootd to disable async I/O as it just will slow everything down.
 //
-   i = 0;
-   if ((eP = getenv("XRDOFS_FWD")))
-      while(Fwd[i].Typ)
-           {if (!strstr(eP, Fwd[i].Typ)) *(Fwd[i].Loc) = 1; i++;}
+   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
+
+// Initialize an alternate cache if one is present
+//
+   if (cPath && !getCache()) return 1;
+
+// Allocate an Xroot proxy object (only one needed here). Tell it to not
+// shadow open files with real file descriptors (we will be honest). This can
+// be done before we initialize the ffs.
+//
+   Xroot = new XrdPosixXrootd(-32768, 16384);
+
+// If this is an outgoing proxy then we are done
+//
+   if (outProxy)
+      {if (!ManList) strcpy(theRdr, "=");
+          else sprintf(theRdr, "= %s:%d", ManList->text, ManList->val);
+       XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr);
+       if (ManList)
+          {hdrLen = sprintf(theRdr, "root://%%s%s:%d/%%s",
+                            ManList->text, ManList->val);
+           hdrData = strdup(theRdr);
+          }
+       return 0;
+      }
+
+// Build the URL header
+//
+   if (!(hpLen = buildHdr())) return 1;
 
 // Create a plain url for future use
 //
@@ -210,6 +237,13 @@ int XrdPssSys::Configure(const char *cfn)
    theRdr[urlPlen-1] = 0;
    XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr+hpLen);
    theRdr[urlPlen-1] = '/';
+
+// Copy out the forwarding that might be happening via the ofs
+//
+   i = 0;
+   if ((eP = getenv("XRDOFS_FWD")))
+      while(Fwd[i].Typ)
+           {if (!strstr(eP, Fwd[i].Typ)) *(Fwd[i].Loc) = 1; i++;}
 
 // Configure the N2N library:
 //
@@ -226,20 +260,6 @@ int XrdPssSys::Configure(const char *cfn)
 // Setup the redirection url
 //
    strcpy(&theRdr[urlPlen], xP); urlRdr = strdup(theRdr);
-
-// Tell xrootd to disable async I/O as it just will slow everything down.
-//
-   XrdOucEnv::Export("XRDXROOTD_NOAIO", "1");
-
-// Initialize an alternate cache if one is present
-//
-   if (cPath && !getCache()) return 1;
-
-// Allocate an Xroot proxy object (only one needed here). Tell it to not
-// shadow open files with real file descriptors (we will be honest). This can
-// be done before we initialize the ffs.
-//
-   Xroot = new XrdPosixXrootd(-32768, 16384);
 
 // Now spwan a thread to complete ffs initialization which may hang for a while
 //
@@ -784,7 +804,9 @@ int XrdPssSys::xnml(XrdSysError *Eroute, XrdOucStream &Config)
 
 /* Function: xorig
 
-   Purpose:  Parse: origin <host>[+][:<port>|<port>]
+   Purpose:  Parse: origin {= [<dest>] | <dest>}
+
+   Where:    <dest> <host>[+][:<port>|<port>]
 
    Output: 0 upon success or !0 upon failure.
 */
@@ -799,7 +821,15 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 //
     if (!(val = Config.GetWord()))
        {errp->Emsg("Config","origin host name not specified"); return 1;}
-       else mval = strdup(val);
+
+// Check for outgoing proxy
+//
+   if (!strcmp(val, "="))
+      {pfxProxy = outProxy = true;
+       if (!(val = Config.GetWord())) return 0;
+      }
+      else pfxProxy = outProxy = false;
+   mval = strdup(val);
 
 // Check if there is a port number. This could be as ':port' or ' port'.
 //
@@ -827,12 +857,17 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
 //
     if ((i = strlen(mval)) > 1 && mval[i-1] == '+') mval[i-1] = 0;
 
-// Check if this is a duplicate, if its new, add to the list
+// We used to support multiple destinations in the URL but the new client
+// does not support this. So, we only provide a single destination here. The
+// original code is left commented out just in case we actually revert to this.
 //
-   tp = ManList;
-   while(tp && (strcmp(tp->text, mval) || tp->val != port)) tp = tp->next;
-   if (tp) errp->Emsg("Config","Duplicate origin",mval);
-      else ManList = new XrdOucTList(mval, port, ManList);
+// tp = ManList;
+// while(tp && (strcmp(tp->text, mval) || tp->val != port)) tp = tp->next;
+// if (tp) errp->Emsg("Config","Duplicate origin",mval);
+//    else ManList = new XrdOucTList(mval, port, ManList);
+
+   if (ManList) delete ManList;
+   ManList = new XrdOucTList(mval, port);
 
 // All done
 //
