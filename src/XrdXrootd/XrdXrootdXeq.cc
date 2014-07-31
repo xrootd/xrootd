@@ -2948,12 +2948,17 @@ int XrdXrootdProtocol::rpCheck(char *fn, const char **opaque)
 {
    char *cp;
 
-   if (*fn != '/') return 1;
+   if (*fn != '/')
+      {if (!(XPList.Opts() & XROOTDXP_NOSLASH)) return 1;
+       if (  XPList.Opts() & XROOTDXP_NOCGI) {*opaque = 0; return 0;}
+      }
 
    if (!(cp = index(fn, '?'))) *opaque = 0;
       else {*cp = '\0'; *opaque = cp+1;
             if (!**opaque) *opaque = 0;
            }
+
+   if (*fn != '/') return 0;
 
    while ((cp = index(fn, '/')))
          {fn = cp+1;
@@ -3002,6 +3007,8 @@ int XrdXrootdProtocol::SetSF(kXR_char *fhandle, bool seton)
 int XrdXrootdProtocol::Squash(char *fn)
 {
    char *ofn, *ifn = fn;
+
+   if (*fn != '/') return XPList.Opts();
 
    while(*ifn)
         {if (*ifn == '/')

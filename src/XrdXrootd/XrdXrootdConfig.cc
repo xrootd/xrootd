@@ -222,13 +222,18 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (rdf && Config(rdf)) return 0;
    if (pi->DebugON) XrdXrootdTrace->What = TRACE_ALL;
 
+// Check if we are exporting a generic object name
+//
+   if (XPList.Opts() & XROOTDXP_NOSLASH)
+      {eDest.Say("Config exporting ", XPList.Path(n)); n += 2;}
+      else n = 0;
+
 // Check if we are exporting anything
 //
-   if (!(xp = XPList.Next()))
+   if (!(xp = XPList.Next()) && !n)
       {XPList.Insert("/tmp"); n = 8;
        eDest.Say("Config warning: only '/tmp' will be exported.");
       } else {
-       n = 0;
        while(xp) {eDest.Say("Config exporting ", xp->Path(i));
                   n += i+2; xp = xp->Next();
                  }
@@ -237,6 +242,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 // Export the exports
 //
    bP = tmp = (char *)malloc(n);
+   if (XPList.Opts() & XROOTDXP_NOSLASH)
+      {strcpy(bP, XPList.Path(i)); bP += i, *bP++ = ' ';}
    xp = XPList.Next();
    while(xp) {strcpy(bP, xp->Path(i)); bP += i; *bP++ = ' '; xp = xp->Next();}
    *(bP-1) = '\0';
@@ -762,6 +769,18 @@ int XrdXrootdProtocol::xexp(XrdOucStream &Config)
 int XrdXrootdProtocol::xexpdo(char *path, int popt)
 {
    const char *opaque;
+
+// Check if we are exporting a generic name
+//
+   if (*path == '*')
+      {popt |= XROOTDXP_NOSLASH | XROOTDXP_NOCGI;
+       if (*(path+1))
+          {if (*(path+1) == '?') popt &= ~XROOTDXP_NOCGI;
+              else {eDest.Emsg("Config","invalid export path -",path);return 1;}
+          }
+       XPList.Set(popt, path);
+       return 0;
+      }
 
 // Make sure path start with a slash
 //

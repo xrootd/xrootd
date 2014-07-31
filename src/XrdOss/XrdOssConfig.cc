@@ -1324,10 +1324,18 @@ int XrdOssSys::xnml(XrdOucStream &Config, XrdSysError &Eroute)
 
 int XrdOssSys::xpath(XrdOucStream &Config, XrdSysError &Eroute)
 {
+   XrdOucPList *pP;
 
 // Parse the arguments
 //
-   return (XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags) ? 0 : 1);
+   pP = XrdOucExport::ParsePath(Config, Eroute, RPList, DirFlags);
+   if (!pP) return 1;
+
+// This plugin does not support relative paths so check for this
+//
+   if (*(pP->Path()) == '/') return 0;
+   Eroute.Emsg("Config", "Unsupported export -", pP->Path());
+   return 1;
 }
 
 /******************************************************************************/
