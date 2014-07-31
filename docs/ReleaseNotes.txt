@@ -6,6 +6,15 @@ Release Notes
 =============
 
 -------------
+Version 4.0.3
+-------------
+
++ **Major bug fixes**
+   * **[Server]**  Make sure the network routing is honored in all cases. This
+     fixes problems encountered by sites whose clients use a private IP address
+     to connect to a redirector's public IP address. (issue #130)
+
+-------------
 Version 4.0.2
 -------------
 
