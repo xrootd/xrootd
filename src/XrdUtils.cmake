@@ -65,6 +65,7 @@ add_library(
   XrdOuc/XrdOucERoute.cc        XrdOuc/XrdOucERoute.hh
                                 XrdOuc/XrdOucErrInfo.hh
   XrdOuc/XrdOucExport.cc        XrdOuc/XrdOucExport.hh
+  XrdOuc/XrdOucGMap.cc          XrdOuc/XrdOucGMap.hh
   XrdOuc/XrdOucHashVal.cc
   XrdOuc/XrdOucMsubs.cc         XrdOuc/XrdOucMsubs.hh
   XrdOuc/XrdOucName2Name.cc     XrdOuc/XrdOucName2Name.hh

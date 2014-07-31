@@ -183,6 +183,9 @@ XrdSutCache XrdSecProtocolgsi::cacheGMAP; // Grid map entries
 XrdSutCache XrdSecProtocolgsi::cacheGMAPFun; // Entries mapped by GMAPFun
 XrdSutCache XrdSecProtocolgsi::cacheAuthzFun; // Entities filled by AuthzFun
 //
+// Services
+XrdOucGMap *XrdSecProtocolgsi::servGMap = 0; // Grid map service
+//
 // CRL stack
 GSICrlStack  XrdSecProtocolgsi::stackCRL; // Stack of CRL in use
 //
@@ -349,9 +352,6 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
    EPNAME("Init");
    char *Parms = 0;
 
-   //
-   // Time stamp of initialization
-   time_t timestamp = time(0);
    //
    // Debug an tracing
    Debug = (opt.debug > -1) ? opt.debug : Debug;
@@ -705,31 +705,23 @@ char *XrdSecProtocolgsi::Init(gsiOptions opt, XrdOucErrInfo *erp)
       }
       bool hasgmap = 0;
       if (GMAPOpt > 0) {
-         if (access(GMAPFile.c_str(),R_OK) != 0) {
+         // Initialize the GMap service
+         //
+         String pars;
+         if (Debug) pars += "dbg|";
+         if (opt.gmapto > 0) { pars += "to="; pars += (int)opt.gmapto; }
+         if (!(servGMap = XrdOucgetGMap(&eDest, GMAPFile.c_str(), pars.c_str()))) {
             if (GMAPOpt > 1) {
-               if (errno == ENOENT) {
-                  ErrF(erp,kGSErrError,"Grid map file non existing:",GMAPFile.c_str());
-                  PRINT(erp->getErrText());
-               } else {
-                  ErrF(erp,kGSErrError,"'access' error on grid map file:",GMAPFile.c_str());
-                  PRINT(erp->getErrText());
-                  return Parms;
-               }
+               ErrF(erp,kGSErrError,"error loading grid map file:",GMAPFile.c_str());
+               PRINT(erp->getErrText());
+               return Parms;
             } else {
                NOTIFY("Grid map file: "<<GMAPFile<<" cannot be 'access'ed: do not use");
             }
          } else {
             DEBUG("using grid map file: "<<GMAPFile);
-            //
-            // Init cache for gridmap entries
-            if (LoadGMAP(timestamp) != 0) {
-               ErrF(erp,kGSErrError,"problems initializing cache for gridmap entries");
-               PRINT(erp->getErrText());
-               return Parms;
-            }
-            if (QTRACE(Authen)) { cacheGMAP.Dump(); }
-            hasgmap = 1;
-         }
+            hasgmap = 1;           
+         } 
       }
       //
       // Load function be used to map DN to usernames, if specified
@@ -2540,7 +2532,7 @@ char *XrdSecProtocolgsiInit(const char mode,
       int crl = 1;
       int crlrefresh = 86400;
       int ogmap = 1;
-      int gmapto = -1;
+      int gmapto = 600;
       int authzto = -1;
       int dlgpxy = 0;
       int authzpxy = 0;
@@ -4797,105 +4789,6 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
 }
 
 //__________________________________________________________________________
-int XrdSecProtocolgsi::LoadGMAP(int now)
-{
-   // Load cache for gridmap entries with current content of the gridmap file.
-   // The cache content is loaded only if the file was modified since last
-   // access.
-   // Returns 0 if successful, -1 if somethign went wrong
-   EPNAME("LoadGMAP");
-   XrdSutCacheRef pfeRef;
-
-   // We need a file to load
-   if (GMAPFile.length() <= 0)
-      return 0;
-
-   // Get info about last time of modification
-   struct stat st;
-   if (stat(GMAPFile.c_str(), &st) != 0) {
-      PRINT("error 'stat'-ing file "<<GMAPFile);
-      return -1;
-   }
-
-   // This must be atomic
-   XrdSysMutexHelper guard(&mutexGMAP);
-
-   // Check against current time
-   if (lastGMAPCheck > st.st_mtime)
-      // Nothing to do
-      return 0;
-   
-   // Init or reset the cache
-   if (cacheGMAP.Empty()) {
-      if (cacheGMAP.Init(100) != 0) {
-         PRINT("error initializing cache");
-         return -1;
-      }
-   } else {
-      if (cacheGMAP.Reset() != 0) {
-         PRINT("error resetting cache");
-         return -1;
-      }
-   }
-
-   // Open the file
-   FILE *fm = fopen(GMAPFile.c_str(),"r");
-   if (!fm) {
-      PRINT("error opening file "<<GMAPFile);
-      return -1;
-   }
-
-   // Read entries now
-   char line[2048] = {0};
-   while (fgets(line,sizeof(line),fm)) {
-      // Skip comment line
-      if (line[0] == '#') continue;
-      // Get rid of \n
-      if (line[strlen(line)-1] == '\n')
-         line[strlen(line)-1] = 0;
-      // Extract DN
-      char *p0 = (line[0] == '"') ? &line[1] : &line[0];
-      int l0 = 0;
-      while (p0[l0] != '"')
-          l0++;
-      String udn(p0, l0);
-      p0 = (p0 + l0 + 1);
-      while (*p0 == ' ')
-          p0++;
-
-      // Extract username
-      String usr(p0);
-
-      // Notify
-      DEBUG("Found: udn: "<<udn<<", usr: "<<usr);
-
-      // Ok: save it into the cache
-      XrdSutPFEntry *cent = cacheGMAP.Add(pfeRef, udn.c_str());
-      if (cent) {
-         cent->status = kPFE_ok;
-         cent->cnt = 0;
-         cent->mtime = now; // creation time
-         // Add username
-         SafeDelArray(cent->buf1.buf);
-         cent->buf1.buf = new char[usr.length() + 1];
-         strcpy(cent->buf1.buf, usr.c_str());
-         cent->buf1.len = usr.length();
-      }
-   }
-   fclose(fm);
-
-   // Rehash cache
-   pfeRef.UnLock();  // cent can no longer be used
-   cacheGMAP.Rehash(1);
-
-   // Save the time
-   lastGMAPCheck = now;
-
-   // We are done
-   return 0;
-}
-
-//__________________________________________________________________________
 void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &usrs)
 {
    // Resolve usernames associated with this proxy. The lookup is typically
@@ -4960,21 +4853,14 @@ void XrdSecProtocolgsi::QueryGMAP(XrdCryptoX509Chain *chain, int now, String &us
       }
    }
 
-   // Try also the map file, if any
-   if (LoadGMAP(now) != 0) {
-      NOTIFY("error loading/ refreshing grid map file");
-      return;
-   }
-
-   // Lookup for 'dn' in the cache. We are reusing the cent pointer so unlock
-   // any previous reference via cent.
-   pfeRef.UnLock();
-   cent = cacheGMAP.Get(pfeRef, dn);
-
-   // Add / Save the result, if any
-   if (cent) {
-      if (usrs.length() > 0) usrs += ",";
-      usrs += (const char *)(cent->buf1.buf);
+   // Check the map file, if any
+   //
+   if (servGMap) {
+      char u[65];
+      if (servGMap->dn2user(dn, u, sizeof(u), now) == 0) {
+         if (usrs.length() > 0) usrs += ",";
+         usrs += (const char *)u;
+      }
    }
 
    // Done
