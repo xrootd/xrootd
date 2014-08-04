@@ -175,7 +175,11 @@ int XrdOucGMap::load(const char *mf, bool force)
       xsl.UnLock();
       return -1;
    }
+#if defined(__APPLE__)
+   if (mf_mtime > 0 && (mf_mtime >= st.st_mtimespec.tv_sec) && !force) {
+#else
    if (mf_mtime > 0 && (mf_mtime >= st.st_mtim.tv_sec) && !force) {
+#endif
       DEBUG(dbg, tracer, "XrdOucGMap::load", "map information up-to-date: no need to load");
       xsl.UnLock();
       return 0;
@@ -265,7 +269,11 @@ int XrdOucGMap::load(const char *mf, bool force)
 
    // Store the modification time
    //
+#if defined(__APPLE__)
+   mf_mtime = st.st_mtimespec.tv_sec;
+#else
    mf_mtime = st.st_mtim.tv_sec;
+#endif
 
    // Done
    xsl.UnLock();
