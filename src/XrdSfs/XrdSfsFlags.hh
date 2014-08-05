@@ -1,5 +1,5 @@
 #ifndef __SFS_FLAGS_H__
-#define __SYS_FLAGS_H__
+#define __SFS_FLAGS_H__
 /******************************************************************************/
 /*                                                                            */
 /*                        X r d S f s F l a g s . h h                         */
@@ -57,7 +57,10 @@
 //! st_ino are both set to zero.
 //-----------------------------------------------------------------------------
 
-static const dev_t XRDSFS_OFFLINE =   0x80LL<<((sizeof(dev_t)*8)-8);
-static const dev_t XRDSFS_HASBKUP =   0x40LL<<((sizeof(dev_t)*8)-8);
-static const dev_t XRDSFS_RDVMASK = ~(0xffLL<<((sizeof(dev_t)*8)-8));
+static const dev_t XRDSFS_OFFLINE =
+                   static_cast<dev_t>(0x80LL<<((sizeof(dev_t)*8)-8));
+static const dev_t XRDSFS_HASBKUP =
+                   static_cast<dev_t>(0x40LL<<((sizeof(dev_t)*8)-8));
+static const dev_t XRDSFS_RDVMASK =
+                   static_cast<dev_t>(~(0xffLL<<((sizeof(dev_t)*8)-8)));
 #endif
