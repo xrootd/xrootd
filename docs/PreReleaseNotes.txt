@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow xrootd to handle objectid names as exports (new feature).
    * Implement a forwarding proxy option.
    * Pass along XRD_MONINFO setting and application name to monitoring.
    * Set client location information.
@@ -13,6 +14,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Fix broken readdir_r() and readdir_r64() functions.
    * Fully support extended file system features and pass those features
      through a proxy server. This fixes bug report #115.
    * Add missing initializer to the LocInfo structure.
@@ -21,6 +23,8 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Properly support proxying objectids.
+   * Make sure to always passhrough CGI information.
    * Honor network routing when creating the client's i/f selection mask.
    * Prevent mkdir failure in a clustered environment by creating the
      full directory path by default (can be turned off).
