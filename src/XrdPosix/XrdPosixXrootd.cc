@@ -689,10 +689,11 @@ struct dirent64* XrdPosixXrootd::Readdir64(DIR *dirp)
 int XrdPosixXrootd::Readdir_r(DIR *dirp,   struct dirent    *entry,
                                            struct dirent   **result)
 {
-   dirent64 *dp64;
+   dirent64 *dp64 = 0, d64ent;
    int       rc;
 
-   if ((rc = Readdir64_r(dirp, 0, &dp64)) <= 0) {*result = 0; return rc;}
+   if ((rc = Readdir64_r(dirp, &d64ent, &dp64)) || !dp64)
+      {*result = 0; return rc;}
 
    entry->d_ino    = dp64->d_ino;
 #if !defined(__APPLE__) && !defined(__FreeBSD__)
@@ -715,13 +716,12 @@ int XrdPosixXrootd::Readdir64_r(DIR *dirp, struct dirent64  *entry,
 
 // Find the object
 //
-   if (!(dP = XrdPosixObject::Dir(fildes)))
-      {errno = EBADF; return 0;}
+   if (!(dP = XrdPosixObject::Dir(fildes))) return EBADF;
 
 // Get the next entry
 //
-   if (!(*result = dP->nextEntry(entry))) rc = dP->Status();
-      else rc = 0;
+   if (!(*result = dP->nextEntry(entry))) {rc = dP->Status(); *result = 0;}
+      else {rc = 0; *result = entry;}
 
 // Return the appropriate result
 //
