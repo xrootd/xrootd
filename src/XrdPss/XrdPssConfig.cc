@@ -216,7 +216,7 @@ int XrdPssSys::Configure(const char *cfn)
           else sprintf(theRdr, "= %s:%d", ManList->text, ManList->val);
        XrdOucEnv::Export("XRDXROOTD_PROXY", theRdr);
        if (ManList)
-          {hdrLen = sprintf(theRdr, "root://%%s%s:%d/%%s",
+          {hdrLen = sprintf(theRdr, "root://%%s%s:%d/%%s%%s%%s",
                             ManList->text, ManList->val);
            hdrData = strdup(theRdr);
           }
