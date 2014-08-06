@@ -129,6 +129,21 @@ void XrdNetSecurity::AddNetGroup(char *gname)
 /*                             A u t h o r i z e                              */
 /******************************************************************************/
 
+bool XrdNetSecurity::Authorize(const char *hSpec)
+{
+   XrdNetAddr theAddr;
+
+// Convert the specification to a host address and validate it
+//
+   if (theAddr.Set(hSpec, -1094)) return false;
+
+// Now authorize what we have
+//
+   return Authorize(theAddr);
+}
+
+/******************************************************************************/
+
 bool XrdNetSecurity::Authorize(XrdNetAddr &addr)
 {
    static const int fmtOpts = XrdNetAddr::old6Map4 | XrdNetAddr::noPort;

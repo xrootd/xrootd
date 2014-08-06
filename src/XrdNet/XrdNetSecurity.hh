@@ -48,6 +48,8 @@ void  AddHost(char *hname);
 
 void  AddNetGroup(char *hname);
 
+bool  Authorize(const char *hSpec);
+
 bool  Authorize(XrdNetAddr &addr);
 
 void  Merge(XrdNetSecurity *srcp);  // Deletes srcp
