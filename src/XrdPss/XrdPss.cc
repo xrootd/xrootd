@@ -48,6 +48,7 @@
 #include "XrdVersion.hh"
 
 #include "XrdFfs/XrdFfsPosix.hh"
+#include "XrdNet/XrdNetSecurity.hh"
 #include "XrdPss/XrdPss.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
@@ -967,6 +968,33 @@ const char *XrdPssSys::P2CGI(int &cgilen, char *cbuff, int cblen,
 }
   
 /******************************************************************************/
+/*                                 P 2 D S T                                  */
+/******************************************************************************/
+
+int XrdPssSys::P2DST(int &retc, char *hBuff, int hBlen, XrdPssSys::PolAct pEnt,
+                     const char *path)
+{
+   const char *Slash;
+   int n;
+
+// Extract out the destination
+//
+   Slash = index(path, '/');
+   if (!Slash || (n = (Slash - path)) == 0) {retc = -EINVAL; return 0;}
+   if (n >= hBlen) {retc = -ENAMETOOLONG; return 0;}
+   strncpy(hBuff, path, n); hBuff[n] = 0;
+
+// Check if we need to authorize the outgoing connection
+//
+   if (Police[pEnt] && !Police[pEnt]->Authorize(hBuff))
+      {retc = -EACCES; return 0;}
+
+// All is well
+//
+   return n;
+}
+
+/******************************************************************************/
 /*                                 P 2 O U T                                  */
 /******************************************************************************/
   
@@ -974,7 +1002,7 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
                  const char *path, const char *Cgi, const char *Ident)
 {
    char  hBuff[288], idBuff[8], *idP;
-   const char *Slash, *theID = "", *Quest = "", *thePath = path;
+   const char *theID = "", *Quest = "", *thePath = path;
    int n;
 
 // If we have an Ident then use the fd number as the userid. This allows us to
@@ -1008,18 +1036,19 @@ char *XrdPssSys::P2OUT(int &retc,  char *pbuff, int pblen,
           {path++;
            if (*path == '/') theID = "";
           }
+       if (Police[PolObj] && !P2DST(retc, hBuff, sizeof(hBuff), PolObj,
+                                    path+(*path == '/' ? 1:0))) return 0;
        n = snprintf(pbuff, pblen, "root://%s%s%s%s", theID, path, Quest, Cgi);
        if (n >= pblen) {retc = -ENAMETOOLONG; return 0;}
        return pbuff;
       }
 
 // Extract out the destination. We need to do this because the front end
-// will have extracted out double slashes and we need to add them back.
+// will have extracted out double slashes and we need to add them back. We
+// also authorize the outgoing connection if we need to in the process.
 //
-   Slash = index(path, '/');
-   if (!Slash || (n = (Slash - path)) == 0) {retc = -EINVAL; return 0;}
-   if (n >= (int)sizeof(hBuff)) {retc = -ENAMETOOLONG; return 0;}
-   strncpy(hBuff, path, n); hBuff[n] = 0; path += n;
+   if (!(n = P2DST(retc, hBuff, sizeof(hBuff), PolPath, path))) return 0;
+   path += n;
 
 // Create the new path
 //

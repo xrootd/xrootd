@@ -46,6 +46,7 @@
 
 #include "XrdNet/XrdNetAddr.hh"
 #include "XrdNet/XrdNetUtils.hh"
+#include "XrdNet/XrdNetSecurity.hh"
 
 #include "XrdPss/XrdPss.hh"
 
@@ -76,7 +77,7 @@
 
 #define TS_Xeq(x,m)    if (!strcmp(x,var)) return m(&eDest, Config);
 
-/******************************************************************************/
+/*******x**********************************************************************/
 /*                               G l o b a l s                                */
 /******************************************************************************/
 
@@ -87,6 +88,8 @@ uid_t        XrdPssSys::myUid     =  geteuid();
 gid_t        XrdPssSys::myGid     =  getegid();
 
 XrdOucPListAnchor XrdPssSys::XPList;
+
+XrdNetSecurity   *XrdPssSys::Police[XrdPssSys::PolNum] = {0, 0};
 
 XrdOucTList *XrdPssSys::ManList   =  0;
 const char  *XrdPssSys::urlPlain  =  0;
@@ -394,6 +397,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
    TS_Xeq("config",        xconf);
    TS_Xeq("inetmode",      xinet);
    TS_Xeq("origin",        xorig);
+   TS_Xeq("permit",        xperm);
    TS_Xeq("setopt",        xsopt);
    TS_Xeq("trace",         xtrac);
    TS_Xeq("namelib",       xnml);
@@ -875,6 +879,45 @@ int XrdPssSys::xorig(XrdSysError *errp, XrdOucStream &Config)
    return tp != 0;
 }
   
+/******************************************************************************/
+/*                                 x p e r m                                  */
+/******************************************************************************/
+
+/* Function: xperm
+
+   Purpose:  To parse the directive: permit [/] [*] <name>
+
+                    netgroup name the host must be a member of. For DNS names,
+                    A single asterisk may be specified anywhere in the name.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdPssSys::xperm(XrdSysError *Eroute, XrdOucStream &Config)
+{   char *val;
+    bool pType[PolNum] = {false, false};
+    int i;
+
+do {if (!(val = Config.GetWord()))
+       {Eroute->Emsg("Config", "permit target not specified"); return 1;}
+         if (!strcmp(val, "/")) pType[PolPath] = true;
+    else if (!strcmp(val, "*")) pType[PolObj ] = true;
+    else break;
+   } while(1);
+
+    if (!pType[PolPath] && !pType[PolObj])
+       pType[PolPath] = pType[PolObj] = true;
+
+    for (i = 0; i < PolNum; i++)
+        {if (pType[i])
+            {if (!Police[i]) Police[i] = new XrdNetSecurity();
+                             Police[i]->AddHost(val);
+            }
+        }
+
+    return 0;
+}
+
 /******************************************************************************/
 /*                                 x s o p t                                  */
 /******************************************************************************/
