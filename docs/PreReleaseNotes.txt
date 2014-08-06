@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Add pss.permit directive to restrict outbound connections for
+     forwarding proxies.
    * Allow xrootd to handle objectid names as exports (new feature).
    * Implement a forwarding proxy option.
    * Pass along XRD_MONINFO setting and application name to monitoring.
@@ -25,6 +27,7 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Add new NetSecurity::Authorize() method that accepts text.
    * Properly support proxying objectids.
    * Make sure to always passhrough CGI information.
    * Honor network routing when creating the client's i/f selection mask.
