@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Control core file generation via xrd.sched core directive.
    * Add pss.permit directive to restrict outbound connections for
      forwarding proxies.
    * Allow xrootd to handle objectid names as exports (new feature).
