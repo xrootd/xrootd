@@ -173,7 +173,7 @@ int XrdOucGMap::load(const char *mf, bool force)
       // Delete the stored information if the file has been deleted
       if (errno == ENOENT) mappings.Purge();
       xsl.UnLock();
-      return -1;
+      return -(int)errno;
    }
 #if defined(__APPLE__)
    if (mf_mtime > 0 && (mf_mtime >= st.st_mtimespec.tv_sec) && !force) {
@@ -199,7 +199,7 @@ int XrdOucGMap::load(const char *mf, bool force)
    if ( (fD = open(mf_name.c_str(), O_RDONLY, 0)) < 0) {
       PRINT(tracer, "XrdOucGMap::load", "ERROR: map file '"<<mf_name<<"' could not be open (errno: "<<errno<<")");
       xsl.UnLock();
-      return -1;
+      return -(int)errno;
    }
    mapf.Attach(fD);
 
@@ -263,8 +263,10 @@ int XrdOucGMap::load(const char *mf, bool force)
    }
    // Now check if any errors occured during file i/o
    //
-   if ((rc = mapf.LastError()))
+   if ((rc = mapf.LastError())) {
       PRINT(tracer, "XrdOucGMap::load", "ERROR: reading file '"<<mf_name<<"': "<<rc);
+      rc = -rc;
+   }
    mapf.Close();
 
    // Store the modification time
@@ -277,13 +279,23 @@ int XrdOucGMap::load(const char *mf, bool force)
 
    // Done
    xsl.UnLock();
-   return 0;
+   return rc;
 }
 
 // Mapper
 //
 int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
 {
+
+   int rc = -1;
+   // Reset output
+   //
+   if (user && ulen > 0) {
+      memset(user, '\0', ulen);
+   } else {
+      PRINT(tracer, "XrdOucGMap::dn2user", "buffer for the user name is undefined or has undefined length");
+      return -(int)EINVAL;
+   }
 
    // Check if we need to reload the information
    //
@@ -293,7 +305,7 @@ int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
          // Reload the file
          if (load(mf_name.c_str()) != 0) {
             PRINT(tracer, "XrdOucGMap::dn2user", "problems loading file "<<mf_name);
-            return -1;
+            return -(int)errno;
          }
          if (timeout > 0) notafter = now + (time_t) timeout;
       }
@@ -309,27 +321,31 @@ int XrdOucGMap::dn2user(const char *dn, char *user, int ulen, time_t now)
    //
    if ((mc = mappings.Find(dn))) {
       // Save the associated user
-      strncpy(user, mc->user.c_str(), ulen);
-      user[ulen-1] = 0;
+      int ul = mc->user.length();
+      strncpy(user, mc->user.c_str(), ul);
+      user[ul] = 0;
+      rc = 0;
    } else {
       // Else scan the available mappings
       //
       mc = new XrdSecGMapEntry_t(dn, "", kFull);
       mappings.Apply(FindMatchingCondition, (void *)mc);
       if (mc->user.length() > 0) {
-         strncpy(user, mc->user.c_str(), ulen);
-         user[ulen-1] = 0;
+         int ul = mc->user.length();
+         strncpy(user, mc->user.c_str(), ul);
+         user[ul] = 0;
+         rc = 0;
       }
    }
-   if (strlen(user)) {
+   if (rc == 0) {
       DEBUG(dbg, tracer, "XrdOucGMap::dn2user", "mapping DN '"<<dn<<"' to '"<<user<<"'");
    } else {
       DEBUG(dbg, tracer, "XrdOucGMap::dn2user", "no valid match found for DN '"<<dn<<"'");
+      rc = -(int)EFAULT;
    }
   
    // Done
    xsl.UnLock();
-   return 0;
-
+   return rc;
 }
 
