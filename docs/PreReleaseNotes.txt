@@ -16,6 +16,7 @@ Prerelease Notes
 + **Major bug fixes**
 
 + **Minor bug fixes**
+   * Fixes #133 Pass the external environment to the protocol manager.
    * Squelch C11 warnings when dev_t is 32 bits (MacOS).
    * Correct header define gaurd in XrdSfsFlags.hh.
    * Fix broken readdir_r() and readdir_r64() functions.
