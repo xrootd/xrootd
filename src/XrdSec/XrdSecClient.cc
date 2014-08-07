@@ -108,7 +108,7 @@ XrdSecProtocol *XrdSecGetProtocol(const char             *hostname,
 
 // Find a supported protocol.
 //
-   if (!(protp = PManager.Get(hostname, endPoint, parms)))
+   if (!(protp = PManager.Get(hostname, endPoint, parms, einfo)))
       {if (einfo) einfo->setErrInfo(ENOPROTOOPT, noperr);
          else cerr <<noperr <<endl;
       }
