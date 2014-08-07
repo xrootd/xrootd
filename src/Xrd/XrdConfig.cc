@@ -149,6 +149,7 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    ppNet      = 0;
    NetTCPlep  = -1;
    NetADM     = 0;
+   coreV      = 1;
    memset(NetTCP, 0, sizeof(NetTCP));
 
    Firstcp = Lastcp = 0;
@@ -811,6 +812,19 @@ int XrdConfig::setFDL()
    ProtInfo.ConnMax = rlim.rlim_cur;
    sprintf(buff, "%d", ProtInfo.ConnMax);
    Log.Say("Config maximum number of connections restricted to ", buff);
+
+// Set core limit and but Solaris
+//
+#if !defined( __solaris__ ) && defined(RLIMIT_CORE)
+   if (coreV >= 0)
+      {if (getrlimit(RLIMIT_CORE, &rlim) < 0)
+          Log.Emsg("Config", errno, "get core limit");
+          else {rlim.rlim_cur = (coreV ? rlim.rlim_max : 0);
+                if (setrlimit(RLIMIT_CORE, &rlim) < 0)
+                   Log.Emsg("Config", errno,"set core limit");
+               }
+      }
+#endif
 
 // We try to set the thread limit here but only if we can
 //
@@ -1492,7 +1506,7 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
 /* Function: xsched
 
    Purpose:  To parse directive: sched [mint <mint>] [maxt <maxt>] [avlt <at>]
-                                       [idle <idle>] [stksz <qnt>]
+                                       [idle <idle>] [stksz <qnt>] [core <cv>]
 
              <mint>   is the minimum number of threads that we need. Once
                       this number of threads is created, it does not decrease.
@@ -1503,6 +1517,9 @@ int XrdConfig::xrep(XrdSysError *eDest, XrdOucStream &Config)
                       immediate dispatch. These threads are never bound to a
                       connection (i.e., made stickied). Any available threads
                       above <ft> will be allowed to stick to a connection.
+             <cv>     asis - leave current value alone.
+                      max  - set value to maximum allowed (hard limit).
+                      off  - turn off core files.
              <idle>   The time (in time spec) between checks for underused
                       threads. Those found will be terminated. Default is 780.
              <qnt>    The thread stack size in bytes or K, M, or G.
@@ -1523,6 +1540,7 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
         {"mint",       1, &V_mint, "sched mint"},
         {"maxt",       1, &V_maxt, "sched maxt"},
         {"avlt",       1, &V_avlt, "sched avlt"},
+        {"core",       1,       0, "sched core"},
         {"idle",       0, &V_idle, "sched idle"}
        };
     int numopts = sizeof(scopts)/sizeof(struct schedopts);
@@ -1541,6 +1559,14 @@ int XrdConfig::xsched(XrdSysError *eDest, XrdOucStream &Config)
                         if (*scopts[i].opname == 'i')
                            {if (XrdOuca2x::a2tm(*eDest, scopts[i].opmsg, val,
                                                 &ppp, scopts[i].minv)) return 1;
+                           }
+                   else if (*scopts[i].opname == 'c')
+                           {     if (!strcmp("asis", val)) coreV = -1;
+                            else if (!strcmp("max",  val)) coreV =  1;
+                            else if (!strcmp("off",  val)) coreV =  0;
+                            else {eDest->Emsg("Config","invalid sched core value -",val);
+                                  return 1;
+                                 }
                            }
                    else if (*scopts[i].opname == 's')
                            {if (XrdOuca2x::a2sz(*eDest, scopts[i].opmsg, val,
