@@ -28,6 +28,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucGMap.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -82,6 +83,10 @@ bool XrdHttpProtocol::selfhttps2http = false;
 bool XrdHttpProtocol::isdesthttps = false;
 char *XrdHttpProtocol::sslcafile = 0;
 char *XrdHttpProtocol::secretkey = 0;
+
+char *XrdHttpProtocol::gridmap = 0;
+XrdOucGMap *XrdHttpProtocol::servGMap = 0;  // Grid mapping service
+   
 int XrdHttpProtocol::sslverifydepth = 9;
 SSL_CTX *XrdHttpProtocol::sslctx = 0;
 BIO *XrdHttpProtocol::sslbio_err = 0;
@@ -285,37 +290,50 @@ XrdProtocol *XrdHttpProtocol::Match(XrdLink *lp) {
 
 
 int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
-
-
+  TRACEI(DEBUG, " Extracting auth info.");
+  
   SecEntity.host = GetClientIPStr();
-
-
-
+  
+  
+  
   // Invoke our instance of the Security exctractor plugin
   // This will fill the XrdSec thing with VOMS info, if VOMS is
   // installed. If we have no sec extractor then do nothing, just plain https
   // will work.
   if (secxtractor) secxtractor->GetSecData(lp, SecEntity, ssl);
   else {
-
-      X509 *peer_cert;
-
-      // No external plugin, hence we fill our XrdSec with what we can do here
-      peer_cert = SSL_get_peer_certificate(ssl);
-      TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
-      if (peer_cert && peer_cert->name) {
-
-          TRACEI(DEBUG, " Setting Username :" << peer_cert->name);
-          lp->setID(peer_cert->name, 0);
-
-          // Here we should fill the SecEntity instance with the DN and the voms stuff
-          SecEntity.name = strdup((char *) peer_cert->name);
-
-        }
-
-      if (peer_cert) X509_free(peer_cert);
+    
+    // If no external security extractor is available, 
+    X509 *peer_cert;
+    
+    // No external plugin, hence we fill our XrdSec with what we can do here
+    peer_cert = SSL_get_peer_certificate(ssl);
+    TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
+    if (peer_cert && peer_cert->name) {
+      
+      // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
+      if (SecEntity.name) free(SecEntity.name);
+      SecEntity.name = (char *)malloc(128);
+      if (servGMap) {  
+	int e = servGMap->dn2user(peer_cert->name, SecEntity.name, 127, 0);
+	if ( !e ) {
+	  TRACEI(DEBUG, " Mapping Username: " << peer_cert->name << " --> " << SecEntity.name);
+	}
+	else {
+	  TRACEI(ALL, " Mapping Username: " << peer_cert->name << " Failed. err: " << e);
+	}
+      }
+      else {
+	SecEntity.name = strdup(peer_cert->name);
+      }
+      
+      TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
+      lp->setID(SecEntity.name, 0);
     }
-
+    
+    if (peer_cert) X509_free(peer_cert);
+  }
+  
   return 0;
 }
 
@@ -593,7 +611,7 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   // Now we have everything that is needed to try the login
   if (!Bridge) {
-    Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unnamed", "XrdHttp");
+    Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
     if (!Bridge) {
       TRACEI(REQ, " Autorization failed.");
       return -1;
@@ -706,6 +724,7 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
       else if TS_Xeq("cert", xsslcert);
       else if TS_Xeq("key", xsslkey);
       else if TS_Xeq("cadir", xsslcadir);
+      else if TS_Xeq("gridmap", xgmap);
       else if TS_Xeq("cafile", xsslcafile);
       else if TS_Xeq("secretkey", xsecretkey);
       else if TS_Xeq("desthttps", xdesthttps);
@@ -1374,17 +1393,40 @@ int XrdHttpProtocol::InitSecurity() {
       exit(1);
     }
   }
-
+  
+  
+  
+  
+  
   //eDest.Say(" Setting verify depth to ", itoa(sslverifydepth), "'.");
   SSL_CTX_set_verify_depth(sslctx, sslverifydepth);
   ERR_print_errors(sslbio_err);
   //SSL_CTX_set_verify(sslctx,
   //        SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_callback);
   SSL_CTX_set_verify(sslctx,
-          SSL_VERIFY_PEER, verify_callback);
-
-
-
+		     SSL_VERIFY_PEER, verify_callback);
+  
+  
+  
+  
+  //
+  // Check existence of GRID map file
+  if (gridmap) {
+    
+    // Initialize the GMap service
+    //
+    XrdOucString pars;
+    if (XrdHttpTrace->What == TRACE_DEBUG) pars += "dbg|";
+    
+    if (!(servGMap = XrdOucgetGMap(&eDest, gridmap, pars.c_str()))) {
+      	eDest.Say("Error loading grid map file:", gridmap);
+	exit(1);
+    } else {
+      TRACE(ALL, "using grid map file: "<< gridmap);        
+    } 
+    
+  }
+  
   if (secxtractor) secxtractor->Init(sslctx, XrdHttpTrace->What);
 
   ERR_print_errors(sslbio_err);
@@ -1410,10 +1452,8 @@ void XrdHttpProtocol::Cleanup() {
      SSL_free(ssl);
   }
 
-
   ssl = 0;
   sbio = 0;
-
 
   if (SecEntity.vorg) free(SecEntity.vorg);
   if (SecEntity.name) free(SecEntity.name);
@@ -1612,6 +1652,43 @@ int XrdHttpProtocol::xsslkey(XrdOucStream & Config) {
   return 0;
 }
 
+
+
+
+/******************************************************************************/
+/*                                     x g m a p                              */
+/******************************************************************************/
+
+/* Function: xgmap
+
+   Purpose:  To parse the directive: gridmap <path>
+
+             <path>    the path of the gridmap file to be used. Normally
+			it's /etc/grid-security/gridmap
+			No mapfile means no translation required
+			Pointing to a non existing mapfile is an error
+
+  Output: 0 upon success or !0 upon failure.
+ */
+
+int XrdHttpProtocol::xgmap(XrdOucStream & Config) {
+  char *val;
+
+  // Get the path
+  //
+  val = Config.GetWord();
+  if (!val || !val[0]) {
+    eDest.Emsg("Config", "HTTP X509 gridmap file location not specified");
+    return 1;
+  }
+
+  // Record the path
+  //
+  if (gridmap) free(gridmap);
+  gridmap = strdup(val);
+
+  return 0;
+}
 
 /******************************************************************************/
 /*                                 x s s l c a f i l e                        */
