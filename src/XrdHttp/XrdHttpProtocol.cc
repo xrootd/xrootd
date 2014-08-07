@@ -293,50 +293,48 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   TRACEI(DEBUG, " Extracting auth info.");
   
   SecEntity.host = GetClientIPStr();
+
+  X509 *peer_cert;
   
+  // No external plugin, hence we fill our XrdSec with what we can do here
+  peer_cert = SSL_get_peer_certificate(ssl);
+  TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
+  if (peer_cert && peer_cert->name) {
+    
+    // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
+    if (SecEntity.name) free(SecEntity.name);
+    SecEntity.name = (char *)malloc(128);
+    if (servGMap) {  
+      int e = servGMap->dn2user(peer_cert->name, SecEntity.name, 127, 0);
+      if ( !e ) {
+	TRACEI(DEBUG, " Mapping Username: " << peer_cert->name << " --> " << SecEntity.name);
+      }
+      else {
+	TRACEI(ALL, " Mapping Username: " << peer_cert->name << " Failed. err: " << e);
+      }
+    }
+    else {
+      SecEntity.name = strdup(peer_cert->name);
+    }
+    
+    TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
+    lp->setID(SecEntity.name, 0);
+  }
   
+  if (peer_cert) X509_free(peer_cert);
+
+
   
   // Invoke our instance of the Security exctractor plugin
   // This will fill the XrdSec thing with VOMS info, if VOMS is
   // installed. If we have no sec extractor then do nothing, just plain https
   // will work.
-  if (secxtractor) secxtractor->GetSecData(lp, SecEntity, ssl);
-  else {
-    
-    // If no external security extractor is available, 
-    X509 *peer_cert;
-    
-    // No external plugin, hence we fill our XrdSec with what we can do here
-    peer_cert = SSL_get_peer_certificate(ssl);
-    TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
-    if (peer_cert && peer_cert->name) {
-      
-      // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
-      if (SecEntity.name) free(SecEntity.name);
-      SecEntity.name = (char *)malloc(128);
-      if (servGMap) {  
-	int e = servGMap->dn2user(peer_cert->name, SecEntity.name, 127, 0);
-	if ( !e ) {
-	  TRACEI(DEBUG, " Mapping Username: " << peer_cert->name << " --> " << SecEntity.name);
-	}
-	else {
-	  TRACEI(ALL, " Mapping Username: " << peer_cert->name << " Failed. err: " << e);
-	}
-      }
-      else {
-	SecEntity.name = strdup(peer_cert->name);
-      }
-      
-      TRACEI(DEBUG, " Setting link name: " << SecEntity.name);
-      lp->setID(SecEntity.name, 0);
-    }
-    
-    if (peer_cert) X509_free(peer_cert);
-  }
+  if (secxtractor)
+    secxtractor->GetSecData(lp, SecEntity, ssl);
   
   return 0;
 }
-
+  
 char *XrdHttpProtocol::GetClientIPStr() {
   char buf[256];
   buf[0] = '\0';
