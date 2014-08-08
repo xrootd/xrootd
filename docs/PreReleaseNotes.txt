@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow local/local copying for new xrdcp but not for the old one.
    * Control core file generation via xrd.sched core directive.
    * Add pss.permit directive to restrict outbound connections for
      forwarding proxies.
