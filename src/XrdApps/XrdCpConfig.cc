@@ -347,7 +347,8 @@ do{while(optind < Argc && Legacy(optind)) {}
 
 // Do the dumb check
 //
-   if (isLcl) FMSG("All files are local; use 'cp' instead!", 1);
+   if (isLcl && Opts & optNoLclCp)
+      FMSG("All files are local; use 'cp' instead!", 1);
 
 // Check for checksum spec conflicts
 //
