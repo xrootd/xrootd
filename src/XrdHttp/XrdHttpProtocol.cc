@@ -305,8 +305,8 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
     
     // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
     if (SecEntity.name) free(SecEntity.name);
-    SecEntity.name = (char *)malloc(128);
     if (servGMap) {  
+      SecEntity.name = (char *)malloc(128);
       int e = servGMap->dn2user(peer_cert->name, SecEntity.name, 127, 0);
       if ( !e ) {
 	TRACEI(DEBUG, " Mapping Username: " << peer_cert->name << " --> " << SecEntity.name);
@@ -612,7 +612,11 @@ int XrdHttpProtocol::Process(XrdLink *lp) // We ignore the argument here
 
   // Now we have everything that is needed to try the login
   if (!Bridge) {
-    Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
+    if (SecEntity.name)
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, SecEntity.name, "XrdHttp");
+    else
+      Bridge = XrdXrootd::Bridge::Login(&CurrentReq, Link, &SecEntity, "unknown", "XrdHttp");
+    
     if (!Bridge) {
       TRACEI(REQ, " Autorization failed.");
       return -1;
