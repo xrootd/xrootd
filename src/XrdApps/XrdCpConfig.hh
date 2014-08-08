@@ -158,6 +158,7 @@ static const int    opt1Src     = 0x00000001; // Only one source is allowed
 static const int    optNoXtnd   = 0x00000002; // Do not index source directories
 static const int    optRmtRec   = 0x00000004; // Allow remote recursive copy
 static const int    optNoStdIn  = 0x00000008; // Disallow '-' as src for stdin
+static const int    optNoLclCp  = 0x00000010; // Disallow local/local copy
 
              void   Config(int argc, char **argv, int Opts=0);
 

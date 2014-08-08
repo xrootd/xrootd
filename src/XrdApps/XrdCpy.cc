@@ -1476,7 +1476,7 @@ int main(int argc, char**argv)
 // Invoke config; it it returns then all went well.
 //
    Config.Config(argc, argv, XrdCpConfig::opt1Src|XrdCpConfig::optNoStdIn
-                            |XrdCpConfig::optNoXtnd);
+                            |XrdCpConfig::optNoXtnd|XrdCpConfig::optNoLclCp);
 
 // Turn off any blab from the client
 //
