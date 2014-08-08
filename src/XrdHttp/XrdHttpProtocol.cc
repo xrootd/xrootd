@@ -32,7 +32,6 @@
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
-
 #include "XrdHttpTrace.hh"
 #include "XrdHttpProtocol.hh"
 //#include "XrdXrootd/XrdXrootdStats.hh"
@@ -300,6 +299,9 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
   peer_cert = SSL_get_peer_certificate(ssl);
   TRACEI(DEBUG, " SSL_get_peer_certificate returned :" << peer_cert);
   if (peer_cert && peer_cert->name) {
+    
+    // Add the original DN to the moninfo. Not sure if it makes sense to parametrize this or not.
+    SecEntity.moninfo = strdup(peer_cert->name);
     
     // Here we have the user DN, we try to translate it using the XrdSec functions and the gridmap
     if (SecEntity.name) free(SecEntity.name);
@@ -1456,6 +1458,7 @@ void XrdHttpProtocol::Cleanup() {
   if (SecEntity.vorg) free(SecEntity.vorg);
   if (SecEntity.name) free(SecEntity.name);
   if (SecEntity.host) free(SecEntity.host);
+  if (SecEntity.moninfo) free(SecEntity.moninfo);
 
   memset(&SecEntity, 0, sizeof (SecEntity));
 

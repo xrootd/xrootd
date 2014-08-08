@@ -1404,18 +1404,31 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
           else
             stringresp += prot->Link->ID;
          
+	  if (prot->SecEntity.vorg ||
+	      prot->SecEntity.moninfo ||
+	      prot->SecEntity.role)
+		stringresp += " (";
+		
           if (prot->SecEntity.vorg) {
-            stringresp += " (VO: ";
+            stringresp += " VO: ";
             stringresp += prot->SecEntity.vorg;
-
           }
-
+          
+	  if (prot->SecEntity.moninfo) {
+            stringresp += " DN: ";
+            stringresp += prot->SecEntity.moninfo;
+          }
+          
           if (prot->SecEntity.role) {
             stringresp += " Role: ";
             stringresp += prot->SecEntity.role;
-            stringresp += " )";
           }
  
+ 	  if (prot->SecEntity.vorg ||
+	      prot->SecEntity.moninfo ||
+	      prot->SecEntity.role)
+		stringresp += " )";
+		
           if (prot->SecEntity.host) {
             stringresp += " ( ";
             stringresp += prot->SecEntity.host;
