@@ -60,8 +60,8 @@ public:
 //!
 //! @return Success: Zero.
 //!         Failure: An errno number describing the failure; typically
-//!                  EINVAL       - The supplied dn is invalid.
-//!                  ENAMETOOLONG - The buffer is too small for the user name.
+//!                  -EFAULT       - No valid matching found.
+//!                  -errno        - If problems reloading the file
 //------------------------------------------------------------------------------
 
 virtual int  dn2user(const char *dn, char *user, int ulen, time_t now = 0);
