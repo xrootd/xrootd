@@ -313,6 +313,7 @@ int XrdHttpProtocol::GetVOMSData(XrdLink *lp) {
       }
       else {
 	TRACEI(ALL, " Mapping Username: " << peer_cert->name << " Failed. err: " << e);
+	strncpy(SecEntity.name, peer_cert->name, 127);
       }
     }
     else {
