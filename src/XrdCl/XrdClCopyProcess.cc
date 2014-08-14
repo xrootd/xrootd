@@ -21,7 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClDefaultEnv.hh"
 #include "XrdCl/XrdClClassicCopyJob.hh"
-#include "XrdCl/XrdClThirdPartyCopyJob.hh"
+#include "XrdCl/XrdClTPFallBackCopyJob.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClMonitor.hh"
 #include "XrdCl/XrdClCopyJob.hh"
@@ -149,16 +149,9 @@ namespace XrdCl
       if( !target.IsValid() )
         return XRootDStatus( stError, errInvalidArgs, 0, "invalid target" );
 
-      bool tpc         = false;
-      bool tpcFallBack = false;
-
+      bool tpc = false;
       props.Get( "thirdParty", tmp );
-      if( tmp == "first" )
-      {
-        tpc         = true;
-        tpcFallBack = true;
-      }
-      else if( tmp == "only" )
+      if( tmp != "none" )
         tpc = true;
 
       //------------------------------------------------------------------------
@@ -190,20 +183,7 @@ namespace XrdCl
       CopyJob *job = 0;
 
       if( tpc == true )
-      {
-        XRootDStatus st = ThirdPartyCopyJob::CanDo( source, target, &props );
-
-        if( st.IsOK() )
-          job = new ThirdPartyCopyJob( i+1, &props, res );
-        else if( tpcFallBack && !st.IsFatal() )
-          job = new ClassicCopyJob( i+1, &props, res );
-        else
-        {
-          CleanUpJobs();
-          res->Set( "status", st );
-          return st;
-        }
-      }
+        job = new TPFallBackCopyJob( i+1, &props, res );
       else
         job = new ClassicCopyJob( i+1, &props, res );
 
