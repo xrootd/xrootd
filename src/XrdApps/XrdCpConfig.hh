@@ -60,6 +60,7 @@ struct defVar
        const char  *srcOpq;        // -> -OS setting (src  opaque)
        const char  *Pgm;           // -> Program name
         long long   xRate;         // -xrate value in bytes/sec   (0 if not set)
+             int    Parallel;      // Number of simultaneous copy ops (1 to 4)
              char  *pHost;         // -> SOCKS4 proxy hname       (0 if none)
              int    pPort;         //    SOCKS4 proxy port
              int    OpSpec;        // Bit mask of set options     (see Doxxxx)
@@ -146,6 +147,9 @@ static const int    OpVersion  =  'V';        // -V | --version
 
 static const int    OpXrate    =  'X';
 static const int    DoXrate    =  0x00080000; // -X | --xrate
+
+static const int    OpParallel =  0x04;
+static const int    DoParallel =  0x00200000; //      --parallel
 
 static const int    OpDynaSrc  =  'Z';
 static const int    DoDynaSrc  =  0x00200000; //      --dynamic-src
