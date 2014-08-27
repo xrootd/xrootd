@@ -27,14 +27,7 @@ BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 
-# selinux
-BuildRequires: checkpolicy
-
-%if %{?fedora}%{!?fedora:0} >= 20
-BuildRequires: policycoreutils-python
-%else
-BuildRequires: policycoreutils
-%endif
+BuildRequires: selinux-policy-devel
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
@@ -74,8 +67,6 @@ The cmsd server is the next generation version of the olbd server,
 originally developed to cluster and load balance Objectivity/DB AMS
 database servers. It provides enhanced capability along with lower
 latency and increased throughput.
-
-%define policy_dir /usr/share/selinux/targeted
 
 #-------------------------------------------------------------------------------
 # libs
@@ -223,8 +214,9 @@ Group:		 System Environment/Base
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch: noarch
 %endif
-Requires:  policycoreutils
-Requires:  selinux-policy-targeted
+Requires(post):   policycoreutils
+Requires(postun): policycoreutils
+Requires:         selinux-policy
 
 %description selinux
 SELinux policy extensions for running xrootd while in enforcing mode.
@@ -249,8 +241,6 @@ This package contains a set of CPPUnit tests for xrootd.
 
 %build
 cd xrootd
-mkdir build
-cd build
 
 %if %{?_with_cpp11:1}%{!?_with_cpp11:0}
 export CXXFLAGS=-std=c++11
@@ -261,6 +251,8 @@ export CC=clang
 export CXX=clang++
 %endif
 
+mkdir build
+pushd build
 %if %{?_with_tests:1}%{!?_with_tests:0}
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
 %else
@@ -268,11 +260,12 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
 %endif
 
 make -i VERBOSE=1 %{?_smp_mflags}
+popd
 
-checkmodule -M -m -o xrootd.mod ../packaging/common/xrootd.te
-semodule_package -o xrootd.pp -m xrootd.mod
+pushd packaging/common
+make -f /usr/share/selinux/devel/Makefile
+popd
 
-cd ..
 doxygen Doxyfile
 
 #-------------------------------------------------------------------------------
@@ -325,8 +318,9 @@ mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
 cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
 
 # selinux
-mkdir -p ${RPM_BUILD_ROOT}%{policy_dir}
-install -m 644 build/xrootd.pp ${RPM_BUILD_ROOT}%{policy_dir}
+mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
+install -m 644 -p packaging/common/xrootd.pp \
+    %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -393,11 +387,12 @@ exit 0
 # Selinux
 #-------------------------------------------------------------------------------
 %post selinux
-semodule -i %{policy_dir}/xrootd.pp
-semodule -R
+/usr/sbin/semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
 
 %postun selinux
-semodule -R
+if [ $1 -eq 0 ] ; then
+    /usr/sbin/semodule -r %{name} >/dev/null 2>&1 || :
+fi
 
 #-------------------------------------------------------------------------------
 # Files
@@ -567,12 +562,15 @@ semodule -R
 
 %files selinux
 %defattr(-,root,root)
-%{policy_dir}/xrootd.pp
+%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Wed Aug 27 2014 Lukasz Janyst <ljanyst@cern.ch>
+- use generic selinux policy build mechanisms
+
 * Tue Apr 01 2014 Lukasz Janyst <ljanyst@cern.ch>
 - correct the license field (LGPLv3+)
 - rename to xrootd4
