@@ -1,4 +1,21 @@
 #-------------------------------------------------------------------------------
+# Helper macros
+#-------------------------------------------------------------------------------
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} >= 7
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%else
+    %if %{?fedora}%{!?fedora:0} >= 19
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%endif
+
+#-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
 Name:      xrootd4
@@ -35,7 +52,7 @@ BuildRequires: cppunit-devel
 
 BuildRequires:	doxygen
 BuildRequires:	graphviz
-%if "%{?rhel}" == "5"
+%if %{?rhel}%{!?rhel:0} == 5
 BuildRequires:	graphviz-gd
 %endif
 
@@ -48,12 +65,20 @@ Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
 Conflicts:  xrootd
 
+%if %{use_systemd}
+BuildRequires:    systemd
+Requires(pre):		systemd
+Requires(post):		systemd
+Requires(preun):	systemd
+Requires(postun):	systemd
+%else
 Requires(pre):		shadow-utils
 Requires(pre):		chkconfig
 Requires(post):		chkconfig
 Requires(preun):	chkconfig
 Requires(preun):	initscripts
 Requires(postun):	initscripts
+%endif
 
 %description
 The Extended root file server consists of a file server called xrootd
@@ -287,10 +312,20 @@ mkdir -p $RPM_BUILD_ROOT%{_var}/run/xrootd
 mkdir -p $RPM_BUILD_ROOT%{_var}/spool/xrootd
 
 # init stuff
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
-mkdir -p $RPM_BUILD_ROOT%{_initrddir}
 
+%if %{use_systemd}
+
+mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrootd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
+
+%else
+
+mkdir -p $RPM_BUILD_ROOT%{_initrddir}
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 install -m 644 packaging/rhel/xrootd.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/xrootd
 
 install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
@@ -298,6 +333,8 @@ install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_p
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
 install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
 install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
+
+%endif
 
 # logrotate
 mkdir $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
@@ -345,6 +382,35 @@ getent passwd xrootd >/dev/null || \
        -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
 
+%if %{use_systemd}
+
+%post
+if [ $1 -eq 1 ] ; then
+    /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+fi
+
+%preun
+if [ $1 -eq 0 ] ; then
+    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+        for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
+            /usr/bin/systemctl --no-reload disable $INSTANCE > /dev/null 2>&1 || :
+            /usr/bin/systemctl stop $INSTANCE > /dev/null 2>&1 || :
+        done
+    done
+fi
+
+%postun
+if [ $1 -ge 1 ] ; then
+    /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+        for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
+            /usr/bin/systemctl try-restart $INSTANCE >/dev/null 2>&1 || :
+        done
+    done
+fi
+
+%else
+
 %post
 if [ $1 -eq 1 ]; then
     /sbin/chkconfig --add xrootd
@@ -372,6 +438,8 @@ if [ $1 -ge 1 ]; then
     /sbin/service frm_purged condrestart >/dev/null 2>&1 || :
     /sbin/service frm_xfrd condrestart >/dev/null 2>&1 || :
 fi
+
+%endif
 
 #-------------------------------------------------------------------------------
 # Add a new user and group if necessary
@@ -424,14 +492,19 @@ fi
 %{_mandir}/man8/xrdsssadmin.8*
 %{_mandir}/man8/xrootd.8*
 %{_datadir}/xrootd
-%{_initrddir}/*
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-standalone.cfg
 %attr(-,xrootd,xrootd) %dir %{_var}/log/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/run/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/xrootd
-%config(noreplace) %{_sysconfdir}/sysconfig/xrootd
 %config(noreplace) %{_sysconfdir}/logrotate.d/xrootd
+
+%if %{use_systemd}
+%{_unitdir}/*
+%else
+%config(noreplace) %{_sysconfdir}/sysconfig/xrootd
+%{_initrddir}/*
+%endif
 
 %files libs
 %defattr(-,root,root,-)
@@ -568,6 +641,9 @@ fi
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Thu Aug 28 2014 Lukasz Janyst <ljanyst@cern.ch>
+- add support for systemd
+
 * Wed Aug 27 2014 Lukasz Janyst <ljanyst@cern.ch>
 - use generic selinux policy build mechanisms
 
