@@ -1,6 +1,9 @@
 /var/log/xrootd/*/*.log /var/log/xrootd/*.log
 {
   missingok
+  nomail
+  nocreate
+  rotate 100
   notifempty
   daily
   compress
