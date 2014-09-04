@@ -63,6 +63,7 @@ BuildRequires: clang
 Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
+Requires:   expect
 Conflicts:  xrootd
 
 %if %{use_systemd}
