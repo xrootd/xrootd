@@ -80,6 +80,13 @@
   
        const char       *XrdConfig::TraceID = "Config";
 
+namespace XrdNetSocketCFG
+{
+extern int ka_Idle;
+extern int ka_Itvl;
+extern int ka_Icnt;
+};
+
 /******************************************************************************/
 /*                               d e f i n e s                                */
 /******************************************************************************/
@@ -139,9 +146,9 @@ XrdConfig::XrdConfig() : Log(&Logger, "Xrd"), Trace(&Log), Sched(&Log, &Trace),
    AdminMode= 0700;
    Police   = 0;
    Net_Blen = 0;  // Accept OS default (leave Linux autotune in effect)
-   Net_Opts = 0;
+   Net_Opts = XRDNET_KEEPALIVE;
    Wan_Blen = 1024*1024; // Default window size 1M
-   Wan_Opts = 0;
+   Wan_Opts = XRDNET_KEEPALIVE;
    repDest[0] = 0;
    repDest[1] = 0;
    repInt     = 600;
@@ -1151,14 +1158,15 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 
 /* Function: xnet
 
-   Purpose:  To parse directive: network [wan] [keepalive] [buffsz <blen>]
-                                         [cache <ct>] [[no]dnr]
+   Purpose:  To parse directive: network [wan] [[no]keepalive] [buffsz <blen>]
+                                         [kaparms parms] [cache <ct>] [[no]dnr]
                                          [routes <rtype> [use <ifn1>,<ifn2>]]
 
              <rtype>: split | common | local
 
              wan       parameters apply only to the wan port
-             keepalive sets the socket keepalive option.
+             keepalive do [not] set the socket keepalive option.
+             kaparms   keepalive paramters as specfied by parms.
              <blen>    is the socket's send/rcv buffer size.
              <ct>      Seconds to cache address to name resolutions.
              [no]dnr   do [not] perform a reverse DNS lookup if not needed.
@@ -1170,13 +1178,15 @@ int XrdConfig::xbuf(XrdSysError *eDest, XrdOucStream &Config)
 int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 {
     char *val;
-    int  i, n, V_keep = 0, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1;
+    int  i, n, V_keep = -1, V_nodnr = 0, V_iswan = 0, V_blen = -1, V_ct = -1;
     long long llp;
     struct netopts {const char *opname; int hasarg; int opval;
                            int *oploc;  const char *etxt;}
            ntopts[] =
        {
         {"keepalive",  0, 1, &V_keep,   "option"},
+        {"nokeepalive",0, 0, &V_keep,   "option"},
+        {"kaparms",    4, 0, &V_keep,   "option"},
         {"buffsz",     1, 0, &V_blen,   "network buffsz"},
         {"cache",      2, 0, &V_ct,     "cache time"},
         {"dnr",        0, 0, &V_nodnr,  "option"},
@@ -1197,6 +1207,10 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
                          {eDest->Emsg("Config", "network",
                               ntopts[i].opname, "argument missing");
                           return 1;
+                         }
+                      if (ntopts[i].hasarg == 4)
+                         {if (xnkap(eDest, val)) return 1;
+                          break;
                          }
                       if (ntopts[i].hasarg == 3)
                          {     if (!strcmp(val, "split"))
@@ -1239,19 +1253,66 @@ int XrdConfig::xnet(XrdSysError *eDest, XrdOucStream &Config)
 
      if (V_iswan)
         {if (V_blen >= 0) Wan_Blen = V_blen;
-         Wan_Opts  = (V_keep  ? XRDNET_KEEPALIVE : 0)
-                   | (V_nodnr ? XRDNET_NORLKUP   : 0);
+         if (V_keep >= 0) Wan_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
+         Wan_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
          if (!PortWAN) PortWAN = -1;
         } else {
          if (V_blen >= 0) Net_Blen = V_blen;
-         Net_Opts  = (V_keep  ? XRDNET_KEEPALIVE : 0)
-                   | (V_nodnr ? XRDNET_NORLKUP   : 0);
+         if (V_keep >= 0) Net_Opts = (V_keep  ? XRDNET_KEEPALIVE : 0);
+         Net_Opts |= (V_nodnr ? XRDNET_NORLKUP   : 0);
         }
 
      if (V_ct >= 0) XrdNetAddr::SetCache(V_ct);
      return 0;
 }
 
+/******************************************************************************/
+/*                                 x n k a p                                  */
+/******************************************************************************/
+
+/* Function: xnkap
+
+   Purpose:  To parse the directive: kaparms idle[,itvl[,cnt]]
+
+             idle       Seconds the connection needs to remain idle before TCP
+                        should start sending keepalive probes.
+             itvl       Seconds between individual keepalive probes.
+             icnt       Maximum number of keepalive probes TCP should send
+                        before dropping the connection,
+*/
+
+int XrdConfig::xnkap(XrdSysError *eDest, char *val)
+{
+   char *karg, *comma;
+   int knum;
+
+// Get the first parameter, idle seconds
+//
+   karg = val;
+   if ((comma = index(val, ','))) {val = comma+1; *comma = 0;}
+      else val = 0;
+   if (XrdOuca2x::a2tm(*eDest,"kaparms idle", karg, &knum, 0)) return 1;
+   XrdNetSocketCFG::ka_Idle = knum;
+
+// Get the second parameter, interval seconds
+//
+   if (!(karg = val)) return 0;
+   if ((comma = index(val, ','))) {val = comma+1; *comma = 0;}
+      else val = 0;
+   if (XrdOuca2x::a2tm(*eDest,"kaparms interval", karg, &knum, 0)) return 1;
+   XrdNetSocketCFG::ka_Itvl = knum;
+
+// Get the third parameter, count
+//
+   if (!val) return 0;
+   if (XrdOuca2x::a2i(*eDest,"kaparms count", val, &knum, 0)) return 1;
+   XrdNetSocketCFG::ka_Icnt = knum;
+
+// All done
+//
+   return 0;
+}
+  
 /******************************************************************************/
 /*                                 x p o r t                                  */
 /******************************************************************************/

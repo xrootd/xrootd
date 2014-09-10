@@ -63,6 +63,17 @@
 #include "XrdSys/XrdSysPlatform.hh"
 
 /******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace XrdNetSocketCFG
+{
+       int ka_Idle = 0;
+       int ka_Itvl = 0;
+       int ka_Icnt = 0;
+};
+
+/******************************************************************************/
 /*                         l o c a l   d e f i n e s                          */
 /******************************************************************************/
   
@@ -338,6 +349,7 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
 {
    int rc = 0;
    const int one = 1;
+   const int szint = sizeof(int);
    const SOCKLEN_t szone = (SOCKLEN_t)sizeof(one);
    static int tcpprotid = XrdNetUtils::ProtoID("tcp");
    static struct linger liopts = {1, XRDNETSOCKET_LINGER};
@@ -356,10 +368,30 @@ int XrdNetSocket::setOpts(int xfd, int opts, XrdSysError *eDest)
        if (eDest) eDest->Emsg("setOpts", errno, "set socket LINGER");
       }
 
-   if ((opts & XRDNET_KEEPALIVE)
-   &&  setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(Sokdata_t)&one,szone))
-      {rc = 1;
-       if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPALIVE");
+   if (opts & XRDNET_KEEPALIVE)
+      {if (setsockopt(xfd,SOL_SOCKET,SO_KEEPALIVE,(Sokdata_t)&one,szone))
+          {rc = 1;
+           if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPALIVE");
+          }
+#ifdef __linux__
+           else if (opts & XRDNET_SERVER) // Following are inherited in Linux
+      {if (XrdNetSocketCFG::ka_Idle
+       &&  setsockopt(xfd,SOL_TCP,TCP_KEEPIDLE,&XrdNetSocketCFG::ka_Idle,szint))
+          {rc = 1;
+           if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPIDLE");
+          }
+       if (XrdNetSocketCFG::ka_Itvl
+       &&  setsockopt(xfd,SOL_TCP,TCP_KEEPINTVL,&XrdNetSocketCFG::ka_Itvl,szint))
+          {rc = 1;
+           if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPINTVL");
+          }
+       if (XrdNetSocketCFG::ka_Icnt
+       &&  setsockopt(xfd,SOL_TCP,TCP_KEEPCNT,  &XrdNetSocketCFG::ka_Icnt,szint))
+          {rc = 1;
+           if (eDest) eDest->Emsg("setOpts", errno, "set socket KEEPCNT");
+          }
+      }
+#endif
       }
 
    if (!(opts & XRDNET_DELAY)
