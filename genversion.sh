@@ -182,6 +182,14 @@ else
 fi
 
 #-------------------------------------------------------------------------------
+# Make sure the version string is not longer than 25 characters
+#-------------------------------------------------------------------------------
+if test ${#VERSION} -gt 25; then
+  VERSIONS=${VERSION:0:25}
+  VERSION="${VERSIONS:0:19}...${VERSION: -3}"
+fi
+
+#-------------------------------------------------------------------------------
 # Print the version info and exit if necassary
 #-------------------------------------------------------------------------------
 if test x$PRINTONLY != x; then
