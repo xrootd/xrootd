@@ -403,6 +403,8 @@ namespace XrdCl
         info->firstLogIn = false;
         return st;
       }
+
+      return st;
     }
 
     //--------------------------------------------------------------------------
