@@ -914,7 +914,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
-    char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+    char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
     memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
     log->Error( XRootDTransportMsg, "Server responded with an error [%d]: %s",
                                     rsp->body.error.errnum, errmsg );
@@ -1546,7 +1546,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       else if( rsp->hdr.status == kXR_error )
       {
-        char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+        char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
         memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: %s",
