@@ -1776,8 +1776,9 @@ namespace XrdCl
   //----------------------------------------------------------------------------
   Status XRootDMsgHandler::RetryAtServer( const URL &url )
   {
+    if( pUrl.GetHostId() != url.GetHostId() )
+      pHosts->push_back( url );
     pUrl = url;
-    pHosts->push_back( pUrl );
     return pPostMaster->Send( pUrl, pRequest, this, true, pExpiration );
   }
 
