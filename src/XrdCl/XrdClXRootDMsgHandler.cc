@@ -1787,7 +1787,29 @@ namespace XrdCl
   void XRootDMsgHandler::UpdateTriedCGI()
   {
     URL::ParamsMap cgi;
-    cgi["tried"] = pUrl.GetHostName();
+    std::string    tried = pUrl.GetHostName();
+
+    //--------------------------------------------------------------------------
+    // If our current load balancer is a metamanager and we failed either
+    // at a diskserver or at an unidentified node we also exclude the last
+    // known manager
+    //--------------------------------------------------------------------------
+    if( pLoadBalancer.url.IsValid() && (pLoadBalancer.flags & kXR_attrMeta) )
+    {
+      HostList::reverse_iterator it;
+      for( it = pHosts->rbegin()+1; it != pHosts->rend(); ++it )
+      {
+        if( it->loadBalancer )
+          break;
+
+        tried += "," + it->url.GetHostName();
+
+        if( it->flags & kXR_isManager )
+          break;
+      }
+    }
+
+    cgi["tried"] = tried;
     XRootDTransport::UnMarshallRequest( pRequest );
     MessageUtils::RewriteCGIAndPath( pRequest, cgi, false, "" );
     XRootDTransport::MarshallRequest( pRequest );
