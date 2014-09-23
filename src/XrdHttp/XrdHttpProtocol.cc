@@ -28,6 +28,7 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -1111,13 +1112,10 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
     Output:   0 upon success or !0 otherwise.
    */
 
-  extern XrdSecService * XrdXrootdloadSecurity(XrdSysError *, char *,
-          char *, void **);
-
   extern int optind, opterr;
 
 
-  void *secGetProt = 0;
+  XrdSecGetProt_t *secGetProt = 0;
   char *rdf, c;
 
   // Copy out the special info we want to use at top level
@@ -1186,9 +1184,8 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
           " strong authentication disabled!");
   else {
     TRACE(DEBUG, "Loading security library " << SecLib);
-    if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN,
-            &secGetProt))) {
-      eDest.Emsg("Config", "Unable to load security system.");
+    if (!(CIA = XrdSecLoadSecurity(&eDest, SecLib, pi->ConfigFN, &secGetProt)))
+    { eDest.Emsg("Config", "Unable to load security system.");
       return 0;
     }
   }
