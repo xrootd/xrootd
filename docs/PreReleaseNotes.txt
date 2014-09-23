@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow the specification of xrootd.seclib default.
    * Implement dynamic plugin shared library filename versioning to allow
      multiple major versions to co-exist (currently only for security).
    * Add new security framework loader to allow external pacakges that
@@ -36,6 +37,7 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Remove useless loading the security framework from the http plugin.
    * Add new NetSecurity::Authorize() method that accepts text.
    * Properly support proxying objectids.
    * Make sure to always passhrough CGI information.
