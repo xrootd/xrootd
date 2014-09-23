@@ -255,7 +255,7 @@ namespace XrdCl
       return XRootDStatus( stError, errCheckSumError );
 
     checkSum = elems[0] + ":";
-    checkSum += elems[1];
+    checkSum += NormalizeChecksum( elems[0], elems[1] );
 
     log->Dump( UtilityMsg, "Checksum for %s checksum: %s",
                path.c_str(), checkSum.c_str() );
@@ -291,7 +291,7 @@ namespace XrdCl
     char *cksBuffer = new char[265];
     ckSum.Get( cksBuffer, 256 );
     checkSum  = checkSumType + ":";
-    checkSum += cksBuffer;
+    checkSum += NormalizeChecksum( checkSumType, cksBuffer );
     delete [] cksBuffer;
 
     log->Dump( UtilityMsg, "Checksum for %s is: %s", path.c_str(),
