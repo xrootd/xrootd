@@ -161,6 +161,12 @@ add_library(
                                    XrdCks/XrdCksData.hh
                                    XrdCks/XrdCks.hh
                                    XrdCks/XrdCksXAttr.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdSec
+  #-----------------------------------------------------------------------------
+  XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
+
 )
 
 target_link_libraries(

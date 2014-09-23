@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                 X r d S e c L o a d S e c u r i t y . c c                  */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -28,44 +28,70 @@
 /******************************************************************************/
 
 #include "XrdVersion.hh"
+#include "XrdVersionPlugin.hh"
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
 /******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
+/*                    X r d S e c L o a d S e c u r i t y                     */
 /******************************************************************************/
 
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
+XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
+                                  char *cfn, XrdSecGetProt_t **getP)
 {
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+   static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
+   XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
+   XrdSecService *CIA;
+   const char *libPath = "", *mySecLib = "libXrdSec" LT_MODULE_EXT;
+   char *Slash = 0, theLib[2048];
 
-// Record the library path in the environment
+// Check if we should version this library
 //
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
+   if (!strcmp(seclib, mySecLib)
+   ||  ((Slash = rindex(seclib, '/')) && !strcmp(Slash+1, mySecLib)))
+      {if (Slash) {*(Slash+1) = 0; libPath = seclib;}
+#if defined(__APPLE__)
+       snprintf(theLib, sizeof(theLib)-1, "%slibXrdSec.%s%s",
+                        libPath, XRDPLUGIN_SOVERSION, LT_MODULE_EXT );
+#else
+       snprintf(theLib, sizeof(theLib)-1, "%slibXrdSec%s.%s",
+                        libPath, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
+#endif
+       theLib[sizeof(theLib)-1] = '\0';
+       seclib = theLib;
+      }
 
-// Get the file system object creator
+// Now that we have the name of the library we can declare the plugin object
+// inline so that it gets deleted when we return (icky but simple)
 //
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
+   XrdSysPlugin secLib(eDest, seclib, "seclib", &myVersion, 1);
+   if (Slash) *(Slash+1) = 'l';
 
-// Get the file system object
+// Get the server object creator
 //
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
+   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))
+              secLib.getPlugin("XrdSecgetService")))
+      return 0;
+
+// Get the server object
+//
+   if (!(CIA = (*ep)(eDest->logger(), cfn)))
+      {eDest->Emsg("Config", "Unable to create security service object via",seclib);
        return 0;
       }
 
+// Get the client object creator (in case we are acting as a client). We return
+// the function pointer as a (void *) to the caller so that it can be passed
+// onward via an environment object.
+//
+   if (!(*getP = (XrdSecGetProt_t *)secLib.getPlugin("XrdSecGetProtocol")))
+      return 0;
+
 // All done
 //
-   ofsLib.Persist();
-   return FS;
+   secLib.Persist();
+   return CIA;
 }

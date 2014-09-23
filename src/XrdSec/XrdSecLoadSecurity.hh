@@ -1,8 +1,10 @@
+#ifndef __XRDSECLOADSECURITY_HH__
+#define __XRDSECLOADSECURITY_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                 X r d S e c L o a d S e c u r i t y . h h                  */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -27,45 +29,34 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdVersion.hh"
-
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
+#include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
-/******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
-/******************************************************************************/
+//------------------------------------------------------------------------------
+//! This include file defines the utility function that loads the server-side
+//! security framework plugin. It should be included a linkable utility library.
+//! This function is public whose ABI may not be changed!
+//------------------------------------------------------------------------------
 
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
-{
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+//------------------------------------------------------------------------------
+//! Load the security framework.
+//!
+//! @param eDest  Pointer to the error object that routes error messages.
+//! @param seclib Pointer to the shared library path that contains the
+//!               framework implementation. If the filename is XrdSec.xx
+//!               then this library name is dynamically versioned.
+//! @param cfn    Pointer to the configuration file path.
+//! @param getP   Upon success the pointer to the XrdSecGetProtocol function
+//!               that must be used to obtain protocol object.
+//!
+//! @return !0    Pointer to the XrdSecService object suitable for server use.
+//!               This object is persisted and will not be deleted until exit.
+//!               Additionally, the pointer to XrdSegGetProtocol() function is
+//!               returned in getP.
+//! @return =0    The security frmaework could not be loaded. Error messages
+//!               describing the problem have been issued.
+//------------------------------------------------------------------------------
 
-// Record the library path in the environment
-//
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
-
-// Get the file system object creator
-//
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
-
-// Get the file system object
-//
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
-      }
-
-// All done
-//
-   ofsLib.Persist();
-   return FS;
-}
+extern XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
+                                         char *cfn, XrdSecGetProt_t **getP);
+#endif

@@ -35,6 +35,7 @@
 #include <errno.h>
 
 #include "XrdVersion.hh"
+#include "XrdVersionPlugin.hh"
 
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlugin.hh"
@@ -270,7 +271,8 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    XrdSysPlugin   *secLib;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   char  poname[80], libfn[80], libpath[2048], *libloc, *newargs, *bP;
+   const char     *bundle = XRDPLUGIN_SECBUNDLE;
+   char  poname[80], libfn[80], bchk[80], libpath[2048], *libloc, *newargs, *bP;
    int i;
 
 // Set plugin debugging if needed (this only applies to client calls)
@@ -281,28 +283,28 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
 
-// Form library name
+// Form library name (versioned) and object creator name and bundle id
 //
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s", pid, LT_MODULE_EXT );
+#if defined(__APPLE__)
+   snprintf(libfn, sizeof(libfn)-1, "libXrdSec.%s%s%s",
+                   XRDPLUGIN_SOVERSION, pid, LT_MODULE_EXT );
+#else
+   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s.%s",
+                   pid, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
+#endif
    libfn[sizeof(libfn)-1] = '\0';
+   snprintf(bchk, sizeof(bchk)-1, "&%s", pid);
+   bchk[sizeof(bchk)-1]   = '\0';
 
 // Determine path
 //
-   if (!spath || (i = strlen(spath)) < 2) libloc = libfn;
+do{if (!spath || (i = strlen(spath)) < 2) libloc = libfn;
       else {char *sep = (spath[i-1] == '/' ? (char *)"" : (char *)"/");
             snprintf(libpath, sizeof(libpath)-1, "%s%s%s", spath, sep, libfn);
             libpath[sizeof(libpath)-1] = '\0';
             libloc = libpath;
            }
    DEBUG("Loading " <<pid <<" protocol object from " <<libloc);
-
-// For clients, verify if the library exists (don't complain, if not).
-//
-   if (pmode == 'c')
-      {struct stat buf;
-       if (!stat(libloc, &buf) && errno == ENOENT)
-          {eMsg->setErrInfo(ENOENT, ""); return 0;}
-      }
 
 // Get the plugin object. We preferentially use a message object if it exists
 //
@@ -312,13 +314,19 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
             }
    eMsg->setErrInfo(0, "");
 
-// Get the protocol object creator
+// Get the protocol object creator.
 //
    sprintf(poname, "XrdSecProtocol%sObject", pid);
-   if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->getPlugin(poname)))
-      {delete secLib;
-       return 0;
-      }
+   if ((ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->getPlugin(poname))) break;
+
+// We failed. Check if we shoud try loading the unversioned so-name.
+//
+   delete secLib;
+   if (!bundle || strstr(bundle, bchk)) return 0;
+   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s", pid, LT_MODULE_EXT );
+   libfn[sizeof(libfn)-1] = '\0';
+   bundle = 0;
+  } while(1);
 
 // Get the protocol initializer
 //

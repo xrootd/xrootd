@@ -56,6 +56,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -131,9 +132,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                              const char       *configFn,
                              XrdOucEnv        *EnvInfo);
 
-   extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, 
-                                                  char *, void **);
-
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
                                                     XrdSfsFileSystem *,
                                                     char *, const char *);
@@ -146,7 +144,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdOucEnv myEnv;
    XrdXrootdXPath *xp;
-   void *secGetProt = 0;
+   XrdSecGetProt_t *secGetProt = 0;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 
@@ -254,8 +252,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
                           " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN,
-                                              &secGetProt)))
+            if (!(CIA = XrdSecLoadSecurity(&eDest, SecLib, pi->ConfigFN,
+                                           &secGetProt)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
                }
@@ -270,7 +268,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
    myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
-   myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
+   myEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
 
 // Get the filesystem to be used
