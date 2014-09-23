@@ -61,5 +61,5 @@
 extern XrdSecService *XrdSecLoadSecurity(XrdSysError      *eDest,
                                          const char       *cfn,
                                          const char       *seclib=0,
-                                         XrdSecGetProt_t **getPA=0);
+                                         XrdSecGetProt_t  *getPA=0);
 #endif

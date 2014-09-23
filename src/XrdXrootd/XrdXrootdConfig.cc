@@ -144,7 +144,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdOucEnv myEnv;
    XrdXrootdXPath *xp;
-   XrdSecGetProt_t *secGetProt = 0;
+   XrdSecGetProt_t secGetProt = 0;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 

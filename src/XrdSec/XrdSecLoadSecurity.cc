@@ -40,7 +40,7 @@
 /******************************************************************************/
 
 XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, const char *cfn,
-                                  const char *seclib, XrdSecGetProt_t **getP)
+                                  const char *seclib, XrdSecGetProt_t *getP)
 {
    static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
    XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
@@ -88,7 +88,7 @@ XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, const char *cfn,
 // onward via an environment object.
 //
    if (getP
-   &&  !(*getP = (XrdSecGetProt_t *)secLib.getPlugin("XrdSecGetProtocol")))
+   &&  !(*getP = (XrdSecGetProt_t)secLib.getPlugin("XrdSecGetProtocol")))
       return 0;
 
 // All done
