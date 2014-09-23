@@ -141,7 +141,7 @@ namespace
         char *cksBuffer = new char[265];
         ckSum.Get( cksBuffer, 256 );
         checkSum  = checkSumType + ":";
-        checkSum += cksBuffer;
+        checkSum += Utils::NormalizeChecksum( checkSumType, cksBuffer );
         delete [] cksBuffer;
 
         log->Dump( UtilityMsg, "Checksum for %s is: %s", pName.c_str(),
@@ -1344,7 +1344,8 @@ namespace XrdCl
         if( !checkSumPreset.empty() )
         {
           sourceCheckSum  = checkSumType + ":";
-          sourceCheckSum += checkSumPreset;
+          sourceCheckSum += Utils::NormalizeChecksum( checkSumType,
+                                                      checkSumPreset );
         }
         else
         {
