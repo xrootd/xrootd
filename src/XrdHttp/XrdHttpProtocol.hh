@@ -150,7 +150,6 @@ private:
   
   /// Functions related to the configuration
   static int Config(const char *fn);
-  static int xsecl(XrdOucStream &Config);
   static int xtrace(XrdOucStream &Config);
   static int xsslcert(XrdOucStream &Config);
   static int xsslkey(XrdOucStream &Config);
@@ -286,7 +285,6 @@ protected:
 
   /// Windowsize
   static int Window;
-  static char *SecLib;
 
   /// OpenSSL stuff
   static char *sslcert, *sslkey, *sslcadir, *sslcafile;

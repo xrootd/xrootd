@@ -28,7 +28,6 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -66,7 +65,6 @@ int XrdHttpProtocol::Port = 1094;
 char *XrdHttpProtocol::Port_str = 0;
 char *XrdHttpProtocol::Addr_str = 0;
 int XrdHttpProtocol::Window = 0;
-char *XrdHttpProtocol::SecLib = 0;
 
 //XrdXrootdStats *XrdHttpProtocol::SI = 0;
 char *XrdHttpProtocol::sslcert = 0;
@@ -115,7 +113,7 @@ XrdHttpProtocol::ProtStack("ProtStack",
 // the protocol driver to obtain a copy of the protocol object that can be used
 // to decide whether or not a link is talking a particular protocol.
 //
-XrdVERSIONINFO(XrdgetProtocol, xrootd);
+XrdVERSIONINFO(XrdgetProtocol, xrdhttp);
 
 extern "C" {
 
@@ -699,11 +697,9 @@ int XrdHttpProtocol::Config(const char *ConfigFN) {
     if ((ismine = !strncmp("http.", var, 5)) && var[5]) var += 5;
     else if ((ismine = !strcmp("all.export", var))) var += 4;
     else if ((ismine = !strcmp("all.pidpath", var))) var += 4;
-    else if ((ismine = !strcmp("all.seclib", var))) var += 4;
 
     if (ismine) {
-      if TS_Xeq("seclib", xsecl);
-      else if TS_Xeq("trace", xtrace);
+           if TS_Xeq("trace", xtrace);
       else if TS_Xeq("cert", xsslcert);
       else if TS_Xeq("key", xsslkey);
       else if TS_Xeq("cadir", xsslcadir);
@@ -1114,8 +1110,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
 
   extern int optind, opterr;
 
-
-  XrdSecGetProt_t *secGetProt = 0;
   char *rdf, c;
 
   // Copy out the special info we want to use at top level
@@ -1176,21 +1170,6 @@ int XrdHttpProtocol::Configure(char *parms, XrdProtocol_Config * pi) {
   rdf = (parms && *parms ? parms : pi->ConfigFN);
   if (rdf && Config(rdf)) return 0;
   if (pi->DebugON) XrdHttpTrace->What = TRACE_ALL;
-
-
-  // Initialize the security system if this is wanted
-  //
-  if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
-          " strong authentication disabled!");
-  else {
-    TRACE(DEBUG, "Loading security library " << SecLib);
-    if (!(CIA = XrdSecLoadSecurity(&eDest, SecLib, pi->ConfigFN, &secGetProt)))
-    { eDest.Emsg("Config", "Unable to load security system.");
-      return 0;
-    }
-  }
-
-
 
   // Set the redirect flag if we are a pure redirector
   //
@@ -1503,46 +1482,6 @@ int XrdHttpProtocol::xsslverifydepth(XrdOucStream & Config) {
 
   return 0;
 }
-
-
-
-
-
-
-/******************************************************************************/
-/*                                 x s e c l                                  */
-/******************************************************************************/
-
-/* Function: xsecl
-
-   Purpose:  To parse the directive: seclib <path>
-
-             <path>    the path of the security library to be used.
-
-  Output: 0 upon success or !0 upon failure.
- */
-
-int XrdHttpProtocol::xsecl(XrdOucStream & Config) {
-  char *val;
-
-  // Get the path
-  //
-  val = Config.GetWord();
-  if (!val || !val[0]) {
-    eDest.Emsg("Config", "XRootd seclib not specified");
-    return 1;
-  }
-
-  // Record the path
-  //
-  if (SecLib) free(SecLib);
-  SecLib = strdup(val);
-
-  return 0;
-}
-
-
-
 
 /******************************************************************************/
 /*                                 x s s l c e r t                            */
