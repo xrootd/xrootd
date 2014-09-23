@@ -285,7 +285,14 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     // Process the message
     //--------------------------------------------------------------------------
-    XRootDTransport::UnMarshallBody( msg, req->header.requestid );
+    Status st = XRootDTransport::UnMarshallBody( msg, req->header.requestid );
+    if( !st.IsOK() )
+    {
+      pStatus = Status( stFatal, errInvalidMessage );
+      HandleResponse();
+      return;
+    }
+
     switch( rsp->hdr.status )
     {
       //------------------------------------------------------------------------
