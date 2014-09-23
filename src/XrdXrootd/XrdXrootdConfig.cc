@@ -252,8 +252,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
                           " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdSecLoadSecurity(&eDest, SecLib, pi->ConfigFN,
-                                           &secGetProt)))
+            if (!(CIA = XrdSecLoadSecurity(&eDest, pi->ConfigFN,
+                        (strcmp(SecLib,"default") ? SecLib : 0), &secGetProt)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
                }
@@ -1372,9 +1372,10 @@ bool XrdXrootdProtocol::xred_xok(int func, char *rHost[2], int rPort[2])
 
 /* Function: xsecl
 
-   Purpose:  To parse the directive: seclib <path>
+   Purpose:  To parse the directive: seclib {default | <path>}
 
              <path>    the path of the security library to be used.
+                       "default" uses the default security library.
 
   Output: 0 upon success or !0 upon failure.
 */

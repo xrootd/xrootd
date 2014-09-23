@@ -42,21 +42,24 @@
 //! Load the security framework.
 //!
 //! @param eDest  Pointer to the error object that routes error messages.
+//! @param cfn    Pointer to the configuration file path.
 //! @param seclib Pointer to the shared library path that contains the
 //!               framework implementation. If the filename is XrdSec.xx
-//!               then this library name is dynamically versioned.
-//! @param cfn    Pointer to the configuration file path.
-//! @param getP   Upon success the pointer to the XrdSecGetProtocol function
-//!               that must be used to obtain protocol object.
+//!               then this library name is dynamically versioned. If a nil
+//!               pointer is passed, then the defalt library is used.
+//! @param getP   Upon success and if supplied, the pointer to the function
+//!               XrdSecGetProtocol() used to get protocol objects.
 //!
 //! @return !0    Pointer to the XrdSecService object suitable for server use.
 //!               This object is persisted and will not be deleted until exit.
 //!               Additionally, the pointer to XrdSegGetProtocol() function is
-//!               returned in getP.
+//!               returned in getP if it is not nil.
 //! @return =0    The security frmaework could not be loaded. Error messages
 //!               describing the problem have been issued.
 //------------------------------------------------------------------------------
 
-extern XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
-                                         char *cfn, XrdSecGetProt_t **getP);
+extern XrdSecService *XrdSecLoadSecurity(XrdSysError      *eDest,
+                                         const char       *cfn,
+                                         const char       *seclib=0,
+                                         XrdSecGetProt_t **getPA=0);
 #endif

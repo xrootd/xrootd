@@ -39,26 +39,27 @@
 /*                    X r d S e c L o a d S e c u r i t y                     */
 /******************************************************************************/
 
-XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
-                                  char *cfn, XrdSecGetProt_t **getP)
+XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, const char *cfn,
+                                  const char *seclib, XrdSecGetProt_t **getP)
 {
    static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
    XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
    XrdSecService *CIA;
-   const char *libPath = "", *mySecLib = "libXrdSec" LT_MODULE_EXT;
-   char *Slash = 0, theLib[2048];
+   const char *libPath = "", *mySecLib = "libXrdSec" LT_MODULE_EXT, *Slash = 0;
+   char theLib[2048];
+   int libLen = 0;
 
 // Check if we should version this library
 //
-   if (!strcmp(seclib, mySecLib)
+   if (!seclib || !strcmp(seclib, mySecLib)
    ||  ((Slash = rindex(seclib, '/')) && !strcmp(Slash+1, mySecLib)))
-      {if (Slash) {*(Slash+1) = 0; libPath = seclib;}
+      {if (Slash) {libLen = Slash-seclib+1; libPath = seclib;}
 #if defined(__APPLE__)
-       snprintf(theLib, sizeof(theLib)-1, "%slibXrdSec.%s%s",
-                        libPath, XRDPLUGIN_SOVERSION, LT_MODULE_EXT );
+       snprintf(theLib, sizeof(theLib)-1, "%.*slibXrdSec.%s%s",
+                        libLen, libPath, XRDPLUGIN_SOVERSION, LT_MODULE_EXT );
 #else
-       snprintf(theLib, sizeof(theLib)-1, "%slibXrdSec%s.%s",
-                        libPath, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
+       snprintf(theLib, sizeof(theLib)-1, "%.*slibXrdSec%s.%s",
+                        libLen, libPath, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
 #endif
        theLib[sizeof(theLib)-1] = '\0';
        seclib = theLib;
@@ -68,7 +69,6 @@ XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
 // inline so that it gets deleted when we return (icky but simple)
 //
    XrdSysPlugin secLib(eDest, seclib, "seclib", &myVersion, 1);
-   if (Slash) *(Slash+1) = 'l';
 
 // Get the server object creator
 //
@@ -87,7 +87,8 @@ XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, char *seclib,
 // the function pointer as a (void *) to the caller so that it can be passed
 // onward via an environment object.
 //
-   if (!(*getP = (XrdSecGetProt_t *)secLib.getPlugin("XrdSecGetProtocol")))
+   if (getP
+   &&  !(*getP = (XrdSecGetProt_t *)secLib.getPlugin("XrdSecGetProtocol")))
       return 0;
 
 // All done
