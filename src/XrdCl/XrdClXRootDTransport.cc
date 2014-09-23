@@ -812,31 +812,51 @@ namespace XrdCl
     // kXR_error
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_error )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.error.errnum = ntohl( m->body.error.errnum );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_wait
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_wait )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.wait.seconds = htonl( m->body.wait.seconds );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_redirect
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_redirect )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.redirect.port = htonl( m->body.redirect.port );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_waitresp
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_waitresp )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.waitresp.seconds = htonl( m->body.waitresp.seconds );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_attn
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_attn )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.attn.actnum = htonl( m->body.attn.actnum );
+    }
 
     return Status();
   }
