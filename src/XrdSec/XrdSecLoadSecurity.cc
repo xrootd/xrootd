@@ -28,7 +28,6 @@
 /******************************************************************************/
 
 #include "XrdVersion.hh"
-#include "XrdVersionPlugin.hh"
 
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSys/XrdSysError.hh"

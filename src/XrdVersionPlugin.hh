@@ -117,12 +117,6 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
                              {       0,  0,  0, 0}
 
-/* The following defines the shared library version number of any plug-in.
-   Generally, all plug-ins have a uniform version number releative to a
-   specific compilation. This version is appended to the so-name.
-*/
-#define XRDPLUGIN_SOVERSION "4"
-
 /* The following defines the bundled security plug-ins. These are always
    versioned. Any security plug-in not listed here is assumed to be versioned
    but if it is not found, the unversioned name of the shared library will be
