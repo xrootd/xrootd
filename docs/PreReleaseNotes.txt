@@ -24,6 +24,7 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
    * Fixes #133 Pass the external environment to the protocol manager.
