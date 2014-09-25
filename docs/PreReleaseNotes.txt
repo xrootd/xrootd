@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Implement generic matching rules to version check 3rd party plug-ins.
    * Allow the specification of xrootd.seclib default.
    * Implement dynamic plugin shared library filename versioning to allow
      multiple major versions to co-exist (currently only for security).
