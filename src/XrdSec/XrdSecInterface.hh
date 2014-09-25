@@ -560,6 +560,14 @@ virtual                ~XrdSecService() {}
 //!             mandatory requirement!
 //------------------------------------------------------------------------------
 
+
+//------------------------------------------------------------------------------
+//! Typedef to simplify the encoding of methods returning XrdSecService.
+//------------------------------------------------------------------------------
+
+class XrdSysLogger;
+typedef XrdSecService  *(*XrdSecGetServ_t)(XrdSysLogger *, const char *);
+
 /*!
 #include "XrdVersion.hh"
 XrdVERSIONINFO(XrdSecgetService,<name>);

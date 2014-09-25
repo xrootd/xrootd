@@ -29,69 +29,164 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdSec/XrdSecInterface.hh"
+#include "XrdOuc/XrdOucVerName.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
 /******************************************************************************/
-/*                    X r d S e c L o a d S e c u r i t y                     */
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
+namespace
+{
+static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
+}
+
+/******************************************************************************/
+/*                                  P l u g                                   */
 /******************************************************************************/
 
-XrdSecService *XrdSecLoadSecurity(XrdSysError *eDest, const char *cfn,
-                                  const char *seclib, XrdSecGetProt_t *getP)
+namespace
 {
-   static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
-   XrdSecService *(*ep)(XrdSysLogger *, const char *cfn);
-   XrdSecService *CIA;
-   const char *libPath = "", *mySecLib = "libXrdSec" LT_MODULE_EXT, *Slash = 0;
-   char theLib[2048];
-   int libLen = 0;
-
-// Check if we should version this library
+int Plug(XrdSysPlugin *piP, XrdSecGetProt_t *getP, XrdSecGetServ_t *ep)
+{
+// If we need to load the protocol factory do so now
 //
-   if (!seclib || !strcmp(seclib, mySecLib)
-   ||  ((Slash = rindex(seclib, '/')) && !strcmp(Slash+1, mySecLib)))
-      {if (Slash) {libLen = Slash-seclib+1; libPath = seclib;}
-#if defined(__APPLE__)
-       snprintf(theLib, sizeof(theLib)-1, "%.*slibXrdSec.%s%s",
-                        libLen, libPath, XRDPLUGIN_SOVERSION, LT_MODULE_EXT );
-#else
-       snprintf(theLib, sizeof(theLib)-1, "%.*slibXrdSec%s.%s",
-                        libLen, libPath, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
-#endif
-       theLib[sizeof(theLib)-1] = '\0';
-       seclib = theLib;
+   if (getP && !(*getP=(XrdSecGetProt_t)piP->getPlugin("XrdSecGetProtocol")))
+      return 1;
+
+// If we do not need to load the security service we are done
+//
+   if (!ep) return 0;
+
+// Load the security service creator
+//
+   if ((*ep = (XrdSecGetServ_t)piP->getPlugin("XrdSecgetService"))) return 0;
+
+// We failed this is eiter soft or hard depending on what else we loaded
+//
+   return (getP ? -1 : 1);
+}
+}
+
+/******************************************************************************/
+/* Private:                         L o a d                                   */
+/******************************************************************************/
+
+namespace
+{
+int Load(      char       *eBuff,      int         eBlen,
+         const char       *cfn,  const char       *seclib,
+         XrdSecGetProt_t  *getP, XrdSecService   **secP=0,
+         XrdSysError      *eDest=0)
+{
+   XrdSecGetServ_t  ep;
+   XrdSysPlugin    *piP;
+   const char *libP, *mySecLib = "libXrdSec" LT_MODULE_EXT;
+   char theLib[2048];
+   int rc;
+   bool isMyName;
+
+// Check for default path
+//
+   if (!seclib) seclib = mySecLib;
+
+// Perform versioning
+//
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, seclib, mySecLib, isMyName,
+                               theLib, sizeof(theLib)))
+      {if (eDest)
+          eDest->Say("Config ", "Unable to create security framework via ",
+                                seclib, "; invalid path.");
+       return -1;
       }
 
 // Now that we have the name of the library we can declare the plugin object
 // inline so that it gets deleted when we return (icky but simple)
 //
-   XrdSysPlugin secLib(eDest, seclib, "seclib", &myVersion, 1);
+   if (eDest) piP = new XrdSysPlugin(eDest,      theLib,"seclib",&myVersion,1);
+      else   {*eBuff = 0;
+              piP = new XrdSysPlugin(eBuff,eBlen,theLib,"seclib",&myVersion,1);
+             }
+   libP = theLib;
 
-// Get the server object creator
+// Load the appropriate pointers and get required objects. We stop if we
+// failed hard or if we can only try this process once because we are trying
+// to use the default library so there is no alternative library to use.
 //
-   if (!(ep = (XrdSecService *(*)(XrdSysLogger *, const char *cfn))
-              secLib.getPlugin("XrdSecgetService")))
-      return 0;
-
-// Get the server object
-//
-   if (!(CIA = (*ep)(eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create security service object via",seclib);
+do{rc = Plug(piP, getP, &ep);
+   if (rc == 0)
+      {if (secP && !(*secP = (*ep)(eDest->logger(), cfn))) break;
+       piP->Persist(); delete piP;
        return 0;
       }
+   if (rc  < 0 || isMyName) break;
 
-// Get the client object creator (in case we are acting as a client). We return
-// the function pointer as a (void *) to the caller so that it can be passed
-// onward via an environment object.
+// We encountered a soft failure. Try to use the unersioned form of the library
 //
-   if (getP
-   &&  !(*getP = (XrdSecGetProt_t)secLib.getPlugin("XrdSecGetProtocol")))
-      return 0;
+   isMyName = true;
+   delete piP;
+   if (eDest)
+      {eDest->Say("Config ", "Falling back to using ", seclib);
+       piP = new XrdSysPlugin(eDest,      seclib,"seclib",&myVersion,1);
+      } else {
+       *eBuff = 0;
+       piP = new XrdSysPlugin(eBuff,eBlen,seclib,"seclib",&myVersion,1);
+      }
+   libP = seclib;
+  } while(true);
 
-// All done
+// We failed, so bail out
 //
-   secLib.Persist();
-   return CIA;
+   if (eDest)
+      eDest->Say("Config ","Unable to create security framework via ", libP);
+   delete piP;
+   return 1;
+}
+}
+
+/******************************************************************************/
+/*                     X r d S e c L o a d F a c t o r y                      */
+/******************************************************************************/
+
+XrdSecGetProt_t XrdSecLoadFactory(char *eBuff, int eBlen, const char *seclib)
+{
+   XrdSecGetProt_t getP;
+   int rc;
+
+// Load required plugin nd obtain pointers
+//
+   rc = Load(eBuff, eBlen, 0, seclib, &getP);
+   if (!rc) return getP;
+
+// Issue correct error message, if any
+//
+   if (!seclib) seclib = "default";
+
+   if (rc < 0)
+       snprintf(eBuff, eBlen,
+               "Unable to create security framework via %s; invalid path.",
+               seclib);
+      else if (!(*eBuff))
+              snprintf(eBuff, eBlen,
+                       "Unable to create security framework via %s", seclib);
+   return 0;
+}
+
+/******************************************************************************/
+/*                  X r d S e c L o a d S e c S e r v i c e                   */
+/******************************************************************************/
+
+XrdSecService *XrdSecLoadSecService(XrdSysError     *eDest,
+                                    const char      *cfn,
+                                    const char      *seclib,
+                                    XrdSecGetProt_t *getP)
+{
+   XrdSecService   *CIA;
+
+// Load required plugin nd obtain pointers
+//
+   return (Load(0, 0, cfn, seclib, getP, &CIA, eDest) ? 0 : CIA);
 }

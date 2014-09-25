@@ -30,16 +30,46 @@
 /******************************************************************************/
 
 #include "XrdSec/XrdSecInterface.hh"
-#include "XrdSys/XrdSysError.hh"
 
 //------------------------------------------------------------------------------
-//! This include file defines the utility function that loads the server-side
-//! security framework plugin. It should be included a linkable utility library.
-//! This function is public whose ABI may not be changed!
+//! This include file defines utility functions that load the security
+//! framework plugin specialized for server-side or client-side use.
+//! These functions are public and remain ABI stable!
 //------------------------------------------------------------------------------
 
+/******************************************************************************/
+/*                  X r d S e c L o a d S e c F a c t o r y                   */
+/******************************************************************************/
+  
 //------------------------------------------------------------------------------
-//! Load the security framework.
+//! Load the Security Protocol Factory (used client-side)
+//!
+//! @param eBuff  Pointer to a buffer tat is to receive any messages. Upon
+//!               failure it will contain an eror message. Upon success it
+//!               will contain an informational message that describes the
+//!               version that was loaded.
+//! @param eBlen  The length of the eBuff, it should be at least 1K to
+//!               avoid message truncation as the message may have a path.
+//! @param seclib Pointer to the shared library path that contains the
+//!               framework implementation. If a nill pointer is passed, then
+//!               the default library is used.
+//!
+//! @return !0    Pointer to the to XrdSegGetProtocol() function is returned.
+//!               returned in getP if it is not nil.
+//! @return =0    The security frmaework could not be loaded. The error
+//!               message describing the problem is in eBuff.
+//------------------------------------------------------------------------------
+
+extern XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
+                                                  int         eBlen,
+                                            const char       *seclib=0);
+
+/******************************************************************************/
+/*                  X r d S e c L o a d S e c S e r v i c e                   */
+/******************************************************************************/
+  
+//------------------------------------------------------------------------------
+//! Load the Security Protocol Service and obtain an instance (server-side).
 //!
 //! @param eDest  Pointer to the error object that routes error messages.
 //! @param cfn    Pointer to the configuration file path.
@@ -58,8 +88,10 @@
 //!               describing the problem have been issued.
 //------------------------------------------------------------------------------
 
-extern XrdSecService *XrdSecLoadSecurity(XrdSysError      *eDest,
-                                         const char       *cfn,
-                                         const char       *seclib=0,
-                                         XrdSecGetProt_t  *getPA=0);
+class XrdSysError;
+
+extern  XrdSecService *XrdSecLoadSecService(XrdSysError      *eDest,
+                                            const char       *cfn,
+                                            const char       *seclib=0,
+                                            XrdSecGetProt_t  *getP=0);
 #endif

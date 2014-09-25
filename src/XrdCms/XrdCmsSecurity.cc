@@ -149,8 +149,8 @@ int XrdCmsSecurity::Configure(const char *Lib, const char *Cfn)
 
 // Get the server object and protocol creator
 //
-   if (!(DHS = XrdSecLoadSecurity(&Say, Cfn, (strcmp(Lib,"default") ? Lib : 0),
-                                  &getProtocol)))
+   if (!(DHS = XrdSecLoadSecService(&Say, Cfn, (strcmp(Lib,"default") ? Lib:0),
+                                    &getProtocol)))
       {Say.Emsg("Config","Unable to create security service object via",Lib);
        return 0;
       }

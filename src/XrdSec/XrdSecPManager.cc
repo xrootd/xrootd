@@ -44,6 +44,7 @@
 #include "XrdSec/XrdSecProtocolhost.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucVerName.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
 
 #include "XrdSys/XrdSysPlatform.hh"
@@ -271,9 +272,10 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    XrdSysPlugin   *secLib;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   const char     *bundle = XRDPLUGIN_SECBUNDLE;
-   char  poname[80], libfn[80], bchk[80], libpath[2048], *libloc, *newargs, *bP;
+   const char     *sep, *bundle = XRDPLUGIN_SECBUNDLE;
+   char  poname[80], liborig[2048], libpath[2048], *libloc, *newargs, *bP;
    int i;
+   bool dummy, isMine = false;
 
 // Set plugin debugging if needed (this only applies to client calls)
 //
@@ -283,50 +285,57 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
 
+// Determine if this protocol is in our bundle. If so, it must be versioned.
+//
+   if (bundle)
+      {char bchk[80];
+       snprintf(bchk, sizeof(bchk), "&%s", pid);
+       isMine = strstr(bundle, bchk) != 0;
+      }
+
 // Form library name (versioned) and object creator name and bundle id
 //
-#if defined(__APPLE__)
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec.%s%s%s",
-                   XRDPLUGIN_SOVERSION, pid, LT_MODULE_EXT );
-#else
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s.%s",
-                   pid, LT_MODULE_EXT, XRDPLUGIN_SOVERSION );
-#endif
-   libfn[sizeof(libfn)-1] = '\0';
-   snprintf(bchk, sizeof(bchk)-1, "&%s", pid);
-   bchk[sizeof(bchk)-1]   = '\0';
+   i = (spath ? strlen(spath) : 0);
+   if (!i) {spath = ""; sep = "";}
+      else sep = (spath[i-1] == '/' ? "" : "/");
+   snprintf(liborig, sizeof(liborig), "%s%slibXrdSec%s%s",
+                                      spath, sep, pid, LT_MODULE_EXT );
 
-// Determine path
+// Apply versioning rules to this plugin library
 //
-do{if (!spath || (i = strlen(spath)) < 2) libloc = libfn;
-      else {char *sep = (spath[i-1] == '/' ? (char *)"" : (char *)"/");
-            snprintf(libpath, sizeof(libpath)-1, "%s%s%s", spath, sep, libfn);
-            libpath[sizeof(libpath)-1] = '\0';
-            libloc = libpath;
-           }
-   DEBUG("Loading " <<pid <<" protocol object from " <<libloc);
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, liborig, 0, dummy,
+                               libpath, sizeof(libpath)))
+      {if (errP) errP->Say("Config ", "Unable to load protocol ", pid,
+                                      "; plug-in path is invalid.");
+          else {const char *eTxt[] = {"Unable to load protocol ", pid,
+                                      "; plug-in path is invalid."};
+                eMsg->setErrInfo(EINVAL, eTxt, 3);
+               }
+       return 0;
+      }
+   libloc = libpath;
 
 // Get the plugin object. We preferentially use a message object if it exists
 //
-   if (errP) secLib = new XrdSysPlugin(errP, libloc, "sec.protocol", myVer);
+do{if (errP) secLib = new XrdSysPlugin(errP, libloc, "sec.protocol", myVer);
        else {bP = eMsg->getMsgBuff(i);
              secLib = new XrdSysPlugin(bP,i, libloc, "sec.protocol", myVer);
             }
    eMsg->setErrInfo(0, "");
+   DEBUG("Loading " <<pid <<" protocol object from " <<libloc);
 
 // Get the protocol object creator.
 //
-   sprintf(poname, "XrdSecProtocol%sObject", pid);
+   snprintf(poname, sizeof(poname), "XrdSecProtocol%sObject", pid);
    if ((ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->getPlugin(poname))) break;
 
 // We failed. Check if we shoud try loading the unversioned so-name.
 //
    delete secLib;
-   if (!bundle || strstr(bundle, bchk)) return 0;
-   snprintf(libfn, sizeof(libfn)-1, "libXrdSec%s%s", pid, LT_MODULE_EXT );
-   libfn[sizeof(libfn)-1] = '\0';
-   bundle = 0;
-  } while(1);
+   if (isMine) return 0;
+   isMine = true; libloc = liborig;
+   if (errP) errP->Say("Config ", "Falling back to using ", liborig);
+  } while(true);
 
 // Get the protocol initializer
 //

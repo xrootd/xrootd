@@ -84,6 +84,7 @@ add_library(
   XrdOuc/XrdOucTPC.cc           XrdOuc/XrdOucTPC.hh
   XrdOuc/XrdOucTrace.cc         XrdOuc/XrdOucTrace.hh
   XrdOuc/XrdOucUtils.cc         XrdOuc/XrdOucUtils.hh
+  XrdOuc/XrdOucVerName.cc       XrdOuc/XrdOucVerName.hh
                                 XrdOuc/XrdOucChain.hh
                                 XrdOuc/XrdOucDLlist.hh
                                 XrdOuc/XrdOucIOVec.hh

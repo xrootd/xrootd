@@ -252,7 +252,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
                           " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdSecLoadSecurity(&eDest, pi->ConfigFN,
+            if (!(CIA = XrdSecLoadSecService(&eDest, pi->ConfigFN,
                         (strcmp(SecLib,"default") ? SecLib : 0), &secGetProt)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
