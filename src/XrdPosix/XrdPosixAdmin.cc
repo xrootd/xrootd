@@ -41,7 +41,7 @@
 XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 {
    XrdCl::XRootDStatus            xStatus;
-   XrdCl::LocationInfo           *info;
+   XrdCl::LocationInfo           *info = 0;
    XrdCl::LocationInfo::Iterator  it;
    XrdCl::URL                    *uVec;
    XrdNetAddr netLoc;
@@ -62,7 +62,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 
 // Allocate an array large enough to hold this information
 //
-   if(!(i = info->GetSize())) return 0;
+   if (!(i = info->GetSize())) {delete info; return 0;}
    uVec = new XrdCl::URL[i];
 
 // Now start filling out the array
@@ -80,6 +80,7 @@ XrdCl::URL *XrdPosixAdmin::FanOut(int &num)
 
 // Make sure we can return something;
 //
+   delete info;
    if (!num) {delete [] uVec; return 0;}
    return uVec;
 }
