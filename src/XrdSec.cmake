@@ -90,7 +90,6 @@ add_library(
   XrdSecsss
   SHARED
   XrdSecsss/XrdSecProtocolsss.cc   XrdSecsss/XrdSecProtocolsss.hh
-  XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
   XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
                                    XrdSecsss/XrdSecsssRR.hh )
 

@@ -24,7 +24,6 @@ target_link_libraries(
   XrdFfs
   XrdCl
   XrdPosix
-  XrdSecsss
   XrdUtils
   pthread )
 
