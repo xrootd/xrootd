@@ -68,6 +68,7 @@ class XrdNetSocket;
 class XrdOucErrInfo;
 class XrdOucReqID;
 class XrdOucStream;
+class XrdOucTList;
 class XrdOucTokenizer;
 class XrdOucTrace;
 class XrdSfsDirectory;
@@ -133,7 +134,7 @@ enum RD_func {RD_chmod = 0, RD_chksum,  RD_dirlist, RD_locate, RD_mkdir,
        int   do_Bind();
        int   do_Chmod();
        int   do_CKsum(int canit);
-       int   do_CKsum(const char *Path, const char *Opaque);
+       int   do_CKsum(char *algT, const char *Path, const char *Opaque);
        int   do_Close();
        int   do_Dirlist();
        int   do_DirStat(XrdSfsDirectory *dp, char *pbuff, const char *opaque);
@@ -257,8 +258,10 @@ static char               *digParm;
 static char               *Notify;
 static char                isRedir;
 static char                JobLCL;
+static char                JobCKCGI;
 static XrdXrootdJob       *JobCKS;
 static char               *JobCKT;
+static XrdOucTList        *JobCKTLST;
 static XrdOucReqID        *PrepID;
 
 // Static redirection

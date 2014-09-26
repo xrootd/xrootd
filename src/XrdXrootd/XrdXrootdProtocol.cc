@@ -71,6 +71,7 @@ XrdSysError           XrdXrootdProtocol::eDest(0, "Xrootd");
 XrdXrootdStats       *XrdXrootdProtocol::SI;
 XrdXrootdJob         *XrdXrootdProtocol::JobCKS   = 0;
 char                 *XrdXrootdProtocol::JobCKT   = 0;
+XrdOucTList          *XrdXrootdProtocol::JobCKTLST= 0;
 XrdOucReqID          *XrdXrootdProtocol::PrepID   = 0;
 
 char                 *XrdXrootdProtocol::Notify = 0;
@@ -82,6 +83,7 @@ int                   XrdXrootdProtocol::WANPort;
 int                   XrdXrootdProtocol::WANWindow;
 char                  XrdXrootdProtocol::isRedir = 0;
 char                  XrdXrootdProtocol::JobLCL  = 0;
+char                  XrdXrootdProtocol::JobCKCGI=0;
 XrdNetSocket         *XrdXrootdProtocol::AdminSock= 0;
 
 int                   XrdXrootdProtocol::hcMax        = 28657; // const for now
@@ -601,16 +603,16 @@ int XrdXrootdProtocol::CheckSum(XrdOucStream *Stream, char **argv, int argc)
    XrdOucErrInfo myInfo("CheckSum");
    int rc, ecode;
 
-// The arguments must have <name> <path> (i.e. argc >= 2)
+// The arguments must have <name> <cstype> <path> (i.e. argc >= 3)
 //
-   if (argc < 2)
+   if (argc < 3)
       {Stream->PutLine("Internal error; not enough checksum args!");
        return 8;
       }
 
 // Issue the checksum calculation (that's all we do here).
 //
-   rc = osFS->chksum(XrdSfsFileSystem::csCalc, JobCKT, argv[1], myInfo);
+   rc = osFS->chksum(XrdSfsFileSystem::csCalc, argv[1], argv[2], myInfo);
 
 // Return result regardless of what it is
 //
