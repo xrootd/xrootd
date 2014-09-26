@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Support multiple checksum types. Client can select non-default
+     checksum using the "cks.type=<algorithm>" cgi element.
    * Implement generic matching rules to version check 3rd party plug-ins.
    * Allow the specification of xrootd.seclib default.
    * Implement dynamic plugin shared library filename versioning to allow
