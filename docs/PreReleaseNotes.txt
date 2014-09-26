@@ -29,6 +29,8 @@ Prerelease Notes
    * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
+   * Provide complete portability and correct behaviour across platforms
+     with and without Atomics. This patch does not change any ABI's.
    * Fixes #133 Pass the external environment to the protocol manager.
    * Squelch C11 warnings when dev_t is 32 bits (MacOS).
    * Correct header define gaurd in XrdSfsFlags.hh.
