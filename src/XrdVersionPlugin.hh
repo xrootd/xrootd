@@ -120,7 +120,8 @@
                              { 0, 0, 0,  0,  0, 0}
 
 #define XrdVERSIONPLUGIN_Maxim(procMode, majorVer, minorVer, piPfx, piSfx)\
-           {#piPfx #piSfx, strlen(#piPfx), strlen(#piSfx),\
+           {#piPfx #piSfx, static_cast<char>(strlen(#piPfx)),\
+                           static_cast<char>(strlen(#piSfx)),\
             XrdVERSIONPLUGIN_##procMode, majorVer, minorVer},
 
 /* Each generic rule must be defined by the XrdVERSIONPLUGIN_Maxim macro which
