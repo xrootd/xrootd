@@ -168,6 +168,7 @@ add_library(
   #-----------------------------------------------------------------------------
   XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
   XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
+  XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
 
 )
 

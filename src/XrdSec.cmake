@@ -90,7 +90,6 @@ add_library(
   XrdSecsss
   SHARED
   XrdSecsss/XrdSecProtocolsss.cc   XrdSecsss/XrdSecProtocolsss.hh
-  XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
                                    XrdSecsss/XrdSecsssRR.hh )
 
 target_link_libraries(
@@ -115,7 +114,6 @@ add_executable(
 
 target_link_libraries(
   xrdsssadmin
-  XrdSecsss
   XrdUtils )
 
 #-------------------------------------------------------------------------------
