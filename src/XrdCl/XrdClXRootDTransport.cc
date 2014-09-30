@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -1710,21 +1711,13 @@ namespace XrdCl
       return pAuthHandler;
 
     char errorBuff[1024];
-    std::string libName = "libXrdSec"; libName += LT_MODULE_EXT;
-    pSecLibHandle = new XrdSysPlugin( errorBuff, 1024, libName.c_str(),
-                                      libName.c_str(),
-                                      &XrdVERSIONINFOVAR( XrdCl ) );
 
-    pAuthHandler = (XrdSecGetProt_t)pSecLibHandle->getPlugin(
-      "XrdSecGetProtocol", false, false );
+    pAuthHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
 
     if( !pAuthHandler )
     {
       log->Error( XRootDTransportMsg,
-                  "Unable to get the XrdSecGetProtocol symbol from library "
-                  "%s: %s", libName.c_str(), errorBuff );
-      delete pSecLibHandle;
-      pSecLibHandle = 0;
+                  "Unable to get the security framework: %s", errorBuff );
       return 0;
     }
     return pAuthHandler;
