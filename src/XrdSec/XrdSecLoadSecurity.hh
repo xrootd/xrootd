@@ -60,9 +60,9 @@
 //!               message describing the problem is in eBuff.
 //------------------------------------------------------------------------------
 
-extern XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
-                                                  int         eBlen,
-                                            const char       *seclib=0);
+XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
+                                           int         eBlen,
+                                     const char       *seclib=0);
 
 /******************************************************************************/
 /*                  X r d S e c L o a d S e c S e r v i c e                   */
@@ -90,8 +90,8 @@ extern XrdSecGetProt_t XrdSecLoadSecFactory(      char       *eBuff,
 
 class XrdSysError;
 
-extern  XrdSecService *XrdSecLoadSecService(XrdSysError      *eDest,
-                                            const char       *cfn,
-                                            const char       *seclib=0,
-                                            XrdSecGetProt_t  *getP=0);
+XrdSecService *XrdSecLoadSecService(XrdSysError      *eDest,
+                                    const char       *cfn,
+                                    const char       *seclib=0,
+                                    XrdSecGetProt_t  *getP=0);
 #endif

@@ -151,7 +151,7 @@ do{rc = Plug(piP, getP, &ep);
 /*                     X r d S e c L o a d F a c t o r y                      */
 /******************************************************************************/
 
-XrdSecGetProt_t XrdSecLoadFactory(char *eBuff, int eBlen, const char *seclib)
+XrdSecGetProt_t XrdSecLoadSecFactory(char *eBuff, int eBlen, const char *seclib)
 {
    XrdSecGetProt_t getP;
    int rc;
