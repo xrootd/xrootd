@@ -2,27 +2,22 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# Shared library version
+# Modules
 #-------------------------------------------------------------------------------
-set( XRD_SEC_VERSION        1.0.0 )
-set( XRD_SEC_SOVERSION      1 )
-set( XRD_SEC_PWD_VERSION    2.0.0 )
-set( XRD_SEC_PWD_SOVERSION  2 )
-set( XRD_SEC_SSS_VERSION    2.0.0 )
-set( XRD_SEC_SSS_SOVERSION  2 )
-set( XRD_SEC_UNIX_VERSION   2.0.0 )
-set( XRD_SEC_UNIX_SOVERSION 2 )
+set( LIB_XRD_SEC        XrdSec-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_PWD    XrdSecpwd-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_SSS    XrdSecsss-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_UNIX   XrdSecunix-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
-# The XrdSec library
+# The XrdSec module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSec
-  SHARED
+  ${LIB_XRD_SEC}
+  MODULE
   XrdSec/XrdSecClient.cc
                                       XrdSec/XrdSecEntity.hh
                                       XrdSec/XrdSecInterface.hh
-# XrdSec/XrdSecLoader.cc              XrdSec/XrdSecLoader.hh
   XrdSec/XrdSecPManager.cc            XrdSec/XrdSecPManager.hh
   XrdSec/XrdSecProtocolhost.cc        XrdSec/XrdSecProtocolhost.hh
   XrdSec/XrdSecServer.cc              XrdSec/XrdSecServer.hh
@@ -30,44 +25,36 @@ add_library(
   XrdSec/XrdSecTrace.hh )
 
 target_link_libraries(
-  XrdSec
+  ${LIB_XRD_SEC}
   XrdUtils
   pthread
   dl )
 
 set_target_properties(
-  XrdSec
+  ${LIB_XRD_SEC}
   PROPERTIES
-  VERSION   ${XRD_SEC_VERSION}
-  SOVERSION ${XRD_SEC_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
-# FIXME: test
-#-rw-r--r-- 1 ljanyst ljanyst  5806 2011-03-21 16:13 XrdSectestClient.cc
-#-rw-r--r-- 1 ljanyst ljanyst 10758 2011-03-21 16:13 XrdSectestServer.cc
-
 #-------------------------------------------------------------------------------
-# The XrdSecpwd library
+# The XrdSecpwd module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecpwd
-  SHARED
+  ${LIB_XRD_SEC_PWD}
+  MODULE
   XrdSecpwd/XrdSecProtocolpwd.cc      XrdSecpwd/XrdSecProtocolpwd.hh
                                       XrdSecpwd/XrdSecpwdPlatform.hh )
 
 target_link_libraries(
-  XrdSecpwd
+  ${LIB_XRD_SEC_PWD}
   XrdCrypto
   XrdUtils
   pthread
   ${CRYPT_LIBRARY} )
 
 set_target_properties(
-  XrdSecpwd
+  ${LIB_XRD_SEC_PWD}
   PROPERTIES
-  VERSION   ${XRD_SEC_PWD_VERSION}
-  SOVERSION ${XRD_SEC_PWD_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -84,24 +71,22 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
-# The XrdSecsss library
+# The XrdSecsss module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecsss
-  SHARED
+  ${LIB_XRD_SEC_SSS}
+  MODULE
   XrdSecsss/XrdSecProtocolsss.cc   XrdSecsss/XrdSecProtocolsss.hh
                                    XrdSecsss/XrdSecsssRR.hh )
 
 target_link_libraries(
-  XrdSecsss
+  ${LIB_XRD_SEC_SSS}
   XrdCryptoLite
   XrdUtils )
 
 set_target_properties(
-  XrdSecsss
+  ${LIB_XRD_SEC_SSS}
   PROPERTIES
-  VERSION   ${XRD_SEC_SSS_VERSION}
-  SOVERSION ${XRD_SEC_SSS_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -117,22 +102,20 @@ target_link_libraries(
   XrdUtils )
 
 #-------------------------------------------------------------------------------
-# The XrdSecunix library
+# The XrdSecunix module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdSecunix
+  ${LIB_XRD_SEC_UNIX}
   SHARED
   XrdSecunix/XrdSecProtocolunix.cc )
 
 target_link_libraries(
-  XrdSecunix
+  ${LIB_XRD_SEC_UNIX}
   XrdUtils )
 
 set_target_properties(
-  XrdSecunix
+  ${LIB_XRD_SEC_UNIX}
   PROPERTIES
-  VERSION   ${XRD_SEC_UNIX_VERSION}
-  SOVERSION ${XRD_SEC_UNIX_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -140,7 +123,9 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdSec XrdSecpwd XrdSecsss XrdSecunix xrdsssadmin xrdpwdadmin
+  TARGETS
+  ${LIB_XRD_SEC} ${LIB_XRD_SEC_PWD} ${LIB_XRD_SEC_SSS} ${LIB_XRD_SEC_UNIX}
+  xrdsssadmin xrdpwdadmin
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
