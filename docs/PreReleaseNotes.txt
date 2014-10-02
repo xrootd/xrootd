@@ -43,6 +43,7 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Add a generic plugin preload function to help MacOS clients.
    * Remove useless loading the security framework from the http plugin.
    * Add new NetSecurity::Authorize() method that accepts text.
    * Properly support proxying objectids.
