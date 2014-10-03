@@ -34,28 +34,43 @@
    AtomicCAS() -> Compare And [if equal] Set
    AtomicFAZ() -> Fetch And Zero
 */
+
+/* Portability note: When using fetch-add or fetch-sub in the context of an
+                     assignment statement, you must use the the AtomicFAdd
+                     and AtomicFSub macros to ensure portability and correct
+                     results. Additionally, whenever you use AtomicFAZ as the
+                     only consequent of an if-else statement you *must* places
+                     braces around it otherwise the code will not be portable!
+                     Alternatively, always use the AtomicFZAP macro.
+*/
   
 #ifdef HAVE_ATOMICS
 #define AtomicBeg(Mtx)
 #define AtomicEnd(Mtx)
 #define AtomicAdd(x, y)     __sync_fetch_and_add(&x, y)
+#define AtomicFAdd(w,x,y)   w =  __sync_fetch_and_add(&x, y)
 #define AtomicCAS(x, y, z)  __sync_bool_compare_and_swap(&x, y, z)
 #define AtomicDec(x)        __sync_fetch_and_sub(&x, 1)
 #define AtomicFAZ(x)        __sync_fetch_and_and(&x, 0)
+#define AtomicFZAP(w,x)     w =  __sync_fetch_and_and(&x, 0)
 #define AtomicGet(x)        __sync_fetch_and_or(&x, 0)
 #define AtomicInc(x)        __sync_fetch_and_add(&x, 1)
 #define AtomicSub(x, y)     __sync_fetch_and_sub(&x, y)
+#define AtomicFSub(w,x,y)   w =  __sync_fetch_and_sub(&x, y)
 #define AtomicZAP(x)        __sync_fetch_and_and(&x, 0)
 #else
 #define AtomicBeg(Mtx)      Mtx.Lock()
 #define AtomicEnd(Mtx)      Mtx.UnLock()
-#define AtomicAdd(x, y)     x += y
+#define AtomicAdd(x, y)     x += y          // When assigning use AtomicFAdd!
+#define AtomicFAdd(w,x,y)  {w = x; x += y;}
 #define AtomicCAS(x, y, z)  if (x == y) x = z
 #define AtomicDec(x)        x--
-#define AtomicFAZ(x)        x; x = 0
+#define AtomicFAZ(x)        x; x = 0        // Braces when used with if-else!
+#define AtomicFZAP(w,x)    {w = x; x = 0;}
 #define AtomicGet(x)        x
 #define AtomicInc(x)        x++
-#define AtomicSub(x, y)     x -= y
+#define AtomicSub(x, y)     x -= y          // When assigning use AtomicFSub!
+#define AtomicFSub(w,x,y)  {w = x; x -= y;}
 #define AtomicZAP(x)        x = 0
 #endif
 #endif

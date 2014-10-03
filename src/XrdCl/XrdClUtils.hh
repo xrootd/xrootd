@@ -183,6 +183,12 @@ namespace XrdCl
       //! Print a char array as hex
       //------------------------------------------------------------------------
       static std::string Char2Hex( uint8_t *array, uint16_t size );
+
+      //------------------------------------------------------------------------
+      //! Normalize checksum
+      //------------------------------------------------------------------------
+      static std::string NormalizeChecksum( const std::string &name,
+                                            const std::string &checksum );
   };
 
   //----------------------------------------------------------------------------

@@ -327,7 +327,7 @@ int XrdXrootdProtocol::do_Chmod()
 int XrdXrootdProtocol::do_CKsum(int canit)
 {
    const char *opaque;
-   char *args[3];
+   char *algT = JobCKT, *args[4];
    int rc;
 
 // Check for static routing
@@ -351,20 +351,44 @@ int XrdXrootdProtocol::do_CKsum(int canit)
        return Response.Send();
       }
 
+// Check if multiple checksums are supported and if so, pre-process
+//
+   if (JobCKCGI && opaque && *opaque)
+      {XrdOucEnv jobEnv(opaque);
+       char *cksT;
+       if ((cksT = jobEnv.Get("cks.type")))
+          {XrdOucTList *tP = JobCKTLST;
+           while(tP && strcmp(tP->text, cksT)) tP = tP->next;
+           if (!tP)
+              {char ebuf[1024];
+               snprintf(ebuf, sizeof(ebuf), "%s checksum not supported.", cksT);
+               return Response.Send(kXR_ServerError, ebuf);
+              }
+           algT = tP->text;
+          }
+      }
+
 // If we are allowed to locally query the checksum to avoid computation, do it
 //
-   if (JobLCL && (rc = do_CKsum(argp->buff, opaque)) <= 0) return rc;
+   if (JobLCL && (rc = do_CKsum(algT, argp->buff, opaque)) <= 0) return rc;
 
 // Just make absolutely sure we can continue with a calculation
 //
    if (!JobCKS)
       return Response.Send(kXR_ServerError, "Logic error computing checksum.");
 
-// Construct the argument list
+// Check if multiple checksums are supported and construct right argument list
 //
-   args[0] = JobCKT;
-   args[1] = argp->buff;
-   args[2] = 0;
+   if (JobCKCGI > 1 || JobLCL)
+      {args[0] = algT;
+       args[1] = algT;
+       args[2] = argp->buff;
+       args[3] = 0;
+      } else {
+       args[0] = algT;
+       args[1] = argp->buff;
+       args[2] = 0;
+      }
 
 // Preform the actual function
 //
@@ -374,12 +398,13 @@ int XrdXrootdProtocol::do_CKsum(int canit)
 
 /******************************************************************************/
   
-int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
+int XrdXrootdProtocol::do_CKsum(char *algT, const char *Path,
+                                            const char *Opaque)
 {
    static char Space = ' ';
-   static int  CKTLen = strlen(JobCKT);
    XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);
-   int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, JobCKT, Path,
+   int  CKTLen = strlen(algT);
+   int ec, rc = osFS->chksum(XrdSfsFileSystem::csGet, algT, Path,
                              myError, CRED, Opaque);
    const char *csData = myError.getErrText(ec);
 
@@ -390,7 +415,8 @@ int XrdXrootdProtocol::do_CKsum(const char *Path, const char *Opaque)
 // Return result if it is actually available
 //
    if (*csData)
-      {struct iovec iov[4] = {{0,0}, {JobCKT, (size_t)CKTLen}, {&Space, 1},
+      {if (*csData == '!') return Response.Send(csData+1);
+       struct iovec iov[4] = {{0,0}, {algT, (size_t)CKTLen}, {&Space, 1},
                               {(char *)csData, strlen(csData)+1}};
        return Response.Send(iov, 4);
       }
@@ -1540,9 +1566,18 @@ int XrdXrootdProtocol::do_Qconf()
             bp += n; bleft -= n;
            }
    else if (!strcmp("chksum", val))
-           {n = (JobCKT ? snprintf(bp, bleft, "0:%s\n", JobCKT)
-                        : snprintf(bp, bleft, "chksum\n"));
-            bp += n; bleft -= n;
+           {if (!JobCKT)
+               {n = snprintf(bp, bleft, "chksum\n");
+                bp += n; bleft -= n;
+                continue;
+               }
+            XrdOucTList *tP = JobCKTLST;
+            char sep;
+            do {sep = (tP->next ? ',' :'\n');
+                n = snprintf(bp, bleft, "%d:%s%c", tP->ival[0], tP->text, sep);
+                bp += n; bleft -= n;
+                tP = tP->next;
+               } while(tP && bleft > 0);
            }
    else if (!strcmp("cms", val))
            {XrdOucErrInfo myError(Link->ID, Monitor.Did, clientPV);

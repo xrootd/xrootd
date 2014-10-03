@@ -6,6 +6,16 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Support multiple checksum types. Client can select non-default
+     checksum using the "cks.type=<algorithm>" cgi element.
+   * Implement generic matching rules to version check 3rd party plug-ins.
+   * Allow the specification of xrootd.seclib default.
+   * Implement dynamic plugin shared library filename versioning to allow
+     multiple major versions to co-exist (currently only for security).
+   * Add new security framework loader to allow external pacakges that
+     linked against security plugins to dynamically load them instead. 
+   * Set keepalive as the default socket value.
+   * Add additional options to xrd.network to control keepalive option.
    * Allow local/local copying for new xrdcp but not for the old one.
    * Control core file generation via xrd.sched core directive.
    * Add pss.permit directive to restrict outbound connections for
@@ -16,8 +26,11 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
+   * Provide complete portability and correct behaviour across platforms
+     with and without Atomics. This patch does not change any ABI's.
    * Fixes #133 Pass the external environment to the protocol manager.
    * Squelch C11 warnings when dev_t is 32 bits (MacOS).
    * Correct header define gaurd in XrdSfsFlags.hh.
@@ -30,6 +43,8 @@ Prerelease Notes
      a config file error message and initialization failure.
 
 + **Miscellaneous**
+   * Add a generic plugin preload function to help MacOS clients.
+   * Remove useless loading the security framework from the http plugin.
    * Add new NetSecurity::Authorize() method that accepts text.
    * Properly support proxying objectids.
    * Make sure to always passhrough CGI information.

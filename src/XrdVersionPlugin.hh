@@ -36,6 +36,8 @@
 */
    struct XrdVersionPlugin
          {const char *pName;    //!< -> plugin object creator function name
+          char        vPfxLen;  //!< Generic rule prefix length
+          char        vSfxLen;  //!< Generic rule suffix length for preceeding
           int         vProcess; //!< version: <0 skip, =0 optional, >0 required
           short       vMajLow;  //!< Lowest compatible major version number
           short       vMinLow;  //!< Lowest compatible minor (>99 don't check).
@@ -54,9 +56,9 @@
 #define XrdVERSIONPLUGIN_Required  1
 
 #define XrdVERSIONPLUGIN_Rule(procMode, majorVer, minorVer, piSymbol)\
-           {#piSymbol, XrdVERSIONPLUGIN_##procMode, majorVer, minorVer},
+           {#piSymbol, 0, 0, XrdVERSIONPLUGIN_##procMode, majorVer, minorVer},
 
-/* Each rule must be defined by the XrdVERSIONPLUGIN_RULE macro which takes four
+/* Each rule must be defined by the XrdVERSIONPLUGIN_Rule macro which takes four
    arguments, as follows:
 
    procMode: Version procsessing mode:
@@ -115,5 +117,39 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem           )\
         XrdVERSIONPLUGIN_Rule(Required,  3,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
-                             {       0,  0,  0, 0}
+                             { 0, 0, 0,  0,  0, 0}
+
+#define XrdVERSIONPLUGIN_Maxim(procMode, majorVer, minorVer, piPfx, piSfx)\
+           {#piPfx #piSfx, static_cast<char>(strlen(#piPfx)),\
+                           static_cast<char>(strlen(#piSfx)),\
+            XrdVERSIONPLUGIN_##procMode, majorVer, minorVer},
+
+/* Each generic rule must be defined by the XrdVERSIONPLUGIN_Maxim macro which
+   takes five arguments. The first three are exactly the same as defined for
+   XrdVERSIONPLUGIN_Rule. The last two define a pefix/suffix match for the
+   symbol being looked up, as follows:
+
+   piPfx:    The leading  characters of the plugin's object creator's unquoted
+             function name. When this symbol is looked-up, the defined version
+             rule is applied if the suffix, if any, also matches.
+
+   piSfx:    The trailing characters of the plugin's object creator's unquoted
+             function name. When this symbol is looked-up, the defined version
+             rule is applied if the prefix, if any, also matches.
+
+   Note: An attempt is made to match the symbol using specific rules defined
+         by XRDVERSIONPLUGIN_Rule before using any generic rules. If a match
+         is found the same processing as for specific rules is applied.
+*/
+#define XrdVERSIONPLUGINMAXIMS\
+        XrdVERSIONPLUGIN_Maxim(DoNotChk,  4,  0, XrdSecProtocol, Init         )\
+        XrdVERSIONPLUGIN_Maxim(Required,  4,  0, XrdSecProtocol, Object       )\
+                             { 0, 0, 0,  0,  0, 0}
+
+/* The following defines the bundled security plug-ins. These are always
+   versioned. Any security plug-in not listed here is assumed to be versioned
+   but if it is not found, the unversioned name of the shared library will be
+   used (this may or may not cause a crash, depending on the developer).
+*/
+#define XRDPLUGIN_SECBUNDLE "&gsi&krb5&pwd&sss&unix"
 #endif

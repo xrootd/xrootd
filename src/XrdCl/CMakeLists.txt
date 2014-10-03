@@ -70,6 +70,7 @@ add_library(
                               XrdClPropertyList.hh
                               XrdClCopyJob.hh
   XrdClFileSystemUtils.cc     XrdClFileSystemUtils.hh
+  XrdClTPFallBackCopyJob.cc   XrdClTPFallBackCopyJob.hh
   ${LIBEVENT_POLLER_FILES}
 )
 

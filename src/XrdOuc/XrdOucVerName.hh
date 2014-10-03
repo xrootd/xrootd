@@ -1,6 +1,8 @@
+#ifndef __OOUC_VERNAME_HH__
+#define __OOUC_VERNAME_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                      X r d O u c V e r N a m e . h h                       */
 /*                                                                            */
 /* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
@@ -27,45 +29,33 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdVersion.hh"
+//-----------------------------------------------------------------------------
+//! XrdOucVerName
+//!
+//! This class performs name versioning for shared library plug-ins.
+//-----------------------------------------------------------------------------
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
-
-/******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
-/******************************************************************************/
-
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
+class XrdOucVerName
 {
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+public:
 
-// Record the library path in the environment
-//
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
+//-----------------------------------------------------------------------------
+//! Version a plug-in library path.
+//!
+//! @param  piVers  Pointer to the version string to be used.
+//! @param  piPath  Pointer to the original path to the plug-in.
+//! @param  piName  When not null, is used to check if piName matches the
+//!                 filename in piPath.
+//! @param  eqName  Upon return is set to true if piName equals the filename in
+//!                 piPath and false if that is not the case or piName is nil.
+//! @param  buff    Pointer to abuffer that will hold the resulting path.
+//! @param  blen    The size of the buffer.
+//!
+//! @return success The length of the reulting path in buff withe eqName set.
+//! @return failure Zero (buffer is too small) but eqName is still set.
+//-----------------------------------------------------------------------------
 
-// Get the file system object creator
-//
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
-
-// Get the file system object
-//
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
-      }
-
-// All done
-//
-   ofsLib.Persist();
-   return FS;
-}
+static int Version(const char *piVers, const char *piPath, const char *piName,
+                         bool &eqname,       char *buff,         int   blen);
+};
+#endif

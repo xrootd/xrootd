@@ -46,6 +46,15 @@
 #define XrdVSTRING XrdVERSION
 #endif
 
+// The following defines the shared library version number of any plug-in.
+// Generally, all plug-ins have a uniform version number releative to a
+// specific compilation. This version is appended to the so-name and for
+// dylibs becomes part of he actual filename (MacOS format).
+//
+#ifndef XRDPLUGIN_SOVERSION
+#define XRDPLUGIN_SOVERSION "4"
+#endif
+
 #define XrdDEFAULTPORT 1094;
 
 // The following macros extract version digits from a numeric version number

@@ -579,7 +579,8 @@ int main( int argc, char **argv )
   // If we're doing remote recursive copy, chain all the files (if it's a
   // directory)
   //----------------------------------------------------------------------------
-  if( config.DoRecurse && config.srcFile->Protocol == XrdCpFile::isXroot )
+  if( config.Want( XrdCpConfig::DoRecurse ) &&
+      config.srcFile->Protocol == XrdCpFile::isXroot )
   {
     URL          source( config.srcFile->Path );
     FileSystem  *fs       = new FileSystem( source );

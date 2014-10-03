@@ -255,7 +255,7 @@ namespace XrdCl
       return XRootDStatus( stError, errCheckSumError );
 
     checkSum = elems[0] + ":";
-    checkSum += elems[1];
+    checkSum += NormalizeChecksum( elems[0], elems[1] );
 
     log->Dump( UtilityMsg, "Checksum for %s checksum: %s",
                path.c_str(), checkSum.c_str() );
@@ -291,7 +291,7 @@ namespace XrdCl
     char *cksBuffer = new char[265];
     ckSum.Get( cksBuffer, 256 );
     checkSum  = checkSumType + ":";
-    checkSum += cksBuffer;
+    checkSum += NormalizeChecksum( checkSumType, cksBuffer );
     delete [] cksBuffer;
 
     log->Dump( UtilityMsg, "Checksum for %s is: %s", path.c_str(),
@@ -466,5 +466,22 @@ namespace XrdCl
     std::string result = hex;
     delete [] hex;
     return result;
+  }
+
+  //----------------------------------------------------------------------------
+  // Normalize checksum
+  //----------------------------------------------------------------------------
+  std::string Utils::NormalizeChecksum( const std::string &name,
+                                        const std::string &checksum )
+  {
+    if( name == "adler32" || name == "crc32" )
+    {
+      size_t i;
+      for( i = 0; i < checksum.length(); ++i )
+        if( checksum[i] != '0' )
+          break;
+      return checksum.substr(i);
+    }
+    return checksum;
   }
 }

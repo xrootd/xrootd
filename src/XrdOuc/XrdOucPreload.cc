@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                      X r d O u c P r e l o a d . c c                       */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -27,45 +27,37 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include <stdio.h>
+
 #include "XrdVersion.hh"
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysError.hh"
+#include "XrdOuc/XrdOucVerName.hh"
+#include "XrdOuc/XrdOucPreload.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
 /******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
+/*                         X r d O u c P r e l o a d                          */
 /******************************************************************************/
 
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
+bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry=false)
 {
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+   char theLib[2048];
+   bool dummy;
 
-// Record the library path in the environment
+// Perform versioning
 //
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
-
-// Get the file system object creator
-//
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
-
-// Get the file system object
-//
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, 0, dummy,
+                               theLib, sizeof(theLib)))
+      {snprintf(eBuff, eBlen,
+                "Unable to preload plugin via %s; path too long.", plib);
+       return false;
       }
 
-// All done
+// Preload the library. If we failed, we will try to fallback to the
+// unversioned name is we are allowed to do so.
 //
-   ofsLib.Persist();
-   return FS;
+   *eBuff = 0;
+   if (XrdSysPlugin::Preload(theLib, eBuff, eBlen)
+   || (retry && XrdSysPlugin::Preload(plib, eBuff, eBlen))) return true;
+   return false;
 }

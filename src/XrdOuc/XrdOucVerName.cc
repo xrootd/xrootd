@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                      X r d O u c V e r N a m e . c c                       */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -27,45 +27,41 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdVersion.hh"
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucVerName.hh"
 
 /******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
+/*                               V e r s i o n                                */
 /******************************************************************************/
 
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
+int XrdOucVerName::Version(const char *piVers, const char *piPath,
+                           const char *piName,       bool &eqName,
+                                 char *buff,         int   blen)
 {
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
+   const char *Dot, *Slash, *fName;
+   int         n, pLen;
 
-// Record the library path in the environment
+// Find the markers in the passed path
 //
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
+   if ((Slash = rindex(piPath, '/')))
+           {pLen = Slash-piPath+1; Dot = rindex(Slash+1, '.'); fName = Slash+1;}
+      else {pLen = 0;              Dot = rindex(piPath,  '.'); fName = piPath;}
+   if (Dot) pLen += Dot-fName;
+      else {pLen += strlen(fName); Dot = "";}
 
-// Get the file system object creator
+// Test for a name match and return result
 //
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
+   if (piName) eqName = strcmp(fName, piName) == 0;
+      else     eqName = false;
 
-// Get the file system object
+// Format the versioned name
 //
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
-      }
+   n = snprintf(buff, blen-1, "%.*s-%s%s", pLen, piPath, piVers, Dot);
 
-// All done
+// Return result
 //
-   ofsLib.Persist();
-   return FS;
+   return (n < blen ? n : 0);
 }

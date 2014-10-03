@@ -74,6 +74,7 @@ int   xallow(XrdSysError *edest, XrdOucStream &Config);
 int   xapath(XrdSysError *edest, XrdOucStream &Config);
 int   xbuf(XrdSysError *edest, XrdOucStream &Config);
 int   xnet(XrdSysError *edest, XrdOucStream &Config);
+int   xnkap(XrdSysError *edest, char *val);
 int   xlog(XrdSysError *edest, XrdOucStream &Config);
 int   xport(XrdSysError *edest, XrdOucStream &Config);
 int   xprot(XrdSysError *edest, XrdOucStream &Config);

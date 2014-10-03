@@ -105,9 +105,11 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
                                                 void           *lHandle)
 {
    static XrdVersionPlugin vInfo[] = {XrdVERSIONPLUGINRULES};
+   static XrdVersionPlugin vNote[] = {XrdVERSIONPLUGINMAXIMS};
+   XrdVersionPlugin *vinP;
    char buff[1024], vName[256];
    void *vP;
-   int  i, n, pMajor, vMajor, pMinor, vMinor;
+   int  i, n=0, pMajor, vMajor, pMinor, vMinor;
 
 // If no version information supplied, skip version check
 //
@@ -117,12 +119,27 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 //
    i = 0;
    while(vInfo[i].pName && strcmp(vInfo[i].pName, pname)) i++;
-   if (!vInfo[i].pName) return cvNone;
-   if ( vInfo[i].vProcess == XrdVERSIONPLUGIN_DoNotChk) return cvDirty;
+
+// If we didn't find it in the rules table then try to match the maxims
+//
+   if (!vInfo[i].pName)
+      {i = 0; n = strlen(pname);
+       while(vNote[i].pName)
+            {if ((vNote[i].vPfxLen + vNote[i].vSfxLen <= n)
+             &&  !strncmp(vNote[i].pName, pname, vNote[i].vPfxLen)
+             &&  !strncmp(vNote[i].pName+vNote[i].vPfxLen,
+                   pname + n - vNote[i].vSfxLen, vNote[i].vSfxLen)) break;
+             i++;
+            }
+             vinP = &vNote[i];
+      } else vinP = &vInfo[i];
+
+   if (!(vinP->pName)) return cvNone;
+   if ( vinP->vProcess == XrdVERSIONPLUGIN_DoNotChk) return cvDirty;
 
 // Construct the version entry point
 //
-   n = strlen(pname);
+   if (!n) n = strlen(pname);
    if (n+sizeof(XrdVERSIONINFOSFX) > sizeof(vName))
       return libMsg("Unable to generate version name for", "%s in ", pname);
    strcpy(vName, pname); strcpy(vName+n, XrdVERSIONINFOSFX);
@@ -130,7 +147,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 // Find the version number
 //
    if (!(vP = dlsym(lHandle, vName)))
-      {if (vInfo[i].vProcess != XrdVERSIONPLUGIN_Required) return cvMissing;
+      {if (vinP->vProcess != XrdVERSIONPLUGIN_Required) return cvMissing;
        return libMsg(dlerror()," required version information for %s in ",pname);
       }
 
@@ -171,9 +188,9 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 
 // The major version must always be compatible
 //
-   if ((vInfo[i].vMajLow >= 0 && pMajor <  vInfo[i].vMajLow)
-   ||  (vInfo[i].vMajLow <  0 && pMajor != vMajor))
-      return badVersion(urInfo, '>', vInfo[i].vMajLow, vInfo[i].vMinLow);
+   if ((vinP->vMajLow >= 0 && pMajor <  vinP->vMajLow)
+   ||  (vinP->vMajLow <  0 && pMajor != vMajor))
+      return badVersion(urInfo, '>', vinP->vMajLow, vinP->vMinLow);
 
 // The major version may not be greater than our versin
 //
@@ -181,7 +198,7 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 
 // If we do not need to check minor versions then we are done
 //
-   if (vInfo[i].vMinLow > 99) return cvClean;
+   if (vinP->vMinLow > 99) return cvClean;
 
 // In no case can the plug-in mnor version be greater than our version
 //
@@ -190,12 +207,12 @@ XrdSysPlugin::cvResult XrdSysPlugin::chkVersion(XrdVersionInfo &urInfo,
 
 // Verify compatible minor versions
 //
-   if ((vInfo[i].vMinLow >= 0 && pMinor >= vInfo[i].vMinLow)
-   ||  (vInfo[i].vMinLow <  0 && pMinor == vMinor)) return cvClean;
+   if ((vinP->vMinLow >= 0 && pMinor >= vinP->vMinLow)
+   ||  (vinP->vMinLow <  0 && pMinor == vMinor)) return cvClean;
 
 // Incompatible versions
 //
-   return badVersion(urInfo, '>', vInfo[i].vMajLow, vInfo[i].vMinLow);
+   return badVersion(urInfo, '>', vinP->vMajLow, vinP->vMinLow);
 }
 
 /******************************************************************************/

@@ -37,6 +37,7 @@
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysTimer.hh"
 #include "XrdSys/XrdSysPlugin.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdVersion.hh"
 
 #include <arpa/inet.h>
@@ -403,6 +404,8 @@ namespace XrdCl
         info->firstLogIn = false;
         return st;
       }
+
+      return st;
     }
 
     //--------------------------------------------------------------------------
@@ -866,31 +869,51 @@ namespace XrdCl
     // kXR_error
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_error )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.error.errnum = ntohl( m->body.error.errnum );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_wait
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_wait )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.wait.seconds = htonl( m->body.wait.seconds );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_redirect
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_redirect )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.redirect.port = htonl( m->body.redirect.port );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_waitresp
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_waitresp )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.waitresp.seconds = htonl( m->body.waitresp.seconds );
+    }
 
     //--------------------------------------------------------------------------
     // kXR_attn
     //--------------------------------------------------------------------------
     else if( m->hdr.status == kXR_attn )
+    {
+      if( m->hdr.dlen < 4 )
+        return Status( stError, errInvalidMessage );
       m->body.attn.actnum = htonl( m->body.attn.actnum );
+    }
 
     return Status();
   }
@@ -912,7 +935,7 @@ namespace XrdCl
   {
     Log *log = DefaultEnv::GetLog();
     ServerResponse *rsp = (ServerResponse *)msg.GetBuffer();
-    char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+    char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
     memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
     log->Error( XRootDTransportMsg, "Server responded with an error [%d]: %s",
                                     rsp->body.error.errnum, errmsg );
@@ -1544,7 +1567,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       else if( rsp->hdr.status == kXR_error )
       {
-        char *errmsg = new char( rsp->hdr.dlen-3 ); errmsg[rsp->hdr.dlen-4] = 0;
+        char *errmsg = new char[rsp->hdr.dlen-3]; errmsg[rsp->hdr.dlen-4] = 0;
         memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         log->Error( XRootDTransportMsg,
                     "[%s] Authentication with %s failed: %s",
@@ -1688,21 +1711,13 @@ namespace XrdCl
       return pAuthHandler;
 
     char errorBuff[1024];
-    std::string libName = "libXrdSec"; libName += LT_MODULE_EXT;
-    pSecLibHandle = new XrdSysPlugin( errorBuff, 1024, libName.c_str(),
-                                      libName.c_str(),
-                                      &XrdVERSIONINFOVAR( XrdCl ) );
 
-    pAuthHandler = (XrdSecGetProt_t)pSecLibHandle->getPlugin(
-      "XrdSecGetProtocol", false, false );
+    pAuthHandler = XrdSecLoadSecFactory( errorBuff, 1024 );
 
     if( !pAuthHandler )
     {
       log->Error( XRootDTransportMsg,
-                  "Unable to get the XrdSecGetProtocol symbol from library "
-                  "%s: %s", libName.c_str(), errorBuff );
-      delete pSecLibHandle;
-      pSecLibHandle = 0;
+                  "Unable to get the security framework: %s", errorBuff );
       return 0;
     }
     return pAuthHandler;

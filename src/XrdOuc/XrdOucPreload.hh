@@ -1,8 +1,10 @@
+#ifndef __XRDOUCPRELOAD_HH__
+#define __XRDOUCPRELOAD_HH__
 /******************************************************************************/
 /*                                                                            */
-/*                   X r d X r o o t d L o a d L i b . c c                    */
+/*                      X r d O u c P r e l o a d . h h                       */
 /*                                                                            */
-/* (c) 2004 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
 /*                                                                            */
@@ -27,45 +29,32 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
-#include "XrdVersion.hh"
+//------------------------------------------------------------------------------
+//! This include file define a utility function that pre-loads a plugin.
+//------------------------------------------------------------------------------
+  
+//------------------------------------------------------------------------------
+//! Preload a plugin and persist its image. Internal plugin version checking
+//! is performed when the plugin is actually initialized.
+//!
+//! @param plib   Pointer to the shared library path that contains the plugin.
+//! @param eBuff  Pointer to a buffer tat is to receive any messages. Upon
+//!               failure it will contain an eror message. Upon success it
+//!               will contain an informational message that describes the
+//!               version that was loaded.
+//! @param eBlen  The length of the eBuff, it should be at least 1K to
+//!               avoid message truncation as the message may have a path.
+//! @param retry  When true:  if the version name of the plugin is not found,
+//!                           try to preload the unversioned name.
+//!               When false: Only the versioned name of the plugin may be
+//!                           preloaded (i.e. libXXXX-n.so).
+//!
+//! @return true  The plugin was successfully loaded.
+//! @return false The plugin could not be loaded, eBuff contains the reason.
+//------------------------------------------------------------------------------
 
-#include "XrdOuc/XrdOucEnv.hh"
-#include "XrdSfs/XrdSfsInterface.hh"
-#include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
-
-/******************************************************************************/
-/*                 x r o o t d _ l o a d F i l e s y s t e m                  */
-/******************************************************************************/
-
-XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
-                                          XrdSfsFileSystem *prevFS,
-                                          char *fslib, const char *cfn)
-{
-   static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
-   XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
-   XrdSfsFileSystem *FS;
-
-// Record the library path in the environment
-//
-   if (!prevFS) XrdOucEnv::Export("XRDOFSLIB", fslib);
-
-// Get the file system object creator
-//
-   if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
-       return 0;
-
-// Get the file system object
-//
-   if (!(FS = (*ep)(prevFS, eDest->logger(), cfn)))
-      {eDest->Emsg("Config", "Unable to create file system object via",fslib);
-       return 0;
-      }
-
-// All done
-//
-   ofsLib.Persist();
-   return FS;
-}
+extern bool XrdOucPreLoad(const char       *plib,
+                                char       *eBuff,
+                                int         eBlen,
+                                bool        retry=false);
+#endif

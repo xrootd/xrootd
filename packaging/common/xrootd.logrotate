@@ -1,10 +1,16 @@
 /var/log/xrootd/*/*.log /var/log/xrootd/*.log
 {
   missingok
+  nomail
+  nocreate
+  rotate 100
   notifempty
   daily
   compress
   postrotate
-    echo "ping" > `dirname $1`/.`basename $1`;
+    PIPE=`dirname $1`/.`basename $1`
+    if [ -p $PIPE ]; then
+      /usr/bin/expect -c "set timeout 2; spawn /bin/sh -c \"echo ping > $PIPE\"; expect timeout { exit 1 } eof { exit 0 }";
+    fi
   endscript
 }

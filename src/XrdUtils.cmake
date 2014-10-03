@@ -72,6 +72,7 @@ add_library(
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
   XrdOuc/XrdOucNList.cc         XrdOuc/XrdOucNList.hh
   XrdOuc/XrdOucNSWalk.cc        XrdOuc/XrdOucNSWalk.hh
+  XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
   XrdOuc/XrdOucReqID.cc         XrdOuc/XrdOucReqID.hh
@@ -84,6 +85,7 @@ add_library(
   XrdOuc/XrdOucTPC.cc           XrdOuc/XrdOucTPC.hh
   XrdOuc/XrdOucTrace.cc         XrdOuc/XrdOucTrace.hh
   XrdOuc/XrdOucUtils.cc         XrdOuc/XrdOucUtils.hh
+  XrdOuc/XrdOucVerName.cc       XrdOuc/XrdOucVerName.hh
                                 XrdOuc/XrdOucChain.hh
                                 XrdOuc/XrdOucDLlist.hh
                                 XrdOuc/XrdOucIOVec.hh
@@ -161,6 +163,14 @@ add_library(
                                    XrdCks/XrdCksData.hh
                                    XrdCks/XrdCks.hh
                                    XrdCks/XrdCksXAttr.hh
+
+  #-----------------------------------------------------------------------------
+  # XrdSec
+  #-----------------------------------------------------------------------------
+  XrdSec/XrdSecLoadSecurity.cc     XrdSec/XrdSecLoadSecurity.hh
+  XrdSecsss/XrdSecsssID.cc         XrdSecsss/XrdSecsssID.hh
+  XrdSecsss/XrdSecsssKT.cc         XrdSecsss/XrdSecsssKT.hh
+
 )
 
 target_link_libraries(

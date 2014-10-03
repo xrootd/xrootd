@@ -56,6 +56,7 @@
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
@@ -131,9 +132,6 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
                              const char       *configFn,
                              XrdOucEnv        *EnvInfo);
 
-   extern XrdSecService    *XrdXrootdloadSecurity(XrdSysError *, char *, 
-                                                  char *, void **);
-
    extern XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *, 
                                                     XrdSfsFileSystem *,
                                                     char *, const char *);
@@ -146,7 +144,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 
    XrdOucEnv myEnv;
    XrdXrootdXPath *xp;
-   void *secGetProt = 0;
+   XrdSecGetProt_t secGetProt = 0;
    char *adminp, *rdf, *bP, *tmp, c, buff[1024];
    int i, n, deper = 0;
 
@@ -254,8 +252,8 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
    if (!SecLib) eDest.Say("Config warning: 'xrootd.seclib' not specified;"
                           " strong authentication disabled!");
       else {TRACE(DEBUG, "Loading security library " <<SecLib);
-            if (!(CIA = XrdXrootdloadSecurity(&eDest, SecLib, pi->ConfigFN,
-                                              &secGetProt)))
+            if (!(CIA = XrdSecLoadSecService(&eDest, pi->ConfigFN,
+                        (strcmp(SecLib,"default") ? SecLib : 0), &secGetProt)))
                {eDest.Emsg("Config", "Unable to load security system.");
                 return 0;
                }
@@ -270,7 +268,7 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    myEnv.PutPtr("XrdInet*", (void *)(pi->NetTCP));
    myEnv.PutPtr("XrdNetIF*", (void *)(&(pi->NetTCP->netIF)));
-   myEnv.PutPtr("XrdSecGetProtocol*", secGetProt);
+   myEnv.PutPtr("XrdSecGetProtocol*", (void *)secGetProt);
    myEnv.PutPtr("XrdScheduler*", Sched);
 
 // Get the filesystem to be used
@@ -314,10 +312,14 @@ int XrdXrootdProtocol::Configure(char *parms, XrdProtocol_Config *pi)
 //
    if (JobCKT && JobLCL)
       {XrdOucErrInfo myError("Config");
-       if (osFS->chksum(XrdSfsFileSystem::csSize,JobCKT,0,myError))
-          {eDest.Emsg("Config", JobCKT, " checksum is not natively supported.");
-           return 0;
-          }
+       XrdOucTList *tP = JobCKTLST;
+       do {if (osFS->chksum(XrdSfsFileSystem::csSize,tP->text,0,myError))
+              {eDest.Emsg("Config",tP->text,"checksum is not natively supported.");
+               return 0;
+              }
+           tP->ival[1] = myError.getErrInfo();
+           tP = tP->next;
+          } while(tP);
       }
 
 // Initialiaze for AIO
@@ -636,10 +638,13 @@ int XrdXrootdProtocol::xasync(XrdOucStream &Config)
 
 /* Function: xcksum
 
-   Purpose:  To parse the directive: chksum [max <n>] <type> [<path>]
+   Purpose:  To parse the directive: chksum [chkcgi] [max <n>] <type> [<path>]
 
              max       maximum number of simultaneous jobs
-             <type>    algorithm of checksum (e.g., md5)
+             chkcgi    Always check for checksum type in cgo info.
+             <type>    algorithm of checksum (e.g., md5). If more than one
+                       checksum is supported then they should be listed with
+                       each separated by a space.
              <path>    the path of the program performing the checksum
                        If no path is given, the checksum is local.
 
@@ -650,13 +655,22 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 {
    static XrdOucProg *theProg = 0;
    int (*Proc)(XrdOucStream *, char **, int) = 0;
+   XrdOucTList *tP, *algFirst = 0, *algLast = 0;
    char *palg, prog[2048];
-   int jmax = 4;
+   int jmax = 4, anum[2] = {0,0};
 
 // Get the algorithm name and the program implementing it
 //
+   JobCKCGI = 0;
    while ((palg = Config.GetWord()) && *palg != '/')
-         {if (strcmp(palg, "max")) break;
+         {if (!strcmp(palg,"chkcgi")) {JobCKCGI = 1; continue;}
+          if (strcmp(palg, "max"))
+             {XrdOucTList *xalg = new XrdOucTList(palg, anum); anum[0]++;
+              if (algLast) algLast->next = xalg;
+                 else      algFirst      = xalg;
+              algLast = xalg;
+              continue;
+             }
           if (!(palg = Config.GetWord()))
              {eDest.Emsg("Config", "chksum max not specified"); return 1;}
           if (XrdOuca2x::a2i(eDest, "chksum max", palg, &jmax, 0)) return 1;
@@ -664,16 +678,31 @@ int XrdXrootdProtocol::xcksum(XrdOucStream &Config)
 
 // Verify we have an algoritm
 //
-   if (!palg || *palg == '/')
+   if (!algFirst)
       {eDest.Emsg("Config", "chksum algorithm not specified"); return 1;}
    if (JobCKT) free(JobCKT);
-   JobCKT = strdup(palg);
+   JobCKT = strdup(algFirst->text);
+
+// Handle alternate checksums
+//
+   while((tP = JobCKTLST)) {JobCKTLST = tP->next; delete tP;}
+   JobCKTLST = algFirst;
+   if (algFirst->next) JobCKCGI = 2;
+
+// Handle program if we have one
+//
+   if (palg)
+      {int n = strlen(palg);
+       if (n+2 >= (int)sizeof(prog))
+          {eDest.Emsg("Config", "cksum program too long"); return 1;}
+       strcpy(prog, palg); palg = prog+n; *palg++ = ' '; n = sizeof(prog)-n-1;
+       if (!Config.GetRest(palg, n))
+          {eDest.Emsg("Config", "cksum parameters too long"); return 1;}
+      } else *prog = 0;
 
 // Check if we have a program. If not, then this will be a local checksum and
 // the algorithm will be verified after we load the filesystem.
 //
-   if (!Config.GetRest(prog, sizeof(prog)))
-      {eDest.Emsg("Config", "cksum parameters too long"); return 1;}
    if (*prog) JobLCL = 0;
       else {  JobLCL = 1; Proc = &CheckSum; strcpy(prog, "chksum");}
 
@@ -1374,9 +1403,10 @@ bool XrdXrootdProtocol::xred_xok(int func, char *rHost[2], int rPort[2])
 
 /* Function: xsecl
 
-   Purpose:  To parse the directive: seclib <path>
+   Purpose:  To parse the directive: seclib {default | <path>}
 
              <path>    the path of the security library to be used.
+                       "default" uses the default security library.
 
   Output: 0 upon success or !0 upon failure.
 */

@@ -1,4 +1,21 @@
 #-------------------------------------------------------------------------------
+# Helper macros
+#-------------------------------------------------------------------------------
+%if %{?rhel:1}%{!?rhel:0}
+    %if %{rhel} >= 7
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%else
+    %if %{?fedora}%{!?fedora:0} >= 19
+        %define use_systemd 1
+    %else
+        %define use_systemd 0
+    %endif
+%endif
+
+#-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
 Name:      xrootd4
@@ -27,14 +44,7 @@ BuildRequires: krb5-devel
 BuildRequires: zlib-devel
 BuildRequires: ncurses-devel
 
-# selinux
-BuildRequires: checkpolicy
-
-%if %{?fedora}%{!?fedora:0} >= 20
-BuildRequires: policycoreutils-python
-%else
-BuildRequires: policycoreutils
-%endif
+BuildRequires: selinux-policy-devel
 
 %if %{?_with_tests:1}%{!?_with_tests:0}
 BuildRequires: cppunit-devel
@@ -42,7 +52,7 @@ BuildRequires: cppunit-devel
 
 BuildRequires:	doxygen
 BuildRequires:	graphviz
-%if "%{?rhel}" == "5"
+%if %{?rhel}%{!?rhel:0} == 5
 BuildRequires:	graphviz-gd
 %endif
 
@@ -53,14 +63,23 @@ BuildRequires: clang
 Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
+Requires:   expect
 Conflicts:  xrootd
 
+%if %{use_systemd}
+BuildRequires:    systemd
+Requires(pre):		systemd
+Requires(post):		systemd
+Requires(preun):	systemd
+Requires(postun):	systemd
+%else
 Requires(pre):		shadow-utils
 Requires(pre):		chkconfig
 Requires(post):		chkconfig
 Requires(preun):	chkconfig
 Requires(preun):	initscripts
 Requires(postun):	initscripts
+%endif
 
 %description
 The Extended root file server consists of a file server called xrootd
@@ -74,8 +93,6 @@ The cmsd server is the next generation version of the olbd server,
 originally developed to cluster and load balance Objectivity/DB AMS
 database servers. It provides enhanced capability along with lower
 latency and increased throughput.
-
-%define policy_dir /usr/share/selinux/targeted
 
 #-------------------------------------------------------------------------------
 # libs
@@ -223,8 +240,9 @@ Group:		 System Environment/Base
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch: noarch
 %endif
-Requires:  policycoreutils
-Requires:  selinux-policy-targeted
+Requires(post):   policycoreutils
+Requires(postun): policycoreutils
+Requires:         selinux-policy
 
 %description selinux
 SELinux policy extensions for running xrootd while in enforcing mode.
@@ -249,8 +267,6 @@ This package contains a set of CPPUnit tests for xrootd.
 
 %build
 cd xrootd
-mkdir build
-cd build
 
 %if %{?_with_cpp11:1}%{!?_with_cpp11:0}
 export CXXFLAGS=-std=c++11
@@ -261,6 +277,8 @@ export CC=clang
 export CXX=clang++
 %endif
 
+mkdir build
+pushd build
 %if %{?_with_tests:1}%{!?_with_tests:0}
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_TESTS=TRUE ../
 %else
@@ -268,11 +286,12 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo ../
 %endif
 
 make -i VERBOSE=1 %{?_smp_mflags}
+popd
 
-checkmodule -M -m -o xrootd.mod ../packaging/common/xrootd.te
-semodule_package -o xrootd.pp -m xrootd.mod
+pushd packaging/common
+make -f /usr/share/selinux/devel/Makefile
+popd
 
-cd ..
 doxygen Doxyfile
 
 #-------------------------------------------------------------------------------
@@ -294,10 +313,20 @@ mkdir -p $RPM_BUILD_ROOT%{_var}/run/xrootd
 mkdir -p $RPM_BUILD_ROOT%{_var}/spool/xrootd
 
 # init stuff
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/xrootd
-mkdir -p $RPM_BUILD_ROOT%{_initrddir}
 
+%if %{use_systemd}
+
+mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/xrootd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/cmsd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/frm_xfrd@.service $RPM_BUILD_ROOT%{_unitdir}
+install -m 644 packaging/common/frm_purged@.service $RPM_BUILD_ROOT%{_unitdir}
+
+%else
+
+mkdir -p $RPM_BUILD_ROOT%{_initrddir}
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 install -m 644 packaging/rhel/xrootd.sysconfig $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/xrootd
 
 install -m 755 packaging/rhel/cmsd.init $RPM_BUILD_ROOT%{_initrddir}/cmsd
@@ -305,6 +334,8 @@ install -m 755 packaging/rhel/frm_purged.init $RPM_BUILD_ROOT%{_initrddir}/frm_p
 install -m 755 packaging/rhel/frm_xfrd.init $RPM_BUILD_ROOT%{_initrddir}/frm_xfrd
 install -m 755 packaging/rhel/xrootd.init $RPM_BUILD_ROOT%{_initrddir}/xrootd
 install -m 755 packaging/rhel/xrootd.functions $RPM_BUILD_ROOT%{_initrddir}/xrootd.functions
+
+%endif
 
 # logrotate
 mkdir $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
@@ -325,8 +356,9 @@ mkdir -p %{buildroot}%{_docdir}/%{name}-%{version}
 cp -pr doxydoc/html %{buildroot}%{_docdir}/%{name}-%{version}
 
 # selinux
-mkdir -p ${RPM_BUILD_ROOT}%{policy_dir}
-install -m 644 build/xrootd.pp ${RPM_BUILD_ROOT}%{policy_dir}
+mkdir -p %{buildroot}%{_datadir}/selinux/packages/%{name}
+install -m 644 -p packaging/common/xrootd.pp \
+    %{buildroot}%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -350,6 +382,35 @@ getent passwd xrootd >/dev/null || \
        useradd -r -g xrootd -c "XRootD runtime user" \
        -s /sbin/nologin -d %{_localstatedir}/spool/xrootd xrootd
 exit 0
+
+%if %{use_systemd}
+
+%post
+if [ $1 -eq 1 ] ; then
+    /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+fi
+
+%preun
+if [ $1 -eq 0 ] ; then
+    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+        for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
+            /usr/bin/systemctl --no-reload disable $INSTANCE > /dev/null 2>&1 || :
+            /usr/bin/systemctl stop $INSTANCE > /dev/null 2>&1 || :
+        done
+    done
+fi
+
+%postun
+if [ $1 -ge 1 ] ; then
+    /usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+    for DAEMON in xrootd cmsd frm_purged frm xfrd; do
+        for INSTANCE in `/usr/bin/systemctl | grep $DAEMON@ | awk '{print $1;}'`; do
+            /usr/bin/systemctl try-restart $INSTANCE >/dev/null 2>&1 || :
+        done
+    done
+fi
+
+%else
 
 %post
 if [ $1 -eq 1 ]; then
@@ -379,6 +440,8 @@ if [ $1 -ge 1 ]; then
     /sbin/service frm_xfrd condrestart >/dev/null 2>&1 || :
 fi
 
+%endif
+
 #-------------------------------------------------------------------------------
 # Add a new user and group if necessary
 #-------------------------------------------------------------------------------
@@ -393,11 +456,12 @@ exit 0
 # Selinux
 #-------------------------------------------------------------------------------
 %post selinux
-semodule -i %{policy_dir}/xrootd.pp
-semodule -R
+/usr/sbin/semodule -i %{_datadir}/selinux/packages/%{name}/%{name}.pp >/dev/null 2>&1 || :
 
 %postun selinux
-semodule -R
+if [ $1 -eq 0 ] ; then
+    /usr/sbin/semodule -r %{name} >/dev/null 2>&1 || :
+fi
 
 #-------------------------------------------------------------------------------
 # Files
@@ -429,14 +493,19 @@ semodule -R
 %{_mandir}/man8/xrdsssadmin.8*
 %{_mandir}/man8/xrootd.8*
 %{_datadir}/xrootd
-%{_initrddir}/*
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-clustered.cfg
 %attr(-,xrootd,xrootd) %config(noreplace) %{_sysconfdir}/xrootd/xrootd-standalone.cfg
 %attr(-,xrootd,xrootd) %dir %{_var}/log/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/run/xrootd
 %attr(-,xrootd,xrootd) %dir %{_var}/spool/xrootd
-%config(noreplace) %{_sysconfdir}/sysconfig/xrootd
 %config(noreplace) %{_sysconfdir}/logrotate.d/xrootd
+
+%if %{use_systemd}
+%{_unitdir}/*
+%else
+%config(noreplace) %{_sysconfdir}/sysconfig/xrootd
+%{_initrddir}/*
+%endif
 
 %files libs
 %defattr(-,root,root,-)
@@ -445,12 +514,11 @@ semodule -R
 %{_libdir}/libXrdCrypto.so.*
 %{_libdir}/libXrdCryptoLite.so.*
 %{_libdir}/libXrdCryptossl.so.*
-%{_libdir}/libXrdSec*.so.*
+%{_libdir}/libXrdSec*.so
 %{_libdir}/libXrdUtils.so.*
 # Some of the libraries are used as plugins - need the .so symlink at runtime
 %{_libdir}/libXrdCksCalczcrc32.so
 %{_libdir}/libXrdCryptossl.so
-%{_libdir}/libXrdSec*.so
 
 %files devel
 %defattr(-,root,root,-)
@@ -463,7 +531,6 @@ semodule -R
 %{_includedir}/xrootd/XrdSec
 %{_includedir}/xrootd/XrdSys
 %{_includedir}/xrootd/XrdVersion.hh
-%{_includedir}/xrootd/XrdVersionPlugin.hh
 # These libraries are not used as plugins
 %{_libdir}/libXrdAppUtils.so
 %{_libdir}/libXrdCrypto.so
@@ -567,12 +634,18 @@ semodule -R
 
 %files selinux
 %defattr(-,root,root)
-%{policy_dir}/xrootd.pp
+%{_datadir}/selinux/packages/%{name}/%{name}.pp
 
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Thu Aug 28 2014 Lukasz Janyst <ljanyst@cern.ch>
+- add support for systemd
+
+* Wed Aug 27 2014 Lukasz Janyst <ljanyst@cern.ch>
+- use generic selinux policy build mechanisms
+
 * Tue Apr 01 2014 Lukasz Janyst <ljanyst@cern.ch>
 - correct the license field (LGPLv3+)
 - rename to xrootd4
