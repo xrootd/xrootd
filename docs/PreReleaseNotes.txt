@@ -26,6 +26,7 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Fix client-side memory leak. Insignificant except for proxy servers.
    * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
