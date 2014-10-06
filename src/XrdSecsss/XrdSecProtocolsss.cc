@@ -213,6 +213,7 @@ void XrdSecProtocolsss::Delete()
 //
      if (urName)              free(urName); // Same pointer as Entity.host
      if (idBuff)              free(idBuff);
+     if (Crypto && Crypto != CryptObj) delete Crypto;
      if (keyTab && keyTab != ktObject) delete keyTab;
 
      delete this;
