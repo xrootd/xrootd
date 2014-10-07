@@ -27,7 +27,7 @@
 #include "XrdCl/XrdClCheckSumManager.hh"
 #include "XrdCl/XrdClTransportManager.hh"
 #include "XrdCl/XrdClPlugInManager.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucPreload.hh"
 #include "XrdSys/XrdSysUtils.hh"
 #include "XrdSys/XrdSysPwd.hh"
 #include "XrdVersion.hh"
@@ -552,21 +552,21 @@ namespace XrdCl
 
     const char *libs[] =
     {
-      "libXrdSeckrb5.dylib",
-      "libXrdSecgsi.dylib",
-      "libXrdSecgsiAuthzVO.dylib",
-      "libXrdSecgsiGMAPDN.dylib",
-      "libXrdSecgsiGMAPLDAP.dylib",
-      "libXrdSecpwd.dylib",
-      "libXrdSecsss.dylib",
-      "libXrdSecunix.dylib",
+      "libXrdSeckrb5.so",
+      "libXrdSecgsi.so",
+      "libXrdSecgsiAuthzVO.so",
+      "libXrdSecgsiGMAPDN.so",
+      "libXrdSecgsiGMAPLDAP.so",
+      "libXrdSecpwd.so",
+      "libXrdSecsss.so",
+      "libXrdSecunix.so",
       0
     };
 
     for( int i = 0; libs[i]; ++i )
     {
       sLog->Debug( UtilityMsg, "Attempting to pre-load: %s", libs[i] );
-      bool ok = XrdSysPlugin::Preload( libs[i], errBuff, 1024 );
+      bool ok = XrdOucPreload( libs[i], errBuff, 1024 );
       if( !ok )
         sLog->Error( UtilityMsg, "Unable to pre-load %s: %s", libs[i], errBuff );
     }
