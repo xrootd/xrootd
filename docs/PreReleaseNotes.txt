@@ -26,10 +26,14 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Fix bug in handling cms.dfs redirect verify that would keep the
+     client is an infinite wait loop. This also affected locate requests
+     regardless of what the redirect option was set to.
    * Fix client-side memory leak. Insignificant except for proxy servers.
    * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
+   * Allow cms.dfs mdhold argument to be 0 as documented.
    * Provide complete portability and correct behaviour across platforms
      with and without Atomics. This patch does not change any ABI's.
    * Fixes #133 Pass the external environment to the protocol manager.
