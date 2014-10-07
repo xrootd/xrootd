@@ -53,7 +53,7 @@
 //! @return false The plugin could not be loaded, eBuff contains the reason.
 //------------------------------------------------------------------------------
 
-extern bool XrdOucPreLoad(const char       *plib,
+extern bool XrdOucPreload(const char       *plib,
                                 char       *eBuff,
                                 int         eBlen,
                                 bool        retry=false);

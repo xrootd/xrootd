@@ -39,7 +39,7 @@
 /*                         X r d O u c P r e l o a d                          */
 /******************************************************************************/
 
-bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry=false)
+bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry)
 {
    char theLib[2048];
    bool dummy;
