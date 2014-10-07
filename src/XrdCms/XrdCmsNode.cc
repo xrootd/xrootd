@@ -57,7 +57,6 @@
 #include "XrdCms/XrdCmsSelect.hh"
 #include "XrdCms/XrdCmsState.hh"
 #include "XrdCms/XrdCmsTrace.hh"
-#include "XrdCms/XrdCmsXmi.hh"
 
 #include "XrdOss/XrdOss.hh"
 
@@ -259,7 +258,7 @@ const char *XrdCmsNode::do_Avail(XrdCmsRRData &Arg)
 /*                              d o _ C h m o d                               */
 /******************************************************************************/
   
-// Chmod requests are forwarded to all subscribers subject to an Xmi callout.
+// Chmod requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Chmod(XrdCmsRRData &Arg)
 {
@@ -270,14 +269,6 @@ const char *XrdCmsNode::do_Chmod(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Chmod)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       if (!getMode(Arg.Mode, mode)) return "invalid mode";
-          else if (Xmi_Chmod->Chmod(&Req, mode, Arg.Path, Arg.Opaque)) return 0;
-      }
 
 // We are don here if we have no data; otherwise convert the mode if we
 // haven't done so already.
@@ -508,13 +499,6 @@ const char *XrdCmsNode::do_Locate(XrdCmsRRData &Arg)
    int rc, bytes;
    bool oksel = false, lsall = (*Arg.Path == '*');
 
-// Do a callout to the external manager if we have one
-//
-   if (Xmi_Select)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       if (Xmi_Select->Select(&Req, XMI_LOCATE, Arg.Path, Arg.Opaque)) return 0;
-      }
-
 // Get the right interface selection options
 //
    ifType = ifVec[(Arg.Opts & CmsLocateRequest::kYR_retipmsk)
@@ -660,7 +644,7 @@ if (lsall)
 /*                              d o _ M k d i r                               */
 /******************************************************************************/
   
-// Mkdir requests are forwarded to all subscribers subject to an Xmi callout.
+// Mkdir requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Mkdir(XrdCmsRRData &Arg)
 {
@@ -671,14 +655,6 @@ const char *XrdCmsNode::do_Mkdir(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Mkdir)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       if (!getMode(Arg.Mode, mode)) return "invalid mode";
-          else if (Xmi_Mkdir->Mkdir(&Req, mode, Arg.Path, Arg.Opaque)) return 0;
-      }
 
 // We are don here if we have no data; otherwise convert the mode if we
 // haven't done so already.
@@ -700,7 +676,7 @@ const char *XrdCmsNode::do_Mkdir(XrdCmsRRData &Arg)
 /*                             d o _ M k p a t h                              */
 /******************************************************************************/
   
-// Mkpath requests are forwarded to all subscribers subjectto an Xmi callout.
+// Mkpath requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 {
@@ -711,14 +687,6 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR("mode " <<Arg.Mode <<' ' <<Arg.Path);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Mkpath)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       if (!getMode(Arg.Mode, mode)) return "invalid mode";
-          else if (Xmi_Mkpath->Mkpath(&Req,mode,Arg.Path,Arg.Opaque)) return 0;
-      }
 
 // We are don here if we have no data; otherwise convert the mode if we
 // haven't done so already.
@@ -740,7 +708,7 @@ const char *XrdCmsNode::do_Mkpath(XrdCmsRRData &Arg)
 /*                                 d o _ M v                                  */
 /******************************************************************************/
   
-// Mv requests are forwarded to all subscribers subject to an Xmi callout.
+// Mv requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 {
@@ -751,14 +719,6 @@ const char *XrdCmsNode::do_Mv(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR(Arg.Path <<" to " <<Arg.Path2);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Rename)
-      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
-       if (Xmi_Rename->Rename(&Req,Arg.Path,Arg.Opaque,Arg.Path2,Arg.Opaque2))
-          return 0;
-      }
 
 // If we are not a server, if must remove references to the old and new names
 // from our cache. This is independent of how the raname is handled. We need
@@ -844,14 +804,6 @@ const char *XrdCmsNode::do_PrepAdd(XrdCmsRRData &Arg)
    DEBUGR("parms: " <<Arg.Reqid <<' ' <<Arg.Notify <<' ' <<Arg.Prty <<' '
                     <<Arg.Mode  <<' ' <<Arg.Path);
 
-// Do an Xmi callout if need be
-//
-   if (Xmi_Prep
-   &&  Xmi_Prep->Prep(Arg.Reqid,
-                      Arg.Opts & CmsPrepAddRequest::kYR_write ? XMI_RW : 0,
-                      Arg.Path, Arg.Opaque))
-       return 0;
-
 // Queue this request for async processing
 //
    (new XrdCmsPrepArgs(Arg))->Queue();
@@ -870,10 +822,6 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 //
    DEBUGR("reqid " <<Arg.Reqid);
 
-// Do a callout to the external manager if we have one
-//
-   if (Xmi_Prep && Xmi_Prep->Prep(Arg.Reqid, XMI_CANCEL, "", 0)) return 0;
-
 // Cancel the request if applicable.
 //
    if (Config.DiskOK)
@@ -889,7 +837,7 @@ const char *XrdCmsNode::do_PrepDel(XrdCmsRRData &Arg)
 /*                                 d o _ R m                                  */
 /******************************************************************************/
   
-// Rm requests are forwarded to all subscribers subject to an Xmi callout.
+// Rm requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 {
@@ -900,13 +848,6 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR(Arg.Path);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Remove)
-      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
-       if (Xmi_Remove->Remove(&Req, Arg.Path, Arg.Opaque)) return 0;
-      }
 
 // If we have no data then we should remove this file from our cache
 //
@@ -931,7 +872,7 @@ const char *XrdCmsNode::do_Rm(XrdCmsRRData &Arg)
 /*                              d o _ R m d i r                               */
 /******************************************************************************/
   
-// Rmdir requests are forwarded to all subscribers subject to an Xmi callout.
+// Rmdir requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 {
@@ -942,13 +883,6 @@ const char *XrdCmsNode::do_Rmdir(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR(Arg.Path);
-
-// If we have an Xmi then call it
-//
-   if (Xmi_Remdir)
-      {XrdCmsReq Req(this, Arg.Request.streamid, Arg.Request.modifier & kYR_dnf);
-       if (Xmi_Remdir->Remdir(&Req, Arg.Path, Arg.Opaque)) return 0;
-      }
 
 // If we have no data then we should remove this directory from our cache
 //
@@ -985,20 +919,6 @@ const char *XrdCmsNode::do_Select(XrdCmsRRData &Arg)
    char theopts[16], *Avoid, *toP = theopts;
    XrdNetIF::ifType ifType;
    int rc, bytes;
-
-// Do a callout to the external manager if we have one
-//
-   if (Arg.Opts & CmsSelectRequest::kYR_stat && Xmi_Stat)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       if (Xmi_Stat->Stat(&Req, Arg.Path, Arg.Opaque)) return 0;
-      } else 
-   if (Xmi_Select)
-      {XrdCmsReq Req(this, Arg.Request.streamid);
-       int opts = (Arg.Opts & CmsSelectRequest::kYR_write ? XMI_RW : 0);
-       if (Arg.Opts & CmsSelectRequest::kYR_create) opts |= XMI_NEW;
-       if (Arg.Opts & CmsSelectRequest::kYR_trunc)  opts |= XMI_TRUNC;
-       if (Xmi_Select->Select(&Req, opts, Arg.Path, Arg.Opaque)) return 0;
-      }
 
 // Init select data (note that refresh supresses fast redirects)
 //
@@ -1097,13 +1017,6 @@ int XrdCmsNode::do_SelPrep(XrdCmsPrepArgs &Arg) // Static!!!
    EPNAME("do_SelPrep")
    XrdCmsSelect Sel(XrdCmsSelect::Peers, Arg.path, Arg.pathlen-1);
    int rc;
-
-// Do a callout to the external manager if we have one
-//
-   if (Xmi_Prep)
-      {int opts = (Arg.options & CmsPrepAddRequest::kYR_write ? XMI_RW : 0);
-       if (Xmi_Prep->Prep(Arg.reqid, opts, Arg.path, Arg.opaque)) return 0;
-      }
 
 // Complete the arguments to select
 //
@@ -1557,8 +1470,7 @@ const char *XrdCmsNode::do_Status(XrdCmsRRData &Arg)
 /*                              d o _ T r u n c                               */
 /******************************************************************************/
   
-// Trunc requests are forwarded to all subscribers subject to an Xmi callout.
-// Currently, we have no definition in Xmi for trunc!
+// Trunc requests are forwarded to all subscribers
 //
 const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 {
@@ -1569,14 +1481,6 @@ const char *XrdCmsNode::do_Trunc(XrdCmsRRData &Arg)
 // Do some debugging
 //
    DEBUGR("size " <<Arg.Mode <<' ' <<Arg.Path);
-
-// If we have an Xmi then call it
-//
-// if (Xmi_Trunc)
-//    {XrdCmsReq Req(this, Arg.Request.streamid);
-//     if (!getSize(Arg.Mode, Size)) return "invalid size";
-//        else if (Xmi_Trunc->Trunc(&Req, Size, Arg.Path, Arg.Opaque)) return 0;
-//    }
 
 // We are don here if we have no data; otherwise convert the mode if we
 // haven't done so already.

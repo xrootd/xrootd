@@ -66,8 +66,6 @@
 #include "XrdCms/XrdCmsSupervisor.hh"
 #include "XrdCms/XrdCmsTrace.hh"
 #include "XrdCms/XrdCmsUtils.hh"
-#include "XrdCms/XrdCmsXmi.hh"
-#include "XrdCms/XrdCmsXmiReq.hh"
 
 #include "XrdNet/XrdNetOpts.hh"
 #include "XrdNet/XrdNetUtils.hh"
@@ -108,18 +106,6 @@ using namespace XrdCms;
        XrdOucTrace      XrdCms::Trace(&Say);
 
        XrdScheduler    *XrdCms::Sched = 0;
-
-       XrdCmsXmi       *XrdCms::Xmi_Chmod  = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Load   = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Mkdir  = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Mkpath = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Prep   = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Rename = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Remdir = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Remove = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Select = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Space  = 0;
-       XrdCmsXmi       *XrdCms::Xmi_Stat   = 0;
 
 /******************************************************************************/
 /*                S e c u r i t y   S y m b o l   T i e - I n                 */
@@ -449,10 +435,6 @@ int XrdCmsConfig::Configure2()
 //
    if (!NoGo) NoGo |= PidFile();
 
-// Load the XMI plugin
-//
-   if (!NoGo && XmiPath) NoGo = setupXmi();
-
 // All done, check for success or failure
 //
    sprintf(buff, " phase 2 %s initialization %s.", myRole,
@@ -514,7 +496,6 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
-   TS_Xeq("xmilib",        xxmi);    // Any,     non-dynamic
    }
 
    // The following are client directives that we will ignore
@@ -743,8 +724,6 @@ void XrdCmsConfig::ConfigDefaults(void)
    doWait   = 1;
    RefReset = 60*60;
    RefTurn  = 3*STMax*(DiskLinger+1);
-   XmiPath     = 0;
-   XmiParms    = 0;
    DirFlags    = 0;
    blkList     = 0;
    blkChk      = 600;
@@ -779,7 +758,7 @@ int XrdCmsConfig::ConfigN2N()
 
 // Optimize the local case
 //
-   if (N2N_Lib || LocalRoot || (RemotRoot && XmiPath)) lcl_N2N = xeq_N2N;
+   if (N2N_Lib || LocalRoot) lcl_N2N = xeq_N2N;
 
 // All done
 //
@@ -1156,85 +1135,6 @@ char *XrdCmsConfig::setupSid()
 // Generate the system ID and set the cluster ID
 //
    return XrdCmsSecurity::setSystemID(tp, myInsName, myName, sfx);
-}
-
-/******************************************************************************/
-/*                              s e t u p X m i                               */
-/******************************************************************************/
-  
-int XrdCmsConfig::setupXmi()
-{
-   EPNAME("setupXmi");
-   static XrdCmsXmiEnv XmiEnv;
-   XrdSysPlugin       *xmiLib;
-   XrdCmsXmi          *(*ep)(int, char **, XrdCmsXmiEnv *);
-   unsigned int isNormal, isDirect;
-   XrdCmsXmi          *XMI, *myXMI;
-   const char         *theMode;
-   int i;
-
-   struct {unsigned int   theMask;
-           XrdCmsXmi    **theAddr;
-           const char    *theName;} XmiTab[] =
-          {{XMI_CHMOD,  &Xmi_Chmod,  "chmod"},
-           {XMI_LOAD,   &Xmi_Load,   "load"},
-           {XMI_MKDIR,  &Xmi_Mkdir,  "mkdir"},
-           {XMI_MKPATH, &Xmi_Mkpath, "mkpath"},
-           {XMI_PREP,   &Xmi_Prep,   "prep"},
-           {XMI_RENAME, &Xmi_Rename, "rename"},
-           {XMI_REMDIR, &Xmi_Remdir, "remdir"},
-           {XMI_REMOVE, &Xmi_Remove, "remove"},
-           {XMI_SELECT, &Xmi_Select, "select"},
-           {XMI_SPACE,  &Xmi_Space,  "space"},
-           {XMI_STAT,   &Xmi_Stat,   "stat"}};
-   int numintab = sizeof(XmiTab)/sizeof(XmiTab[0]);
-
-// Fill out the rest of the XmiEnv structure
-//
-   XmiEnv.Role     = myRole;
-   XmiEnv.ConfigFN = ConfigFN;
-   XmiEnv.Parms    = XmiParms;
-   XmiEnv.eDest    = &Say;
-   XmiEnv.iNet     = NetTCP;
-   XmiEnv.Sched    = Sched;
-   XmiEnv.Trace    = &Trace;
-   XmiEnv.Name2Name= xeq_N2N;
-
-// Create a pluin object (we will throw this away without deletion because
-// the library must stay open but we never want to reference it again).
-//
-   if (!(xmiLib = new XrdSysPlugin(&Say, XmiPath, "xmilib", myVInfo))) return 1;
-
-// Now get the entry point of the object creator
-//
-   ep = (XrdCmsXmi *(*)(int, char **, XrdCmsXmiEnv *))(xmiLib->getPlugin("XrdCmsgetXmi"));
-   if (!ep) return 1;
-
-// Get the Object now
-//
-   if (!(XMI = ep(inArgc, inArgv, &XmiEnv))) return 1;
-   DEBUG("xmi library loaded; path=" <<XmiPath);
-
-// Obtain the execution mode
-//
-   XMI->XeqMode(isNormal, isDirect);
-
-// Check if we need to create an indirect XMI interface
-//
-   if ((isDirect & XMI_ALL) == XMI_ALL) myXMI = 0;
-      else myXMI = (XrdCmsXmi *)new XrdCmsXmiReq(XMI);
-
-// Now run throw all of the possibilities setting the execution mode as needed
-//
-   for (i = 0; i < numintab; i++)
-       {if (!(isNormal & XmiTab[i].theMask))
-           if (isDirect & XmiTab[i].theMask)
-                   {*XmiTab[i].theAddr =   XMI; theMode = "direct";}
-              else {*XmiTab[i].theAddr = myXMI; theMode = "queued";}
-           else theMode = "normal";
-        DEBUG(XmiTab[i].theName <<" is " <<theMode);
-       }
-   return 0;
 }
 
 /******************************************************************************/
@@ -2814,42 +2714,4 @@ int XrdCmsConfig::xtrace(XrdSysError *eDest, XrdOucStream &CFile)
 
     Trace.What = trval;
     return 0;
-}
-  
-/******************************************************************************/
-/*                                  x x m i                                   */
-/******************************************************************************/
-
-/* Function: xxmi
-
-   Purpose:  To parse the directive: xmilib <path> [<parms>]
-
-             <path>    the SO path for the XrdCmsXmi plugin.
-             <parms>   optional parms to be passed to the Xmi object
-
-  Output: 0 upon success or !0 upon failure.
-*/
-
-int XrdCmsConfig::xxmi(XrdSysError *eDest, XrdOucStream &CFile)
-{
-    char *val, parms[1024];
-
-// Get the path
-//
-   if (!(val = CFile.GetWord()) || !val[0])
-      {eDest->Emsg("Config", "xmilib path not specified"); return 1;}
-
-// Record the path
-//
-   if (XmiPath) free(XmiPath);
-   XmiPath = strdup(val);
-
-// Record any parms
-//
-   if (!CFile.GetRest(parms, sizeof(parms)))
-      {eDest->Emsg("Config", "xmilib parameters too long"); return 1;}
-   if (XmiParms) free(XmiParms);
-   XmiParms = (*parms ? strdup(parms) : 0);
-
-   return 0;
 }
