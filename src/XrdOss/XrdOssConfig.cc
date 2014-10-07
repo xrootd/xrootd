@@ -58,12 +58,12 @@
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucMsubs.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
@@ -830,12 +830,12 @@ int XrdOssSys::ConfigStageC(XrdSysError &Eroute)
 
 int XrdOssSys::ConfigStatLib(XrdSysError &Eroute)
 {
-   XrdSysPlugin myLib(&Eroute, STT_Lib, "statlib", myVersion);
+   XrdOucPinLoader myLib(&Eroute, myVersion, "statlib", STT_Lib);
    XrdOssStatInfoInit_t siGet;
 
 // Get the plugin
 //
-   if (!(siGet = (XrdOssStatInfoInit_t)myLib.getPlugin("XrdOssStatInfoInit")))
+   if (!(siGet = (XrdOssStatInfoInit_t)myLib.Resolve("XrdOssStatInfoInit")))
       return 1;
 
 // Get an Instance of the statinfo function
@@ -843,9 +843,8 @@ int XrdOssSys::ConfigStatLib(XrdSysError &Eroute)
    if (!(STT_Func = siGet(this, Eroute.logger(), ConfigFN, STT_Parms)))
       return 1;
 
-// Persist the library and return success
+// Return success
 //
-   myLib.Persist();
    return 0;
 }
   

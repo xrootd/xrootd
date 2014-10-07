@@ -45,9 +45,9 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 
@@ -378,7 +378,7 @@ int XrdBwm::setupAuth(XrdSysError &Eroute)
                                                         const char   *cfn,
                                                         const char   *parm,
                                                         XrdVersionInfo &);
-   XrdSysPlugin    *myLib;
+   XrdOucPinLoader *myLib;
    XrdAccAuthorize *(*ep)(XrdSysLogger *, const char *, const char *);
 
 // Authorization comes from the library or we use the default
@@ -389,18 +389,21 @@ int XrdBwm::setupAuth(XrdSysError &Eroute)
 // Create a pluin object (we will throw this away without deletion because
 // the library must stay open but we never want to reference it again).
 //
-   if (!(myLib = new XrdSysPlugin(&Eroute, AuthLib, "authlib", myVersion)))
+   if (!(myLib = new XrdOucPinLoader(&Eroute, myVersion, "authlib", AuthLib)))
       return 1;
 
 // Now get the entry point of the object creator
 //
    ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-                             (myLib->getPlugin("XrdAccAuthorizeObject"));
+                             (myLib->Resolve("XrdAccAuthorizeObject"));
    if (!ep) return 1;
 
 // Get the Object now
 //
-   return 0 == (Authorization = ep(Eroute.logger(), ConfigFN, AuthParm));
+   if (!(Authorization = ep(Eroute.logger(), ConfigFN, AuthParm)))
+      myLib->Unload();
+   delete myLib;
+   return (Authorization == 0);
 }
 
 /******************************************************************************/
@@ -409,22 +412,17 @@ int XrdBwm::setupAuth(XrdSysError &Eroute)
 
 int XrdBwm::setupPolicy(XrdSysError &Eroute)
 {
-   XrdSysPlugin    *myLib;
+   XrdOucPinLoader  myLib(&Eroute, myVersion, "policylib", PolLib);
    XrdBwmPolicy    *(*ep)(XrdSysLogger *, const char *, const char *);
-
-// Create a plugin object (we will throw this away without deletion because
-// the library must stay open but we never want to reference it again).
-//
-   if (!(myLib = new XrdSysPlugin(&Eroute, PolLib, "policylib", myVersion)))
-      return 1;
 
 // Now get the entry point of the object creator
 //
    ep = (XrdBwmPolicy *(*)(XrdSysLogger *, const char *, const char *))
-                          (myLib->getPlugin("XrdBwmPolicyObject"));
-   if (!ep) return 1;
+                          (myLib.Resolve("XrdBwmPolicyObject"));
+   if (!ep) {myLib.Unload(); return 1;}
 
 // Get the Object now
 //
-   return 0 == (Policy = ep(Eroute.logger(), ConfigFN, PolParm));
+   if (!(Policy = ep(Eroute.logger(), ConfigFN, PolParm))) myLib.Unload();
+   return (Policy == 0);
 }

@@ -28,8 +28,8 @@
 #include "XProtocol/XProtocol.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 
 #include "XrdHttpTrace.hh"
@@ -2107,22 +2107,15 @@ int XrdHttpProtocol::doStat(char *fname) {
 // Loads the SecXtractor plugin, if available
 int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
-    XrdSysPlugin     myLib(myeDest, libName, "secxtractorlib");
+    XrdOucPinLoader myLib(myeDest, 0, "secxtractorlib", libName);
     XrdHttpSecXtractor *(*ep)(XrdHttpSecXtractorArgs);
     //static XrdVERSIONINFODEF (myVer, XrdHttpSecXtractor, XrdVNUMBER, XrdVERSION);
 
 
     // Get the entry point of the object creator
     //
-    ep = (XrdHttpSecXtractor *(*)(XrdHttpSecXtractorArgs))(myLib.getPlugin("XrdHttpGetSecXtractor"));
-    if (!ep) return 1;
-    myLib.Persist();
-
-    // Get the Object now
-    //
-    secxtractor = ep(myeDest, NULL, libParms);
-
-    return 0;
+    ep = (XrdHttpSecXtractor *(*)(XrdHttpSecXtractorArgs))(myLib.Resolve("XrdHttpGetSecXtractor"));
+    if (ep && (secxtractor = ep(myeDest, NULL, libParms))) return 0;
+    myLib.Unload();
+    return 1;
 }
-
-

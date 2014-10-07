@@ -29,11 +29,10 @@
 
 #include "XrdVersion.hh"
 
-#include "XrdOuc/XrdOucVerName.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 /******************************************************************************/
 /*                               G l o b a l s                                */
@@ -50,11 +49,11 @@ static XrdVERSIONINFODEF(myVersion, XrdSecLoader, XrdVNUMBER, XrdVERSION);
 
 namespace
 {
-int Plug(XrdSysPlugin *piP, XrdSecGetProt_t *getP, XrdSecGetServ_t *ep)
+int Plug(XrdOucPinLoader *piP, XrdSecGetProt_t *getP, XrdSecGetServ_t *ep)
 {
 // If we need to load the protocol factory do so now
 //
-   if (getP && !(*getP=(XrdSecGetProt_t)piP->getPlugin("XrdSecGetProtocol")))
+   if (getP && !(*getP=(XrdSecGetProt_t)piP->Resolve("XrdSecGetProtocol")))
       return 1;
 
 // If we do not need to load the security service we are done
@@ -63,7 +62,7 @@ int Plug(XrdSysPlugin *piP, XrdSecGetProt_t *getP, XrdSecGetServ_t *ep)
 
 // Load the security service creator
 //
-   if ((*ep = (XrdSecGetServ_t)piP->getPlugin("XrdSecgetService"))) return 0;
+   if ((*ep = (XrdSecGetServ_t)piP->Resolve("XrdSecgetService"))) return 0;
 
 // We failed this is eiter soft or hard depending on what else we loaded
 //
@@ -83,66 +82,34 @@ int Load(      char       *eBuff,      int         eBlen,
          XrdSysError      *eDest=0)
 {
    XrdSecGetServ_t  ep;
-   XrdSysPlugin    *piP;
-   const char *libP, *mySecLib = "libXrdSec" LT_MODULE_EXT;
-   char theLib[2048];
+   XrdOucPinLoader *piP;
+   const char *mySecLib = "libXrdSec.so";
    int rc;
-   bool isMyName;
 
 // Check for default path
 //
    if (!seclib) seclib = mySecLib;
 
-// Perform versioning
+// Get a plugin loader object
 //
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, seclib, mySecLib, isMyName,
-                               theLib, sizeof(theLib)))
-      {if (eDest)
-          eDest->Say("Config ", "Unable to create security framework via ",
-                                seclib, "; invalid path.");
-       return -1;
-      }
+   if (eDest) piP = new XrdOucPinLoader(eDest,
+                                        &myVersion, "seclib", seclib, mySecLib);
+      else    piP = new XrdOucPinLoader(eBuff, eBlen,
+                                        &myVersion, "seclib", seclib, mySecLib);
 
-// Now that we have the name of the library we can declare the plugin object
-// inline so that it gets deleted when we return (icky but simple)
+// Load the appropriate pointers and get required objects.
 //
-   if (eDest) piP = new XrdSysPlugin(eDest,      theLib,"seclib",&myVersion,1);
-      else   {*eBuff = 0;
-              piP = new XrdSysPlugin(eBuff,eBlen,theLib,"seclib",&myVersion,1);
-             }
-   libP = theLib;
-
-// Load the appropriate pointers and get required objects. We stop if we
-// failed hard or if we can only try this process once because we are trying
-// to use the default library so there is no alternative library to use.
-//
-do{rc = Plug(piP, getP, &ep);
+   rc = Plug(piP, getP, &ep);
    if (rc == 0)
-      {if (secP && !(*secP = (*ep)(eDest->logger(), cfn))) break;
-       piP->Persist(); delete piP;
-       return 0;
+      {if (secP && !(*secP = (*ep)(eDest->logger(), cfn))) rc = 1;
+       if (!rc) {delete piP; return 0;}
       }
-   if (rc  < 0 || isMyName) break;
-
-// We encountered a soft failure. Try to use the unersioned form of the library
-//
-   isMyName = true;
-   delete piP;
-   if (eDest)
-      {eDest->Say("Config ", "Falling back to using ", seclib);
-       piP = new XrdSysPlugin(eDest,      seclib,"seclib",&myVersion,1);
-      } else {
-       *eBuff = 0;
-       piP = new XrdSysPlugin(eBuff,eBlen,seclib,"seclib",&myVersion,1);
-      }
-   libP = seclib;
-  } while(true);
 
 // We failed, so bail out
 //
    if (eDest)
-      eDest->Say("Config ","Unable to create security framework via ", libP);
-   delete piP;
+      eDest->Say("Config ","Unable to create security framework via ", seclib);
+   piP->Unload(true);
    return 1;
 }
 }

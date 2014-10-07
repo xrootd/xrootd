@@ -53,7 +53,6 @@
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPlatform.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include "XrdOuc/XrdOuca2x.hh"
@@ -61,6 +60,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucExport.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTList.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -430,20 +430,20 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 
 int XrdPssSys::getCache()
 {
-   XrdSysPlugin     myLib(&eDest, cPath, "cachelib", myVersion);
+   XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath,"libXrdFileCache.so");
    XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
    XrdOucCache     *theCache;
 
 // Now get the entry point of the object creator
 //
    ep = (XrdOucCache *(*)(XrdSysLogger *, const char *, const char *))
-                    (myLib.getPlugin("XrdOucGetCache"));
+                    (myLib.Resolve("XrdOucGetCache"));
    if (!ep) return 0;
 
 // Get the Object now
 //
    theCache = ep(eDest.logger(), ConfigFN, cParm);
-   if (theCache) {XrdPosixXrootd::setCache(theCache); myLib.Persist();}
+   if (theCache) {XrdPosixXrootd::setCache(theCache);}
       else eDest.Emsg("Config", "Unable to get cache object from", cPath);
    return theCache != 0;
 }
@@ -551,7 +551,7 @@ do{for (i = 0; i < numopts; i++) if (!strcmp(szopts[i].Key, val)) break;
 
 /* Function: xcacl
 
-   Purpose:  To parse the directive: cachelib <path> [<parms>]
+   Purpose:  To parse the directive: cachelib {<path>|default} [<parms>]
 
              <path>    the path of the cache library to be used.
              <parms>   optional parms to be passed
@@ -571,7 +571,7 @@ int XrdPssSys::xcacl(XrdSysError *Eroute, XrdOucStream &Config)
 // Save the path
 //
    if (cPath) free(cPath);
-   cPath = strdup(val);
+   cPath = (strcmp(val,"default") ? strdup(val) : strdup("libXrdFileCache.so"));
 
 // Get the parameters
 //

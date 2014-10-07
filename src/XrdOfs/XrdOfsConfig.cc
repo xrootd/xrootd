@@ -55,9 +55,9 @@
 
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
 #include "XrdOuc/XrdOucUtils.hh"
@@ -516,11 +516,10 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 // If a cmslib was specified then create a plugin object
 //
    if (CmsLib)
-      {XrdSysPlugin myLib(&Eroute,CmsLib,"cmslib",&XrdVERSIONINFOVAR(XrdOfs));
+      {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"cmslib",CmsLib);
        CmsPI = (XrdCmsClient *(*)(XrdSysLogger *, int, int, XrdOss *))
-                                  (myLib.getPlugin("XrdCmsGetClient"));
+                                  (myLib.Resolve("XrdCmsGetClient"));
        if (!CmsPI) return 1;
-       myLib.Persist();
       }
 
 // For manager roles, we simply do a standard config
@@ -1524,11 +1523,10 @@ int XrdOfs::setupAuth(XrdSysError &Eroute)
 
 // Create a plugin object
 //
-  {XrdSysPlugin myLib(&Eroute, AuthLib, "authlib", &XrdVERSIONINFOVAR(XrdOfs));
+  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"authlib",AuthLib);
    ep = (XrdAccAuthorize *(*)(XrdSysLogger *, const char *, const char *))
-                             (myLib.getPlugin("XrdAccAuthorizeObject"));
+                             (myLib.Resolve("XrdAccAuthorizeObject"));
    if (!ep) return 1;
-   myLib.Persist();
   }
 
 // Get the Object now

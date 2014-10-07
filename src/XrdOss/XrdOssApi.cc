@@ -56,6 +56,7 @@
 #include "XrdOss/XrdOssTrace.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucName2Name.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSfs/XrdSfsFlags.hh"
 #include "XrdSys/XrdSysAtomics.hh"
@@ -101,7 +102,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 {
    static XrdOssSys   myOssSys;
    extern XrdSysError OssEroute;
-   XrdSysPlugin    *myLib;
+   XrdOucPinLoader *myLib;
    XrdOss          *ossP;
    XrdOss          *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
 
@@ -119,18 +120,18 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 // Create a plugin object
 //
    OssEroute.logger(Logger);
-   if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib, "osslib",
-                                  myOssSys.myVersion))) return 0;
+   if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
+                                     "osslib", OssLib))) return 0;
 
 // Now get the entry point of the object creator
 //
    ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
-                    (myLib->getPlugin("XrdOssGetStorageSystem"));
+                    (myLib->Resolve("XrdOssGetStorageSystem"));
    if (!ep) return 0;
 
 // Get the Object now
 //
-   myLib->Persist(); delete myLib;
+   delete myLib;
    if ((ossP = ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms)) && envP)
       ossP->EnvInfo(envP);
    return ossP;

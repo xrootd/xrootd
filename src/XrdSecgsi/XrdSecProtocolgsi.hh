@@ -326,9 +326,7 @@ private:
    static int              GMAPOpt;
    static bool             GMAPuseDNname;
    static int              GMAPCacheTimeOut;
-   static XrdSysPlugin    *GMAPPlugin;
    static XrdSecgsiGMAP_t  GMAPFun;
-   static XrdSysPlugin    *AuthzPlugin;
    static XrdSecgsiAuthz_t AuthzFun; 
    static XrdSecgsiAuthzKey_t AuthzKey; 
    static int              AuthzCertFmt; 
@@ -338,7 +336,6 @@ private:
    static int              AuthzPxyWhere;
    static String           SrvAllowedNames;
    static int              VOMSAttrOpt; 
-   static XrdSysPlugin    *VOMSPlugin;
    static XrdSecgsiVOMS_t  VOMSFun;
    static int              VOMSCertFmt; 
    static int              MonInfoOpt;

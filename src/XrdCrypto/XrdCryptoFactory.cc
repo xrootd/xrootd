@@ -42,7 +42,7 @@
 #include "XrdCrypto/XrdCryptolocalFactory.hh"
 
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
 //
@@ -329,7 +329,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
  
    static FactoryEntry  *factorylist = 0;
    static int            factorynum = 0;
-   static XrdOucHash<XrdSysPlugin> plugins;
+   static XrdOucHash<XrdOucPinLoader> plugins;
    XrdCryptoFactory     *(*efact)();
    XrdCryptoFactory *factory;
    char factobjname[80], libfn[80];
@@ -396,13 +396,13 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    sprintf(factobjname, "XrdCrypto%sFactoryObject", factoryid);
    
    // Create or attach to the plug-in instance
-   XrdSysPlugin *plug = plugins.Find(factoryid);
+   XrdOucPinLoader *plug = plugins.Find(factoryid);
    if (!plug) {
       // Create one and add it to the list
-      snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s%s", factoryid, LT_MODULE_EXT);
+      snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
       libfn[sizeof(libfn)-1] = '\0';
       
-      plug = new XrdSysPlugin(&eDest, libfn);
+      plug = new XrdOucPinLoader(&eDest, 0, "cryptolib", libfn);
       plugins.Add(factoryid, plug);
    }
    if (!plug) {
@@ -412,7 +412,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    DEBUG("shared library '" << libfn << "' loaded");
 
    // Get the function
-   if (!(efact = (XrdCryptoFactory *(*)()) plug->getPlugin(factobjname))) {
+   if (!(efact = (XrdCryptoFactory *(*)()) plug->Resolve(factobjname))) {
       PRINT("problems finding crypto factory object creator " << factobjname);
       return 0;
    }

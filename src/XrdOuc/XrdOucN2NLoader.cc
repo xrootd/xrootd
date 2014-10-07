@@ -31,6 +31,7 @@
 #include "XrdVersion.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucN2NLoader.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
 #include "XrdSys/XrdSysPlugin.hh"
 
@@ -41,7 +42,6 @@
 XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
                                        XrdVersionInfo &urVer)
 {
-   XrdSysPlugin     myLib(eRoute, libName, "namelib", &urVer);
    XrdOucName2Name *(*ep)(XrdOucgetName2NameArgs);
    static XrdVERSIONINFODEF (myVer, XrdN2N, XrdVNUMBER, XrdVERSION);
 
@@ -60,9 +60,9 @@ XrdOucName2Name *XrdOucN2NLoader::Load(const char     *libName,
 
 // Get the entry point of the object creator
 // 
-   ep = (XrdOucName2Name *(*)(XrdOucgetName2NameArgs))(myLib.getPlugin("XrdOucgetName2Name"));
+   XrdOucPinLoader  myLib(eRoute, &urVer, "namelib", libName);
+   ep = (XrdOucName2Name *(*)(XrdOucgetName2NameArgs))(myLib.Resolve("XrdOucgetName2Name"));
    if (!ep) return 0;
-   myLib.Persist();
 
 // Get the Object now
 // 

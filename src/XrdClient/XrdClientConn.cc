@@ -47,6 +47,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -67,13 +68,6 @@
 #undef  _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 32
 #undef  _LARGEFILE_SOURCE
-#endif
-#endif
-
-#ifndef WIN32
-#include <dlfcn.h>
-#ifndef __APPLE__
-#include <link.h>
 #endif
 #endif
 
@@ -1698,15 +1692,16 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 
    // We need to load the protocol getter the first time we are here
    if (!getp) {
-      char errorBuff[1024];
-      getp = XrdSecLoadSecFactory( errorBuff, 1024 );
-      if( !getp )
-      {
-         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication", errorBuff );
+      LastServerError.errmsg[0] = 0;
+      if (!(getp = XrdSecLoadSecFactory(LastServerError.errmsg,
+                                        sizeof(LastServerError.errmsg))))
+        {Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+                                       "unable to load XrdSecGetProtocol()");
          // Set error, in case of need
          fOpenError = kXR_NotAuthorized;
          LastServerError.errnum = fOpenError;
-         strncpy( LastServerError.errmsg, errorBuff, 1024 );
+         if (!LastServerError.errmsg[0])
+            strcpy(LastServerError.errmsg, "Unable to load XrdSecGetProtocol()");
          return protocol;
       }
    }
