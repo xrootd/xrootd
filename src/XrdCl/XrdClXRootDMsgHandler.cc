@@ -1073,7 +1073,7 @@ namespace XrdCl
         errmsg[rsp->hdr.dlen-4] = 0;
         memcpy( errmsg, rsp->body.error.errmsg, rsp->hdr.dlen-4 );
         st->SetErrorMessage( errmsg );
-        delete errmsg;
+        delete [] errmsg;
       }
       else if( pStatus.code == errRedirect )
         st->SetErrorMessage( pRedirectUrl );
