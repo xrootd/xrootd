@@ -106,7 +106,7 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 add_library(
   ${LIB_XRD_SEC_UNIX}
-  SHARED
+  MODULE
   XrdSecunix/XrdSecProtocolunix.cc )
 
 target_link_libraries(
