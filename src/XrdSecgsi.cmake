@@ -5,7 +5,7 @@ include( XRootDCommon )
 # Shared library version
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
-set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPDLAP-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPLDAP-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
