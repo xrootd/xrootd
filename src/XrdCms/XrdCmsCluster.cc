@@ -1701,6 +1701,9 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
       {if (!baseFS.Local())
           {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
            TRACE(Files, "seeking " <<Sel.Path.Val);
+           Cache.AddFile(Sel, 0);
+           if (Sel.Opts & XrdCmsSelect::Refresh)
+              QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
            Cluster.Broadsend(amask, QReq.Hdr, Sel.Path.Val, Sel.Path.Len+1);
            return 0;
           }

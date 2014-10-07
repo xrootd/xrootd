@@ -1629,7 +1629,7 @@ int XrdCmsConfig::xdfs(XrdSysError *eDest, XrdOucStream &CFile)
 do{     if (!strcmp("mdhold",  val))
            {if (!(val = CFile.GetWord()))
                {eDest->Emsg("Config","mdhold value not specified.");  return 1;}
-            if (XrdOuca2x::a2tm(*eDest, "hold value", val, &Hold, 1)) return 1;
+            if (XrdOuca2x::a2tm(*eDest, "hold value", val, &Hold, 0)) return 1;
            }
    else if (!strcmp("limit",   val))
            {if (!(val = CFile.GetWord()))
