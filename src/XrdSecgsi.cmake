@@ -20,7 +20,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI}
-  XrdCryptossl
+# XrdCryptossl
   XrdCrypto
   XrdUtils
   pthread )
@@ -90,9 +90,10 @@ add_executable(
 
 target_link_libraries(
   xrdgsiproxy
-  XrdCryptossl
+  XrdCryptosslAux
   XrdCrypto
-  XrdUtils )
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install

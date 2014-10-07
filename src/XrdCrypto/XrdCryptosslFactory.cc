@@ -53,7 +53,6 @@
 // For error logging and tracing
 static XrdSysLogger Logger;
 static XrdSysError eDest(0,"cryptossl_");
-XrdOucTrace *sslTrace = 0;
 
 // Mutexes for OpenSSL
 XrdSysMutex *XrdCryptosslFactory::CryptoMutexPool[SSLFACTORY_MAX_CRYPTO_MUTEX];
