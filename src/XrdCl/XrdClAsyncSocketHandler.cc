@@ -21,6 +21,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClMessage.hh"
 #include "XrdCl/XrdClAsyncSocketHandler.hh"
+#include <netinet/tcp.h>
 
 namespace XrdCl
 {
@@ -88,6 +89,48 @@ namespace XrdCl
                   pStreamName.c_str(), st.ToString().c_str() );
       st.status = stFatal;
       return st;
+    }
+
+    //--------------------------------------------------------------------------
+    // Set the keep-alive up
+    //--------------------------------------------------------------------------
+    Env *env = DefaultEnv::GetEnv();
+
+    int keepAlive = DefaultTCPKeepAlive;
+    env->GetInt( "TCPKeepAlive", keepAlive );
+    if( keepAlive )
+    {
+      int    param = 1;
+      Status st    = pSocket->SetSockOpt( SOL_SOCKET, SO_KEEPALIVE, &param,
+                                          sizeof(param) );
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to turn on keepalive: %s",
+                    st.ToString().c_str() );
+
+#if defined(__linux__) && defined( TCP_KEEPIDLE ) && \
+    defined( TCP_KEEPINTVL ) && defined( TCP_KEEPCNT )
+
+      param = DefaultTCPKeepAliveTime;
+      env->GetInt( "TCPKeepAliveTime", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPIDLE, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive time: %s",
+                    st.ToString().c_str() );
+
+      param = DefaultTCPKeepAliveInterval;
+      env->GetInt( "TCPKeepAliveInterval", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPINTVL, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive interval: %s",
+                    st.ToString().c_str() );
+
+      param = DefaultTCPKeepAliveProbes;
+      env->GetInt( "TCPKeepAliveProbes", param );
+      st = pSocket->SetSockOpt(SOL_TCP, TCP_KEEPCNT, &param, sizeof(param));
+      if( !st.IsOK() )
+        log->Error( AsyncSockMsg, "[%s] Unable to set keepalive probes: %s",
+                    st.ToString().c_str() );
+#endif
     }
 
     pHandShakeDone = false;

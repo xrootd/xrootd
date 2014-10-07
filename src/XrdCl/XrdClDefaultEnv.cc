@@ -194,6 +194,10 @@ namespace XrdCl
     REGISTER_VAR_INT( varsInt, "LoadBalancerTTL",      DefaultLoadBalancerTTL      );
     REGISTER_VAR_INT( varsInt, "CPInitTimeout",        DefaultCPInitTimeout        );
     REGISTER_VAR_INT( varsInt, "CPTPCTimeout",         DefaultCPTPCTimeout         );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAlive",         DefaultTCPKeepAlive         );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAliveTime",     DefaultTCPKeepAliveTime     );
+    REGISTER_VAR_INT( varsInt, "TCPKeepAliveInterval", DefaultTCPKeepAliveInterval );
+    REGISTER_VAR_INT( varsInt, "TCPKeepProbes",        DefaultTCPKeepAliveProbes   );
 
     REGISTER_VAR_STR( varsStr, "PollerPreference",     DefaultPollerPreference     );
     REGISTER_VAR_STR( varsStr, "ClientMonitor",        DefaultClientMonitor        );
