@@ -1,11 +1,13 @@
-
 include( XRootDCommon )
+
+#-------------------------------------------------------------------------------
+# Modules
+#-------------------------------------------------------------------------------
+set( LIB_XRD_HTTP       XrdHttp-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_HTTP_VERSION   1.0.0 )
-set( XRD_HTTP_SOVERSION 1 )
 
 if( BUILD_CRYPTO )
   #-----------------------------------------------------------------------------
@@ -14,8 +16,8 @@ if( BUILD_CRYPTO )
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
   add_library(
-    XrdHttp
-    SHARED
+    ${LIB_XRD_HTTP}
+    MODULE
     XrdHttp/XrdHttpProtocol.cc    XrdHttp/XrdHttpProtocol.hh
     XrdHttp/XrdHttpReq.cc         XrdHttp/XrdHttpReq.hh
                                   XrdHttp/XrdHttpSecXtractor.hh
@@ -24,7 +26,7 @@ if( BUILD_CRYPTO )
     XrdHttp/XrdHttpUtils.cc       XrdHttp/XrdHttpUtils.hh )
 
   target_link_libraries(
-    XrdHttp
+    ${LIB_XRD_HTTP}
     XrdServer
     XrdXrootd
     XrdUtils
@@ -35,10 +37,8 @@ if( BUILD_CRYPTO )
     ${OPENSSL_CRYPTO_LIBRARY} )
 
   set_target_properties(
-    XrdHttp
+    ${LIB_XRD_HTTP}
     PROPERTIES
-    VERSION   ${XRD_HTTP_VERSION}
-    SOVERSION ${XRD_HTTP_SOVERSION}
     INTERFACE_LINK_LIBRARIES ""
     LINK_INTERFACE_LIBRARIES "" )
 
@@ -46,7 +46,7 @@ if( BUILD_CRYPTO )
   # Install
   #-----------------------------------------------------------------------------
   install(
-    TARGETS XrdHttp
+    TARGETS ${LIB_XRD_HTTP}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 
 endif()
