@@ -510,15 +510,13 @@ fi
 %files libs
 %defattr(-,root,root,-)
 %{_libdir}/libXrdAppUtils.so.*
-%{_libdir}/libXrdCksCalczcrc32.so.*
+%{_libdir}/libXrdCksCalczcrc32*.so
 %{_libdir}/libXrdCrypto.so.*
 %{_libdir}/libXrdCryptoLite.so.*
-%{_libdir}/libXrdCryptossl.so.*
+%{_libdir}/libXrdCryptossl*.so
+%{_libdir}/libXrdCryptosslAux.so.*
 %{_libdir}/libXrdSec*.so
 %{_libdir}/libXrdUtils.so.*
-# Some of the libraries are used as plugins - need the .so symlink at runtime
-%{_libdir}/libXrdCksCalczcrc32.so
-%{_libdir}/libXrdCryptossl.so
 
 %files devel
 %defattr(-,root,root,-)
@@ -536,6 +534,7 @@ fi
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
 %{_libdir}/libXrdUtils.so
+%{_libdir}/libXrdCryptosslAux.so
 
 %files client-libs
 %defattr(-,root,root,-)
@@ -562,19 +561,16 @@ fi
 
 %files server-libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdBwm.so.*
-%{_libdir}/libXrdPss.so.*
+%{_libdir}/libXrdBwm*.so
+%{_libdir}/libXrdPss*.so
 %{_libdir}/libXrdOfs.so.*
 %{_libdir}/libXrdServer.so.*
 %{_libdir}/libXrdXrootd.so.*
-%{_libdir}/libXrdFileCache.so.*
-%{_libdir}/libXrdHttp.so.*
+%{_libdir}/libXrdFileCache*.so
+%{_libdir}/libXrdHttp*.so
+%{_libdir}/libXrdOssSIgpfsT*.so
 # Some of the libraries are used as plugins - need the .so symlink at runtime
-%{_libdir}/libXrdBwm.so
-%{_libdir}/libXrdPss.so
 %{_libdir}/libXrdXrootd.so
-%{_libdir}/libXrdFileCache.so
-%{_libdir}/libXrdHttp.so
 
 %files server-devel
 %defattr(-,root,root,-)
