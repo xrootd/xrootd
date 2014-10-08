@@ -117,11 +117,12 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
                     else return (XrdOss *)&myOssSys;
                 }
 
-// Create a plugin object
+// Create a plugin object. Take into account the proxy library. Eventually,
+// we will need to support other core libraries. But, for now, this will do.
 //
    OssEroute.logger(Logger);
    if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
-                                     "osslib", OssLib))) return 0;
+                                     "osslib",OssLib,"libXrdPss.so"))) return 0;
 
 // Now get the entry point of the object creator
 //
