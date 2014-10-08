@@ -2,44 +2,44 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
-# Shared library version
+# Modules
 #-------------------------------------------------------------------------------
-set( XRD_PSS_VERSION   2.0.0 )
-set( XRD_PSS_SOVERSION 2 )
-set( XRD_BWM_VERSION   2.0.0 )
-set( XRD_BWM_SOVERSION 2 )
+set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
+set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
-# The XrdPss lib
+# Shared library version
+#-------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------
+# The XrdPss module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdPss
-  SHARED
+  ${LIB_XRD_PSS}
+  MODULE
   XrdPss/XrdPssAio.cc
   XrdPss/XrdPss.cc           XrdPss/XrdPss.hh
   XrdPss/XrdPssCks.cc        XrdPss/XrdPssCks.hh
   XrdPss/XrdPssConfig.cc )
 
 target_link_libraries(
-  XrdPss
+  ${LIB_XRD_PSS}
   XrdFfs
   XrdPosix
   XrdUtils )
 
 set_target_properties(
-  XrdPss
+  ${LIB_XRD_PSS}
   PROPERTIES
-  VERSION   ${XRD_PSS_VERSION}
-  SOVERSION ${XRD_PSS_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdBwm lib
+# The XrdBwm module
 #-------------------------------------------------------------------------------
 add_library(
-  XrdBwm
-  SHARED
+  ${LIB_XRD_BWM}
+  MODULE
   XrdBwm/XrdBwm.cc             XrdBwm/XrdBwm.hh
   XrdBwm/XrdBwmConfig.cc
   XrdBwm/XrdBwmHandle.cc       XrdBwm/XrdBwmHandle.hh
@@ -49,16 +49,14 @@ add_library(
                                XrdBwm/XrdBwmTrace.hh )
 
 target_link_libraries(
-  XrdBwm
+  ${LIB_XRD_BWM}
   XrdServer
   XrdUtils
   pthread )
 
 set_target_properties(
-  XrdBwm
+  ${LIB_XRD_BWM}
   PROPERTIES
-  VERSION   ${XRD_BWM_VERSION}
-  SOVERSION ${XRD_BWM_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -66,5 +64,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdPss XrdBwm
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
