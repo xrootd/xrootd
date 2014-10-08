@@ -130,6 +130,7 @@ if( BUILD_CRYPTO )
   target_link_libraries(
     ${LIB_XRD_CRYPTOSSL}
     XrdCrypto
+    XrdCryptosslAux
     XrdUtils
     pthread
     ${OPENSSL_LIBRARIES} )

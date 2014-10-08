@@ -4870,6 +4870,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 {
    // Load the DN-Username mapping function from the specified plug-in
    EPNAME("LoadGMAPFun");
+   char errBuff[2048];
 
    // Make sure the input config file is defined
    if (!plugin || strlen(plugin) <= 0) {
@@ -4878,7 +4879,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
    }
 
    // Create the plug-in instance
-   XrdOucPinLoader gmapLib(&eDest, 0, "gmaplib", plugin);
+   XrdOucPinLoader gmapLib(errBuff, sizeof(errBuff), 0, "gmaplib", plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -4900,6 +4901,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
    ep = (XrdSecgsiGMAP_t) gmapLib.Resolve("XrdSecgsiGMAPFun");
 
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiGMAPFun()' in "<<plugin);
       return (XrdSecgsiGMAP_t)0;
    }
@@ -4960,6 +4962,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    //    allocated internally with 'new char[]'.
    //
    EPNAME("LoadAuthzFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -4969,7 +4972,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   XrdOucPinLoader authzLib(&eDest, 0, "authzlib", plugin);
+   XrdOucPinLoader authzLib(errBuff, sizeof(errBuff), 0, "authzlib", plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -4990,6 +4993,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    if (useglobals) authzLib.Global(true);
    ep = (XrdSecgsiAuthz_t) authzLib.Resolve("XrdSecgsiAuthzFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
@@ -4997,6 +5001,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    // Get the key function
    AuthzKey = (XrdSecgsiAuthzKey_t) authzLib.Resolve("XrdSecgsiAuthzKey");
    if (!AuthzKey) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzKey()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
@@ -5054,6 +5059,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    //                          1       PEM (base64 standard string)
    //
    EPNAME("LoadVOMSFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -5063,7 +5069,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   XrdOucPinLoader vomsLib(&eDest, 0, "vomslib", plugin);
+   XrdOucPinLoader vomsLib(errBuff, sizeof(errBuff), 0, "vomslib", plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5084,6 +5090,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    if (useglobals) vomsLib.Global(true);
    ep = (XrdSecgsiVOMS_t) vomsLib.Resolve("XrdSecgsiVOMSFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
@@ -5092,6 +5099,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    XrdSecgsiVOMSInit_t epinit = 0;
    epinit = (XrdSecgsiVOMSInit_t) vomsLib.Resolve("XrdSecgsiVOMSInit");
    if (!epinit) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSInit()' in "<<plugin);
       return (XrdSecgsiVOMS_t)0;
    }

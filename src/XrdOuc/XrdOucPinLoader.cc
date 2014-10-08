@@ -72,8 +72,29 @@ XrdOucPinLoader::XrdOucPinLoader(char           *eBuff,
 //
    eDest = 0;
    viP   = vInfo;
-   errBP = eBuff;
-   errBL = eBlen;
+   errBP = (eBlen > 0 ? eBuff : 0);
+   errBL = (eBlen > 0 ? eBlen : 0);
+   frBuff= false;
+   if (errBP) *errBP = 0;
+   Init(drctv, plib, dist);
+}
+
+/******************************************************************************/
+
+XrdOucPinLoader::XrdOucPinLoader(XrdVersionInfo *vInfo,
+                                 const char     *drctv,
+                                 const char     *plib,
+                                 const char     *dist)
+{
+   static const int ebsz = 1024;
+
+// Save some symbols and do common initialization
+//
+   eDest = 0;
+   viP   = vInfo;
+   errBP = (char *)malloc(ebsz);
+   errBL = ebsz;
+   frBuff= true;
    Init(drctv, plib, dist);
 }
 
@@ -92,8 +113,8 @@ XrdOucPinLoader::~XrdOucPinLoader()
 // Persist the image if we have one
 //
    if (piP) {piP->Persist(); delete piP;}
+   if (errBP && frBuff) free(errBP);
 }
-  
 
 /******************************************************************************/
 /* Private:                       I n f o r m                                 */
@@ -184,7 +205,8 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
    if (!altLib) return 0;
    tryLib = altLib;
    if (eDest) eDest->Say("Config ", "Falling back to using ", altLib);
-   piP = new XrdSysPlugin(eDest, altLib, dName, viP, 1);
+   if (eDest) piP = new XrdSysPlugin(eDest,        theLib, dName, viP, mcnt);
+      else    piP = new XrdSysPlugin(errBP, errBL, theLib, dName, viP, mcnt);
    if ((symAddr = piP->getPlugin(symP, 0, global))) return symAddr;
 
 // We failed

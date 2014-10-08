@@ -402,7 +402,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
       snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
       libfn[sizeof(libfn)-1] = '\0';
       
-      plug = new XrdOucPinLoader(&eDest, 0, "cryptolib", libfn);
+      plug = new XrdOucPinLoader(0, "cryptolib", libfn);
       plugins.Add(factoryid, plug);
    }
    if (!plug) {
@@ -413,6 +413,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 
    // Get the function
    if (!(efact = (XrdCryptoFactory *(*)()) plug->Resolve(factobjname))) {
+      PRINT(plug->LastMsg());
       PRINT("problems finding crypto factory object creator " << factobjname);
       return 0;
    }

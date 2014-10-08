@@ -72,6 +72,15 @@ XrdSysPlugin *Export() {XrdSysPlugin *tmp = piP; piP = 0; return tmp;}
 void          Global(bool glbl) {global = glbl;}
 
 //------------------------------------------------------------------------------
+//! Get the last message placed in the buffer.
+//!
+//! @return Pointer to the last message. If there is no buffer or no message
+//!         exists, a null string is returned.
+//------------------------------------------------------------------------------
+
+const char   *LastMsg() {return (errBP ? errBP : "");}
+
+//------------------------------------------------------------------------------
 //! Get the actual path that was or will tried for loading.
 //!
 //! @return       Pointer to the path that was loaded if called after Resolve()
@@ -146,6 +155,25 @@ void          Unload(bool dodel=false);
                               const char     *dist=0);
 
 //------------------------------------------------------------------------------
+//! Constructor #3 (An internal message buffer is allocated. You can get the
+//!                 message, if any, using LastMsg())
+//!
+//! @param vInfo  Pointer to the version information of the caller. If the
+//!               pointer is nil, no version checking occurs.
+//! @param drctv  Pointer to the directive that initiated the load.
+//! @param plib   Pointer to the shared library path that contains the plugin.
+//! @param dist   Pointer to the file name of the plugin if it's part of the
+//!               core distribution. If it matches, only the versioned name will
+//!               be loaded. If nil or there is no match, if the versioned file
+//!               name does not exist, the unversioned name will be loaded.
+//------------------------------------------------------------------------------
+
+              XrdOucPinLoader(XrdVersionInfo *vInfo,
+                              const char     *drctv,
+                              const char     *plib,
+                              const char     *dist=0);
+
+//------------------------------------------------------------------------------
 //! Destructor
 //!
 //! Upon deletion, if the plugin was successfully loaded, it is persisted.
@@ -169,5 +197,6 @@ char           *altLib;
 char           *errBP;
 int             errBL;
 bool            global;
+bool            frBuff;
 };
 #endif

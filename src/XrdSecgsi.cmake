@@ -22,6 +22,7 @@ target_link_libraries(
   ${LIB_XRD_SEC_GSI}
 # XrdCryptossl
   XrdCrypto
+  XrdCryptosslAux
   XrdUtils
   pthread )
 
