@@ -1,17 +1,20 @@
 include( XRootDCommon )
 
 #-------------------------------------------------------------------------------
+# Modules
+#-------------------------------------------------------------------------------
+set( LIB_XRD_FILECACHE  XrdFileCache-${PLUGIN_VERSION} )
+
+#-------------------------------------------------------------------------------
 # Shared library version
 #-------------------------------------------------------------------------------
-set( XRD_FILE_CACHE_VERSION   1.0.0 )
-set( XRD_FILE_CACHE_SOVERSION 1 )
 
 #-------------------------------------------------------------------------------
 # The XrdFileCache library
 #-------------------------------------------------------------------------------
 add_library(
-  XrdFileCache
-  SHARED
+  ${LIB_XRD_FILECACHE}
+  MODULE
   XrdFileCache/XrdFileCache.cc              XrdFileCache/XrdFileCache.hh
   XrdFileCache/XrdFileCacheFactory.cc       XrdFileCache/XrdFileCacheFactory.hh
   XrdFileCache/XrdFileCachePrefetch.cc      XrdFileCache/XrdFileCachePrefetch.hh
@@ -22,7 +25,7 @@ add_library(
   XrdFileCache/XrdFileCacheDecision.hh)
 
 target_link_libraries(
-  XrdFileCache
+  ${LIB_XRD_FILECACHE}
   XrdPosix
   XrdCl
   XrdUtils
@@ -30,10 +33,8 @@ target_link_libraries(
   pthread )
 
 set_target_properties(
-  XrdFileCache
+  ${LIB_XRD_FILECACHE}
   PROPERTIES
-  VERSION   ${XRD_FILE_CACHE_VERSION}
-  SOVERSION ${XRD_FILE_CACHE_SOVERSION}
   INTERFACE_LINK_LIBRARIES ""
   LINK_INTERFACE_LIBRARIES "" )
 
@@ -41,5 +42,5 @@ set_target_properties(
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdFileCache
+  TARGETS ${LIB_XRD_FILECACHE}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
