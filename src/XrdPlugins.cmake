@@ -6,6 +6,7 @@ include( XRootDCommon )
 #-------------------------------------------------------------------------------
 set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
+set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -61,8 +62,26 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# GPFS stat() plugin library
+#-------------------------------------------------------------------------------
+add_library(
+  ${LIB_XRD_GPFS}
+  MODULE
+  XrdOss/XrdOssSIgpfsT.cc )
+
+target_link_libraries(
+  ${LIB_XRD_GPFS}
+  XrdUtils )
+
+set_target_properties(
+  ${LIB_XRD_GPFS}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM}
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
