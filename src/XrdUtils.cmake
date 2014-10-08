@@ -191,29 +191,8 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# libz compatible CRC32
-#-------------------------------------------------------------------------------
-add_library(
-  XrdCksCalczcrc32
-  SHARED
-  XrdCks/XrdCksCalczcrc32.cc )
-
-target_link_libraries(
-  XrdCksCalczcrc32
-  XrdUtils
-  ${ZLIB_LIBRARY} )
-
-set_target_properties(
-  XrdCksCalczcrc32
-  PROPERTIES
-  VERSION   ${XRD_ZCRC32_VERSION}
-  SOVERSION ${XRD_ZCRC32_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils XrdCksCalczcrc32
+  TARGETS XrdUtils
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

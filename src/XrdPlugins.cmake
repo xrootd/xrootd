@@ -7,6 +7,7 @@ include( XRootDCommon )
 set( LIB_XRD_BWM        XrdBwm-${PLUGIN_VERSION} )
 set( LIB_XRD_PSS        XrdPss-${PLUGIN_VERSION} )
 set( LIB_XRD_GPFS       XrdOssSIgpfsT-${PLUGIN_VERSION} )
+set( LIB_XRD_ZCRC32     XrdCksCalczcrc32-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -80,8 +81,28 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
+# libz compatible CRC32 plugin
+#-------------------------------------------------------------------------------
+
+add_library(
+  ${LIB_XRD_ZCRC32}
+  MODULE
+  XrdCks/XrdCksCalczcrc32.cc )
+
+target_link_libraries(
+  ${LIB_XRD_ZCRC32}
+  XrdUtils
+  ${ZLIB_LIBRARY} )
+
+set_target_properties(
+  ${LIB_XRD_ZCRC32}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
+
+#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS}
+  TARGETS ${LIB_XRD_PSS} ${LIB_XRD_BWM} ${LIB_XRD_GPFS} ${LIB_XRD_ZCRC32}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
