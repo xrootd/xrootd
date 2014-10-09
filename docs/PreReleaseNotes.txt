@@ -26,6 +26,7 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Avoid SEGV when no environment has been passed in the proxy server.
    * Fix bug in handling cms.dfs redirect verify that would keep the
      client is an infinite wait loop. This also affected locate requests
      regardless of what the redirect option was set to.
