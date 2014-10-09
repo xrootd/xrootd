@@ -146,7 +146,7 @@ extern "C" {
 // This function is called early on to determine the port we need to use. The
 // default is ostensibly 1094 but can be overidden; which we allow.
 //
-XrdVERSIONINFO(XrdgetProtocolPort, xrootd);
+XrdVERSIONINFO(XrdgetProtocolPort, xrdhttp);
 
 extern "C" {
 
@@ -2107,10 +2107,9 @@ int XrdHttpProtocol::doStat(char *fname) {
 // Loads the SecXtractor plugin, if available
 int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
-    XrdOucPinLoader myLib(myeDest, 0, "secxtractorlib", libName);
+    XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
+    XrdOucPinLoader myLib(myeDest, myVer, "secxtractorlib", libName);
     XrdHttpSecXtractor *(*ep)(XrdHttpSecXtractorArgs);
-    //static XrdVERSIONINFODEF (myVer, XrdHttpSecXtractor, XrdVNUMBER, XrdVERSION);
-
 
     // Get the entry point of the object creator
     //
