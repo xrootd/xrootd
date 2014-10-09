@@ -400,7 +400,7 @@ int XrdPssSys::Rename(const char *oldname, const char *newname,
 int XrdPssSys::Stat(const char *path, struct stat *buff, int Opts, XrdOucEnv *eP)
 {
    int CgiLen, retc;
-   const char *Cgi = eP->Env(CgiLen);
+   const char *Cgi = (eP ? eP->Env(CgiLen) : 0);
    char pbuff[PBsz], cbuff[CBsz];
 
 // Setup any required cgi information
