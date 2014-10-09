@@ -68,6 +68,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptosslgsiAux.hh"
 #include "XrdCrypto/XrdCryptoX509.hh"
@@ -77,12 +79,29 @@
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 #include "XrdSut/XrdSutBucket.hh"
 
+
+/******************************************************************************/
+/*                   V e r s i o n   I n f o r m a t i o n                    */
+/******************************************************************************/
+  
+XrdVERSIONINFO(XrdSecgsiVOMSFun,secgsivoms);
+
+XrdVERSIONINFO(XrdSecgsiVOMSInit,secgsivoms);
+
+/******************************************************************************/
+/*                               G l o b a l s                                */
+/******************************************************************************/
+  
 extern XrdOucTrace *gsiTrace;
 
 #ifndef SafeFree
 #define SafeFree(x) { if (x) free(x) ; x = 0; }
 #endif
 
+/******************************************************************************/
+/*                      X r d S e c g s i V O M S F u n                       */
+/******************************************************************************/
+  
 //
 // Main function
 //

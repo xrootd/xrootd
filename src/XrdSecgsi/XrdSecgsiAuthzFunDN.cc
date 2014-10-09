@@ -37,6 +37,8 @@
 #include <string.h>
 #include <errno.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdCrypto/XrdCryptosslAux.hh"
 #include "XrdCrypto/XrdCryptoX509.hh"
 #include "XrdCrypto/XrdCryptoX509Chain.hh"
@@ -45,10 +47,28 @@
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 #include "XrdSut/XrdSutBucket.hh"
 
+/******************************************************************************/
+/*                   V e r s i o n   I n f o r m a t i o n                    */
+/******************************************************************************/
+  
+XrdVERSIONINFO(XrdSecgsiAuthzFun,secgsiauthz);
+
+XrdVERSIONINFO(XrdSecgsiAuthzKey,secgsiauthz);
+
+XrdVERSIONINFO(XrdSecgsiAuthzInit,secgsiauthz);
+
+/******************************************************************************/
+/*                     G l o b a l s   &   S t a t i c s                      */
+/******************************************************************************/
+  
 extern XrdOucTrace *gsiTrace;
 
 static int gCertfmt = 1;
 
+/******************************************************************************/
+/*                     X r d S e c g s i A u t h z F u n                      */
+/******************************************************************************/
+  
 //
 // Main function
 //

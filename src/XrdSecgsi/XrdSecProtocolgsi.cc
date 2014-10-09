@@ -2675,6 +2675,9 @@ char *XrdSecProtocolgsiInit(const char mode,
 
 XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
+namespace
+{XrdVersionInfo *gsiVersion = &XrdVERSIONINFOVAR(XrdSecProtocolgsiObject);}
+
 extern "C"
 {
 XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
@@ -4879,7 +4882,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
    }
 
    // Create the plug-in instance
-   XrdOucPinLoader gmapLib(errBuff, sizeof(errBuff), 0, "gmaplib", plugin);
+   XrdOucPinLoader gmapLib(errBuff,sizeof(errBuff),gsiVersion,"gmaplib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -4972,7 +4975,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   XrdOucPinLoader authzLib(errBuff, sizeof(errBuff), 0, "authzlib", plugin);
+   XrdOucPinLoader authzLib(errBuff,sizeof(errBuff),gsiVersion,"authzlib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5069,7 +5072,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   XrdOucPinLoader vomsLib(errBuff, sizeof(errBuff), 0, "vomslib", plugin);
+   XrdOucPinLoader vomsLib(errBuff,sizeof(errBuff),gsiVersion,"vomslib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;

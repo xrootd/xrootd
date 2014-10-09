@@ -45,6 +45,8 @@
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#include "XrdVersion.hh"
+  
 //
 // For error logging
 static XrdSysError eDest(0,"cryptofactory_");
@@ -327,6 +329,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 {
    // Static method to load/locate the crypto factory named factoryid
  
+   static XrdVERSIONINFODEF(myVer,cryptoloader,XrdVNUMBER,XrdVERSION);
    static FactoryEntry  *factorylist = 0;
    static int            factorynum = 0;
    static XrdOucHash<XrdOucPinLoader> plugins;
@@ -402,7 +405,7 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
       snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
       libfn[sizeof(libfn)-1] = '\0';
       
-      plug = new XrdOucPinLoader(0, "cryptolib", libfn);
+      plug = new XrdOucPinLoader(&myVer, "cryptolib", libfn);
       plugins.Add(factoryid, plug);
    }
    if (!plug) {

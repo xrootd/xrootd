@@ -37,10 +37,22 @@
 #include <string.h>
 #include <errno.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdSecgsi/XrdSecgsiTrace.hh"
 
+/******************************************************************************/
+/*                   V e r s i o n   I n f o r m a t i o n                    */
+/******************************************************************************/
+  
+XrdVERSIONINFO(XrdSecgsiGMAPFun,secgsigmap);
+
+/******************************************************************************/
+/*                     G l o b a l s   &   S t a t i c s                      */
+/******************************************************************************/
+  
 extern XrdOucTrace *gsiTrace;
 
 enum XrdSecgsi_Match {kFull     = 0,
@@ -61,6 +73,10 @@ public:
 
 static XrdOucHash<XrdSecgsiMapEntry_t> gMappings;
 
+/******************************************************************************/
+/*                   F u n c t i o n s   &   M e t h o d s                    */
+/******************************************************************************/
+  
 //__________________________________________________________________________
 static int FindMatchingCondition(const char *, XrdSecgsiMapEntry_t *mc, void *xmp)
 {
