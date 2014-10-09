@@ -46,6 +46,8 @@
 #include "XrdSut/XrdSutRndm.hh"
 #include "XrdCrypto/XrdCryptosslTrace.hh"
 
+#include "XrdVersion.hh"
+
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 
@@ -458,6 +460,9 @@ XrdCryptoX509ParseBucket_t XrdCryptosslFactory::X509ParseBucket()
 /******************************************************************************/
 /*            X r d C r y p t o S s l F a c t o r y O b j e c t               */
 /******************************************************************************/
+
+XrdVERSIONINFO(XrdCryptosslFactoryObject,cryptossl);
+
 extern "C" {
 XrdCryptoFactory *XrdCryptosslFactoryObject()
 {
