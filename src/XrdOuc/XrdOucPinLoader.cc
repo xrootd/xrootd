@@ -45,8 +45,7 @@
 XrdOucPinLoader::XrdOucPinLoader(XrdSysError    *errP,
                                  XrdVersionInfo *vInfo,
                                  const char     *drctv,
-                                 const char     *plib,
-                                 const char     *dist)
+                                 const char     *plib)
 {
 
 // Save some symbols and do common initialization
@@ -55,7 +54,7 @@ XrdOucPinLoader::XrdOucPinLoader(XrdSysError    *errP,
    viP   = vInfo;
    errBP = 0;
    errBL = 0;
-   Init(drctv, plib, dist);
+   Init(drctv, plib);
 }
 
 /******************************************************************************/
@@ -64,8 +63,7 @@ XrdOucPinLoader::XrdOucPinLoader(char           *eBuff,
                                  int             eBlen,
                                  XrdVersionInfo *vInfo,
                                  const char     *drctv,
-                                 const char     *plib,
-                                 const char     *dist)
+                                 const char     *plib)
 {
 
 // Save some symbols and do common initialization
@@ -76,26 +74,24 @@ XrdOucPinLoader::XrdOucPinLoader(char           *eBuff,
    errBL = (eBlen > 0 ? eBlen : 0);
    frBuff= false;
    if (errBP) *errBP = 0;
-   Init(drctv, plib, dist);
+   Init(drctv, plib);
 }
 
 /******************************************************************************/
 
 XrdOucPinLoader::XrdOucPinLoader(XrdVersionInfo *vInfo,
                                  const char     *drctv,
-                                 const char     *plib,
-                                 const char     *dist)
+                                 const char     *plib)
 {
-   static const int ebsz = 1024;
 
 // Save some symbols and do common initialization
 //
    eDest = 0;
    viP   = vInfo;
-   errBP = (char *)malloc(ebsz);
-   errBL = ebsz;
+   errBP = 0;
+   errBL = 0;
    frBuff= true;
-   Init(drctv, plib, dist);
+   Init(drctv, plib);
 }
 
 /******************************************************************************/
@@ -124,6 +120,14 @@ void XrdOucPinLoader::Inform(const char *txt1, const char *txt2,
                              const char *txt3, const char *txt4,
                              const char *txt5)
 {
+   static const int ebsz = 1024;
+
+// Allocate a message buffer if we need to (failure is OK)
+//
+   if (!errBP && frBuff)
+      {errBP = (char *)malloc(ebsz);
+       errBL = ebsz;
+      }
 
 // If we have a messaging object, use that
 //
@@ -145,10 +149,10 @@ void XrdOucPinLoader::Inform(const char *txt1, const char *txt2,
 /* Private:                         I n i t                                   */
 /******************************************************************************/
 
-void XrdOucPinLoader::Init(const char *drctv, const char *plib, const char *dist)
+void XrdOucPinLoader::Init(const char *drctv, const char *plib)
 {
    char libBuf[2048];
-   bool isMyName;
+   bool noFallBack;
 
 // We have no plugin
 //
@@ -158,14 +162,14 @@ void XrdOucPinLoader::Init(const char *drctv, const char *plib, const char *dist
 
 // Perform versioning
 //
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, dist, isMyName,
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, noFallBack,
                                libBuf, sizeof(libBuf)))
       {theLib = 0;
        altLib = strdup(plib);
        tryLib = "?";
       } else {
        tryLib = theLib = strdup(libBuf);
-       altLib = (isMyName ? 0 : strdup(plib));
+       altLib = (noFallBack ? 0 : strdup(plib));
       }
 }
   

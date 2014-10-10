@@ -44,10 +44,8 @@ public:
 //!
 //! @param  piVers  Pointer to the version string to be used.
 //! @param  piPath  Pointer to the original path to the plug-in.
-//! @param  piName  When not null, is used to check if piName matches the
-//!                 filename in piPath.
-//! @param  eqName  Upon return is set to true if piName equals the filename in
-//!                 piPath and false if that is not the case or piName is nil.
+//! @param  noFBK   Upon return is set to true if the versioned name has no
+//!                 fallback name and must be loaded with the resulting path.
 //! @param  buff    Pointer to abuffer that will hold the resulting path.
 //! @param  blen    The size of the buffer.
 //!
@@ -55,7 +53,7 @@ public:
 //! @return failure Zero (buffer is too small) but eqName is still set.
 //-----------------------------------------------------------------------------
 
-static int Version(const char *piVers, const char *piPath, const char *piName,
-                         bool &eqname,       char *buff,         int   blen);
+static int Version(const char *piVers, const char *piPath, bool &noFBK,
+                         char *buff,         int   blen);
 };
 #endif

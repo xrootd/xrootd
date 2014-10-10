@@ -120,17 +120,12 @@ void          Unload(bool dodel=false);
 //!               pointer is nil, no version checking occurs.
 //! @param drctv  Pointer to the directive that initiated the load.
 //! @param plib   Pointer to the shared library path that contains the plugin.
-//! @param dist   Pointer to the file name of the plugin if it's part of the
-//!               core distribution. If it matches, only the versioned name will
-//!               be loaded. If nil or there is no match, if the versioned file
-//!               name does not exist, the unversioned name will be loaded.
 //------------------------------------------------------------------------------
 
               XrdOucPinLoader(XrdSysError    *errP,
                               XrdVersionInfo *vInfo,
                               const char     *drctv,
-                              const char     *plib,
-                              const char     *dist=0);
+                              const char     *plib);
 
 //------------------------------------------------------------------------------
 //! Constructor #2
@@ -141,18 +136,13 @@ void          Unload(bool dodel=false);
 //!               pointer is nil, no version checking occurs.
 //! @param drctv  Pointer to the directive that initiated the load.
 //! @param plib   Pointer to the shared library path that contains the plugin.
-//! @param dist   Pointer to the file name of the plugin if it's part of the
-//!               core distribution. If it matches, only the versioned name will
-//!               be loaded. If nil or there is no match, if the versioned file
-//!               name does not exist, the unversioned name will be loaded.
 //------------------------------------------------------------------------------
 
               XrdOucPinLoader(char           *eBuff,
                               int             eBlen,
                               XrdVersionInfo *vInfo,
                               const char     *drctv,
-                              const char     *plib,
-                              const char     *dist=0);
+                              const char     *plib);
 
 //------------------------------------------------------------------------------
 //! Constructor #3 (An internal message buffer is allocated. You can get the
@@ -162,16 +152,11 @@ void          Unload(bool dodel=false);
 //!               pointer is nil, no version checking occurs.
 //! @param drctv  Pointer to the directive that initiated the load.
 //! @param plib   Pointer to the shared library path that contains the plugin.
-//! @param dist   Pointer to the file name of the plugin if it's part of the
-//!               core distribution. If it matches, only the versioned name will
-//!               be loaded. If nil or there is no match, if the versioned file
-//!               name does not exist, the unversioned name will be loaded.
 //------------------------------------------------------------------------------
 
               XrdOucPinLoader(XrdVersionInfo *vInfo,
                               const char     *drctv,
-                              const char     *plib,
-                              const char     *dist=0);
+                              const char     *plib);
 
 //------------------------------------------------------------------------------
 //! Destructor
@@ -185,7 +170,7 @@ private:
 void            Inform(const char *txt1,   const char *txt2=0,
                        const char *txt3=0, const char *txt4=0,
                        const char *txt5=0);
-void            Init(const char *drctv, const char *plib, const char *dist);
+void            Init(const char *drctv, const char *plib);
 
 XrdSysError    *eDest;
 XrdSysPlugin   *piP;

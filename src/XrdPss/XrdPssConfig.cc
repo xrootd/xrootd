@@ -430,7 +430,7 @@ int XrdPssSys::ConfigXeq(char *var, XrdOucStream &Config)
 
 int XrdPssSys::getCache()
 {
-   XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath,"libXrdFileCache.so");
+   XrdOucPinLoader  myLib(&eDest,myVersion,"cachelib",cPath);
    XrdOucCache     *(*ep)(XrdSysLogger *, const char *, const char *);
    XrdOucCache     *theCache;
 

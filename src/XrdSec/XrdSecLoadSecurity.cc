@@ -93,9 +93,9 @@ int Load(      char       *eBuff,      int         eBlen,
 // Get a plugin loader object
 //
    if (eDest) piP = new XrdOucPinLoader(eDest,
-                                        &myVersion, "seclib", seclib, mySecLib);
+                                        &myVersion, "seclib", seclib);
       else    piP = new XrdOucPinLoader(eBuff, eBlen,
-                                        &myVersion, "seclib", seclib, mySecLib);
+                                        &myVersion, "seclib", seclib);
 
 // Load the appropriate pointers and get required objects.
 //

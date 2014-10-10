@@ -272,8 +272,8 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    XrdOucPinLoader *secLib;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   const char     *sep, *libloc, *bundle = XRDPLUGIN_SECBUNDLE;
-   char  poname[80], *mySecLib=0, libpath[2048], *newargs, *bP;
+   const char     *sep, *libloc;
+   char  poname[80], libpath[2048], *newargs, *bP;
    int i;
 
 // Set plugin debugging if needed (this only applies to client calls)
@@ -283,14 +283,6 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 // The "host" protocol is builtin.
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
-
-// Determine if this protocol is in our bundle. If so, it must be versioned.
-//
-   if (bundle)
-      {char bchk[80];
-       snprintf(bchk, sizeof(bchk), "&%s", pid);
-       if (strstr(bundle, bchk) != 0) mySecLib = poname;
-      }
 
 // Form library name (versioned) and object creator name and bundle id
 //
@@ -303,11 +295,9 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 
 // Get the plugin loader.
 //
-   if (errP) secLib = new XrdOucPinLoader(errP, myVer,
-                                          "sec.protocol", libloc, mySecLib);
+   if (errP) secLib = new XrdOucPinLoader(errP, myVer, "sec.protocol", libloc);
       else   {bP = eMsg->getMsgBuff(i);
-              secLib = new XrdOucPinLoader(bP, i, myVer,
-                                           "sec.protocol", libloc, mySecLib);
+              secLib = new XrdOucPinLoader(bP,i,myVer, "sec.protocol", libloc);
              }
 
 // Get the protocol object creator.

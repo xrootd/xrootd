@@ -46,7 +46,7 @@ bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry)
 
 // Perform versioning
 //
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, 0, dummy,
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, dummy,
                                theLib, sizeof(theLib)))
       {snprintf(eBuff, eBlen,
                 "Unable to preload plugin via %s; path too long.", plib);

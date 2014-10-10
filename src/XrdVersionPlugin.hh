@@ -151,10 +151,27 @@
         XrdVERSIONPLUGIN_Maxim(Optional,  4,  0, XrdCrypto,      FactoryObject)\
                              { 0, 0, 0,  0,  0, 0}
 
-/* The following defines the bundled security plug-ins. These are always
-   versioned. Any security plug-in not listed here is assumed to be versioned
-   but if it is not found, the unversioned name of the shared library will be
-   used (this may or may not cause a crash, depending on the developer).
+/* The following defines the list of plugins that are included in the base
+   code and are to be strictly name versioned upon loading (i.e. fallback
+   to an unversioned name is not allowed). This is enforced by XrdOucVerName.
 */
-#define XRDPLUGIN_SECBUNDLE "&gsi&krb5&pwd&sss&unix"
+#define XrdVERSIONPLUGINSTRICT       \
+        {"libXrdBwm.so",             \
+         "libXrdCksCalczcrc32.so",   \
+         "libXrdCryptossl.so",       \
+         "libXrdFileCache.so",       \
+         "libXrdHttp.so",            \
+         "libXrdOssSIgpfsT.so",      \
+         "libXrdPss.so",             \
+         "libXrdSec.so",             \
+         "libXrdSecgsi.so",          \
+         "libXrdSecgsiAUTHZVO.so",   \
+         "libXrdSecgsiGMAPDLAP.so",  \
+         "libXrdSecgsiGMAPLDAP.so",  \
+         "libXrdSeckrb5.so",         \
+         "libXrdSecpwd.so",          \
+         "libXrdSecsss.so",          \
+         "libXrdSecunix.so",         \
+         "libXrdXrootd.so",          \
+         0}
 #endif

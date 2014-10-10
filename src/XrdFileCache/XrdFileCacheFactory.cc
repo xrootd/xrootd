@@ -88,10 +88,10 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
    OssEroute.Emsg("XrdOssGetSS", "Initializing OSS lib from ", OssLib);
 #if defined(HAVE_VERSIONS)
    if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
-                                     "osslib",OssLib,"libXrdOfs.so"))) return 0;
+                                     "osslib", OssLib))) return 0;
 #else
    if (!(myLib = new XrdOucPinLoader(&OssEroute, 0,
-                                     "osslib",OssLib,"libXrdOfs.so"))) return 0;
+                                     "osslib", OssLib))) return 0;
 #endif
 
 // Now get the entry point of the object creator

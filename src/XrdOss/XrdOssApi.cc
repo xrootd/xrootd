@@ -122,7 +122,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 //
    OssEroute.logger(Logger);
    if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
-                                     "osslib",OssLib,"libXrdPss.so"))) return 0;
+                                     "osslib",   OssLib))) return 0;
 
 // Now get the entry point of the object creator
 //
