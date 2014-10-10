@@ -408,13 +408,17 @@ int XrdNet::do_Accept_TCP(XrdNetAddr &hAddr, int opts)
        return 0;
       }
 
-// Set all required fd options are set
-//
-   XrdNetSocket::setOpts(newfd, opts, (opts & XRDNET_NOEMSG ? 0 : eDest));
-
 // Initialize the address of the new connection
 //
    hAddr.Set(&IP.Addr, newfd);
+
+// Remove TCP_NODELAY option for unix domain sockets to avoid error message
+//
+   if (hAddr.isIPType(XrdNetAddrInfo::IPuX)) opts |= XRDNET_DELAY;
+
+// Set all required fd options are set
+//
+   XrdNetSocket::setOpts(newfd, opts, (opts & XRDNET_NOEMSG ? 0 : eDest));
 
 // Authorize by ip address or full (slow) hostname format
 //
