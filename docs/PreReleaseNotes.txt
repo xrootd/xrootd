@@ -26,6 +26,9 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Avoid SEGV when assigning a unix domain address to a NetAddrInfo object
+     previously used to hold a TCP domain address.
+   * Prevent blacklisting of all connctions when role is supervisor.
    * Avoid SEGV when no environment has been passed in the proxy server.
    * Fix bug in handling cms.dfs redirect verify that would keep the
      client is an infinite wait loop. This also affected locate requests
@@ -34,6 +37,8 @@ Prerelease Notes
    * Fix memory leak in the Posix admin locate function.
 
 + **Minor bug fixes**
+   * Do not set TCP_NODELAY for unix domain sockets as this issues a
+     nasty error message.
    * Allow cms.dfs mdhold argument to be 0 as documented.
    * Provide complete portability and correct behaviour across platforms
      with and without Atomics. This patch does not change any ABI's.
