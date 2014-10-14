@@ -30,7 +30,7 @@ target_link_libraries(
   XrdCnsd
   XrdCnsLib
   XrdClient
-  XrdServer
+  XrdOfs
   XrdUtils
   pthread
   ${EXTRA_LIBS} )

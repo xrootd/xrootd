@@ -28,7 +28,6 @@ if( BUILD_CRYPTO )
   target_link_libraries(
     ${LIB_XRD_HTTP}
     XrdServer
-    XrdXrootd
     XrdUtils
     XrdCrypto
     dl

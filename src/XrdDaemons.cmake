@@ -13,8 +13,8 @@ add_executable(
 
 target_link_libraries(
   xrootd
-  XrdXrootd
   XrdOfs
+  XrdServer
   XrdUtils
   dl
   pthread
@@ -26,9 +26,9 @@ target_link_libraries(
 #-------------------------------------------------------------------------------
 add_executable(
   cmsd
-  Xrd/XrdConfig.cc          Xrd/XrdConfig.hh
-  Xrd/XrdProtLoad.cc            Xrd/XrdProtLoad.hh
-  Xrd/XrdStats.cc               Xrd/XrdStats.hh
+  Xrd/XrdConfig.cc                Xrd/XrdConfig.hh
+  Xrd/XrdProtLoad.cc              Xrd/XrdProtLoad.hh
+  Xrd/XrdStats.cc                 Xrd/XrdStats.hh
   Xrd/XrdMain.cc
   XrdCms/XrdCmsAdmin.cc           XrdCms/XrdCmsAdmin.hh
   XrdCms/XrdCmsBaseFS.cc          XrdCms/XrdCmsBaseFS.hh
@@ -56,7 +56,7 @@ add_executable(
                                   XrdCms/XrdCmsTrace.hh )
 target_link_libraries(
   cmsd
-  XrdServer
+  XrdOfs
   XrdUtils
   pthread
   ${EXTRA_LIBS}

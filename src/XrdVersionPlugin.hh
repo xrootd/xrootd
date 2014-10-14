@@ -93,7 +93,7 @@
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCmsGetClient               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCryptosslFactoryObject     )\
         XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdFileCacheGetDecision       )\
-        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocol                )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
         XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdHttpGetSecXtractor         )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\

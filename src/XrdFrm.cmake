@@ -38,7 +38,7 @@ add_executable(
 
 target_link_libraries(
   frm_admin
-  XrdServer
+  XrdOfs
   XrdFrm
   XrdUtils
   pthread
@@ -57,7 +57,7 @@ add_executable(
 
 target_link_libraries(
   frm_purged
-  XrdServer
+  XrdOfs
   XrdUtils
   XrdFrm
   pthread
@@ -73,7 +73,7 @@ add_executable(
 
 target_link_libraries(
   frm_xfrd
-  XrdServer
+  XrdOfs
   XrdUtils
   XrdFrm
   pthread
@@ -89,7 +89,7 @@ add_executable(
 
 target_link_libraries(
   frm_xfragent
-  XrdServer
+  XrdOfs
   XrdUtils
   XrdFrm
   pthread
