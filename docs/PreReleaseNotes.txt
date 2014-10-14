@@ -6,6 +6,7 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow the definition of subordinate clusters.
    * Support multiple checksum types. Client can select non-default
      checksum using the "cks.type=<algorithm>" cgi element.
    * Implement generic matching rules to version check 3rd party plug-ins.
