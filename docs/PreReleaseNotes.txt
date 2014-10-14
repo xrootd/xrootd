@@ -27,6 +27,8 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Use correct flag when adding a cluster. The bug made it impossible
+     to have more than one supervisor node.
    * Avoid SEGV when assigning a unix domain address to a NetAddrInfo object
      previously used to hold a TCP domain address.
    * Prevent blacklisting of all connctions when role is supervisor.
