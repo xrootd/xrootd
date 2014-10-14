@@ -52,7 +52,7 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_BWM}
-  XrdServer
+  XrdOfs
   XrdUtils
   pthread )
 
