@@ -210,7 +210,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
                }
        NodeTab[Slot] = nP = new XrdCmsNode(lp, theIF, theNID, port, 0, Slot);
        if (!cidP) cidP = XrdCmsClustID::AddID(theNID);
-       if ((cidP->AddNode(nP, Special))) nP->cidP = cidP;
+       if ((cidP->AddNode(nP, SpecAlt))) nP->cidP = cidP;
           else {delete nP; NodeTab[Slot] = 0; return 0;}
       }
 
