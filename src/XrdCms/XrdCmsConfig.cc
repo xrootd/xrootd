@@ -575,7 +575,7 @@ void XrdCmsConfig::DoIt()
 // liked to screen this out earlier but port discovery prevents it.
 //
    if (isManager || isServer || isPeer)
-      {tp = ManList;
+      {tp = (ManList ? ManList : SanList);
        while(tp)
             {if (strcmp(tp->text, myName) || tp->val != PortTCP)
                 {pP = XrdCmsProtocol::Alloc(myRole, tp->text, tp->val);
@@ -1018,7 +1018,7 @@ int XrdCmsConfig::setupManager()
        const char *urDom, *myDom = index(myName, '.');
        bool isBad = false;
        while(tP) {nP = tP; tP = tP->next; delete nP;}
-       tP = ManList = SanList;
+       tP = SanList; ManList = 0;
        if (myDom) while(tP)
           {if ((urDom = index(tP->text, '.')) && strcmp(urDom, myDom))
               {Say.Emsg("Config", "Subcluster's manager", tP->text,
