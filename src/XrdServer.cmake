@@ -77,6 +77,7 @@ add_library(
 target_link_libraries(
   ${LIB_XRD_PROTOCOL}
   XrdServer
+  XrdUtils
   ${EXTRA_LIBS} )
 
 set_target_properties(
