@@ -220,7 +220,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
 
 // Assign new server
 //
-   if (!aSet && (Status & CMS_isMan)) setAltMan(Slot, lp, sport);
+   if (!aSet && (Status & CMS_isSuper)) setAltMan(Slot, lp, sport);
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;

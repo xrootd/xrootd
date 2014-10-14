@@ -494,6 +494,7 @@ int XrdCmsConfig::ConfigXeq(char *var, XrdOucStream &CFile, XrdSysError *eDest)
    TS_Xeq("repstats",      xreps);   // Any,     non-dynamic
    TS_Xeq("role",          xrole);   // Server,  non-dynamic
    TS_Xeq("seclib",        xsecl);   // Server,  non-dynamic
+   TS_Xeq("subcluster",    xsubc);   // Manager, non-dynamic
    TS_Set("wait",          doWait);  // Server,  non-dynamic (backward compat)
    TS_unSet("nowait",      doWait);  // Server,  non-dynamic
    }
@@ -702,6 +703,7 @@ void XrdCmsConfig::ConfigDefaults(void)
    myRoleID  = XrdCmsRole::noRole;
    ManList   =0;
    NanList   =0;
+   SanList   =0;
    mySID    = 0;
    ifList    =0;
    perfint  = 3*60;
@@ -1007,6 +1009,28 @@ int XrdCmsConfig::setupManager()
 {
    pthread_t tid;
    int rc;
+
+// If we are a subcluster then we need to replace the manager list with the
+// one specified on the subcluster directive.
+//
+   if (SanList)
+      {XrdOucTList *nP, *tP = ManList;
+       const char *urDom, *myDom = index(myName, '.');
+       bool isBad = false;
+       while(tP) {nP = tP; tP = tP->next; delete nP;}
+       tP = ManList = SanList;
+       if (myDom) while(tP)
+          {if ((urDom = index(tP->text, '.')) && strcmp(urDom, myDom))
+              {Say.Emsg("Config", "Subcluster's manager", tP->text,
+                                  "is in a different domain.");
+               isBad = true;
+              }
+           tP = tP->next;
+          }
+       if (isBad) {Say.Emsg("Config","Cross domain subclusters disallowed!");
+                   return 1;
+                  }
+      }
 
 // Setup supervisor mode if we are also a server
 //
@@ -2664,6 +2688,59 @@ int XrdCmsConfig::xspace(XrdSysError *eDest, XrdOucStream &CFile)
         DiskHWM = static_cast<int>(hwm);
        }
     return 0;
+}
+
+/******************************************************************************/
+/*                                 x s u b c                                  */
+/******************************************************************************/
+
+/* Function: subc
+
+   Purpose:  To parse the directive: subcluster of <host>[+][:<port>|<port>]
+
+   Type: Manager only, non-dynamic.
+
+   Output: 0 upon success or !0 upon failure.
+*/
+  
+int XrdCmsConfig::xsubc(XrdSysError *eDest, XrdOucStream &CFile)
+{
+    class StorageHelper
+    {public:
+          StorageHelper(char **v1, char **v2) : val1(v1), val2(v2) {}
+         ~StorageHelper() {if (*val1) free(*val1);
+                           if (*val2) free(*val2);
+                          }
+    char **val1, **val2;
+    };
+
+    char *val, *hSpec = 0, *hPort = 0;
+    StorageHelper SHelp(&hSpec, &hPort);
+
+// Ignore this call if we are not a simple manager
+//
+   if (isMeta || isServer || isPeer || isProxy) return CFile.noEcho();
+
+//  Skip the optional "of" keyword
+//
+    val = CFile.GetWord();
+    if (val && !strcmp("of", val)) val = CFile.GetWord();
+
+//  Get the actual host name and copy it
+//
+    if (!val)
+       {eDest->Emsg("Config","cluster manager host name not specified");
+        return 1;
+       }
+    hSpec = strdup(val);
+
+//  Grab the port number (either in hostname or following token)
+//
+    if (!(hPort = XrdCmsUtils::ParseManPort(eDest, CFile, hSpec))) return 1;
+
+// Parse the specification and return
+//
+   return (XrdCmsUtils::ParseMan(eDest, &SanList, hSpec, hPort) ? 0 : 1);
 }
   
 /******************************************************************************/

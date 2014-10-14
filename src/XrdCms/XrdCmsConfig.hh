@@ -148,6 +148,7 @@ const char  *mySID;
 const char  *ifList;
 XrdOucTList *ManList;     // From manager directive
 XrdOucTList *NanList;     // From manager directive (managers only)
+XrdOucTList *SanList;     // From subcluster directive (managers only)
 
 XrdOss      *ossFS;       // The filsesystem interface
 XrdOucProg  *ProgCH;      // Server only chmod
@@ -214,6 +215,7 @@ int  xrole(XrdSysError *edest, XrdOucStream &CFile);
 int  xsched(XrdSysError *edest, XrdOucStream &CFile);
 int  xsecl(XrdSysError *edest, XrdOucStream &CFile);
 int  xspace(XrdSysError *edest, XrdOucStream &CFile);
+int  xsubc(XrdSysError *edest, XrdOucStream &CFile);
 int  xtrace(XrdSysError *edest, XrdOucStream &CFile);
 
 XrdInet          *NetTCPr;     // Network for supervisors

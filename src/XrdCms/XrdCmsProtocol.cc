@@ -296,8 +296,11 @@ void XrdCmsProtocol::Pander(const char *manager, int mport)
 
 // Establish request routing based on who we are
 //
-   if (Config.asManager()) Routing = (Config.asServer() ? &supVOps : &manVOps);
-      else                 Routing = (Config.asPeer()   ? &supVOps : &srvVOps);
+        if (Config.SanList)    {Routing= &supVOps;
+                                Role   = CmsLoginData::kYR_subman;
+                               }
+   else if (Config.asManager()) Routing= (Config.asServer() ? &supVOps:&manVOps);
+   else                         Routing= (Config.asPeer()   ? &supVOps:&srvVOps);
 
 // Compute the Manager's status (this never changes for managers/supervisors)
 //
@@ -503,7 +506,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
    const char  *Reason;
    SMask_t      newmask, servset(0);
    int addedp = 0, Status = 0, isPeer = 0, isProxy = 0;
-   int isMan, isServ, wasSuspended = 0, Share = 100, tZone = 0;
+   int isMan, isServ, isSubm, wasSuspended = 0, Share = 100, tZone = 0;
 
 // Establish outgoing mode
 //
@@ -534,6 +537,7 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
 //
    isMan  = Data.Mode & CmsLoginData::kYR_manager;
    isServ = Data.Mode & CmsLoginData::kYR_server;
+   isSubm = Data.Mode & CmsLoginData::kYR_subman;
 
 // Determine the role of this incomming login.
 //
@@ -543,7 +547,8 @@ XrdCmsRouting *XrdCmsProtocol::Admit()
                     {Status |= CMS_isPeer;  roleID = XrdCmsRole::PeerManager;}
             else if (Data.Mode & CmsLoginData::kYR_proxy)
                                             roleID = XrdCmsRole::ProxyManager;
-            else if (Config.asMetaMan())    roleID = XrdCmsRole::Manager;
+            else if (Config.asMetaMan() || isSubm)
+                                            roleID = XrdCmsRole::Manager;
             else                           {roleID = XrdCmsRole::Supervisor;
                                             Status|= CMS_isSuper;
                                            }
