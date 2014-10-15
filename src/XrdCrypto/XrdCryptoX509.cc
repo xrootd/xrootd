@@ -244,3 +244,11 @@ bool XrdCryptoX509::Verify(XrdCryptoX509 *)
    ABSTRACTMETHOD("XrdCryptoX509::Verify");
    return 0;
 }
+
+//_____________________________________________________________________________
+int XrdCryptoX509::DumpExtensions()
+{
+   // Dump extensions, if any
+   ABSTRACTMETHOD("XrdCryptoX509::DumpExtensions");
+   return -1;
+}

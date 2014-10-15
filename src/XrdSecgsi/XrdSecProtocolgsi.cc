@@ -52,8 +52,7 @@
 #include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
-#include "XrdCrypto/XrdCryptosslAux.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
 
@@ -1705,6 +1704,15 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check random challenge
    if (!CheckRtag(bmai, ClntMsg))
       return ErrS(hs->ID,ei,bpar,bmai,0,kGSErrBadRndmTag,stepstr,ClntMsg.c_str());
+         
+   // Extract the VOMS attrbutes, if required
+   XrdCryptoX509ExportChain_t X509ExportChain = (sessionCF) ? sessionCF->X509ExportChain() : 0;
+   if (!X509ExportChain) {
+      // Error
+      return ErrS(hs->ID,ei,0,0,0,kGSErrError,
+                  "crypto factory function for chain export not found");
+   }
+
    //
    // Now action depens on the step
    switch (step) {
@@ -1814,14 +1822,13 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (MonInfoOpt > 0) {
          Entity.moninfo = strdup(hs->Chain->EECname());
       }
-         
-      // Extract the VOMS attrbutes, if required
+
       if (VOMSAttrOpt > 0) {
          if (VOMSFun) {
             // Fill the information needed by the external function
             if (VOMSCertFmt == 1) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1837,7 +1844,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                break;
             }
          } else {
-            // Lite version (no validations whatsover
+            // Lite version (no validations whatsover)
             if (ExtractVOMS(hs->Chain, Entity) != 0 && VOMSAttrOpt == 2) {
                // Error
                kS_rc = kgST_error;
@@ -1860,7 +1867,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             // May have been already done
             if (!Entity.creds || Entity.credslen == 0) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1959,7 +1966,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             if (AuthzPxyWhat == 1 && hs->Chain->End()) {
                bpxy = hs->Chain->End()->Export();
             } else {
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
             }
             bpxy->ToString(spxy);
          }
@@ -2119,13 +2126,17 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
    XrdCryptoX509 *xp = c->End();
    if (!xp) return -1;
    
+   // Extractor
+   XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr = sessionCF->X509GetVOMSAttr();
+   if (!X509GetVOMSAttr) return -1;
+
    // Extract the information
    XrdOucString vatts;
    int rc = 0;
-   if ((rc = XrdSslgsiX509GetVOMSAttr(xp, vatts)) != 0) {
+   if ((rc = (*X509GetVOMSAttr)(xp, vatts)) != 0) {
       if (strstr(xp->Subject(), "CN=limited proxy")) {
          xp = c->SearchBySubject(xp->Issuer());
-         rc = XrdSslgsiX509GetVOMSAttr(xp, vatts);
+         rc = (*X509GetVOMSAttr)(xp, vatts);
       }
       if (rc != 0) {
          if (rc > 0) {
@@ -3220,8 +3231,13 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          return 0;
       }
       // Sign the request
+      XrdCryptoX509SignProxyReq_t X509SignProxyReq = (sessionCF) ? sessionCF->X509SignProxyReq() : 0;
+      if (!X509SignProxyReq) {
+         emsg = "problems getting method to sign request";
+         return 0;
+      }
       XrdCryptoX509 *npxy = 0;
-      if (XrdSslgsiX509SignProxyReq(pxy, kpxy, req, &npxy) != 0) {
+      if ((*X509SignProxyReq)(pxy, kpxy, req, &npxy) != 0) {
          emsg = "problems signing the request";
          return 0;
       }
@@ -3537,6 +3553,12 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // normal request+signature, or just forwarded by the client.
    // In both cases we need to save the proxy chain. If we need a 
    // request, we have to prepare it and send it back to the client.
+   // Get hook to parsing function
+   XrdCryptoX509CreateProxyReq_t X509CreateProxyReq = sessionCF->X509CreateProxyReq();
+   if (!X509CreateProxyReq) {
+      cmsg = "cannot attach to X509CreateProxyReq function!";
+      return -1;
+   }
    bool needReq =
       ((PxyReqOpts & kOptsSrvReq) && (hs->Options & kOptsSigReq)) ||
        (hs->Options & kOptsDlgPxy);
@@ -3551,7 +3573,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             // Create the request
             XrdCryptoX509Req *rPXp = (XrdCryptoX509Req *) &(hs->RemVers);
             XrdCryptoRSA *krPXp = 0;
-            if (XrdSslgsiX509CreateProxyReq(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
+            if ((*X509CreateProxyReq)(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
                // Save key in the cache
                hs->Cref->buf4.buf = (char *)krPXp;
                // Prepare export bucket for request
@@ -4375,7 +4397,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 }
 
 //______________________________________________________________________________
-int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp)
+int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain *ch, XrdCryptoRSA **kp)
 {
    // Invoke 'grid-proxy-init' via the shell to create a valid the proxy file
    // If the variable GLOBUS_LOCATION is defined it prepares the external shell
@@ -4421,8 +4443,12 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
                           pi->deplen}; // signature path depth
    //
    // Init now
-   rc = XrdSslgsiX509CreateProxy(pi->cert, pi->key, &pxopt,
-                                 ch, kp, pi->out);
+   XrdCryptoX509CreateProxy_t X509CreateProxy = cf->X509CreateProxy();
+   if (!X509CreateProxy) {
+      PRINT("cannot attach to X509CreateProxy function!");
+      return 1;
+   }
+   rc = (*X509CreateProxy)(pi->cert, pi->key, &pxopt, ch, kp, pi->out);
 #else
    // command string
    String cmd(kMAXBUFLEN);
@@ -4650,7 +4676,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          // Cleanup the chain
          po->chain->Cleanup();
 
-         if (InitProxy(pi, po->chain, &(po->ksig)) != 0) {
+         if (InitProxy(pi, cf, po->chain, &(po->ksig)) != 0) {
             NOTIFY("problems initializing proxy via external shell");
             ntry--;
             continue;

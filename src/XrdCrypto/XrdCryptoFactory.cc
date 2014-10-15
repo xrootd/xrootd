@@ -310,6 +310,61 @@ XrdCryptoX509ParseBucket_t XrdCryptoFactory::X509ParseBucket()
    return 0;
 }
 
+//______________________________________________________________________________
+XrdCryptoProxyCertInfo_t XrdCryptoFactory::ProxyCertInfo()
+{
+   // Check if the proxyCertInfo extension exists
+
+   ABSTRACTMETHOD("XrdCryptoFactory::ProxyCertInfo");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoSetPathLenConstraint_t XrdCryptoFactory::SetPathLenConstraint()
+{
+   // Set the path length constraint
+
+   ABSTRACTMETHOD("XrdCryptoFactory::SetPathLenConstraint");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxy_t XrdCryptoFactory::X509CreateProxy()
+{
+   // Create a proxy certificate
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CreateProxy");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxyReq_t XrdCryptoFactory::X509CreateProxyReq()
+{
+   // Create a proxy request
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CreateProxyReq");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509SignProxyReq_t XrdCryptoFactory::X509SignProxyReq()
+{
+   // Sign a proxy request
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509SignProxyReq");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509GetVOMSAttr_t XrdCryptoFactory::X509GetVOMSAttr()
+{
+   // Get VOMS attributes, if any
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509GetVOMSAttr");
+   return 0;
+}
+
+
 /* ************************************************************************** */
 /*                                                                            */
 /*                    G e t C r y p t o F a c t o r y                         */

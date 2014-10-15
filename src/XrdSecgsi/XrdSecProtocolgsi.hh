@@ -50,14 +50,14 @@
 #include "XrdCrypto/XrdCryptoFactory.hh"
 #include "XrdCrypto/XrdCryptoX509Crl.hh"
 
-#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 
 /******************************************************************************/
 /*                               D e f i n e s                                */
 /******************************************************************************/
 
 typedef XrdOucString String;
-typedef XrdCryptosslgsiX509Chain X509Chain;
+typedef XrdCryptogsiX509Chain X509Chain;
   
 #define XrdSecPROTOIDENT    "gsi"
 #define XrdSecPROTOIDLEN    sizeof(XrdSecPROTOIDENT)
@@ -432,7 +432,7 @@ private:
    static int     QueryProxy(bool checkcache, XrdSutCache *cache, const char *tag,
                              XrdCryptoFactory *cf, time_t timestamp,
                              ProxyIn_t *pi, ProxyOut_t *po);
-   static int     InitProxy(ProxyIn_t *pi,
+   static int     InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf,
                             X509Chain *ch = 0, XrdCryptoRSA **key = 0);
 
    // Error functions

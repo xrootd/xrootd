@@ -1,8 +1,8 @@
 /******************************************************************************/
 /*                                                                            */
-/*           X r d C r y p t o s s l g s i X 5 0 9 C h a i n . h h            */
+/*           X r d C r y p t o g s i X 5 0 9 C h a i n . c c                  */
 /*                                                                            */
-/* (c) 2005  G. Ganis, CERN                                                   */
+/* (c) 2014  G. Ganis, CERN                                                   */
 /*                                                                            */
 /* This file is part of the XRootD software suite.                            */
 /*                                                                            */
@@ -29,20 +29,20 @@
 #include <string.h>
 #include <time.h>
 
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
-#include "XrdCrypto/XrdCryptosslgsiX509Chain.hh"
+#include "XrdCrypto/XrdCryptoFactory.hh"
+#include "XrdCrypto/XrdCryptogsiX509Chain.hh"
 #include "XrdCrypto/XrdCryptoTrace.hh"
 
 // ---------------------------------------------------------------------------//
 //                                                                            //
-// XrdCryptosslgsiX509Chain                                                   //
+// XrdCryptogsiX509Chain  (was XrdCryptosslgsiX509Chain)                      //
 //                                                                            //
 // Enforce GSI policies on X509 certificate chains                            //
 //                                                                            //
 // ---------------------------------------------------------------------------//
 
 //___________________________________________________________________________
-bool XrdCryptosslgsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vopt)
+bool XrdCryptogsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt_t *vopt)
 {
    // Verify the chain
    EPNAME("X509Chain::Verify");
@@ -130,10 +130,10 @@ bool XrdCryptosslgsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt
          return 0;
 
       // Check if ProxyCertInfo extension is there (required by RFC3820)
-      int pxplen = -1;
+      int pxplen = -1; bool b;
       if (opt & kOptsRfc3820) {
          const void *extdata = xcer->GetExtension(gsiProxyCertInfo_OID);
-         if (!extdata || !XrdSslgsiProxyCertInfo(extdata, pxplen)) {
+         if (!extdata || !cfact || !(cfact && (*(cfact->ProxyCertInfo()))(extdata, pxplen, &b))) {
             errcode = kMissingExtension;
             lastError = "rfc3820: ";
             lastError += X509ChainError(errcode);
@@ -165,7 +165,7 @@ bool XrdCryptosslgsiX509Chain::Verify(EX509ChainErr &errcode, x509ChainVerifyOpt
 
 
 //___________________________________________________________________________
-bool XrdCryptosslgsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xcer)
+bool XrdCryptogsiX509Chain::SubjectOK(EX509ChainErr &errcode, XrdCryptoX509 *xcer)
 {
    // Apply GSI rules for proxy subject names
 

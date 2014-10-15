@@ -75,6 +75,8 @@ public:
 
    // Dump information
    virtual void Dump();
+   virtual int DumpExtensions(); // extensions
+
    const char *Type(EX509Type t = kUnknown) const
                  { return ((t == kUnknown) ? ctype[type+1] : ctype[t+1]); }
    virtual const char *ParentFile();

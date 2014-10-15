@@ -1,6 +1,6 @@
 /******************************************************************************/
 /*                                                                            */
-/*                  X r d C r y p t o S s l A u x . h h                       */
+/*                  X r d C r y p t o S s l A u x . c c                       */
 /*                                                                            */
 /* (c) 2005 G. Ganis, CERN                                                    */
 /*                                                                            */
@@ -47,6 +47,7 @@
 // Error code from verification set by verify callback function
 static int gErrVerifyChain = 0;
 XrdOucTrace *sslTrace = 0;
+
 //____________________________________________________________________________
 int XrdCryptosslX509VerifyCB(int ok, X509_STORE_CTX *ctx)
 {

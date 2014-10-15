@@ -46,11 +46,13 @@
 // ---------------------------------------------------------------------------//
 
 class XrdSutBucket;
+class XrdOucString;
 class XrdCryptoCipher;
 class XrdCryptoMsgDigest;
 class XrdCryptoRSA;
 class XrdCryptoX509;
 class XrdCryptoX509Chain;
+class XrdCryptogsiX509Chain;
 class XrdCryptoX509Crl;
 class XrdCryptoX509Req;
 
@@ -80,6 +82,31 @@ typedef int (*XrdCryptoX509ParseFile_t)(const char *fname,
 // certificates from bucket parsing
 typedef int (*XrdCryptoX509ParseBucket_t)(XrdSutBucket *,
                                           XrdCryptoX509Chain *);
+// Proxies
+// The OID of the extension
+#define gsiProxyCertInfo_OID "1.3.6.1.4.1.3536.1.222"
+// check presence of proxyCertInfo extension (RFC 3820)
+typedef bool (*XrdCryptoProxyCertInfo_t)(const void *, int &, bool *);
+// set path length constraint
+typedef void (*XrdCryptoSetPathLenConstraint_t)(void *, int);
+// create a proxy certificate
+typedef struct {
+   int   bits;          // Number of bits in the RSA key [512]
+   int   valid;         // Duration validity in secs [43200 (12 hours)]
+   int   depthlen;      // Maximum depth of the path of proxy certificates
+                        // that can signed by this proxy certificates
+                        // [-1 (== unlimited)]
+} XrdProxyOpt_t;
+typedef int (*XrdCryptoX509CreateProxy_t)(const char *, const char *, XrdProxyOpt_t *,
+                                          XrdCryptogsiX509Chain *, XrdCryptoRSA **, const char *);
+// create a proxy certificate request
+typedef int (*XrdCryptoX509CreateProxyReq_t)(XrdCryptoX509 *,
+                                             XrdCryptoX509Req **, XrdCryptoRSA **);
+// sign a proxy certificate request
+typedef int (*XrdCryptoX509SignProxyReq_t)(XrdCryptoX509 *, XrdCryptoRSA *,
+                                           XrdCryptoX509Req *, XrdCryptoX509 **);
+// get VOMS attributes
+typedef int (*XrdCryptoX509GetVOMSAttr_t)(XrdCryptoX509 *, XrdOucString &);
 
 class XrdCryptoFactory
 {
@@ -143,6 +170,14 @@ public:
    virtual XrdCryptoX509ParseBucket_t X509ParseBucket();
    virtual XrdCryptoX509ExportChain_t X509ExportChain();
    virtual XrdCryptoX509ChainToFile_t X509ChainToFile();
+
+   // Hooks to handle X509 proxy certificates
+   virtual XrdCryptoProxyCertInfo_t ProxyCertInfo();
+   virtual XrdCryptoSetPathLenConstraint_t SetPathLenConstraint();
+   virtual XrdCryptoX509CreateProxy_t X509CreateProxy();
+   virtual XrdCryptoX509CreateProxyReq_t X509CreateProxyReq();
+   virtual XrdCryptoX509SignProxyReq_t X509SignProxyReq();
+   virtual XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr();
 
    // Equality operator
    bool operator==(const XrdCryptoFactory factory);
