@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow forwardable sss tokens when ecrypted with a forwarding key
+     as defined by the xrdsssadmin command.
    * Allow the definition of subordinate clusters.
    * Support multiple checksum types. Client can select non-default
      checksum using the "cks.type=<algorithm>" cgi element.
