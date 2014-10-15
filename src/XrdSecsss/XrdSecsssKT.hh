@@ -52,6 +52,7 @@ static const int GrupSZ  = 64;
 
 struct ktData
        {long long ID;
+        long long Flags;  // Future!
         time_t    Crt;
         time_t    Exp;
         int       Opts;
@@ -65,6 +66,7 @@ struct ktData
 static const int anyUSR = 2;
 static const int anyGRP = 4;
 static const int usrGRP = 8;
+static const int noIPCK =16;
 
        void      NUG(ktEnt *ktP) {strcpy(Data.Name, ktP->Data.Name);
                                   strcpy(Data.User, ktP->Data.User);
@@ -76,7 +78,7 @@ static const int usrGRP = 8;
                                  }
        ktEnt    *Next;
 
-       ktEnt() : Next(0) { Data.ID   = -1;   Data.Opts = 0;
+       ktEnt() : Next(0) { Data.ID   = -1;   Data.Flags= 0; Data.Opts = 0;
                           *Data.Val = '\0'; *Data.Name = '\0';
                           *Data.User= '\0'; *Data.Grup = '\0';
                          }
