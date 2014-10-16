@@ -851,7 +851,7 @@ int XrdCmsConfig::ConfigProc(int getrole)
 
 // Merge Paths as needed
 //
-   if (!getrole && ManList) NoGo |= MergeP();
+   if (!getrole && (ManList || SanList)) NoGo |= MergeP();
 
 // Return final return code
 //
@@ -920,8 +920,11 @@ int XrdCmsConfig::MergeP()
 // Document what we will be declaring as available
 //
    if (!NoGo)
-      {const char *Who = (isManager ? (isServer ? "manager:" : "meta-manager:")
-                                    : "redirector:");
+      {const char *Who;
+       if (isManager)
+          {if (SanList) Who = "subcluster manager:";
+              else      Who = (isServer ? "manager:" : "meta-manager:");
+          } else        Who = "redirector:";
        Say.Say("The following paths are available to the ", Who);
        if (!(pp = PathList.First())) Say.Say("r  /");
         else while(pp)
