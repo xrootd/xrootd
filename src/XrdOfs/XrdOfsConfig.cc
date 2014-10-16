@@ -166,7 +166,8 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
            //
            while((var = Config.GetMyFirstWord()))
                 {if (!strncmp(var, "ofs.", 4)
-                 ||  !strcmp(var, "all.role"))
+                 ||  !strcmp(var, "all.role")
+                 ||  !strcmp(var, "all.subcluster"))
                     if (ConfigXeq(var+4,Config,Eroute)) {Config.Echo();NoGo=1;}
                 }
 
@@ -536,6 +537,13 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
        if (EnvInfo) EnvInfo->PutPtr("XRDCMSMANLIST", Finder->Managers());
       }
 
+// If we are a subcluster for another cluster then we can only be so if we
+// are a pure manager. If a subcluster directive was encountered and this is
+// not true we need to turn that off here. Subclusters need a target finder
+// just like supervisors eventhough we are not a supervisor.
+//
+   if ((Options & haveRole) != isManager) Options &= ~SubCluster;
+
 // For server roles find the port number and create the object. We used to pass
 // the storage system object to the finder to allow it to process cms storage
 // requests. The cms no longer sends such requests so there is no need to do
@@ -543,7 +551,7 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
 // finder is created. So, it's just as well we pass a numm pointer. At some
 // point the finder should remove all storage system related code.
 //
-   if (Options & (isServer | (isPeer & ~isManager)))
+   if (Options & (isServer | SubCluster | (isPeer & ~isManager)))
       {if (!myPort)
           {Eroute.Emsg("Config", "Unable to determine server's port number.");
            return 1;
@@ -556,7 +564,8 @@ int XrdOfs::ConfigRedir(XrdSysError &Eroute, XrdOucEnv *EnvInfo)
        if (!Balancer) return 1;
        if (!Balancer->Configure(ConfigFN, CmsParms, EnvInfo))
           {delete Balancer; Balancer = 0; return 1;}
-       if (Options & isProxy) Balancer = 0; // No chatting for proxies
+       if (Options & (isProxy | SubCluster))
+          Balancer = 0; // No chatting for proxies or subclusters
       }
 
 // All done
@@ -589,6 +598,10 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
+
+    // Screen out the subcluster directive (we need to track that)
+    //
+    TS_Bit("subcluster",Options,SubCluster);
 
     // Get the actual value for simple directives
     //
