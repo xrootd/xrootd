@@ -122,6 +122,9 @@ set( XROOTD_PRIVATE_HEADERS
   XrdOss/XrdOssError.hh
   XrdOuc/XrdOucExport.hh
   XrdOuc/XrdOucPList.hh
+
+  XrdClient/XrdClientProtocol.hh
+  XrdClient/XrdClientSid.hh
 )
 
 install_headers(
