@@ -274,6 +274,10 @@ public:
     //  (if any!!)
     XReqErrorType               Read_Async(long long offset, int len, bool updatecounters=true);
 
+    // Send monitoring information text. This will injected into the monitoring
+    // stream of the server. Return dictionary id associated with the request.
+    bool                        SendMonitoringInfo(const char *text, kXR_unt32 *dictid);
+
     // Get stat info about the file. Normally it tries to guess the file size variations
     // unless force==true
     bool                        Stat(struct XrdClientStatInfo *stinfo, bool force = false);

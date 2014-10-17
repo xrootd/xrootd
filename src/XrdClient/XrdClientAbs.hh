@@ -90,6 +90,8 @@ public:
    // Hook to the open connection (needed by TXNetFile)
    XrdClientConn              *GetClientConn() const { return fConnModule; }
 
+   const char *                GetHandle () const { return fHandle; }
+
    XrdClientUrlInfo GetCurrentUrl();
 
    // The last response got from a non-async request
