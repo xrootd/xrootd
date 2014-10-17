@@ -1255,6 +1255,39 @@ bool XrdClient::LowOpen(const char *file, kXR_unt16 mode, kXR_unt16 options,
 }
 
 //_____________________________________________________________________________
+bool XrdClient::SendMonitoringInfo(const char *text, kXR_unt32 *dictid)
+{
+    if (!text || !dictid) {
+        Error("SendMonitoringInfo", "Null pointer passed as argument");
+        return FALSE;
+    }
+
+    ClientRequest setRequest;
+
+    memset(&setRequest, 0, sizeof(ClientRequest));
+
+    fConnModule->SetSID(setRequest.header.streamid);
+
+    setRequest.set.requestid = kXR_set;
+
+    XrdOucString msg("monitor info ");
+    msg += text;
+
+    setRequest.set.dlen = msg.length();
+
+    bool ok = fConnModule->SendGenCommand(&setRequest, msg.c_str(), 0, dictid,
+                                          FALSE, (char *)"SendMonitoringInfo");
+
+    if (ok && (fConnModule->LastServerResp.status == 0)) {
+        *dictid = ntohl(*dictid);
+        Info(XrdClientDebug::kHIDEBUG,
+             "SendMonitoringInfo", "Returned dictid=" << *dictid);
+    }
+
+    return ok;
+}
+
+//_____________________________________________________________________________
 bool XrdClient::Stat(struct XrdClientStatInfo *stinfo, bool force) {
 
     if (!force && fStatInfo.stated) {
