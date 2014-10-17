@@ -69,28 +69,7 @@ if(NOT DEFINED CMAKE_INSTALL_LOCALSTATEDIR)
 endif()
 
 if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
-  set(_LIBDIR_DEFAULT "lib")
-  # Override this default 'lib' with 'lib64' iff:
-  #  - we are on Linux system but NOT cross-compiling
-  #  - we are NOT on debian
-  #  - we are on a 64 bits system
-  # reason is: amd64 ABI: http://www.x86-64.org/documentation/abi.pdf
-  # Note that the future of multi-arch handling may be even
-  # more complicated than that: http://wiki.debian.org/Multiarch
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux"
-      AND NOT CMAKE_CROSSCOMPILING
-      AND NOT EXISTS "/etc/debian_version")
-    if(NOT DEFINED CMAKE_SIZEOF_VOID_P)
-      message(AUTHOR_WARNING
-        "Unable to determine default CMAKE_INSTALL_LIBDIR directory because no target architecture is known. "
-        "Please enable at least one language before including GNUInstallDirs.")
-    else()
-      if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
-        set(_LIBDIR_DEFAULT "lib64")
-      endif()
-    endif()
-  endif()
-  set(CMAKE_INSTALL_LIBDIR "${_LIBDIR_DEFAULT}" CACHE PATH "object code libraries (${_LIBDIR_DEFAULT})")
+  set(CMAKE_INSTALL_LIBDIR "lib" CACHE PATH "object code libraries (lib)")
 endif()
 
 if(NOT DEFINED CMAKE_INSTALL_INCLUDEDIR)
