@@ -563,7 +563,6 @@ fi
 %defattr(-,root,root,-)
 %{_libdir}/libXrdBwm*.so
 %{_libdir}/libXrdPss*.so
-%{_libdir}/libXrdOfs.so.*
 %{_libdir}/libXrdServer.so.*
 %{_libdir}/libXrdXrootd*.so
 %{_libdir}/libXrdFileCache*.so
@@ -579,7 +578,6 @@ fi
 %{_includedir}/xrootd/XrdXrootd
 %{_includedir}/xrootd/XrdHttp
 # These libraries are not used as plugins
-%{_libdir}/libXrdOfs.so
 %{_libdir}/libXrdServer.so
 
 %files private-devel

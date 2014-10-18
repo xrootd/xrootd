@@ -13,7 +13,6 @@ add_executable(
 
 target_link_libraries(
   xrootd
-  XrdOfs
   XrdServer
   XrdUtils
   dl
@@ -56,7 +55,7 @@ add_executable(
                                   XrdCms/XrdCmsTrace.hh )
 target_link_libraries(
   cmsd
-  XrdOfs
+  XrdServer
   XrdUtils
   pthread
   ${EXTRA_LIBS}
