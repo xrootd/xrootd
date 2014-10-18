@@ -29,6 +29,7 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+   * Correctly size the time buffer to avoid stack corruption.
    * Use correct flag when adding a cluster. The bug made it impossible
      to have more than one supervisor node.
    * Avoid SEGV when assigning a unix domain address to a NetAddrInfo object
