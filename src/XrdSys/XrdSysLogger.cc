@@ -415,7 +415,7 @@ void XrdSysLogger::putEmsg(char *msg, int msz)
 {
     struct iovec eVec[2];
     int retc;
-    char tbuff[24];
+    char tbuff[32];
 
 // Prefix message with time
 //
