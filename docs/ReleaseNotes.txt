@@ -9,6 +9,54 @@ Release Notes
 Version 4.0.3
 -------------
 
+* **Major bug fixes**
+   * **[Client/Cl]** Properly allocate buffers for error messages. (issue #136)
+   * **[Client/Cl]** Check if there is enough data before unmarshalling.
+   * **[Client/Cl]** Fix a memory leak in MessageUtils::WaitForResponse
+     affecting all synchronous calls.
+   * **[Client/Cl]** Prevent a segfault in the destructor when called after
+     the libXrdCl library has been finalized by the linker - ROOT garbage
+     collection. https://github.com/cms-externals/xrootd/pull/1
+   * **[Server]** Use correct flag when adding a cluster. The bug made it
+     impossible to have more than one supervisor node.
+   * **[Server/Logrotate]** Prevent stack corruption by correctly sizing the
+     timestamp buffer.
+
++ **Minor bug fixes**
+   * **[Client/Cl]** Properly check if a recursive copy was requested to avoid
+     unnecessarily stating the source.
+   * **[Client/Cl]** Avoid inserting duplicate entries to HostList when retrying
+     at the same server.
+   * **[Client/Cl]** Normalize (trim leading zeroes) before comparing adler and
+     crc checksums. (issue #139)
+   * **[Client/Posix]** Prevent mkdir failure in a clustered environment by
+     creating the full directory path by default.
+   * **[Client/Possix]** Fix a memory leak when doing deep locate.
+   * **[Server/Logrotate]** Use expect to send a ping to pipes. This prevents
+     logrotate from hanging when nobody is listening at the other end of the
+     pipe.
+   * **[Authentication/Client]** Pass the external environment to the protocol
+     manager. (issue #133)
+   * **[Authentication/sss]** Fix a memory leak.
+   * **[Utils]** Avoid SEGV when assigning a unix domain address to a
+     NetAddrInfo object previously used to hold a TCP domain address.
+
++ **Miscellaneous**
+   * **[Server/Logrotate]** Prevent the default configuration from sending
+     emails to admins and from creating a new log after the old one has
+     been rotated. (issue #135)
+   * **[Server/SELinux]** Using expect in logrotate requires the logrotate_t
+     context to have access to pseudoterminals and tmpfs as well as stating
+     fifos
+   * **[Client/Commandline Parser]** Allow local to local copy in new xrdcp but
+     not in the old one.
+   * **[Client/Cl]** Discard a whole cluster on failure in federation context.
+     (issue #132)
+
+-------------
+Version 4.0.3
+-------------
+
 + **Major bug fixes**
    * **[Server]**  Make sure the network routing is honored in all cases. This
      fixes problems encountered by sites whose clients use a private IP address
