@@ -41,7 +41,14 @@
 
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
-#include "XrdSecgsi/XrdSecgsiTrace.hh"
+#include "XrdOuc/XrdOucTrace.hh"
+
+extern XrdOucTrace *gsiTrace;
+#define TRACE_Authen   0x0002
+#define EPNAME(x)    static const char *epname = x;
+#define PRINT(y)    {if (gsiTrace) {gsiTrace->Beg(epname); cerr <<y; gsiTrace->End();}}
+#define DEBUG(y)   if (gsiTrace && (gsiTrace->What & TRACE_Authen)) PRINT(y)
+
 
 /******************************************************************************/
 /*                   V e r s i o n   I n f o r m a t i o n                    */
@@ -52,8 +59,6 @@ XrdVERSIONINFO(XrdSecgsiGMAPFun,secgsigmap);
 /******************************************************************************/
 /*                     G l o b a l s   &   S t a t i c s                      */
 /******************************************************************************/
-  
-extern XrdOucTrace *gsiTrace;
 
 enum XrdSecgsi_Match {kFull     = 0,
                       kBegins   = 1,
