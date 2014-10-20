@@ -42,12 +42,17 @@
 #include "XrdOuc/XrdOucHash.hh"
 #include "XrdOuc/XrdOucString.hh"
 #include "XrdOuc/XrdOucTrace.hh"
+#include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysLogger.hh"
 
-extern XrdOucTrace *gsiTrace;
+static XrdSysError   dnDest(0, "gmapdn_");
+static XrdSysLogger  dnLogger;
+static XrdOucTrace  *dnTrace = 0;
+
 #define TRACE_Authen   0x0002
 #define EPNAME(x)    static const char *epname = x;
-#define PRINT(y)    {if (gsiTrace) {gsiTrace->Beg(epname); cerr <<y; gsiTrace->End();}}
-#define DEBUG(y)   if (gsiTrace && (gsiTrace->What & TRACE_Authen)) PRINT(y)
+#define PRINT(y)    {if (dnTrace) {dnTrace->Beg(epname); cerr <<y; dnTrace->End();}}
+#define DEBUG(y)   if (dnTrace && (dnTrace->What & TRACE_Authen)) PRINT(y)
 
 
 /******************************************************************************/
@@ -159,20 +164,39 @@ char *XrdSecgsiGMAPFun(const char *dn, int now)
 //
 // Init the relevant parameters from a dedicated config file
 //
-int XrdSecgsiGMAPInit(const char *cfg)
+int XrdSecgsiGMAPInit(const char *parms)
 {
-   // Initialize the relevant parameters from the file 'cfg' or
-   // from the one defined by XRDGSIGMAPDNCF.
+   // Initialize the relevant parameters
+   //      parms = "[cfg]|[d|dbg|debug]"
+   // The config file 'cfg' can also be defined by XRDGSIGMAPDNCF.
+   // The flag 'd|dbg|debug' enables some verbosity.
    // Return 0 on success, -1 otherwise
    EPNAME("GMAPInitDN");
 
-   if (!cfg) cfg = getenv("XRDGSIGMAPDNCF");
-   if (!cfg || strlen(cfg) <= 0) {
+   bool debug = 0;
+   XrdOucString pps(parms), p, cfg;
+   int from = 0;
+   while ((from = pps.tokenize(p, from, '|')) != -1) {
+      if (p.length() > 0) {
+         if (p == "d" || p == "dbg" || p == "debug") {
+            debug = 1;
+         } else {
+            cfg = p;
+         }
+      }
+   }
+   // Initiate error logging and tracing
+   dnDest.logger(&dnLogger);
+   dnTrace = new XrdOucTrace(&dnDest);
+   if (debug) dnTrace->What |= TRACE_Authen;
+
+   if (cfg.length() <= 0) cfg = getenv("XRDGSIGMAPDNCF");
+   if (cfg.length() <= 0) {
       PRINT("ERROR: undefined config file path");
       return -1;
    }
 
-   FILE *fcf = fopen(cfg, "r");
+   FILE *fcf = fopen(cfg.c_str(), "r");
    if (fcf) {
       char l[4096], val[4096], usr[256];
       while (fgets(l, sizeof(l), fcf)) {
