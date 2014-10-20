@@ -514,7 +514,6 @@ fi
 %{_libdir}/libXrdCrypto.so.*
 %{_libdir}/libXrdCryptoLite.so.*
 %{_libdir}/libXrdCryptossl*.so
-%{_libdir}/libXrdCryptosslAux.so.*
 %{_libdir}/libXrdSec*.so
 %{_libdir}/libXrdUtils.so.*
 
@@ -534,7 +533,6 @@ fi
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
 %{_libdir}/libXrdUtils.so
-%{_libdir}/libXrdCryptosslAux.so
 
 %files client-libs
 %defattr(-,root,root,-)
