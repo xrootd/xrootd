@@ -257,7 +257,7 @@ bool XrdCmsBlackList::Present(const char *hName, XrdOucTList *bList)
 
 // Check if we really have a name here
 //
-   if (!hName || !blSched) return true;
+   if (!hName || !blSched) return false;
 
 // Check if we need to supply our list
 //

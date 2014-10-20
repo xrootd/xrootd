@@ -42,9 +42,11 @@
 #include "XrdCrypto/XrdCryptolocalFactory.hh"
 
 #include "XrdOuc/XrdOucHash.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysPlatform.hh"
 
+#include "XrdVersion.hh"
+  
 //
 // For error logging
 static XrdSysError eDest(0,"cryptofactory_");
@@ -308,6 +310,61 @@ XrdCryptoX509ParseBucket_t XrdCryptoFactory::X509ParseBucket()
    return 0;
 }
 
+//______________________________________________________________________________
+XrdCryptoProxyCertInfo_t XrdCryptoFactory::ProxyCertInfo()
+{
+   // Check if the proxyCertInfo extension exists
+
+   ABSTRACTMETHOD("XrdCryptoFactory::ProxyCertInfo");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoSetPathLenConstraint_t XrdCryptoFactory::SetPathLenConstraint()
+{
+   // Set the path length constraint
+
+   ABSTRACTMETHOD("XrdCryptoFactory::SetPathLenConstraint");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxy_t XrdCryptoFactory::X509CreateProxy()
+{
+   // Create a proxy certificate
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CreateProxy");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509CreateProxyReq_t XrdCryptoFactory::X509CreateProxyReq()
+{
+   // Create a proxy request
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509CreateProxyReq");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509SignProxyReq_t XrdCryptoFactory::X509SignProxyReq()
+{
+   // Sign a proxy request
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509SignProxyReq");
+   return 0;
+}
+
+//______________________________________________________________________________
+XrdCryptoX509GetVOMSAttr_t XrdCryptoFactory::X509GetVOMSAttr()
+{
+   // Get VOMS attributes, if any
+
+   ABSTRACTMETHOD("XrdCryptoFactory::X509GetVOMSAttr");
+   return 0;
+}
+
+
 /* ************************************************************************** */
 /*                                                                            */
 /*                    G e t C r y p t o F a c t o r y                         */
@@ -327,9 +384,10 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
 {
    // Static method to load/locate the crypto factory named factoryid
  
+   static XrdVERSIONINFODEF(myVer,cryptoloader,XrdVNUMBER,XrdVERSION);
    static FactoryEntry  *factorylist = 0;
    static int            factorynum = 0;
-   static XrdOucHash<XrdSysPlugin> plugins;
+   static XrdOucHash<XrdOucPinLoader> plugins;
    XrdCryptoFactory     *(*efact)();
    XrdCryptoFactory *factory;
    char factobjname[80], libfn[80];
@@ -396,13 +454,13 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    sprintf(factobjname, "XrdCrypto%sFactoryObject", factoryid);
    
    // Create or attach to the plug-in instance
-   XrdSysPlugin *plug = plugins.Find(factoryid);
+   XrdOucPinLoader *plug = plugins.Find(factoryid);
    if (!plug) {
       // Create one and add it to the list
-      snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s%s", factoryid, LT_MODULE_EXT);
+      snprintf(libfn, sizeof(libfn)-1, "libXrdCrypto%s.so", factoryid);
       libfn[sizeof(libfn)-1] = '\0';
       
-      plug = new XrdSysPlugin(&eDest, libfn);
+      plug = new XrdOucPinLoader(&myVer, "cryptolib", libfn);
       plugins.Add(factoryid, plug);
    }
    if (!plug) {
@@ -412,7 +470,8 @@ XrdCryptoFactory *XrdCryptoFactory::GetCryptoFactory(const char *factoryid)
    DEBUG("shared library '" << libfn << "' loaded");
 
    // Get the function
-   if (!(efact = (XrdCryptoFactory *(*)()) plug->getPlugin(factobjname))) {
+   if (!(efact = (XrdCryptoFactory *(*)()) plug->Resolve(factobjname))) {
+      PRINT(plug->LastMsg());
       PRINT("problems finding crypto factory object creator " << factobjname);
       return 0;
    }

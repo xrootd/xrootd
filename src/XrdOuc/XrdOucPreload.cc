@@ -39,14 +39,14 @@
 /*                         X r d O u c P r e l o a d                          */
 /******************************************************************************/
 
-bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry=false)
+bool XrdOucPreload(const char *plib, char *eBuff, int eBlen, bool retry)
 {
    char theLib[2048];
    bool dummy;
 
 // Perform versioning
 //
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, 0, dummy,
+   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, plib, dummy,
                                theLib, sizeof(theLib)))
       {snprintf(eBuff, eBlen,
                 "Unable to preload plugin via %s; path too long.", plib);

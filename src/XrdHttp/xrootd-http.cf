@@ -13,9 +13,9 @@ fi
 http.cert /etc/grid-security/hostcert.pem
 http.key /etc/grid-security/hostkey.pem
 http.cadir /etc/grid-security/certificates
-http.secretkey CHANGEME
-#http.gridmap /etc/grid-security/mapfile
-#http.secxtractor /usr/lib64/libXrdHttpVOMS.so
+http.secretkey CHANGEMEdgwegwgwgwrgwrg345555345
+http.gridmap /etc/grid-security/mapfile
+http.secxtractor /usr/lib64/libXrdHttpVOMS.so
 
 # As an example of preloading files, let's preload in memory
 # the /etc/services and /etc/hosts files
@@ -28,7 +28,7 @@ http.staticpreload /static/hosts_preload /etc/hosts
 # Usual basic xrd stuff
 #
 all.role server
-all.manager mgrhost.mgrdomain:1213
+all.manager pcitgt02.cern.ch:1213
 all.export /
 oss.localroot /tmp/xrdroot
 

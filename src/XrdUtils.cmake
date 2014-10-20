@@ -72,6 +72,7 @@ add_library(
   XrdOuc/XrdOucN2NLoader.cc     XrdOuc/XrdOucN2NLoader.hh
   XrdOuc/XrdOucNList.cc         XrdOuc/XrdOucNList.hh
   XrdOuc/XrdOucNSWalk.cc        XrdOuc/XrdOucNSWalk.hh
+  XrdOuc/XrdOucPinLoader.cc     XrdOuc/XrdOucPinLoader.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
@@ -190,41 +191,8 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# libz compatible CRC32
-#-------------------------------------------------------------------------------
-add_library(
-  XrdCksCalczcrc32
-  SHARED
-  XrdCks/XrdCksCalczcrc32.cc )
-
-target_link_libraries(
-  XrdCksCalczcrc32
-  XrdUtils
-  ${ZLIB_LIBRARY} )
-
-set_target_properties(
-  XrdCksCalczcrc32
-  PROPERTIES
-  VERSION   ${XRD_ZCRC32_VERSION}
-  SOVERSION ${XRD_ZCRC32_SOVERSION}
-  INTERFACE_LINK_LIBRARIES ""
-  LINK_INTERFACE_LIBRARIES "" )
-
-#-------------------------------------------------------------------------------
-# GPFS stat() plugin library
-#-------------------------------------------------------------------------------
-add_library(
-  XrdOssSIgpfsT
-  SHARED
-  XrdOss/XrdOssSIgpfsT.cc )
-
-target_link_libraries(
-  XrdOssSIgpfsT
-  XrdUtils )
-
-#-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------
 install(
-  TARGETS XrdUtils XrdCksCalczcrc32
+  TARGETS XrdUtils
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

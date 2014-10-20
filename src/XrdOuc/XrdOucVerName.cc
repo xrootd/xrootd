@@ -31,14 +31,24 @@
 #include <string.h>
 #include <strings.h>
 
+#include "XrdVersionPlugin.hh"
+
 #include "XrdOuc/XrdOucVerName.hh"
+
+/******************************************************************************/
+/*                               S t a t i c s                                */
+/******************************************************************************/
+  
+namespace
+{
+static const char *StrictName[] = XrdVERSIONPLUGINSTRICT;
+}
 
 /******************************************************************************/
 /*                               V e r s i o n                                */
 /******************************************************************************/
 
-int XrdOucVerName::Version(const char *piVers, const char *piPath,
-                           const char *piName,       bool &eqName,
+int XrdOucVerName::Version(const char *piVers, const char *piPath, bool &noFBK,
                                  char *buff,         int   blen)
 {
    const char *Dot, *Slash, *fName;
@@ -52,10 +62,11 @@ int XrdOucVerName::Version(const char *piVers, const char *piPath,
    if (Dot) pLen += Dot-fName;
       else {pLen += strlen(fName); Dot = "";}
 
-// Test for a name match and return result
+// Test strict naming and return result
 //
-   if (piName) eqName = strcmp(fName, piName) == 0;
-      else     eqName = false;
+   n = 0;
+   while(StrictName[n] && strcmp(fName, StrictName[n])) n++;
+   noFBK = (StrictName[n] != 0);
 
 // Format the versioned name
 //

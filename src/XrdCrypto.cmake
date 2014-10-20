@@ -1,5 +1,9 @@
-
 include( XRootDCommon )
+
+#-------------------------------------------------------------------------------
+# Modules
+#-------------------------------------------------------------------------------
+set( LIB_XRD_CRYPTOSSL     XrdCryptossl-${PLUGIN_VERSION} )
 
 #-------------------------------------------------------------------------------
 # Shared library version
@@ -9,9 +13,6 @@ set( XRD_CRYPTO_SOVERSION 1 )
 
 set( XRD_CRYPTO_LITE_VERSION   1.0.0 )
 set( XRD_CRYPTO_LITE_SOVERSION 1 )
-
-set( XRD_CRYPTO_SSL_VERSION   2.0.0 )
-set( XRD_CRYPTO_SSL_SOVERSION 2 )
 
 #-------------------------------------------------------------------------------
 # The XrdCrypto library
@@ -32,6 +33,7 @@ add_library(
   XrdCrypto/XrdCryptoX509Chain.cc         XrdCrypto/XrdCryptoX509Chain.hh
   XrdCrypto/XrdCryptoX509Crl.cc           XrdCrypto/XrdCryptoX509Crl.hh
   XrdCrypto/XrdCryptoX509Req.cc           XrdCrypto/XrdCryptoX509Req.hh
+  XrdCrypto/XrdCryptogsiX509Chain.cc      XrdCrypto/XrdCryptogsiX509Chain.hh
   XrdCrypto/XrdCryptolocalCipher.cc       XrdCrypto/XrdCryptolocalCipher.hh
   XrdCrypto/XrdCryptolocalFactory.cc      XrdCrypto/XrdCryptolocalFactory.hh )
 
@@ -77,38 +79,35 @@ set_target_properties(
   LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
-# The XrdCryptossl library
+# The XrdCryptossl module
 #-------------------------------------------------------------------------------
 if( BUILD_CRYPTO )
   include_directories( ${OPENSSL_INCLUDE_DIR} )
 
   add_library(
-    XrdCryptossl
-    SHARED
+    ${LIB_XRD_CRYPTOSSL}
+    MODULE
     XrdCrypto/XrdCryptosslAux.cc            XrdCrypto/XrdCryptosslAux.hh
+    XrdCrypto/XrdCryptosslgsiAux.cc
     XrdCrypto/XrdCryptosslCipher.cc         XrdCrypto/XrdCryptosslCipher.hh
-    XrdCrypto/XrdCryptosslFactory.cc        XrdCrypto/XrdCryptosslFactory.hh
     XrdCrypto/XrdCryptosslMsgDigest.cc      XrdCrypto/XrdCryptosslMsgDigest.hh
     XrdCrypto/XrdCryptosslRSA.cc            XrdCrypto/XrdCryptosslRSA.hh
     XrdCrypto/XrdCryptosslX509.cc           XrdCrypto/XrdCryptosslX509.hh
     XrdCrypto/XrdCryptosslX509Crl.cc        XrdCrypto/XrdCryptosslX509Crl.hh
     XrdCrypto/XrdCryptosslX509Req.cc        XrdCrypto/XrdCryptosslX509Req.hh
-    XrdCrypto/XrdCryptosslgsiAux.cc         XrdCrypto/XrdCryptosslgsiAux.hh
-    XrdCrypto/XrdCryptosslgsiX509Chain.cc   XrdCrypto/XrdCryptosslgsiX509Chain.hh
-    XrdCrypto/XrdCryptosslTrace.hh )
+    XrdCrypto/XrdCryptosslTrace.hh
+    XrdCrypto/XrdCryptosslFactory.cc        XrdCrypto/XrdCryptosslFactory.hh )
 
   target_link_libraries(
-    XrdCryptossl
+    ${LIB_XRD_CRYPTOSSL}
     XrdCrypto
     XrdUtils
     pthread
     ${OPENSSL_LIBRARIES} )
 
   set_target_properties(
-    XrdCryptossl
+    ${LIB_XRD_CRYPTOSSL}
     PROPERTIES
-    VERSION   ${XRD_CRYPTO_SSL_VERSION}
-    SOVERSION ${XRD_CRYPTO_SSL_SOVERSION}
     INTERFACE_LINK_LIBRARIES ""
     LINK_INTERFACE_LIBRARIES "" )
 endif()
@@ -122,7 +121,7 @@ install(
 
 if( BUILD_CRYPTO )
   install(
-    TARGETS XrdCryptossl
+    TARGETS ${LIB_XRD_CRYPTOSSL}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )
 endif()
 # FIXME: Unused files

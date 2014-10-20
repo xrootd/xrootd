@@ -44,7 +44,7 @@
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysLogger.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 
@@ -52,8 +52,7 @@
 #include "XrdSut/XrdSutCache.hh"
 
 #include "XrdCrypto/XrdCryptoMsgDigest.hh"
-#include "XrdCrypto/XrdCryptosslAux.hh"
-#include "XrdCrypto/XrdCryptosslgsiAux.hh"
+#include "XrdCrypto/XrdCryptoX509Req.hh"
 
 #include "XrdSecgsi/XrdSecProtocolgsi.hh"
 
@@ -152,9 +151,7 @@ String XrdSecProtocolgsi::DefError = "invalid credentials ";
 int    XrdSecProtocolgsi::PxyReqOpts = 0;
 int    XrdSecProtocolgsi::AuthzPxyWhat = -1;
 int    XrdSecProtocolgsi::AuthzPxyWhere = -1;
-XrdSysPlugin *XrdSecProtocolgsi::GMAPPlugin = 0;
 XrdSecgsiGMAP_t XrdSecProtocolgsi::GMAPFun = 0;
-XrdSysPlugin *XrdSecProtocolgsi::AuthzPlugin = 0;
 XrdSecgsiAuthz_t XrdSecProtocolgsi::AuthzFun = 0;
 XrdSecgsiAuthzKey_t XrdSecProtocolgsi::AuthzKey = 0;
 int    XrdSecProtocolgsi::AuthzCertFmt = -1;
@@ -163,7 +160,6 @@ int    XrdSecProtocolgsi::AuthzCacheTimeOut = 43200;  // 12h, default
 String XrdSecProtocolgsi::SrvAllowedNames;
 int    XrdSecProtocolgsi::VOMSAttrOpt = 1;
 XrdSecgsiAuthz_t XrdSecProtocolgsi::VOMSFun = 0;
-XrdSysPlugin *XrdSecProtocolgsi::VOMSPlugin = 0;
 int    XrdSecProtocolgsi::VOMSCertFmt = -1;
 int    XrdSecProtocolgsi::MonInfoOpt = 0;
 bool   XrdSecProtocolgsi::HashCompatibility = 1;
@@ -1708,6 +1704,15 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
    // Check random challenge
    if (!CheckRtag(bmai, ClntMsg))
       return ErrS(hs->ID,ei,bpar,bmai,0,kGSErrBadRndmTag,stepstr,ClntMsg.c_str());
+         
+   // Extract the VOMS attrbutes, if required
+   XrdCryptoX509ExportChain_t X509ExportChain = (sessionCF) ? sessionCF->X509ExportChain() : 0;
+   if (!X509ExportChain) {
+      // Error
+      return ErrS(hs->ID,ei,0,0,0,kGSErrError,
+                  "crypto factory function for chain export not found");
+   }
+
    //
    // Now action depens on the step
    switch (step) {
@@ -1817,14 +1822,13 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
       if (MonInfoOpt > 0) {
          Entity.moninfo = strdup(hs->Chain->EECname());
       }
-         
-      // Extract the VOMS attrbutes, if required
+
       if (VOMSAttrOpt > 0) {
          if (VOMSFun) {
             // Fill the information needed by the external function
             if (VOMSCertFmt == 1) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1840,7 +1844,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
                break;
             }
          } else {
-            // Lite version (no validations whatsover
+            // Lite version (no validations whatsover)
             if (ExtractVOMS(hs->Chain, Entity) != 0 && VOMSAttrOpt == 2) {
                // Error
                kS_rc = kgST_error;
@@ -1863,7 +1867,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             // May have been already done
             if (!Entity.creds || Entity.credslen == 0) {
                // PEM base64
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
                bpxy->ToString(spxy);
                Entity.creds = strdup(spxy.c_str());
                Entity.credslen = spxy.length();
@@ -1962,7 +1966,7 @@ int XrdSecProtocolgsi::Authenticate(XrdSecCredentials *cred,
             if (AuthzPxyWhat == 1 && hs->Chain->End()) {
                bpxy = hs->Chain->End()->Export();
             } else {
-               bpxy = XrdCryptosslX509ExportChain(hs->Chain, true);
+               bpxy = (*X509ExportChain)(hs->Chain, true);
             }
             bpxy->ToString(spxy);
          }
@@ -2122,13 +2126,17 @@ int XrdSecProtocolgsi::ExtractVOMS(X509Chain *c, XrdSecEntity &ent)
    XrdCryptoX509 *xp = c->End();
    if (!xp) return -1;
    
+   // Extractor
+   XrdCryptoX509GetVOMSAttr_t X509GetVOMSAttr = sessionCF->X509GetVOMSAttr();
+   if (!X509GetVOMSAttr) return -1;
+
    // Extract the information
    XrdOucString vatts;
    int rc = 0;
-   if ((rc = XrdSslgsiX509GetVOMSAttr(xp, vatts)) != 0) {
+   if ((rc = (*X509GetVOMSAttr)(xp, vatts)) != 0) {
       if (strstr(xp->Subject(), "CN=limited proxy")) {
          xp = c->SearchBySubject(xp->Issuer());
-         rc = XrdSslgsiX509GetVOMSAttr(xp, vatts);
+         rc = (*X509GetVOMSAttr)(xp, vatts);
       }
       if (rc != 0) {
          if (rc > 0) {
@@ -2678,6 +2686,9 @@ char *XrdSecProtocolgsiInit(const char mode,
 
 XrdVERSIONINFO(XrdSecProtocolgsiObject,secgsi);
 
+namespace
+{XrdVersionInfo *gsiVersion = &XrdVERSIONINFOVAR(XrdSecProtocolgsiObject);}
+
 extern "C"
 {
 XrdSecProtocol *XrdSecProtocolgsiObject(const char              mode,
@@ -3220,8 +3231,13 @@ int XrdSecProtocolgsi::ClientDoPxyreq(XrdSutBuffer *br, XrdSutBuffer **bm,
          return 0;
       }
       // Sign the request
+      XrdCryptoX509SignProxyReq_t X509SignProxyReq = (sessionCF) ? sessionCF->X509SignProxyReq() : 0;
+      if (!X509SignProxyReq) {
+         emsg = "problems getting method to sign request";
+         return 0;
+      }
       XrdCryptoX509 *npxy = 0;
-      if (XrdSslgsiX509SignProxyReq(pxy, kpxy, req, &npxy) != 0) {
+      if ((*X509SignProxyReq)(pxy, kpxy, req, &npxy) != 0) {
          emsg = "problems signing the request";
          return 0;
       }
@@ -3537,6 +3553,12 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
    // normal request+signature, or just forwarded by the client.
    // In both cases we need to save the proxy chain. If we need a 
    // request, we have to prepare it and send it back to the client.
+   // Get hook to parsing function
+   XrdCryptoX509CreateProxyReq_t X509CreateProxyReq = sessionCF->X509CreateProxyReq();
+   if (!X509CreateProxyReq) {
+      cmsg = "cannot attach to X509CreateProxyReq function!";
+      return -1;
+   }
    bool needReq =
       ((PxyReqOpts & kOptsSrvReq) && (hs->Options & kOptsSigReq)) ||
        (hs->Options & kOptsDlgPxy);
@@ -3551,7 +3573,7 @@ int XrdSecProtocolgsi::ServerDoCert(XrdSutBuffer *br,  XrdSutBuffer **bm,
             // Create the request
             XrdCryptoX509Req *rPXp = (XrdCryptoX509Req *) &(hs->RemVers);
             XrdCryptoRSA *krPXp = 0;
-            if (XrdSslgsiX509CreateProxyReq(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
+            if ((*X509CreateProxyReq)(hs->PxyChain->End(), &rPXp, &krPXp) == 0) {
                // Save key in the cache
                hs->Cref->buf4.buf = (char *)krPXp;
                // Prepare export bucket for request
@@ -4375,7 +4397,7 @@ int XrdSecProtocolgsi::GetCA(const char *cahash,
 }
 
 //______________________________________________________________________________
-int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp)
+int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, XrdCryptoFactory *cf, X509Chain *ch, XrdCryptoRSA **kp)
 {
    // Invoke 'grid-proxy-init' via the shell to create a valid the proxy file
    // If the variable GLOBUS_LOCATION is defined it prepares the external shell
@@ -4421,8 +4443,12 @@ int XrdSecProtocolgsi::InitProxy(ProxyIn_t *pi, X509Chain *ch, XrdCryptoRSA **kp
                           pi->deplen}; // signature path depth
    //
    // Init now
-   rc = XrdSslgsiX509CreateProxy(pi->cert, pi->key, &pxopt,
-                                 ch, kp, pi->out);
+   XrdCryptoX509CreateProxy_t X509CreateProxy = cf->X509CreateProxy();
+   if (!X509CreateProxy) {
+      PRINT("cannot attach to X509CreateProxy function!");
+      return 1;
+   }
+   rc = (*X509CreateProxy)(pi->cert, pi->key, &pxopt, ch, kp, pi->out);
 #else
    // command string
    String cmd(kMAXBUFLEN);
@@ -4650,7 +4676,7 @@ int XrdSecProtocolgsi::QueryProxy(bool checkcache, XrdSutCache *cache,
          // Cleanup the chain
          po->chain->Cleanup();
 
-         if (InitProxy(pi, po->chain, &(po->ksig)) != 0) {
+         if (InitProxy(pi, cf, po->chain, &(po->ksig)) != 0) {
             NOTIFY("problems initializing proxy via external shell");
             ntry--;
             continue;
@@ -4873,6 +4899,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 {
    // Load the DN-Username mapping function from the specified plug-in
    EPNAME("LoadGMAPFun");
+   char errBuff[2048];
 
    // Make sure the input config file is defined
    if (!plugin || strlen(plugin) <= 0) {
@@ -4881,10 +4908,7 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
    }
 
    // Create the plug-in instance
-   if (!(GMAPPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiGMAP_t)0;
-   }
+   XrdOucPinLoader gmapLib(errBuff,sizeof(errBuff),gsiVersion,"gmaplib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -4902,12 +4926,11 @@ XrdSecgsiGMAP_t XrdSecProtocolgsi::LoadGMAPFun(const char *plugin,
 
    // Get the function
    XrdSecgsiGMAP_t ep = 0;
-   if (useglobals) {
-      ep = (XrdSecgsiGMAP_t) GMAPPlugin->getPlugin("XrdSecgsiGMAPFun", 0, true);
-   } else {
-      ep = (XrdSecgsiGMAP_t) GMAPPlugin->getPlugin("XrdSecgsiGMAPFun");
-   }
+   if (useglobals) gmapLib.Global(true);
+   ep = (XrdSecgsiGMAP_t) gmapLib.Resolve("XrdSecgsiGMAPFun");
+
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiGMAPFun()' in "<<plugin);
       return (XrdSecgsiGMAP_t)0;
    }
@@ -4968,6 +4991,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    //    allocated internally with 'new char[]'.
    //
    EPNAME("LoadAuthzFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -4977,10 +5001,7 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   if (!(AuthzPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiAuthz_t)0;
-   }
+   XrdOucPinLoader authzLib(errBuff,sizeof(errBuff),gsiVersion,"authzlib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -4998,31 +5019,25 @@ XrdSecgsiAuthz_t XrdSecProtocolgsi::LoadAuthzFun(const char *plugin,
 
    // Get the function
    XrdSecgsiAuthz_t ep = 0;
-   if (useglobals)
-      ep = (XrdSecgsiAuthz_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzFun", 0, true);
-   else
-      ep = (XrdSecgsiAuthz_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzFun");
+   if (useglobals) authzLib.Global(true);
+   ep = (XrdSecgsiAuthz_t) authzLib.Resolve("XrdSecgsiAuthzFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
     
    // Get the key function
-   if (useglobals)
-      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey", 0, true);
-   else
-      AuthzKey = (XrdSecgsiAuthzKey_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzKey");
+   AuthzKey = (XrdSecgsiAuthzKey_t) authzLib.Resolve("XrdSecgsiAuthzKey");
    if (!AuthzKey) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiAuthzKey()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
    
    // Get the init function
    XrdSecgsiAuthzInit_t epinit = 0;
-   if (useglobals)
-      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit", 0, true);
-   else
-      epinit = (XrdSecgsiAuthzInit_t) AuthzPlugin->getPlugin("XrdSecgsiAuthzInit");
+   epinit = (XrdSecgsiAuthzInit_t) authzLib.Resolve("XrdSecgsiAuthzInit");
    if (!epinit) {
       PRINT("could not find 'XrdSecgsiAuthzInit()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
@@ -5073,6 +5088,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    //                          1       PEM (base64 standard string)
    //
    EPNAME("LoadVOMSFun");
+   char errBuff[2048];
 
    certfmt = -1;
    // Make sure the input config file is defined
@@ -5082,10 +5098,7 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
    }
    
    // Create the plug-in instance
-   if (!(VOMSPlugin = new XrdSysPlugin(&XrdSecProtocolgsi::eDest, plugin))) {
-      PRINT("could not create plugin instance for "<<plugin);
-      return (XrdSecgsiAuthz_t)0;
-   }
+   XrdOucPinLoader vomsLib(errBuff,sizeof(errBuff),gsiVersion,"vomslib",plugin);
 
    // Use global symbols?
    bool useglobals = 0;
@@ -5103,22 +5116,19 @@ XrdSecgsiVOMS_t XrdSecProtocolgsi::LoadVOMSFun(const char *plugin,
 
    // Get the function
    XrdSecgsiVOMS_t ep = 0;
-   if (useglobals)
-      ep = (XrdSecgsiVOMS_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSFun", 0, true);
-   else
-      ep = (XrdSecgsiVOMS_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSFun");
+   if (useglobals) vomsLib.Global(true);
+   ep = (XrdSecgsiVOMS_t) vomsLib.Resolve("XrdSecgsiVOMSFun");
    if (!ep) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSFun()' in "<<plugin);
       return (XrdSecgsiAuthz_t)0;
    }
    
    // Get the init function
    XrdSecgsiVOMSInit_t epinit = 0;
-   if (useglobals)
-      epinit = (XrdSecgsiVOMSInit_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSInit", 0, true);
-   else
-      epinit = (XrdSecgsiVOMSInit_t) VOMSPlugin->getPlugin("XrdSecgsiVOMSInit");
+   epinit = (XrdSecgsiVOMSInit_t) vomsLib.Resolve("XrdSecgsiVOMSInit");
    if (!epinit) {
+      PRINT(errBuff);
       PRINT("could not find 'XrdSecgsiVOMSInit()' in "<<plugin);
       return (XrdSecgsiVOMS_t)0;
    }

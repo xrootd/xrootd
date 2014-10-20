@@ -271,7 +271,8 @@ XrdNetAddrInfo &operator=(XrdNetAddrInfo const &rhs)
                     if (hostName) free(hostName);
                     hostName = (rhs.hostName ? strdup(rhs.hostName):0);
                     if (rhs.sockAddr != &rhs.IP.Addr)
-                       {if (!unixPipe) unixPipe = new sockaddr_un;
+                       {if (!unixPipe || sockAddr == &IP.Addr)
+                           unixPipe = new sockaddr_un;
                         memcpy(unixPipe, rhs.unixPipe, sizeof(sockaddr_un));
                        } else sockAddr = &IP.Addr;
                    }

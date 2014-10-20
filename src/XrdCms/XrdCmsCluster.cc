@@ -210,7 +210,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
                }
        NodeTab[Slot] = nP = new XrdCmsNode(lp, theIF, theNID, port, 0, Slot);
        if (!cidP) cidP = XrdCmsClustID::AddID(theNID);
-       if ((cidP->AddNode(nP, Special))) nP->cidP = cidP;
+       if ((cidP->AddNode(nP, SpecAlt))) nP->cidP = cidP;
           else {delete nP; NodeTab[Slot] = 0; return 0;}
       }
 
@@ -220,7 +220,7 @@ XrdCmsNode *XrdCmsCluster::Add(XrdLink *lp, int port, int Status, int sport,
 
 // Assign new server
 //
-   if (!aSet && (Status & CMS_isMan)) setAltMan(Slot, lp, sport);
+   if (!aSet && (Status & CMS_isSuper)) setAltMan(Slot, lp, sport);
    if (Slot > STHi) STHi = Slot;
    nP->isBound   = 1;
    nP->isConn    = 1;
@@ -1701,6 +1701,9 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
       {if (!baseFS.Local())
           {CmsStateRequest QReq = {{Sel.Path.Hash, kYR_state, kYR_raw, 0}};
            TRACE(Files, "seeking " <<Sel.Path.Val);
+           Cache.AddFile(Sel, 0);
+           if (Sel.Opts & XrdCmsSelect::Refresh)
+              QReq.Hdr.modifier |= CmsStateRequest::kYR_refresh;
            Cluster.Broadsend(amask, QReq.Hdr, Sel.Path.Val, Sel.Path.Len+1);
            return 0;
           }

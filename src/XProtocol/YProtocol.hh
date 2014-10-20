@@ -264,6 +264,7 @@ struct CmsLoginData
                   kYR_peer    =   0x00000004,
                   kYR_server  =   0x00000008,
                   kYR_proxy   =   0x00000010,
+                  kYR_subman  =   0x00000020,
                   kYR_suspend =   0x00000100,   // Suspended login
                   kYR_nostage =   0x00000200,   // Staging unavailable
                   kYR_trying  =   0x00000400,   // Extensive login retries

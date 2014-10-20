@@ -38,12 +38,12 @@
 #include "XrdVersionPlugin.hh"
 
 #include "XrdSys/XrdSysHeaders.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSec/XrdSecInterface.hh"
 #include "XrdSec/XrdSecPManager.hh"
 #include "XrdSec/XrdSecProtocolhost.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucErrInfo.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucVerName.hh"
 #include "XrdNet/XrdNetAddrInfo.hh"
 
@@ -269,13 +269,12 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
    static XrdVERSIONINFODEF(clVer, SecClnt, XrdVNUMBER, XrdVERSION);
    static XrdVERSIONINFODEF(srVer, SecSrvr, XrdVNUMBER, XrdVERSION);
    XrdVersionInfo *myVer = (pmode == 'c' ? &clVer : &srVer);
-   XrdSysPlugin   *secLib;
+   XrdOucPinLoader *secLib;
    XrdSecProtocol *(*ep)(PROTPARMS);
    char           *(*ip)(INITPARMS);
-   const char     *sep, *bundle = XRDPLUGIN_SECBUNDLE;
-   char  poname[80], liborig[2048], libpath[2048], *libloc, *newargs, *bP;
+   const char     *sep, *libloc;
+   char  poname[80], libpath[2048], *newargs, *bP;
    int i;
-   bool dummy, isMine = false;
 
 // Set plugin debugging if needed (this only applies to client calls)
 //
@@ -285,65 +284,39 @@ XrdSecProtList *XrdSecPManager::ldPO(XrdOucErrInfo *eMsg,  // In
 //
    if (!strcmp(pid, "host")) return Add(eMsg,pid,XrdSecProtocolhostObject,0);
 
-// Determine if this protocol is in our bundle. If so, it must be versioned.
-//
-   if (bundle)
-      {char bchk[80];
-       snprintf(bchk, sizeof(bchk), "&%s", pid);
-       isMine = strstr(bundle, bchk) != 0;
-      }
-
 // Form library name (versioned) and object creator name and bundle id
 //
+   snprintf(poname, sizeof(poname), "libXrdSec%s.so", pid);
    i = (spath ? strlen(spath) : 0);
    if (!i) {spath = ""; sep = "";}
       else sep = (spath[i-1] == '/' ? "" : "/");
-   snprintf(liborig, sizeof(liborig), "%s%slibXrdSec%s%s",
-                                      spath, sep, pid, LT_MODULE_EXT );
-
-// Apply versioning rules to this plugin library
-//
-   if (!XrdOucVerName::Version(XRDPLUGIN_SOVERSION, liborig, 0, dummy,
-                               libpath, sizeof(libpath)))
-      {if (errP) errP->Say("Config ", "Unable to load protocol ", pid,
-                                      "; plug-in path is invalid.");
-          else {const char *eTxt[] = {"Unable to load protocol ", pid,
-                                      "; plug-in path is invalid."};
-                eMsg->setErrInfo(EINVAL, eTxt, 3);
-               }
-       return 0;
-      }
+   snprintf(libpath, sizeof(libpath), "%s%s%s", spath, sep, poname);
    libloc = libpath;
 
-// Get the plugin object. We preferentially use a message object if it exists
+// Get the plugin loader.
 //
-do{if (errP) secLib = new XrdSysPlugin(errP, libloc, "sec.protocol", myVer);
-       else {bP = eMsg->getMsgBuff(i);
-             secLib = new XrdSysPlugin(bP,i, libloc, "sec.protocol", myVer);
-            }
-   eMsg->setErrInfo(0, "");
-   DEBUG("Loading " <<pid <<" protocol object from " <<libloc);
+   if (errP) secLib = new XrdOucPinLoader(errP, myVer, "sec.protocol", libloc);
+      else   {bP = eMsg->getMsgBuff(i);
+              secLib = new XrdOucPinLoader(bP,i,myVer, "sec.protocol", libloc);
+             }
 
 // Get the protocol object creator.
 //
+   if (eMsg) eMsg->setErrInfo(0, "");
    snprintf(poname, sizeof(poname), "XrdSecProtocol%sObject", pid);
-   if ((ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->getPlugin(poname))) break;
-
-// We failed. Check if we shoud try loading the unversioned so-name.
-//
-   delete secLib;
-   if (isMine) return 0;
-   isMine = true; libloc = liborig;
-   if (errP) errP->Say("Config ", "Falling back to using ", liborig);
-  } while(true);
+   if (!(ep = (XrdSecProtocol *(*)(PROTPARMS))secLib->Resolve(poname)))
+      {secLib->Unload(true); return 0;}
 
 // Get the protocol initializer
 //
    sprintf(poname, "XrdSecProtocol%sInit", pid);
-   if (!(ip = (char *(*)(INITPARMS))secLib->getPlugin(poname)))
-      {delete secLib;
-       return 0;
-      }
+   if (!(ip = (char *(*)(INITPARMS))secLib->Resolve(poname)))
+      {secLib->Unload(true); return 0;}
+
+// Get the true path and do some debugging
+//
+   libloc = secLib->Path();
+   DEBUG("Loaded " <<pid <<" protocol object from " <<libpath);
 
 // Invoke the one-time initialization
 //
@@ -353,13 +326,12 @@ do{if (errP) secLib = new XrdSysPlugin(errP, libloc, "sec.protocol", myVer);
                        " initialization failed in sec.protocol ", libloc};
            eMsg->setErrInfo(-1, eTxt, sizeof(eTxt));
           }
-       delete secLib;
+       secLib->Unload(true);
        return 0;
       }
 
 // Add this protocol to our protocol stack
 //
-   secLib->Persist();
    delete secLib;
    return Add(eMsg, pid, ep, newargs);
 }

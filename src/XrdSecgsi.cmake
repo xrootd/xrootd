@@ -5,7 +5,7 @@ include( XRootDCommon )
 # Shared library version
 #-------------------------------------------------------------------------------
 set( LIB_XRD_SEC_GSI          XrdSecgsi-${PLUGIN_VERSION} )
-set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPDLAP-${PLUGIN_VERSION} )
+set( LIB_XRD_SEC_GSI_GMAPLDAP XrdSecgsiGMAPLDAP-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_GMAPDN   XrdSecgsiGMAPDN-${PLUGIN_VERSION} )
 set( LIB_XRD_SEC_GSI_AUTHZVO  XrdSecgsiAUTHZVO-${PLUGIN_VERSION} )
 
@@ -20,7 +20,6 @@ add_library(
 
 target_link_libraries(
   ${LIB_XRD_SEC_GSI}
-  XrdCryptossl
   XrdCrypto
   XrdUtils
   pthread )
@@ -66,20 +65,20 @@ set_target_properties(
 #-------------------------------------------------------------------------------
 # The XrdSecgsiGMAPDN module
 #-------------------------------------------------------------------------------
-#add_library(
-#  ${LIB_XRD_SEC_GSI_GMAPDN}
-#  MODULE
-#  XrdSecgsi/XrdSecgsiGMAPFunDN.cc )
+add_library(
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  MODULE
+  XrdSecgsi/XrdSecgsiGMAPFunDN.cc )
 
-#target_link_libraries(
-#  ${LIB_XRD_SEC_GSI_GMAPDN}
-#  XrdUtils )
+target_link_libraries(
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  XrdUtils )
 
-#set_target_properties(
-#  ${LIB_XRD_SEC_GSI_GMAPDN}
-#  PROPERTIES
-#  INTERFACE_LINK_LIBRARIES ""
-#  LINK_INTERFACE_LIBRARIES "" )
+set_target_properties(
+  ${LIB_XRD_SEC_GSI_GMAPDN}
+  PROPERTIES
+  INTERFACE_LINK_LIBRARIES ""
+  LINK_INTERFACE_LIBRARIES "" )
 
 #-------------------------------------------------------------------------------
 # xrdgsiproxy
@@ -90,9 +89,9 @@ add_executable(
 
 target_link_libraries(
   xrdgsiproxy
-  XrdCryptossl
   XrdCrypto
-  XrdUtils )
+  XrdUtils
+  ${OPENSSL_CRYPTO_LIBRARY} )
 
 #-------------------------------------------------------------------------------
 # Install
@@ -102,7 +101,7 @@ install(
   ${LIB_XRD_SEC_GSI}
   ${LIB_XRD_SEC_GSI_GMAPLDAP}
   ${LIB_XRD_SEC_GSI_AUTHZVO}
-#  ${LIB_XRD_SEC_GSI_GMAPDN}
+  ${LIB_XRD_SEC_GSI_GMAPDN}
   xrdgsiproxy
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} )

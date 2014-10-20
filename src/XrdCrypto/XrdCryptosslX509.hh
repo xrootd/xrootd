@@ -40,6 +40,12 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 
+#if OPENSSL_VERSION_NUMBER >= 0x0090800f
+#  define XRDGSI_CONST const
+#else
+#  define XRDGSI_CONST
+#endif
+
 // ---------------------------------------------------------------------------//
 //
 // OpenSSL X509 implementation
@@ -56,6 +62,9 @@ public:
 
    // Access underlying data (in opaque form: used in chains)
    XrdCryptoX509data Opaque() { return (XrdCryptoX509data)cert; }
+
+   // Dump extensions
+   int DumpExtensions();
 
    // Access certificate key
    XrdCryptoRSA *PKI() { return pki; }
@@ -108,6 +117,8 @@ private:
 
    bool         IsCA();     // Find out if we are a CA
 
+   int          FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length);
+   int          Asn1PrintInfo(int tag, int xclass, int constructed, int indent);
 };
 
 #endif

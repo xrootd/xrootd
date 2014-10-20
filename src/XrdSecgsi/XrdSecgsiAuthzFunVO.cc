@@ -70,11 +70,23 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "XrdVersion.hh"
+
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSec/XrdSecEntity.hh"
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucLock.hh"
+
+/******************************************************************************/
+/*                   V e r s i o n   I n f o r m a t i o n                    */
+/******************************************************************************/
+  
+XrdVERSIONINFO(XrdSecgsiAuthzFun,secgsiauthz);
+
+XrdVERSIONINFO(XrdSecgsiAuthzKey,secgsiauthz);
+
+XrdVERSIONINFO(XrdSecgsiAuthzInit,secgsiauthz);
 
 /******************************************************************************/
 /*                    E x t e r n a l   F u n c t i o n s                     */

@@ -94,6 +94,16 @@ target_link_libraries(
   XrdUtils
   pthread )
 
+add_executable(
+  testxrdclient_read
+  XrdClient/TestXrdClient_read.cc )
+
+target_link_libraries(
+  testxrdclient_read
+  XrdClient
+  XrdUtils
+  pthread )
+
 #-------------------------------------------------------------------------------
 # Install
 #-------------------------------------------------------------------------------

@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g    CMakeFiles/frm_xfrd.dir/XrdFrm/XrdFrmXfrMain.cc.o  -o frm_xfrd -rdynamic libXrdServer.so.2.0.0 libXrdUtils.so.2.0.0 libXrdFrm.a -lpthread -lrt -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

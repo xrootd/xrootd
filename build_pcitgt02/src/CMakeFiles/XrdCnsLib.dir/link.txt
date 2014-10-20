@@ -1,0 +1,2 @@
+/usr/bin/ar cr libXrdCnsLib.a  CMakeFiles/XrdCnsLib.dir/XrdCns/XrdCnsLog.cc.o CMakeFiles/XrdCnsLib.dir/XrdCns/XrdCnsLogRec.cc.o CMakeFiles/XrdCnsLib.dir/XrdCns/XrdCnsXref.cc.o
+/usr/bin/ranlib libXrdCnsLib.a

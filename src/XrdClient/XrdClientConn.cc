@@ -47,6 +47,7 @@
 #include "XrdOuc/XrdOucErrInfo.hh"
 #include "XrdOuc/XrdOucUtils.hh"
 #include "XrdSec/XrdSecInterface.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 #include "XrdSys/XrdSysDNS.hh"
 #include "XrdClient/XrdClientUrlInfo.hh"
 #include "XrdClient/XrdClientEnv.hh"
@@ -56,6 +57,7 @@
 
 #include "XrdSys/XrdSysPriv.hh"
 #include "XrdSys/XrdSysPlatform.hh"
+#include "XrdSec/XrdSecLoadSecurity.hh"
 
 // Dynamic libs
 // Bypass Solaris ELF madness
@@ -66,13 +68,6 @@
 #undef  _FILE_OFFSET_BITS
 #define _FILE_OFFSET_BITS 32
 #undef  _LARGEFILE_SOURCE
-#endif
-#endif
-
-#ifndef WIN32
-#include <dlfcn.h>
-#ifndef __APPLE__
-#include <link.h>
 #endif
 #endif
 
@@ -1697,30 +1692,16 @@ XrdSecProtocol *XrdClientConn::DoAuthentication(char *plist, int plsiz)
 
    // We need to load the protocol getter the first time we are here
    if (!getp) {
-      char libfn[80];
-      snprintf( libfn, sizeof(libfn)-1, "libXrdSec%s", LT_MODULE_EXT );
-      libfn[sizeof(libfn)-1] = '\0';
-
-      // Open the security library
-      void *lh = 0;
-      if (!(lh = dlopen( libfn, RTLD_NOW))) {
-         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
-                                       "unable to load libXrdSec.so");
-         // Set error, in case of need
-         fOpenError = kXR_NotAuthorized;
-         LastServerError.errnum = fOpenError;
-         strcpy(LastServerError.errmsg, "unable to load libXrdSec.so");
-         return protocol;
-      }
-
-      // Get the client protocol getter
-      if (!(getp = (XrdSecGetProt_t) dlsym(lh, "XrdSecGetProtocol"))) {
-         Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
+      LastServerError.errmsg[0] = 0;
+      if (!(getp = XrdSecLoadSecFactory(LastServerError.errmsg,
+                                        sizeof(LastServerError.errmsg))))
+        {Info(XrdClientDebug::kHIDEBUG, "DoAuthentication",
                                        "unable to load XrdSecGetProtocol()");
          // Set error, in case of need
          fOpenError = kXR_NotAuthorized;
          LastServerError.errnum = fOpenError;
-         strcpy(LastServerError.errmsg, "unable to load XrdSecGetProtocol()");
+         if (!LastServerError.errmsg[0])
+            strcpy(LastServerError.errmsg, "Unable to load XrdSecGetProtocol()");
          return protocol;
       }
    }

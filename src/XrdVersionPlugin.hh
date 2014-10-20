@@ -87,23 +87,27 @@
 */
 #define XrdVERSIONPLUGINRULES \
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdAccAuthorizeObject         )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdBwmPolicyObject            )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCksCalcInit                )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCksInit                    )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdCmsGetClient               )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdCmsgetXmi                  )\
-        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocol                )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdBwmPolicyObject            )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCksCalcInit                )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCksInit                    )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCmsGetClient               )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdCryptosslFactoryObject     )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdFileCacheGetDecision       )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdgetProtocol                )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdgetProtocolPort            )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdHttpGetSecXtractor         )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssGetStorageSystem        )\
-        XrdVERSIONPLUGIN_Rule(Required,  0,  0, XrdOssStatInfoInit            )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOssStatInfoInit            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdOucGetCache                )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdOucgetName2Name            )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdOucgetName2Name            )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecGetProtocol             )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecgetService              )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzFun             )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzInit            )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiAuthzKey             )\
-        XrdVERSIONPLUGIN_Rule(Optional,  0,  0, XrdSecgsiGMAPFun              )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdSecgsiAuthzFun             )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecgsiAuthzInit            )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecgsiAuthzKey             )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdSecgsiGMAPFun              )\
+        XrdVERSIONPLUGIN_Rule(Optional,  4,  0, XrdSecgsiVOMSFun              )\
+        XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecgsiVOMSInit             )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolgsiInit         )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolgsiObject       )\
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolkrb5Init        )\
@@ -115,7 +119,7 @@
         XrdVERSIONPLUGIN_Rule(DoNotChk,  4,  0, XrdSecProtocolunixInit        )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSecProtocolunixObject      )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdSfsGetFileSystem           )\
-        XrdVERSIONPLUGIN_Rule(Required,  3,  0, XrdClGetMonitor               )\
+        XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetMonitor               )\
         XrdVERSIONPLUGIN_Rule(Required,  4,  0, XrdClGetPlugIn                )\
                              { 0, 0, 0,  0,  0, 0}
 
@@ -144,12 +148,30 @@
 #define XrdVERSIONPLUGINMAXIMS\
         XrdVERSIONPLUGIN_Maxim(DoNotChk,  4,  0, XrdSecProtocol, Init         )\
         XrdVERSIONPLUGIN_Maxim(Required,  4,  0, XrdSecProtocol, Object       )\
+        XrdVERSIONPLUGIN_Maxim(Optional,  4,  0, XrdCrypto,      FactoryObject)\
                              { 0, 0, 0,  0,  0, 0}
 
-/* The following defines the bundled security plug-ins. These are always
-   versioned. Any security plug-in not listed here is assumed to be versioned
-   but if it is not found, the unversioned name of the shared library will be
-   used (this may or may not cause a crash, depending on the developer).
+/* The following defines the list of plugins that are included in the base
+   code and are to be strictly name versioned upon loading (i.e. fallback
+   to an unversioned name is not allowed). This is enforced by XrdOucVerName.
 */
-#define XRDPLUGIN_SECBUNDLE "&gsi&krb5&pwd&sss&unix"
+#define XrdVERSIONPLUGINSTRICT       \
+        {"libXrdBwm.so",             \
+         "libXrdCksCalczcrc32.so",   \
+         "libXrdCryptossl.so",       \
+         "libXrdFileCache.so",       \
+         "libXrdHttp.so",            \
+         "libXrdOssSIgpfsT.so",      \
+         "libXrdPss.so",             \
+         "libXrdSec.so",             \
+         "libXrdSecgsi.so",          \
+         "libXrdSecgsiAUTHZVO.so",   \
+         "libXrdSecgsiGMAPDLAP.so",  \
+         "libXrdSecgsiGMAPLDAP.so",  \
+         "libXrdSeckrb5.so",         \
+         "libXrdSecpwd.so",          \
+         "libXrdSecsss.so",          \
+         "libXrdSecunix.so",         \
+         "libXrdXrootd.so",          \
+         0}
 #endif

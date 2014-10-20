@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -g   -shared -Wl,-soname,libXrdSecsss-4.so -o libXrdSecsss-4.so CMakeFiles/XrdSecsss-4.dir/XrdSecsss/XrdSecProtocolsss.cc.o libXrdCryptoLite.so.1.0.0 libXrdUtils.so.2.0.0 -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src: 

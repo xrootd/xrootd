@@ -156,7 +156,8 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
 // version of the protocol will send an IP address which we prefrentially use.
 // Older version used a hostname. This causes problems for multi-homed machines.
 //
-   if (!theHost && !theIP)
+if (!(decKey.Data.Opts & XrdSecsssKT::ktEnt::noIPCK))
+  {if (!theHost && !theIP)
       {Fatal(einfo,"Authenticate",ENOENT,"No hostname or IP address specified.");
        return -1;
       }
@@ -171,6 +172,10 @@ int XrdSecProtocolsss::Authenticate(XrdSecCredentials *cred,
           {Fatal(einfo, "Authenticate", EINVAL, "Hostname mismatch.");
            return -1;
           }
+  } else {
+   CLDBG(urName <<' ' <<urIP <<" or " <<urIQ << " forwarded token from "
+         <<(theHost ? theHost : "?") <<' ' <<(theIP ? theIP : "[?]"));
+  }
 
 // Set correct username
 //
@@ -213,6 +218,7 @@ void XrdSecProtocolsss::Delete()
 //
      if (urName)              free(urName); // Same pointer as Entity.host
      if (idBuff)              free(idBuff);
+     if (Crypto && Crypto != CryptObj) delete Crypto;
      if (keyTab && keyTab != ktObject) delete keyTab;
 
      delete this;

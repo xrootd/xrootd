@@ -43,6 +43,20 @@
 
 #include <openssl/pem.h>
 
+#define BIO_PRINT(b,c) \
+   BUF_MEM *bptr; \
+   BIO_get_mem_ptr(b, &bptr); \
+   if (bptr) { \
+      char *s = new char[bptr->length+1]; \
+      memcpy(s, bptr->data, bptr->length); \
+      s[bptr->length] = '\0'; \
+      PRINT(c << s); \
+      delete [] s; \
+   } else { \
+      PRINT("ERROR: "<<c<<" BIO internal buffer undefined!"); \
+   } \
+   if (b) BIO_free(b);
+
 //_____________________________________________________________________________
 XrdCryptosslX509::XrdCryptosslX509(const char *cf, const char *kf)
                  : XrdCryptoX509()
@@ -727,4 +741,310 @@ bool XrdCryptosslX509::Verify(XrdCryptoX509 *ref)
    }
    // Success
    return 1;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslX509::DumpExtensions()
+{
+   // Dump our extensions, if any
+   // Returns -1 on failure, 0 on success 
+   EPNAME("DumpExtensions");
+
+   int rc = -1;
+   // Point to the cerificate
+   X509 *xpi = (X509 *) Opaque();
+
+   // Make sure we got the right inputs
+   if (!xpi) {
+      PRINT("we are empty! Do nothing");
+      return rc;
+   }
+
+   rc = 1;
+   // Go through the extensions
+   X509_EXTENSION *xpiext = 0;
+   int npiext = X509_get_ext_count(xpi);
+   int i = 0;
+   for (i = 0; i< npiext; i++) {
+      xpiext = X509_get_ext(xpi, i);
+      char s[256];
+      OBJ_obj2txt(s, sizeof(s), X509_EXTENSION_get_object(xpiext), 1);
+      int crit = X509_EXTENSION_get_critical(xpiext);
+      // Notify what we found
+      PRINT("found extension '"<<s<<"', critical: " << crit);
+      // Dump its content
+      rc = 0;
+      XRDGSI_CONST unsigned char *pp = (XRDGSI_CONST unsigned char *) xpiext->value->data; 
+      long length = xpiext->value->length;
+      int ret = FillUnknownExt(&pp, length);
+      PRINT("ret: " << ret);
+   }
+
+   // Done
+   return rc;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslX509::FillUnknownExt(XRDGSI_CONST unsigned char **pp, long length)
+{
+   // Do the actual filling of the bio; can be called recursevely
+   EPNAME("FillUnknownExt");
+
+   XRDGSI_CONST unsigned char *p,*ep,*tot,*op,*opp;
+   long len;
+   int tag, xclass, ret = 0;
+   int nl,hl,j,r;
+   ASN1_OBJECT *o = 0;
+   ASN1_OCTET_STRING *os = 0;
+   /* ASN1_BMPSTRING *bmp=NULL;*/
+   int dump_indent = 6;
+   int depth = 0;
+   int indent = 0;
+
+   p = *pp;
+   tot = p + length;
+   op = p - 1;
+   while ((p < tot) && (op < p)) {
+      op = p;
+      j = ASN1_get_object(&p, &len, &tag, &xclass, length);
+#ifdef LINT
+      j = j;
+#endif
+      if (j & 0x80) {
+         PRINT("ERROR: error in encoding");
+         ret = 0;
+         goto end;
+      }
+      hl = (p-op);
+      length -= hl;
+      /* if j == 0x21 it is a constructed indefinite length object */
+
+      if (j != (V_ASN1_CONSTRUCTED | 1)) {
+         PRINT("PRIM:  d="<<depth<<" hl="<<hl<<" l="<<len);
+      } else {
+         PRINT("CONST: d="<<depth<<" hl="<<hl<<" l=inf  ");
+      }
+      if (!Asn1PrintInfo(tag, xclass, j, (indent) ? depth : 0))
+         goto end;
+      if (j & V_ASN1_CONSTRUCTED) {
+         ep = p + len;
+         PRINT(" ");
+         if (len > length) {
+            PRINT("ERROR:CONST: length is greater than " <<length);
+            ret=0;
+            goto end;
+         }
+         if ((j == 0x21) && (len == 0)) {
+            for (;;) {
+               r = FillUnknownExt(&p, (long)(tot-p));
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+               if ((r == 2) || (p >= tot))
+                  break;
+            }
+         } else {
+            while (p < ep) {
+               r = FillUnknownExt(&p, (long)len);
+               if (r == 0) {
+                  ret = 0;
+                  goto end;
+               }
+            }
+         }
+      } else if (xclass != 0) {
+         p += len;
+         PRINT(" ");
+      } else {
+         nl = 0;
+         if ((tag == V_ASN1_PRINTABLESTRING) ||
+             (tag == V_ASN1_T61STRING) ||
+             (tag == V_ASN1_IA5STRING) ||
+             (tag == V_ASN1_VISIBLESTRING) ||
+             (tag == V_ASN1_NUMERICSTRING) ||
+             (tag == V_ASN1_UTF8STRING) ||
+             (tag == V_ASN1_UTCTIME) ||
+             (tag == V_ASN1_GENERALIZEDTIME)) {
+            if (len > 0) {
+               char *s = new char[len + 1];
+               memcpy(s, p, len);
+               s[len] = 0;
+               PRINT("GENERIC:" << s <<" (len: "<<(int)len<<")");
+               delete [] s;
+            } else {
+               PRINT("GENERIC: (len: "<<(int)len<<")");
+            }
+         } else if (tag == V_ASN1_OBJECT) {
+            opp = op;
+            if (d2i_ASN1_OBJECT(&o, &opp, len+hl)) {
+               BIO *mem = BIO_new(BIO_s_mem());
+               i2a_ASN1_OBJECT(mem, o);
+               XrdOucString objstr;
+               BIO_PRINT(mem, "AOBJ:");
+            } else {
+               PRINT("ERROR:AOBJ: BAD OBJECT");
+            }
+         } else if (tag == V_ASN1_BOOLEAN) {
+            opp = op;
+            int ii = d2i_ASN1_BOOLEAN(NULL,&opp,len+hl);
+            if (ii < 0) {
+               PRINT("ERROR:BOOL: Bad boolean");
+               goto end;
+            }
+            PRINT("BOOL:"<< ii);
+         } else if (tag == V_ASN1_BMPSTRING) {
+            /* do the BMP thang */
+         } else if (tag == V_ASN1_OCTET_STRING) {
+            int i, printable = 1;
+            opp = op;
+            os = d2i_ASN1_OCTET_STRING(0, &opp, len + hl);
+            if (os && os->length > 0) {
+               opp = os->data;
+               /* testing whether the octet string is * printable */
+               for (i=0; i<os->length; i++) {
+                  if (( (opp[i] < ' ') && (opp[i] != '\n') &&
+                        (opp[i] != '\r') && (opp[i] != '\t')) || (opp[i] > '~')) {
+                     printable = 0;
+                     break;
+                  }
+               }
+               if (printable) {
+                  /* printable string */
+                  char *s = new char[os->length + 1];
+                  memcpy(s, opp, os->length);
+                  s[os->length] = 0;
+                  PRINT("OBJS:" << s << " (len: "<<os->length<<")");
+                  delete [] s;
+               } else {
+                  /* print the normal dump */
+                  if (!nl) PRINT("OBJS:");
+                  BIO *mem = BIO_new(BIO_s_mem());
+                  if (BIO_dump_indent(mem, (const char *)opp, os->length, dump_indent) <= 0) {
+                     PRINT("ERROR:OBJS: problems dumping to BIO");
+                     BIO_free(mem);                  
+                     goto end;
+                  }
+                  BIO_PRINT(mem, "OBJS:");
+                  nl = 1;
+               }
+            }
+            if (os) {
+               M_ASN1_OCTET_STRING_free(os);
+               os = 0;
+            }
+         } else if (tag == V_ASN1_INTEGER) {
+            ASN1_INTEGER *bs;
+            int i;
+
+            opp = op;
+            bs = d2i_ASN1_INTEGER(0, &opp, len+hl);
+            if (bs) {
+               PRINT("AINT:");
+               if (bs->type == V_ASN1_NEG_INTEGER)
+                  PRINT("-");
+               BIO *mem = BIO_new(BIO_s_mem());
+               for (i = 0; i < bs->length; i++) {
+                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+                     PRINT("ERROR:AINT: problems printf-ing to BIO");
+                     BIO_free(mem); 
+                     goto end;
+                  }
+               }
+               BIO_PRINT(mem, "AINT:");
+               if (bs->length == 0) PRINT("00");
+            } else {
+               PRINT("ERROR:AINT: BAD INTEGER");
+            }
+            M_ASN1_INTEGER_free(bs);
+         } else if (tag == V_ASN1_ENUMERATED) {
+            ASN1_ENUMERATED *bs;
+            int i;
+
+            opp = op;
+            bs = d2i_ASN1_ENUMERATED(0, &opp, len+hl);
+            if (bs) {
+               PRINT("AENU:");
+               if (bs->type == V_ASN1_NEG_ENUMERATED)
+                  PRINT("-");
+               BIO *mem = BIO_new(BIO_s_mem());
+               for (i = 0; i < bs->length; i++) {
+                  if (BIO_printf(mem, "%02X", bs->data[i]) <= 0) {
+                     PRINT("ERROR:AENU: problems printf-ing to BIO");
+                     BIO_free(mem); 
+                     goto end;
+                  }
+               }
+               BIO_PRINT(mem, "AENU:");
+               if (bs->length == 0) PRINT("00");
+            } else {
+               PRINT("ERROR:AENU: BAD ENUMERATED");
+            }
+            M_ASN1_ENUMERATED_free(bs);
+         }
+
+         if (!nl) PRINT(" ");
+
+         p += len;
+         if ((tag == V_ASN1_EOC) && (xclass == 0)) {
+            ret = 2; /* End of sequence */
+            goto end;
+         }
+      }
+      length -= len;
+   }
+   ret = 1;
+end:
+   if (o) ASN1_OBJECT_free(o);
+   if (os) M_ASN1_OCTET_STRING_free(os);
+   *pp = p;
+   PRINT("ret: "<<ret);
+
+   return ret;
+}
+
+//____________________________________________________________________________
+int XrdCryptosslX509::Asn1PrintInfo(int tag, int xclass, int constructed, int indent)
+{
+   // Print the BIO content
+   EPNAME("Asn1PrintInfo");
+
+   static const char fmt[]="%-18s";
+   static const char fmt2[]="%2d %-15s";
+   char str[128];
+   const char *p, *p2 = 0;
+
+   BIO *bp = BIO_new(BIO_s_mem());
+   if (constructed & V_ASN1_CONSTRUCTED)
+      p = "cons: ";
+   else
+      p = "prim: ";
+   if (BIO_write(bp, p, 6) < 6)
+      goto err;
+   BIO_indent(bp, indent, 128);
+
+   p = str;
+   if ((xclass & V_ASN1_PRIVATE) == V_ASN1_PRIVATE)
+      BIO_snprintf(str,sizeof str,"priv [ %d ] ",tag);
+   else if ((xclass & V_ASN1_CONTEXT_SPECIFIC) == V_ASN1_CONTEXT_SPECIFIC)
+      BIO_snprintf(str,sizeof str,"cont [ %d ]",tag);
+   else if ((xclass & V_ASN1_APPLICATION) == V_ASN1_APPLICATION)
+      BIO_snprintf(str,sizeof str,"appl [ %d ]",tag);
+   else if (tag > 30)
+      BIO_snprintf(str,sizeof str,"<ASN1 %d>",tag);
+   else
+      p = ASN1_tag2str(tag);
+
+   if (p2) {
+      if (BIO_printf(bp,fmt2,tag,p2) <= 0)
+         goto err;
+   } else {
+      if (BIO_printf(bp, fmt, p) <= 0)
+         goto err;
+   }
+   BIO_PRINT(bp, "A1PI:");
+   return(1);
+err:
+   BIO_free(bp);
+   return(0);
 }

@@ -362,10 +362,10 @@ int XrdSecsssKT::Rewrite(int Keep, int &numKeys, int &numTot, int &numExp)
          if (ktP->Data.Exp && ktP->Data.Exp <= time(0)) {numExp++; continue;}
          if (!isKey(ktCurr, ktP, 0)) {ktCurr.NUG(ktP); numID = 0;}
             else if (Keep && numID >= Keep) continue;
-         n = sprintf(buff, "%s0 u:%s g:%s n:%s N:%lld c:%ld e:%ld k:",
+         n = sprintf(buff, "%s0 u:%s g:%s n:%s N:%lld c:%ld e:%ld f:%lld k:",
                     (numKeys ? "\n" : ""),
                      ktP->Data.User,ktP->Data.Grup,ktP->Data.Name,ktP->Data.ID,
-                     ktP->Data.Crt, ktP->Data.Exp);
+                     ktP->Data.Crt, ktP->Data.Exp, ktP->Data.Flags);
          numID++; numKeys++; keyB2X(ktP, kbuff);
          if (write(ktFD, buff, n) < 0
          ||  write(ktFD, kbuff, ktP->Data.Len*2) < 0) break;
@@ -453,7 +453,7 @@ XrdSecsssKT::ktEnt* XrdSecsssKT::getKeyTab(XrdOucErrInfo *eInfo,
 do{while((lp = myKT.GetLine()))
         {recno++; What = 0;
          if (!*lp) continue;
-         if (!(tp = myKT.GetToken()) || strcmp("0", tp))
+         if (!(tp = myKT.GetToken()) || (strcmp("0", tp) && strcmp("1", tp)))
             {What = "keytable format missing or unsupported";      break;}
          if (!(ktNew = ktDecode0(myKT, eInfo)))
             {What = (eInfo ? eInfo->getErrText(): "invalid data"); break;}
@@ -604,12 +604,14 @@ XrdSecsssKT::ktEnt *XrdSecsssKT::ktDecode0(XrdOucStream  &kTab,
    static const short haveNAM = 0x0010;
    static const short haveNUM = 0x0020;
    static const short haveUSR = 0x0040;
+   static const short haveFLG = 0x0080;
 
    static struct 
           {const char *Name; size_t Offset; int Ctl; short What; char Tag;}
           ktDesc[] = {
    {"crtdt",   offsetof(ktEnt::ktData,Crt),  0,                haveCRT, 'c'},
    {"expdt",   offsetof(ktEnt::ktData,Exp),  0,                haveEXP, 'e'},
+   {"flags",   offsetof(ktEnt::ktData,Flags),0,                haveFLG, 'f'},
    {"group",   offsetof(ktEnt::ktData,Grup), ktEnt::GrupSZ,    haveGRP, 'g'},
    {"keyval",  offsetof(ktEnt::ktData,Val),  ktEnt::maxKLen*2, haveKEY, 'k'},
    {"keyname", offsetof(ktEnt::ktData,Name), ktEnt::NameSZ,    haveNAM, 'n'},
@@ -653,6 +655,10 @@ while((tp = kTab.GetToken()) && !Prob)
    if (!Prob)
       {if (!(Have & haveGRP)) strcpy(ktNew->Data.Grup, "nogroup");
        if (!(Have & haveNAM)) strcpy(ktNew->Data.Name, "nowhere");
+          else {int n = strlen(ktNew->Data.Name);
+                if (ktNew->Data.Name[n-1] == '+')
+                   ktNew->Data.Opts |= ktEnt::noIPCK;
+               }
        if (!(Have & haveUSR)) strcpy(ktNew->Data.User, "nobody");
             if (!(Have & haveKEY)) {What = "keyval"; Prob = " not found";}
        else if (!(Have & haveNUM)) {What = "keynum"; Prob = " not found";}

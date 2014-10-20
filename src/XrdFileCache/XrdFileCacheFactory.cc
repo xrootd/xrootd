@@ -24,13 +24,13 @@
 
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOuca2x.hh"
 #include "XrdOss/XrdOss.hh"
 #if !defined(HAVE_VERSIONS)
 #include "XrdOss/XrdOssApi.hh"
 #endif
-#include "XrdSys/XrdSysPlugin.hh"
 #include "XrdClient/XrdClient.hh"
 #include "XrdVersion.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
@@ -63,7 +63,7 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
 {
    static XrdOssSys myOssSys;
    extern XrdSysError OssEroute;
-   XrdSysPlugin *myLib;
+   XrdOucPinLoader *myLib;
    XrdOss *(*ep)(XrdOss *, XrdSysLogger *, const char *, const char *);
 
    XrdSysError err(Logger, "XrdOssGetSS");
@@ -87,22 +87,23 @@ XrdOss *XrdOssGetSS(XrdSysLogger *Logger, const char *config_fn,
          OssEroute.logger(Logger);
    OssEroute.Emsg("XrdOssGetSS", "Initializing OSS lib from ", OssLib);
 #if defined(HAVE_VERSIONS)
-   if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib, "osslib",
-                                  myOssSys.myVersion))) return 0;
+   if (!(myLib = new XrdOucPinLoader(&OssEroute, myOssSys.myVersion,
+                                     "osslib", OssLib))) return 0;
 #else
-   if (!(myLib = new XrdSysPlugin(&OssEroute, OssLib))) return 0;
+   if (!(myLib = new XrdOucPinLoader(&OssEroute, 0,
+                                     "osslib", OssLib))) return 0;
 #endif
 
 // Now get the entry point of the object creator
 //
    ep = (XrdOss *(*)(XrdOss *, XrdSysLogger *, const char *, const char *))
-         (myLib->getPlugin("XrdOssGetStorageSystem"));
-   if (!ep) return 0;
+         (myLib->Resolve("XrdOssGetStorageSystem"));
+   if (!ep) {myLib->Unload(true); return 0;}
 
 // Get the Object now
 //
 #if defined(HAVE_VERSIONS)
-   myLib->Persist(); delete myLib;
+    delete myLib;
 #endif
    return ep((XrdOss *)&myOssSys, Logger, config_fn, OssParms);
 }
@@ -304,13 +305,15 @@ bool Factory::xdlib(XrdOucStream &Config)
    params = (val[0]) ?  Config.GetWord() : 0;
 
 #if defined(HAVE_VERSIONS)
-   XrdSysPlugin* myLib = new XrdSysPlugin(&m_log, libp.c_str(), "decisionlib", NULL);
+   XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
+                                                libp.c_str());
 #else
-   XrdSysPlugin* myLib = new XrdSysPlugin(&m_log, libp.c_str());
+   XrdOucPinLoader* myLib = new XrdOucPinLoader(&m_log, 0, "decisionlib",
+                                                libp.c_str());
 #endif
    Decision *(*ep)(XrdSysError&);
-   ep = (Decision *(*)(XrdSysError&))myLib->getPlugin("XrdFileCacheGetDecision");
-   if (!ep) return false;
+   ep = (Decision *(*)(XrdSysError&))myLib->Resolve("XrdFileCacheGetDecision");
+   if (!ep) {myLib->Unload(true); return false;}
 
    Decision * d = ep(m_log);
    if (!d)

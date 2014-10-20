@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -g   -shared -Wl,-soname,libXrdSecgsiAUTHZVO-4.so -o libXrdSecgsiAUTHZVO-4.so CMakeFiles/XrdSecgsiAUTHZVO-4.dir/XrdSecgsi/XrdSecgsiAuthzFunVO.cc.o libXrdUtils.so.2.0.0 -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src: 

@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g   -shared -Wl,-soname,libXrdCksCalczcrc32.so.2 -o libXrdCksCalczcrc32.so.2.0.0 CMakeFiles/XrdCksCalczcrc32.dir/XrdCks/XrdCksCalczcrc32.cc.o libXrdUtils.so.2.0.0 -lz -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

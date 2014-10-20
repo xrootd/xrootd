@@ -45,6 +45,7 @@
 #include "XrdCks/XrdCksLoader.hh"
 #include "XrdCks/XrdCksManager.hh"
 #include "XrdCks/XrdCksXAttr.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdOuc/XrdOucTokenizer.hh"
 #include "XrdOuc/XrdOucXAttr.hh"
 #include "XrdSys/XrdSysError.hh"
@@ -304,25 +305,25 @@ int XrdCksManager::Init(const char *ConfigFN, const char *DfltCalc)
 
 int XrdCksManager::Config(const char *cFN, csInfo &Info)
 {
+   XrdOucPinLoader myPin(eDest, &myVersion, "ckslib", Info.Path);
    XrdCksCalc *(*ep)(XRDOSSCKSLIBARGS);
    int n;
 
-// Get a plugin object
-//
-   if (!(Info.Plugin = new XrdSysPlugin(eDest,Info.Path,"ckslib",&myVersion)))
-      {eDest->Emsg("Config", "Unable to configure cksum", Info.Name);
-       return 0;
-      }
-
 // Find the entry point
 //
+   Info.Plugin = 0;
    if (!(ep = (XrdCksCalc *(*)(XRDOSSCKSLIBARGS))
-              (Info.Plugin->getPlugin("XrdCksCalcInit")))) return 0;
+              (myPin.Resolve("XrdCksCalcInit"))))
+      {eDest->Emsg("Config", "Unable to configure cksum", Info.Name);
+       myPin.Unload();
+       return 0;
+      }
 
 // Get the initial object
 //
    if (!(Info.Obj = ep(eDest,cFN,Info.Name,(Info.Parms ? Info.Parms : ""))))
       {eDest->Emsg("Config", Info.Name, "checksum initialization failed");
+       myPin.Unload();
        return 0;
       }
 
@@ -331,16 +332,19 @@ int XrdCksManager::Config(const char *cFN, csInfo &Info)
    if (strcmp(Info.Name, Info.Obj->Type(n)))
       {eDest->Emsg("Config",Info.Name,"cksum plugin returned wrong name -",
                             Info.Obj->Type(n));
-       return 1;
+       myPin.Unload();
+       return 0;
       }
-  if (n > XrdCksData::ValuSize || n <= 0)
-     {eDest->Emsg("Config",Info.Name,"cksum plugin has an unsupported "
+   if (n > XrdCksData::ValuSize || n <= 0)
+      {eDest->Emsg("Config",Info.Name,"cksum plugin has an unsupported "
                                 "checksum length");
-      return 1;
-     }
+       myPin.Unload();
+       return 0;
+      }
 
 // All is well
 //
+   Info.Plugin = myPin.Export();
    Info.Len = n;
    return 1;
 }

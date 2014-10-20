@@ -30,9 +30,9 @@
 #include "XrdVersion.hh"
 
 #include "XrdOuc/XrdOucEnv.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSfs/XrdSfsInterface.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 /******************************************************************************/
 /*                 x r o o t d _ l o a d F i l e s y s t e m                  */
@@ -43,7 +43,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
                                           char *fslib, const char *cfn)
 {
    static XrdVERSIONINFODEF(myVersion, XrdOfsLoader, XrdVNUMBER, XrdVERSION);
-   XrdSysPlugin ofsLib(eDest, fslib, "fslib", &myVersion);
+   XrdOucPinLoader ofsLib(eDest, &myVersion, "fslib", fslib);
    XrdSfsFileSystem *(*ep)(XrdSfsFileSystem *, XrdSysLogger *, const char *);
    XrdSfsFileSystem *FS;
 
@@ -54,7 +54,7 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 // Get the file system object creator
 //
    if (!(ep = (XrdSfsFileSystem *(*)(XrdSfsFileSystem *,XrdSysLogger *,const char *))
-                                    ofsLib.getPlugin("XrdSfsGetFileSystem")))
+                                    ofsLib.Resolve("XrdSfsGetFileSystem")))
        return 0;
 
 // Get the file system object
@@ -66,6 +66,5 @@ XrdSfsFileSystem *XrdXrootdloadFileSystem(XrdSysError *eDest,
 
 // All done
 //
-   ofsLib.Persist();
    return FS;
 }

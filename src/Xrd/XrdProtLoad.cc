@@ -27,8 +27,8 @@
 /* specific prior written permission of the institution or contributor.       */
 /******************************************************************************/
 
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 #include "Xrd/XrdLink.hh"
 #include "Xrd/XrdPoll.hh"
@@ -54,10 +54,12 @@ int          XrdProtLoad::ProtPort[ProtoMax] = {0};
 int          XrdProtLoad::ProtoCnt = 0;
 int          XrdProtLoad::ProtWCnt = 0;
 
-char         *XrdProtLoad::liblist[ProtoMax];
-XrdSysPlugin *XrdProtLoad::libhndl[ProtoMax];
-
-int           XrdProtLoad::libcnt = 0;
+namespace
+{
+char            *liblist[XrdProtLoad::ProtoMax];
+XrdOucPinLoader *libhndl[XrdProtLoad::ProtoMax];
+int              libcnt = 0;
+}
 
 /******************************************************************************/
 /*            C o n s t r u c t o r   a n d   D e s t r u c t o r             */
@@ -254,7 +256,7 @@ XrdProtocol *XrdProtLoad::getProtocol(const char *lname,
 
 // Obtain an instance of the protocol object and return it
 //
-   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocol"))) return 0;
+   if (!(epvoid = libhndl[i]->Resolve("XrdgetProtocol"))) return 0;
    ep = (XrdProtocol *(*)(const char*,char*,XrdProtocol_Config*))epvoid;
    return ep(pname, parms, pi);
 }
@@ -289,7 +291,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
           {XrdLog->Emsg("Protocol", "Too many protocols have been defined.");
            return -1;
           }
-       if (!(libhndl[i] = new XrdSysPlugin(XrdLog, lname, "protocol", &myVer)))
+       if (!(libhndl[i] = new XrdOucPinLoader(XrdLog,&myVer,"protocol",lname)))
           return -1;
        liblist[i] = strdup(xname);
        libcnt++;
@@ -297,7 +299,7 @@ int XrdProtLoad::getProtocolPort(const char *lname,
 
 // Get the port number to be used
 //
-   if (!(epvoid = libhndl[i]->getPlugin("XrdgetProtocolPort", 2)))
+   if (!(epvoid = libhndl[i]->Resolve("XrdgetProtocolPort", 2)))
       return (pi->Port < 0 ? 0 : pi->Port);
    ep = (int (*)(const char*,char*,XrdProtocol_Config*))epvoid;
    return ep(pname, parms, pi);

@@ -30,7 +30,6 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucGMap.hh"
 #include "XrdSys/XrdSysTimer.hh"
-#include "XrdSys/XrdSysPlugin.hh"
 
 #include "XrdHttpTrace.hh"
 #include "XrdHttpProtocol.hh"
@@ -150,7 +149,7 @@ extern "C" {
 // This function is called early on to determine the port we need to use. The
 // default is ostensibly 1094 but can be overidden; which we allow.
 //
-XrdVERSIONINFO(XrdgetProtocolPort, xrootd);
+XrdVERSIONINFO(XrdgetProtocolPort, xrdhttp);
 
 extern "C" {
 
@@ -2190,22 +2189,14 @@ int XrdHttpProtocol::doStat(char *fname) {
 // Loads the SecXtractor plugin, if available
 int XrdHttpProtocol::LoadSecXtractor(XrdSysError *myeDest, const char *libName,
                                      const char *libParms) {
-    XrdSysPlugin     myLib(myeDest, libName, "secxtractorlib");
+    XrdVersionInfo *myVer = &XrdVERSIONINFOVAR(XrdgetProtocol);
+    XrdOucPinLoader myLib(myeDest, myVer, "secxtractorlib", libName);
     XrdHttpSecXtractor *(*ep)(XrdHttpSecXtractorArgs);
-    //static XrdVERSIONINFODEF (myVer, XrdHttpSecXtractor, XrdVNUMBER, XrdVERSION);
-
 
     // Get the entry point of the object creator
     //
-    ep = (XrdHttpSecXtractor *(*)(XrdHttpSecXtractorArgs))(myLib.getPlugin("XrdHttpGetSecXtractor"));
-    if (!ep) return 1;
-    myLib.Persist();
-
-    // Get the Object now
-    //
-    secxtractor = ep(myeDest, NULL, libParms);
-
-    return 0;
+    ep = (XrdHttpSecXtractor *(*)(XrdHttpSecXtractorArgs))(myLib.Resolve("XrdHttpGetSecXtractor"));
+    if (ep && (secxtractor = ep(myeDest, NULL, libParms))) return 0;
+    myLib.Unload();
+    return 1;
 }
-
-

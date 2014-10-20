@@ -1,0 +1,40 @@
+Determining if the function strlcpy exists failed with the following output:
+Change Dir: /home/furano/afshome/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/make "cmTryCompileExec3660390756/fast"
+/usr/bin/make -f CMakeFiles/cmTryCompileExec3660390756.dir/build.make CMakeFiles/cmTryCompileExec3660390756.dir/build
+make[1]: Entering directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/furano/afshome/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec3660390756.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=strlcpy   -o CMakeFiles/cmTryCompileExec3660390756.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-2.8/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec3660390756
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec3660390756.dir/link.txt --verbose=1
+/usr/bin/cc     -DCHECK_FUNCTION_EXISTS=strlcpy    CMakeFiles/cmTryCompileExec3660390756.dir/CheckFunctionExists.c.o  -o cmTryCompileExec3660390756 -rdynamic 
+CMakeFiles/cmTryCompileExec3660390756.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x15): undefined reference to `strlcpy'
+collect2: error: ld returned 1 exit status
+make[1]: *** [cmTryCompileExec3660390756] Error 1
+make[1]: Leaving directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp'
+make: *** [cmTryCompileExec3660390756/fast] Error 2
+
+
+Determining if the function crypt exists failed with the following output:
+Change Dir: /home/furano/afshome/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/make "cmTryCompileExec3410200455/fast"
+/usr/bin/make -f CMakeFiles/cmTryCompileExec3410200455.dir/build.make CMakeFiles/cmTryCompileExec3410200455.dir/build
+make[1]: Entering directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp'
+/usr/bin/cmake -E cmake_progress_report /home/furano/afshome/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec3410200455.dir/CheckFunctionExists.c.o
+/usr/bin/cc   -DCHECK_FUNCTION_EXISTS=crypt   -o CMakeFiles/cmTryCompileExec3410200455.dir/CheckFunctionExists.c.o   -c /usr/share/cmake-2.8/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec3410200455
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec3410200455.dir/link.txt --verbose=1
+/usr/bin/cc     -DCHECK_FUNCTION_EXISTS=crypt    CMakeFiles/cmTryCompileExec3410200455.dir/CheckFunctionExists.c.o  -o cmTryCompileExec3410200455 -rdynamic 
+CMakeFiles/cmTryCompileExec3410200455.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x15): undefined reference to `crypt'
+collect2: error: ld returned 1 exit status
+make[1]: *** [cmTryCompileExec3410200455] Error 1
+make[1]: Leaving directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/CMakeFiles/CMakeTmp'
+make: *** [cmTryCompileExec3410200455/fast] Error 2
+
+

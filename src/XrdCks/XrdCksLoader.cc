@@ -40,6 +40,9 @@
 #include "XrdCks/XrdCksCalccrc32.hh"
 #include "XrdCks/XrdCksCalcmd5.hh"
 #include "XrdCks/XrdCksLoader.hh"
+
+#include "XrdOuc/XrdOucPinLoader.hh"
+
 #include "XrdSys/XrdSysPlugin.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
@@ -113,10 +116,10 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
 {
    static XrdSysMutex myMutex;
    XrdSysMutexHelper  ldMutex(myMutex);
-   XrdCksCalc   *(*ep)(XRDOSSCKSLIBARGS);
-   XrdCksCalc   *csObj;
-   XrdSysPlugin *Plugin;
-   csInfo       *csIP;
+   XrdCksCalc      *(*ep)(XRDOSSCKSLIBARGS);
+   XrdCksCalc      *csObj;
+   XrdOucPinLoader *myPin;
+   csInfo          *csIP;
    char ldBuff[2048];
    int n;
 
@@ -153,23 +156,23 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
 //
    snprintf(ldBuff, sizeof(ldBuff), ldPath, csName);
 
-// Get a plugin object
+// Get the plugin loader
 //
-   if (!(Plugin = new XrdSysPlugin(eBuff, eBlen, ldBuff,
-                                   "ckslib", urVersion))) return 0;
+   if (!(myPin = new XrdOucPinLoader(eBuff,eBlen,urVersion,"ckslib",ldBuff)))
+      return 0;
 
 // Find the entry point
 //
    if (!(ep = (XrdCksCalc *(*)(XRDOSSCKSLIBARGS))
-              (Plugin->getPlugin("XrdCksCalcInit"))))
-      {delete Plugin;  return 0;}
+              (myPin->Resolve("XrdCksCalcInit"))))
+      {myPin->Unload(true); return 0;}
 
 // Get the initial object
 //
    if (!(csObj = ep(0, 0, csName, csParms)))
       {if (eBuff)
           snprintf(eBuff, eBlen, "%s checksum initialization failed.", csName);
-       delete Plugin;
+       myPin->Unload(true);
        return 0;
       }
 
@@ -180,7 +183,7 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
           snprintf(eBuff, eBlen, "%s cksum plugin returned wrong name - %s",
                                  csName, csObj->Type(n));
        delete csObj;
-       delete Plugin;
+       myPin->Unload(true);
        return 0;
       }
 
@@ -189,7 +192,7 @@ XrdCksCalc *XrdCksLoader::Load(const char *csName, const char *csParms,
    csLast++;
    csTab[csLast].Name   = strdup(csName);
    csTab[csLast].Obj    = csObj;
-   csTab[csLast].Plugin = Plugin;
+   csTab[csLast].Plugin = myPin->Export();
 
 // Return new instance of this object
 //
