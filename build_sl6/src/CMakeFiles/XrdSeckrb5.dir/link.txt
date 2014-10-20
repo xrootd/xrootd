@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g   -shared -Wl,-soname,libXrdSeckrb5.so.2 -o libXrdSeckrb5.so.2.0.0 CMakeFiles/XrdSeckrb5.dir/XrdSeckrb5/XrdSecProtocolkrb5.cc.o libXrdUtils.so.2.0.0 -lkrb5 -lcom_err -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

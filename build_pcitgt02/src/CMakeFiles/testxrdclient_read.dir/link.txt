@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter -g    CMakeFiles/testxrdclient_read.dir/XrdClient/TestXrdClient_read.cc.o  -o testxrdclient_read -rdynamic libXrdClient.so.2.0.0 libXrdUtils.so.2.0.0 -lpthread -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src 

@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g   -shared -Wl,-soname,libXrdAppUtils.so.1 -o libXrdAppUtils.so.1.0.0 CMakeFiles/XrdAppUtils.dir/XrdApps/XrdCpConfig.cc.o CMakeFiles/XrdAppUtils.dir/XrdApps/XrdCpFile.cc.o libXrdUtils.so.2.0.0 -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter -g    CMakeFiles/mpxstats.dir/XrdApps/XrdMpxStats.cc.o  -o mpxstats -rdynamic libXrdUtils.so.2.0.0 -lrt -lpthread -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src: 

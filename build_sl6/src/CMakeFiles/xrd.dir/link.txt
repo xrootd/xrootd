@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g    CMakeFiles/xrd.dir/XrdClient/XrdCommandLine.cc.o  -o xrd -rdynamic libXrdClient.so.2.0.0 libXrdUtils.so.2.0.0 -lpthread -lreadline -lncurses -lncurses -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

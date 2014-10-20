@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -g   -shared -Wl,-soname,libXrdSecgsiGMAPDLAP-4.so -o libXrdSecgsiGMAPDLAP-4.so CMakeFiles/XrdSecgsiGMAPDLAP-4.dir/XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc.o 

@@ -1,0 +1,76 @@
+Determining if the function strlcpy exists failed with the following output:
+Change Dir: /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/gmake "cmTryCompileExec/fast"
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+/afs/cern.ch/alice/offline/.@sys/local/bin/cmake -E cmake_progress_report /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o
+/usr/bin/gcc   -DCHECK_FUNCTION_EXISTS=strlcpy   -o CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o   -c /afs/cern.ch/alice/offline/.@sys/local/share/cmake-2.8/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec
+/afs/cern.ch/alice/offline/.@sys/local/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec.dir/link.txt --verbose=1
+/usr/bin/gcc     -DCHECK_FUNCTION_EXISTS=strlcpy    CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o  -o cmTryCompileExec -rdynamic 
+CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x15): undefined reference to `strlcpy'
+collect2: ld returned 1 exit status
+gmake[1]: Leaving directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+gmake[1]: *** [cmTryCompileExec] Error 1
+gmake: *** [cmTryCompileExec/fast] Error 2
+
+
+Determining if the function crypt exists failed with the following output:
+Change Dir: /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/gmake "cmTryCompileExec/fast"
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+/afs/cern.ch/alice/offline/.@sys/local/bin/cmake -E cmake_progress_report /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building C object CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o
+/usr/bin/gcc   -DCHECK_FUNCTION_EXISTS=crypt   -o CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o   -c /afs/cern.ch/alice/offline/.@sys/local/share/cmake-2.8/Modules/CheckFunctionExists.c
+Linking C executable cmTryCompileExec
+/afs/cern.ch/alice/offline/.@sys/local/bin/cmake -E cmake_link_script CMakeFiles/cmTryCompileExec.dir/link.txt --verbose=1
+/usr/bin/gcc     -DCHECK_FUNCTION_EXISTS=crypt    CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o  -o cmTryCompileExec -rdynamic 
+CMakeFiles/cmTryCompileExec.dir/CheckFunctionExists.c.o: In function `main':
+CheckFunctionExists.c:(.text+0x15): undefined reference to `crypt'
+collect2: ld returned 1 exit status
+gmake[1]: Leaving directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+gmake[1]: *** [cmTryCompileExec] Error 1
+gmake: *** [cmTryCompileExec/fast] Error 2
+
+
+Performing C++ SOURCE FILE Test READLINE_OK failed with the following output:
+Change Dir: /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp
+
+Run Build Command:/usr/bin/gmake "cmTryCompileExec/fast"
+/usr/bin/gmake -f CMakeFiles/cmTryCompileExec.dir/build.make CMakeFiles/cmTryCompileExec.dir/build
+gmake[1]: Entering directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+/afs/cern.ch/alice/offline/.@sys/local/bin/cmake -E cmake_progress_report /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/CMakeFiles 1
+Building CXX object CMakeFiles/cmTryCompileExec.dir/src.cxx.o
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter  -DREADLINE_OK   -o CMakeFiles/cmTryCompileExec.dir/src.cxx.o -c /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/src.cxx
+In file included from /usr/include/readline/readline.h:36,
+                 from /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/src.cxx:2:
+/usr/include/readline/rltypedefs.h:64: error: typedef ‘rl_getc_func_t’ is initialized (use decltype instead)
+/usr/include/readline/rltypedefs.h:64: error: ‘FILE’ was not declared in this scope
+/usr/include/readline/rltypedefs.h:64: error: expected primary-expression before ‘)’ token
+In file included from /afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp/src.cxx:2:
+/usr/include/readline/readline.h:416: error: ‘FILE’ was not declared in this scope
+/usr/include/readline/readline.h:416: error: expected primary-expression before ‘)’ token
+/usr/include/readline/readline.h:539: error: expected initializer before ‘*’ token
+/usr/include/readline/readline.h:540: error: expected initializer before ‘*’ token
+/usr/include/readline/readline.h:562: error: expected initializer before ‘*’ token
+/usr/include/readline/readline.h:845: error: expected ‘;’ before ‘*’ token
+/usr/include/readline/readline.h:846: error: expected ‘;’ before ‘*’ token
+gmake[1]: Leaving directory `/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/CMakeFiles/CMakeTmp'
+gmake[1]: *** [CMakeFiles/cmTryCompileExec.dir/src.cxx.o] Error 1
+gmake: *** [cmTryCompileExec/fast] Error 2
+
+Source file was:
+
+      #include <readline/readline.h>
+      int main()
+      {
+        char shell_prompt[100];
+        readline(shell_prompt);
+        return 0;
+      }
+      

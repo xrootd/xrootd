@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -g   -shared -Wl,-soname,libXrdSecgsiGMAPLDAP.so.2 -o libXrdSecgsiGMAPLDAP.so.2.0.0 CMakeFiles/XrdSecgsiGMAPLDAP.dir/XrdSecgsi/XrdSecgsiGMAPFunLDAP.cc.o 

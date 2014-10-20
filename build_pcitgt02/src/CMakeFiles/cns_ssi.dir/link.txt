@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -Wextra -Werror -Wno-unused-parameter -g    CMakeFiles/cns_ssi.dir/XrdCns/XrdCnsSsi.cc.o CMakeFiles/cns_ssi.dir/XrdCns/XrdCnsSsiCfg.cc.o CMakeFiles/cns_ssi.dir/XrdCns/XrdCnsSsiMain.cc.o  -o cns_ssi -rdynamic libXrdUtils.so.2.0.0 libXrdCnsLib.a -lpthread -lrt -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src: 

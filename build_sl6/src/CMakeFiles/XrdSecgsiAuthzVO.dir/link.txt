@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -O2 -g   -shared -Wl,-soname,libXrdSecgsiAuthzVO.so.2 -o libXrdSecgsiAuthzVO.so.2.0.0 CMakeFiles/XrdSecgsiAuthzVO.dir/XrdSecgsi/XrdSecgsiAuthzFunVO.cc.o libXrdUtils.so.2.0.0 -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_sl6/src: 

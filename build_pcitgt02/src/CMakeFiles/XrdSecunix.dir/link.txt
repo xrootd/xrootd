@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -Wall -Wextra -Werror -Wno-unused-parameter -g   -shared -Wl,-soname,libXrdSecunix.so.2 -o libXrdSecunix.so.2.0.0 CMakeFiles/XrdSecunix.dir/XrdSecunix/XrdSecProtocolunix.cc.o libXrdUtils.so.2.0.0 -Wl,-rpath,/afs/cern.ch/user/f/furano/Park/xrootd/xrootd-fbx3/xrootd-fbx3/build_pcitgt02/src: 
