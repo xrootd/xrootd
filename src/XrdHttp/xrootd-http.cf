@@ -7,14 +7,16 @@
 
 
 if exec xrootd
-   xrd.protocol XrdHttp /usr/lib64/libXrdHttp.so.1 
+   xrd.protocol XrdHttp /usr/local/lib/libXrdHttp.so
 fi
 
 http.cert /etc/grid-security/hostcert.pem
 http.key /etc/grid-security/hostkey.pem
 http.cadir /etc/grid-security/certificates
 http.secretkey CHANGEME
-#http.secxtractor /usr/lib64/libXrdHttpVOMS.so.1
+#http.gridmap /etc/grid-security/mapfile
+#http.secxtractor /usr/lib64/libXrdHttpVOMS.so
+#http.selfhttps2http yes
 
 # As an example of preloading files, let's preload in memory
 # the /etc/services and /etc/hosts files
@@ -23,6 +25,9 @@ http.staticpreload /static/services_preload1 /etc/services
 http.staticpreload /static/services_preload2 /etc/services
 http.staticpreload /static/hosts_preload /etc/hosts
 
+#
+# Usual basic xrd stuff
+#
 all.role server
 all.manager pcitgt02.cern.ch:1213
 all.export /
