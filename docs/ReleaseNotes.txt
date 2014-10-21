@@ -6,7 +6,7 @@ Release Notes
 =============
 
 -------------
-Version 4.0.3
+Version 4.0.4
 -------------
 
 * **Major bug fixes**
@@ -17,6 +17,7 @@ Version 4.0.3
    * **[Client/Cl]** Prevent a segfault in the destructor when called after
      the libXrdCl library has been finalized by the linker - ROOT garbage
      collection. https://github.com/cms-externals/xrootd/pull/1
+   * **[Client/Posix]** Fix broken readdir_r() and readdir_r64() functions.
    * **[Server]** Use correct flag when adding a cluster. The bug made it
      impossible to have more than one supervisor node.
    * **[Server/Logrotate]** Prevent stack corruption by correctly sizing the
