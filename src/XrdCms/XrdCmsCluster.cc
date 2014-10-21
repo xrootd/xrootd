@@ -1736,7 +1736,8 @@ int XrdCmsCluster::SelDFS(XrdCmsSelect &Sel, SMask_t amask,
 
 // Final verification that we have something to select
 //
-   if (!Sel.Vec.hf && (!isRW || !(Sel.Opts & XrdCmsSelect::NewFile)))
+   if (!Sel.Vec.hf
+   && (!isRW || !(Sel.Opts & (XrdCmsSelect::Trunc | XrdCmsSelect::NewFile))))
       return SelFail(Sel, eNoEnt);
    return 1;
 }
