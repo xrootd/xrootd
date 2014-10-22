@@ -41,6 +41,8 @@ Version 4.0.4
    * **[Authentication/sss]** Fix a memory leak.
    * **[Utils]** Avoid SEGV when assigning a unix domain address to a
      NetAddrInfo object previously used to hold a TCP domain address.
+   * **[Server/cmsd]** Use the same write selection rules for dfs and non-dfs
+     environments.
 
 + **Miscellaneous**
    * **[Server/Logrotate]** Prevent the default configuration from sending
