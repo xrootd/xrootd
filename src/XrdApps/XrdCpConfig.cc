@@ -128,6 +128,7 @@ XrdCpConfig::XrdCpConfig(const char *pgm)
    pHost    = 0;
    pPort    = 0;
    xRate    = 0;
+   Parallel = 1;
    OpSpec   = 0;
    Dlvl     = 0;
    nSrcs    = 1;
