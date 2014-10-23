@@ -29,6 +29,11 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
+    * Pass correct size of buffer to avoid the groupname from not being
+      returned in the unix authentication protocol.
+    * Use the same write selection rules for dfs and non-dfs environments.
+      Currently, kXR_delete selection incorrectly fails in dfs if the file
+      does not exist but correctly succeeds in non-dfs environments.
    * Correctly size the time buffer to avoid stack corruption.
    * Use correct flag when adding a cluster. The bug made it impossible
      to have more than one supervisor node.
