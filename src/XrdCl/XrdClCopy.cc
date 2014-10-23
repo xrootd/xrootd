@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdApps/XrdCpConfig.hh"
@@ -24,6 +30,7 @@
 #include "XrdCl/XrdClLog.hh"
 #include "XrdCl/XrdClFileSystem.hh"
 #include "XrdCl/XrdClUtils.hh"
+#include "XrdSys/XrdSysPthread.hh"
 
 #include <iostream>
 #include <iomanip>
@@ -38,9 +45,8 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     //! Constructor
     //--------------------------------------------------------------------------
-    ProgressDisplay(): pBytesProcessed(0), pBytesTotal(0), pPrevious(0),
-      pStarted(0), pPrintProgressBar(true), pPrintSourceCheckSum(false),
-      pPrintTargetCheckSum(false), pSource(0), pTarget(0)
+    ProgressDisplay(): pPrevious(0), pPrintProgressBar(true),
+      pPrintSourceCheckSum(false), pPrintTargetCheckSum(false)
     {}
 
     //--------------------------------------------------------------------------
@@ -51,6 +57,7 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
                            const XrdCl::URL *source,
                            const XrdCl::URL *destination )
     {
+      XrdSysMutexHelper scopedLock( pMutex );
       if( pPrintProgressBar )
       {
         if( jobTotal > 1 )
@@ -61,9 +68,12 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
         }
       }
       pPrevious = 0;
-      pStarted  = time(0);
-      pSource   = source;
-      pTarget   = destination;
+
+      JobData d;
+      d.started = time(0);
+      d.source  = source;
+      d.target  = destination;
+      pOngoingJobs[jobNum] = d;
     }
 
     //--------------------------------------------------------------------------
@@ -71,13 +81,26 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     //--------------------------------------------------------------------------
     virtual void EndJob( uint16_t jobNum, const XrdCl::PropertyList *results )
     {
+      XrdSysMutexHelper scopedLock( pMutex );
+
+      std::map<uint16_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
+      if( it == pOngoingJobs.end() )
+        return;
+
+      JobData &d = it->second;
+
       // make sure the last available status was printed, which may not be
       // the case when processing stdio since we throttle printing and don't
       // know the total size
-      JobProgress( jobNum, pBytesProcessed, pBytesTotal );
+      JobProgress( jobNum, d.bytesProcessed, d.bytesTotal );
 
       if( pPrintProgressBar )
-        std::cerr << std::endl;
+      {
+        if( pOngoingJobs.size() > 1 )
+          std::cerr << "\r" << std::string(70, ' ') << "\r";
+        else
+          std::cerr << std::endl;
+      }
 
       XrdCl::XRootDStatus st;
       results->Get( "status", st );
@@ -90,14 +113,89 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       if( pPrintSourceCheckSum )
       {
         results->Get( "sourceCheckSum", checkSum );
-        PrintCheckSum( pSource, checkSum, size );
+        PrintCheckSum( d.source, checkSum, size );
       }
 
       if( pPrintTargetCheckSum )
       {
         results->Get( "targetCheckSum", checkSum );
-        PrintCheckSum( pTarget, checkSum, size );
+        PrintCheckSum( d.target, checkSum, size );
       }
+
+      pOngoingJobs.erase(it);
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get progress bar
+    //--------------------------------------------------------------------------
+    std::string GetProgressBar( time_t now )
+    {
+      JobData &d = pOngoingJobs.begin()->second;
+
+      uint64_t speed = 0;
+      if( now-d.started )
+        speed = d.bytesProcessed/(now-d.started);
+
+      std::string bar;
+      int prog = 0;
+      int proc = 0;
+
+      if( d.bytesTotal )
+      {
+        prog = (int)((double)d.bytesProcessed/d.bytesTotal*50);
+        proc = (int)((double)d.bytesProcessed/d.bytesTotal*100);
+      }
+      else
+      {
+        prog = 50;
+        proc = 100;
+      }
+      bar.append( prog, '=' );
+      if( prog < 50 )
+        bar += ">";
+
+      std::ostringstream o;
+      o << "[" << XrdCl::Utils::BytesToString(d.bytesProcessed) << "B/";
+      o << XrdCl::Utils::BytesToString(d.bytesTotal) << "B]";
+      o << "[" << std::setw(3) << std::right << proc << "%]";
+      o << "[" << std::setw(50) << std::left;
+      o << bar;
+      o << "]";
+      o << "[" << XrdCl::Utils::BytesToString(speed) << "B/s]  ";
+      return o.str();
+    }
+
+    //--------------------------------------------------------------------------
+    //! Get sumary bar
+    //--------------------------------------------------------------------------
+    std::string GetSummaryBar( time_t now )
+    {
+      std::map<uint16_t, JobData>::iterator it;
+      std::ostringstream o;
+
+      for( it = pOngoingJobs.begin(); it != pOngoingJobs.end(); ++it )
+      {
+        JobData  &d      = it->second;
+        uint16_t  jobNum = it->first;
+
+        uint64_t speed = 0;
+        if( now-d.started )
+          speed = d.bytesProcessed/(now-d.started);
+
+        int proc = 0;
+        if( d.bytesTotal )
+          proc = (int)((double)d.bytesProcessed/d.bytesTotal*100);
+        else
+          proc = 100;
+
+        o << "[#" << jobNum << ": ";
+//        o << XrdCl::Utils::BytesToString(d.bytesProcessed) << "B/";
+//        o << XrdCl::Utils::BytesToString(d.bytesTotal) << "B ";
+        o << proc << "% ";
+        o << XrdCl::Utils::BytesToString(speed) << "B/s] ";
+      }
+      o << "        ";
+      return o.str();
     }
 
     //--------------------------------------------------------------------------
@@ -107,47 +205,31 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
                               uint64_t bytesProcessed,
                               uint64_t bytesTotal )
     {
+      XrdSysMutexHelper scopedLock( pMutex );
+
       if( pPrintProgressBar )
       {
-        pBytesProcessed = bytesProcessed;
-        pBytesTotal     = bytesTotal;
-
         time_t now = time(0);
         if( (now - pPrevious < 1) && (bytesProcessed != bytesTotal) )
           return;
         pPrevious = now;
 
-        uint64_t speed = 0;
-        if( now-pStarted )
-          speed = bytesProcessed/(now-pStarted);
+        std::map<uint16_t, JobData>::iterator it = pOngoingJobs.find( jobNum );
+        if( it == pOngoingJobs.end() )
+          return;
 
-        std::string bar;
-        int prog = (int)((double)bytesProcessed/bytesTotal*50);
-        int proc = (int)((double)bytesProcessed/bytesTotal*100);
+        JobData &d = it->second;
 
-        if( bytesTotal )
-        {
-          prog = (int)((double)bytesProcessed/bytesTotal*50);
-          proc = (int)((double)bytesProcessed/bytesTotal*100);
-        }
+        d.bytesProcessed = bytesProcessed;
+        d.bytesTotal     = bytesTotal;
+
+        std::string progress;
+        if( pOngoingJobs.size() == 1 )
+          progress = GetProgressBar( now );
         else
-        {
-          prog = 50;
-          proc = 100;
-        }
-        bar.append( prog, '=' );
-        if( prog < 50 )
-          bar += ">";
+          progress = GetSummaryBar( now );
 
-        std::cerr << "\r";
-        std::cerr << "[" << XrdCl::Utils::BytesToString(bytesProcessed) << "B/";
-        std::cerr << XrdCl::Utils::BytesToString(bytesTotal) << "B]";
-        std::cerr << "[" << std::setw(3) << std::right << proc << "%]";
-        std::cerr << "[" << std::setw(50) << std::left;
-        std::cerr << bar;
-        std::cerr << "]";
-        std::cerr << "[" << XrdCl::Utils::BytesToString(speed) << "B/s]  ";
-        std::cerr << std::flush;
+        std::cerr << "\r" << progress << std::flush;
       }
     }
 
@@ -184,15 +266,23 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
     void PrintTargetCheckSum( bool print ) { pPrintTargetCheckSum = print; }
 
   private:
-    uint64_t          pBytesProcessed;
-    uint64_t          pBytesTotal;
-    time_t            pPrevious;
-    time_t            pStarted;
-    bool              pPrintProgressBar;
-    bool              pPrintSourceCheckSum;
-    bool              pPrintTargetCheckSum;
-    const XrdCl::URL *pSource;
-    const XrdCl::URL *pTarget;
+    struct JobData
+    {
+      JobData(): bytesProcessed(0), bytesTotal(0),
+        started(0), source(0), target(0) {}
+      uint64_t          bytesProcessed;
+      uint64_t          bytesTotal;
+      time_t            started;
+      const XrdCl::URL *source;
+      const XrdCl::URL *target;
+    };
+
+    time_t                      pPrevious;
+    bool                        pPrintProgressBar;
+    bool                        pPrintSourceCheckSum;
+    bool                        pPrintTargetCheckSum;
+    std::map<uint16_t, JobData> pOngoingJobs;
+    XrdSysRecMutex              pMutex;
 };
 
 //------------------------------------------------------------------------------
@@ -667,6 +757,14 @@ int main( int argc, char **argv )
   }
 
   //----------------------------------------------------------------------------
+  // Configure the copy process
+  //----------------------------------------------------------------------------
+  PropertyList processConfig;
+  processConfig.Set( "jobType", "configuration" );
+  processConfig.Set( "parallel", config.Parallel );
+  process.AddJob( processConfig, 0 );
+
+  //----------------------------------------------------------------------------
   // Prepare and run the copy process
   //----------------------------------------------------------------------------
   XRootDStatus st = process.Prepare();
@@ -680,8 +778,32 @@ int main( int argc, char **argv )
   st = process.Run( &progress );
   if( !st.IsOK() )
   {
+    if( resultVect.size() == 1 )
+      std::cerr << "Run: " << st.ToStr() << std::endl;
+    else
+    {
+      std::vector<XrdCl::PropertyList*>::iterator it;
+      uint16_t i = 1;
+      uint16_t jobsRun = 0;
+      uint16_t errors  = 0;
+      for( it = resultVect.begin(); it != resultVect.end(); ++it, ++i )
+      {
+        if( !(*it)->HasProperty( "status" ) )
+          continue;
+
+        XRootDStatus st = (*it)->Get<XRootDStatus>("status");
+        if( !st.IsOK() )
+        {
+          std::cerr << "Job #" << i << ": " << st.ToStr();
+          ++errors;
+        }
+        ++jobsRun;
+      }
+      std::cerr << "Jobs total: " << resultVect.size();
+      std::cerr << ", run: " << jobsRun;
+      std::cerr << ", errors: " << errors << std::endl;
+    }
     CleanUpResults( resultVect );
-    std::cerr << "Run: " << st.ToStr() << std::endl;
     return st.GetShellCode();
   }
   CleanUpResults( resultVect );
