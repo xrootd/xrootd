@@ -76,6 +76,26 @@ namespace XrdCl
       }
 
       //------------------------------------------------------------------------
+      //! Get the value associated with a name
+      //!
+      //! @return the value or Item() if the key does not exist
+      //------------------------------------------------------------------------
+      template<typename Item>
+      Item Get( const std::string &name ) const
+      {
+        PropertyMap::const_iterator it;
+        it = pProperties.find( name );
+        if( it == pProperties.end() )
+          return Item();
+        std::istringstream i; i.str( it->second );
+        Item item;
+        i >> item;
+        if( i.bad() )
+          return Item();
+        return item;
+      }
+
+      //------------------------------------------------------------------------
       //! Set a value with a name and an index
       //!
       //! @param name must not contain spaces
@@ -101,6 +121,19 @@ namespace XrdCl
         std::ostringstream o;
         o << name << " " << index;
         return Get( o.str(), item );
+      }
+
+      //------------------------------------------------------------------------
+      //! Get the value associated with a key and an index
+      //!
+      //! @return the value or Item() if the key does not exist
+      //------------------------------------------------------------------------
+      template<typename Item>
+      Item Get( const std::string &name, uint32_t index ) const
+      {
+        std::ostringstream o;
+        o << name << " " << index;
+        return Get<Item>( o.str() );
       }
 
       //------------------------------------------------------------------------
@@ -164,6 +197,16 @@ namespace XrdCl
     return true;
   }
 
+  template<>
+  inline std::string PropertyList::Get<std::string>( const std::string &name ) const
+  {
+    PropertyMap::const_iterator it;
+    it = pProperties.find( name );
+    if( it == pProperties.end() )
+      return std::string();
+    return it->second;
+  }
+
   //----------------------------------------------------------------------------
   // Specialize set for XRootDStatus
   //----------------------------------------------------------------------------
@@ -200,6 +243,16 @@ namespace XrdCl
     is >> item.code;   if( is.bad() ) return false;
     is >> item.errNo;  if( is.bad() ) return false;
     return true;
+  }
+
+  template<>
+  inline XRootDStatus PropertyList::Get<XRootDStatus>(
+    const std::string  &name ) const
+  {
+    XRootDStatus st;
+    if( !Get( name, st ) )
+      return XRootDStatus();
+    return st;
   }
 
   //----------------------------------------------------------------------------
