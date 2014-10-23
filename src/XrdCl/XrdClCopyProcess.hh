@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
 // This file is part of the XRootD software suite.
@@ -142,6 +142,12 @@ namespace XrdCl
       //! tpcTimeout     [uint16_t] - time limit for the actual copy to finish
       //! dynamicSource  [bool]     - support for the case where the size source
       //!                             file may change during reading process
+      //!
+      //! Configuration job - this is a job that that is supposed to configure
+      //! the copy process as a whole instead of adding a copy job:
+      //!
+      //! jobType        [string]   - "configuration" - for configuraion
+      //! parallel       [uint8_t]  - nomber of copy jobs to be run in parallel
       //!
       //! Results:
       //! sourceCheckSum [string]   - checksum at source, if requested
