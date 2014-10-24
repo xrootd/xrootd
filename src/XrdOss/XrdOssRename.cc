@@ -289,8 +289,8 @@ int XrdOssSys::RenameLink3(char *cPath, char *old_path, char *new_path)
   
 // First set the new extended attribute on this file
 //
-   if ((rc = XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), new_path,
-                              strlen(new_path)+1, cPath))) return rc;
+   if ((rc = XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(), new_path,
+                                   strlen(new_path)+1, cPath))) return rc;
 
 // Now merely rename the old to the new
 //
@@ -299,7 +299,7 @@ int XrdOssSys::RenameLink3(char *cPath, char *old_path, char *new_path)
 // Rename failed, restore old attribute
 //
    rc = -errno;
-   XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(),old_path,strlen(old_path)+1,cPath);
+   XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(),old_path,strlen(old_path)+1,cPath);
    OssEroute.Emsg("RenameLink", rc, "rename", old_path);
    return rc;
 }

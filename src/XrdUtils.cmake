@@ -45,6 +45,7 @@ add_library(
   XrdSys/XrdSysError.cc         XrdSys/XrdSysError.hh
   XrdSys/XrdSysLogger.cc        XrdSys/XrdSysLogger.hh
                                 XrdSys/XrdSysLinuxSemaphore.hh
+  XrdSys/XrdSysXAttr.cc         XrdSys/XrdSysXAttr.hh
 
   #-----------------------------------------------------------------------------
   # XrdOuc

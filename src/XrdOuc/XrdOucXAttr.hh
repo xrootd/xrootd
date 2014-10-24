@@ -117,7 +117,7 @@ T   Attr; // The attribute value
          Failure: -errno is returned.
 */
 int Del(const char *Path, int fd=-1)
-       {return XrdSysFAttr::Del(Attr.Name(), Path, fd);}
+       {return XrdSysFAttr::Xat->Del(Attr.Name(), Path, fd);}
 
 /* Get() get this attribute from the file identified by Path or an open file
          with file descriptor of fd (fd must be >= 0). The attribute values are
@@ -126,8 +126,8 @@ int Del(const char *Path, int fd=-1)
          Failure: -errno is returned.
 */
 int Get(const char *Path, int fd=-1)
-       {return Attr.postGet(XrdSysFAttr::Get(Attr.Name(), &Attr, Attr.sizeGet(),
-                                             Path, fd));
+       {return Attr.postGet(XrdSysFAttr::Xat->Get(Attr.Name(), &Attr,
+                                                  Attr.sizeGet(), Path, fd));
        }
 
 /* Set() sets the extended attribute for file identified by Path or an open
@@ -138,8 +138,8 @@ int Get(const char *Path, int fd=-1)
 */
 int Set(const char *Path, int fd=-1)
        {T xA;
-        return XrdSysFAttr::Set(Attr.Name(), Attr.preSet(xA), Attr.sizeSet(),
-                                Path, fd);
+        return XrdSysFAttr::Xat->Set(Attr.Name(), Attr.preSet(xA),
+                                     Attr.sizeSet(), Path, fd);
        }
 
     XrdOucXAttr() {}

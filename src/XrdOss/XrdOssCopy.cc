@@ -142,7 +142,7 @@ off_t XrdOssCopy::Copy(const char *inFn, const char *outFn, int outFD)
 
 // Copy over any extended attributes
 //
-   if (!XrdSysFAttr::Copy(inFn, In.FD, outFn, Out.FD)) return -1;
+   if (XrdSysFAttr::Xat->Copy(inFn, In.FD, outFn, Out.FD)) return -1;
 
 // Now set the time on the file to the original time
 //

@@ -292,6 +292,7 @@ virtual               ~XrdOfs() {}  // Too complicate to delete :-)
 // Configuration values for this filesystem
 //
 enum {Authorize = 0x0001,    // Authorization wanted
+      XAttrPlug = 0x0002,    // Extended Attribute Plugin
       isPeer    = 0x0050,    // Role peer
       isProxy   = 0x0020,    // Role proxy
       isManager = 0x0040,    // Role manager
@@ -340,6 +341,8 @@ char *OssLib;         //    ->Oss Library
 char *OssParms;       //    ->Oss Library Parameters
 char *CmsLib;         //    ->Cms Library
 char *CmsParms;       //    ->Cms Library Parameters
+char *AtrLib;         //    ->Atr Library
+char *AtrParms;       //    ->Atr Library Parameters
 
 /******************************************************************************/
 /*                       P r o t e c t e d   I t e m s                        */
@@ -409,6 +412,7 @@ const char   *Fname(const char *);
 int           Forward(int &Result, XrdOucErrInfo &Resp, struct fwdOpt &Fwd,
                       const char *arg1=0, const char *arg2=0,
                       XrdOucEnv  *Env1=0, XrdOucEnv  *Env2=0);
+int           setupAttr(XrdSysError &);
 int           setupAuth(XrdSysError &);
 const char   *theRole(int opts);
 int           xalib(XrdOucStream &, XrdSysError &);
@@ -425,5 +429,6 @@ int           xrole(XrdOucStream &, XrdSysError &);
 int           xtpc(XrdOucStream &, XrdSysError &);
 int           xtpcal(XrdOucStream &, XrdSysError &);
 int           xtrace(XrdOucStream &, XrdSysError &);
+int           xxlib(XrdOucStream &, XrdSysError &);
 };
 #endif

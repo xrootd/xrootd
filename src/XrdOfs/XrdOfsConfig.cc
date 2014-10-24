@@ -57,6 +57,7 @@
 #include "XrdOuc/XrdOucEnv.hh"
 #include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysError.hh"
+#include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucTrace.hh"
@@ -178,6 +179,14 @@ int XrdOfs::Configure(XrdSysError &Eroute, XrdOucEnv *EnvInfo) {
                               ConfigFN);
            Config.Close();
           }
+
+// Determine whether we should load the extended attribute plugin
+//
+   if ((Options & XAttrPlug) && (AtrLib || OssLib))
+      {if (!AtrLib) AtrLib = strdup(OssLib);
+       if (setupAttr(Eroute)) NoGo = 1;
+      }
+   XrdSysFAttr::Xat->SetMsgRoute(&Eroute);
 
 // Determine whether we should initialize authorization
 //
@@ -329,6 +338,7 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
                                   "       ofs.maxdelay   %d\n"
                                   "%s%s%s%s%s"
                                   "%s%s%s"
+                                  "%s%s%s"
                                   "       ofs.persist    %s hold %d%s%s%s"
                                   "       ofs.trace      %x",
               cloc, myRole,
@@ -341,6 +351,8 @@ void XrdOfs::Config_Display(XrdSysError &Eroute)
               (CmsParms? CmsParms : ""), (CmsLib ? "\n" : ""),
               (OssLib                    ? "       ofs.osslib " : ""),
               (OssLib ? OssLib : ""), (OssLib ? "\n" : ""),
+              (AtrLib                    ? "       ofs.xattrlib " : ""),
+              (AtrLib ? AtrLib : ""), (AtrLib ? "\n" : ""),
                pval, poscHold, (poscLog ? " logdir " : ""),
                (poscLog ? poscLog    : ""), (poscLog ? "\n" : ""),
               OfsTrace.What);
@@ -598,6 +610,7 @@ int XrdOfs::ConfigXeq(char *var, XrdOucStream &Config,
     TS_Xeq("role",          xrole);
     TS_Xeq("tpc",           xtpc);
     TS_Xeq("trace",         xtrace);
+    TS_Xeq("xattrlib",      xxlib);
 
     // Screen out the subcluster directive (we need to track that)
     //
@@ -1075,8 +1088,9 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
   
 /* Function: xolib
 
-   Purpose:  To parse the directive: osslib <path> [<parms>]
+   Purpose:  To parse the directive: osslib [+xattr] <path> [<parms>]
 
+             +xattr    the library contains the xattr plugin.
              <path>    the path of the oss library to be used.
              <parms>   optional parms to be passed
 
@@ -1086,10 +1100,19 @@ int XrdOfs::xnot(XrdOucStream &Config, XrdSysError &Eroute)
 int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
 {
     char *val, parms[2048];
+    bool hasXattr = false;
 
 // Get the path and parms
 //
-   if (!(val = Config.GetWord()) || !val[0])
+   val = Config.GetWord();
+
+// Check if this is the xattr keyword
+//
+   if (val && (hasXattr = !strcmp("+xattr",  val))) val = Config.GetWord();
+
+// Check if we an osslib
+//
+   if (!val || !val[0])
       {Eroute.Emsg("Config", "osslib not specified"); return 1;}
 
 // Record the path
@@ -1107,6 +1130,16 @@ int XrdOfs::xolib(XrdOucStream &Config, XrdSysError &Eroute)
 //
    if (OssParms) free(OssParms);
    OssParms = (*parms ? strdup(parms) : 0);
+
+// Record whether or not this also contains the xattr plugin
+//
+   if (hasXattr)
+      {if (AtrLib) free(AtrLib);
+       AtrLib = strdup(OssLib);
+       if (AtrParms) free(AtrParms);
+       AtrParms = (*parms ? strdup(parms) : 0);
+       Options |= XAttrPlug;
+      }
    return 0;
 }
 
@@ -1513,6 +1546,75 @@ int XrdOfs::xtrace(XrdOucStream &Config, XrdSysError &Eroute)
 
 // All done
 //
+   return 0;
+}
+  
+/******************************************************************************/
+/*                                 x x l i b                                  */
+/******************************************************************************/
+  
+/* Function: xxlib
+
+   Purpose:  To parse the directive: xattrlib {osslib | <path>} [<parms>]
+
+             <path>    the path of the xattr library to be used.
+             <parms>   optional parms to be passed
+
+  Output: 0 upon success or !0 upon failure.
+*/
+
+int XrdOfs::xxlib(XrdOucStream &Config, XrdSysError &Eroute)
+{
+    char *val, parms[2048];
+
+// Get the path and parms
+//
+   if (!(val = Config.GetWord()) || !val[0])
+      {Eroute.Emsg("Config", "xattrlib not specified"); return 1;}
+
+// Record the path
+//
+   if (AtrLib) free(AtrLib);
+   AtrLib = (strcmp("osslib", val) ? strdup(val) : 0);
+
+// Get any parameters
+//
+   *parms = 0;
+   if (!Config.GetRest(parms, sizeof(parms)))
+      {Eroute.Emsg("Config", "xattrlib parameters too long"); return 1;}
+
+// Record the parameters
+//
+   if (AtrParms) free(AtrParms);
+   AtrParms = (*parms ? strdup(parms) : 0);
+   Options |= XAttrPlug;
+   return 0;
+}
+
+/******************************************************************************/
+/*                             s e t u p A t t r                              */
+/******************************************************************************/
+
+int XrdOfs::setupAttr(XrdSysError &Eroute)
+{
+   XrdSysXAttr *(*ep)(XrdSysError *, const char *, const char *);
+   XrdSysXAttr *theObj;
+
+// Create a plugin object
+//
+  {XrdOucPinLoader myLib(&Eroute,&XrdVERSIONINFOVAR(XrdOfs),"xattrlib",AtrLib);
+   ep = (XrdSysXAttr *(*)(XrdSysError *, const char *, const char *))
+                         (myLib.Resolve("XrdSysGetXAttrObject"));
+   if (!ep) return 1;
+  }
+
+// Get the Object now
+//
+   if (!(theObj = ep(&Eroute, ConfigFN, AtrParms))) return 1;
+
+// Tell the interface to use this object instead of the default implementation
+//
+   XrdSysFAttr::SetPlugin(theObj);
    return 0;
 }
 

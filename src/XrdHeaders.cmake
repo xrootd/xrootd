@@ -92,6 +92,7 @@ set( XROOTD_PUBLIC_HEADERS
   XrdSys/XrdSysPthread.hh
   XrdSys/XrdSysSemWait.hh
   XrdSys/XrdSysTimer.hh
+  XrdSys/XrdSysXAttr.hh
   XrdSys/XrdSysXSLock.hh
   XrdXrootd/XrdXrootdMonData.hh
   XrdXrootd/XrdXrootdBridge.hh

@@ -62,7 +62,6 @@
 #include "XrdOuc/XrdOucProg.hh"
 #include "XrdOuc/XrdOucStream.hh"
 #include "XrdOuc/XrdOucUtils.hh"
-#include "XrdSys/XrdSysFAttr.hh"
 #include "XrdSys/XrdSysHeaders.hh"
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdSys/XrdSysPlatform.hh"
@@ -307,9 +306,6 @@ int XrdOssSys::Configure(const char *configfn, XrdSysError &Eroute)
            NoGo = XrdOssPath::InitPrefix();
            if (NoGo) Eroute.Emsg("Config", "cache file prefix initialization failed");
        }
-// Configure extended attributes (really not much to do here)
-//
-   XrdSysFAttr::Msg(&Eroute);
 
 // Configure statiscal reporting
 //
