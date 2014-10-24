@@ -209,8 +209,8 @@ void *XrdOucPinLoader::Resolve(const char *symP, int mcnt)
    if (!altLib) return 0;
    tryLib = altLib;
    if (eDest) eDest->Say("Config ", "Falling back to using ", altLib);
-   if (eDest) piP = new XrdSysPlugin(eDest,        theLib, dName, viP, mcnt);
-      else    piP = new XrdSysPlugin(errBP, errBL, theLib, dName, viP, mcnt);
+   if (eDest) piP = new XrdSysPlugin(eDest,        altLib, dName, viP, mcnt);
+      else    piP = new XrdSysPlugin(errBP, errBL, altLib, dName, viP, mcnt);
    if ((symAddr = piP->getPlugin(symP, 0, global))) return symAddr;
 
 // We failed
