@@ -43,12 +43,12 @@ int XrdSysXAttr::Copy(const char *iPath, int iFD, const char *oPath, int oFD,
                       const char *Aname)
 {
    char *bP;
-   int sz, rc;
+   int sz, rc = 0;
 
 // Check if all attributes are to be copied. If so, do it.
 //
    if (!Aname)
-      {AList *aP, *aNow;
+      {AList *aP = 0, *aNow;
        char *Buff;
        int maxSz;
 
