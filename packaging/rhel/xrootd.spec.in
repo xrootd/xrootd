@@ -520,6 +520,7 @@ fi
 %files devel
 %defattr(-,root,root,-)
 %dir %{_includedir}/xrootd
+%{_bindir}/xrootd-config
 %{_includedir}/xrootd/XProtocol
 %{_includedir}/xrootd/Xrd
 %{_includedir}/xrootd/XrdCks
