@@ -118,7 +118,9 @@ void          Unload(bool dodel=false);
 //! @param errP   Pointer to the message routing object.
 //! @param vInfo  Pointer to the version information of the caller. If the
 //!               pointer is nil, no version checking occurs.
-//! @param drctv  Pointer to the directive that initiated the load.
+//! @param drctv  Pointer to the directive that initiated the load. The text is
+//!               used in error messages to relate the directive to the error.
+//!               E.g. "oofs.osslib" -> "Unable to load ofs.osslib plugin...."
 //! @param plib   Pointer to the shared library path that contains the plugin.
 //------------------------------------------------------------------------------
 
@@ -134,7 +136,7 @@ void          Unload(bool dodel=false);
 //! @param eBlen  Length of the buffer.
 //! @param vInfo  Pointer to the version information of the caller. If the
 //!               pointer is nil, no version checking occurs.
-//! @param drctv  Pointer to the directive that initiated the load.
+//! @param drctv  Pointer to the directive that initiated the load (see above).
 //! @param plib   Pointer to the shared library path that contains the plugin.
 //------------------------------------------------------------------------------
 
@@ -150,7 +152,7 @@ void          Unload(bool dodel=false);
 //!
 //! @param vInfo  Pointer to the version information of the caller. If the
 //!               pointer is nil, no version checking occurs.
-//! @param drctv  Pointer to the directive that initiated the load.
+//! @param drctv  Pointer to the directive that initiated the load (see above).
 //! @param plib   Pointer to the shared library path that contains the plugin.
 //------------------------------------------------------------------------------
 
