@@ -22,7 +22,7 @@
 #include "XrdSys/XrdSysPthread.hh"
 #include "XrdCl/XrdClEnv.hh"
 
-class XrdSysPlugin;
+class XrdOucPinLoader;
 
 namespace XrdCl
 {
@@ -165,7 +165,7 @@ namespace XrdCl
       static ForkHandler       *sForkHandler;
       static FileTimer         *sFileTimer;
       static Monitor           *sMonitor;
-      static XrdSysPlugin      *sMonitorLibHandle;
+      static XrdOucPinLoader   *sMonitorLibHandle;
       static bool               sMonitorInitialized;
       static CheckSumManager   *sCheckSumManager;
       static TransportManager  *sTransportManager;

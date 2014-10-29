@@ -160,7 +160,7 @@ namespace XrdCl
   ForkHandler       *DefaultEnv::sForkHandler        = 0;
   FileTimer         *DefaultEnv::sFileTimer          = 0;
   Monitor           *DefaultEnv::sMonitor            = 0;
-  XrdSysPlugin      *DefaultEnv::sMonitorLibHandle   = 0;
+  XrdOucPinLoader   *DefaultEnv::sMonitorLibHandle   = 0;
   bool               DefaultEnv::sMonitorInitialized = false;
   CheckSumManager   *DefaultEnv::sCheckSumManager    = 0;
   TransportManager  *DefaultEnv::sTransportManager   = 0;
@@ -446,19 +446,19 @@ namespace XrdCl
         // Loading the plugin
         //----------------------------------------------------------------------
         char *errBuffer = new char[4000];
-        sMonitorLibHandle = new XrdSysPlugin(
-                                 errBuffer, 4000, monitorLib.c_str(),
-                                 monitorLib.c_str(),
-                                 &XrdVERSIONINFOVAR( XrdCl ) );
+        sMonitorLibHandle = new XrdOucPinLoader(
+                                 errBuffer, 4000, &XrdVERSIONINFOVAR( XrdCl ),
+                                 "monitor", monitorLib.c_str() );
 
         typedef XrdCl::Monitor *(*MonLoader)(const char *, const char *);
         MonLoader loader;
-        loader = (MonLoader)sMonitorLibHandle->getPlugin( "XrdClGetMonitor" );
+        loader = (MonLoader)sMonitorLibHandle->Resolve( "XrdClGetMonitor", -1 );
         if( !loader )
         {
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
+          sMonitorLibHandle->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -474,6 +474,7 @@ namespace XrdCl
           log->Error( UtilityMsg, "Unable to initialize user monitoring: %s",
                       errBuffer );
           delete [] errBuffer;
+          sMonitorLibHandle->Unload();
           delete sMonitorLibHandle; sMonitorLibHandle = 0;
           return 0;
         }
@@ -600,6 +601,8 @@ namespace XrdCl
     delete sMonitor;
     sMonitor = 0;
 
+    if( sMonitorLibHandle )
+      sMonitorLibHandle->Unload();
     delete sMonitorLibHandle;
     sMonitorLibHandle = 0;
 
