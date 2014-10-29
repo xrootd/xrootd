@@ -656,12 +656,14 @@ int main( int argc, char **argv )
   }
 
   //----------------------------------------------------------------------------
-  // If we have multiple sources and target is not a directory then we cannot
-  // proceed
+  // If we have multiple sources and target is neither a directory nor stdout
+  // then we cannot proceed
   //----------------------------------------------------------------------------
-  if( CountSources(config.srcFile) > 1 && !targetIsDir )
+  if( CountSources(config.srcFile) > 1 && !targetIsDir &&
+      config.dstFile->Protocol != XrdCpFile::isStdIO )
   {
     std::cerr << "Multiple sources were given but target is not a directory.";
+    std::cerr << std::endl;
     return 255;
   }
 
