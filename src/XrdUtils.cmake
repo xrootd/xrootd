@@ -74,6 +74,7 @@ add_library(
   XrdOuc/XrdOucNList.cc         XrdOuc/XrdOucNList.hh
   XrdOuc/XrdOucNSWalk.cc        XrdOuc/XrdOucNSWalk.hh
   XrdOuc/XrdOucPinLoader.cc     XrdOuc/XrdOucPinLoader.hh
+  XrdOuc/XrdOucPinPath.cc       XrdOuc/XrdOucPinPath.hh
   XrdOuc/XrdOucPreload.cc       XrdOuc/XrdOucPreload.hh
   XrdOuc/XrdOucProg.cc          XrdOuc/XrdOucProg.hh
   XrdOuc/XrdOucPup.cc           XrdOuc/XrdOucPup.hh
