@@ -620,7 +620,7 @@ fi
 %{_bindir}/text-runner
 %{_libdir}/libXrdClTests.so
 %{_libdir}/libXrdClTestsHelper.so
-%{_libdir}/libXrdClTestMonitor.so
+%{_libdir}/libXrdClTestMonitor*.so
 %endif
 
 %files selinux
