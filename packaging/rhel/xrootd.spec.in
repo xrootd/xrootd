@@ -18,7 +18,7 @@
 #-------------------------------------------------------------------------------
 # Package definitions
 #-------------------------------------------------------------------------------
-Name:      xrootd4
+Name:      xrootd
 Epoch:     1
 Version:   __VERSION__
 Release:   __RELEASE__%{?dist}%{?_with_cpp11:.cpp11}%{?_with_clang:.clang}
@@ -31,6 +31,7 @@ URL:       http://xrootd.org/
 # cd xrootd
 # git-archive master | gzip -9 > ~/rpmbuild/SOURCES/xrootd.tgz
 Source0:   xrootd.tar.gz
+Source1:   xrootd-3.3.6.tar.gz
 
 BuildRoot: %{_tmppath}/%{name}-root
 
@@ -64,7 +65,6 @@ Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
 Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
 Requires:   expect
-Conflicts:  xrootd
 
 %if %{use_systemd}
 BuildRequires:    systemd
@@ -100,7 +100,6 @@ latency and increased throughput.
 %package libs
 Summary:	Libraries used by xrootd servers and clients
 Group:		System Environment/Libraries
-Conflicts: xrootd-libs
 
 %description libs
 This package contains libraries used by the xrootd servers and clients.
@@ -112,7 +111,6 @@ This package contains libraries used by the xrootd servers and clients.
 Summary:	Development files for xrootd
 Group:		Development/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-devel
 
 %description devel
 This package contains header files and development libraries for xrootd
@@ -125,7 +123,6 @@ development.
 Summary:	Libraries used by xrootd clients
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-client-libs
 
 %description client-libs
 This package contains libraries used by xrootd clients.
@@ -138,7 +135,6 @@ Summary:	Development files for xrootd clients
 Group:		Development/Libraries
 Requires:	%{name}-devel%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-client-devel
 
 %description client-devel
 This package contains header files and development libraries for xrootd
@@ -152,7 +148,6 @@ Summary:	Libraries used by xrootd servers
 Group:		System Environment/Libraries
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-server-libs
 
 %description server-libs
 This package contains libraries used by xrootd servers.
@@ -166,7 +161,6 @@ Group:		Development/Libraries
 Requires:	%{name}-devel%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-devel%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-server-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-server-devel
 
 %description server-devel
 This package contains header files and development libraries for xrootd
@@ -182,7 +176,6 @@ Requires:	%{name}-libs = %{epoch}:%{version}-%{release}
 %if %{?fedora}%{!?fedora:0} >= 10 || %{?rhel}%{!?rhel:0} >= 6
 BuildArch:	noarch
 %endif
-Conflicts: xrootd-private-devel
 
 %description private-devel
 This package contains some private xrootd headers. The use of these
@@ -197,7 +190,6 @@ Summary:	Xrootd command line client tools
 Group:		Applications/Internet
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
-Conflicts: xrootd-client
 
 %description client
 This package contains the command line tools used to communicate with
@@ -212,7 +204,6 @@ Group:		Applications/Internet
 Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 Requires:	fuse
-Conflicts: xrootd-fuse
 
 %description fuse
 This package contains the FUSE (file system in user space) xrootd mount
@@ -260,10 +251,33 @@ This package contains a set of CPPUnit tests for xrootd.
 %endif
 
 #-------------------------------------------------------------------------------
+# client-compat
+#-------------------------------------------------------------------------------
+%package client-compat
+Summary:	XRootD 3 compatibility client libraries
+Group:		System Environment/Libraries
+Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description client-compat
+This package contains compatibility libraries for xrootd 3 clients.
+
+#-------------------------------------------------------------------------------
+# server-compat
+#-------------------------------------------------------------------------------
+%package server-compat
+Summary:	XRootD 3 compatibility server binaries
+Group:		System Environment/Daemons
+Requires:	%{name}-libs%{?_isa} = %{epoch}:%{version}-%{release}
+
+%description server-compat
+This package contains compatibility binaries for xrootd 3 servers.
+
+#-------------------------------------------------------------------------------
 # Build instructions
 #-------------------------------------------------------------------------------
 %prep
 %setup -c -n xrootd
+%setup -T -D -n %{name} -a 1
 
 %build
 cd xrootd
@@ -294,15 +308,49 @@ popd
 
 doxygen Doxyfile
 
+pushd ../xrootd-3.3.6
+mkdir build
+pushd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RelWithDebInfo -DENABLE_PERL=FALSE ../
+make VERBOSE=1 %{?_smp_mflags}
+popd
+popd
+
 #-------------------------------------------------------------------------------
 # Installation
 #-------------------------------------------------------------------------------
 %install
-cd xrootd
-cd build
 rm -rf $RPM_BUILD_ROOT
+
+#-------------------------------------------------------------------------------
+# Install 3.3.6 compat
+#-------------------------------------------------------------------------------
+pushd xrootd-3.3.6/build
 make install DESTDIR=$RPM_BUILD_ROOT
-cd ..
+rm -rf $RPM_BUILD_ROOT%{_includedir}
+rm -rf $RPM_BUILD_ROOT%{_datadir}
+rm -f $RPM_BUILD_ROOT%{_bindir}/{cconfig,cns_ssi,frm_admin,frm_xfragent,mpxstats}
+rm -f $RPM_BUILD_ROOT%{_bindir}/{wait41,xprep,xrd,xrdadler32,XrdCnsd,xrdcopy}
+rm -f $RPM_BUILD_ROOT%{_bindir}/{xrdcp,xrdcp-old,xrdfs,xrdgsiproxy,xrdpwdadmin}
+rm -f $RPM_BUILD_ROOT%{_bindir}/{xrdsssadmin,xrdstagetool,xrootdfs}
+rm -f $RPM_BUILD_ROOT%{_libdir}/libXrdAppUtils.so
+rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdClient.so,libXrdCl.so,libXrdCryptoLite.so}
+rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdCrypto.so,libXrdFfs.so,libXrdMain.so}
+rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdOfs.so,libXrdPosixPreload.so,libXrdPosix.so}
+rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdServer.so,libXrdUtils.so}
+
+for i in cmsd frm_purged frm_xfrd xrootd; do
+  mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}3
+done
+popd
+
+#-------------------------------------------------------------------------------
+# Install 4.x.y
+#-------------------------------------------------------------------------------
+pushd xrootd
+pushd  build
+make install DESTDIR=$RPM_BUILD_ROOT
+popd
 
 # configuration stuff
 rm -rf $RPM_BUILD_ROOT%{_sysconfdir}/xrootd/*
@@ -509,12 +557,12 @@ fi
 
 %files libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdAppUtils.so.*
-%{_libdir}/libXrdCksCalczcrc32*.so
-%{_libdir}/libXrdCrypto.so.*
-%{_libdir}/libXrdCryptoLite.so.*
-%{_libdir}/libXrdCryptossl*.so
-%{_libdir}/libXrdSec*.so
+%{_libdir}/libXrdAppUtils.so.1*
+%{_libdir}/libXrdCks*-4.so
+%{_libdir}/libXrdCrypto.so.1*
+%{_libdir}/libXrdCryptoLite.so.1*
+%{_libdir}/libXrdCryptossl-4.so
+%{_libdir}/libXrdSec*-4.so
 %{_libdir}/libXrdUtils.so.*
 
 %files devel
@@ -529,7 +577,6 @@ fi
 %{_includedir}/xrootd/XrdSec
 %{_includedir}/xrootd/XrdSys
 %{_includedir}/xrootd/XrdVersion.hh
-# These libraries are not used as plugins
 %{_libdir}/libXrdAppUtils.so
 %{_libdir}/libXrdCrypto.so
 %{_libdir}/libXrdCryptoLite.so
@@ -537,14 +584,14 @@ fi
 
 %files client-libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdCl.so.*
-%{_libdir}/libXrdClient.so.*
-%{_libdir}/libXrdFfs.so.*
-%{_libdir}/libXrdPosix.so.*
-%{_libdir}/libXrdPosixPreload.so.*
+%{_libdir}/libXrdCl.so.2*
+%{_libdir}/libXrdClient.so.2*
+%{_libdir}/libXrdFfs.so.2*
+%{_libdir}/libXrdPosix.so.2*
+%{_libdir}/libXrdPosixPreload.so.1*
 %{_sysconfdir}/xrootd/client.plugins.d/client-plugin.conf.example
 %config(noreplace) %{_sysconfdir}/xrootd/client.conf
-# Some of the libraries are used as plugins - need the .so symlink at runtime
+# This lib may be used for LD_PRELOAD so the .so link needs to be included
 %{_libdir}/libXrdPosixPreload.so
 
 %files client-devel
@@ -552,7 +599,6 @@ fi
 %{_includedir}/xrootd/XrdCl
 %{_includedir}/xrootd/XrdClient
 %{_includedir}/xrootd/XrdPosix
-# These libraries are not used as plugins
 %{_libdir}/libXrdCl.so
 %{_libdir}/libXrdClient.so
 %{_libdir}/libXrdFfs.so
@@ -560,13 +606,13 @@ fi
 
 %files server-libs
 %defattr(-,root,root,-)
-%{_libdir}/libXrdBwm*.so
-%{_libdir}/libXrdPss*.so
+%{_libdir}/libXrdBwm-4.so
+%{_libdir}/libXrdPss-4.so
+%{_libdir}/libXrdXrootd-4.so
+%{_libdir}/libXrdFileCache-4.so
+%{_libdir}/libXrdHttp-4.so
+%{_libdir}/libXrdOssSIgpfsT-4.so
 %{_libdir}/libXrdServer.so.*
-%{_libdir}/libXrdXrootd*.so
-%{_libdir}/libXrdFileCache*.so
-%{_libdir}/libXrdHttp*.so
-%{_libdir}/libXrdOssSIgpfsT*.so
 
 %files server-devel
 %defattr(-,root,root,-)
@@ -576,7 +622,6 @@ fi
 %{_includedir}/xrootd/XrdSfs
 %{_includedir}/xrootd/XrdXrootd
 %{_includedir}/xrootd/XrdHttp
-# These libraries are not used as plugins
 %{_libdir}/libXrdServer.so
 
 %files private-devel
@@ -627,10 +672,49 @@ fi
 %defattr(-,root,root)
 %{_datadir}/selinux/packages/%{name}/%{name}.pp
 
+%files client-compat
+%defattr(-,root,root,-)
+%{_libdir}/libXrdAppUtils.so.0*
+%{_libdir}/libXrdCksCalczcrc32.so*
+%{_libdir}/libXrdClient.so.1*
+%{_libdir}/libXrdCl.so.1*
+%{_libdir}/libXrdCryptoLite.so.0*
+%{_libdir}/libXrdCrypto.so.0*
+%{_libdir}/libXrdCryptossl.so*
+%{_libdir}/libXrdFfs.so.1*
+%{_libdir}/libXrdPosixPreload.so.0*
+%{_libdir}/libXrdPosix.so.1*
+%{_libdir}/libXrdSecgsiAuthzVO.so*
+%{_libdir}/libXrdSecgsiGMAPDN.so*
+%{_libdir}/libXrdSecgsiGMAPLDAP.so*
+%{_libdir}/libXrdSecgsi.so*
+%{_libdir}/libXrdSeckrb5.so*
+%{_libdir}/libXrdSecpwd.so*
+%{_libdir}/libXrdSec.so*
+%{_libdir}/libXrdSecsss.so*
+%{_libdir}/libXrdSecunix.so*
+%{_libdir}/libXrdUtils.so.1*
+
+%files server-compat
+%defattr(-,root,root,-)
+%{_bindir}/cmsd3
+%{_bindir}/frm_purged3
+%{_bindir}/frm_xfrd3
+%{_bindir}/xrootd3
+%{_libdir}/libXrdBwm.so*
+%{_libdir}/libXrdMain.so.1*
+%{_libdir}/libXrdOfs.so.1*
+%{_libdir}/libXrdPss.so*
+%{_libdir}/libXrdServer.so.1*
+%{_libdir}/libXrdXrootd.so*
+
 #-------------------------------------------------------------------------------
 # Changelog
 #-------------------------------------------------------------------------------
 %changelog
+* Thu Oct 30 2014 Lukasz Janyst <ljanyst@cern.ch>
+- update for 4.1 and introduce 3.3.6 compat packages
+
 * Thu Aug 28 2014 Lukasz Janyst <ljanyst@cern.ch>
 - add support for systemd
 
