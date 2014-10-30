@@ -105,7 +105,10 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
       XrdCl::XRootDStatus st;
       results->Get( "status", st );
       if( !st.IsOK() )
+      {
+        pOngoingJobs.erase(it);
         return;
+      }
 
       std::string checkSum;
       uint64_t    size;
@@ -189,8 +192,6 @@ class ProgressDisplay: public XrdCl::CopyProgressHandler
           proc = 100;
 
         o << "[#" << jobNum << ": ";
-//        o << XrdCl::Utils::BytesToString(d.bytesProcessed) << "B/";
-//        o << XrdCl::Utils::BytesToString(d.bytesTotal) << "B ";
         o << proc << "% ";
         o << XrdCl::Utils::BytesToString(speed) << "B/s] ";
       }
