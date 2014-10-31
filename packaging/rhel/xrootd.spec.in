@@ -340,7 +340,7 @@ rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdOfs.so,libXrdPosixPreload.so,libXrdPosix.
 rm -f $RPM_BUILD_ROOT%{_libdir}/{libXrdServer.so,libXrdUtils.so}
 
 for i in cmsd frm_purged frm_xfrd xrootd; do
-  mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}3
+  mv $RPM_BUILD_ROOT%{_bindir}/$i $RPM_BUILD_ROOT%{_bindir}/${i}-3
 done
 popd
 
@@ -697,10 +697,10 @@ fi
 
 %files server-compat
 %defattr(-,root,root,-)
-%{_bindir}/cmsd3
-%{_bindir}/frm_purged3
-%{_bindir}/frm_xfrd3
-%{_bindir}/xrootd3
+%{_bindir}/cmsd-3
+%{_bindir}/frm_purged-3
+%{_bindir}/frm_xfrd-3
+%{_bindir}/xrootd-3
 %{_libdir}/libXrdBwm.so*
 %{_libdir}/libXrdMain.so.1*
 %{_libdir}/libXrdOfs.so.1*
