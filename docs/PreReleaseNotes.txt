@@ -6,6 +6,8 @@ Prerelease Notes
 ================
 
 + **New Features**
+   * Allow either a dot or dash (whichever comes first) suffix to
+     delimit the default protocol name in the executable's name.
    * Allow forwardable sss tokens when ecrypted with a forwarding key
      as defined by the xrdsssadmin command.
    * Allow the definition of subordinate clusters.
@@ -29,11 +31,11 @@ Prerelease Notes
    * Set client location information.
 
 + **Major bug fixes**
-    * Pass correct size of buffer to avoid the groupname from not being
-      returned in the unix authentication protocol.
-    * Use the same write selection rules for dfs and non-dfs environments.
-      Currently, kXR_delete selection incorrectly fails in dfs if the file
-      does not exist but correctly succeeds in non-dfs environments.
+   * Pass correct size of buffer to avoid the groupname from not being
+     returned in the unix authentication protocol.
+   * Use the same write selection rules for dfs and non-dfs environments.
+     Currently, kXR_delete selection incorrectly fails in dfs if the file
+     does not exist but correctly succeeds in non-dfs environments.
    * Correctly size the time buffer to avoid stack corruption.
    * Use correct flag when adding a cluster. The bug made it impossible
      to have more than one supervisor node.
