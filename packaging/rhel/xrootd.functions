@@ -272,14 +272,19 @@ function handleDaemons()
     eval OPTS=\$${CONFIG_NAME}_${INSTANCE_UPPER}_OPTIONS
 
     #---------------------------------------------------------------------------
-    # Check if the instance is xrootd3
+    # Check if the instance is xrootd3 or xrootd4, if a xrootd3 binary is
+    # installed
     #---------------------------------------------------------------------------
     EXEC_RUN=$EXEC-3
-    for INS in $INSTANCES_XROOTD4; do
-      if test $INS = $INSTANCE; then
-        EXEC_RUN=$EXEC
-      fi
-    done
+    if test -x $EXEC_RUN; then
+      for INS in $INSTANCES_XROOTD4; do
+        if test $INS = $INSTANCE; then
+          EXEC_RUN=$EXEC
+        fi
+      done
+    else
+      EXEC_RUN=$EXEC
+    fi
 
     #---------------------------------------------------------------------------
     # Run the instance
