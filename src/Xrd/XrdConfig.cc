@@ -229,11 +229,16 @@ int XrdConfig::Configure(int argc, char **argv)
 // look for it here and it it exists we duplicate argv[0] (yes, loosing some
 // bytes - sorry valgrind) without the suffix.
 //
-   if (*dfltProt != '.' )
-      {char *p = dfltProt;
-       while (*p && *p != '.') p++;
-       if (*p == '.') {*p = '\0'; dfltProt = strdup(dfltProt); *p = '.';}
+  {char *p = dfltProt;
+   while(*p && (*p == '.' || *p == '-')) p++;
+   if (*p)
+      {char *dot = index(p, '.'), *dash = index(p, '-'), sepc;
+       if (dot  && (dot < dash || !dash)) p = dot;
+          else if (dash) p = dash;
+                  else   p = 0;
+       if (p) {sepc = *p; *p = '\0'; dfltProt = strdup(dfltProt); *p = sepc;}
       }
+  }
    myArgv[0] = argv[0];
 
 // Process the options. Note that we cannot passthrough long options or
