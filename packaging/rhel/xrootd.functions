@@ -108,7 +108,7 @@ function startDaemon()
   ulimit -n 65536
 
   DAEMON=$1
-  EXEC=$2
+  EX=$2
   XROOTD_USER=$3
   XROOTD_GROUP=$4
   INSTANCE=$5
@@ -126,7 +126,7 @@ function startDaemon()
 
   # useful for storing coredumps
   cd /var/spool/xrootd
-  daemon --user $XROOTD_USER --pidfile $PIDFILE $EXEC $@ -b -s $PIDFILE -n $INSTANCE
+  daemon --user $XROOTD_USER --pidfile $PIDFILE $EX $@ -b -s $PIDFILE -n $INSTANCE
   RETVAL=$?
   echo
   return $RETVAL
@@ -258,7 +258,10 @@ function handleDaemons()
     INSTANCES=$@
   fi
 
+  eval INSTANCES_XROOTD4=\$${CONFIG_NAME}4_INSTANCES
+
   INSTANCES=`echo $INSTANCES | tr '[[:upper:]]' '[[:lower:]]'`
+  INSTANCES_XROOTD4=`echo $INSTANCES_XROOTD4 | tr '[[:upper:]]' '[[:lower:]]'`
 
   #-----------------------------------------------------------------------------
   # Exec the command on the instances
@@ -268,10 +271,23 @@ function handleDaemons()
     INSTANCE_UPPER=`echo $INSTANCE | tr '[[:lower:]]' '[[:upper:]]'`
     eval OPTS=\$${CONFIG_NAME}_${INSTANCE_UPPER}_OPTIONS
 
+    #---------------------------------------------------------------------------
+    # Check if the instance is xrootd3
+    #---------------------------------------------------------------------------
+    EXEC_RUN=$EXEC-3
+    for INS in $INSTANCES_XROOTD4; do
+      if test $INS = $INSTANCE; then
+        EXEC_RUN=$EXEC
+      fi
+    done
+
+    #---------------------------------------------------------------------------
+    # Run the instance
+    #---------------------------------------------------------------------------
     if test x"$OPTS" = x; then
       continue
     fi
-    $CMD_HANDLER $DAEMON $EXEC "$XROOTD_USER" "$XROOTD_GROUP" $INSTANCE "$OPTS"
+    $CMD_HANDLER $DAEMON $EXEC_RUN "$XROOTD_USER" "$XROOTD_GROUP" $INSTANCE "$OPTS"
     if test $? -ne 0; then
       STATUS=1
     fi
