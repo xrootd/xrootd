@@ -61,10 +61,8 @@ BuildRequires:	graphviz-gd
 BuildRequires: clang
 %endif
 
-Requires:	  %{name}-libs        = %{epoch}:%{version}-%{release}
-Requires:	  %{name}-client-libs = %{epoch}:%{version}-%{release}
-Requires:	  %{name}-server-libs = %{epoch}:%{version}-%{release}
-Requires:   expect
+Requires:	%{name}-server%{?_isa} = %{epoch}:%{version}-%{release}
+Requires:	%{name}-selinux%{?_isa} = %{epoch}:%{version}-%{release}
 
 %if %{use_systemd}
 BuildRequires:    systemd
@@ -194,6 +192,20 @@ Requires:	%{name}-client-libs%{?_isa} = %{epoch}:%{version}-%{release}
 %description client
 This package contains the command line tools used to communicate with
 xrootd servers.
+
+#-------------------------------------------------------------------------------
+# server
+#-------------------------------------------------------------------------------
+%package server
+Summary:   Extended ROOT file server
+Group:     System Environment/Daemons
+Requires:  %{name}-libs        = %{epoch}:%{version}-%{release}
+Requires:  %{name}-client-libs = %{epoch}:%{version}-%{release}
+Requires:  %{name}-server-libs = %{epoch}:%{version}-%{release}
+Requires:  expect
+
+%description server
+XRootD server binaries
 
 #-------------------------------------------------------------------------------
 # fuse
@@ -515,6 +527,9 @@ fi
 # Files
 #-------------------------------------------------------------------------------
 %files
+# empty
+
+%files server
 %defattr(-,root,root,-)
 %{_bindir}/cconfig
 %{_bindir}/cmsd
