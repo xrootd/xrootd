@@ -500,7 +500,7 @@ char *XrdCksManager::List(const char *Pfn, char *Buff, int Blen, char Sep)
 
 // Get a list of attributes for this file
 //
-   if (XrdSysFAttr::List(&axP, Pfn) < 0 || !axP) return 0;
+   if (XrdSysFAttr::Xat->List(&axP, Pfn) < 0 || !axP) return 0;
 
 // Go through the list extracting what we are looking for
 //
@@ -517,7 +517,7 @@ char *XrdCksManager::List(const char *Pfn, char *Buff, int Blen, char Sep)
 
 // All done
 //
-   XrdSysFAttr::Free(axP);
+   XrdSysFAttr::Xat->Free(axP);
    return (bP == Buff ? 0 : Buff);
 }
 

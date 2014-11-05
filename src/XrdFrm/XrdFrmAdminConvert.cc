@@ -131,7 +131,7 @@ int XrdFrmAdmin::ConvTest(int doNames, int doSpaces)
 
 // Turn off messages from the attribute setter
 //
-   errP = XrdSysFAttr::Msg(0);
+   errP = XrdSysFAttr::Xat->SetMsgRoute(0);
 
 // For each path, see if it supports extended attributes
 //
@@ -140,7 +140,7 @@ do{if (!doNames) strcpy(pDir, pP->text+pP->val);
 
    pdSz = strlen(pDir); strcpy(pDir+pdSz, (doNames ? "/.\b" : ".\b"));
    if ((chkFD = open(pDir, O_CREAT|O_RDWR, 0740)) < 0) rc = -errno;
-      else {rc = XrdSysFAttr::Set("XrdFrmTest", "?", 1, pDir, chkFD);
+      else {rc = XrdSysFAttr::Xat->Set("XrdFrmTest", "?", 1, pDir, chkFD);
             close(chkFD); unlink(pDir);
            }
    *(pDir+pdSz) = 0;
@@ -155,7 +155,7 @@ do{if (!doNames) strcpy(pDir, pP->text+pP->val);
 
 // Cleanup
 //
-   XrdSysFAttr::Msg(errP);
+   XrdSysFAttr::Xat->SetMsgRoute(errP);
    while(pP) {tP = pP; pP = pP->next; delete tP;}
 
 // Check if we should do a space check and return final result
@@ -329,8 +329,8 @@ int XrdFrmAdmin::o2nFiles(XrdFrmFileset *sP, int &numOld)
 //
    if (sP->baseFile() && (linkPath = sP->baseFile()->Link))
       {if (!isXA(sP->baseFile())) {numOld++; return 1;}
-       if (XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), basePath,
-                                strlen(basePath)+1, basePath))
+       if (XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(), basePath,
+                                 strlen(basePath)+1, basePath))
           {Msg("Unable to set pfn xattr for ", basePath, "->", linkPath);
            return 0;
           }
@@ -371,8 +371,8 @@ int XrdFrmAdmin::o2nSpace(XrdFrmFileset *sP, const char *Space)
 // We must now set the pfn attribute as the reloc process will destroy it as
 // we are asking it to do a pure relocation which assumes the pfn is already set
 //
-   if ((rc = XrdSysFAttr::Set(pfnInfo.Name(), pfnInfo.Pfn, 
-                              pfnInfo.sizeSet(), sP->basePath()))
+   if ((rc = XrdSysFAttr::Xat->Set(pfnInfo.Name(), pfnInfo.Pfn,
+                                   pfnInfo.sizeSet(), sP->basePath()))
    ||  (rc = Config.ossFS->Reloc("admin", pfnInfo.Pfn, Space, ".")) < 0)
       {Emsg(-rc, "convert ", sP->basePath()); return 0;}
 

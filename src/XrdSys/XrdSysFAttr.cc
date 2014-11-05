@@ -2,7 +2,7 @@
 /*                                                                            */
 /*                        X r d S y s F A t t r . c c                         */
 /*                                                                            */
-/* (c) 2010 by the Board of Trustees of the Leland Stanford, Jr., University  */
+/* (c) 2014 by the Board of Trustees of the Leland Stanford, Jr., University  */
 /*                            All Rights Reserved                             */
 /*   Produced by Andrew Hanushevsky for Stanford University under contract    */
 /*              DE-AC02-76-SFO0515 with the Department of Energy              */
@@ -42,15 +42,20 @@
 #ifndef ENOATTR
 #define ENOATTR ENODATA
 #endif
-  
+
 /******************************************************************************/
 /*                        S t a t i c   O b j e c t s                         */
 /******************************************************************************/
   
-XrdSysError *XrdSysFAttr::Say = 0;
+namespace
+{
+XrdSysFAttr  dfltXAttr;
+}
+
+XrdSysXAttr *XrdSysFAttr::Xat = &dfltXAttr;
 
 /******************************************************************************/
-/*                        I m p l e m e n t a t i o n                         */
+/*            X r d S y s F A t t r   I m p l e m e n t a t i o n             */
 /******************************************************************************/
   
 #if    defined(__FreeBSD__)
@@ -80,74 +85,6 @@ int XrdSysFAttr::Set(XrdSysError *erp) {return 0;}
 #endif
 
 /******************************************************************************/
-/*                      P r o v i d e d   M e t h o d s                       */
-/******************************************************************************/
-/******************************************************************************/
-/*                                  C o p y                                   */
-/******************************************************************************/
-
-int XrdSysFAttr::Copy(const char *iPath, int iFD, const char *oPath, int oFD)
-{
-   AList *aP, *aNow;
-   char *Buff;
-   int maxSz;
-
-// Get all of the attributes for the input
-//
-   if ((maxSz = List(&aP, iPath, iFD, 1)) <= 0)
-      return maxSz == 0 || maxSz == -ENOTSUP;
-
-// Allocate a buffer to hold the largest attribute value (plus some)
-//
-   maxSz += 4096;
-   Buff = (char *)malloc(maxSz);
-
-// Get each value and set it
-//
-   aNow = aP;
-   while(aNow && Get(aNow->Name, Buff, maxSz,      iPath, iFD) >= 0
-              && Set(aNow->Name, Buff, aNow->Vlen, oPath, oFD) >= 0)
-        {aNow = aNow->Next;}
-
-// Free up resources and return
-//
-   Free(aP);
-   free(Buff);
-   return aNow == 0;
-}
-
-/******************************************************************************/
-
-int XrdSysFAttr::Copy(const char *iPath, int iFD, const char *oPath, int oFD,
-                      const char *Aname)
-{
-   char *bP;
-   int sz, rc;
-
-// First obtain the size of the attribute (if zero ignore it)
-//
-   if ((sz = Get(Aname, 0, 0, iPath, iFD)) <= 0) return (!sz || sz == -ENOTSUP);
-
-// Obtain storage
-//
-   if (!(bP = (char *)malloc(sz)))
-      {Diagnose("get", Aname, oPath, ENOMEM); return 0;}
-
-// Copy over any extended attributes
-//
-   if ((rc = Get(Aname, bP, sz, iPath, iFD)) > 0)
-      {if ((rc = Set(Aname, bP, sz, oPath, oFD)) < 0
-       &&  rc == -ENOTSUP) rc = 0;
-      }
-      else if (rc < 0 && rc == -ENOTSUP) rc = 0;
-
-// All done
-//
-   free(bP);
-   return rc >= 0;
-}
-  
-/******************************************************************************/
 /*                              D i a g n o s e                               */
 /******************************************************************************/
   
@@ -173,7 +110,7 @@ int XrdSysFAttr::Diagnose(const char *Op, const char *Var,
 }
   
 /******************************************************************************/
-/*                     X r d S y s F A t t r : : F r e e                      */
+/*                                  F r e e                                   */
 /******************************************************************************/
 
 void XrdSysFAttr::Free(XrdSysFAttr::AList *aLP)
@@ -186,7 +123,7 @@ void XrdSysFAttr::Free(XrdSysFAttr::AList *aLP)
 }
 
 /******************************************************************************/
-/*                   X r d S y s F A t t r : : g e t E n t                    */
+/*                                g e t E n t                                 */
 /******************************************************************************/
   
 XrdSysFAttr::AList *XrdSysFAttr::getEnt(const char *Path,  int fd,
@@ -215,4 +152,14 @@ XrdSysFAttr::AList *XrdSysFAttr::getEnt(const char *Path,  int fd,
 //
    if (msP && *msP < sz) *msP = sz;
    return aNew;
+}
+
+/******************************************************************************/
+/*                             S e t P l u g i n                              */
+/******************************************************************************/
+  
+void XrdSysFAttr::SetPlugin(XrdSysXAttr *xaP)
+{
+   if (Xat && Xat != &dfltXAttr) delete Xat;
+   Xat = xaP;
 }

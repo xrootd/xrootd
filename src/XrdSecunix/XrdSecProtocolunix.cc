@@ -107,7 +107,7 @@ XrdSecCredentials *XrdSecProtocolunix::getCredentials(XrdSecParameters *noparm,
 
 // Get the group name
 //
-   if ((n = XrdOucUtils::GroupName(getegid(), Bp+1, Blen-1)))
+   if ((n = XrdOucUtils::GroupName(getegid(), Bp+1, sizeof(Buff)-Blen)))
       {*Bp = ' '; Blen += (n+1);}
 
 // Return the credentials

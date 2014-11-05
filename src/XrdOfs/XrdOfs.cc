@@ -134,6 +134,8 @@ XrdOfs::XrdOfs()
    AuthLib       = 0;
    AuthParm      = 0;
    Authorization = 0;
+   AtrLib        = 0;
+   AtrParms      = 0;
    CmsLib        = 0;
    CmsParms      = 0;
    OssLib        = 0;

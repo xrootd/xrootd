@@ -251,8 +251,8 @@ int XrdOssSys::Alloc_Cache(XrdOssCreateInfo &crInfo, XrdOucEnv &env)
 // Set the pfn as the extended attribute if we are in new mode
 //
    if (!runOld && !(crInfo.pOpts & XRDEXP_NOXATTR)
-   &&  (rc = XrdSysFAttr::Set(XrdFrcXAttrPfn::Name(), crInfo.Path,
-                              strlen(crInfo.Path)+1, pbuff, datfd)))
+   &&  (rc = XrdSysFAttr::Xat->Set(XrdFrcXAttrPfn::Name(), crInfo.Path,
+                                   strlen(crInfo.Path)+1, pbuff, datfd)))
       {close(datfd); return rc;}
 
 // Set extended attributes for this newly created file if allowed to do so.

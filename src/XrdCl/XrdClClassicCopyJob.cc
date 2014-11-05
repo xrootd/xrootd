@@ -1,7 +1,9 @@
 //------------------------------------------------------------------------------
-// Copyright (c) 2011-2012 by European Organization for Nuclear Research (CERN)
+// Copyright (c) 2011-2014 by European Organization for Nuclear Research (CERN)
 // Author: Lukasz Janyst <ljanyst@cern.ch>
 //------------------------------------------------------------------------------
+// This file is part of the XRootD software suite.
+//
 // XRootD is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Lesser General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -14,6 +16,10 @@
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with XRootD.  If not, see <http://www.gnu.org/licenses/>.
+//
+// In applying this licence, CERN does not waive the privileges and immunities
+// granted to it by virtue of its status as an Intergovernmental Organization
+// or submit itself to any jurisdiction.
 //------------------------------------------------------------------------------
 
 #include "XrdCl/XrdClClassicCopyJob.hh"
@@ -226,7 +232,12 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( const XrdCl::ChunkInfo &ci ) = 0;
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci ) = 0;
+
+      //------------------------------------------------------------------------
+      //! Flush chunks that might have been queues
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Flush() = 0;
 
       //------------------------------------------------------------------------
       //! Get check sum
@@ -282,9 +293,10 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      LocalSource( const XrdCl::URL *url, const std::string &ckSumType ):
+      LocalSource( const XrdCl::URL *url, const std::string &ckSumType,
+                   uint32_t chunkSize ):
         pPath( url->GetPath() ), pFD( -1 ), pSize( -1 ), pCurrentOffset( 0 ),
-        pCkSumHelper(0)
+        pCkSumHelper(0), pChunkSize( chunkSize )
       {
         if( !ckSumType.empty() )
           pCkSumHelper = new CheckSumHelper( url->GetPath(), ckSumType );
@@ -361,7 +373,7 @@ namespace
         if( pFD == -1 )
           return XRootDStatus( stError, errUninitialized );
 
-        const uint32_t toRead = 2*1024*1024;
+        const uint32_t toRead = pChunkSize;
         char *buffer = new char[toRead];
 
         int64_t bytesRead = read( pFD, buffer, toRead );
@@ -409,6 +421,7 @@ namespace
       int64_t         pSize;
       uint64_t        pCurrentOffset;
       CheckSumHelper *pCkSumHelper;
+      uint32_t        pChunkSize;
   };
 
   //----------------------------------------------------------------------------
@@ -420,8 +433,8 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      StdInSource( const std::string &ckSumType ):
-        pCkSumHelper(0), pCurrentOffset(0)
+      StdInSource( const std::string &ckSumType, uint32_t chunkSize ):
+        pCkSumHelper(0), pCurrentOffset(0), pChunkSize( chunkSize )
       {
         if( !ckSumType.empty() )
           pCkSumHelper = new CheckSumHelper( "stdin", ckSumType );
@@ -453,7 +466,7 @@ namespace
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
 
-        uint32_t toRead = 2*1024*1024;
+        uint32_t toRead = pChunkSize;
         char *buffer = new char[toRead];
 
         int64_t  bytesRead = 0;
@@ -508,6 +521,7 @@ namespace
     private:
       CheckSumHelper *pCkSumHelper;
       uint64_t        pCurrentOffset;
+      uint32_t        pChunkSize;
   };
 
   //----------------------------------------------------------------------------
@@ -912,7 +926,7 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( const XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
       {
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
@@ -935,6 +949,7 @@ namespace
             pFD = -1;
             if( pPosc )
               unlink( pPath.c_str() );
+            delete [] (char*)ci.buffer; ci.buffer = 0;
             return XRootDStatus( stError, errOSError, errno );
           }
           offset += wr;
@@ -942,7 +957,17 @@ namespace
           length -= wr;
         }
         while( length );
+
+        delete [] (char*)ci.buffer; ci.buffer = 0;
         return XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Flush chunks that might have been queues
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Flush()
+      {
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1051,7 +1076,7 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( const XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
       {
         using namespace XrdCl;
         Log *log = DefaultEnv::GetLog();
@@ -1073,6 +1098,7 @@ namespace
           {
             log->Debug( UtilityMsg, "Unable to write to stdout: %s",
                         strerror( errno ) );
+            delete [] (char*)ci.buffer; ci.buffer = 0;
             return XRootDStatus( stError, errOSError, errno );
           }
           pCurrentOffset += wr;
@@ -1082,7 +1108,16 @@ namespace
         while( length );
 
         pCkSumHelper.Update( ci.buffer, ci.length );
+        delete [] (char*)ci.buffer; ci.buffer = 0;
         return XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Flush chunks that might have been queues
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Flush()
+      {
+        return XrdCl::XRootDStatus();
       }
 
       //------------------------------------------------------------------------
@@ -1108,8 +1143,8 @@ namespace
       //------------------------------------------------------------------------
       //! Constructor
       //------------------------------------------------------------------------
-      XRootDDestination( const XrdCl::URL *url ):
-        pUrl( url ), pFile( new XrdCl::File() )
+      XRootDDestination( const XrdCl::URL *url, uint8_t parallelChunks ):
+        pUrl( url ), pFile( new XrdCl::File() ), pParallel( parallelChunks )
       {
       }
 
@@ -1118,6 +1153,7 @@ namespace
       //------------------------------------------------------------------------
       virtual ~XRootDDestination()
       {
+        CleanUpChunks();
         delete pFile;
       }
 
@@ -1162,13 +1198,90 @@ namespace
       //! @param  ci     chunk information
       //! @return status of the operation
       //------------------------------------------------------------------------
-      virtual XrdCl::XRootDStatus PutChunk( const XrdCl::ChunkInfo &ci )
+      virtual XrdCl::XRootDStatus PutChunk( XrdCl::ChunkInfo &ci )
       {
         using namespace XrdCl;
         if( !pFile->IsOpen() )
           return XRootDStatus( stError, errUninitialized );
 
-        return pFile->Write( ci.offset, ci.length, ci.buffer );
+        //----------------------------------------------------------------------
+        // If there is still place for this chunk to be sent send it
+        //----------------------------------------------------------------------
+        if( pChunks.size() < pParallel )
+          return QueueChunk( ci );
+
+        //----------------------------------------------------------------------
+        // We wait for a chunk to be sent so that we have space for the current
+        // one
+        //----------------------------------------------------------------------
+        XRDCL_SMART_PTR_T<ChunkHandler> ch( pChunks.front() );
+        pChunks.pop();
+        ch->sem->Wait();
+        delete [] (char*)ch->chunk.buffer;
+        if( !ch->status.IsOK() )
+        {
+          Log *log = DefaultEnv::GetLog();
+          log->Debug( UtilityMsg, "Unable write %d bytes at %ld from %s: %s",
+                      ch->chunk.length, ch->chunk.offset,
+                      pUrl->GetURL().c_str(), ch->status.ToStr().c_str() );
+          CleanUpChunks();
+          return ch->status;
+        }
+        return QueueChunk( ci );
+      }
+
+      //------------------------------------------------------------------------
+      //! Clean up the chunks that are flying
+      //------------------------------------------------------------------------
+      void CleanUpChunks()
+      {
+        while( !pChunks.empty() )
+        {
+          ChunkHandler *ch = pChunks.front();
+          pChunks.pop();
+          ch->sem->Wait();
+          delete [] (char *)ch->chunk.buffer;
+          delete ch;
+        }
+      }
+
+      //------------------------------------------------------------------------
+      //! Queue a chunk
+      //------------------------------------------------------------------------
+      XrdCl::XRootDStatus QueueChunk( XrdCl::ChunkInfo &ci )
+      {
+        ChunkHandler *ch = new ChunkHandler(ci);
+        XrdCl::XRootDStatus st;
+        st = pFile->Write( ci.offset, ci.length, ci.buffer, ch );
+        if( !st.IsOK() )
+        {
+          CleanUpChunks();
+          delete [] (char*)ci.buffer;
+          ci.buffer = 0;
+          delete ch;
+          return st;
+        }
+        pChunks.push( ch );
+        return XrdCl::XRootDStatus();
+      }
+
+      //------------------------------------------------------------------------
+      //! Flush chunks that might have been queues
+      //------------------------------------------------------------------------
+      virtual XrdCl::XRootDStatus Flush()
+      {
+        XrdCl::XRootDStatus st;
+        while( !pChunks.empty() )
+        {
+          ChunkHandler *ch = pChunks.front();
+          pChunks.pop();
+          ch->sem->Wait();
+          if( !ch->status.IsOK() )
+            st = ch->status;
+          delete [] (char *)ch->chunk.buffer;
+          delete ch;
+        }
+        return st;
       }
 
       //------------------------------------------------------------------------
@@ -1183,8 +1296,33 @@ namespace
       }
 
     private:
-      const XrdCl::URL *pUrl;
-      XrdCl::File      *pFile;
+      //------------------------------------------------------------------------
+      // Asynchronous chunk handler
+      //------------------------------------------------------------------------
+      class ChunkHandler: public XrdCl::ResponseHandler
+      {
+        public:
+          ChunkHandler( XrdCl::ChunkInfo ci ):
+            sem( new XrdCl::Semaphore(0) ),
+            chunk(ci) {}
+          virtual ~ChunkHandler() { delete sem; }
+          virtual void HandleResponse( XrdCl::XRootDStatus *statusval,
+                                       XrdCl::AnyObject    */*response*/ )
+          {
+            this->status = *statusval;
+            delete statusval;
+            sem->Post();
+          }
+
+          XrdCl::Semaphore       *sem;
+          XrdCl::ChunkInfo        chunk;
+          XrdCl::XRootDStatus     status;
+      };
+
+      const XrdCl::URL           *pUrl;
+      XrdCl::File                *pFile;
+      uint8_t                     pParallel;
+      std::queue<ChunkHandler *>  pChunks;
   };
 }
 
@@ -1233,9 +1371,9 @@ namespace XrdCl
     //--------------------------------------------------------------------------
     XRDCL_SMART_PTR_T<Source> src;
     if( GetSource().GetProtocol() == "file" )
-      src.reset( new LocalSource( &GetSource(), checkSumType ) );
+      src.reset( new LocalSource( &GetSource(), checkSumType, chunkSize ) );
     else if( GetSource().GetProtocol() == "stdio" )
-      src.reset( new StdInSource( checkSumType ) );
+      src.reset( new StdInSource( checkSumType, chunkSize ) );
     else
     {
       if( dynamicSource )
@@ -1266,7 +1404,7 @@ namespace XrdCl
         params["oss.asize"] = o.str();
         newDestUrl.SetParams( params );
       }
-      dest.reset( new XRootDDestination( &newDestUrl ) );
+      dest.reset( new XRootDDestination( &newDestUrl, parallelChunks ) );
     }
 
     dest->SetForce( force );
@@ -1293,15 +1431,16 @@ namespace XrdCl
 
       st = dest->PutChunk( chunkInfo );
 
-      delete [] (char*)chunkInfo.buffer;
-      chunkInfo.buffer = 0;
-
       if( !st.IsOK() )
         return st;
 
       processed += chunkInfo.length;
       if( progress ) progress->JobProgress( pJobId, processed, size );
     }
+
+    st = dest->Flush();
+    if( !st.IsOK() )
+      return st;
 
     //--------------------------------------------------------------------------
     // The size of the source is known and not enough data has been transfered

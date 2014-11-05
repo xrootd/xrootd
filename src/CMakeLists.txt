@@ -53,6 +53,23 @@ install(
   WORLD_EXECUTE WORLD_READ )
 
 #-------------------------------------------------------------------------------
+# Install xrootd-config
+#-------------------------------------------------------------------------------
+install(
+  CODE "
+    EXECUTE_PROCESS(
+      COMMAND cat ${CMAKE_SOURCE_DIR}/utils/xrootd-config
+      COMMAND sed -e \"s/__VERSION__/${XROOTD_VERSION}/\"
+      COMMAND sed -e \"s|__LIBDIR__|${CMAKE_INSTALL_LIBDIR}|\"
+      COMMAND sed -e \"s|__INCLUDEDIR__|${CMAKE_INSTALL_INCLUDEDIR}|\"
+      COMMAND sed -e \"s/__PLUGIN_VERSION__/${PLUGIN_VERSION}/\"
+      COMMAND sed -e \"s|__PREFIX__|${CMAKE_INSTALL_PREFIX}|\"
+      OUTPUT_FILE \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/xrootd-config )
+    EXECUTE_PROCESS(
+      COMMAND chmod 755 \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/xrootd-config )"
+)
+
+#-------------------------------------------------------------------------------
 # Post process man pages
 #-------------------------------------------------------------------------------
 install(

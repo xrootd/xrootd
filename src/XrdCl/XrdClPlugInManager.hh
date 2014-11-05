@@ -26,14 +26,12 @@
 #define __XRD_CL_PLUGIN_MANAGER__
 
 #include "XrdCl/XrdClPlugInInterface.hh"
-#include "XrdSys/XrdSysPlugin.hh"
+#include "XrdOuc/XrdOucPinLoader.hh"
 #include "XrdSys/XrdSysPthread.hh"
 
 #include <map>
 #include <string>
 #include <utility>
-
-class XrdSysPlugin;
 
 namespace XrdCl
 {
@@ -122,10 +120,10 @@ namespace XrdCl
       {
         FactoryHelper(): plugin(0), factory(0), isEnv(false), counter(0) {}
         ~FactoryHelper() { delete factory; delete plugin; }
-        XrdSysPlugin  *plugin;
-        PlugInFactory *factory;
-        bool           isEnv;
-        uint32_t       counter;
+        XrdOucPinLoader *plugin;
+        PlugInFactory   *factory;
+        bool             isEnv;
+        uint32_t         counter;
       };
 
       //------------------------------------------------------------------------
@@ -141,7 +139,7 @@ namespace XrdCl
       //------------------------------------------------------------------------
       //! Load the plug-in and create the factory
       //------------------------------------------------------------------------
-      std::pair<XrdSysPlugin*,PlugInFactory*> LoadFactory(
+      std::pair<XrdOucPinLoader*,PlugInFactory*> LoadFactory(
         const std::string                        &lib,
         const std::map<std::string, std::string> &config );
 
@@ -152,7 +150,7 @@ namespace XrdCl
       bool RegisterFactory( const std::string &urlString,
                             const std::string &lib,
                             PlugInFactory     *factory,
-                            XrdSysPlugin      *plugin );
+                            XrdOucPinLoader   *plugin );
 
       //------------------------------------------------------------------------
       //! Normalize a URL
