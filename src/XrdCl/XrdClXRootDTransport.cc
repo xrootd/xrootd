@@ -1353,13 +1353,13 @@ namespace XrdCl
       loginReq->ability  |= kXR_hasipv64;
     }
 
-    if( (stacks | XrdNetUtils::hasIPv6) && !(stacks | XrdNetUtils::hasPub6) )
+    if( (stacks & XrdNetUtils::hasIPv6) && !(stacks & XrdNetUtils::hasPub6) )
     {
       privateIPv6 = true;
       loginReq->ability |= kXR_onlyprv6;
     }
 
-    if( (stacks | XrdNetUtils::hasIPv4) && !(stacks | XrdNetUtils::hasPub4) )
+    if( (stacks & XrdNetUtils::hasIPv4) && !(stacks & XrdNetUtils::hasPub4) )
     {
       privateIPv4 = true;
       loginReq->ability |= kXR_onlyprv4;
