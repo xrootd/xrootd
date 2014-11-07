@@ -119,7 +119,7 @@ public:
 
 
   /// Sends a basic response. If the length is < 0 then it is calculated internally
-  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, int bodylen);
+  int SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen);
 
 
 private:

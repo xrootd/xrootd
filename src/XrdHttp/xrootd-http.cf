@@ -21,9 +21,9 @@ http.secretkey CHANGEME
 # As an example of preloading files, let's preload in memory
 # the /etc/services and /etc/hosts files
 # and assign them to some urlpaths in /static
-http.staticpreload /static/services_preload1 /etc/services
-http.staticpreload /static/services_preload2 /etc/services
-http.staticpreload /static/hosts_preload /etc/hosts
+#http.staticpreload /static/services_preload1 /etc/services
+#http.staticpreload /static/services_preload2 /etc/services
+#http.staticpreload /static/hosts_preload /etc/hosts
 
 #
 # Usual basic xrd stuff
