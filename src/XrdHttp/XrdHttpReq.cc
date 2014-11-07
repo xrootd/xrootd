@@ -1611,7 +1611,7 @@ int XrdHttpReq::PostProcessHTTPReq(bool final_) {
 
             } else
               for (int i = 0; i < iovN; i++) {
-		prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len);
+		if (prot->SendData((char *) iovP[i].iov_base, iovP[i].iov_len)) return 1;
 		writtenbytes += iovP[i].iov_len;
               }
               
