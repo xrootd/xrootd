@@ -56,6 +56,8 @@
   extern "C" {
 #endif
 
+#define MAXROOTURLLEN 1024 // this is also defined in other files
+
 int XrdFfsPosix_stat(const char *path, struct stat *buf)
 {
     int rc; 
@@ -258,7 +260,7 @@ int XrdFfsPosix_deleteall(const char *rdrurl, const char *path, uid_t user_uid, 
     for (i = 0; i < nurls; i++)
     {
         errno_i[i] = 0;
-        strcat(newurls[i],path);
+        strncat(newurls[i],path, MAXROOTURLLEN - strlen(newurls[i]) -1);
         XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].err = &errno_i[i];
@@ -330,10 +332,10 @@ int XrdFfsPosix_renameall(const char *rdrurl, const char *from, const char *to, 
 
         fromurl[0]='\0';
         strcat(fromurl, newurls[i]);
-        strcat(fromurl, from);
+        strncat(fromurl, from,  MAXROOTURLLEN - strlen(fromurl) -1);
         tourl[0]='\0';
         strcat(tourl, newurls[i]);
-        strcat(tourl, to);
+        strncat(tourl, to,  MAXROOTURLLEN - strlen(tourl) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(fromurl, user_uid, 0);
         XrdFfsMisc_xrd_secsss_editurl(tourl, user_uid, 0);
@@ -378,7 +380,7 @@ int XrdFfsPosix_truncateall(const char *rdrurl, const char *path, off_t size, ui
     for (i = 0; i < nurls; i++)
     {
         errno = 0;
-        strcat(newurls[i],path);
+        strncat(newurls[i],path,  MAXROOTURLLEN - strlen(newurls[i]) -1);
         XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         res = (XrdFfsPosix_stat(newurls[i], &stbuf));
         if (res == 0)
@@ -486,7 +488,7 @@ int XrdFfsPosix_readdirall(const char *rdrurl, const char *path, char*** direnta
     for (i = 0; i < nurls; i++)
     {
         errno_i[i] = 0;
-        strcat(newurls[i], path);
+        strncat(newurls[i], path,  MAXROOTURLLEN - strlen(newurls[i]) -1);
         XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].err = &errno_i[i];
@@ -678,7 +680,7 @@ int XrdFfsPosix_statvfsall(const char *rdrurl, const char *path, struct statvfs 
         osscgroup = 0;
     for (i = 0; i < nurls; i++)
     {
-        strcat(newurls[i], path);
+        strncat(newurls[i], path,  MAXROOTURLLEN - strlen(newurls[i]) -1);
 //        XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid);
         args[i].url = newurls[i];
         args[i].res = &res_i[i];
@@ -746,11 +748,11 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
     struct XrdFfsPosixX_statall_args args[XrdFfs_MAX_NUM_NODES];
     struct XrdFfsQueueTasks *jobs[XrdFfs_MAX_NUM_NODES];
 
-    char *p1, *p2, *dir, *file, rootpath[1024];
+    char *p1, *p2, *dir, *file, rootpath[MAXROOTURLLEN];
 
     rootpath[0] = '\0';
-    strcat(rootpath,rdrurl);
-    strcat(rootpath,path);
+    strncat(rootpath,rdrurl, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path,  MAXROOTURLLEN - strlen(rootpath) -1);
     p1 = strdup(path);
     p2 = strdup(path);
     dir = dirname(p1);
@@ -778,7 +780,7 @@ int XrdFfsPosix_statall(const char *rdrurl, const char *path, struct stat *stbuf
 
     for (i = 0; i < nurls; i++)
     {
-        strcat(newurls[i], path);
+        strncat(newurls[i], path, MAXROOTURLLEN - strlen(path) -1);
         XrdFfsMisc_xrd_secsss_editurl(newurls[i], user_uid, 0);
         args[i].url = newurls[i];
         args[i].res = &res_i[i];

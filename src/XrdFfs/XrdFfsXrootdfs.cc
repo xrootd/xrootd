@@ -68,6 +68,8 @@
 #include "XrdFfs/XrdFfsFsinfo.hh"
 #include "XrdPosix/XrdPosixXrootd.hh"
 
+#define MAXROOTURLLEN 1024 // this is also defined in other files
+
 struct XROOTDFS {
     char *rdr;
     char *cns;
@@ -151,7 +153,7 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
 {
 //  int res, fd;
     int res;
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 //    uid_t user_uid, uid;
 //    gid_t user_gid, gid;
 
@@ -179,8 +181,8 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
 
     if (xrootdfs.cns != NULL && xrootdfs.fastls != NULL)
     {
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_stat(rootpath, stbuf);
     }
@@ -212,8 +214,8 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
             if (xrootdfs.cns != NULL && xrootdfs.fastls != NULL && strcmp(xrootdfs.fastls,"RDR") == 0)
             {
                 rootpath[0]='\0';
-                strcat(rootpath,xrootdfs.rdr);
-                strcat(rootpath,path);
+                strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+                strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
                 XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
                 XrdFfsPosix_stat(rootpath, stbuf);
 //                stbuf->st_uid = user_uid;
@@ -240,8 +242,8 @@ static int xrootdfs_getattr(const char *path, struct stat *stbuf)
     else
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_stat(rootpath, stbuf);
 //        stbuf->st_uid = user_uid;
@@ -298,7 +300,7 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     (void) offset;
     (void) fi;
 
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
 /* 
@@ -308,8 +310,8 @@ static int xrootdfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     if (xrootdfs.cns != NULL)
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         dp = XrdFfsPosix_opendir(rootpath);
@@ -358,14 +360,14 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
 
     /* On Linux this could just be 'mknod(path, mode, rdev)' but this
        is more portable */
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (S_ISREG(mode))
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.rdr);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
 /* 
@@ -391,8 +393,8 @@ static int xrootdfs_mknod(const char *path, mode_t mode, dev_t rdev)
             return 0;
 
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_open(rootpath, O_CREAT | O_EXCL, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH); 
@@ -416,11 +418,11 @@ static int xrootdfs_mkdir(const char *path, mode_t mode)
     rootpath[0]='\0';
 
     if (xrootdfs.cns != NULL)
-        strcat(rootpath,xrootdfs.cns);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
     else
-        strcat(rootpath,xrootdfs.rdr);
+        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
 
-    strcat(rootpath,path);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
@@ -443,11 +445,11 @@ static int xrootdfs_mkdir(const char *path, mode_t mode)
 static int xrootdfs_unlink(const char *path)
 {
     int res;
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     rootpath[0]='\0';
-    strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+    strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
@@ -464,8 +466,8 @@ static int xrootdfs_unlink(const char *path)
     if (xrootdfs.cns != NULL && xrootdfs.ofsfwd == false)
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_unlink(rootpath);
@@ -479,11 +481,11 @@ static int xrootdfs_rmdir(const char *path)
 {
     int res;
 //  struct stat stbuf;
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     rootpath[0]='\0';
-    strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+    strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
@@ -500,8 +502,8 @@ static int xrootdfs_rmdir(const char *path)
     if (xrootdfs.cns != NULL && xrootdfs.ofsfwd == false)
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_rmdir(rootpath);
@@ -538,16 +540,16 @@ static int xrootdfs_symlink(const char *from, const char *to)
 static int xrootdfs_rename(const char *from, const char *to)
 {
     int res;
-    char from_path[1024], to_path[1024];
+    char from_path[MAXROOTURLLEN], to_path[MAXROOTURLLEN];
     struct stat stbuf;
 
     from_path[0]='\0';
-    strcat(from_path, xrootdfs.rdr);
-    strcat(from_path, from);
+    strncat(from_path, xrootdfs.rdr, MAXROOTURLLEN - strlen(from_path) -1);
+    strncat(from_path, from, MAXROOTURLLEN - strlen(from_path) -1);
 
     to_path[0]='\0';
-    strcat(to_path, xrootdfs.rdr);
-    strcat(to_path, to);
+    strncat(to_path, xrootdfs.rdr, MAXROOTURLLEN - strlen(to_path) -1);
+    strncat(to_path, to, MAXROOTURLLEN - strlen(to_path) -1);
 /*
   1. do actual renaming on data servers if if is a file in order to speed up
      renaming
@@ -576,12 +578,12 @@ static int xrootdfs_rename(const char *from, const char *to)
     if (xrootdfs.cns != NULL && xrootdfs.ofsfwd == false)
     {
         from_path[0]='\0';
-        strcat(from_path, xrootdfs.cns);
-        strcat(from_path, from);
+        strncat(from_path, xrootdfs.cns, MAXROOTURLLEN - strlen(from_path) -1);
+        strncat(from_path, from, MAXROOTURLLEN - strlen(from_path) -1);
 
         to_path[0]='\0';
-        strcat(to_path, xrootdfs.cns);
-        strcat(to_path, to);
+        strncat(to_path, xrootdfs.cns, MAXROOTURLLEN - strlen(to_path) -1);
+        strncat(to_path, to, MAXROOTURLLEN - strlen(to_path) -1);
 
         res = XrdFfsPosix_rename(from_path, to_path);
         if (res == -1)
@@ -662,11 +664,11 @@ static int xrootdfs_ftruncate(const char *path, off_t size,
 static int xrootdfs_truncate(const char *path, off_t size)
 {
     int res;
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     rootpath[0]='\0';
-    strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+    strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     if (xrootdfs.ofsfwd == true)
@@ -683,8 +685,8 @@ static int xrootdfs_truncate(const char *path, off_t size)
     if (xrootdfs.cns != NULL && xrootdfs.ofsfwd == false)
     {
         rootpath[0]='\0';
-        strcat(rootpath,xrootdfs.cns);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
         res = XrdFfsPosix_truncate(rootpath, size);
@@ -715,9 +717,9 @@ static int xrootdfs_utimens(const char *path, const struct timespec ts[2])
 static int xrootdfs_open(const char *path, struct fuse_file_info *fi)
 {
     int res, lid = 1;
-    char rootpath[1024]="";
-    strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+    char rootpath[MAXROOTURLLEN]="";
+    strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, &lid);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, &lid);
@@ -838,7 +840,7 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
 
     int fd, oflag;
     struct stat xrdfile, cnsfile;
-    char rootpath[1024];
+    char rootpath[MAXROOTURLLEN];
 
     fd = (int) fi->fh;
     XrdFfsWcache_flush(fd);
@@ -860,8 +862,8 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
     char *lasts_xattr[256], *lasts_tokens[128];
 
     rootpath[0]='\0';
-    strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+    strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 /*
  * Get xrootd token info from data nodes. And set the token info on CNS
  */
@@ -893,14 +895,14 @@ static int xrootdfs_release(const char *path, struct fuse_file_info *fi)
     }
 
     rootpath[0]='\0';
-    strcat(rootpath,xrootdfs.cns);
-    strcat(rootpath,path);
+    strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
     if (xrdtoken[0] != '\0' && strstr(path,"?oss.cgroup=") == NULL)
     {
-        strcat(rootpath,"?oss.cgroup=");
-        strcat(rootpath,xrdtoken);
+        strncat(rootpath,"?oss.cgroup=", MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,xrdtoken, MAXROOTURLLEN - strlen(rootpath) -1);
     }
 
     if (XrdFfsPosix_stat(rootpath,&cnsfile) == -1)
@@ -975,21 +977,21 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
                     size_t size)
 {
     int xattrlen;
-    char rootpath[1024]="";
-    char rooturl[1024]="";
+    char rootpath[MAXROOTURLLEN]="";
+    char rooturl[MAXROOTURLLEN]="";
 
     if (!strcmp(name,"xroot.url"))
     {
         errno = 0;
-        strcat(rootpath,xrootdfs.rdr);
-        strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
 //        XrdFfsMisc_get_current_url(rootpath, rooturl);
-        strcat(rooturl, rootpath);
+        strcpy(rooturl, rootpath);
 
         if (size == 0)
             return strlen(rooturl);
-        else if (size >= strlen(rooturl)) 
+        else if (size > strlen(rooturl)) // check the size to make sure strcat(value, rooturl) is safe
         {
             size = strlen(rooturl);
             if (size != 0) 
@@ -1018,7 +1020,7 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
             free(hostlist);
             return xattrlen;
         }
-        else if (size >= strlen(hostlist))
+        else if (size > strlen(hostlist))
         {
             size = strlen(hostlist);
             if (size != 0)
@@ -1045,7 +1047,7 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
 
         if (size == 0)
             return strlen(nworkers);
-        else if (size >= strlen(nworkers))
+        else if (size > strlen(nworkers))
         {
             size = strlen(nworkers);
             if (size != 0)
@@ -1063,9 +1065,9 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
     }
     else if (!strcmp(name, "xrootdfs.file.permission"))
     {
-        char xattr[256];
-        strcat(rootpath,xrootdfs.rdr);
-        strcat(rootpath,path);
+        char xattr[256]="";
+        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+        strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
         XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
         XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);
@@ -1073,20 +1075,25 @@ static int xrootdfs_getxattr(const char *path, const char *name, char *value,
         xattrlen = XrdFfsPosix_getxattr(rootpath, "xroot.xattr.ofs.ap", xattr, 255);
         if (size == 0) 
             return xattrlen;
-        else
+        else if (size > (size_t)xattrlen)
+        {
+            strncpy(value, xattr, size);
             size = xattrlen;
-
-        strncpy(value, xattr, size);
-        value[size] = '\0';
-       
-        return size;
+            value[size] = '\0';
+            return size;
+        }
+        else
+        {
+            errno = ERANGE;
+            return -1;
+        }
     }
 
     if (xrootdfs.cns != NULL)
-        strcat(rootpath,xrootdfs.cns);
+        strncat(rootpath,xrootdfs.cns, MAXROOTURLLEN - strlen(rootpath) -1);
     else
-        strcat(rootpath,xrootdfs.rdr);
-    strcat(rootpath,path);
+        strncat(rootpath,xrootdfs.rdr, MAXROOTURLLEN - strlen(rootpath) -1);
+    strncat(rootpath,path, MAXROOTURLLEN - strlen(rootpath) -1);
 
     XrdFfsMisc_xrd_secsss_register(fuse_get_context()->uid, fuse_get_context()->gid, 0);
     XrdFfsMisc_xrd_secsss_editurl(rootpath, fuse_get_context()->uid, 0);

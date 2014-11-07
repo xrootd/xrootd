@@ -58,6 +58,8 @@
   extern "C" {
 #endif
 
+#define MAXROOTURLLEN 1024 // this is also defined in other files
+
 #define nXrdConnPerUsr 8;
 short iXrdConnPerUsr = 0;
 pthread_mutex_t url_mlock;
@@ -105,8 +107,8 @@ int XrdFfsMisc_get_all_urls_real(const char *oldurl, char **newurls, const int n
     if (!adm.isOK() || !(uVec = adm.FanOut(rval))) return -1;
 
     if (rval > nnodes) rval = -1;
-       else for (i = 0; i < rval; i++)
-                {strcpy(newurls[i], uVec[i].GetURL().c_str());}
+       else for (i = 0; i < rval; i++) 
+              { strncpy(newurls[i], uVec[i].GetURL().c_str(), MAXROOTURLLEN -1); newurls[i][MAXROOTURLLEN -1] = '\0'; }
 
     delete [] uVec;
     return rval;
@@ -180,7 +182,7 @@ int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes
         for (i = 0; i < XrdFfsMiscNcachedurls; i++)
             if (XrdFfsMiscUrlcache[i] != NULL) free(XrdFfsMiscUrlcache[i]);
         for (i = 0; i < XrdFfs_MAX_NUM_NODES; i++)
-            XrdFfsMiscUrlcache[i] = (char*) malloc(1024);
+            XrdFfsMiscUrlcache[i] = (char*) malloc(MAXROOTURLLEN);
         
         XrdFfsMiscUrlcachetime = currtime;
         strcpy(XrdFfsMiscCururl, oldurl);
@@ -192,8 +194,9 @@ int XrdFfsMisc_get_all_urls(const char *oldurl, char **newurls, const int nnodes
     nurls = XrdFfsMiscNcachedurls;
     for (i = 0; i < nurls; i++)
     {
-        newurls[i] = (char*) malloc(1024);
-        strcpy(newurls[i], XrdFfsMiscUrlcache[i]);
+        newurls[i] = (char*) malloc(MAXROOTURLLEN);
+        strncpy(newurls[i], XrdFfsMiscUrlcache[i], MAXROOTURLLEN -1);
+        newurls[i][MAXROOTURLLEN-1] = '\0';
     }
 
     pthread_mutex_unlock(&XrdFfsMiscUrlcache_mutex);
