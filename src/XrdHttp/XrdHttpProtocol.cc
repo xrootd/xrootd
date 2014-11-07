@@ -1065,10 +1065,10 @@ int XrdHttpProtocol::SendData(char *body, int bodylen) {
 /// Header_to_add is a set of header lines each CRLF terminated to be added to the header
 /// Returns 0 if OK
 
-int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, int bodylen) {
+int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, char *body, long long bodylen) {
   char outhdr[512];
   char b[16];
-  int l;
+  long long l;
   const char *crlf = "\r\n";
   outhdr[0] = '\0';
 
@@ -1099,7 +1099,7 @@ int XrdHttpProtocol::SendSimpleResp(int code, char *desc, char *header_to_add, c
     else l = 0;
   }
 
-  sprintf(b, "%d", l);
+  sprintf(b, "%lld", l);
   strcat(outhdr, "Content-Length: ");
   strcat(outhdr, b);
   strncat(outhdr, crlf, 2);
